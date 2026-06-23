@@ -242,30 +242,79 @@
                             <p class="text-muted small mb-3">Add multiple report logos and assign them names to easily reference them in reports.</p>
                             
                             @foreach($reportLogos as $index => $logo)
-                                <div class="row align-items-center mb-3 p-3 border rounded bg-light">
-                                    <div class="col-md-4">
-                                        <div class="form-group mb-0">
-                                            <label class="form-label small">Logo Name <span class="text-danger">*</span></label>
-                                            <input type="text" wire:model="reportLogos.{{ $index }}.name" class="form-control form-control-sm @error('reportLogos.'.$index.'.name') is-invalid @enderror" placeholder="e.g. GCLA_02">
-                                            @error('reportLogos.'.$index.'.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <div class="mb-3 p-3 border rounded bg-light">
+                                    {{-- Row 1: Name + File + Preview + Delete --}}
+                                    <div class="row align-items-center mb-2">
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label small font-weight-bold">Logo Name <span class="text-danger">*</span></label>
+                                                <input type="text" wire:model="reportLogos.{{ $index }}.name" class="form-control form-control-sm @error('reportLogos.'.$index.'.name') is-invalid @enderror" placeholder="e.g. GCLA_02">
+                                                @error('reportLogos.'.$index.'.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label small font-weight-bold">Upload File</label>
+                                                <input type="file" wire:model="reportLogos.{{ $index }}.file" class="form-control form-control-sm @error('reportLogos.'.$index.'.file') is-invalid @enderror">
+                                                @error('reportLogos.'.$index.'.file') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 text-center">
+                                            @if($logo['existing_path'] && !$logo['file'])
+                                                <img src="{{ $logo['existing_path'] }}" alt="Logo" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">
+                                            @endif
+                                        </div>
+                                        <div class="col-md-1 text-right">
+                                            <button type="button" class="btn btn-sm btn-danger" wire:click="removeReportLogo({{ $index }})" title="Remove">
+                                                <i class="mdi mdi-delete"></i>
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="col-md-5">
-                                        <div class="form-group mb-0">
-                                            <label class="form-label small">Upload File</label>
-                                            <input type="file" wire:model="reportLogos.{{ $index }}.file" class="form-control form-control-sm @error('reportLogos.'.$index.'.file') is-invalid @enderror">
-                                            @error('reportLogos.'.$index.'.file') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    {{-- Row 2: Placement controls --}}
+                                    <div class="row align-items-end mt-1">
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label small font-weight-bold">Vertical Position</label>
+                                                <select wire:model="reportLogos.{{ $index }}.position_vertical" class="form-control form-control-sm">
+                                                    <option value="top">Top</option>
+                                                    <option value="bottom">Bottom</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-md-2 text-center">
-                                        @if($logo['existing_path'] && !$logo['file'])
-                                            <img src="{{ $logo['existing_path'] }}" alt="Logo" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">
-                                        @endif
-                                    </div>
-                                    <div class="col-md-1 text-right">
-                                        <button type="button" class="btn btn-sm btn-danger" wire:click="removeReportLogo({{ $index }})" title="Remove">
-                                            <i class="mdi mdi-delete"></i>
-                                        </button>
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label small font-weight-bold">Horizontal Position</label>
+                                                <select wire:model="reportLogos.{{ $index }}.position_horizontal" class="form-control form-control-sm">
+                                                    <option value="left">Left</option>
+                                                    <option value="right">Right</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label small font-weight-bold">Used In Report</label>
+                                                <select wire:model="reportLogos.{{ $index }}.report_type" class="form-control form-control-sm">
+                                                    <option value="">— None —</option>
+                                                    <option value="test_request_report">Laboratory Test Report</option>
+                                                </select>
+                                                <small class="text-muted">Logo will be placed on this report</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label small font-weight-bold d-block">Show on Every Page</label>
+                                                <div class="d-flex align-items-center mt-1" style="gap:12px;">
+                                                    <div class="custom-control custom-radio custom-control-inline">
+                                                        <input type="radio" class="custom-control-input" id="sep_{{ $index }}_yes" wire:model="reportLogos.{{ $index }}.show_on_every_page" value="1">
+                                                        <label class="custom-control-label" for="sep_{{ $index }}_yes">Yes</label>
+                                                    </div>
+                                                    <div class="custom-control custom-radio custom-control-inline">
+                                                        <input type="radio" class="custom-control-input" id="sep_{{ $index }}_no" wire:model="reportLogos.{{ $index }}.show_on_every_page" value="0">
+                                                        <label class="custom-control-label" for="sep_{{ $index }}_no">No (first page only)</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach

@@ -119,6 +119,10 @@ class CompanyManager extends Component
                 'name' => $logo->name,
                 'existing_path' => $logo->logo_path,
                 'file' => null,
+                'position_vertical' => $logo->position_vertical ?? 'top',
+                'position_horizontal' => $logo->position_horizontal ?? 'left',
+                'show_on_every_page' => $logo->show_on_every_page ?? true,
+                'report_type' => $logo->report_type ?? '',
             ];
         })->toArray();
         $this->reportLogosToDelete = [];
@@ -211,18 +215,19 @@ class CompanyManager extends Component
             }
 
             if ($logoPath) {
+                $placement = [
+                    'company_id'          => $company->id,
+                    'name'                => $logoData['name'],
+                    'logo_path'           => $logoPath,
+                    'position_vertical'   => $logoData['position_vertical'] ?? 'top',
+                    'position_horizontal' => $logoData['position_horizontal'] ?? 'left',
+                    'show_on_every_page'  => isset($logoData['show_on_every_page']) ? (bool) $logoData['show_on_every_page'] : true,
+                    'report_type'         => $logoData['report_type'] ?? null,
+                ];
                 if (empty($logoData['id'])) {
-                    \App\CompanyReportLogo::create([
-                        'company_id' => $company->id,
-                        'name' => $logoData['name'],
-                        'logo_path' => $logoPath,
-                    ]);
+                    \App\CompanyReportLogo::create($placement);
                 } else {
-                    \App\CompanyReportLogo::where('id', $logoData['id'])->update([
-                        'company_id' => $company->id,
-                        'name' => $logoData['name'],
-                        'logo_path' => $logoPath,
-                    ]);
+                    \App\CompanyReportLogo::where('id', $logoData['id'])->update($placement);
                 }
             }
         }
@@ -287,6 +292,10 @@ class CompanyManager extends Component
             'name' => '',
             'existing_path' => null,
             'file' => null,
+            'position_vertical' => 'top',
+            'position_horizontal' => 'left',
+            'show_on_every_page' => true,
+            'report_type' => '',
         ];
     }
 

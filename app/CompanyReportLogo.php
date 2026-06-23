@@ -16,6 +16,14 @@ class CompanyReportLogo extends Model
         'company_id',
         'name',
         'logo_path',
+        'position_vertical',
+        'position_horizontal',
+        'show_on_every_page',
+        'report_type',
+    ];
+
+    protected $casts = [
+        'show_on_every_page' => 'boolean',
     ];
 
     public function company()

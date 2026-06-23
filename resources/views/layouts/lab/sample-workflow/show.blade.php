@@ -771,6 +771,9 @@
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal" title="Generate Test Request Report"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span>
+				</li>
 
 				@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
 				<li>
@@ -8871,5 +8874,7 @@
 		</div>
 	</div>
 </div>
+
+@include('layouts.lab.sample-workflow.modals.process-test-request-report-modal', ['batch' => $batch])
 
 @endsection

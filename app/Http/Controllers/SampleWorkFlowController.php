@@ -6077,6 +6077,529 @@ class SampleWorkFlowController extends Controller
         return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides', 'result_presentation'));
     }
 
+    public function processTestRequestReport(Request $request)
+    {
+        $request->validate([
+            'batch_id' => ['required', 'string'],
+            'language' => ['required', 'in:en,ar,pt'],
+            'notes'    => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $batch = SampleHeader::find($request->batch_id);
+        if (!$batch) {
+            return redirect()->back()->with('error', 'Batch not found.');
+        }
+
+        // Bump revision sequence
+        $batch->test_request_report_sequence = ($batch->test_request_report_sequence ?? 0) + 1;
+        $batch->save();
+
+        // Record revision
+        \App\Models\TestRequestReportRevision::create([
+            'batch_id'     => $batch->id,
+            'revision_no'  => $batch->test_request_report_sequence,
+            'language'     => $request->language,
+            'notes'        => $request->notes,
+            'generated_by' => auth()->id(),
+        ]);
+
+        return redirect()->route('generateTestRequestReport', [
+            'batch_id' => $batch->id,
+            'seq'      => $batch->test_request_report_sequence,
+            'lang'     => $request->language,
+        ]);
+    }
+
+    public function deliverTestRequestReport(Request $request)
+    {
+        $request->validate([
+            'batch_id'    => ['required', 'string'],
+            'channels'    => ['required', 'array', 'min:1'],
+            'channels.*'  => ['in:email,whatsapp,portal'],
+            'contact_ids' => ['required', 'array', 'min:1'],
+            'contact_ids.*' => ['string'],
+            'notes'       => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $batch = SampleHeader::with(['customer'])->find($request->batch_id);
+        if (!$batch) {
+            return response()->json(['success' => false, 'message' => 'Batch not found.'], 404);
+        }
+
+        $company    = getActiveCompany();
+        $companyName = $company->name ?? config('app.name', 'Laboratory');
+        $revisionNo  = $batch->test_request_report_sequence ?? 1;
+        $jobNumber   = $batch->batch_code;
+        $reportNumber = $jobNumber . '-R' . str_pad($revisionNo, 2, '0', STR_PAD_LEFT);
+
+        // Build download URL — prefer online URL, then storage URL
+        $downloadUrl = null;
+        if (!empty($batch->batch_report_online_url)) {
+            $downloadUrl = $batch->batch_report_online_url;
+        } elseif (!empty($batch->batch_report_url)) {
+            $downloadUrl = url('/storage' . $batch->batch_report_url);
+        }
+        // Fallback: link to the generate route so they can view it
+        if (!$downloadUrl) {
+            $downloadUrl = route('generateTestRequestReport', [
+                'batch_id' => $batch->id,
+                'lang'     => $request->lang ?? 'en',
+            ]);
+        }
+
+        $channels    = $request->channels;
+        $contactIds  = $request->contact_ids;
+        $notes       = $request->notes;
+        $customerId  = $batch->crm_customer_id;
+        $results     = [];
+
+        // Load requested contacts
+        $contacts = \App\Models\CRM\CustomerContact::whereIn('id', $contactIds)->get()->keyBy('id');
+
+        foreach ($contactIds as $contactId) {
+            $contact = $contacts->get($contactId);
+            if (!$contact) continue;
+
+            $contactName  = $contact->name ?? 'Customer';
+            $contactEmail = $contact->email ?? null;
+            $contactPhone = $contact->mobile ?? $contact->telephone ?? null;
+
+            foreach ($channels as $channel) {
+                $status = 'sent';
+                $error  = null;
+
+                try {
+                    if ($channel === 'email') {
+                        if (!$contactEmail) {
+                            $status = 'failed';
+                            $error  = 'No email address on file for this contact.';
+                        } else {
+                            \Illuminate\Support\Facades\Mail::to($contactEmail)->send(
+                                new \App\Mail\TestRequestReportMail(
+                                    contactName: $contactName,
+                                    reportNumber: $reportNumber,
+                                    companyName: $companyName,
+                                    downloadUrl: $downloadUrl,
+                                    notes: $notes,
+                                )
+                            );
+                        }
+                    } elseif ($channel === 'whatsapp') {
+                        if (!$contactPhone) {
+                            $status = 'failed';
+                            $error  = 'No mobile/phone number on file for this contact.';
+                        } else {
+                            $tenantId = $company->id ?? config('app.tenant_id', 'default');
+                            $account  = \App\Models\Messaging\TenantWhatsAppAccount::where('tenant_id', $tenantId)
+                                ->where('active', true)->first();
+
+                            if (!$account) {
+                                $status = 'failed';
+                                $error  = 'No active WhatsApp account configured for this tenant.';
+                            } else {
+                                // Format phone — strip non-digits, ensure international format
+                                $phone = preg_replace('/\D/', '', $contactPhone);
+                                if (!str_starts_with($phone, '+')) {
+                                    $phone = $phone; // kept raw digits; Meta accepts without +
+                                }
+
+                                $payload = [
+                                    'messaging_product' => 'whatsapp',
+                                    'to'                => $phone,
+                                    'type'              => 'text',
+                                    'text'              => [
+                                        'body' => "Hello {$contactName},\n\nYour Laboratory Test Report *{$reportNumber}* is ready.\n\nDownload: {$downloadUrl}\n\n{$companyName}",
+                                    ],
+                                ];
+
+                                $outbound = \App\Models\Messaging\OutboundMessage::create([
+                                    'tenant_id'     => $tenantId,
+                                    'event_code'    => 'test_request_report',
+                                    'recipient'     => $phone,
+                                    'payload_json'  => $payload,
+                                    'status'        => 'queued',
+                                    'attempts'      => 0,
+                                ]);
+
+                                \App\Jobs\Messaging\SendWhatsAppMessageJob::dispatch($tenantId, $outbound->id);
+                            }
+                        }
+                    } elseif ($channel === 'portal') {
+                        // Push a CustomerNotification so it surfaces in the portal Reports page
+                        if ($customerId) {
+                            \App\Models\CRM\CustomerNotification::create([
+                                'customer_id'              => $customerId,
+                                'entity_type'              => \App\SampleHeader::class,
+                                'entity_id'                => $batch->id,
+                                'notification_type'        => 'Laboratory Test Report Ready',
+                                'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
+                            ]);
+                        }
+                        // Also mark batch report online URL so portal picks it up in the Reports list
+                        // (only set it if it isn't already set, to avoid overwriting a real URL)
+                        if (empty($batch->batch_report_online_url) && $downloadUrl) {
+                            $batch->batch_report_online_url = $downloadUrl;
+                            $batch->save();
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $status = 'failed';
+                    $error  = $e->getMessage();
+                    \Illuminate\Support\Facades\Log::error('TestRequestReport delivery failed', [
+                        'batch_id' => $batch->id,
+                        'channel'  => $channel,
+                        'contact'  => $contactId,
+                        'error'    => $e->getMessage(),
+                    ]);
+                }
+
+                // Log delivery
+                \App\Models\TestRequestReportDelivery::create([
+                    'batch_id'          => $batch->id,
+                    'revision_no'       => $revisionNo,
+                    'channel'           => $channel,
+                    'recipient_name'    => $contactName,
+                    'recipient_contact' => $channel === 'email' ? $contactEmail : ($channel === 'whatsapp' ? $contactPhone : null),
+                    'status'            => $status,
+                    'error'             => $error,
+                    'sent_by'           => auth()->id(),
+                ]);
+
+                $results[] = [
+                    'channel'  => $channel,
+                    'contact'  => $contactName,
+                    'status'   => $status,
+                    'error'    => $error,
+                ];
+            }
+        }
+
+        $failCount = count(array_filter($results, fn($r) => $r['status'] === 'failed'));
+        $sentCount = count($results) - $failCount;
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$sentCount} delivery(ies) queued successfully." . ($failCount ? " {$failCount} failed." : ''),
+            'results' => $results,
+        ]);
+    }
+
+    public function generateTestRequestReport(Request $request)
+    {
+        $batch = SampleHeader::with(['customer', 'sample_type', 'samples'])->find($request->batch_id);
+
+        if (!$batch) {
+            return redirect()->back()->with('error', 'Batch not found.');
+        }
+
+        // Only increment if not coming from processTestRequestReport (which already bumped it)
+        if (!$request->has('seq')) {
+            $batch->test_request_report_sequence = ($batch->test_request_report_sequence ?? 0) + 1;
+            $batch->save();
+        }
+
+        $sequence     = $batch->test_request_report_sequence ?: 1;
+        $jobNumber    = $batch->batch_code;
+        $reportNumber = $jobNumber . '-R' . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+
+        // Approver at Sample Approval stage
+        $approver = BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Approval')
+            ->where('status', 1)
+            ->orderBy('approval_date', 'desc')
+            ->first();
+
+        $approverUser  = $approver ? User::find($approver->user_id) : null;
+        $approverRole  = $approverUser ? ($approverUser->designation ?? 'Laboratory Manager') : 'Laboratory Manager';
+        $approvalDate  = $approver && $approver->approval_date
+            ? date('d/m/Y', strtotime($approver->approval_date))
+            : date('d/m/Y');
+
+        $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
+
+        $analysisDate = SampleAnalysisDates::where('sample_header_id', $batch->id)
+            ->orderBy('start_analysis_date', 'ASC')
+            ->first();
+
+        // Pull extra fields from first sample_detail row
+        $firstDetail = \App\SampleDetails::where('sample_header_id', $batch->id)->first();
+        $mfgDate    = $firstDetail && $firstDetail->mfg_date    ? date('d/m/Y', strtotime($firstDetail->mfg_date))    : '-';
+        $expiryDate = $firstDetail && $firstDetail->expiry_date ? date('d/m/Y', strtotime($firstDetail->expiry_date)) : '-';
+        $batchLotNo = $firstDetail->batch_lot_no ?? '-';
+        $sampleWeight = $firstDetail->quantity ?? '-';
+
+        // Pull form_data fields from linked TestRequestFormInstance
+        $formData = [];
+        if ($batch->submission_form_instance_id) {
+            $trf = \App\Models\TestRequestFormInstance::where('submission_form_instance_id', $batch->submission_form_instance_id)->first();
+            if ($trf && $trf->form_data) {
+                $formData = $trf->form_data;
+            }
+        }
+        // Try to find from sample_rows in form_data
+        $sampleRows = $formData['sample_rows'] ?? [];
+        $firstRow   = is_array($sampleRows) && !empty($sampleRows) ? reset($sampleRows) : [];
+
+        $containerType      = $firstRow['container_type'] ?? ($formData['container_type'] ?? '-');
+        $sampleTemperature  = $firstRow['sample_temp'] ?? ($formData['sample_temperature'] ?? $batch->condition_quality_sample ?? '-');
+        $samplePreservation = $firstRow['preservation'] ?? ($formData['sample_preservation'] ?? $firstRow['storage_condition'] ?? '-');
+        // Weight fallback: form_data qty or sample_details quantity
+        if ($sampleWeight === '-' || !$sampleWeight) {
+            $sampleWeight = $firstRow['qty'] ?? ($formData['weight'] ?? '-');
+        }
+        // Page count: 1 base + 1 for each sample with results (min 1)
+        $totalPages = max(1, $samples->count() + 1);
+
+        $company  = getActiveCompany();
+        $customer = $batch->customer;
+
+        // Load all report logos assigned to test_request_report, keyed by "vertical_horizontal"
+        // e.g. 'top_left', 'top_right', 'bottom_left', 'bottom_right'
+        $resolveLogoDataUri = function (string $path): string {
+            $candidates = [];
+            if (!str_starts_with($path, 'http')) {
+                $candidates[] = public_path($path);
+                $candidates[] = public_path('storage/' . ltrim($path, '/'));
+                $candidates[] = storage_path('app/public/' . ltrim(str_replace('/storage/', '', $path), '/'));
+            }
+            foreach ($candidates as $p) {
+                if (is_readable($p)) {
+                    $ext  = strtolower(pathinfo($p, PATHINFO_EXTENSION));
+                    $mime = in_array($ext, ['png']) ? 'image/png' : (in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png');
+                    return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($p));
+                }
+            }
+            return '';
+        };
+
+        // Resolve the company logo (used in the signature section)
+        $companyLogo = '';
+        if ($company && !empty($company->logo)) {
+            $companyLogo = $resolveLogoDataUri($company->logo);
+        }
+        if (!$companyLogo) {
+            foreach (['images/logo-report.png', 'images/company_logo.png'] as $_p) {
+                $companyLogo = $resolveLogoDataUri($_p);
+                if ($companyLogo) break;
+            }
+        }
+
+        // $reportLogos = ['top_left' => [...], 'top_right' => [...], ...]
+        $reportLogos = [];
+        $reportLogo  = ''; // legacy single-logo fallback
+
+        if ($company) {
+            $assignedLogos = $company->reportLogos()
+                ->where('report_type', 'test_request_report')
+                ->get();
+
+            foreach ($assignedLogos as $logo) {
+                if (empty($logo->logo_path)) {
+                    continue;
+                }
+                $dataUri = $resolveLogoDataUri($logo->logo_path);
+                if (!$dataUri) {
+                    continue;
+                }
+                $key = ($logo->position_vertical ?? 'top') . '_' . ($logo->position_horizontal ?? 'left');
+                $reportLogos[$key] = [
+                    'src'              => $dataUri,
+                    'show_on_every_page' => (bool) ($logo->show_on_every_page ?? true),
+                ];
+                if (!$reportLogo) {
+                    $reportLogo = $dataUri; // first logo used as fallback for sig section
+                }
+            }
+
+            if (!$reportLogo) {
+                // Fallback: company logo when no report logos assigned
+                $fallbackCandidates = array_filter([
+                    $company->logo ?? null,
+                    'images/logo-report.png',
+                    'images/company_logo.png',
+                ]);
+                foreach ($fallbackCandidates as $p) {
+                    $result = $resolveLogoDataUri($p);
+                    if ($result) {
+                        $reportLogo = $result;
+                        // Treat the fallback as top-left
+                        $reportLogos['top_left'] = ['src' => $result, 'show_on_every_page' => true];
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Language & translations
+        $language = in_array($request->lang, ['en', 'ar', 'pt']) ? $request->lang : 'en';
+        $isRTL    = ($language === 'ar');
+
+        $labels = match ($language) {
+            'ar' => [
+                'report_title'        => 'تقرير الاختبار المعملي',
+                'certificate_no'      => 'رقم الشهادة',
+                'page_of'             => 'صفحة %d من %d',
+                'attention'           => 'الاهتمام',
+                'client'              => 'العميل',
+                'address'             => 'العنوان والموقع',
+                'report_no'           => 'رقم التقرير',
+                'sample_no'           => 'رقم العينة',
+                'date_received'       => 'تاريخ الاستلام',
+                'date_reported'       => 'تاريخ التقرير',
+                'container_type'      => 'نوع الحاوية',
+                'sample_description'  => 'وصف العينة',
+                'weight'              => 'الوزن',
+                'sampled_by'          => 'أخذ العينة بواسطة',
+                'sample_temperature'  => 'درجة حرارة العينة',
+                'sample_preservation' => 'حفظ العينة',
+                'production_date'     => 'تاريخ الإنتاج',
+                'expiry_date'         => 'تاريخ الانتهاء',
+                'lot_no'              => 'رقم الدُفعة',
+                'no_of_pages'         => 'عدد الصفحات',
+                'date_of_analysis'    => 'تاريخ التحليل',
+                'sample_reference'    => 'مرجع العينة',
+                'sample_point'        => 'نقطة العينة',
+                'condition'           => 'الحالة',
+                'analyte'             => 'المادة المحللة',
+                'results'             => 'النتائج',
+                'unit'                => 'الوحدة',
+                'specification'       => 'المواصفة',
+                'mu_percent'          => 'عدم اليقين %',
+                'method'              => 'طريقة التحليل',
+                'no_results'          => 'لا توجد نتائج لهذه العينة.',
+                'no_samples'          => 'لم يتم العثور على عينات لهذه الدفعة.',
+                'analysis_conducted'  => 'التحليل بواسطة',
+                'test_method_dev'     => 'انحراف طريقة الاختبار: لا يوجد',
+                'signed_behalf'       => 'موقّع لصالح',
+                'no_signature'        => 'لا يوجد توقيع',
+                'results_relate'      => 'تتعلق نتائج الاختبار بالعينات التي تم اختبارها فقط.',
+                'no_reproduce'        => 'لا يجوز إعادة إنتاج هذا التقرير إلا كاملاً بإذن كتابي من المختبر.',
+                'end_of_text'         => 'نهاية النص-',
+                'issued_on'           => 'صدر في',
+                'disclaimer'          => 'إخلاء المسؤولية: تمت اختبار جميع العينات في مختبر طرف ثالث',
+            ],
+            'pt' => [
+                'report_title'        => 'RELATÓRIO DE ENSAIO LABORATORIAL',
+                'certificate_no'      => 'Certificado n.º',
+                'page_of'             => 'Página %d de %d',
+                'attention'           => 'Atenção',
+                'client'              => 'Cliente',
+                'address'             => 'Endereço e Localização',
+                'report_no'           => 'N.º do Relatório',
+                'sample_no'           => 'N.º da Amostra',
+                'date_received'       => 'Data de Receção',
+                'date_reported'       => 'Data do Relatório',
+                'container_type'      => 'Tipo de Recipiente',
+                'sample_description'  => 'Descrição da Amostra',
+                'weight'              => 'Peso',
+                'sampled_by'          => 'Amostrado Por',
+                'sample_temperature'  => 'Temperatura da Amostra',
+                'sample_preservation' => 'Conservação da Amostra',
+                'production_date'     => 'Data de Produção',
+                'expiry_date'         => 'Data de Validade',
+                'lot_no'              => 'N.º de Lote',
+                'no_of_pages'         => 'N.º de Páginas',
+                'date_of_analysis'    => 'Data de Análise',
+                'sample_reference'    => 'Referência da Amostra',
+                'sample_point'        => 'Ponto de Amostragem',
+                'condition'           => 'Condição',
+                'analyte'             => 'Analito',
+                'results'             => 'Resultados',
+                'unit'                => 'Unidade',
+                'specification'       => 'Especificação',
+                'mu_percent'          => 'I.M.%',
+                'method'              => 'Método de Análise',
+                'no_results'          => 'Nenhum resultado registado para esta amostra.',
+                'no_samples'          => 'Nenhuma amostra encontrada para este lote.',
+                'analysis_conducted'  => 'Análise conduzida por',
+                'test_method_dev'     => 'Desvio do método de ensaio: Nenhum',
+                'signed_behalf'       => 'Assinado em nome de',
+                'no_signature'        => 'Sem assinatura registada',
+                'results_relate'      => 'Os resultados dos ensaios referem-se apenas às amostras ensaiadas.',
+                'no_reproduce'        => 'Este relatório não pode ser reproduzido, exceto na íntegra, sem aprovação escrita do Laboratório.',
+                'end_of_text'         => '-Fim do texto',
+                'issued_on'           => 'Emitido em',
+                'disclaimer'          => 'AVISO: TODAS AS AMOSTRAS FORAM TESTADAS NUM LABORATÓRIO EXTERNO',
+            ],
+            default => [
+                'report_title'        => 'LABORATORY TEST REPORT',
+                'certificate_no'      => 'Certificate no.',
+                'page_of'             => 'Page %d of %d',
+                'attention'           => 'Attention',
+                'client'              => 'Client',
+                'address'             => 'Address and Location',
+                'report_no'           => 'Report No',
+                'sample_no'           => 'Sample No.',
+                'date_received'       => 'Date received',
+                'date_reported'       => 'Date Reported',
+                'container_type'      => 'Container Type',
+                'sample_description'  => 'Sample Description',
+                'weight'              => 'Weight',
+                'sampled_by'          => 'Sampled By',
+                'sample_temperature'  => 'Sample Temperature',
+                'sample_preservation' => 'Sample Preservation',
+                'production_date'     => 'Production Date',
+                'expiry_date'         => 'Expiry Date',
+                'lot_no'              => 'Lot No.',
+                'no_of_pages'         => 'No. of pages',
+                'date_of_analysis'    => 'Date of Analysis',
+                'sample_reference'    => 'Sample Reference',
+                'sample_point'        => 'Sample Point',
+                'condition'           => 'Condition',
+                'analyte'             => 'Analyte',
+                'results'             => 'Results',
+                'unit'                => 'Unit',
+                'specification'       => 'Specification',
+                'mu_percent'          => 'M.U%',
+                'method'              => 'Method of Analysis',
+                'no_results'          => 'No results captured for this sample.',
+                'no_samples'          => 'No samples found for this batch.',
+                'analysis_conducted'  => 'Analysis conducted by',
+                'test_method_dev'     => 'Test method deviation: None',
+                'signed_behalf'       => 'Signed for and on behalf of',
+                'no_signature'        => 'No signature on file',
+                'results_relate'      => 'Test results relate only to the samples tested.',
+                'no_reproduce'        => 'This report shall not be reproduced except in full, without the written approval of the Laboratory.',
+                'end_of_text'         => '-End of text',
+                'issued_on'           => 'Issued on',
+                'disclaimer'          => 'DISCLAIMER: ALL THE SAMPLES WERE TESTED AT A THIRD-PARTY LABORATORY',
+            ],
+        };
+
+        // Revision history for this batch
+        $revisions = \App\Models\TestRequestReportRevision::where('batch_id', $batch->id)
+            ->orderByDesc('revision_no')
+            ->get();
+
+        return view('layouts.lab.sample-workflow.report-formats.test_request_report', compact(
+            'batch',
+            'samples',
+            'reportNumber',
+            'approver',
+            'approverUser',
+            'approverRole',
+            'approvalDate',
+            'analysisDate',
+            'company',
+            'customer',
+            'reportLogo',
+            'reportLogos',
+            'companyLogo',
+            'mfgDate',
+            'expiryDate',
+            'batchLotNo',
+            'sampleWeight',
+            'containerType',
+            'sampleTemperature',
+            'samplePreservation',
+            'totalPages',
+            'language',
+            'labels',
+            'revisions',
+            'isRTL'
+        ));
+    }
+
     public function getShowBatchCOA($batch_code, $format)
     {
         $batch = SampleHeader::where('batch_code', $batch_code)->first();

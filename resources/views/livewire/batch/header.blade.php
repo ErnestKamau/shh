@@ -345,6 +345,7 @@
                                             <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i
                                                         class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
                                         @endif
+                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span></li>
                                         @if(in_array($batch->status, ["Sample Approval", "Reports for Collection", "Reports In Payment"]))
                                             <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                                     data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
@@ -1155,6 +1156,8 @@
             </div>
         </div>
     @endif
+
+    @include('layouts.lab.sample-workflow.modals.process-test-request-report-modal', ['batch' => $batch])
 </div>
 
 <script>
