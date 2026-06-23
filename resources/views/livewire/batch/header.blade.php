@@ -273,9 +273,9 @@
                                                 style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                                 Approval</span></li>
                                     @endif
-                                    <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
+                                    {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                             data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
-                                            Results</span></li>
+                                            Results</span></li> --}}
                                     @if($batch->invoice_number == '')
                                         <li><span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice"
                                                 data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
@@ -285,9 +285,9 @@
 
                                 @if(isset($batch->status) && in_array($batch->status, ["Samples In Lab", "Sample Verification", "Sample Approval"]) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
                                     @if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2 && $status == 'Sample Verification')
-                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
+                                        {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                                 data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
-                                                Results</span></li>
+                                                Results</span></li> --}}
                                     @endif
                                     @if((auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds)) && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
                                         <li><span class="btn btn-sm dropdown-item" wire:click="openApprovalModal"
@@ -347,9 +347,9 @@
                                         @endif
                                         <li><span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span></li>
                                         @if(in_array($batch->status, ["Sample Approval", "Reports for Collection", "Reports In Payment"]))
-                                            <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
+                                            {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                                     data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
-                                                    Results</span></li>
+                                                    Results</span></li> --}}
                                         @endif
                                         @if($batch->batch_report_url != '')
                                             @if($batch->is_qc_batch == 0)
