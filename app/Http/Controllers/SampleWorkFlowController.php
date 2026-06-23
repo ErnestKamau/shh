@@ -6117,6 +6117,67 @@ class SampleWorkFlowController extends Controller
         $customerId  = $batch->crm_customer_id;
         $results     = [];
 
+        // ── Portal channel: batch-level operation, run once before contact loop ──
+        if (in_array('portal', $channels) && $customerId) {
+            $portalStatus = 'sent';
+            $portalError  = null;
+
+            try {
+                // 1. Set the public report URL on the batch so the portal Reports query finds it
+                $batch->batch_report_online_url = $downloadUrl;
+
+                // 2. Mark status as Completed so it passes the portal Reports filter
+                $reportStatusValue = config('dashboard.report_status', 'Completed');
+                $batch->status = $reportStatusValue;
+
+                $batch->save();
+
+                // 3. Push a CustomerNotification (surfaces in portal Notifications bell)
+                \App\Models\CRM\CustomerNotification::create([
+                    'customer_id'              => $customerId,
+                    'entity_type'              => \App\SampleHeader::class,
+                    'entity_id'                => $batch->id,
+                    'notification_type'        => 'Laboratory Test Report Ready',
+                    'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
+                ]);
+
+                // 4. Bust dashboard cache so portal reflects the new report immediately
+                $cacheService = app(\App\Services\Dashboard\DashboardCacheService::class);
+                $cacheService->forgetCustomer($customerId);
+                $cacheService->forgetList('reports', $customerId);
+
+            } catch (\Throwable $e) {
+                $portalStatus = 'failed';
+                $portalError  = $e->getMessage();
+                \Illuminate\Support\Facades\Log::error('TestRequestReport portal delivery failed', [
+                    'batch_id' => $batch->id,
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+
+            // Log the portal delivery once
+            \App\Models\TestRequestReportDelivery::create([
+                'batch_id'          => $batch->id,
+                'revision_no'       => $revisionNo,
+                'channel'           => 'portal',
+                'recipient_name'    => 'Customer Portal',
+                'recipient_contact' => null,
+                'status'            => $portalStatus,
+                'error'             => $portalError,
+                'sent_by'           => auth()->id(),
+            ]);
+
+            $results[] = [
+                'channel' => 'portal',
+                'contact' => 'Customer Portal',
+                'status'  => $portalStatus,
+                'error'   => $portalError,
+            ];
+
+            // Remove portal from per-contact loop since it's already handled
+            $channels = array_filter($channels, fn($c) => $c !== 'portal');
+        }
+
         // Load requested contacts
         $contacts = \App\Models\CRM\CustomerContact::whereIn('id', $contactIds)->get()->keyBy('id');
 
@@ -6161,11 +6222,7 @@ class SampleWorkFlowController extends Controller
                                 $status = 'failed';
                                 $error  = 'No active WhatsApp account configured for this tenant.';
                             } else {
-                                // Format phone — strip non-digits, ensure international format
                                 $phone = preg_replace('/\D/', '', $contactPhone);
-                                if (!str_starts_with($phone, '+')) {
-                                    $phone = $phone; // kept raw digits; Meta accepts without +
-                                }
 
                                 $payload = [
                                     'messaging_product' => 'whatsapp',
@@ -6187,23 +6244,6 @@ class SampleWorkFlowController extends Controller
 
                                 \App\Jobs\Messaging\SendWhatsAppMessageJob::dispatch($tenantId, $outbound->id);
                             }
-                        }
-                    } elseif ($channel === 'portal') {
-                        // Push a CustomerNotification so it surfaces in the portal Reports page
-                        if ($customerId) {
-                            \App\Models\CRM\CustomerNotification::create([
-                                'customer_id'              => $customerId,
-                                'entity_type'              => \App\SampleHeader::class,
-                                'entity_id'                => $batch->id,
-                                'notification_type'        => 'Laboratory Test Report Ready',
-                                'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
-                            ]);
-                        }
-                        // Also mark batch report online URL so portal picks it up in the Reports list
-                        // (only set it if it isn't already set, to avoid overwriting a real URL)
-                        if (empty($batch->batch_report_online_url) && $downloadUrl) {
-                            $batch->batch_report_online_url = $downloadUrl;
-                            $batch->save();
                         }
                     }
                 } catch (\Throwable $e) {

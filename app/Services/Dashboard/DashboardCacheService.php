@@ -35,6 +35,13 @@ class DashboardCacheService
         );
     }
 
+    public function forgetList(string $type, string $customerId, int $pages = 5): void
+    {
+        for ($page = 1; $page <= $pages; $page++) {
+            Cache::store($this->store())->forget("dashboard:{$type}:{$customerId}:page:{$page}");
+        }
+    }
+
     public function forgetCustomer(string $customerId): void
     {
         $patterns = [
