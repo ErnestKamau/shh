@@ -14,6 +14,7 @@ use App\SampleAnalysisStage;
 use App\SampleAnalysisDates;
 use App\CapturedResult;
 use App\Result;
+use App\ReportingUnit;
 use App\AnalysisElements;
 use App\Analyte;
 use App\Models\Procedures\ProcedureTestKitRow;
@@ -22,11 +23,13 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
+use App\Services\ResultRemarkService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class Samples extends Component
 {
@@ -205,7 +208,7 @@ class Samples extends Component
     public $toastMessage = '';
     public $toastType = 'success'; // 'success' or 'danger'
 
-    protected $listeners = ['samplesUpdated' => '$refresh', 'refreshSamples' => '$refresh'];
+    protected $listeners = ['refreshSamples' => '$refresh'];
 
     public function mount(SampleHeader $batch)
     {
@@ -302,21 +305,22 @@ class Samples extends Component
         try {
             $rows = CapturedResult::where('sample_header_id', $this->batchId)
                 ->whereValidUuidAnalyteId()
-                ->where(function ($q) {
-                    $q->whereNull('result')
-                        ->orWhere('result', '=', '')
-                        ->orWhereIn('result', ['No attachment', 'no attachment']);
-                })
                 ->with(['sample', 'analysis_type', 'my_analyte'])
                 ->get();
 
             $items = [];
             foreach ($rows as $cr) {
+                $resultText = strtolower(trim((string) ($cr->result ?? '')));
+
+                if ($resultText !== '' && ! in_array($resultText, ['no attachment'], true)) {
+                    continue;
+                }
+
                 $items[] = [
                     'sample_code' => optional($cr->sample)->sample_code ?? 'N/A',
                     'analysis_type' => optional($cr->analysis_type)->name ?? 'N/A',
                     'parameter' => optional($cr->my_analyte)->name ?? 'N/A',
-                    'status' => $cr->result === null || $cr->result === ''
+                    'status' => $resultText === ''
                         ? 'No result captured'
                         : (string) $cr->result,
                 ];
@@ -2157,6 +2161,8 @@ class Samples extends Component
                 $limitType = null;
                 $limitLow = null;
                 $limitHigh = null;
+                $valueLimitType = null;
+                $standardLimitValue = null;
 
                 if ($effectiveMainStandardId && $result->analyte_id) {
                     $stdAnalyte = \App\StandardAnalytes::where('standard_id', $effectiveMainStandardId)
@@ -2166,6 +2172,8 @@ class Samples extends Component
                         $limitType = $stdAnalyte->standard_value_type;
                         $limitLow = $stdAnalyte->low;
                         $limitHigh = $stdAnalyte->high;
+                        $valueLimitType = $stdAnalyte->value_type;
+                        $standardLimitValue = $stdAnalyte->standard_is_value;
                     }
                 }
 
@@ -2214,6 +2222,8 @@ class Samples extends Component
                     'limit_type' => $limitType,
                     'limit_low' => $limitLow,
                     'limit_high' => $limitHigh,
+                    'value_limit_type' => $valueLimitType,
+                    'standard_limit_value' => $standardLimitValue,
                     'standard_editable' => false,
                     'batch_attachment_id' => $result->batch_attachment_id,
                     'batch_attachment_url' => $batchAttachmentUrl,
@@ -2302,12 +2312,10 @@ class Samples extends Component
     /**
      * Handle parameter updates (Auto-Remark)
      */
-    public function updatedParametersForm($value, $key)
+    public function updatedParametersForm($value, $key): void
     {
-        $parts = explode('.', $key);
-        // key format: parametersForm.123.result
-        if (count($parts) === 3 && $parts[2] === 'result') {
-            $id = $parts[1];
+        if (is_string($key) && str_ends_with($key, '.result')) {
+            $id = substr($key, 0, -strlen('.result'));
             $this->evaluateResult($id);
         }
     }
@@ -2315,44 +2323,68 @@ class Samples extends Component
     /**
      * Evaluate result against standard
      */
-    public function evaluateResult($id)
+    public function evaluateResult($id): void
     {
-        if (!isset($this->parametersForm[$id]))
+        if (! isset($this->parametersForm[$id])) {
             return;
+        }
 
         $data = $this->parametersForm[$id];
-        $result = $data['result'];
 
-        // Skip if manual remark
-        if (!empty($data['remark_is_manual']) && $data['remark_is_manual'] == 1) {
+        if (! empty($data['remark_is_manual']) && (int) $data['remark_is_manual'] === 1) {
             return;
         }
 
-        if (!is_numeric($result)) {
-            // Non-numeric handling could go here
+        $captured = CapturedResult::query()->with(['sample', 'my_analyte'])->find($id);
+        if (! $captured) {
             return;
         }
 
-        $val = floatval($result);
-        $remark = 'PASS';
+        $remarkService = app(ResultRemarkService::class);
 
-        if ($data['limit_type']) {
-            $low = floatval($data['limit_low']);
-            $high = floatval($data['limit_high']);
+        $remark = $remarkService->calculateRemark(
+            $captured,
+            $data['result'] ?? null,
+            null,
+            null,
+            $data['result_reporting_symbol'] ?? null,
+        );
 
-            if ($data['limit_type'] == 'is_range') {
-                if ($val < $low || $val > $high)
-                    $remark = 'FAIL';
-            } elseif ($data['limit_type'] == 'is_min') {
-                if ($val < $low)
-                    $remark = 'FAIL';
-            } elseif ($data['limit_type'] == 'is_max') {
-                if ($val > $high)
-                    $remark = 'FAIL';
+        if (! in_array($remark, ['PASS', 'FAIL'], true)) {
+            if (($data['limit_type'] ?? '') === 'is_range' && isset($data['limit_low'], $data['limit_high'])) {
+                $remark = $remarkService->calculateRemark(
+                    null,
+                    $data['result'] ?? null,
+                    null,
+                    trim($data['limit_low']).' - '.trim($data['limit_high']),
+                    $data['result_reporting_symbol'] ?? null,
+                );
+            } elseif (! empty($data['standard_limit_value']) && ! empty($data['value_limit_type'])) {
+                $typedRemark = $remarkService->evaluateTypedLimit(
+                    $data['result'] ?? null,
+                    (string) $data['standard_limit_value'],
+                    (string) $data['value_limit_type'],
+                    $data['result_reporting_symbol'] ?? null,
+                );
+                if (in_array($typedRemark, ['PASS', 'FAIL'], true)) {
+                    $remark = $typedRemark;
+                }
+            } elseif (! empty($data['standard_value'])) {
+                $remark = $remarkService->calculateRemark(
+                    null,
+                    $data['result'] ?? null,
+                    null,
+                    $data['standard_value'],
+                    $data['result_reporting_symbol'] ?? null,
+                );
             }
         }
 
-        $this->parametersForm[$id]['remark'] = $remark;
+        $this->parametersForm[$id]['remark'] = match ($remark) {
+            'PASS', 'FAIL' => $remark,
+            '-' => '',
+            default => '',
+        };
     }
 
     /**
@@ -2500,9 +2532,13 @@ class Samples extends Component
     /**
      * Save parameters from modal
      */
-    public function saveParameters()
+    public function saveParameters(): void
     {
         try {
+            foreach (array_keys($this->parametersForm) as $id) {
+                $this->evaluateResult($id);
+            }
+
             foreach ($this->parametersForm as $id => $data) {
                 $captured = CapturedResult::query()->find($id);
                 if (! $captured) {
@@ -2510,25 +2546,50 @@ class Samples extends Component
                 }
 
                 $captured->update([
-                    'result' => $data['result'],
-                    'measure_uncertanity' => $data['measure_uncertanity'],
-                    'remark' => $data['remark'],
-                    'reporting_unit_id' => $data['reporting_unit'],
-                    'operator_id' => $data['operator_id'],
-                    'method_id' => $data['method_id'],
-                    'equipment_id' => $data['equipment_id'],
-                    'lab_section_id' => $data['lab_section_id'] ?? null,
-                    'analyte_status_contracted' => $data['subcontracted'] ? 1 : 0,
-                    'analyte_accredited' => $data['accredited'] ? 1 : 0,
+                    'result' => $data['result'] ?: null,
+                    'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
+                    'remark' => $data['remark'] ?: null,
+                    'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
+                    'operator_id' => $this->normalizeNullableForeignKey($data['operator_id'] ?? null),
+                    'method_id' => $this->normalizeNullableForeignKey($data['method_id'] ?? null),
+                    'equipment_id' => $this->normalizeNullableForeignKey($data['equipment_id'] ?? null),
+                    'lab_section_id' => $this->normalizeNullableForeignKey($data['lab_section_id'] ?? null),
+                    'analyte_status_contracted' => ! empty($data['subcontracted']) ? 1 : 0,
+                    'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
                 ]);
             }
 
             session()->flash('message', 'Parameters saved successfully.');
+            $this->loadIncompleteCapturedResults();
+            $this->loadNotCaptured();
             $this->showParametersModal = false;
         } catch (\Exception $e) {
             Log::error('Error saving parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to save parameters: ' . $e->getMessage());
         }
+    }
+
+    private function normalizeNullableForeignKey(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            return null;
+        }
+
+        return (string) $value;
+    }
+
+    private function resolveReportingUnitId(mixed $value): ?string
+    {
+        $normalized = $this->normalizeNullableForeignKey($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (Str::isUuid($normalized)) {
+            return $normalized;
+        }
+
+        return ReportingUnit::query()->where('name', $normalized)->value('id');
     }
 
     /**
@@ -2581,7 +2642,7 @@ class Samples extends Component
                 } elseif ($limitType == 'greater_than' || $limitType == '>') {
                     $displayValue = '> ' . $rawValue;
                 } elseif ($limitType && $rawValue) {
-                    $displayValue = $rawValue . ' ' . $limitType;
+                    $displayValue = strtolower($limitType).' '.$rawValue;
                 } else {
                     $displayValue = $rawValue;
                 }

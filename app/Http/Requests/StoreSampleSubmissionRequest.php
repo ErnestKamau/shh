@@ -46,7 +46,7 @@ class StoreSampleSubmissionRequest extends FormRequest
 
             'submitted_by_full_name' => ['nullable', 'string', 'max:255'],
             'submitted_by_title' => ['nullable', 'string', 'max:255'],
-            'submitted_by_signature' => ['nullable', 'string', 'max:255'],
+            'submitted_by_signature' => ['nullable', 'string'],
             'submitted_by_date' => ['nullable', 'date'],
             'submitted_by_time' => ['nullable', 'date_format:H:i'],
 

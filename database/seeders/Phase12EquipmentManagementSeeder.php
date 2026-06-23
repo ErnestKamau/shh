@@ -2,14 +2,18 @@
 
 namespace Database\Seeders;
 
-use App\Company;
 use App\Lab;
+use Database\Seeders\Concerns\ClearsAmSpecEquipmentData;
+use Database\Seeders\Concerns\ResolvesAmSpecCompany;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Phase12EquipmentManagementSeeder extends Seeder
 {
+    use ClearsAmSpecEquipmentData;
+    use ResolvesAmSpecCompany;
+
     public function run(): void
     {
         config(['database.default' => 'pgsql']);
@@ -19,12 +23,14 @@ class Phase12EquipmentManagementSeeder extends Seeder
             $this->command?->info('STARTING PHASE 12 SEEDING: Equipment Management');
             $this->command?->info('====================================================');
 
-            $company = Company::query()->first();
+            $company = $this->resolveAmSpecCompany();
             $labs = Lab::query()->get();
             if (! $company || $labs->isEmpty()) {
                 $this->command?->error('Missing company or labs. Run earlier phases first.');
                 return;
             }
+
+            $this->clearAmSpecEquipmentData($company);
 
             $equipmentSpecs = [
                 'LAB-FCH' => ['name' => 'Agilent 8890 Gas Chromatograph', 'make' => 'Agilent Technologies', 'model' => '8890 / 5977B', 'prefix' => 'EQ-GCMS'],

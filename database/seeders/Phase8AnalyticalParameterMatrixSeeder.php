@@ -7,14 +7,15 @@ use App\AnalysisType;
 use App\Analyte;
 use App\AnalysisMethod;
 use App\Company;
-use Database\Seeders\Concerns\AmSpecSeedData;
 use Database\Seeders\Concerns\SeedsAmSpecParameterMatrix;
+use Database\Seeders\Concerns\ResolvesAmSpecCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class Phase8AnalyticalParameterMatrixSeeder extends Seeder
 {
+    use ResolvesAmSpecCompany;
     use SeedsAmSpecParameterMatrix;
 
     public function run(): void
@@ -24,14 +25,10 @@ class Phase8AnalyticalParameterMatrixSeeder extends Seeder
 
         DB::connection('pgsql')->transaction(function (): void {
             $this->command?->info('====================================================');
-            $this->command?->info('STARTING PHASE 8 SEEDING: Analytical Parameter Matrix (AmSpec Excel)');
+            $this->command?->info('STARTING PHASE 8 SEEDING: Analytical Parameter Matrix (AmSpec seed data)');
             $this->command?->info('====================================================');
 
-            $company = Company::query()
-                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
-                ->orWhere('active', true)
-                ->orderByDesc('active')
-                ->first();
+            $company = $this->resolveAmSpecCompany();
 
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
@@ -39,16 +36,9 @@ class Phase8AnalyticalParameterMatrixSeeder extends Seeder
                 return;
             }
 
-            $spreadsheetPath = base_path(self::AMSPEC_PARAMETERS_PATH);
-            if (! is_file($spreadsheetPath)) {
-                $this->command?->error('AmSpec parameters spreadsheet not found.');
-
-                return;
-            }
-
             $stats = $this->seedAmSpecParameterMatrix($company);
 
-            $this->command?->info("Processed {$stats['rows']} spreadsheet rows (new: {$stats['sample_types']} sample types, {$stats['analysis_types']} analysis types, {$stats['analytes']} analytes, {$stats['elements']} elements, {$stats['methods']} methods).");
+            $this->command?->info("Processed {$stats['rows']} seed rows (new: {$stats['sample_types']} sample types, {$stats['analysis_types']} analysis types, {$stats['analytes']} analytes, {$stats['elements']} elements, {$stats['methods']} methods).");
 
             $this->logPostImportCounts($company);
 

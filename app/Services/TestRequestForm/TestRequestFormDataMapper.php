@@ -297,6 +297,7 @@ final class TestRequestFormDataMapper
             }
 
             $normalizedRow = $this->normalizeTestCategoryOnRow($normalizedRow);
+            $normalizedRow = $this->normalizeQuantityOnRow($normalizedRow);
 
             if ($normalizedRow !== []) {
                 $normalized[] = $normalizedRow;
@@ -335,6 +336,40 @@ final class TestRequestFormDataMapper
             $row['chemistry'] = $category === 'chemistry';
             unset($row['chemical_analysis']);
         }
+
+        return $row;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function normalizeQuantityOnRow(array $row): array
+    {
+        if (
+            (! isset($row['sample_quantity']) || $row['sample_quantity'] === '')
+            && isset($row['qty'])
+            && $row['qty'] !== ''
+        ) {
+            $legacyQty = trim((string) $row['qty']);
+
+            if (preg_match('/^([\d.]+)\s*(.*)$/u', $legacyQty, $matches)) {
+                $row['sample_quantity'] = $matches[1];
+                if (trim($matches[2]) !== '') {
+                    $row['sample_quantity_unit'] = trim($matches[2]);
+                }
+            } else {
+                $row['sample_quantity'] = $legacyQty;
+            }
+
+            if (! isset($row['attributes']) || ! is_array($row['attributes'])) {
+                $row['attributes'] = [];
+            }
+
+            $row['attributes']['legacy_qty'] = $legacyQty;
+        }
+
+        unset($row['qty']);
 
         return $row;
     }

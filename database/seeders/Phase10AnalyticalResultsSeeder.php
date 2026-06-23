@@ -9,6 +9,7 @@ use App\SampleDetails;
 use App\User;
 use App\Lab;
 use App\Services\Dashboards\Concerns\DashboardHelpers;
+use Database\Seeders\Concerns\ClearsAmSpecAnalyticalResultsData;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
 
 class Phase10AnalyticalResultsSeeder extends Seeder
 {
+    use ClearsAmSpecAnalyticalResultsData;
+
     public function run(): void
     {
         config(['database.default' => 'pgsql']);
@@ -26,6 +29,8 @@ class Phase10AnalyticalResultsSeeder extends Seeder
             $this->command?->info('====================================================');
             $this->command?->info('STARTING PHASE 10 SEEDING: Analytical Results & TAT');
             $this->command?->info('====================================================');
+
+            $this->clearAmSpecAnalyticalResultsData();
 
             $activeUser = User::query()->where('active', 1)->first() ?? User::query()->first();
             if (! $activeUser) {

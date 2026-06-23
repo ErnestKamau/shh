@@ -1776,16 +1776,43 @@ function getCurrentUserLocation()
 	}
 
 	$user = Auth::user();
-	if (!$user || empty($user->location_id)) {
+	if (!$user) {
 		return null;
 	}
 
-	$locationId = (string) $user->location_id;
-	if (!\Illuminate\Support\Str::isUuid($locationId)) {
-		return null;
+	if (!empty($user->location_id)) {
+		$locationId = (string) $user->location_id;
+		if (\Illuminate\Support\Str::isUuid($locationId)) {
+			$location = App\InventoryLocation::find($locationId);
+			if ($location) {
+				return $location;
+			}
+		}
 	}
 
-	return App\InventoryLocation::find($locationId);
+	if (!empty($user->zone_id)) {
+		$zone = App\Zone::find($user->zone_id);
+		if ($zone?->inventory_location_id) {
+			$location = App\InventoryLocation::find($zone->inventory_location_id);
+			if ($location) {
+				Session::put('current_user_location', $location);
+
+				return $location;
+			}
+		}
+	}
+
+	$userLocationIds = getUserLocations();
+	if ($userLocationIds !== []) {
+		$location = App\InventoryLocation::find($userLocationIds[0]);
+		if ($location) {
+			Session::put('current_user_location', $location);
+
+			return $location;
+		}
+	}
+
+	return null;
 }
 
 function getPersonnelcertification($personnel_id, $role_cert_id)

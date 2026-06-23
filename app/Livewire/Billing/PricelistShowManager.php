@@ -206,7 +206,8 @@ class PricelistShowManager extends Component
                 $changed = $changedRaw === null || $changedRaw === ''
                     ? $selling
                     : (float) $changedRaw;
-                $profit = $selling - $cost;
+                $displaySelling = $changed;
+                $profit = $displaySelling - $cost;
 
                 $item->sample_type_name = $sampleType->name ?? null;
                 $item->sample_type_code = $sampleType->code ?? null;
@@ -214,8 +215,10 @@ class PricelistShowManager extends Component
                 $item->analysis_type_code = $analysisType->code ?? null;
                 $item->analyte_name = $analyte?->name ?? 'N/A';
                 $item->analyte_code = $analyte?->code;
+                $item->display_selling_price = $displaySelling;
+                $item->applied_selling_price = $selling;
                 $item->profit = $profit;
-                $item->profit_margin = $selling > 0 ? (($profit / $selling) * 100) : 0;
+                $item->profit_margin = $displaySelling > 0 ? (($profit / $displaySelling) * 100) : 0;
                 $item->has_pending_change = abs($selling - $changed) > 0.004;
 
                 return $item;
@@ -937,7 +940,9 @@ class PricelistShowManager extends Component
                     ->update([
                         'description' => $this->pricelistForm['description'],
                         'currency_id' => $newCurrencyId,
-                        'valid_till' => $this->pricelistForm['valid_till'] ?: null,
+                        'valid_till' => filled($this->pricelistForm['valid_till'])
+                            ? \Illuminate\Support\Carbon::parse($this->pricelistForm['valid_till'])->toDateString()
+                            : null,
                         'status' => $this->pricelistForm['status'],
                         'is_master' => (bool) ($this->pricelistForm['is_master'] ?? false),
                         'active' => (bool) ($this->pricelistForm['active'] ?? true),
@@ -1622,7 +1627,7 @@ class PricelistShowManager extends Component
         $this->cloneForm = [
             'description' => $source?->description ? ($source->description . ' (Copy)') : 'Pricelist Copy',
             'currency_id' => $source?->currency_id ?? '',
-            'valid_till' => $source?->valid_till,
+            'valid_till' => $source?->valid_till?->format('Y-m-d'),
             'is_master' => false,
             'active' => true,
         ];
@@ -1722,6 +1727,7 @@ class PricelistShowManager extends Component
     {
         $this->message = $message;
         $this->messageType = $type;
+        $this->dispatch('pricelist-scroll-to-message');
     }
 
     private function fillPricelistForm(): void
@@ -1731,7 +1737,7 @@ class PricelistShowManager extends Component
         $this->pricelistForm = [
             'description' => $pricelist->description ?? '',
             'currency_id' => $pricelist->currency_id ?? '',
-            'valid_till' => $pricelist->valid_till ?? null,
+            'valid_till' => $pricelist->valid_till?->format('Y-m-d'),
             'status' => $pricelist->status ?? 'no-changes',
             'is_master' => (bool) ($pricelist->is_master ?? false),
             'active' => (bool) ($pricelist->active ?? true),
@@ -1915,7 +1921,7 @@ class PricelistShowManager extends Component
                             'analysis_type_name' => $firstAnalysisItem->analysis_type_name ?? 'Unassigned Analysis',
                             'analysis_type_code' => $firstAnalysisItem->analysis_type_code,
                             'total_amount' => (float) $analysisItems->sum(function ($item) {
-                                return (float) ($item->selling_price ?? 0);
+                                return (float) ($item->display_selling_price ?? $item->selling_price ?? 0);
                             }),
                             'rows' => $analysisItems,
                         ];

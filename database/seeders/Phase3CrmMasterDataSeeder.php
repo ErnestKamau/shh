@@ -2,17 +2,21 @@
 
 namespace Database\Seeders;
 
-use App\Company;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use Database\Seeders\Concerns\AmSpecSeedData;
+use Database\Seeders\Concerns\ClearsAmSpecCrmData;
+use Database\Seeders\Concerns\ResolvesAmSpecCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class Phase3CrmMasterDataSeeder extends Seeder
 {
+    use ClearsAmSpecCrmData;
+    use ResolvesAmSpecCompany;
+
     public function run(): void
     {
         config(['database.default' => 'pgsql']);
@@ -23,18 +27,14 @@ class Phase3CrmMasterDataSeeder extends Seeder
             $this->command?->info('STARTING PHASE 3 SEEDING: CRM Master Data');
             $this->command?->info('====================================================');
 
-            $company = Company::query()
-                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
-                ->orWhere('active', true)
-                ->orderByDesc('active')
-                ->first();
+            $company = $this->resolveAmSpecCompany();
 
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
                 return;
             }
 
-            $this->purgeLegacyCrmData($company->id);
+            $this->clearAmSpecCrmData($company);
 
             $country = AmSpecSeedData::resolveUaeCountry()
                 ?? AmSpecSeedData::resolveBrazilCountry()
@@ -102,34 +102,5 @@ class Phase3CrmMasterDataSeeder extends Seeder
         });
 
         Model::reguard();
-    }
-
-    private function purgeLegacyCrmData(string $companyId): void
-    {
-        $legacyCustomerIds = CRMCustomer::query()
-            ->where('company_id', $companyId)
-            ->where(function ($query): void {
-                $query->whereIn('name', AmSpecSeedData::legacyCrmCustomerNames())
-                    ->orWhereIn('code', AmSpecSeedData::legacyCrmCustomerCodes());
-            })
-            ->pluck('id');
-
-        if ($legacyCustomerIds->isEmpty()) {
-            return;
-        }
-
-        CustomerContact::query()
-            ->whereIn('crm_customer_id', $legacyCustomerIds)
-            ->delete();
-
-        CRMCompanyUnit::query()
-            ->whereIn('crm_customer_id', $legacyCustomerIds)
-            ->delete();
-
-        CRMCustomer::query()
-            ->whereIn('id', $legacyCustomerIds)
-            ->delete();
-
-        $this->command?->info('Purged '.$legacyCustomerIds->count().' legacy CRM customer(s).');
     }
 }

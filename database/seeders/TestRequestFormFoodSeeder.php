@@ -20,7 +20,7 @@ class TestRequestFormFoodSeeder extends Seeder
             'print_template_name' => 'layouts.lab.invoice.print-trf-amspec-food',
         ]);
 
-        $this->syncSampleTypesByNamePatterns($form, ['food', 'FOOD', 'SMP-FOOD', 'Food Product Compliance']);
+        $this->syncSampleTypesByCodes($form, ['FOOD', 'FOOD FEED']);
 
         $this->createCustomerDetailsSection($form, 1);
         $this->createCollectionDataSection($form, 2, true, [

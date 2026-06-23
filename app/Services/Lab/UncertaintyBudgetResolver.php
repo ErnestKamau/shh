@@ -26,15 +26,19 @@ final class UncertaintyBudgetResolver
         $companyId ??= (string) (getUserCompany() ?? '');
 
         if ($preloaded !== null) {
-            return $this->matchFromCollection($preloaded, $analyteId, $methodId);
+            return $this->matchFromCollection($preloaded, $analyteId, $this->resolveMethodIds($element));
         }
+
+        $methodIds = $this->resolveMethodIds($element);
 
         return UncertaintyBudget::query()
             ->where('analyte_id', $analyteId)
             ->where('active', true)
             ->when($companyId !== '', fn ($query) => $query->where('company_id', $companyId))
-            ->where(function ($query) use ($methodId): void {
-                $query->where('method_ids', 'LIKE', '%'.$methodId.'%');
+            ->where(function ($query) use ($methodIds): void {
+                foreach ($methodIds as $methodId) {
+                    $query->orWhere('method_ids', 'LIKE', '%'.$methodId.'%');
+                }
             })
             ->orderByDesc('version_number')
             ->first();
@@ -56,18 +60,18 @@ final class UncertaintyBudgetResolver
             }
 
             $analyteId = (string) ($element->analyte_id ?? '');
-            $methodId = $this->resolveMethodId($element);
 
             if ($analyteId !== '') {
                 $analyteIds[] = $analyteId;
             }
 
-            if ($methodId !== '') {
+            foreach ($this->resolveMethodIds($element) as $methodId) {
                 $methodIds[] = $methodId;
             }
         }
 
         $analyteIds = array_values(array_unique($analyteIds));
+        $methodIds = array_values(array_unique($methodIds));
         if ($analyteIds === []) {
             return collect();
         }
@@ -156,26 +160,58 @@ final class UncertaintyBudgetResolver
         }, $lines);
     }
 
-    private function resolveMethodId(AnalysisElements $element): string
+    /**
+     * @return list<string>
+     */
+    private function resolveMethodIds(AnalysisElements $element): array
     {
+        $ids = [];
+
         $ltm = (string) ($element->ltm_method_id ?? '');
         if ($ltm !== '' && $ltm !== '0') {
-            return $ltm;
+            $ids[] = $ltm;
         }
 
-        return (string) ($element->method ?? '');
+        $method = (string) ($element->method ?? '');
+        if ($method !== '' && $method !== '0' && ! in_array($method, $ids, true)) {
+            $ids[] = $method;
+        }
+
+        return $ids;
+    }
+
+    private function resolveMethodId(AnalysisElements $element): string
+    {
+        $ids = $this->resolveMethodIds($element);
+
+        return $ids[0] ?? '';
     }
 
     /**
      * @param  Collection<int, UncertaintyBudget>  $budgets
+     * @param  list<string>  $methodIds
      */
-    private function matchFromCollection(Collection $budgets, string $analyteId, string $methodId): ?UncertaintyBudget
+    private function matchFromCollection(Collection $budgets, string $analyteId, array $methodIds): ?UncertaintyBudget
     {
         return $budgets
             ->filter(fn (UncertaintyBudget $budget): bool => (string) $budget->analyte_id === $analyteId
-                && $this->methodIdsContain((string) $budget->method_ids, $methodId))
+                && $this->methodIdsMatchAny((string) $budget->method_ids, $methodIds))
             ->sortByDesc('version_number')
             ->first();
+    }
+
+    /**
+     * @param  list<string>  $candidateMethodIds
+     */
+    private function methodIdsMatchAny(string $methodIds, array $candidateMethodIds): bool
+    {
+        foreach ($candidateMethodIds as $methodId) {
+            if ($this->methodIdsContain($methodIds, $methodId)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function methodIdsContain(string $methodIds, string $methodId): bool

@@ -4,15 +4,18 @@ namespace Database\Seeders;
 
 use App\Company;
 use App\SampleType;
-use Database\Seeders\Concerns\AmSpecSeedData;
+use Database\Seeders\Concerns\ClearsAmSpecTaxonomyData;
 use Database\Seeders\Concerns\ReadsAmSpecParametersSpreadsheet;
+use Database\Seeders\Concerns\ResolvesAmSpecCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class Phase4SampleTaxonomySeeder extends Seeder
 {
+    use ClearsAmSpecTaxonomyData;
     use ReadsAmSpecParametersSpreadsheet;
+    use ResolvesAmSpecCompany;
 
     public function run(): void
     {
@@ -21,14 +24,10 @@ class Phase4SampleTaxonomySeeder extends Seeder
 
         DB::connection('pgsql')->transaction(function (): void {
             $this->command?->info('====================================================');
-            $this->command?->info('STARTING PHASE 4 SEEDING: Sample Taxonomy (AmSpec Excel)');
+            $this->command?->info('STARTING PHASE 4 SEEDING: Sample Taxonomy (AmSpec seed data)');
             $this->command?->info('====================================================');
 
-            $company = Company::query()
-                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
-                ->orWhere('active', true)
-                ->orderByDesc('active')
-                ->first();
+            $company = $this->resolveAmSpecCompany();
 
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
@@ -36,10 +35,12 @@ class Phase4SampleTaxonomySeeder extends Seeder
                 return;
             }
 
+            $this->clearAmSpecTaxonomyData($company);
+
             $sampleTypes = $this->uniqueAmSpecSampleTypes();
 
             if ($sampleTypes->isEmpty()) {
-                $this->command?->error('No sample types found in AmSpec parameters spreadsheet.');
+                $this->command?->error('No sample types found in AmSpec parameter seed data.');
 
                 return;
             }
@@ -60,7 +61,7 @@ class Phase4SampleTaxonomySeeder extends Seeder
 
             $this->command?->info('====================================================');
             $this->command?->info('PHASE 4 SEEDING COMPLETED SUCCESSFULLY!');
-            $this->command?->info("Seeded {$sampleTypes->count()} sample types from Excel.");
+            $this->command?->info("Seeded {$sampleTypes->count()} sample types from seed data.");
             $this->command?->info('====================================================');
         });
 

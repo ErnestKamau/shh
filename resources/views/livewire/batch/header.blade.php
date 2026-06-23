@@ -147,7 +147,7 @@
                 @if(isset($batch->batch_code))
                     <span class="batch-stage-pill">
                         <i class="mdi mdi-sitemap" style="font-size:0.75rem;"></i>
-                        {{ $batch->tracking_stage()->name }}
+                        {{ $batch->status ?? 'N/A' }}
                     </span>
                 @endif
             </div>

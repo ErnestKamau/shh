@@ -95,6 +95,7 @@ final class EnquiryReviewDisplayService
     /**
      * @return list<array{
      *     sample_description: string,
+     *     sample_description_html: string,
      *     qty: string,
      *     sample_type: string,
      *     sample_condition: string,
@@ -121,9 +122,12 @@ final class EnquiryReviewDisplayService
         $rows = [];
 
         foreach ($lines as $line) {
+            $description = $line['sample_description'] ?? null;
+
             $rows[] = [
-                'sample_description' => $this->displayCell($line['sample_description'] ?? null),
-                'qty' => (string) ($line['number_of_samples'] ?? 1),
+                'sample_description' => $this->formatRichTextPlain($description),
+                'sample_description_html' => $this->formatRichTextHtml($description),
+                'qty' => $this->formatLineQuantity($line),
                 'sample_type' => $this->resolveSampleTypeLabel($line),
                 'sample_condition' => $this->formatLabel($line['sample_condition'] ?? null) ?: '—',
                 'tests' => $this->resolveTestsLabel($line),
@@ -318,5 +322,72 @@ final class EnquiryReviewDisplayService
         }
 
         return $string;
+    }
+
+    private function formatRichTextPlain(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string === '' || strcasecmp($string, 'N/A') === 0) {
+            return '—';
+        }
+
+        if ($this->containsHtml($string)) {
+            $plain = html_entity_decode(strip_tags($string), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $plain = trim(preg_replace('/\s+/u', ' ', $plain) ?? '');
+
+            return $plain !== '' ? $plain : '—';
+        }
+
+        return $string;
+    }
+
+    private function formatRichTextHtml(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string === '' || strcasecmp($string, 'N/A') === 0) {
+            return '—';
+        }
+
+        if ($this->containsHtml($string)) {
+            $clean = strip_tags($string, '<p><br><strong><b><em><i><ul><ol><li>');
+            $clean = trim($clean);
+
+            return $clean !== '' ? $clean : '—';
+        }
+
+        return nl2br(e($string), false);
+    }
+
+    private function containsHtml(string $value): bool
+    {
+        return $value !== strip_tags($value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function formatLineQuantity(array $line): string
+    {
+        $quantity = trim((string) ($line['sample_quantity'] ?? ''));
+        $unit = trim((string) ($line['sample_quantity_unit'] ?? ''));
+
+        if ($quantity !== '' && $unit !== '') {
+            return $quantity.' '.$unit;
+        }
+
+        if ($quantity !== '') {
+            return $quantity;
+        }
+
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $legacy = trim((string) ($attributes['legacy_qty'] ?? $line['qty'] ?? ''));
+
+        if ($legacy !== '') {
+            return $legacy;
+        }
+
+        return '—';
     }
 }

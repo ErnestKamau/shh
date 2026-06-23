@@ -9,6 +9,7 @@ use App\Lab;
 use App\ReportingUnit;
 use App\Result;
 use App\SampleAnalysisTypeRelation;
+use App\SampleAnalysisStage;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\StandardAnalytes;
@@ -62,6 +63,7 @@ class SampleAnalysisSetupService
         ?string $actingUserId = null,
         ?array $analysisElementIds = null,
         ?array $elementFlagOverrides = null,
+        ?string $labSectionOverride = null,
     ): void {
         $query = AnalysisElements::query()
             ->where('analysis_type_id', $analysisTypeId)
@@ -86,7 +88,8 @@ class SampleAnalysisSetupService
         $lab = $this->resolveLabForHeader($sampleHeader);
         $sampleDetail = SampleDetails::query()->find($sampleDetailId);
         $analysisType = AnalysisType::query()->find($analysisTypeId);
-        $labSectionIdFromAnalysisType = $analysisType?->lab_section_id;
+        $labSectionIdFromAnalysisType = $this->resolveValidLabSectionId($analysisType?->lab_section_id);
+        $resolvedLabSectionOverride = $this->resolveValidLabSectionId($labSectionOverride);
         $analysisTypeHasNoResultCapture = $analysisType ? (int) ($analysisType->has_no_result ?? 0) : 0;
         // user_id is a NOT NULL UUID column; fall back to any active user if unauthenticated.
         $userId = $actingUserId ?? (string) (auth()->id() ?? '')
@@ -125,7 +128,9 @@ class SampleAnalysisSetupService
                     : ReportingUnit::where('name', $reportingUnitValue)->first();
             }
 
-            $labSectionId = $labSectionIdFromAnalysisType ?? $element->lab_section_id;
+            $labSectionId = $resolvedLabSectionOverride
+                ?? $labSectionIdFromAnalysisType
+                ?? $this->resolveValidLabSectionId($element->lab_section_id);
 
             $capturedResult = new CapturedResult();
             $capturedResult->fill([
@@ -148,9 +153,9 @@ class SampleAnalysisSetupService
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
                 'remark' => null,
-                'main_standard_id' => $standardID?->id,
-                'secondary_standard_id' => $secondaryStandardID?->id,
-                'third_standard_id' => $thirdStandardID?->id,
+                'main_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $standardID, 'main_standard'),
+                'secondary_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $secondaryStandardID, 'secondary_standard'),
+                'third_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $thirdStandardID, 'third_standard_id'),
                 'analysis_type_order' => $element->analysis_type_order ?? 0,
                 'remark_colour' => null,
                 'repeat_captured_id' => null,
@@ -180,6 +185,20 @@ class SampleAnalysisSetupService
         }
     }
 
+    private function resolveValidLabSectionId(mixed $candidate): ?string
+    {
+        if ($candidate === null || $candidate === '' || $candidate === '0' || $candidate === 0) {
+            return null;
+        }
+
+        $id = (string) $candidate;
+        if (! Str::isUuid($id)) {
+            return null;
+        }
+
+        return SampleAnalysisStage::query()->whereKey($id)->exists() ? $id : null;
+    }
+
     private function resolveLabForHeader(?SampleHeader $sampleHeader): ?Lab
     {
         if (!$sampleHeader) {
@@ -198,6 +217,23 @@ class SampleAnalysisSetupService
         }
 
         return null;
+    }
+
+    /**
+     * captured_results.*_standard_id columns reference standards.id, not standards_analytes.id.
+     */
+    private function resolveCapturedResultStandardId(
+        ?SampleDetails $sampleDetail,
+        ?StandardAnalytes $standardAnalyte,
+        string $detailAttribute,
+    ): ?string {
+        if ($standardAnalyte?->standard_id) {
+            return (string) $standardAnalyte->standard_id;
+        }
+
+        $detailValue = $sampleDetail?->{$detailAttribute};
+
+        return ($detailValue !== null && $detailValue !== '') ? (string) $detailValue : null;
     }
 
     /**

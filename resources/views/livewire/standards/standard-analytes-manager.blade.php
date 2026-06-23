@@ -208,24 +208,64 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Analyte <span class="text-danger">*</span></label>
-                                        <select wire:model="standardAnalyteForm.analyte_id" class="form-select modern-select @error('standardAnalyteForm.analyte_id') is-invalid @enderror">
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('standardAnalyteForm.analyte_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <div class="tag-select-container" wire:click="searchAnalytes">
+                                            <div class="tag-select-input @error('standardAnalyteForm.analyte_id') border-danger @enderror">
+                                                @if($selectedAnalyteName)
+                                                    <span class="tag-badge">
+                                                        {{ $selectedAnalyteName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearAnalyte"></i>
+                                                    </span>
+                                                @else
+                                                    <input type="text"
+                                                           wire:model.live="analyteSearch"
+                                                           wire:keyup="searchAnalytes"
+                                                           class="tag-input"
+                                                           placeholder="Search analytes..."
+                                                           autocomplete="off">
+                                                @endif
+                                            </div>
+                                            @if($showAnalyteDropdown && count($filteredAnalytes) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredAnalytes as $analyte)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAnalyte({{ $analyte->id }})">
+                                                            {{ $analyte->name }} ({{ $analyte->code }})
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('standardAnalyteForm.analyte_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Standard Value</label>
-                                        <select wire:model="standardAnalyteForm.standard_value_id" class="form-select modern-select">
-                                            <option value="">Select Standard Value</option>
-                                            @foreach($standardValues as $value)
-                                                <option value="{{ $value->id }}">{{ $value->name }} ({{ $value->code }})</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="tag-select-container" wire:click="searchStandardValues">
+                                            <div class="tag-select-input">
+                                                @if($selectedStandardValueName)
+                                                    <span class="tag-badge">
+                                                        {{ $selectedStandardValueName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearStandardValue"></i>
+                                                    </span>
+                                                @else
+                                                    <input type="text"
+                                                           wire:model.live="standardValueSearch"
+                                                           wire:keyup="searchStandardValues"
+                                                           class="tag-input"
+                                                           placeholder="Search standard values..."
+                                                           autocomplete="off">
+                                                @endif
+                                            </div>
+                                            @if($showStandardValueDropdown && count($filteredStandardValues) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredStandardValues as $value)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectStandardValue({{ $value->id }})">
+                                                            {{ $value->name }} ({{ $value->code }})
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -291,13 +331,33 @@
                                             <div class="col-md-12">
                                                 <div class="form-group mb-3">
                                                     <label class="form-label">Standard Value <span class="text-danger">*</span></label>
-                                                    <select wire:model="standardAnalyteForm.standard_value_id" class="form-select modern-select @error('standardAnalyteForm.standard_value_id') is-invalid @enderror">
-                                                        <option value="">Select Standard Value</option>
-                                                        @foreach($standardValues as $value)
-                                                            <option value="{{ $value->id }}">{{ $value->name }} ({{ $value->code }})</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @error('standardAnalyteForm.standard_value_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                    <div class="tag-select-container" wire:click="searchStandardValues">
+                                                        <div class="tag-select-input @error('standardAnalyteForm.standard_value_id') border-danger @enderror">
+                                                            @if($selectedStandardValueName)
+                                                                <span class="tag-badge">
+                                                                    {{ $selectedStandardValueName }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearStandardValue"></i>
+                                                                </span>
+                                                            @else
+                                                                <input type="text"
+                                                                       wire:model.live="standardValueSearch"
+                                                                       wire:keyup="searchStandardValues"
+                                                                       class="tag-input"
+                                                                       placeholder="Search standard values..."
+                                                                       autocomplete="off">
+                                                            @endif
+                                                        </div>
+                                                        @if($showStandardValueDropdown && count($filteredStandardValues) > 0)
+                                                            <div class="tag-dropdown">
+                                                                @foreach($filteredStandardValues as $value)
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectStandardValue({{ $value->id }})">
+                                                                        {{ $value->name }} ({{ $value->code }})
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                    @error('standardAnalyteForm.standard_value_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                                 </div>
                                             </div>
                                         </div>
@@ -549,10 +609,108 @@
     .btn-close {
         filter: invert(1);
     }
+
+    /* Searchable select styling */
+    .tag-select-container {
+        position: relative;
+        cursor: text;
+    }
+
+    .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .tag-select-input:hover,
+    .tag-select-input:focus-within {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+    }
+
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+
+    .tag-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.9rem;
+        background: transparent;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1060;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
+    }
+
+    .tag-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
+    }
     </style>
 
     <script>
     document.addEventListener('livewire:init', () => {
+        // Close searchable dropdowns when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.tag-select-container')) {
+                @this.set('showAnalyteDropdown', false);
+                @this.set('showStandardValueDropdown', false);
+            }
+        });
+
         // Listen for modal opened events
         Livewire.on('modal-opened', (event) => {
             const data = event[0];

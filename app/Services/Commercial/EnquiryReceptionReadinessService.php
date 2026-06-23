@@ -7,6 +7,10 @@ use App\QuotationHeader;
 
 final class EnquiryReceptionReadinessService
 {
+    public function __construct(
+        private ContractCustomerService $contractCustomerService,
+    ) {}
+
     /** @var list<string> */
     public const RECEPTION_READY_STATUSES = [
         SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
@@ -53,6 +57,10 @@ final class EnquiryReceptionReadinessService
     {
         if ((string) $enquiry->status !== SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION) {
             return false;
+        }
+
+        if ($this->contractCustomerService->bypassesCommercialQuotationGate($enquiry)) {
+            return true;
         }
 
         return $enquiry->accepted_quotation_header_id !== null

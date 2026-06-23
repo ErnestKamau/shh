@@ -75,6 +75,91 @@
 		padding: 6px 14px;
 	}
 
+	.request-view-page .request-view-actions-dropdown .dropdown-toggle::after {
+		margin-left: 0.45rem;
+		vertical-align: 0.15em;
+	}
+
+	.request-view-page .request-view-actions-menu {
+		min-width: 15.5rem;
+		max-width: 20rem;
+		padding: 0.35rem 0;
+		margin-top: 0.35rem;
+		border: 1px solid #dbe5f0;
+		border-radius: 10px;
+		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+		overflow: hidden;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-divider {
+		margin: 0.35rem 0;
+		border-top-color: #e8eef4;
+	}
+
+	.request-view-page .request-view-actions-form {
+		margin: 0;
+		padding: 0;
+		display: block;
+		width: 100%;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		width: 100%;
+		padding: 0.55rem 1rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		line-height: 1.35;
+		color: #334155;
+		border: none;
+		background: transparent;
+		text-align: left;
+		white-space: normal;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item > i.mdi {
+		flex-shrink: 0;
+		width: 1.125rem;
+		font-size: 1.05rem;
+		line-height: 1;
+		text-align: center;
+		color: #64748b;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item > span {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item:hover,
+	.request-view-page .request-view-actions-menu .dropdown-item:focus {
+		background: #f1f5f9;
+		color: #1e293b;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item:active {
+		background: #e2e8f0;
+		color: #0f172a;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item-danger,
+	.request-view-page .request-view-actions-menu .dropdown-item-danger > i.mdi {
+		color: #be123c;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item-danger:hover,
+	.request-view-page .request-view-actions-menu .dropdown-item-danger:focus {
+		background: #fff1f2;
+		color: #9f1239;
+	}
+
+	.request-view-page .request-view-actions-menu .dropdown-item-danger:hover > i.mdi,
+	.request-view-page .request-view-actions-menu .dropdown-item-danger:focus > i.mdi {
+		color: #be123c;
+	}
+
 	.request-view-page .workflow-status-chip--in-review {
 		background: #eef2ff;
 		color: #3b5fc0;

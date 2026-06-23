@@ -31,12 +31,18 @@ return [
         'date' => 'sampling_date',
         'email' => 'customer_email',
         'email_address' => 'customer_email',
+        'customer_rep_name' => 'customer_rep_signature',
+        'customer_representative_name' => 'customer_rep_signature',
+        'customer_representative_signature' => 'customer_rep_signature',
+        'customer_representative_contact' => 'customer_rep_contact',
     ],
 
     'row_field_aliases' => [
         'sample_id' => 'customer_sample_id',
         'sample_no' => 'lims_sample_no',
-        'qty' => 'number_of_samples',
+        'quantity' => 'sample_quantity',
+        'unit' => 'sample_quantity_unit',
+        'reporting_unit' => 'sample_quantity_unit',
         'field_ph' => 'field_ph',
         'field_appearance' => 'field_appearance',
         'field_residual_chlorine' => 'field_residual_chlorine',
@@ -54,7 +60,7 @@ return [
     ],
 
     'collection_data_water' => [
-        ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => true],
+        ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => false],
         ['name' => 'sampling_time', 'label' => 'Sampling Time', 'type' => 'text', 'required' => false],
         ['name' => 'sampling_location', 'label' => 'Sampling Location', 'type' => 'text', 'required' => false],
         ['name' => 'sampling_apparatus', 'label' => 'Sampling Apparatus', 'type' => 'select', 'required' => false],
@@ -65,7 +71,7 @@ return [
     ],
 
     'collection_data_food' => [
-        ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => true],
+        ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => false],
         ['name' => 'sampling_time', 'label' => 'Sampling Time', 'type' => 'text', 'required' => false],
         ['name' => 'sampling_location', 'label' => 'Sampling Location', 'type' => 'text', 'required' => false],
         ['name' => 'sampling_apparatus', 'label' => 'Sampling Apparatus', 'type' => 'select', 'required' => false],

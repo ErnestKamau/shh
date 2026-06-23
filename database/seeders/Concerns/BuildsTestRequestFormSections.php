@@ -63,6 +63,32 @@ trait BuildsTestRequestFormSections
     }
 
     /**
+     * @param  list<string>  $codes
+     */
+    protected function syncSampleTypesByCodes(SubmissionForm $form, array $codes): void
+    {
+        try {
+            $ids = SampleType::query()
+                ->whereIn('code', $codes)
+                ->pluck('id')
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($ids === []) {
+                $this->command?->warn('No sample types matched for '.$form->name.' (codes: '.implode(', ', $codes).').');
+
+                return;
+            }
+
+            $form->sampleTypes()->sync($ids);
+            $this->command?->info('Linked '.count($ids).' sample type(s) to '.$form->name.'.');
+        } catch (\Exception $e) {
+            $this->command?->warn('Could not sync sample types: '.$e->getMessage());
+        }
+    }
+
+    /**
      * @param  list<string>  $namePatterns
      */
     protected function syncSampleTypesByNamePatterns(SubmissionForm $form, array $namePatterns): void

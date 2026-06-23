@@ -8,6 +8,8 @@ use App\Lab;
 use App\User;
 use App\Zone;
 use Database\Seeders\Concerns\AmSpecSeedData;
+use Database\Seeders\Concerns\ClearsAmSpecLabOrganizationData;
+use Database\Seeders\Concerns\ResolvesAmSpecCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,9 @@ use Illuminate\Support\Str;
 
 class Phase5LaboratoryOrganizationSeeder extends Seeder
 {
+    use ClearsAmSpecLabOrganizationData;
+    use ResolvesAmSpecCompany;
+
     public function run(): void
     {
         config(['database.default' => 'pgsql']);
@@ -25,16 +30,14 @@ class Phase5LaboratoryOrganizationSeeder extends Seeder
             $this->command?->info('STARTING PHASE 5 SEEDING: Laboratory Organization');
             $this->command?->info('====================================================');
 
-            $company = Company::query()
-                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
-                ->orWhere('active', true)
-                ->orderByDesc('active')
-                ->first();
+            $company = $this->resolveAmSpecCompany();
 
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
                 return;
             }
+
+            $this->clearAmSpecLabOrganizationData($company);
 
             $zones = Zone::query()->get()->keyBy('key');
             foreach (array_keys(AmSpecSeedData::zoneNames()) as $code) {

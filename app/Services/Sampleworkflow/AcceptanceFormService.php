@@ -176,6 +176,99 @@ class AcceptanceFormService
         });
     }
 
+    /**
+     * Accept samples with receiving personnel and customer contact signatures in one step.
+     *
+     * Creates the acceptance form, batch/job, samples, and moves the batch to Samples In Lab.
+     *
+     * @param  array<string, mixed>  $header
+     * @param  list<array<string, mixed>>  $lines
+     */
+    public function acceptWithDualSignatures(
+        ?string $submissionFormInstanceId,
+        ?string $submissionRequestId,
+        array $header,
+        array $lines,
+        string $receivingPersonName,
+        string $receivingPersonSignature,
+        ?string $receivingPersonSignedAt,
+        string $customerContactId,
+        string $customerSignerName,
+        string $customerSignature,
+        ?string $customerSignedAt = null,
+        ?string $createdBy = null,
+    ): AnalysisAcceptanceForm {
+        return DB::transaction(function () use (
+            $submissionFormInstanceId,
+            $submissionRequestId,
+            $header,
+            $lines,
+            $receivingPersonName,
+            $receivingPersonSignature,
+            $receivingPersonSignedAt,
+            $customerContactId,
+            $customerSignerName,
+            $customerSignature,
+            $customerSignedAt,
+            $createdBy,
+        ) {
+            $prefill = $this->pricingService->buildPrefillFromSelection($submissionRequestId, $submissionFormInstanceId);
+            $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
+            $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
+
+            $receivingSignedAt = $receivingPersonSignedAt ?? now();
+            $customerSignedAtValue = $customerSignedAt ?? now();
+
+            $form = AnalysisAcceptanceForm::query()->create([
+                'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+                'submission_form_instance_id' => $submissionFormInstanceId,
+                'test_request_form_instance_id' => $this->resolveTestRequestFormInstanceId($submissionFormInstanceId, $submissionRequestId),
+                'sample_submission_request_id' => $submissionRequestId,
+                'crm_customer_id' => $customerId,
+                'pricelist_id' => $pricelist?->id,
+                'currency_id' => $pricelist?->currency_id,
+                'customer_name' => (string) ($header['customer_name'] ?? $prefill['customer_name'] ?? ''),
+                'request_date' => $header['request_date'] ?? $prefill['request_date'],
+                'number_of_samples' => (int) ($header['number_of_samples'] ?? $prefill['number_of_samples'] ?? 1),
+                'mode_of_work' => (string) ($header['mode_of_work'] ?? $prefill['mode_of_work'] ?? 'Normal'),
+                'date_of_sampling' => $header['date_of_sampling'] ?? $prefill['date_of_sampling'],
+                'customer_certification_text' => self::CUSTOMER_CERTIFICATION_TEXT,
+                'customer_signer_name' => $customerSignerName,
+                'customer_signature' => $customerSignature,
+                'customer_signed_at' => $customerSignedAtValue,
+                'manager_signer_name' => $receivingPersonName,
+                'manager_signature' => $receivingPersonSignature,
+                'manager_signed_at' => $receivingSignedAt,
+                'manager_assignment_payload' => [
+                    'assigned_analyst_ids' => [],
+                    'lead_analyst_id' => null,
+                    'technical_signatory_id' => null,
+                    'customer_contact_id' => $customerContactId,
+                ],
+                'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
+                    ? $header['sample_configuration_payload']
+                    : null,
+                'created_by' => $createdBy,
+            ]);
+
+            $this->syncLines($form, $lines, $pricelist);
+            $form->recalculateTotal();
+
+            $this->dispatchSampleCreationJob((string) $form->id);
+
+            $completed = $form->fresh(['lines', 'sampleHeader']);
+
+            if ($completed->sample_header_id) {
+                $this->transitionBatchToSamplesInLab($completed);
+                $completed = $completed->fresh(['lines', 'sampleHeader']);
+            }
+
+            \App\Jobs\Sampleworkflow\GenerateAcceptanceFormPdfJob::dispatch((string) $completed->id);
+
+            return $completed;
+        });
+    }
+
     private function dispatchSampleCreationJob(string $acceptanceFormId): void
     {
         $runSync = (bool) config('sampleworkflow.acceptance_form.dispatch_sample_creation_sync', true);

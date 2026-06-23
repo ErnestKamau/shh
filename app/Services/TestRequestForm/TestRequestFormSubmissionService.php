@@ -183,11 +183,14 @@ final class TestRequestFormSubmissionService
             $shadow->refresh();
         }
 
-        if ($context->markShadowAsReceived && $user) {
+        $shouldMarkReceived = $context->markShadowAsReceived
+            || $context->sourceChannel === TestRequestFormInstance::CHANNEL_SCHEDULED;
+
+        if ($shouldMarkReceived && $user) {
             $shadow->markAsReceived($user);
         }
 
-        $trfi->update(['status' => $context->markShadowAsReceived
+        $trfi->update(['status' => $shouldMarkReceived
             ? TestRequestFormInstance::STATUS_RECEIVED
             : TestRequestFormInstance::STATUS_SUBMITTED,
         ]);

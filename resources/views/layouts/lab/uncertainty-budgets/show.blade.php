@@ -192,8 +192,8 @@
               </div>
               <div class="col-md-6">
                 <div class="form-group">
-                  <label for="type">Type <span class="text-danger">*</span></label>
-                  <select class="form-control" id="type" name="type" required>
+                  <label for="source_type">Type <span class="text-danger">*</span></label>
+                  <select class="form-control no-select2" id="source_type" name="type" required>
                     <option value="">Select Type</option>
                     <option value="A">A (Statistical)</option>
                     <option value="B">B (Other)</option>
@@ -256,7 +256,7 @@
               <div class="col-md-6">
                 <div class="form-group">
                   <label for="edit_type">Type <span class="text-danger">*</span></label>
-                  <select class="form-control" id="edit_type" name="type" required>
+                  <select class="form-control no-select2" id="edit_type" name="type" required>
                     <option value="">Select Type</option>
                     <option value="A">A (Statistical)</option>
                     <option value="B">B (Other)</option>

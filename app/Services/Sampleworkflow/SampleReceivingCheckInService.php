@@ -5,14 +5,18 @@ namespace App\Services\Sampleworkflow;
 use App\Models\Equipments\Equipment;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
+use App\Services\Commercial\ContractCustomerService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\User;
 
 final class SampleReceivingCheckInService
 {
     public function __construct(
         private CommercialEnquiryFromFormService $commercialEnquiryService,
         private EnquiryReceptionReadinessService $receptionReadinessService,
+        private ContractCustomerService $contractCustomerService,
     ) {}
 
     /**
@@ -51,7 +55,10 @@ final class SampleReceivingCheckInService
 
         return [
             'instance_id' => $instance->id,
-            'form_number' => $instance->canonicalFormNumber(),
+            'form_number' => (string) (
+                $trfi?->form_number
+                ?? $instance->canonicalFormNumber()
+            ),
             'customer_name' => (string) ($instance->crmCustomer?->name ?? ''),
             'sample_description' => (string) (
                 $enquiry?->sample_description
@@ -118,6 +125,31 @@ final class SampleReceivingCheckInService
             ->all();
     }
 
+    public function receiveInstance(SubmissionFormInstance $instance, User $user, ?string $notes = null): bool
+    {
+        if (! $this->canReceiveInstance($instance)) {
+            return false;
+        }
+
+        $instance->markAsReceived($user, $notes);
+        $this->syncTrfiReceivedStatus($instance);
+
+        return true;
+    }
+
+    public function syncTrfiReceivedStatus(SubmissionFormInstance $instance): void
+    {
+        $instance->loadMissing('testRequestFormInstance');
+
+        if ($instance->testRequestFormInstance === null) {
+            return;
+        }
+
+        $instance->testRequestFormInstance->update([
+            'status' => TestRequestFormInstance::STATUS_RECEIVED,
+        ]);
+    }
+
     public function canReceiveInstance(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry = null): bool
     {
         if ($instance->status !== 'submitted') {
@@ -148,6 +180,14 @@ final class SampleReceivingCheckInService
     public function receiveBlockReason(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry = null): ?string
     {
         if ($this->canReceiveInstance($instance, $enquiry)) {
+            return null;
+        }
+
+        $enquiry ??= $instance->sampleSubmissionRequest;
+
+        if ($enquiry !== null
+            && $this->contractCustomerService->isScheduledEnquiry($enquiry)
+            && in_array((string) $instance->status, ['received', 'Received'], true)) {
             return null;
         }
 

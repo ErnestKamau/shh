@@ -148,6 +148,7 @@ class TestRequestFormReportDataBuilder
                 'statement_of_conformity' => $conformity,
                 'sampled_by' => (string) ($formData['sampled_by'] ?? $creator?->name ?? ''),
                 'customer_rep_name' => (string) ($formData['customer_rep_name'] ?? ''),
+                'customer_rep_signature' => (string) ($formData['customer_rep_signature'] ?? $formData['customer_representative_signature'] ?? ''),
                 'customer_rep_contact' => (string) ($formData['customer_rep_contact'] ?? ''),
                 'remarks' => (string) ($formData['remarks'] ?? ''),
             ],
@@ -426,7 +427,7 @@ class TestRequestFormReportDataBuilder
                     'sample_no' => (string) ($row['sample_no'] ?? ''),
                     'sample_description' => (string) ($row['sample_description'] ?? ''),
                     'sampling_point' => (string) ($row['sampling_point'] ?? ''),
-                    'qty' => (string) ($row['qty'] ?? ''),
+                    'qty' => $this->formatRowQuantity($row),
                     'sample_type' => $sampleType,
                     'sample_type_checks' => self::sampleTypeChecks($sampleType),
                     'sample_condition' => $sampleCondition,
@@ -447,7 +448,7 @@ class TestRequestFormReportDataBuilder
                 'sample_no' => (string) ($row['sample_no'] ?? ''),
                 'sample_description' => (string) ($row['sample_description'] ?? ''),
                 'location' => (string) ($row['location'] ?? ''),
-                'qty' => (string) ($row['qty'] ?? ''),
+                'qty' => $this->formatRowQuantity($row),
                 'sampling_point' => $samplingPoint,
                 'sampling_point_checks' => self::samplingPointChecks($samplingPoint),
                 'ph' => (string) ($row['ph'] ?? ''),
@@ -847,6 +848,27 @@ class TestRequestFormReportDataBuilder
         };
 
         return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function formatRowQuantity(array $row): string
+    {
+        $quantity = trim((string) ($row['sample_quantity'] ?? ''));
+        $unit = trim((string) ($row['sample_quantity_unit'] ?? ''));
+
+        if ($quantity !== '' && $unit !== '') {
+            return $quantity.' '.$unit;
+        }
+
+        if ($quantity !== '') {
+            return $quantity;
+        }
+
+        $legacy = trim((string) ($row['qty'] ?? ''));
+
+        return $legacy !== '' ? $legacy : '';
     }
 
 }

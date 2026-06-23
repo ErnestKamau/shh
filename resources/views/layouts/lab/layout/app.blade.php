@@ -3,11 +3,18 @@
 @section('module-name')
 <li class="nav-item d-flex align-items-center">
 	<a class="nav-link module-name" href="{{ route('dashboard-lab') }}"><i class="mdi mdi-flask"></i> Lab Management</a>
-	<button type="button" 
+	{{-- Legacy physical check-in header button (Ready for Reception) — replaced by Receive request (walk-in TRF capture)
+	<button type="button"
 		class="btn btn-sm ml-3 workflow-header-receive-btn"
 		data-sf-trigger="workflow-receive-sample"
 		disabled>
 		<i class="mdi mdi-package-variant-closed"></i> Receive
+	</button>
+	--}}
+	<button type="button"
+		class="btn btn-sm ml-3 workflow-header-receive-btn workflow-header-receive-request-btn"
+		data-sf-trigger="workflow-walk-in-request">
+		<i class="mdi mdi-walk"></i> Receive request
 	</button>
 </li>
 @endsection
@@ -15,38 +22,29 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-	const headerReceiveBtn = document.querySelector('.workflow-header-receive-btn');
-	if (headerReceiveBtn) {
-		const updateHeaderButton = function() {
-			const selectedCount = document.querySelectorAll('input[data-instance-select]:checked').length;
-			if (selectedCount > 0) {
-				headerReceiveBtn.disabled = false;
-			} else {
-				headerReceiveBtn.disabled = true;
-			}
-		};
-		
-		document.addEventListener('change', function(e) {
-			if (e.target && e.target.matches && e.target.matches('input[data-instance-select]')) {
-				updateHeaderButton();
-			}
-		});
-		
-		if (typeof Livewire !== 'undefined') {
-			Livewire.hook('morph.updated', updateHeaderButton);
-		}
-		
-		updateHeaderButton();
-		
-		headerReceiveBtn.addEventListener('click', function(e) {
+	const receiveRequestUrl = @json(route('sample-workflow', ['status' => 'Samples Receiving']) . '?tab=submitted&open_receive_request=1');
+	const headerReceiveRequestBtn = document.querySelector('.workflow-header-receive-request-btn');
+
+	if (headerReceiveRequestBtn) {
+		headerReceiveRequestBtn.addEventListener('click', function(e) {
 			e.preventDefault();
-			// Find and click the original receive button in the workflow panel
-			const originalReceiveBtn = document.querySelector('button[data-sf-trigger="workflow-receive-sample"]:not(.workflow-header-receive-btn)');
-			if (originalReceiveBtn) {
-				originalReceiveBtn.click();
+
+			const walkInTrigger = document.querySelector('[data-sf-trigger="workflow-walk-in-request"]:not(.workflow-header-receive-request-btn)');
+			if (walkInTrigger) {
+				walkInTrigger.click();
+				return;
 			}
+
+			window.location.href = receiveRequestUrl;
 		});
 	}
+
+	{{-- Legacy header Receive proxy (physical check-in)
+	const headerReceiveBtn = document.querySelector('.workflow-header-receive-btn:not(.workflow-header-receive-request-btn)');
+	if (headerReceiveBtn) {
+		...
+	}
+	--}}
 });
 </script>
 @endpush

@@ -50,6 +50,7 @@ final class CommercialEnquiryFieldMapper
         $enquiry->submitted_by_signature = $this->scalar(
             $formData,
             'customer_representative_signature',
+            'customer_rep_signature',
             'submitted_by_signature',
         ) ?? $enquiry->submitted_by_signature;
         $enquiry->further_request = $this->scalar($formData, 'further_request') ?? $enquiry->further_request;
@@ -93,6 +94,7 @@ final class CommercialEnquiryFieldMapper
             ?? $values['sampled_by']
             ?? $enquiry->submitted_by_full_name;
         $enquiry->submitted_by_signature = $values['customer_representative_signature']
+            ?? $values['customer_rep_signature']
             ?? $values['submitted_by_signature']
             ?? $enquiry->submitted_by_signature;
         $enquiry->further_request = $values['further_request'] ?? $enquiry->further_request;

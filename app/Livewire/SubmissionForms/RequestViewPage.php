@@ -125,21 +125,29 @@ class RequestViewPage extends Component
         $this->loadAvailableAttachmentTypes();
     }
 
+    /**
+     * Sample collection label is shown only on the Samples Receiving board tabs
+     * "Ready for Reception" and "Received Request".
+     */
     public function shouldShowSampleCollectionLabel(): bool
     {
-        if ($this->commercialEnquiry === null) {
-            return true;
+        return $this->isInSamplesReceivingReadyForReceptionTab()
+            || $this->isInSamplesReceivingReceivedRequestTab();
+    }
+
+    protected function isInSamplesReceivingReadyForReceptionTab(): bool
+    {
+        if (! in_array((string) $this->instance->status, ['submitted', 'Submitted'], true)) {
+            return false;
         }
 
-        $channel = strtolower((string) ($this->commercialEnquiry->source_channel ?? ''));
-        if (! in_array($channel, ['walk_in', 'scheduled'], true)) {
-            return true;
-        }
+        return $this->commercialEnquiry !== null
+            && $this->commercialEnquiry->status === SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION;
+    }
 
-        return ! in_array($this->commercialEnquiry->status, [
-            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
-            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
-        ], true);
+    protected function isInSamplesReceivingReceivedRequestTab(): bool
+    {
+        return in_array((string) $this->instance->status, ['received', 'Received'], true);
     }
 
     public function recordWalkInQuotationAcceptance(): void

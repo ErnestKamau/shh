@@ -19,7 +19,7 @@ class TestRequestFormWasteWaterSeeder extends Seeder
             'naming_convention_format' => 'TRFWW-{YYYY}{MM}-{0000}',
         ]);
 
-        $this->syncSampleTypesByNamePatterns($form, ['waste', 'effluent', 'wastewater', 'sewage']);
+        $this->syncSampleTypesByCodes($form, ['SMP WWTR']);
 
         $this->createCustomerDetailsSection($form, 1);
 

@@ -53,7 +53,7 @@ class WorkflowBoard extends Component
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
-            'interzone_transfers' => 'Interzone Transfers',
+            // 'interzone_transfers' => 'Interzone Transfers',
         ];
     }
 
@@ -181,6 +181,8 @@ class WorkflowBoard extends Component
 
     public bool $showDecontaminationModal = false;
 
+    public bool $openReceiveRequestPending = false;
+
     public string $decontaminationDate = '';
 
     public string $decontaminationOfficer = '';
@@ -233,6 +235,21 @@ class WorkflowBoard extends Component
 
         $this->hydrateFiltersFromRequest();
         $this->submissionFormAttachmentTypeId = $this->resolveSubmissionFormAttachmentTypeId();
+
+        if ($this->status === 'Samples Receiving' && request()->boolean('open_receive_request')) {
+            $this->workflowSubTab = 'submitted';
+            $this->openReceiveRequestPending = true;
+        }
+    }
+
+    public function openPendingReceiveRequestIfNeeded(): void
+    {
+        if (! $this->openReceiveRequestPending) {
+            return;
+        }
+
+        $this->openReceiveRequestPending = false;
+        $this->openReceiveModal([]);
     }
 
     /**
@@ -633,10 +650,10 @@ class WorkflowBoard extends Component
 
         $counts = [];
         foreach ($this->receivingRequestTabKeys() as $tabKey) {
-            if ($tabKey === 'interzone_transfers') {
-                $counts[$tabKey] = \App\Models\Sampleworkflow\InterzoneTransfer::query()->count();
-                continue;
-            }
+            // if ($tabKey === 'interzone_transfers') {
+            //     $counts[$tabKey] = \App\Models\Sampleworkflow\InterzoneTransfer::query()->count();
+            //     continue;
+            // }
             if ($tabKey === 'submitted') {
                 $submittedQuery = $this->submittedCommercialPipelineSubmissionFormsQuery();
                 $this->applyReceivingSubmissionFormFilters($submittedQuery);
@@ -1909,7 +1926,7 @@ class WorkflowBoard extends Component
         $this->dispatch(
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
-            submissionRequestId: null,
+            submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
         )->to(AcceptanceFormWizard::class);
     }
 
@@ -1924,7 +1941,7 @@ class WorkflowBoard extends Component
         $this->dispatch(
             'open-rejection-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
-            submissionRequestId: null,
+            submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
         )->to(SampleRejectionWizard::class);
     }
 
@@ -1948,7 +1965,7 @@ class WorkflowBoard extends Component
         $this->dispatch(
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
-            submissionRequestId: null,
+            submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
         )->to(AcceptanceFormWizard::class);
     }
 
@@ -1972,8 +1989,38 @@ class WorkflowBoard extends Component
         $this->dispatch(
             'open-rejection-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
-            submissionRequestId: null,
+            submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
         )->to(SampleRejectionWizard::class);
+    }
+
+    protected function resolveSubmissionRequestIdForFormInstance(string $formInstanceId): ?string
+    {
+        $formInstanceId = trim($formInstanceId);
+        if ($formInstanceId === '') {
+            return null;
+        }
+
+        $instance = SubmissionFormInstance::query()
+            ->with(['sampleSubmissionRequest', 'testRequestFormInstance.sampleSubmissionRequest'])
+            ->find($formInstanceId);
+
+        if ($instance === null) {
+            return null;
+        }
+
+        $enquiryId = $instance->sampleSubmissionRequest?->id
+            ?? $instance->testRequestFormInstance?->sample_submission_request_id
+            ?? $instance->testRequestFormInstance?->sampleSubmissionRequest?->id;
+
+        if ($enquiryId !== null) {
+            return (string) $enquiryId;
+        }
+
+        $linkedId = SampleSubmissionRequest::query()
+            ->where('submission_form_instance_id', $instance->id)
+            ->value('id');
+
+        return $linkedId !== null ? (string) $linkedId : null;
     }
 
     /**
@@ -2167,6 +2214,7 @@ class WorkflowBoard extends Component
             'request-additional-info-completed' => 'onRequestAdditionalInfoCompleted',
             'analyst-review-completed' => 'onAnalystReviewCompleted',
             'interzone-transfer-completed' => '$refresh',
+            'process-enquiry-completed' => '$refresh',
         ];
     }
 
@@ -2211,17 +2259,5 @@ class WorkflowBoard extends Component
             'tatTodayBatches' => $tatTodayBatches,
             'tatTodayCount' => $tatTodayBatches->count(),
         ]);
-    }
-
-    public function openManagerAcceptanceSign(string $acceptanceFormId): void
-    {
-        $this->dispatch('open-manager-acceptance-sign', acceptanceFormId: $acceptanceFormId)
-            ->to(ManagerAcceptanceSignModal::class);
-    }
-
-    public function openCustomerAcceptanceSign(string $acceptanceFormId): void
-    {
-        $this->dispatch('open-customer-acceptance-sign', acceptanceFormId: $acceptanceFormId)
-            ->to(CustomerAcceptanceSignModal::class);
     }
 }

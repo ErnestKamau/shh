@@ -22,7 +22,7 @@ final class CommercialEnquirySampleLineSync
         $totalQty = 0;
 
         foreach ($lines as $line) {
-            $qty = max(1, (int) ($line['number_of_samples'] ?? 1));
+            $qty = 1;
             $totalQty += $qty;
 
             $row = [
@@ -37,6 +37,8 @@ final class CommercialEnquirySampleLineSync
                 'analysis_element_id' => $line['analysis_element_id'] ?? null,
                 'parameter_label' => $line['parameter_label'] ?? null,
                 'number_of_samples' => $qty,
+                'sample_quantity' => $line['sample_quantity'] ?? null,
+                'sample_quantity_unit' => $line['sample_quantity_unit'] ?? null,
                 'sample_condition' => $line['sample_condition'] ?? null,
                 'state_of_sample' => $line['state_of_sample'] ?? null,
                 'sampling_point' => $line['sampling_point'] ?? null,

@@ -64,10 +64,51 @@ class CommercialEnquiryFromTrfServiceTest extends TestCase
         $this->assertIsArray($enquiry->sample_lines);
         $this->assertCount(1, $enquiry->sample_lines);
         $this->assertSame('Tap water', $enquiry->sample_lines[0]['sample_description']);
+        $this->assertSame(1, $enquiry->sample_lines[0]['number_of_samples']);
 
         $trfi->refresh();
         $this->assertSame($enquiry->id, $trfi->sample_submission_request_id);
     }
+
+    public function test_three_rows_with_mass_quantities_yield_three_enquiry_samples(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Food',
+            'code' => 'FOOD',
+            'active' => 1,
+        ]);
+
+        $template = TestRequestForm::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'TRF Food',
+            'code' => 'TRF-FOOD',
+            'sample_type_id' => $sampleType->id,
+            'form_fields' => ['sections' => []],
+            'is_active' => true,
+        ]);
+
+        $trfi = TestRequestFormInstance::query()->create([
+            'id' => (string) Str::uuid7(),
+            'test_request_form_id' => $template->id,
+            'source_channel' => TestRequestFormInstance::CHANNEL_WALK_IN,
+            'status' => TestRequestFormInstance::STATUS_SUBMITTED,
+            'form_data' => [
+                'sample_rows' => [
+                    ['sample_description' => 'A', 'sample_quantity' => '2', 'sample_quantity_unit' => 'kg'],
+                    ['sample_description' => 'B', 'sample_quantity' => '2', 'sample_quantity_unit' => 'kg'],
+                    ['sample_description' => 'C', 'sample_quantity' => '1', 'sample_quantity_unit' => 'L'],
+                ],
+            ],
+        ]);
+
+        $enquiry = app(CommercialEnquiryFromTrfService::class)->syncFromTrfi($trfi);
+
+        $this->assertCount(3, $enquiry->sample_lines);
+        $this->assertSame(3, $enquiry->number_of_samples);
+        foreach ($enquiry->sample_lines as $line) {
+            $this->assertSame(1, $line['number_of_samples']);
+        }
 
     public function test_resync_updates_existing_enquiry_by_trfi_id(): void
     {

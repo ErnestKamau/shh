@@ -13,6 +13,9 @@ final class CommercialEnquiryFromTrfService
     public function __construct(
         private CommercialEnquiryFieldMapper $fieldMapper,
         private CommercialEnquirySampleLineSync $lineSync,
+        private ContractCustomerService $contractCustomerService,
+        private QuotationFromEnquiryService $quotationFromEnquiryService,
+        private EnquiryReceptionReadinessService $receptionReadinessService,
     ) {}
 
     public function syncFromTrfi(TestRequestFormInstance $trfi, bool $asDraft = false): SampleSubmissionRequest
@@ -53,6 +56,20 @@ final class CommercialEnquiryFromTrfService
             }
 
             $enquiry->save();
+
+            if (! $asDraft && $this->contractCustomerService->isScheduledEnquiry($enquiry)) {
+                if (! $this->contractCustomerService->hasContractPricelist((string) $enquiry->crm_customer_id)) {
+                    $enquiry->pricing_source = 'sampling_contract';
+                    $enquiry->save();
+                }
+
+                $header = $this->quotationFromEnquiryService->createInternalContractQuotation($enquiry->fresh(['requestedAnalyses', 'customer', 'contact']));
+                $enquiry = $this->receptionReadinessService->markReadyForReception(
+                    $enquiry->fresh(),
+                    (string) $header->id,
+                    ['po_skipped' => true],
+                );
+            }
 
             if ($trfi->sample_submission_request_id !== $enquiry->id) {
                 $trfi->update(['sample_submission_request_id' => $enquiry->id]);

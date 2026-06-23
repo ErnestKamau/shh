@@ -170,7 +170,7 @@
             <i class="mdi mdi-alert"></i>
             <strong>Unfinished / missing results detected:</strong>
             <ul class="mb-0 mt-1">
-                @foreach($incompleteCapturedResults as $item)
+                @foreach(array_slice($incompleteCapturedResults, 0, 10) as $item)
                     <li>
                         Item {{ $item['sample_code'] ?? 'N/A' }} &mdash;
                         {{ $item['analysis_type'] ?? 'Analysis' }} /
@@ -178,6 +178,9 @@
                         ({{ $item['status'] ?? 'incomplete' }})
                     </li>
                 @endforeach
+                @if(count($incompleteCapturedResults) > 10)
+                    <li class="text-muted">…and {{ count($incompleteCapturedResults) - 10 }} more</li>
+                @endif
             </ul>
             <button type="button" class="close" data-dismiss="alert">
                 <span>&times;</span>
@@ -191,9 +194,9 @@
             <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
                 <h5><i class="mdi mdi-flask-outline"></i> Samples configuration</h5>
                 <button type="button" wire:click="saveSamples" class="btn btn-danger btn-sm btn-action-sm text-white"
-                    wire:loading.attr="disabled" style="height: auto; min-height: 32px;">
-                    <span wire:loading.remove><i class="mdi mdi-content-save"></i> Save</span>
-                    <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                    wire:loading.attr="disabled" wire:target="saveSamples" style="height: auto; min-height: 32px;">
+                    <span wire:loading.remove wire:target="saveSamples"><i class="mdi mdi-content-save"></i> Save</span>
+                    <span wire:loading wire:target="saveSamples"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
                 </button>
             </div>
             <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
@@ -426,7 +429,7 @@
                         {{-- Sample Type --}}
                         <td>
                             <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.sample_type_id">
+                                wire:model.blur="sampleForms.{{ $index }}.sample_type_id">
                                 <option value="">Select...</option>
                                 @foreach($sampleTypes as $type)
                                 <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
@@ -440,7 +443,7 @@
                         {{-- Customer Sample ID --}}
                         <td>
                             <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model="sampleForms.{{ $index }}.customer_sample_id"
+                                wire:model.blur="sampleForms.{{ $index }}.customer_sample_id"
                                 placeholder="Customer sample ID...">
                         </td>
 
@@ -452,7 +455,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.lab_id" required>
+                                wire:model.blur="sampleForms.{{ $index }}.lab_id" required>
                                 <option value="">Select...</option>
                                 @foreach($labSections as $lab)
                                 <option value="{{ $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
@@ -467,7 +470,7 @@
                         {{-- Main Standard --}}
                         <td>
                             <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.main_standard" required>
+                                wire:model.blur="sampleForms.{{ $index }}.main_standard" required>
                                 <option value="">Select...</option>
                                 @foreach($standards as $std)
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
@@ -481,7 +484,7 @@
                         {{-- Secondary Standard --}}
                         <td>
                             <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.secondary_standard">
+                                wire:model.blur="sampleForms.{{ $index }}.secondary_standard">
                                 <option value="">Select...</option>
                                 @foreach($standards as $std)
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
@@ -497,7 +500,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.sample_condition_id">
+                                wire:model.blur="sampleForms.{{ $index }}.sample_condition_id">
                                 <option value="">Select...</option>
                                 @foreach($conditions as $condition)
                                 <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
@@ -517,7 +520,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.sample_point_id">
+                                wire:model.blur="sampleForms.{{ $index }}.sample_point_id">
                                 <option value="">Select...</option>
                                 @foreach($samplePoints as $point)
                                 <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
@@ -944,7 +947,9 @@
                                     <td style="min-width: 160px;">
                                         <div class="input-group input-group-sm">
                                             <input type="text" class="form-control form-control-sm"
-                                                wire:model.lazy="parametersForm.{{ $id }}.result" x-data
+                                                wire:model.lazy="parametersForm.{{ $id }}.result"
+                                                wire:change="evaluateResult('{{ $id }}')"
+                                                x-data
                                                 x-on:change="
                                                                                                                                                                                                                                                                             let val = $el.value;
                                                                                                                                                                                                                                                                             if(val) {
@@ -1012,7 +1017,7 @@
                                     </td>
                                     <td style="min-width: 110px;">
                                         <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.remark"
+                                            wire:model="parametersForm.{{ $id }}.remark"
                                             style="pointer-events: none; background-color: #e9ecef;">
                                             <option value="">- Select -</option>
                                             <option value="PASS">PASS</option>
@@ -1024,7 +1029,7 @@
                                             wire:model.defer="parametersForm.{{ $id }}.reporting_unit">
                                             <option value="">- Unit -</option>
                                             @foreach($modalLists['units'] as $unit)
-                                            <option value="{{ $unit->name }}">{{ $unit->name }}</option>
+                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
                                             @endforeach
                                         </select>
                                     </td>
@@ -2409,27 +2414,30 @@
         </div>
     </div>
     @endif
-</div>
-{{-- JavaScript for Sample Duplication --}}
-<script>
-    // Function to handle duplicate button click
-    function duplicateSelected() {
-        const count = prompt("Enter number of duplicates", 1);
-        if (count !== null && count > 0) {
-            @this.call('duplicateSelectedSamples', parseInt(count));
-        }
-    }
 
-    // Select All functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const selectAllCheckbox = document.getElementById('select-all-samples');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                const checkboxes = document.querySelectorAll('.sample-row-checkbox');
-                checkboxes.forEach(checkbox => {
-                    checkbox.click(); // Trigger Livewire event
+    {{-- JavaScript for Sample Duplication --}}
+    <script>
+        function duplicateSelected() {
+            const count = prompt("Enter number of duplicates", 1);
+            if (count !== null && count > 0) {
+                @this.call('duplicateSelectedSamples', parseInt(count));
+            }
+        }
+
+        document.addEventListener('livewire:init', function () {
+            document.addEventListener('change', function (event) {
+                const selectAllCheckbox = event.target.closest('#select-all-samples');
+                if (!selectAllCheckbox) {
+                    return;
+                }
+
+                const shouldSelect = selectAllCheckbox.checked;
+                document.querySelectorAll('.sample-row-checkbox').forEach(function (checkbox) {
+                    if (checkbox.checked !== shouldSelect) {
+                        checkbox.click();
+                    }
                 });
             });
-        }
-    });
-</script>
+        });
+    </script>
+</div>

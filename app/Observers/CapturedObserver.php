@@ -59,19 +59,29 @@ class CapturedObserver
         }
 
         $batch       = SampleHeader::find($captured->sample_header_id);
+        if ($batch === null) {
+            return;
+        }
+
         $sample_date = SampleDate::where('sample_header_id', $batch->id)->where('name', 'Target Date')->first();
+        $targetDate  = $this->resolveTimestamp($sample_date?->date);
+
+        if ($targetDate === null) {
+            return;
+        }
+
         $finishedAt  = date('Y-m-d H:i:s');
 
         // Signed offset with 12-hour grace (negative = early, 0 = on-time, positive = late)
-        $signedOffset = DashboardHelpers::computeSignedTatOffset($sample_date->date, $finishedAt);
+        $signedOffset = DashboardHelpers::computeSignedTatOffset($targetDate, $finishedAt);
 
         if (isset($tat_exist->id) && $tat_exist->result != $captured->result) {
             // Update existing incomplete TAT record
             $tat_exist->result              = $captured->result;
             $tat_exist->analyst_id          = $captured->analystIdForTat();
-            $tat_exist->start_date_analysis = $analysis_date->start_analysis_date ?? null;
+            $tat_exist->start_date_analysis = $this->resolveStartDateAnalysis($analysis_date);
             $tat_exist->finished_date       = $finishedAt;
-            $tat_exist->tat_date            = $sample_date->date;
+            $tat_exist->tat_date            = $targetDate;
             $tat_exist->tat_overdue_days    = $signedOffset;
             $tat_exist->tat_remark          = $this->resolveTatRemark($signedOffset);
             $tat_exist->save();
@@ -88,11 +98,11 @@ class CapturedObserver
             $tat->sample_detail_id    = $captured->sample_detail_id;
             $tat->result              = $captured->result;
             $tat->analyst_id          = $captured->analystIdForTat();
-            $tat->tat_date            = $sample_date->date;
+            $tat->tat_date            = $targetDate;
             $tat->sample_header_id    = $batch->id;
             $tat->finished_date       = $finishedAt;
             $tat->tat_overdue_days    = $signedOffset;
-            $tat->start_date_analysis = $analysis_date->start_analysis_date ?? '';
+            $tat->start_date_analysis = $this->resolveStartDateAnalysis($analysis_date);
             $tat->tat_remark          = $this->resolveTatRemark($signedOffset);
             $tat->save();
             return "done";
@@ -108,11 +118,11 @@ class CapturedObserver
             $tat->sample_detail_id    = $captured->sample_detail_id;
             $tat->result              = $captured->result;
             $tat->analyst_id          = $captured->analystIdForTat();
-            $tat->tat_date            = $sample_date->date;
+            $tat->tat_date            = $targetDate;
             $tat->sample_header_id    = $batch->id;
             $tat->finished_date       = $finishedAt;
             $tat->tat_overdue_days    = $signedOffset;
-            $tat->start_date_analysis = $analysis_date->start_analysis_date ?? '';
+            $tat->start_date_analysis = $this->resolveStartDateAnalysis($analysis_date);
             $tat->tat_remark          = $this->resolveTatRemark($signedOffset);
             $tat->save();
             return "done";
@@ -174,5 +184,23 @@ class CapturedObserver
         if ($signedOffset === 0)  return 3;
         if ($signedOffset === 1)  return 4;
         return 5;
+    }
+
+    private function resolveStartDateAnalysis(?SampleAnalysisDates $analysisDate): ?string
+    {
+        if ($analysisDate === null) {
+            return null;
+        }
+
+        return $this->resolveTimestamp($analysisDate->start_analysis_date);
+    }
+
+    private function resolveTimestamp(mixed $value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        return (string) $value;
     }
 }

@@ -214,9 +214,7 @@ class UncertaintyBudgetController extends Controller
             ->where('company_id', getUserCompany())
             ->firstOrFail();
 
-        $dataTable = true;
-        $select2 = true;
-        return view('layouts.lab.uncertainty-budgets.show', compact('budget', 'dataTable', 'select2'));
+        return view('layouts.lab.uncertainty-budgets.show', compact('budget'));
     }
 
     /**

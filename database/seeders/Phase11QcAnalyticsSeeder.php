@@ -13,6 +13,7 @@ use App\User;
 use App\Models\CRM\CRMCustomer;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
+use Database\Seeders\Concerns\ClearsAmSpecQcData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Phase11QcAnalyticsSeeder extends Seeder
 {
+    use ClearsAmSpecQcData;
+
     public function run(): void
     {
         $this->command?->info('====================================================');
@@ -44,6 +47,8 @@ class Phase11QcAnalyticsSeeder extends Seeder
         Model::unguard();
 
         DB::connection('pgsql')->transaction(function () {
+            $this->clearAmSpecQcData();
+
             $this->command?->info('====================================================');
             $this->command?->info('STARTING QC REFERENCE SEEDING: Quality Control & Configs');
             $this->command?->info('====================================================');
@@ -323,18 +328,18 @@ class Phase11QcAnalyticsSeeder extends Seeder
             );
             $this->command?->info('Seeded QC Standard: Certified Reference Material Standard 102');
 
-            $standardValueId = (string) Str::uuid();
-            DB::connection('pgsql')->table('standard_values')->updateOrInsert(
-                ['code' => 'VAL-QC-TGT'],
-                [
-                    'id' => $standardValueId,
-                    'name' => 'Baseline Target Value',
-                    'status' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
-            $this->command?->info('Seeded QC Standard Value: Baseline Target Value');
+            $isValueRow = DB::connection('pgsql')->table('standard_values')
+                ->where('code', 'IsValue')
+                ->first();
+
+            if ($isValueRow === null) {
+                $this->command?->error('IsValue standard lookup not found. Run Phase 13 food standards seeder first.');
+
+                return;
+            }
+
+            $standardValueId = $isValueRow->id;
+            $this->command?->info('Using IsValue standard lookup for QC processed results.');
 
             // ----------------------------------------------------------------
             // 3. Define Scientific Robust Means & SD for each Forensic Analyte

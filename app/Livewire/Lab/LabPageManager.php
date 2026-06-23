@@ -65,8 +65,13 @@ class LabPageManager extends Component
 
     public function getZonesProperty(): Collection
     {
+        $location = getCurrentUserLocation();
+        if (!$location) {
+            return collect();
+        }
+
         return Zone::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->where('inventory_location_id', $location->id)
             ->orderBy('key')
             ->get(['id', 'key', 'value']);
     }

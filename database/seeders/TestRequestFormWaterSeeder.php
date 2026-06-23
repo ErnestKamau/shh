@@ -20,7 +20,7 @@ class TestRequestFormWaterSeeder extends Seeder
             'print_template_name' => 'layouts.lab.invoice.print-trf-amspec-water',
         ]);
 
-        $this->syncSampleTypesByNamePatterns($form, ['water', 'WTR', 'potable', 'SMP-WTR', 'Water Quality']);
+        $this->syncSampleTypesByCodes($form, ['WATER']);
 
         $this->createCustomerDetailsSection($form, 1);
         $this->createCollectionDataSection($form, 2, true);

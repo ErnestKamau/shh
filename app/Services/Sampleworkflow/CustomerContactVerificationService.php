@@ -71,12 +71,35 @@ class CustomerContactVerificationService
      */
     public function portalContactsForCustomer(string $crmCustomerId): array
     {
-        return CustomerContact::query()
+        return $this->contactsForCustomerQuery($crmCustomerId, portalOnly: true);
+    }
+
+    /**
+     * All active CRM contacts for in-person acceptance signing (no portal login required).
+     *
+     * @return list<array{id: string, label: string}>
+     */
+    public function activeContactsForCustomer(string $crmCustomerId): array
+    {
+        return $this->contactsForCustomerQuery($crmCustomerId, portalOnly: false);
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    private function contactsForCustomerQuery(string $crmCustomerId, bool $portalOnly): array
+    {
+        $query = CustomerContact::query()
             ->where('crm_customer_id', $crmCustomerId)
             ->where('active', 1)
-            ->where('can_login', 1)
             ->orderBy('first_name')
-            ->orderBy('last_name')
+            ->orderBy('last_name');
+
+        if ($portalOnly) {
+            $query->where('can_login', 1);
+        }
+
+        return $query
             ->get()
             ->map(fn (CustomerContact $contact) => [
                 'id' => (string) $contact->id,

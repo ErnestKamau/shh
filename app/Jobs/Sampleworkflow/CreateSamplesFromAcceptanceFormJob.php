@@ -53,7 +53,12 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         JobSampleNumberingService $numberingService,
     ): void {
         $form = AnalysisAcceptanceForm::query()
-            ->with(['lines', 'submissionFormInstance.batches'])
+            ->with([
+                'lines',
+                'submissionFormInstance.batches',
+                'testRequestFormInstance.submissionFormInstance.batches',
+                'sampleSubmissionRequest',
+            ])
             ->find($this->acceptanceFormId);
 
         if (!$form || $form->sample_header_id) {
@@ -68,19 +73,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 }
 
                 $primarySampleTypeId = (string) ($approvedLines->first()->sample_type_id ?? '');
-                $instance = $form->submission_form_instance_id
-                    ? SubmissionFormInstance::query()->with('batches')->find($form->submission_form_instance_id)
-                    : null;
-
-                if ($instance === null && $form->sample_submission_request_id) {
-                    $linkedInstanceId = \App\Models\SampleSubmissionRequest::query()
-                        ->whereKey($form->sample_submission_request_id)
-                        ->value('submission_form_instance_id');
-
-                    if ($linkedInstanceId) {
-                        $instance = SubmissionFormInstance::query()->with('batches')->find($linkedInstanceId);
-                    }
-                }
+                $instance = $this->resolveLinkedSubmissionFormInstance($form);
 
                 $configPayload = is_array($form->sample_configuration_payload)
                     ? $form->sample_configuration_payload
@@ -180,6 +173,50 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    private function resolveLinkedSubmissionFormInstance(AnalysisAcceptanceForm $form): ?SubmissionFormInstance
+    {
+        if ($form->sample_submission_request_id) {
+            $submissionRequest = $form->relationLoaded('sampleSubmissionRequest')
+                ? $form->sampleSubmissionRequest
+                : \App\Models\SampleSubmissionRequest::query()->find($form->sample_submission_request_id);
+
+            if ($submissionRequest?->submission_form_instance_id) {
+                $instance = SubmissionFormInstance::query()
+                    ->with('batches')
+                    ->find($submissionRequest->submission_form_instance_id);
+
+                if ($instance !== null) {
+                    return $instance;
+                }
+            }
+
+            $trfi = $submissionRequest?->resolveLinkedTrfi();
+            if ($trfi?->submissionFormInstance) {
+                return $trfi->submissionFormInstance->loadMissing('batches');
+            }
+        }
+
+        if ($form->test_request_form_instance_id) {
+            $trfi = $form->relationLoaded('testRequestFormInstance')
+                ? $form->testRequestFormInstance
+                : \App\Models\TestRequestFormInstance::query()
+                    ->with('submissionFormInstance.batches')
+                    ->find($form->test_request_form_instance_id);
+
+            if ($trfi?->submissionFormInstance) {
+                return $trfi->submissionFormInstance;
+            }
+        }
+
+        if ($form->submission_form_instance_id) {
+            return SubmissionFormInstance::query()
+                ->with('batches')
+                ->find($form->submission_form_instance_id);
+        }
+
+        return null;
     }
 
     /**
@@ -363,6 +400,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                         $actingUserId,
                         is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null,
                         $elementFlagOverrides,
+                        $plan['lab_section_id'] ?? null,
                     );
                 }
 

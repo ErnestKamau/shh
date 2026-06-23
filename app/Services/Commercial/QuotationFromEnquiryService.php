@@ -12,8 +12,9 @@ use App\QuotationDetailAnalysisSplit;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
-use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Lab\UncertaintyBudgetResolver;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -23,6 +24,7 @@ final class QuotationFromEnquiryService
     public function __construct(
         private AcceptanceFormPricingService $pricingService,
         private UncertaintyBudgetResolver $uncertaintyBudgetResolver,
+        private QuotationLineTaxResolver $taxResolver,
     ) {}
 
     public function createOrOpen(SampleSubmissionRequest $enquiry): QuotationHeader
@@ -61,6 +63,8 @@ final class QuotationFromEnquiryService
             $header->from_enquiry = true;
             $header->sample_submission_request_id = $enquiry->id;
             $header->pricelist_id = $pricelist?->id;
+            $header->currency_id = $pricelist?->currency_id
+                ?? $enquiry->customer?->currency_id;
             $header->is_draft = 0;
             $header->is_complete = 1;
             $header->is_approved = 1;
@@ -123,7 +127,12 @@ final class QuotationFromEnquiryService
                 'parameter_label' => $label,
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
-                'tax' => 0,
+                'tax' => $this->taxResolver->resolveLineTaxPercent(
+                    $pricelist,
+                    $sampleTypeId !== '' ? $sampleTypeId : null,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                ),
                 'subcontracted' => false,
             ];
         }
@@ -144,7 +153,12 @@ final class QuotationFromEnquiryService
                     'parameter_label' => 'Parameter',
                     'quantity' => $qty,
                     'unit_price' => $this->pricingService->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $elementId),
-                    'tax' => 0,
+                    'tax' => $this->taxResolver->resolveLineTaxPercent(
+                        $pricelist,
+                        $sampleTypeId !== '' ? $sampleTypeId : null,
+                        $analysisTypeId,
+                        $elementId,
+                    ),
                     'subcontracted' => false,
                 ];
             }
@@ -160,7 +174,7 @@ final class QuotationFromEnquiryService
     public function buildInlineLinesFromAcceptanceLines(SampleSubmissionRequest $enquiry, array $acceptanceLines): array
     {
         $customerId = (string) $enquiry->crm_customer_id;
-        $pricelist = $this->pricingService->resolvePricelist($customerId);
+        $pricelist = $this->pricingService->resolveCustomerAssignedPricelist($customerId);
         $lines = [];
 
         foreach ($acceptanceLines as $index => $line) {
@@ -187,12 +201,87 @@ final class QuotationFromEnquiryService
                 'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
-                'tax' => (float) ($line['tax'] ?? 0),
+                'tax' => $this->taxResolver->resolveLineTaxPercent(
+                    $pricelist,
+                    $sampleTypeId !== '' ? $sampleTypeId : null,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                ),
                 'subcontracted' => (bool) ($line['subcontracted'] ?? false),
             ];
         }
 
         return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function applyTaxFromAssignedPricelist(SampleSubmissionRequest $enquiry, array $lines, bool $overwrite = true): array
+    {
+        $pricelist = $this->pricingService->resolveCustomerAssignedPricelist((string) $enquiry->crm_customer_id);
+
+        return $this->taxResolver->applyTaxToLines($pricelist, $lines, $overwrite);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function applyTaxFromPricelist(SampleSubmissionRequest $enquiry, array $lines, bool $overwrite = true): array
+    {
+        $pricelist = $this->pricingService->resolvePricelist((string) $enquiry->crm_customer_id);
+
+        return $this->taxResolver->applyTaxToLines($pricelist, $lines, $overwrite);
+    }
+
+    /**
+     * Internal quotation snapshot for scheduled contract customers (not sent to customer).
+     */
+    public function createInternalContractQuotation(SampleSubmissionRequest $enquiry): QuotationHeader
+    {
+        return DB::transaction(function () use ($enquiry): QuotationHeader {
+            $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
+
+            $contactId = $this->resolveContactId($enquiry);
+            $pricelist = $this->pricingService->resolvePricelist((string) $enquiry->crm_customer_id);
+            $preparedById = Auth::id();
+
+            $header = new QuotationHeader();
+            $header->crm_customer_id = $enquiry->crm_customer_id;
+            $header->crm_customer_contact_id = $contactId;
+            $header->quote_date = now()->toDateString();
+            $header->expiring_date = now()->addDays(30)->toDateString();
+            $header->prepared_by_id = $preparedById !== null ? (string) $preparedById : null;
+            $header->quotation_type = 'Analysis';
+            $header->status = 'Quote Complete';
+            $header->from_enquiry = true;
+            $header->sample_submission_request_id = $enquiry->id;
+            $header->pricelist_id = $pricelist?->id;
+            $header->currency_id = $pricelist?->currency_id
+                ?? $enquiry->customer?->currency_id;
+            $header->is_draft = 0;
+            $header->is_complete = 1;
+            $header->is_approved = 1;
+            $header->save();
+
+            AmSpecQuotationNumberGenerator::assignIfMissing($header);
+
+            $lines = $this->buildInlineLines($enquiry);
+            $this->persistInlineLines($header, $lines);
+
+            $enquiry->current_quotation_header_id = $header->id;
+            $enquiry->accepted_quotation_header_id = (string) $header->id;
+            if ($this->hasContractPricelist((string) $enquiry->crm_customer_id)) {
+                $enquiry->pricing_source = 'contract';
+            } elseif ((string) $enquiry->pricing_source === '') {
+                $enquiry->pricing_source = 'sampling_contract';
+            }
+            $enquiry->save();
+
+            return $header->fresh(['details']);
+        });
     }
 
     /**

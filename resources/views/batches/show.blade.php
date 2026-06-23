@@ -236,10 +236,11 @@
               ];
           }
       } else {
+          $workflowBreadcrumbStatus = $batch->status ?? ($status ?: 'Samples Reception');
           $items = [
               ['link' => route('dashboard-lab'), 'name' => 'Dashboard', 'icon' => null],
               ['link' => route('sample-workflow', ['status' => 'All Samples']), 'name' => 'Sample Workflow', 'icon' => null],
-              ['link' => route('sample-workflow', ['status' => isset($status) && $status ? $status : $batch->status ?? 'Samples Reception']), 'name' => isset($status) && $status ? $status : $batch->status ?? 'Samples Reception', 'icon' => null],
+              ['link' => route('sample-workflow', ['status' => $workflowBreadcrumbStatus]), 'name' => $workflowBreadcrumbStatus, 'icon' => null],
               ['link' => '#', 'name' => isset($batch->batch_code) ? $batch->batch_code.' - Batch Info' : 'New Batch', 'icon' => null],
           ];
       }

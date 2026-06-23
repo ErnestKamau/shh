@@ -655,6 +655,8 @@ class SubmissionRequestSampleLineService
         ?string $defaultSampleTypeId,
         ?string $defaultSampleTypeName,
     ): array {
+        $quantityData = $this->resolveSampleQuantityFromRow($row);
+
         $line = [
             'row_index' => $rowIndex,
             'customer_sample_id' => $this->nullableString($row['sample_no'] ?? $row['lims_sample_no'] ?? null),
@@ -666,7 +668,9 @@ class SubmissionRequestSampleLineService
             'analysis_type_name' => null,
             'analysis_element_id' => null,
             'parameter_label' => null,
-            'number_of_samples' => max(1, (int) ($row['qty'] ?? $row['number_of_samples'] ?? 1)),
+            'number_of_samples' => 1,
+            'sample_quantity' => $quantityData['sample_quantity'],
+            'sample_quantity_unit' => $quantityData['sample_quantity_unit'],
             'sample_condition' => $this->nullableString($row['sample_condition'] ?? null),
             'state_of_sample' => $this->nullableString($row['state_of_sample'] ?? null),
             'sampling_point' => $this->nullableString($row['sampling_point'] ?? null),
@@ -715,6 +719,31 @@ class SubmissionRequestSampleLineService
         }
 
         return $line;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{sample_quantity: ?string, sample_quantity_unit: ?string}
+     */
+    private function resolveSampleQuantityFromRow(array $row): array
+    {
+        $quantity = $this->nullableString($row['sample_quantity'] ?? null);
+        $unit = $this->nullableString($row['sample_quantity_unit'] ?? null);
+
+        if ($quantity === null && isset($row['qty']) && $row['qty'] !== '') {
+            $legacyQty = trim((string) $row['qty']);
+            if (preg_match('/^([\d.]+)\s*(.*)$/u', $legacyQty, $matches)) {
+                $quantity = $matches[1];
+                $unit = trim($matches[2]) !== '' ? trim($matches[2]) : $unit;
+            } else {
+                $quantity = $legacyQty;
+            }
+        }
+
+        return [
+            'sample_quantity' => $quantity,
+            'sample_quantity_unit' => $unit,
+        ];
     }
 
     /**

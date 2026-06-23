@@ -2821,51 +2821,15 @@ class SampleWorkFlowController extends Controller
         // return response()->json('test');
         $previousWorkflow = $batch->status;
 
-        // Resolve target tracking stage as UUID (or null when stage setup is incomplete).
-        $targetTrackingStage = \Illuminate\Support\Str::isUuid($batch->sample_tracking_stage)
-            ? $batch->sample_tracking_stage
-            : null;
+        $stageSync = app(\App\Services\Sampleworkflow\BatchWorkflowStageSyncService::class);
+        $targetTrackingStage = $stageSync->resolveTrackingStageId($batch, $status);
 
-        if (!$targetTrackingStage) {
-            // Reuse currently open custody stage if available.
-            $openCustody = \App\ChainOfCustody::where('sample_header_id', $batch_id)
-                ->whereNull('moved_out_date')
-                ->latest('id')
-                ->first();
-
-            if (isset($openCustody->tracking_stage_id) && \Illuminate\Support\Str::isUuid($openCustody->tracking_stage_id)) {
-                $targetTrackingStage = $openCustody->tracking_stage_id;
-            }
-        }
-
-        if (!$targetTrackingStage) {
-            // Try to derive from batch stages for the target workflow (legacy behavior)
-            if (method_exists($batch, 'stages')) {
-                $stages = $batch->stages($status);
-                if (isset($stages[0]->id)) {
-                    $targetTrackingStage = \Illuminate\Support\Str::isUuid($stages[0]->id) ? $stages[0]->id : null;
-                }
-            }
-
-            // Fallback: use the first defined SampleAnalysisStage for the target workflow
-            if (!$targetTrackingStage) {
-                $stage = SampleAnalysisStage::where('sample_workflow', $status)
-                    ->orderBy('level', 'asc')
-                    ->first();
-
-                if (isset($stage->id)) {
-                    $targetTrackingStage = $stage->id;
-                }
-            }
-
-            // Proceed without tracking stage when configuration is incomplete.
-            if (!$targetTrackingStage) {
-                Log::warning('Missing sample tracking stage while moving workflow; proceeding with null tracking stage', [
-                    'batch_id' => $batch_id,
-                    'from_status' => $batch->status,
-                    'to_status' => $status,
-                ]);
-            }
+        if (! $targetTrackingStage) {
+            Log::warning('Missing sample tracking stage while moving workflow; proceeding with null tracking stage', [
+                'batch_id' => $batch_id,
+                'from_status' => $batch->status,
+                'to_status' => $status,
+            ]);
         }
 
         $custodyDetails = [

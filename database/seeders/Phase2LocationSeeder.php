@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Company;
 use App\Zone;
 use Database\Seeders\Concerns\AmSpecSeedData;
+use Database\Seeders\Concerns\ClearsAmSpecLocationData;
+use Database\Seeders\Concerns\ResolvesAmSpecCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,9 @@ use Illuminate\Support\Str;
 
 class Phase2LocationSeeder extends Seeder
 {
+    use ClearsAmSpecLocationData;
+    use ResolvesAmSpecCompany;
+
     public const ZONE_LOCATIONS = AmSpecSeedData::ZONE_LOCATIONS;
 
     public const ZONES = AmSpecSeedData::ZONE_NAMES;
@@ -27,16 +31,14 @@ class Phase2LocationSeeder extends Seeder
             $this->command?->info('STARTING PHASE 2 SEEDING: Locations / Zones');
             $this->command?->info('====================================================');
 
-            $company = Company::query()
-                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
-                ->orWhere('active', true)
-                ->orderByDesc('active')
-                ->first();
+            $company = $this->resolveAmSpecCompany();
 
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
                 return;
             }
+
+            $this->clearAmSpecLocationData($company);
 
             foreach (AmSpecSeedData::zoneLocations() as $code => $location) {
                 $name = $location['name'];
