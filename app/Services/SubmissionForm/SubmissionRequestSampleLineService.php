@@ -7,12 +7,17 @@ use App\AnalysisType;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
+use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\TestRequestForm\TestRequestFormDataMapper;
 use Illuminate\Support\Str;
 
 class SubmissionRequestSampleLineService
 {
+    public function __construct(
+        private readonly AnalysisReferenceLabelResolver $referenceLabelResolver,
+    ) {}
+
     /**
      * @return list<array{
      *     row_index: int,
@@ -693,9 +698,14 @@ class SubmissionRequestSampleLineService
         }
 
         $tests = [];
-        $parameters = $this->nullableString($row['parameters'] ?? null);
-        if ($parameters !== null) {
-            $tests[] = $parameters;
+        $parameterTokens = $this->referenceLabelResolver->extractTokens($row['parameters'] ?? null);
+        if ($parameterTokens !== []) {
+            $resolvedParameters = $this->referenceLabelResolver->resolveMixed($parameterTokens);
+            if ($resolvedParameters !== '') {
+                $tests[] = $resolvedParameters;
+            }
+
+            $this->applyParameterTokensToLine($line, $parameterTokens);
         }
 
         foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemistry' => 'Chemistry', 'chemical_analysis' => 'Chemistry'] as $key => $label) {
@@ -779,5 +789,61 @@ class SubmissionRequestSampleLineService
         }
 
         return $text;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  list<string>  $tokens
+     */
+    private function applyParameterTokensToLine(array &$line, array $tokens): void
+    {
+        $elementIds = [];
+
+        foreach ($tokens as $token) {
+            $token = trim($token);
+            if ($token === '' || ! Str::isUuid($token)) {
+                continue;
+            }
+
+            $elementRecord = AnalysisElements::query()->with('analyte')->find($token);
+            if ($elementRecord) {
+                $elementIds[] = (string) $elementRecord->id;
+
+                if ($line['analysis_type_id'] === null) {
+                    $line['analysis_type_id'] = (string) $elementRecord->analysis_type_id;
+                    $line['analysis_type_name'] = $this->resolveAnalysisTypeName($line['analysis_type_id']);
+                }
+
+                if ($line['sample_type_id'] === null) {
+                    $analysisType = AnalysisType::query()->find($elementRecord->analysis_type_id);
+                    if ($analysisType?->sample_type_id) {
+                        $line['sample_type_id'] = (string) $analysisType->sample_type_id;
+                        $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
+                    }
+                }
+
+                continue;
+            }
+
+            $analysisType = AnalysisType::query()->find($token);
+            if ($analysisType && $line['analysis_type_id'] === null) {
+                $line['analysis_type_id'] = (string) $analysisType->id;
+                $line['analysis_type_name'] = $analysisType->name;
+                if ($analysisType->sample_type_id && $line['sample_type_id'] === null) {
+                    $line['sample_type_id'] = (string) $analysisType->sample_type_id;
+                    $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
+                }
+            }
+        }
+
+        if ($elementIds === []) {
+            return;
+        }
+
+        $line['analysis_element_id'] = $elementIds[0];
+        if (! isset($line['attributes']) || ! is_array($line['attributes'])) {
+            $line['attributes'] = [];
+        }
+        $line['attributes']['analysis_element_ids'] = $elementIds;
     }
 }

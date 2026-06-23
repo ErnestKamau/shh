@@ -6,25 +6,18 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
-use App\Models\Workflow\Approval;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
 use App\Services\TestRequestForm\TestRequestFormSubmissionService;
 use App\Services\TestRequestForm\TrfCheckInMetadataService;
-use App\Services\WorkflowService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class ReceiveSampleRequest extends Component
 {
-    public const STAGE_NAME = 'Samples Receiving';
-
-    public const APPROVAL_CODE = 'sro_receiving_sample';
-
     /** @var array<int, string> */
     public array $selectedFormInstanceIds = [];
 
@@ -37,11 +30,7 @@ class ReceiveSampleRequest extends Component
     /** @var array<string, array<string, string>> */
     public array $checkInTrfFields = [];
 
-    public array $responses = [];
-
     public string $remarks = '';
-
-    public ?string $loadError = null;
 
     // New properties for dynamic TestRequestForms
     public ?string $selectedSampleTypeId = null;
@@ -57,8 +46,6 @@ class ReceiveSampleRequest extends Component
     {
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
         $this->selectedFormSummaries = $selectedFormSummaries;
-        $this->syncLoadErrorFromApproval();
-        $this->initializeResponses();
 
         // Self-healing seeding and load sample types
         TestRequestForm::seedDefaults();
@@ -413,9 +400,6 @@ class ReceiveSampleRequest extends Component
         $this->selectedSampleTypeId = null;
         $this->formData = [];
         $this->resetValidation();
-        $this->syncLoadErrorFromApproval();
-        $this->responses = [];
-        $this->initializeResponses();
         $this->refreshCheckInContexts();
 
         // Dispatched after state is set — JS listener shows the modal.
@@ -774,7 +758,6 @@ class ReceiveSampleRequest extends Component
         }
 
         return view('livewire.sampleworkflow.receive-sample-request', [
-            'approval' => $this->resolveApproval(),
             'formTemplate' => $formTemplate,
         ]);
     }
@@ -812,105 +795,4 @@ class ReceiveSampleRequest extends Component
         }
     }
 
-    private function resolveApproval(): ?Approval
-    {
-        $approval = $this->workflowService()->getApprovalByCode(self::STAGE_NAME, self::APPROVAL_CODE);
-        $this->syncLoadErrorFromApproval($approval);
-
-        return $approval;
-    }
-
-    private function syncLoadErrorFromApproval(?Approval $approval = null): void
-    {
-        $approval ??= $this->workflowService()->getApprovalByCode(self::STAGE_NAME, self::APPROVAL_CODE);
-
-        $this->loadError = $approval === null
-            ? 'Receiving checklist is not configured. Add approval code "sro_receiving_sample" for Samples Receiving.'
-            : null;
-    }
-
-    private function initializeResponses(): void
-    {
-        $approval = $this->workflowService()->getApprovalByCode(self::STAGE_NAME, self::APPROVAL_CODE);
-        if ($approval === null) {
-            return;
-        }
-
-        foreach ($approval->checklistItems as $item) {
-            if (!array_key_exists($item->id, $this->responses) && $item->type === 'checkbox') {
-                $this->responses[$item->id] = false;
-            }
-        }
-    }
-
-    private function canReceiveInstance(SubmissionFormInstance $instance): bool
-    {
-        if ($instance->status !== 'submitted') {
-            return false;
-        }
-
-        if ($instance->batches->isNotEmpty()) {
-            return false;
-        }
-
-        return $instance->submissionForm !== null
-            && ($instance->submissionForm->form_type ?? '') === 'template';
-    }
-
-    private function rulesForApproval(Approval $approval): array
-    {
-        $rules = [];
-
-        foreach ($approval->checklistItems as $item) {
-            $key = 'responses.' . $item->id;
-
-            if ($item->type === 'checkbox') {
-                $rules[$key] = $item->is_required ? ['accepted'] : ['nullable', 'boolean'];
-                continue;
-            }
-
-            if ($item->type === 'select') {
-                $selectRules = [$item->is_required ? 'required' : 'nullable'];
-                $selectRules[] = Rule::in($item->options ?? []);
-                $rules[$key] = $selectRules;
-                continue;
-            }
-
-            $rules[$key] = $item->is_required
-                ? ['required', 'string']
-                : ['nullable', 'string'];
-        }
-
-        return $rules;
-    }
-
-    private function messagesForApproval(Approval $approval): array
-    {
-        $messages = [];
-
-        foreach ($approval->checklistItems as $item) {
-            $key = 'responses.' . $item->id;
-            $messages[$key . '.required'] = $item->label . ' is required.';
-            $messages[$key . '.accepted'] = $item->label . ' must be checked.';
-            $messages[$key . '.in'] = 'Select a valid option for ' . $item->label . '.';
-        }
-
-        return $messages;
-    }
-
-    private function approvalResponses(Approval $approval): array
-    {
-        $payload = [];
-
-        foreach ($approval->checklistItems as $item) {
-            $payload[$item->id] = $this->responses[$item->id] ?? null;
-        }
-
-        return $payload;
-    }
-
-    private function workflowService(): WorkflowService
-    {
-        return app(WorkflowService::class);
-    }
 }

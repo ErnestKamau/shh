@@ -5,12 +5,15 @@ namespace App\Services\Commercial;
 use App\AnalysisElements;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SampleSubmissionRequestRequestedAnalysis;
+use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
+use Illuminate\Support\Str;
 
 final class CommercialEnquirySampleLineSync
 {
     public function __construct(
         private SubmissionRequestSampleLineService $sampleLineService,
+        private AnalysisReferenceLabelResolver $referenceLabelResolver,
     ) {}
 
     /**
@@ -77,11 +80,28 @@ final class CommercialEnquirySampleLineSync
         $enquiry->requestedAnalyses()->delete();
 
         foreach ($lines as $line) {
+            $elementIds = $this->resolveLineElementIds($line);
+
+            foreach ($elementIds as $elementId) {
+                $parameterIds[] = $elementId;
+                $this->createRequestedAnalysisForElement($enquiry, $line, $elementId);
+            }
+
+            if ($elementIds !== []) {
+                continue;
+            }
+
             $elementId = (string) ($line['analysis_element_id'] ?? '');
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
-            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
 
             if ($elementId === '' && $analysisTypeId === '') {
+                $parameterLabel = trim((string) ($line['parameter_label'] ?? ''));
+                if ($parameterLabel === '') {
+                    continue;
+                }
+
+                $this->createRequestedAnalysisForLabel($enquiry, $line, $parameterLabel);
+
                 continue;
             }
 
@@ -89,23 +109,7 @@ final class CommercialEnquirySampleLineSync
                 $parameterIds[] = $elementId;
             }
 
-            $label = (string) ($line['parameter_label'] ?? 'Parameter');
-            if ($elementId !== '') {
-                $element = AnalysisElements::query()->with('analyte')->find($elementId);
-                if ($element !== null) {
-                    $label = (string) ($element->analyte->name ?? $label);
-                }
-            }
-
-            SampleSubmissionRequestRequestedAnalysis::query()->create([
-                'sample_submission_request_id' => $enquiry->id,
-                'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
-                'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
-                'analysis_element_id' => $elementId !== '' ? $elementId : null,
-                'analysis_key' => $elementId !== '' ? $elementId : $analysisTypeId,
-                'analysis_label' => $label,
-                'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
-            ]);
+            $this->createRequestedAnalysisForElement($enquiry, $line, $elementId !== '' ? $elementId : null, $analysisTypeId);
         }
 
         $enquiry->parameter_ids = array_values(array_unique($parameterIds));
@@ -125,5 +129,101 @@ final class CommercialEnquirySampleLineSync
         }
 
         return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function resolveLineElementIds(array $line): array
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $fromAttributes = $attributes['analysis_element_ids'] ?? [];
+
+        if (is_array($fromAttributes) && $fromAttributes !== []) {
+            return array_values(array_filter(array_map('strval', $fromAttributes)));
+        }
+
+        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+        if ($elementId !== '') {
+            return [$elementId];
+        }
+
+        $parameterLabel = trim((string) ($line['parameter_label'] ?? ''));
+        if ($parameterLabel === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $this->referenceLabelResolver->extractTokens($parameterLabel),
+            fn (string $token): bool => Str::isUuid($token),
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function createRequestedAnalysisForElement(
+        SampleSubmissionRequest $enquiry,
+        array $line,
+        ?string $elementId,
+        string $analysisTypeId = '',
+    ): void {
+        $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
+        $elementId = trim((string) ($elementId ?? ''));
+        $analysisTypeId = $analysisTypeId !== '' ? $analysisTypeId : (string) ($line['analysis_type_id'] ?? '');
+
+        $label = (string) ($line['parameter_label'] ?? 'Parameter');
+        if ($elementId !== '') {
+            $element = AnalysisElements::query()->with('analyte')->find($elementId);
+            if ($element !== null) {
+                $label = (string) ($element->analyte->name ?? $label);
+                $analysisTypeId = $analysisTypeId !== '' ? $analysisTypeId : (string) $element->analysis_type_id;
+            }
+        }
+
+        $label = $this->referenceLabelResolver->resolveToken($label);
+
+        SampleSubmissionRequestRequestedAnalysis::query()->create([
+            'sample_submission_request_id' => $enquiry->id,
+            'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
+            'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
+            'analysis_element_id' => $elementId !== '' ? $elementId : null,
+            'analysis_key' => $elementId !== '' ? $elementId : $analysisTypeId,
+            'analysis_label' => $label !== '' ? $label : 'Parameter',
+            'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function createRequestedAnalysisForLabel(
+        SampleSubmissionRequest $enquiry,
+        array $line,
+        string $parameterLabel,
+    ): void {
+        foreach ($this->referenceLabelResolver->extractTokens($parameterLabel) as $token) {
+            if (Str::isUuid($token)) {
+                $this->createRequestedAnalysisForElement($enquiry, $line, $token);
+
+                continue;
+            }
+
+            $resolved = $this->referenceLabelResolver->resolveToken($token);
+            if ($resolved === '' || $resolved === $token) {
+                continue;
+            }
+
+            SampleSubmissionRequestRequestedAnalysis::query()->create([
+                'sample_submission_request_id' => $enquiry->id,
+                'sample_type_id' => ($line['sample_type_id'] ?? null) ?: null,
+                'analysis_type_id' => ($line['analysis_type_id'] ?? null) ?: null,
+                'analysis_element_id' => null,
+                'analysis_key' => $token,
+                'analysis_label' => $resolved,
+                'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
+            ]);
+        }
     }
 }

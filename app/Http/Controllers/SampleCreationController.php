@@ -222,7 +222,7 @@ class SampleCreationController extends Controller
             'payment_done_by' => $getSingleValue($sampleHeader['payment_done_by'] ?? 'Client'), // maps to payment_done_by
             'condition_quality_sample' => $getSingleValue($sampleHeader['condition_quality_sample'] ?? 'Good'), // maps to condition_quality_sample
             'crm_contact_id' => $getIntegerValue($sampleHeader['crm_contact_id'] ?? null), // maps to crm_contact_id
-            'customer_email' => $getSingleValue($sampleHeader['customer_email'] ?? ''), // maps to customer_email
+            'schedule_customer_email' => $getSingleValue($sampleHeader['customer_email'] ?? $sampleHeader['schedule_customer_email'] ?? ''),
             'description' => $getSingleValue($sampleHeader['description'] ?? ''), // maps to description
             'document_number' => $getSingleValue($sampleHeader['document_number'] ?? ''), // maps to document_number
             'importer_address' => $getSingleValue($sampleHeader['importer_address'] ?? ''), // maps to importer_address
@@ -347,7 +347,7 @@ class SampleCreationController extends Controller
             'payment_done_by' => $getSingleValue($sampleHeaderData['payment_done_by'] ?? 'Client'),
             'condition_quality_sample' => $getSingleValue($sampleHeaderData['condition_quality_sample'] ?? 'Good'),
             'crm_contact_id' => $getIntegerValue($sampleHeaderData['crm_contact_id'] ?? null),
-            'customer_email' => $getSingleValue($sampleHeaderData['customer_email'] ?? ''),
+            'schedule_customer_email' => $getSingleValue($sampleHeaderData['customer_email'] ?? $sampleHeaderData['schedule_customer_email'] ?? ''),
             'description' => $getSingleValue($sampleHeaderData['description'] ?? ''),
             'document_number' => $getSingleValue($sampleHeaderData['document_number'] ?? ''),
             'importer_address' => $getSingleValue($sampleHeaderData['importer_address'] ?? ''),

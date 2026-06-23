@@ -6,6 +6,7 @@ use App\AnalysisType;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
+use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 
 final class EnquiryReviewDisplayService
@@ -36,6 +37,7 @@ final class EnquiryReviewDisplayService
 
     public function __construct(
         private SubmissionRequestSampleLineService $sampleLineService,
+        private AnalysisReferenceLabelResolver $referenceLabelResolver,
     ) {}
 
     public function customerName(SampleSubmissionRequest $enquiry): string
@@ -152,7 +154,8 @@ final class EnquiryReviewDisplayService
                 continue;
             }
 
-            $tests[] = ['label' => $label];
+            $resolved = $this->referenceLabelResolver->resolveMixed($label);
+            $tests[] = ['label' => $resolved !== '' ? $resolved : $label];
         }
 
         return $tests;
@@ -212,13 +215,19 @@ final class EnquiryReviewDisplayService
     {
         $parameter = trim((string) ($line['parameter_label'] ?? ''));
         if ($parameter !== '') {
-            return $parameter;
+            $resolved = $this->referenceLabelResolver->resolveMixed($parameter);
+            if ($resolved !== '') {
+                return $resolved;
+            }
         }
 
         $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
         $testsRequested = trim((string) ($attributes['tests_requested'] ?? $attributes['parameters'] ?? ''));
         if ($testsRequested !== '') {
-            return $testsRequested;
+            $resolved = $this->referenceLabelResolver->resolveMixed($testsRequested);
+            if ($resolved !== '') {
+                return $resolved;
+            }
         }
 
         $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
@@ -228,8 +237,8 @@ final class EnquiryReviewDisplayService
 
         $analysisTypeId = $line['analysis_type_id'] ?? null;
         if (is_string($analysisTypeId) && $analysisTypeId !== '') {
-            $resolved = AnalysisType::query()->find($analysisTypeId)?->name;
-            if (is_string($resolved) && $resolved !== '') {
+            $resolved = $this->referenceLabelResolver->resolveToken($analysisTypeId);
+            if ($resolved !== '') {
                 return $resolved;
             }
         }

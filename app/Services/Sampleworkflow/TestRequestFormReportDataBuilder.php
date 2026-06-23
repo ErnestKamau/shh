@@ -5,6 +5,7 @@ namespace App\Services\Sampleworkflow;
 use App\Models\System\SystemConfiguration;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
+use App\Services\Lab\AnalysisReferenceLabelResolver;
 use Carbon\Carbon;
 
 class TestRequestFormReportDataBuilder
@@ -436,7 +437,7 @@ class TestRequestFormReportDataBuilder
                     'production_date' => $this->formatDate($row['production_date'] ?? ''),
                     'expiration_date' => $this->formatDate($row['expiration_date'] ?? ''),
                     'batch_number' => (string) ($row['batch_number'] ?? ''),
-                    'parameters' => (string) ($row['parameters'] ?? ''),
+                    'parameters' => app(AnalysisReferenceLabelResolver::class)->resolveMixed($row['parameters'] ?? ''),
                     'state_of_sample' => self::stateOfSampleChecks($row['state_of_sample'] ?? null),
                 ];
                 continue;

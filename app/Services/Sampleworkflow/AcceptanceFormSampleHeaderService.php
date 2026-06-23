@@ -8,6 +8,7 @@ use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionFormInstance;
+use App\Models\TestRequestFormInstance;
 use App\SampleAnalysisStage;
 use App\SampleHeader;
 use App\Services\SubmissionFormBatchSyncService;
@@ -110,6 +111,20 @@ class AcceptanceFormSampleHeaderService
 
         if (Schema::hasColumn('sample_headers', 'is_client_order')) {
             $attributes['is_client_order'] = 1;
+        }
+
+        $trfInstance = $this->resolveTestRequestFormInstance($form, $context);
+        if ($trfInstance !== null) {
+            $formData = is_array($trfInstance->form_data) ? $trfInstance->form_data : [];
+            $mapper = app(TrfSampleFieldMapper::class);
+            $trfMapped = $mapper->mapToSampleHeader($formData, [
+                'crm_customer_id' => $attributes['crm_customer_id'] ?? null,
+                'crm_contact_id' => $attributes['crm_contact_id'] ?? null,
+                'crm_unit_id' => $attributes['crm_unit_id'] ?? null,
+                'crm_unit_name' => $attributes['crm_unit_name'] ?? null,
+                'email' => $context['portalRequest']?->email,
+            ]);
+            $attributes = $mapper->mergeFillGaps($attributes, $trfMapped);
         }
 
         return $attributes;
@@ -613,5 +628,38 @@ class AcceptanceFormSampleHeaderService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * @param  array{
+     *     instance: ?SubmissionFormInstance,
+     *     portalRequest: ?SampleSubmissionRequest,
+     * }  $context
+     */
+    private function resolveTestRequestFormInstance(AnalysisAcceptanceForm $form, array $context): ?TestRequestFormInstance
+    {
+        if ($form->test_request_form_instance_id) {
+            $trfi = TestRequestFormInstance::query()->find($form->test_request_form_instance_id);
+            if ($trfi !== null) {
+                return $trfi;
+            }
+        }
+
+        if ($context['portalRequest'] !== null) {
+            $trfi = $context['portalRequest']->resolveLinkedTrfi();
+            if ($trfi !== null) {
+                return $trfi;
+            }
+        }
+
+        $instanceId = $form->submission_form_instance_id ?? $context['instance']?->id;
+        if ($instanceId !== null && $instanceId !== '') {
+            return TestRequestFormInstance::query()
+                ->where('submission_form_instance_id', $instanceId)
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        return null;
     }
 }

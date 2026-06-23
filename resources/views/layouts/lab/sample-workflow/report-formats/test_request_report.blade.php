@@ -340,7 +340,7 @@
             <tr>
                 <td class="lbl">{{ $labels['attention'] }}</td>
                 <td class="colon">:</td>
-                <td>{{ $batch->getContactPersonDetail() }}</td>
+                <td>{{ $attention ?? $batch->getContactPersonDetail() }}</td>
             </tr>
             <tr>
                 <td class="lbl">{{ $labels['client'] }}</td>
@@ -372,7 +372,7 @@
                 <td class="dlbl">{{ $labels['container_type'] }}</td>
                 <td>{{ $containerType }}</td>
                 <td class="dlbl">{{ $labels['sample_description'] }}</td>
-                <td>{{ strip_tags($batch->description ?? '-') }}</td>
+                <td>{{ $sampleDescription ?? strip_tags($batch->description ?? '-') }}</td>
             </tr>
             <tr>
                 <td class="dlbl">{{ $labels['weight'] }}</td>
@@ -422,7 +422,7 @@
                     <td class="dlbl">{{ $labels['sample_reference'] }}</td>
                     <td><strong>{{ $sample->sample_code }}</strong></td>
                     <td class="dlbl">{{ $labels['sample_point'] }}</td>
-                    <td>{{ $sample->sample_point_name ?? '-' }}</td>
+                    <td>{{ $samplePointByIndex[$loop->index] ?? ($sample->sample_point_name ?? '-') }}</td>
                 </tr>
                 @if($sample->sample_condition_name)
                 <tr>
@@ -530,7 +530,9 @@
                     <div class="sig-underline" style="margin-top:30px;"></div>
                 </div>
                 <div class="sig-center">
-                    @if($approverUser && $approverUser->electronic_sig)
+                    @if(!empty($signatureSrc))
+                        <img src="{{ $signatureSrc }}" alt="Signature">
+                    @elseif($approverUser && $approverUser->electronic_sig)
                         @php
                             $sigSrc = $approverUser->electronic_sig;
                             if (!str_starts_with($sigSrc, 'http') && !str_starts_with($sigSrc, 'data:')) {

@@ -2562,6 +2562,7 @@ class Samples extends Component
             session()->flash('message', 'Parameters saved successfully.');
             $this->loadIncompleteCapturedResults();
             $this->loadNotCaptured();
+            $this->dispatch('resultsUpdated');
             $this->showParametersModal = false;
         } catch (\Exception $e) {
             Log::error('Error saving parameters: ' . $e->getMessage());

@@ -21,6 +21,7 @@ use App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
+use App\Services\Sampleworkflow\TrfSampleFieldMapper;
 use App\TaxRegime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -321,6 +322,19 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ? $portalRequest->exhibits()->orderBy('serial_number')->orderBy('id')->get()
             : collect();
 
+        $trfRows = [];
+        $crmCustomerId = (string) ($header->crm_customer_id ?? '');
+        if ($header->submission_form_instance_id) {
+            $trfi = \App\Models\TestRequestFormInstance::query()
+                ->where('submission_form_instance_id', $header->submission_form_instance_id)
+                ->orderByDesc('created_at')
+                ->first();
+            if ($trfi !== null && is_array($trfi->form_data)) {
+                $trfRows = app(TrfSampleFieldMapper::class)->sampleRowsFromFormData($trfi->form_data);
+            }
+        }
+        $trfMapper = app(TrfSampleFieldMapper::class);
+
         $details = [];
         $detailIndex = 0;
 
@@ -355,6 +369,14 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     if (! empty($plan['zone_id'])) {
                         $detailAttributes['processing_zone_id'] = $plan['zone_id'];
                     }
+                }
+
+                $trfRowIndex = $detailIndex - 1;
+                if (isset($trfRows[$trfRowIndex])) {
+                    $detailAttributes = $trfMapper->mergeFillGaps(
+                        $detailAttributes,
+                        $trfMapper->mapToSampleDetail($trfRows[$trfRowIndex], $trfRowIndex, $crmCustomerId !== '' ? $crmCustomerId : null),
+                    );
                 }
 
                 $detail = $sampleDetailCreationService->create(

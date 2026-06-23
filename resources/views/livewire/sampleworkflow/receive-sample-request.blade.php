@@ -6,13 +6,7 @@
             border-top: 1px solid #e2e8f0;
         }
     </style>
-    @if ($loadError)
-        <div class="receive-sample-alert receive-sample-alert--warning" role="alert">
-            <i class="mdi mdi-alert-outline"></i>
-            <span>{{ $loadError }}</span>
-        </div>
-    @else
-        @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
+    @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
             <section class="receive-sample-selected mb-3">
                 <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
                 <div class="receive-sample-chips">
@@ -217,7 +211,6 @@
                 ></textarea>
             </section>
         @endif
-    @endif
 
     @error('selection')
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
@@ -230,7 +223,7 @@
             class="btn btn-sm btn-primary receive-sample-submit-btn"
             wire:click="confirmReceive"
             wire:loading.attr="disabled"
-            @if ($loadError || (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId)) disabled @endif
+            @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
         >
             <span wire:loading.remove wire:target="confirmReceive">
                 <i class="mdi mdi-package-variant-closed mr-1"></i>

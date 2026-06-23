@@ -6266,132 +6266,11 @@ class SampleWorkFlowController extends Controller
         $jobNumber    = $batch->batch_code;
         $reportNumber = $jobNumber . '-R' . str_pad($sequence, 2, '0', STR_PAD_LEFT);
 
-        // Approver at Sample Approval stage
-        $approver = BatchLabSectionApprover::where('batch_id', $batch->id)
-            ->where('batch_status', 'Sample Approval')
-            ->where('status', 1)
-            ->orderBy('approval_date', 'desc')
-            ->first();
+        $reportData = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
+            ->build($batch, $reportNumber);
 
-        $approverUser  = $approver ? User::find($approver->user_id) : null;
-        $approverRole  = $approverUser ? ($approverUser->designation ?? 'Laboratory Manager') : 'Laboratory Manager';
-        $approvalDate  = $approver && $approver->approval_date
-            ? date('d/m/Y', strtotime($approver->approval_date))
-            : date('d/m/Y');
-
-        $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
-
-        $analysisDate = SampleAnalysisDates::where('sample_header_id', $batch->id)
-            ->orderBy('start_analysis_date', 'ASC')
-            ->first();
-
-        // Pull extra fields from first sample_detail row
-        $firstDetail = \App\SampleDetails::where('sample_header_id', $batch->id)->first();
-        $mfgDate    = $firstDetail && $firstDetail->mfg_date    ? date('d/m/Y', strtotime($firstDetail->mfg_date))    : '-';
-        $expiryDate = $firstDetail && $firstDetail->expiry_date ? date('d/m/Y', strtotime($firstDetail->expiry_date)) : '-';
-        $batchLotNo = $firstDetail->batch_lot_no ?? '-';
-        $sampleWeight = $firstDetail->quantity ?? '-';
-
-        // Pull form_data fields from linked TestRequestFormInstance
-        $formData = [];
-        if ($batch->submission_form_instance_id) {
-            $trf = \App\Models\TestRequestFormInstance::where('submission_form_instance_id', $batch->submission_form_instance_id)->first();
-            if ($trf && $trf->form_data) {
-                $formData = $trf->form_data;
-            }
-        }
-        // Try to find from sample_rows in form_data
-        $sampleRows = $formData['sample_rows'] ?? [];
-        $firstRow   = is_array($sampleRows) && !empty($sampleRows) ? reset($sampleRows) : [];
-
-        $containerType      = $firstRow['container_type'] ?? ($formData['container_type'] ?? '-');
-        $sampleTemperature  = $firstRow['sample_temp'] ?? ($formData['sample_temperature'] ?? $batch->condition_quality_sample ?? '-');
-        $samplePreservation = $firstRow['preservation'] ?? ($formData['sample_preservation'] ?? $firstRow['storage_condition'] ?? '-');
-        // Weight fallback: form_data qty or sample_details quantity
-        if ($sampleWeight === '-' || !$sampleWeight) {
-            $sampleWeight = $firstRow['qty'] ?? ($formData['weight'] ?? '-');
-        }
-        // Page count: 1 base + 1 for each sample with results (min 1)
-        $totalPages = max(1, $samples->count() + 1);
-
-        $company  = getActiveCompany();
-        $customer = $batch->customer;
-
-        // Load all report logos assigned to test_request_report, keyed by "vertical_horizontal"
-        // e.g. 'top_left', 'top_right', 'bottom_left', 'bottom_right'
-        $resolveLogoDataUri = function (string $path): string {
-            $candidates = [];
-            if (!str_starts_with($path, 'http')) {
-                $candidates[] = public_path($path);
-                $candidates[] = public_path('storage/' . ltrim($path, '/'));
-                $candidates[] = storage_path('app/public/' . ltrim(str_replace('/storage/', '', $path), '/'));
-            }
-            foreach ($candidates as $p) {
-                if (is_readable($p)) {
-                    $ext  = strtolower(pathinfo($p, PATHINFO_EXTENSION));
-                    $mime = in_array($ext, ['png']) ? 'image/png' : (in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png');
-                    return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($p));
-                }
-            }
-            return '';
-        };
-
-        // Resolve the company logo (used in the signature section)
-        $companyLogo = '';
-        if ($company && !empty($company->logo)) {
-            $companyLogo = $resolveLogoDataUri($company->logo);
-        }
-        if (!$companyLogo) {
-            foreach (['images/logo-report.png', 'images/company_logo.png'] as $_p) {
-                $companyLogo = $resolveLogoDataUri($_p);
-                if ($companyLogo) break;
-            }
-        }
-
-        // $reportLogos = ['top_left' => [...], 'top_right' => [...], ...]
-        $reportLogos = [];
-        $reportLogo  = ''; // legacy single-logo fallback
-
-        if ($company) {
-            $assignedLogos = $company->reportLogos()
-                ->where('report_type', 'test_request_report')
-                ->get();
-
-            foreach ($assignedLogos as $logo) {
-                if (empty($logo->logo_path)) {
-                    continue;
-                }
-                $dataUri = $resolveLogoDataUri($logo->logo_path);
-                if (!$dataUri) {
-                    continue;
-                }
-                $key = ($logo->position_vertical ?? 'top') . '_' . ($logo->position_horizontal ?? 'left');
-                $reportLogos[$key] = [
-                    'src'              => $dataUri,
-                    'show_on_every_page' => (bool) ($logo->show_on_every_page ?? true),
-                ];
-                if (!$reportLogo) {
-                    $reportLogo = $dataUri; // first logo used as fallback for sig section
-                }
-            }
-
-            if (!$reportLogo) {
-                // Fallback: company logo when no report logos assigned
-                $fallbackCandidates = array_filter([
-                    $company->logo ?? null,
-                    'images/logo-report.png',
-                    'images/company_logo.png',
-                ]);
-                foreach ($fallbackCandidates as $p) {
-                    $result = $resolveLogoDataUri($p);
-                    if ($result) {
-                        $reportLogo = $result;
-                        // Treat the fallback as top-left
-                        $reportLogos['top_left'] = ['src' => $result, 'show_on_every_page' => true];
-                        break;
-                    }
-                }
-            }
+        if (! empty($reportData['signatureWarning'])) {
+            session()->flash('warning', $reportData['signatureWarning']);
         }
 
         // Language & translations
@@ -6535,33 +6414,12 @@ class SampleWorkFlowController extends Controller
             ->orderByDesc('revision_no')
             ->get();
 
-        return view('layouts.lab.sample-workflow.report-formats.test_request_report', compact(
-            'batch',
-            'samples',
-            'reportNumber',
-            'approver',
-            'approverUser',
-            'approverRole',
-            'approvalDate',
-            'analysisDate',
-            'company',
-            'customer',
-            'reportLogo',
-            'reportLogos',
-            'companyLogo',
-            'mfgDate',
-            'expiryDate',
-            'batchLotNo',
-            'sampleWeight',
-            'containerType',
-            'sampleTemperature',
-            'samplePreservation',
-            'totalPages',
+        return view('layouts.lab.sample-workflow.report-formats.test_request_report', array_merge($reportData, compact(
             'language',
             'labels',
             'revisions',
             'isRTL'
-        ));
+        )));
     }
 
     public function getShowBatchCOA($batch_code, $format)
