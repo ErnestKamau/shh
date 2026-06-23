@@ -38,13 +38,24 @@ final class AmSpecQuotationNumberGenerator
         return self::PREFIX.$date->format('ymd').'-'.str_pad((string) max(1, $sequence), 3, '0', STR_PAD_LEFT);
     }
 
+    public static function isLegacyNumber(?string $quoteNumber): bool
+    {
+        if ($quoteNumber === null || $quoteNumber === '') {
+            return true;
+        }
+
+        return str_starts_with($quoteNumber, 'QUOTE-') || ! str_starts_with($quoteNumber, self::PREFIX);
+    }
+
     public static function assignIfMissing(QuotationHeader $header): QuotationHeader
     {
-        if (! empty($header->quote_number) && str_starts_with((string) $header->quote_number, self::PREFIX)) {
+        if (! self::isLegacyNumber($header->quote_number)) {
             return $header;
         }
 
-        $header->quote_number = self::generate();
+        $header->quote_number = self::generate(
+            $header->quote_date ? Carbon::parse($header->quote_date) : null
+        );
         $header->save();
 
         return $header;

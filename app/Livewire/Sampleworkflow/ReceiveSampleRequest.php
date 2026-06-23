@@ -597,20 +597,27 @@ class ReceiveSampleRequest extends Component
         $processed = 0;
         $generatedTrfiIds = [];
 
+        $submissionForm = app(PortalSubmissionFormAccess::class)
+            ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
+
+        if (! $submissionForm) {
+            $this->addError(
+                'selectedSampleTypeId',
+                'No active Test Request Form template could be resolved for this sample type. Contact your administrator.'
+            );
+
+            return;
+        }
+
         // Standalone walk-in capture (no pre-selected requests)
-        DB::transaction(function () use ($user, $form, &$processed, &$generatedTrfiIds): void {
-                $submissionForm = app(PortalSubmissionFormAccess::class)
-                    ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
-
-                if (! $submissionForm) {
-                    throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
-                }
-
+        DB::transaction(function () use ($user, $form, $submissionForm, &$processed, &$generatedTrfiIds): void {
                 $crmCustomerId = null;
                 foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
                     if (! empty($this->formData[$key])) {
                         $custName = $this->formData[$key];
-                        $crmCustomerId = \App\Models\CRM\CRMCustomer::where('name', $custName)->first()?->id;
+                        $crmCustomerId = \App\Models\CRM\CRMCustomer::query()
+                            ->whereRaw('name ILIKE ?', [trim((string) $custName)])
+                            ->value('id');
                         break;
                     }
                 }
@@ -620,6 +627,7 @@ class ReceiveSampleRequest extends Component
                     crmCustomerId: $crmCustomerId,
                     submittedBy: (string) $user->id,
                     portalSubmissionForm: $submissionForm,
+                    generatePdf: true,
                 );
 
                 $trfi = app(TestRequestFormSubmissionService::class)->submit(
@@ -628,23 +636,15 @@ class ReceiveSampleRequest extends Component
                     $context,
                 );
 
+                if ($crmCustomerId !== null) {
+                    $trfi->update(['crm_customer_id' => $crmCustomerId]);
+                }
+
                 $generatedTrfiIds[] = $trfi->id;
             });
 
         $message = 'Walk-in test request submitted successfully.';
         $processed = 1;
-
-        $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
-        foreach (array_unique($generatedTrfiIds) as $trfiId) {
-            try {
-                $trfi = TestRequestFormInstance::query()->find($trfiId);
-                if ($trfi) {
-                    $pdfService->generateAndStore($trfi);
-                }
-            } catch (\Throwable) {
-                // PDF failure should not block receiving.
-            }
-        }
 
         $this->lastGeneratedTrfiIds = array_values(array_unique($generatedTrfiIds));
 

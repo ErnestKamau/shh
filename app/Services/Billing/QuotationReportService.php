@@ -17,6 +17,58 @@ use Illuminate\Support\Facades\URL;
 
 class QuotationReportService
 {
+    /**
+     * @var list<string>
+     */
+    private const DEFAULT_TERMS_AND_CONDITIONS = [
+        'This quotation is valid for 30 days from the date of issue.',
+        'Samples must be submitted/collected in suitable condition and quantity for the requested analysis.',
+        'Report turnaround time commences upon receipt and acceptance of the sample.',
+        'Test results apply only to the samples submitted and tested.',
+        'All client information and test results will be treated as confidential.',
+        'Reports shall not be reproduced except in full without written approval from the laboratory.',
+        'The laboratory reserves the right to subcontract specific tests to competent laboratories when required.',
+        'Complaints and appeals will be handled in accordance with the laboratory\'s documented procedures.',
+        'Samples will be retained and disposed of as per the laboratory\'s retention policy.',
+        'Orders cancelled after confirmation may be subject to applicable charges for work already performed, materials procured, or commitments made by the laboratory.',
+        'Payment shall be made within the credit terms stated in the quotation.',
+        'This quotation is valid for a minimum order value of AED _____________.',
+        'The laboratory shall not be liable for delays caused by circumstances beyond its reasonable control.',
+        'Acceptance of this quotation constitutes acceptance of the laboratory terms and conditions of service.',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    public const STRUCTURED_TERM_DEFINITIONS = [
+        'tat' => 'Turnaround Time (TAT)',
+        'vat' => 'VAT',
+        'validity' => 'Validity',
+        'confidentiality' => 'Confidentiality',
+        'payment' => 'Payment',
+        'cancellation' => 'Cancellation',
+        'amendments' => 'Amendments',
+        'retention_disposal' => 'Retention & Disposal',
+        'subcontract' => 'Subcontract',
+        'min_invoice_value' => 'Minimum Invoice Value',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    public const DEFAULT_STRUCTURED_TERMS = [
+        'tat' => 'Report turnaround time commences upon receipt and acceptance of the sample.',
+        'vat' => 'VAT at applicable rate will be charged where required by law.',
+        'validity' => 'This quotation is valid for 30 days from the date of issue.',
+        'confidentiality' => 'All client information and test results will be treated as confidential.',
+        'payment' => 'Payment shall be made within the credit terms stated in this quotation.',
+        'cancellation' => 'Orders cancelled after confirmation may be subject to applicable charges for work already performed.',
+        'amendments' => 'Any amendments to this quotation must be agreed in writing by both parties.',
+        'retention_disposal' => 'Samples will be retained and disposed of as per the laboratory retention policy.',
+        'subcontract' => 'The laboratory reserves the right to subcontract specific tests to competent laboratories when required.',
+        'min_invoice_value' => 'This quotation is subject to a minimum invoice value of AED _____________.',
+    ];
+
     public function __construct(
         private readonly QuotationPricingResolver $pricingResolver
     ) {}
@@ -30,30 +82,38 @@ class QuotationReportService
 
         $enrichedHeader = $this->buildEnrichedHeader($header);
         $realGroups = $this->buildGroupedLineItems($header);
-        $isPlaceholderTable = $realGroups === [];
-        $groups = $isPlaceholderTable ? $this->buildPlaceholderGroups() : $realGroups;
+        $hasLineItems = $realGroups !== [];
+        $groups = $realGroups;
         $branding = $this->resolveCompanyBranding($forPdf);
         $terms = $this->resolveTerms($header);
         $copy = $this->resolveCopySettings();
         $currency = $header->currency;
-        $totals = $this->resolveTotals($header, $groups, $isPlaceholderTable);
+        $termsOfSale = $this->resolveTermsOfSale($header);
+        $structuredTerms = $this->resolveStructuredTerms($header);
+        $bankDetails = $this->resolveBankDetails();
+        $totals = $this->resolveTotals($header, $groups, ! $hasLineItems);
         $reportViewUrl = $this->resolveReportViewUrl($header);
         $company = getActiveCompany();
 
         return [
             'reportHeader' => $enrichedHeader,
             'groups' => $groups,
-            'isPlaceholderTable' => $isPlaceholderTable,
+            'hasLineItems' => $hasLineItems,
+            'isPlaceholderTable' => false,
             'branding' => $branding,
             'terms' => $terms,
+            'termsOfSale' => $termsOfSale,
+            'structuredTerms' => $structuredTerms,
+            'bankDetails' => $bankDetails,
             'copy' => $copy,
             'currency' => $currency,
             'currencyCode' => $currency?->code ?? $currency?->name ?? 'AED',
             'totals' => $totals,
             'company' => $company,
             'forPdf' => $forPdf,
-            'showLoqColumn' => (bool) ($header->show_loq_column ?? true),
+            'showLoqColumn' => true,
             'showMuColumn' => (bool) ($header->show_mu_column ?? true),
+            'showUnitPriceColumn' => (bool) ($header->show_unit_price_column ?? true),
             'reportViewUrl' => $reportViewUrl,
             'qrCode' => $this->buildQrCode($reportViewUrl, $forPdf ? 56 : 90),
         ];
@@ -126,42 +186,132 @@ class QuotationReportService
         }
     }
 
-    /**
-     * @return list<array{sample_type_name: string, rows: list<array<string, mixed>>}>
-     */
-    public function buildPlaceholderGroups(): array
+    public function seedDefaultTermsOfSale(QuotationHeader $header): void
     {
-        $definitions = [
-            'Non Seafood' => 4,
-            'Seafood' => 4,
-            'Tap Water' => 4,
-            'Swimming pool' => 3,
-        ];
+        $config = $this->resolveTermsOfSaleConfig();
+        $dirty = false;
 
-        $result = [];
+        foreach (['service_delivery', 'payments', 'quote_specification', 'additional_info'] as $field) {
+            if (empty($header->{$field}) && ! empty($config[$field])) {
+                $header->{$field} = $config[$field];
+                $dirty = true;
+            }
+        }
 
-        foreach ($definitions as $sampleTypeName => $rowCount) {
-            $rows = [];
+        if (empty($header->payment_info)) {
+            $header->payment_info = 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE';
+            $dirty = true;
+        }
 
-            for ($index = 1; $index <= $rowCount; $index++) {
-                $rows[] = [
-                    'serial' => null,
-                    'test_name' => 'Test#'.$index,
-                    'test_method' => '',
-                    'loq' => '',
-                    'mu_percent' => '',
-                    'unit_price' => 100.0,
-                    'quantity' => 1,
-                    'is_placeholder' => true,
-                    'is_accredited' => false,
-                    'is_subcontracted' => false,
+        if ($dirty) {
+            $header->save();
+        }
+    }
+
+    public function seedDefaultStructuredTerms(QuotationHeader $header): void
+    {
+        $config = $this->resolveStructuredTermsConfig();
+        $stored = is_array($header->structured_terms) ? $header->structured_terms : [];
+        $dirty = false;
+
+        foreach (self::STRUCTURED_TERM_DEFINITIONS as $key => $label) {
+            if (empty($stored[$key]) && ! empty($config[$key])) {
+                $stored[$key] = $config[$key];
+                $dirty = true;
+            }
+        }
+
+        if ($dirty) {
+            $header->structured_terms = $stored;
+            $header->save();
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function resolveStructuredTermsConfig(): array
+    {
+        $type = getConfigTypeByName('Quotation Structured Terms');
+        $configs = $type ? getconfigByID($type->id) : collect();
+        $result = self::DEFAULT_STRUCTURED_TERMS;
+
+        foreach ($configs as $config) {
+            if (array_key_exists((string) $config->key, self::STRUCTURED_TERM_DEFINITIONS)) {
+                $result[(string) $config->key] = (string) $config->value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{items: list<array{key: string, label: string, value: string}>}
+     */
+    public function resolveStructuredTerms(QuotationHeader $header): array
+    {
+        $config = $this->resolveStructuredTermsConfig();
+        $stored = is_array($header->structured_terms) ? $header->structured_terms : [];
+        $items = [];
+
+        foreach (self::STRUCTURED_TERM_DEFINITIONS as $key => $label) {
+            $value = trim((string) ($stored[$key] ?? $config[$key] ?? ''));
+            if ($value !== '') {
+                $items[] = [
+                    'key' => $key,
+                    'label' => $label,
+                    'value' => $value,
                 ];
             }
+        }
 
-            $result[] = [
-                'sample_type_name' => $sampleTypeName,
-                'rows' => $rows,
-            ];
+        return ['items' => $items];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function resolveTermsOfSaleConfig(): array
+    {
+        $type = getConfigTypeByName('Terms of Sale');
+        $configs = $type ? getconfigByID($type->id) : collect();
+        $result = [];
+
+        foreach ($configs as $config) {
+            $result[(string) $config->key] = (string) $config->value;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{service_delivery: string, payments: string, quote_specification: string, additional_info: string, payment_info: string, prices: string}
+     */
+    public function resolveTermsOfSale(QuotationHeader $header): array
+    {
+        $config = $this->resolveTermsOfSaleConfig();
+
+        return [
+            'service_delivery' => (string) ($header->service_delivery ?: ($config['service_delivery'] ?? '')),
+            'payments' => (string) ($header->payments ?: ($config['payments'] ?? '')),
+            'quote_specification' => (string) ($header->quote_specification ?: ($config['quote_specification'] ?? '')),
+            'additional_info' => (string) ($header->additional_info ?: ($config['additional_info'] ?? '')),
+            'payment_info' => (string) ($header->payment_info ?: 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE'),
+            'prices' => (string) ($config['prices'] ?? ''),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function resolveBankDetails(): array
+    {
+        $type = getConfigTypeByName('Bank Details');
+        $configs = $type ? getconfigByID($type->id) : collect();
+        $result = [];
+
+        foreach ($configs as $config) {
+            $result[(string) $config->key] = (string) $config->value;
         }
 
         return $result;
@@ -170,7 +320,7 @@ class QuotationReportService
     /**
      * @return list<array{sample_type_name: string, rows: list<array<string, mixed>>}>
      */
-    public function buildGroupedLineItems(QuotationHeader $header): array
+    private function buildGroupedLineItems(QuotationHeader $header): array
     {
         $details = QuotationDetails::where('quotation_header_id', $header->id)->get();
         $grouped = [];
@@ -285,7 +435,7 @@ class QuotationReportService
     {
         $this->ensureHeaderMetadata($header);
         $header->refresh();
-        $header->loadMissing(['customer', 'contact', 'currency']);
+        $header->loadMissing(['customer', 'contact', 'currency', 'revisionOf']);
 
         $preparedBy = getUserById($header->prepared_by_id);
         $position = $preparedBy?->position
@@ -322,6 +472,8 @@ class QuotationReportService
             'attention' => $attention,
             'sampling_location_display' => $samplingLocation ?? '-',
             'laboratory_ref_display' => $header->laboratory_ref ?? $batch?->batch_code ?? $header->quote_number,
+            'revision_number' => (int) ($header->revision_number ?? 1),
+            'revision_of_quote_number' => $header->revisionOf?->quote_number,
             'quote_date_formatted' => $header->quote_date
                 ? date('d-m-Y', strtotime($header->quote_date))
                 : date('d-m-Y'),
@@ -370,15 +522,18 @@ class QuotationReportService
     {
         if (! empty($header->terms_override)) {
             $lines = preg_split('/\r\n|\r|\n/', trim($header->terms_override)) ?: [];
+            $items = collect($lines)
+                ->filter()
+                ->values()
+                ->map(fn (string $text, int $index) => ['number' => $index + 1, 'text' => $text])
+                ->all();
 
-            return [
-                'items' => collect($lines)
-                    ->filter()
-                    ->values()
-                    ->map(fn (string $text, int $index) => ['number' => $index + 1, 'text' => $text])
-                    ->all(),
-                'override' => $header->terms_override,
-            ];
+            if ($items !== []) {
+                return [
+                    'items' => $items,
+                    'override' => $header->terms_override,
+                ];
+            }
         }
 
         $type = getConfigTypeByName('Quotation Terms and Conditions');
@@ -398,10 +553,28 @@ class QuotationReportService
 
         ksort($items);
 
+        if ($items === []) {
+            $items = $this->defaultTermsAndConditionsItems();
+        }
+
         return [
             'items' => array_values($items),
             'override' => null,
         ];
+    }
+
+    /**
+     * @return array<int, array{number: int, text: string}>
+     */
+    private function defaultTermsAndConditionsItems(): array
+    {
+        $items = [];
+
+        foreach (self::DEFAULT_TERMS_AND_CONDITIONS as $index => $text) {
+            $items[$index + 1] = ['number' => $index + 1, 'text' => $text];
+        }
+
+        return $items;
     }
 
     /**
@@ -423,9 +596,9 @@ class QuotationReportService
      * @param  list<array{sample_type_name: string, rows: list<array<string, mixed>>}>  $groups
      * @return array{net: float, vat: float, total: float, vat_rate: ?float}
      */
-    private function resolveTotals(QuotationHeader $header, array $groups, bool $isPlaceholderTable = false): array
+    private function resolveTotals(QuotationHeader $header, array $groups, bool $isEmptyTable = false): array
     {
-        if ($isPlaceholderTable) {
+        if ($isEmptyTable) {
             return [
                 'net' => 0.0,
                 'vat' => 0.0,
@@ -448,10 +621,6 @@ class QuotationReportService
         $net = 0.0;
         foreach ($groups as $group) {
             foreach ($group['rows'] as $row) {
-                if (! empty($row['is_placeholder'])) {
-                    continue;
-                }
-
                 $net += ((float) $row['unit_price']) * ((int) ($row['quantity'] ?? 1));
             }
         }
@@ -484,6 +653,7 @@ class QuotationReportService
             'loq' => $loq,
             'mu_percent' => $muPercent,
             'unit_price' => $unitPrice,
+            'total_price' => round($unitPrice * $quantity, 2),
             'quantity' => $quantity,
             'is_placeholder' => false,
             'is_accredited' => $isAccredited,

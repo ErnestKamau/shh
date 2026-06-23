@@ -100,7 +100,7 @@ trait ManagesSampleConfigurationWizard
         }
 
         $parameters = app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
-            $this->crmCustomerId,
+            $this->crmCustomerId ?? '',
             $config['sample_type_id'] ?? null,
             $config['analysis_type_id']
         );
@@ -215,14 +215,14 @@ trait ManagesSampleConfigurationWizard
 
     public function parametersForConfigIndex(int $index): array
     {
-        if (! $this->crmCustomerId || ! isset($this->sampleConfigs[$index])) {
+        if (! isset($this->sampleConfigs[$index])) {
             return [];
         }
 
         $config = $this->sampleConfigs[$index];
 
         return app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
-            $this->crmCustomerId,
+            $this->crmCustomerId ?? '',
             $config['sample_type_id'] ?? null,
             $config['analysis_type_id'] ?? null
         );

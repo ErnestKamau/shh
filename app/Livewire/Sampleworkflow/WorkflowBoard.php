@@ -1768,11 +1768,15 @@ class WorkflowBoard extends Component
         $this->onProcessEnquiryCompleted();
     }
 
-    public function onReceiveCompleted(): void
+    public function onReceiveCompleted(array $trfiIds = []): void
     {
         $this->selectedFormInstanceIds = [];
         $this->receiveFormSummaries = [];
         $this->dispatch('hide-receive-sample-modal');
+
+        if ($trfiIds !== []) {
+            $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $trfiIds[0]));
+        }
     }
 
     /**

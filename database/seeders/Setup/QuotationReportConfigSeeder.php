@@ -74,5 +74,24 @@ class QuotationReportConfigSeeder extends Seeder
                 ]
             );
         }
+
+        $structuredType = SystemConfigurationsType::query()->updateOrCreate(
+            ['configuration_type' => 'Quotation Structured Terms'],
+            [
+                'description' => 'Structured commercial terms for customer quotations.',
+                'status' => true,
+            ]
+        );
+
+        foreach (\App\Services\Billing\QuotationReportService::DEFAULT_STRUCTURED_TERMS as $key => $value) {
+            SystemConfiguration::query()->updateOrCreate(
+                ['key' => $key],
+                [
+                    'configuration_type_id' => $structuredType->id,
+                    'value' => $value,
+                    'status' => true,
+                ]
+            );
+        }
     }
 }

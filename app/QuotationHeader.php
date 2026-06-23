@@ -36,6 +36,8 @@ class QuotationHeader extends Model implements Auditable
             'approved_by' => 'string',
             'show_loq_column' => 'boolean',
             'show_mu_column' => 'boolean',
+            'show_unit_price_column' => 'boolean',
+            'structured_terms' => 'array',
         ];
     }
 
@@ -70,6 +72,11 @@ class QuotationHeader extends Model implements Auditable
     public function revisionOf(): BelongsTo
     {
         return $this->belongsTo(self::class, 'revision_of_quotation_header_id');
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(self::class, 'revision_of_quotation_header_id');
     }
 
     public function samplePoint()
