@@ -251,9 +251,11 @@ class SubmissionFormInstanceController extends Controller
         $pdfService->ensureStored($trfi);
 
         $storagePath = $pdfService->resolveStoragePath($trfi);
-        $filename = 'test-request-form-' . ($instanceModel->form_number ?: $trfi->id) . '.pdf';
 
-        return Storage::disk('public')->download($storagePath, $filename);
+        return Storage::disk('public')->download(
+            $storagePath,
+            $pdfService->resolveDownloadFilename($trfi)
+        );
     }
 
     public function destroy(Request $request, string $instance): JsonResponse

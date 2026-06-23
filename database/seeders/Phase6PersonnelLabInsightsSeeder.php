@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Lab;
 use App\User;
 use Database\Seeders\Concerns\AmSpecSeedData;
+use Database\Seeders\Concerns\ClearsAmSpecPersonnelData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ use Illuminate\Support\Str;
 
 class Phase6PersonnelLabInsightsSeeder extends Seeder
 {
+    use ClearsAmSpecPersonnelData;
+
     public function run(): void
     {
         config(['database.default' => 'pgsql']);
@@ -22,6 +25,8 @@ class Phase6PersonnelLabInsightsSeeder extends Seeder
             $this->command?->info('====================================================');
             $this->command?->info('STARTING PHASE 6 SEEDING: Personnel + Lab Insights');
             $this->command?->info('====================================================');
+
+            $this->clearAmSpecPersonnelData();
 
             $templateUser = User::query()->where('active', 1)->first() ?? User::query()->first();
             if (! $templateUser) {

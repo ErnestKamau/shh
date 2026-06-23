@@ -115,7 +115,6 @@ class QuotationManager extends Component
     {
         return [
             'Quote In Preparation',
-            'Quote In Approval',
             'Quote Complete'
         ];
     }

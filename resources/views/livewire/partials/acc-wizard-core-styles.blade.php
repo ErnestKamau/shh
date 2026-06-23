@@ -242,6 +242,404 @@
         white-space: nowrap;
     }
 
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Sample configuration (Process Enquiry + Acceptance wizard) */
+    .acc-sample-config-section {
+        padding: 1.25rem 1.35rem 1.1rem;
+    }
+
+    .acc-sample-config-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1rem !important;
+        padding-bottom: 0.85rem;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .acc-sample-config-toolbar-actions {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .acc-sample-config-sync-btn {
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+
+    .acc-btn-add {
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.8125rem;
+        padding: 0.35rem 0.85rem;
+        color: #fff;
+        background: var(--acc-accent);
+        border: 1px solid var(--acc-accent);
+    }
+
+    .acc-btn-add:hover {
+        color: #fff;
+        background: var(--acc-accent-dark);
+        border-color: var(--acc-accent-dark);
+    }
+
+    .acc-btn-remove {
+        border-radius: 8px;
+        color: #be123c;
+        border-color: #fecdd3;
+        background: #fff5f7;
+        padding: 0.2rem 0.45rem;
+    }
+
+    .acc-btn-remove:hover {
+        color: #9f1239;
+        background: #ffe4e6;
+        border-color: #fda4af;
+    }
+
+    .acc-sample-config-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .acc-sample-config-card {
+        border: 1px solid var(--acc-border);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .acc-sample-config-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.7rem 1rem;
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid var(--acc-border);
+    }
+
+    .acc-sample-config-card-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--acc-text);
+    }
+
+    .acc-sample-config-card-title .mdi {
+        color: var(--acc-accent);
+        font-size: 1.05rem;
+    }
+
+    .acc-sample-config-table-wrap {
+        overflow-x: auto;
+    }
+
+    .acc-sample-config-table {
+        table-layout: fixed;
+        width: 100%;
+        margin: 0;
+    }
+
+    .acc-sample-config-table thead th {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--acc-muted);
+        background: #fff;
+        border-bottom: 1px solid var(--acc-border);
+        padding: 0.65rem 0.75rem;
+        vertical-align: bottom;
+        white-space: nowrap;
+    }
+
+    .acc-sample-config-table tbody td {
+        border-top: none;
+        padding: 0.75rem;
+        vertical-align: top;
+    }
+
+    .acc-sample-config-table--compact th:nth-child(1),
+    .acc-sample-config-table--compact td:nth-child(1) {
+        width: 22%;
+        min-width: 130px;
+    }
+
+    .acc-sample-config-table--compact th:nth-child(2),
+    .acc-sample-config-table--compact td:nth-child(2) {
+        width: 30%;
+        min-width: 160px;
+    }
+
+    .acc-sample-config-table--compact th:nth-child(3),
+    .acc-sample-config-table--compact td:nth-child(3) {
+        width: 28%;
+        max-width: 220px;
+    }
+
+    .acc-sample-config-table--compact th:nth-child(4),
+    .acc-sample-config-table--compact td:nth-child(4) {
+        width: 110px;
+    }
+
+    .acc-sample-config-table--with-condition th:nth-child(1),
+    .acc-sample-config-table--with-condition td:nth-child(1) {
+        width: 18%;
+        min-width: 120px;
+    }
+
+    .acc-sample-config-table--with-condition th:nth-child(2),
+    .acc-sample-config-table--with-condition td:nth-child(2) {
+        width: 22%;
+        min-width: 140px;
+    }
+
+    .acc-sample-config-table--with-condition th:nth-child(3),
+    .acc-sample-config-table--with-condition td:nth-child(3) {
+        width: 18%;
+        min-width: 120px;
+    }
+
+    .acc-sample-config-table--with-condition th:nth-child(4),
+    .acc-sample-config-table--with-condition td:nth-child(4) {
+        width: 24%;
+        max-width: 200px;
+    }
+
+    .acc-sample-config-table--with-condition th:nth-child(5),
+    .acc-sample-config-table--with-condition td:nth-child(5) {
+        width: 110px;
+    }
+
+    .acc-sample-config-main-row td {
+        background: #fff;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .acc-sample-config-main-row .form-control {
+        min-height: 2.125rem;
+    }
+
+    .acc-input-sm {
+        max-width: 5.5rem;
+        margin-inline: auto;
+    }
+
+    .acc-sample-config-params-row td,
+    .acc-sample-config-section-row td {
+        padding: 0.65rem 0.75rem 0.75rem;
+        background: #f8fafc;
+    }
+
+    .acc-sample-config-params-panel {
+        border: 1px solid var(--acc-border);
+        border-radius: 10px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .acc-sample-config-params-panel + .acc-sample-config-params-panel,
+    .acc-sample-config-instances-panel {
+        margin-top: 0.65rem;
+    }
+
+    .acc-sample-config-params-band {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.45rem 0.55rem 0.45rem 0.35rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .acc-sample-config-instances-band {
+        border-bottom: none;
+    }
+
+    .acc-sample-config-section-toggle {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        padding: 0.35rem 0.5rem;
+        border: none;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background 0.15s ease;
+    }
+
+    .acc-sample-config-section-toggle:hover {
+        background: rgba(59, 95, 192, 0.06);
+    }
+
+    .acc-sample-config-section-toggle-main {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-width: 0;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--acc-text);
+    }
+
+    .acc-sample-config-chevron {
+        color: var(--acc-accent);
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .acc-sample-config-section-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--acc-accent);
+        background: var(--acc-accent-soft);
+        border: 1px solid #c7d7fc;
+        white-space: nowrap;
+    }
+
+    .acc-sample-config-params-band-actions {
+        flex-shrink: 0;
+    }
+
+    .acc-sample-config-select-all {
+        border-radius: 7px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.65rem;
+        color: var(--acc-accent);
+        border-color: #c7d7fc;
+        background: #fff;
+    }
+
+    .acc-sample-config-select-all:hover:not(:disabled) {
+        color: #fff;
+        background: var(--acc-accent);
+        border-color: var(--acc-accent);
+    }
+
+    .acc-sample-config-select-all:disabled {
+        opacity: 0.45;
+    }
+
+    .acc-sample-config-section-body {
+        padding: 0.85rem 0.9rem 0.95rem;
+    }
+
+    .acc-sample-config-params-search-row {
+        margin-bottom: 0.75rem;
+    }
+
+    .acc-sample-config-search {
+        max-width: 280px;
+    }
+
+    .acc-sample-config-param-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .acc-sample-config-param-chip {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        margin: 0;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid var(--acc-border);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--acc-text);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .acc-sample-config-param-chip:hover {
+        border-color: #c7d7fc;
+        background: #fafbff;
+    }
+
+    .acc-sample-config-param-chip.is-selected {
+        border-color: var(--acc-accent);
+        background: var(--acc-accent-soft);
+        box-shadow: inset 0 0 0 1px rgba(59, 95, 192, 0.12);
+    }
+
+    .acc-sample-config-param-chip input {
+        margin-top: 0.15rem;
+        flex-shrink: 0;
+        accent-color: var(--acc-accent);
+    }
+
+    .acc-sample-config-param-chip span {
+        line-height: 1.35;
+        word-break: break-word;
+    }
+
+    .acc-sample-config-instances-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+
+    .acc-sample-config-instance-item {
+        border: 1px solid var(--acc-border);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+        background: #f8fafc;
+    }
+
+    .acc-sample-config-instance-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--acc-muted);
+        margin-bottom: 0.55rem;
+    }
+
+    .acc-sample-config-instance-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .acc-sample-config-instance-fields {
+            grid-template-columns: 1fr;
+        }
+
+        .acc-sample-config-table {
+            table-layout: auto;
+        }
+    }
+
     body.modal-open {
         overflow: hidden;
     }

@@ -496,6 +496,18 @@ class SubmissionFormInstance extends Model implements Auditable
         return null;
     }
 
+    public function canonicalFormNumber(): string
+    {
+        $this->loadMissing('testRequestFormInstance');
+
+        return (string) (
+            $this->testRequestFormInstance?->form_number
+            ?? $this->getDocumentControlNumber()
+            ?? $this->form_number
+            ?? ''
+        );
+    }
+
     /**
      * Get a value by element name
      */
@@ -852,7 +864,7 @@ class SubmissionFormInstance extends Model implements Auditable
     }
 
     /**
-     * Acceptance form, receipt notification, and batch exist for Request Review.
+     * Acceptance form completed and batch exists (Samples In Lab or Request Review).
      */
     public function scopeRequestReviewAccepted($query)
     {
@@ -861,15 +873,15 @@ class SubmissionFormInstance extends Model implements Auditable
         })->whereHas('batches', function ($batchQuery) {
             $batchQuery->where(function ($inner) {
                 $inner->where('status', 'Samples Request Review')
-                    ->orWhere('prelim_batch_status', 'Samples Request Review');
-            })->whereHas('batch_attachments', function ($attachmentQuery) {
-                $attachmentQuery->where('title', 'Sample Receipt Notification (GCLA 01)');
+                    ->orWhere('prelim_batch_status', 'Samples Request Review')
+                    ->orWhere('status', 'Samples In Lab')
+                    ->orWhere('prelim_batch_status', 'Samples In Lab');
             });
         });
     }
 
     /**
-     * In Request Review queue but not yet fully accepted (forms + batch + receipt).
+     * In Request Review queue but not yet fully accepted (completed form + batch).
      */
     public function scopeRequestReviewInReview($query)
     {
@@ -1216,7 +1228,67 @@ class SubmissionFormInstance extends Model implements Auditable
             $total += count($tokens);
         }
 
-        return $total;
+        if ($total > 0) {
+            return $total;
+        }
+
+        return $this->countRequestedTestsFromCommercialEnquiry();
+    }
+
+    /**
+     * Count requested tests from linked commercial enquiry (Process Enquiry / TRF path).
+     */
+    private function countRequestedTestsFromCommercialEnquiry(): int
+    {
+        $enquiry = $this->linkedCommercialEnquiry();
+        if ($enquiry === null) {
+            return 0;
+        }
+
+        $configs = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        if ($configs !== []) {
+            $fromConfigs = 0;
+            foreach ($configs as $config) {
+                if (! is_array($config)) {
+                    continue;
+                }
+
+                $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
+                $fromConfigs += count(array_filter($parameterKeys, static fn ($key) => trim((string) $key) !== ''));
+            }
+
+            if ($fromConfigs > 0) {
+                return $fromConfigs;
+            }
+        }
+
+        $enquiry->loadMissing('requestedAnalyses');
+        if ($enquiry->requestedAnalyses->isNotEmpty()) {
+            return $enquiry->requestedAnalyses->count();
+        }
+
+        $parameterIds = is_array($enquiry->parameter_ids) ? $enquiry->parameter_ids : [];
+        $parameterIds = array_filter($parameterIds, static fn ($id) => trim((string) $id) !== '');
+        if ($parameterIds !== []) {
+            return count($parameterIds);
+        }
+
+        $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $fromLines = 0;
+        foreach ($lines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+            $analysisTypeId = trim((string) ($line['analysis_type_id'] ?? ''));
+
+            if ($elementId !== '' || $analysisTypeId !== '') {
+                $fromLines++;
+            }
+        }
+
+        return $fromLines;
     }
 
     /**
@@ -1275,8 +1347,22 @@ class SubmissionFormInstance extends Model implements Auditable
             'dependency_chain' => []
         ];
 
+        $seenSectionIds = [];
+        $seenSectionTitles = [];
+
         // Process each section
         foreach ($this->submissionForm->sections as $section) {
+            $sectionKey = strtolower(trim((string) $section->title));
+            if (in_array($section->id, $seenSectionIds, true)
+                || ($sectionKey !== '' && in_array($sectionKey, $seenSectionTitles, true))) {
+                continue;
+            }
+
+            $seenSectionIds[] = $section->id;
+            if ($sectionKey !== '') {
+                $seenSectionTitles[] = $sectionKey;
+            }
+
             $sectionData = [
                 'id' => $section->id,
                 'title' => $section->title,
@@ -1285,8 +1371,15 @@ class SubmissionFormInstance extends Model implements Auditable
                 'element_holders' => []
             ];
 
+            $seenHolderIds = [];
+
             // Process element holders within the section
             foreach ($section->elementHolders as $holder) {
+                if (in_array($holder->id, $seenHolderIds, true)) {
+                    continue;
+                }
+
+                $seenHolderIds[] = $holder->id;
                 $holderData = [
                     'id' => $holder->id,
                     'title' => $holder->title,

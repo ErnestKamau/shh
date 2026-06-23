@@ -8,6 +8,8 @@ use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
 use App\Services\SampleCreationService;
 use App\Services\SubmissionFormPdfService;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\SampleDate;
 use App\SampleAnalysisStage;
 use App\AnalysisType;
@@ -30,8 +32,12 @@ class SampleCreationController extends Controller
 
     protected SubmissionFormPdfService $submissionFormPdfService;
 
-    public function __construct(SampleCreationService $sampleCreationService, SubmissionFormPdfService $submissionFormPdfService)
-    {
+    public function __construct(
+        SampleCreationService $sampleCreationService,
+        SubmissionFormPdfService $submissionFormPdfService,
+        private readonly JobSampleNumberingService $numberingService,
+        private readonly SampleDetailCreationService $sampleDetailCreationService,
+    ) {
         $this->middleware('auth');
         $this->sampleCreationService = $sampleCreationService;
         $this->submissionFormPdfService = $submissionFormPdfService;
@@ -428,10 +434,6 @@ class SampleCreationController extends Controller
             return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
         };
 
-        // Generate sample code with smart logic
-        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode, $sampleCount, $totalBatchCount);
-
-
         // Get sample header to access sample_type_id
         $sampleHeader = SampleHeader::with('sample_type')->find($sampleHeaderId);
 
@@ -470,20 +472,14 @@ class SampleCreationController extends Controller
             }
         }
 
-        // Create the sample detail
-        $sampleDetail = new \App\SampleDetails();
-        $sampleData = [
-            'sample_header_id' => $sampleHeaderId,
-            'sample_code' => $sampleCode['sample_code'],
-            'sample_no' => $sampleCode['sample_no'],
-            'report_number' => $sampleCode['report_number'],
+        $sampleAttributes = [
             'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
             'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
             'sample_condition_id' => $sampleConditionId,
             'company_product_id' => $companyProductId,
             'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
             'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
-            'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
+            'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1),
             'disposal_date' => $disposal_date,
             'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
             'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
@@ -503,22 +499,36 @@ class SampleCreationController extends Controller
             return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid) === 1;
         };
 
-        // Sanitize UUID columns
         $uuidCols = [
-            'sample_point_id', 'sample_condition_id', 'company_product_id', 
-            'main_standard', 'secondary_standard', 'third_standard_id', 'lab_id'
+            'sample_point_id', 'sample_condition_id', 'company_product_id',
+            'main_standard', 'secondary_standard', 'third_standard_id', 'lab_id',
         ];
         foreach ($uuidCols as $col) {
-            if (isset($sampleData[$col])) {
-                if (empty($sampleData[$col]) || !$isValidUuid($sampleData[$col])) {
-                    $sampleData[$col] = null;
+            if (isset($sampleAttributes[$col])) {
+                if (empty($sampleAttributes[$col]) || ! $isValidUuid($sampleAttributes[$col])) {
+                    $sampleAttributes[$col] = null;
                 }
             }
         }
 
-        $sampleDetail->fill($sampleData);
-
-        $sampleDetail->save();
+        if ($this->numberingService->isJobNumberFormat((string) $sampleHeader->batch_code)) {
+            $sampleDetail = $this->sampleDetailCreationService->create(
+                $sampleHeader,
+                JobSampleNumberingService::PREFIX_CHEMISTRY,
+                $sampleAttributes,
+                $getSingleValue($detailData['customer_sample_id'] ?? null),
+            );
+        } else {
+            $sampleCode = $this->generateLegacySampleCode($sampleHeaderId, $index);
+            $sampleDetail = new \App\SampleDetails();
+            $sampleDetail->fill(array_merge($sampleAttributes, [
+                'sample_header_id' => $sampleHeaderId,
+                'sample_code' => $sampleCode['sample_code'],
+                'sample_no' => $sampleCode['sample_no'],
+                'report_number' => $sampleCode['report_number'],
+            ]));
+            $sampleDetail->save();
+        }
 
         // Check for No Result Capture flag on Sample Detail
         $hasNoResultCapture = true;
@@ -662,9 +672,9 @@ class SampleCreationController extends Controller
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
                 'remark' => null,
-                'main_standard_id' => $standardID ? $standardID->id : null,
-                'secondary_standard_id' => $secondaryStandardID ? $secondaryStandardID->id : null,
-                'third_standard_id' => $thirdStandardID ? $thirdStandardID->id : null,
+                'main_standard_id' => $standardID?->standard_id ?? ($sampleDetail?->main_standard ?: null),
+                'secondary_standard_id' => $secondaryStandardID?->standard_id ?? ($sampleDetail?->secondary_standard ?: null),
+                'third_standard_id' => $thirdStandardID?->standard_id ?? ($sampleDetail?->third_standard_id ?: null),
                 'analysis_type_order' => $element->analysis_type_order ?? 0,
                 'remark_colour' => null,
                 'repeat_captured_id' => null,
@@ -724,46 +734,22 @@ class SampleCreationController extends Controller
      */
     private function generateBatchCode(array $sampleHeaderData, $submissionFormInstanceId = null, $totalBatchCount = 1)
     {
-        // If no submission form instance ID provided, fall back to old method
         if (!$submissionFormInstanceId) {
             return $this->generateLegacyBatchCode($sampleHeaderData);
         }
 
         try {
-            // Get submission form instance and its prefix
             $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
-            if (!$instance) {
-                throw new \Exception('Submission form instance not found');
+            $jobNumber = $this->numberingService->generateJobNumber();
+
+            if ($instance) {
+                $this->numberingService->persistJobNumberOnSubmissionInstance($instance, $jobNumber);
             }
 
-            // SMART LOGIC: If only 1 batch, reuse the form_number
-            if ($totalBatchCount === 1) {
-                $batch_code = $instance->form_number;
-
-                Log::info('Smart batch code generation: Reusing form_number for single batch', [
-                    'form_number' => $batch_code,
-                    'total_batch_count' => $totalBatchCount
-                ]);
-
-                return $batch_code;
-            }
-
-            // Multiple batches: Use sequential batch codes
-            $batch_count = SampleHeader::where('submission_form_instance_id', $submissionFormInstanceId)->count();
-            $batch_count = $batch_count ? $batch_count + 1 : 1;
-
-            $batch_code = $instance->form_number . '-' . $batch_count;
-
-            Log::info('Standard batch code generation for multiple batches', [
-                'batch_code' => $batch_code,
-                'total_batch_count' => $totalBatchCount
-            ]);
-
-            return $batch_code;
-
+            return $jobNumber;
         } catch (\Exception $e) {
-            Log::error('Error generating new batch code: ' . $e->getMessage());
-            // Fall back to legacy method
+            Log::error('Error generating job/batch code: ' . $e->getMessage());
+
             return $this->generateLegacyBatchCode($sampleHeaderData);
         }
     }
@@ -839,76 +825,6 @@ class SampleCreationController extends Controller
         }
 
         return $cP . '' . $finalNo;
-    }
-
-    /**
-     * Generate sample code using smart format
-     * If only 1 sample: reuse batch_code
-     * If multiple samples: {batch_code}-{sample_no_seq_no}
-     */
-    private function generateSampleCode($sampleHeaderId, $index, $batchCode = null, $totalSampleCount = 1, $totalBatchCount = 1)
-    {
-        // Get sample header to get sample type
-        $sampleHeader = SampleHeader::find($sampleHeaderId);
-        if (!$sampleHeader) {
-            throw new \Exception('Sample header not found');
-        }
-
-        // If batch code is provided, use new format
-        if ($batchCode) {
-            try {
-                // SMART LOGIC: Only reuse batch_code if this is truly a single sample in a single batch
-                if ($totalSampleCount === 1 && $totalBatchCount === 1) {
-                    $sampleCode = $batchCode;
-                    $sampleNo = '01';
-                    $reportNumber = $batchCode;
-
-                    Log::info('Smart sample code generation: Reusing batch_code for single sample in single batch', [
-                        'batch_code' => $batchCode,
-                        'total_sample_count' => $totalSampleCount,
-                        'total_batch_count' => $totalBatchCount
-                    ]);
-
-                    return [
-                        'sample_code' => $sampleCode,
-                        'sample_no' => $sampleNo,
-                        'report_number' => $reportNumber
-                    ];
-                }
-
-                // Multiple samples: Use sequential sample codes with suffix
-                // Get next sample sequence for this batch
-                $sampleSeqNo = SampleDetails::where('sample_header_id', $sampleHeaderId)->count();
-
-                $sampleSeqNo = $sampleSeqNo ? $sampleSeqNo + 1 : 1;
-                // Generate sample code: {batch_code}-{sample_no_seq_no}
-                $sampleCode = $batchCode . '-' . sprintf('%02d', $sampleSeqNo);
-                $sampleNo = sprintf('%02d', $sampleSeqNo);
-
-                // Generate report number (keeping existing format for now)
-                $reportNumber = $batchCode;
-
-                Log::info('Standard sample code generation for multiple samples', [
-                    'sample_code' => $sampleCode,
-                    'total_sample_count' => $totalSampleCount,
-                    'total_batch_count' => $totalBatchCount
-                ]);
-
-                return [
-                    'sample_code' => $sampleCode,
-                    'sample_no' => $sampleNo,
-                    'report_number' => $reportNumber
-                ];
-
-            } catch (\Exception $e) {
-                Log::error('Error generating new sample code: ' . $e->getMessage());
-                // Fall back to legacy method
-                return $this->generateLegacySampleCode($sampleHeaderId, $index);
-            }
-        }
-
-        // Fall back to legacy method if no batch code provided
-        return $this->generateLegacySampleCode($sampleHeaderId, $index);
     }
 
     /**
@@ -1640,16 +1556,6 @@ class SampleCreationController extends Controller
     {
         $dataJson = $staging->data_json;
 
-        // Generate sample code
-        $sampleCode = $this->generateSampleCode(
-            $sampleHeader->id,
-            $index,
-            $sampleHeader->batch_code,
-            $totalSamples,
-            1
-        );
-
-        // Get sample header to access sample_type_id
         $sampleHeaderFull = \App\SampleHeader::with('sample_type')->find($sampleHeader->id);
 
         $disposal_count = $sampleHeaderFull->sample_type->disposal_count ?? null;
@@ -1659,7 +1565,6 @@ class SampleCreationController extends Controller
             $disposal_date = null;
         }
 
-        // Get company_product_id
         $companyProductId = $dataJson['company_product_id'] ?? null;
         if (!$companyProductId && $sampleHeaderFull->sample_type_id) {
             $sampleType = \App\SampleType::find($sampleHeaderFull->sample_type_id);
@@ -1668,7 +1573,6 @@ class SampleCreationController extends Controller
             }
         }
 
-        // Get sample_condition_id
         $sampleConditionId = $dataJson['sample_condition_id'] ?? null;
         if (!$sampleConditionId) {
             $sampleConditionConfig = \App\Models\System\SystemConfiguration::where('key', 'sample_condition_ok')->first();
@@ -1677,22 +1581,28 @@ class SampleCreationController extends Controller
             }
         }
 
-        // Create sample detail
-        $sampleDetail = new \App\SampleDetails();
-        $sampleDetail->fill([
-            'sample_header_id' => $sampleHeader->id,
-            'sample_code' => $sampleCode['sample_code'],
-            'sample_no' => $sampleCode['sample_no'],
-            'report_number' => $sampleCode['report_number'],
-            'sample_point_id' => $samplePointId,
-            'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
-            'company_product_id' => $companyProductId,
-            'sample_condition_id' => $sampleConditionId,
-            'lab_id' => $dataJson['lab_id'] ?? 1,
-            'barcode' => $sampleHeaderFull->date_collected ? date('H:i:s', strtotime($sampleHeaderFull->date_collected)) : null,
-            'disposal_date' => $disposal_date,
-        ]);
-        $sampleDetail->save();
+        $prefix = (string) ($dataJson['sample_code_prefix'] ?? '');
+        if ($prefix === '' && ! empty($dataJson['test_category'])) {
+            $prefix = $this->numberingService->resolveCategoryPrefixFromRow($dataJson);
+        }
+        if ($prefix === '') {
+            $prefix = JobSampleNumberingService::PREFIX_CHEMISTRY;
+        }
+
+        $sampleDetail = $this->sampleDetailCreationService->create(
+            $sampleHeaderFull,
+            $prefix,
+            [
+                'sample_point_id' => $samplePointId,
+                'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
+                'company_product_id' => $companyProductId,
+                'sample_condition_id' => $sampleConditionId,
+                'lab_id' => $dataJson['lab_id'] ?? 1,
+                'barcode' => $sampleHeaderFull->date_collected ? date('H:i:s', strtotime($sampleHeaderFull->date_collected)) : null,
+                'disposal_date' => $disposal_date,
+            ],
+            $dataJson['customer_sample_id'] ?? null,
+        );
 
         // Create analysis relations and results
         if (!empty($dataJson['analysis_type_ids'])) {
@@ -1714,7 +1624,7 @@ class SampleCreationController extends Controller
 
         return [
             'id' => $sampleDetail->id,
-            'sample_code' => $sampleDetail->sample_code
+            'sample_code' => $sampleDetail->sample_code,
         ];
     }
 
@@ -1847,71 +1757,6 @@ class SampleCreationController extends Controller
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Generate Job No in format: YYMMDD + 3 digit sequential (auto-increment per day, reset at start of new day)
-     * Example: 260428001 (26 = year 26, 04 = Apr, 28 = date, 001 = first job)
-     */
-    private function generateJobNumber(): string
-    {
-        $now = Carbon::now();
-        $datePart = $now->format('ymd'); // YYMMDD
-        
-        // Find the last job number for today
-        $lastJobNumber = DB::table('submission_form_instance_values as v')
-            ->join('submission_form_elements as e', 'v.submission_form_element_id', '=', 'e.id')
-            ->where('e.name', 'job_number')
-            ->where('v.value', 'like', $datePart . '%')
-            ->orderBy('v.value', 'desc')
-            ->value('v.value');
-        
-        // Extract the sequential part and increment
-        $sequential = 1;
-        if ($lastJobNumber) {
-            $lastSequential = (int) substr($lastJobNumber, -3);
-            $sequential = $lastSequential + 1;
-        }
-        
-        // Format sequential as 3 digits with leading zeros
-        $sequentialPart = str_pad($sequential, 3, '0', STR_PAD_LEFT);
-        
-        return $datePart . $sequentialPart;
-    }
-
-    /**
-     * Save Job No to the submission form instance values
-     */
-    private function saveJobNumberToInstance(SubmissionFormInstance $instance, string $jobNumber): void
-    {
-        // Find the job_number element in the submission form
-        $jobElement = \App\Models\SubmissionFormElement::query()
-            ->whereHas('holder.section', function ($query) use ($instance) {
-                $query->where('submission_form_id', $instance->submission_form_id);
-            })
-            ->where('name', 'job_number')
-            ->first();
-        
-        if ($jobElement) {
-            // Update or create the value
-            \App\Models\SubmissionFormInstanceValue::updateOrCreate(
-                [
-                    'submission_form_instance_id' => $instance->id,
-                    'submission_form_element_id' => $jobElement->id,
-                ],
-                [
-                    'value' => $jobNumber,
-                ]
-            );
-        }
-        
-        // Also update TestRequestFormInstance if it exists
-        $testRequestFormInstance = $instance->testRequestFormInstance;
-        if ($testRequestFormInstance) {
-            $formData = $testRequestFormInstance->form_data ?? [];
-            $formData['job_number'] = $jobNumber;
-            $testRequestFormInstance->update(['form_data' => $formData]);
         }
     }
 }

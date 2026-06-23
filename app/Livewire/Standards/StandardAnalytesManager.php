@@ -47,6 +47,16 @@ class StandardAnalytesManager extends Component
     public $analytes = [];
     public $standardValues = [];
 
+    // Searchable select state (modal)
+    public $analyteSearch = '';
+    public $standardValueSearch = '';
+    public $selectedAnalyteName = '';
+    public $selectedStandardValueName = '';
+    public $showAnalyteDropdown = false;
+    public $showStandardValueDropdown = false;
+    public $filteredAnalytes = [];
+    public $filteredStandardValues = [];
+
     // Search and Filter
     public $search = '';
     public $statusFilter = '';
@@ -169,7 +179,8 @@ class StandardAnalytesManager extends Component
         
         $this->editingStandardAnalyte = $id;
         $this->showStandardAnalyteModal = true;
-        
+        $this->syncSearchableSelectLabels();
+
         // Dispatch event to trigger JavaScript enhancement
         $this->dispatch('modal-opened', ['type' => 'edit', 'id' => $id]);
     }
@@ -305,6 +316,110 @@ class StandardAnalytesManager extends Component
             'matrix_value' => ''
         ];
         $this->editingStandardAnalyte = null;
+        $this->resetSearchableSelectState();
+    }
+
+    public function searchAnalytes(): void
+    {
+        $this->showAnalyteDropdown = true;
+        $search = $this->analyteSearch;
+
+        $this->filteredAnalytes = Analyte::query()
+            ->where('active', 1)
+            ->where(function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+    }
+
+    public function selectAnalyte(int|string $id): void
+    {
+        $analyte = collect($this->analytes)->firstWhere('id', (int) $id);
+        if (!$analyte) {
+            return;
+        }
+
+        $this->standardAnalyteForm['analyte_id'] = $analyte->id;
+        $this->selectedAnalyteName = $analyte->name;
+        $this->analyteSearch = $analyte->name;
+        $this->showAnalyteDropdown = false;
+    }
+
+    public function clearAnalyte(): void
+    {
+        $this->standardAnalyteForm['analyte_id'] = null;
+        $this->selectedAnalyteName = '';
+        $this->analyteSearch = '';
+        $this->showAnalyteDropdown = false;
+    }
+
+    public function searchStandardValues(): void
+    {
+        $this->showStandardValueDropdown = true;
+        $search = $this->standardValueSearch;
+
+        $this->filteredStandardValues = StandardValue::query()
+            ->where('status', 1)
+            ->where(function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+    }
+
+    public function selectStandardValue(int|string $id): void
+    {
+        $standardValue = collect($this->standardValues)->firstWhere('id', (int) $id);
+        if (!$standardValue) {
+            return;
+        }
+
+        $this->standardAnalyteForm['standard_value_id'] = $standardValue->id;
+        $this->selectedStandardValueName = $standardValue->name;
+        $this->standardValueSearch = $standardValue->name;
+        $this->showStandardValueDropdown = false;
+    }
+
+    public function clearStandardValue(): void
+    {
+        $this->standardAnalyteForm['standard_value_id'] = null;
+        $this->selectedStandardValueName = '';
+        $this->standardValueSearch = '';
+        $this->showStandardValueDropdown = false;
+    }
+
+    protected function syncSearchableSelectLabels(): void
+    {
+        $analyteId = $this->standardAnalyteForm['analyte_id'] ?? null;
+        if ($analyteId) {
+            $analyte = collect($this->analytes)->firstWhere('id', (int) $analyteId);
+            $this->selectedAnalyteName = $analyte->name ?? '';
+            $this->analyteSearch = $this->selectedAnalyteName;
+        }
+
+        $standardValueId = $this->standardAnalyteForm['standard_value_id'] ?? null;
+        if ($standardValueId) {
+            $standardValue = collect($this->standardValues)->firstWhere('id', (int) $standardValueId);
+            $this->selectedStandardValueName = $standardValue->name ?? '';
+            $this->standardValueSearch = $this->selectedStandardValueName;
+        }
+    }
+
+    protected function resetSearchableSelectState(): void
+    {
+        $this->analyteSearch = '';
+        $this->standardValueSearch = '';
+        $this->selectedAnalyteName = '';
+        $this->selectedStandardValueName = '';
+        $this->showAnalyteDropdown = false;
+        $this->showStandardValueDropdown = false;
+        $this->filteredAnalytes = [];
+        $this->filteredStandardValues = [];
     }
 
     public function toggleValueType($type)
@@ -321,6 +436,9 @@ class StandardAnalytesManager extends Component
             $this->standardAnalyteForm['matrix_operator'] = '';
             $this->standardAnalyteForm['matrix_value'] = '';
             $this->standardAnalyteForm['standard_is_value'] = '';
+            $this->selectedStandardValueName = '';
+            $this->standardValueSearch = '';
+            $this->showStandardValueDropdown = false;
             
             // Set correct standard_value_type for range
             $this->standardAnalyteForm['standard_value_type'] = 'is_range';
@@ -333,6 +451,8 @@ class StandardAnalytesManager extends Component
             // Set correct standard_value_type for use value
             $this->standardAnalyteForm['standard_value_type'] = 'is_standard_value';
         }
+
+        $this->syncSearchableSelectLabels();
         
         // Dispatch event for JavaScript enhancement
         $this->dispatch('value-type-changed', $this->standardAnalyteForm['value_type']);

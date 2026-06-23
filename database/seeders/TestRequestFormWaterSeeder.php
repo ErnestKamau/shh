@@ -20,7 +20,7 @@ class TestRequestFormWaterSeeder extends Seeder
             'print_template_name' => 'layouts.lab.invoice.print-trf-amspec-water',
         ]);
 
-        $this->syncSampleTypesByNamePatterns($form, ['water', 'WTR', 'potable', 'SMP-WTR', 'Water Quality']);
+        $this->syncSampleTypesByCodes($form, ['WATER']);
 
         $this->createCustomerDetailsSection($form, 1);
         $this->createCollectionDataSection($form, 2, true);
@@ -42,7 +42,7 @@ class TestRequestFormWaterSeeder extends Seeder
             ['checkbox', 'Test requirements', 'test_requirements', 8, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'legionella', 'label' => 'Legionella'],
-                ['value' => 'chemical_analysis', 'label' => 'Chemical analysis'],
+                ['value' => 'chemistry', 'label' => 'Chemistry'],
             ]],
             ['text', 'Field data - pH', 'field_ph', 9],
             ['text', 'Field data - Appearance', 'field_appearance', 10],

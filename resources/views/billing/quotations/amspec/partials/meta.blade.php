@@ -18,6 +18,12 @@
         <td class="amspec-meta-label">Subject</td>
         <td class="amspec-meta-value">: <strong>{{ $reportHeader->subject ?? 'Quotation' }}</strong></td>
     </tr>
+    @if(($reportHeader->revision_number ?? 1) > 1 || ! empty($reportHeader->revision_of_quote_number))
+        <tr>
+            <td class="amspec-meta-label">Revision</td>
+            <td class="amspec-meta-value">: <strong>Rev. {{ $reportHeader->revision_number ?? 1 }}</strong>@if(! empty($reportHeader->revision_of_quote_number)) <span style="font-weight: 400;">(supersedes {{ $reportHeader->revision_of_quote_number }})</span>@endif</td>
+        </tr>
+    @endif
     <tr>
         <td class="amspec-meta-label">Sampling Location</td>
         <td class="amspec-meta-value">: <strong>{{ $reportHeader->sampling_location_display ?? '-' }}</strong></td>

@@ -59,7 +59,14 @@
 <tr class="trf-footer-sign-row">
     <td colspan="{{ $leftColspan }}" class="trf-footer-cell trf-footer-nowrap">
         <span class="trf-field-label">Customer Representative Name/Sign.:</span>
-        <span class="trf-field-value">{{ $signatures['customer_rep_name'] ?: '' }}</span>
+        @php
+            $repSignature = $signatures['customer_rep_signature'] ?? $signatures['customer_rep_name'] ?? '';
+        @endphp
+        @if(is_string($repSignature) && str_starts_with($repSignature, 'data:image'))
+            <img src="{{ $repSignature }}" alt="Customer signature" style="max-height: 40px; max-width: 160px; vertical-align: middle;">
+        @else
+            <span class="trf-field-value">{{ $repSignature ?: '' }}</span>
+        @endif
     </td>
     <td colspan="{{ $rightColspan }}" class="trf-footer-cell trf-footer-nowrap">
         <span class="trf-field-label">Received by:</span>

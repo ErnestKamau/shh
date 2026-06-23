@@ -1,14 +1,22 @@
 <section class="acc-wizard-section acc-sample-config-section">
-    <div class="acc-pricing-toolbar mb-3">
-        <div>
-            <h6 class="acc-wizard-section-title mb-1">Sample configuration</h6>
-            <p class="acc-wizard-hint mb-0">
-                Each sample type and analysis type combination is configured independently. Set the number of samples to generate customer sample IDs and markings.
-            </p>
+    <div class="acc-sample-config-toolbar mb-3">
+        <h6 class="acc-wizard-section-title mb-0">Sample configuration</h6>
+        <div class="acc-sample-config-toolbar-actions">
+            @if(method_exists($this, 'syncFromContractPricelist'))
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary acc-sample-config-sync-btn"
+                    wire:click="syncFromContractPricelist"
+                    title="Sync from contract pricelist"
+                    aria-label="Sync from contract pricelist"
+                >
+                    <i class="mdi mdi-sync"></i>
+                </button>
+            @endif
+            <button type="button" class="btn btn-sm acc-btn-add" wire:click="addSampleConfig">
+                <i class="mdi mdi-plus"></i> Add configuration
+            </button>
         </div>
-        <button type="button" class="btn btn-sm acc-btn-add" wire:click="addSampleConfig">
-            <i class="mdi mdi-plus"></i> Add configuration
-        </button>
     </div>
 
     <div class="acc-sample-config-list">
@@ -20,11 +28,13 @@
                 $instances = is_array($config['instances'] ?? null) ? $config['instances'] : [];
                 $analysisTypes = $this->analysisTypesForConfigIndex($configIndex);
                 $sampleConditions = $this->sampleConditionsForConfigIndex($configIndex);
+                $showCondition = (bool) ($showSampleConditionOnConfig ?? true);
+                $configColspan = ($showCondition ? 1 : 0) + 5;
             @endphp
             <div
                 class="acc-sample-config-card"
                 wire:key="sample-config-{{ $configId }}"
-                x-data="{ showParameters: true, showInstances: true }"
+                x-data="{ showParameters: false, showInstances: false }"
             >
                 <div class="acc-sample-config-card-head">
                     <span class="acc-sample-config-card-title">
@@ -44,12 +54,15 @@
                 </div>
 
                 <div class="acc-sample-config-table-wrap">
-                    <table class="table acc-sample-config-table mb-0">
+                    <table class="table acc-sample-config-table mb-0 {{ $showCondition ? 'acc-sample-config-table--with-condition' : 'acc-sample-config-table--compact' }}">
                         <thead>
                             <tr>
                                 <th>Sample type</th>
                                 <th>Analysis type</th>
-                                <th>Condition of sample</th>
+                                <th>Lab section</th>
+                                @if($showCondition)
+                                    <th>Condition of sample</th>
+                                @endif
                                 <th>Main standard</th>
                                 <th class="text-center" style="width: 110px;">No. of samples</th>
                             </tr>
@@ -84,13 +97,28 @@
                                     @error('sampleConfigs.'.$configIndex.'.analysis_type_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                 </td>
                                 <td>
+                                    <select
+                                        class="form-control form-control-sm acc-input"
+                                        wire:model.live="sampleConfigs.{{ $configIndex }}.lab_section_id"
+                                        @disabled(empty($config['analysis_type_id']))
+                                    >
+                                        <option value="">Select…</option>
+                                        @foreach($this->configLabSections as $section)
+                                            <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('sampleConfigs.'.$configIndex.'.lab_section_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                                </td>
+                                @if($showCondition)
+                                <td>
                                     <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.sample_condition_id">
-                                        <option value="">—</option>
+                                        <option value="">&mdash;</option>
                                         @foreach($sampleConditions as $condition)
                                             <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
                                         @endforeach
                                     </select>
                                 </td>
+                                @endif
                                 <td>
                                     <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.main_standard_id">
                                         <option value="">—</option>
@@ -111,7 +139,7 @@
                             </tr>
 
                             <tr class="acc-sample-config-params-row">
-                                <td colspan="5">
+                                <td colspan="{{ $configColspan }}">
                                     <div class="acc-sample-config-params-panel">
                                         <div class="acc-sample-config-params-band">
                                             <button
@@ -180,7 +208,7 @@
 
                             @if(count($instances) > 0)
                                 <tr class="acc-sample-config-section-row">
-                                    <td colspan="5">
+                                    <td colspan="{{ $configColspan }}">
                                         <div class="acc-sample-config-params-panel acc-sample-config-instances-panel">
                                             <div class="acc-sample-config-params-band acc-sample-config-instances-band">
                                                 <button

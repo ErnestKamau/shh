@@ -5,6 +5,7 @@ namespace App\Services\SubmissionForm;
 use App\Exceptions\Api\Portal\PortalApiException;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\Services\TestRequestForm\TestRequestFormTemplateProvisioner;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -123,6 +124,17 @@ class PortalSubmissionFormAccess
             return null;
         }
 
+        $match = $this->findTestRequestFormForSampleType($sampleTypeId, $crmCustomerId);
+        if ($match !== null) {
+            return $match;
+        }
+
+        return app(TestRequestFormTemplateProvisioner::class)
+            ->ensureSubmissionFormForSampleType($sampleTypeId);
+    }
+
+    private function findTestRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
+    {
         $scopedToSampleType = fn (Builder $query) => $query->whereHas(
             'sampleTypes',
             fn (Builder $sampleTypeQuery) => $sampleTypeQuery->where('sample_types.id', $sampleTypeId)

@@ -2,13 +2,16 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Models\CRM\CRMCustomer;
 use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
 use App\Models\Workflow\Approval;
-use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
+use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
+use App\Services\TestRequestForm\TestRequestFormSubmissionService;
+use App\Services\TestRequestForm\TrfCheckInMetadataService;
 use App\Services\WorkflowService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +33,9 @@ class ReceiveSampleRequest extends Component
 
     /** @var list<array<string, mixed>> */
     public array $checkInContexts = [];
+
+    /** @var array<string, array<string, string>> */
+    public array $checkInTrfFields = [];
 
     public array $responses = [];
 
@@ -148,30 +154,8 @@ class ReceiveSampleRequest extends Component
             }
         }
 
-        // Auto-prefill client/customer details if not already loaded
         if ($instance->crmCustomer) {
-            $crmCustomer = $instance->crmCustomer;
-            foreach ($this->formData as $key => $val) {
-                // Only prefill if not already set from existing form data
-                if (empty($val)) {
-                    if (in_array($key, ['customer_name', 'client_name', 'customer', 'client'], true)) {
-                        $this->formData[$key] = $crmCustomer->name;
-                    }
-                    if (in_array($key, ['phone', 'telephone', 'phone_number', 'mobile_number', 'telephone_number', 'tel_fax_no'], true)) {
-                        $this->formData[$key] = $crmCustomer->telephone1 ?? $crmCustomer->telephone2 ?? '';
-                    }
-                    if (in_array($key, ['email', 'email_address'], true)) {
-                        $this->formData[$key] = $crmCustomer->email ?? '';
-                    }
-                    if (in_array($key, ['address', 'physical_address', 'postal_address', 'customer_address'], true)) {
-                        $this->formData[$key] = $crmCustomer->physical_address ?? $crmCustomer->postal_address ?? '';
-                    }
-                    if (in_array($key, ['contact_person', 'contact', 'contact_name'], true)) {
-                        $contact = method_exists($crmCustomer, 'contacts') ? $crmCustomer->contacts()->first() : null;
-                        $this->formData[$key] = $contact ? $contact->name : '';
-                    }
-                }
-            }
+            $this->applyCustomerPrefillFromCrm($instance->crmCustomer, onlyEmpty: true);
         }
     }
 
@@ -218,15 +202,19 @@ class ReceiveSampleRequest extends Component
                 'sample_no' => '',
                 'sample_description' => '',
                 'sampling_point' => '',
-                'qty' => '',
-                'sample_type' => '', // Raw, Cooked, Ready To Eat
-                'sample_condition' => '', // Acceptable, Chilled, Chilled/Ambient
+                'sample_quantity' => '',
+                'sample_quantity_unit' => '',
+                'sample_type' => '',
+                'sample_condition' => '',
                 'sample_temp' => '',
                 'production_date' => '',
                 'expiration_date' => '',
                 'batch_number' => '',
                 'parameters' => '',
-                'state_of_sample' => '', // L, SS, S
+                'state_of_sample' => '',
+                'microbiology' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
@@ -235,8 +223,9 @@ class ReceiveSampleRequest extends Component
                 'sample_no' => '',
                 'sample_description' => '',
                 'location' => '',
-                'qty' => '',
-                'sampling_point' => '', // Tap, Tank, Pool, Shower Head, Others
+                'sample_quantity' => '',
+                'sample_quantity_unit' => '',
+                'sampling_point' => '',
                 'ph' => '',
                 'appearance' => '',
                 'residual_chlorine' => '',
@@ -244,11 +233,20 @@ class ReceiveSampleRequest extends Component
                 'sample_temp' => '',
                 'microbiology' => false,
                 'legionella' => false,
-                'chemical_analysis' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
         return [];
+    }
+
+    public function getReportingUnitsProperty()
+    {
+        return \App\ReportingUnit::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
     }
 
     public function addSampleRow(): void
@@ -262,6 +260,7 @@ class ReceiveSampleRequest extends Component
     public function removeSampleRow(int $index): void
     {
         if (isset($this->formData['sample_rows'][$index])) {
+            $this->dispatch('trf-destroy-editors');
             unset($this->formData['sample_rows'][$index]);
             $this->formData['sample_rows'] = array_values($this->formData['sample_rows']);
         }
@@ -326,60 +325,28 @@ class ReceiveSampleRequest extends Component
                     }
                 }
 
-                // Auto-prefill client/customer details if not already loaded
                 if ($firstInstance && $firstInstance->crmCustomer) {
-                    $crmCustomer = $firstInstance->crmCustomer;
-                    foreach ($this->formData as $key => $val) {
-                        // Only prefill if not already set from existing form data
-                        if (empty($val)) {
-                            if (in_array($key, ['customer_name', 'client_name', 'customer', 'client'], true)) {
-                                $this->formData[$key] = $crmCustomer->name;
-                            }
-                            if (in_array($key, ['phone', 'telephone', 'phone_number', 'mobile_number', 'telephone_number', 'tel_fax_no'], true)) {
-                                $this->formData[$key] = $crmCustomer->telephone1 ?? $crmCustomer->telephone2 ?? '';
-                            }
-                            if (in_array($key, ['email', 'email_address'], true)) {
-                                $this->formData[$key] = $crmCustomer->email ?? '';
-                            }
-                            if (in_array($key, ['address', 'physical_address', 'postal_address', 'customer_address'], true)) {
-                                $this->formData[$key] = $crmCustomer->physical_address ?? $crmCustomer->postal_address ?? '';
-                            }
-                            if (in_array($key, ['contact_person', 'contact', 'contact_name'], true)) {
-                                $contact = method_exists($crmCustomer, 'contacts') ? $crmCustomer->contacts()->first() : null;
-                                $this->formData[$key] = $contact ? $contact->name : '';
-                            }
-                        }
-                    }
+                    $this->applyCustomerPrefillFromCrm($firstInstance->crmCustomer, onlyEmpty: true);
                 }
             }
         }
+
+        $this->dispatch('trf-reinit-signatures');
+    }
+
+    public function updatedFormDataCustomerName(?string $value): void
+    {
+        $this->prefillCustomerDetailsFromSelection($value);
+    }
+
+    public function updatedFormDataClientName(?string $value): void
+    {
+        $this->prefillCustomerDetailsFromSelection($value);
     }
 
     public function updated($propertyName, $value): void
     {
         $fieldKey = str_replace('formData.', '', $propertyName);
-
-        // Prefill customer details when customer is selected
-        if (in_array($fieldKey, ['customer_name', 'client_name', 'customer', 'client'], true) && $value) {
-            $customer = \App\Models\CRM\CRMCustomer::where('name', $value)->first();
-            if ($customer) {
-                foreach ($this->formData as $key => $val) {
-                    if (in_array($key, ['phone', 'telephone', 'phone_number', 'mobile_number', 'telephone_number', 'tel_fax_no'], true)) {
-                        $this->formData[$key] = $customer->telephone1 ?? $customer->telephone2 ?? '';
-                    }
-                    if (in_array($key, ['email', 'email_address'], true)) {
-                        $this->formData[$key] = $customer->email ?? '';
-                    }
-                    if (in_array($key, ['address', 'physical_address', 'postal_address', 'customer_address'], true)) {
-                        $this->formData[$key] = $customer->physical_address ?? $customer->postal_address ?? '';
-                    }
-                    if (in_array($key, ['contact_person', 'contact', 'contact_name'], true)) {
-                        $contact = method_exists($customer, 'contacts') ? $customer->contacts()->first() : null;
-                        $this->formData[$key] = $contact ? $contact->name : '';
-                    }
-                }
-            }
-        }
 
         // Clear parameter selection when analysis type changes
         if (in_array($fieldKey, ['analysis_type', 'analysis_types'], true)) {
@@ -442,6 +409,7 @@ class ReceiveSampleRequest extends Component
         $this->selectedFormInstanceIds = array_values(array_filter($instanceIds));
         $this->selectedFormSummaries = $summaries;
         $this->remarks = '';
+        $this->checkInTrfFields = [];
         $this->selectedSampleTypeId = null;
         $this->formData = [];
         $this->resetValidation();
@@ -451,7 +419,10 @@ class ReceiveSampleRequest extends Component
         $this->refreshCheckInContexts();
 
         // Dispatched after state is set — JS listener shows the modal.
-        $this->dispatch('show-receive-sample-modal');
+        $this->dispatch(
+            'show-receive-sample-modal',
+            physicalCheckIn: $this->isPhysicalCheckIn,
+        );
     }
 
     protected function getListeners(): array
@@ -494,7 +465,7 @@ class ReceiveSampleRequest extends Component
 
         DB::transaction(function () use ($user, $checkInService, &$processed, &$skipped, &$blockedReasons): void {
             $instances = SubmissionFormInstance::query()
-                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest'])
+                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest', 'testRequestFormInstance'])
                 ->whereIn('id', $this->selectedFormInstanceIds)
                 ->get();
 
@@ -509,8 +480,25 @@ class ReceiveSampleRequest extends Component
                     continue;
                 }
 
-                $instance->markAsReceived($user, $this->remarks !== '' ? $this->remarks : null);
-                $processed++;
+                if ($checkInService->receiveInstance(
+                    $instance,
+                    $user,
+                    $this->remarks !== '' ? $this->remarks : null,
+                )) {
+                    $metadata = $this->checkInTrfFields[$instance->id] ?? [];
+                    if ($metadata !== []) {
+                        $trfi = $instance->testRequestFormInstance
+                            ?? $instance->sampleSubmissionRequest?->testRequestFormInstance;
+                        if ($trfi !== null) {
+                            app(TrfCheckInMetadataService::class)->persistForInstance(
+                                $trfi,
+                                $instance->sampleSubmissionRequest,
+                                $metadata,
+                            );
+                        }
+                    }
+                    $processed++;
+                }
             }
         });
 
@@ -585,6 +573,18 @@ class ReceiveSampleRequest extends Component
             $this->validate($rules, $messages);
         }
 
+        $sampleRows = $this->formData['sample_rows'] ?? [];
+        if (is_array($sampleRows) && $sampleRows !== []) {
+            foreach (array_keys($sampleRows) as $index) {
+                $this->validate([
+                    "formData.sample_rows.{$index}.test_category" => 'required|in:microbiology,legionella,chemistry',
+                ], [
+                    "formData.sample_rows.{$index}.test_category.required" => 'Select a test category for sample row '.($index + 1).'.',
+                    "formData.sample_rows.{$index}.test_category.in" => 'Invalid test category for sample row '.($index + 1).'.',
+                ]);
+            }
+        }
+
         $this->prepareLabUseFields();
 
         $user = Auth::user();
@@ -597,81 +597,54 @@ class ReceiveSampleRequest extends Component
         $processed = 0;
         $generatedTrfiIds = [];
 
+        $submissionForm = app(PortalSubmissionFormAccess::class)
+            ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
+
+        if (! $submissionForm) {
+            $this->addError(
+                'selectedSampleTypeId',
+                'No active Test Request Form template could be resolved for this sample type. Contact your administrator.'
+            );
+
+            return;
+        }
+
         // Standalone walk-in capture (no pre-selected requests)
-        DB::transaction(function () use ($user, $form, &$processed, &$generatedTrfiIds): void {
-                $submissionForm = app(PortalSubmissionFormAccess::class)
-                    ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
-
-                if (!$submissionForm) {
-                    throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
-                }
-
-                // Try to resolve customer if selected
+        DB::transaction(function () use ($user, $form, $submissionForm, &$processed, &$generatedTrfiIds): void {
                 $crmCustomerId = null;
-                $custName = null;
                 foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-                    if (!empty($this->formData[$key])) {
+                    if (! empty($this->formData[$key])) {
                         $custName = $this->formData[$key];
+                        $crmCustomerId = \App\Models\CRM\CRMCustomer::query()
+                            ->whereRaw('name ILIKE ?', [trim((string) $custName)])
+                            ->value('id');
                         break;
                     }
                 }
-                if ($custName) {
-                    $crmCustomerId = \App\Models\CRM\CRMCustomer::where('name', $custName)->first()?->id;
+
+                $context = new TestRequestFormSubmissionContext(
+                    sourceChannel: TestRequestFormInstance::CHANNEL_WALK_IN,
+                    crmCustomerId: $crmCustomerId,
+                    submittedBy: (string) $user->id,
+                    portalSubmissionForm: $submissionForm,
+                    generatePdf: true,
+                );
+
+                $trfi = app(TestRequestFormSubmissionService::class)->submit(
+                    $form,
+                    $this->formData,
+                    $context,
+                );
+
+                if ($crmCustomerId !== null) {
+                    $trfi->update(['crm_customer_id' => $crmCustomerId]);
                 }
 
-                $instance = SubmissionFormInstance::create([
-                    'submission_form_id' => $submissionForm->id,
-                    'form_number' => null,
-                    'sequence_number' => null,
-                    'title' => 'Test Request Form - ' . now()->format('Y-m-d H:i'),
-                    'submitted_by' => $user->id,
-                    'status' => 'draft',
-                    'priority' => 'normal',
-                    'crm_customer_id' => $crmCustomerId,
-                ]);
-
-                // Save the form values to the database using unified mapper
-                $requestData = \App\Models\TestRequestFormInstance::mapToSubmissionFormRequestData($this->formData, $form);
-                $submissionService = app(\App\Services\SubmissionForm\SubmissionFormSubmissionService::class);
-                $elements = $submissionService->elementsForForm($submissionForm);
-                $req = new \Illuminate\Http\Request();
-                $req->merge($requestData);
-                $submissionService->processFormData($instance, $req, $elements);
-
-                $instance->logAction('created', $user);
-                $instance->submit($user);
-                $instance->refresh();
-
-                $trfi = TestRequestFormInstance::updateOrCreate(
-                    ['submission_form_instance_id' => $instance->id],
-                    [
-                        'test_request_form_id' => $form->id,
-                        'form_data' => $this->formData,
-                        'status' => 'submitted',
-                        'created_by' => $user->id,
-                    ]
-                );
                 $generatedTrfiIds[] = $trfi->id;
-
-                app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance(
-                    $instance->fresh(['values.element', 'submissionForm', 'crmCustomer', 'testRequestFormInstance'])
-                );
             });
 
         $message = 'Walk-in test request submitted successfully.';
         $processed = 1;
-
-        $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
-        foreach (array_unique($generatedTrfiIds) as $trfiId) {
-            try {
-                $trfi = TestRequestFormInstance::query()->find($trfiId);
-                if ($trfi) {
-                    $pdfService->generateAndStore($trfi);
-                }
-            } catch (\Throwable) {
-                // PDF failure should not block receiving.
-            }
-        }
 
         $this->lastGeneratedTrfiIds = array_values(array_unique($generatedTrfiIds));
 
@@ -721,6 +694,78 @@ class ReceiveSampleRequest extends Component
         }
     }
 
+    private function prefillCustomerDetailsFromSelection(?string $customerName): void
+    {
+        if ($customerName === null || trim($customerName) === '') {
+            return;
+        }
+
+        $customer = CRMCustomer::query()
+            ->with('contacts')
+            ->where('name', $customerName)
+            ->first();
+
+        if ($customer) {
+            $this->applyCustomerPrefillFromCrm($customer, onlyEmpty: false);
+        }
+    }
+
+    private function applyCustomerPrefillFromCrm(CRMCustomer $customer, bool $onlyEmpty = false): void
+    {
+        $customer->loadMissing('contacts');
+        $contact = $customer->contacts->first();
+
+        $contactName = '';
+        if ($contact) {
+            $contactName = trim(implode(' ', array_filter([
+                (string) ($contact->first_name ?? ''),
+                (string) ($contact->middle_name ?? ''),
+                (string) ($contact->last_name ?? ''),
+            ])));
+        }
+
+        $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
+        $telFax = (string) ($customer->telephone1 ?? $customer->telephone2 ?? '');
+        $mobile = (string) ($contact?->mobile ?? $contact?->telephone ?? $customer->telephone2 ?? $customer->telephone1 ?? '');
+
+        $prefill = [
+            'customer_name' => (string) ($customer->name ?? ''),
+            'customer_address' => $address,
+            'customer_phone' => $telFax,
+            'mobile_number' => $mobile,
+            'contact_person' => $contactName,
+            'client_name' => (string) ($customer->name ?? ''),
+            'customer' => (string) ($customer->name ?? ''),
+            'client' => (string) ($customer->name ?? ''),
+            'address' => $address,
+            'physical_address' => (string) ($customer->physical_address ?? ''),
+            'postal_address' => (string) ($customer->postal_address ?? ''),
+            'phone' => $telFax,
+            'telephone' => $telFax,
+            'phone_number' => $telFax,
+            'telephone_number' => $telFax,
+            'tel_fax_no' => $telFax,
+            'email' => (string) ($customer->email ?? ''),
+            'email_address' => (string) ($customer->email ?? ''),
+            'contact' => $contactName,
+            'contact_name' => $contactName,
+        ];
+
+        foreach ($prefill as $key => $value) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+
+            if ($onlyEmpty && ! empty($this->formData[$key])) {
+                continue;
+            }
+
+            if ($value !== '') {
+                $this->formData[$key] = $value;
+            }
+        }
+    }
+
     public function render()
     {
         $formTemplate = null;
@@ -738,12 +783,33 @@ class ReceiveSampleRequest extends Component
     {
         if ($this->selectedFormInstanceIds === []) {
             $this->checkInContexts = [];
+            $this->checkInTrfFields = [];
 
             return;
         }
 
         $this->checkInContexts = app(SampleReceivingCheckInService::class)
             ->buildCheckInContexts($this->selectedFormInstanceIds);
+
+        $metadataService = app(TrfCheckInMetadataService::class);
+        $instances = SubmissionFormInstance::query()
+            ->with(['testRequestFormInstance', 'sampleSubmissionRequest.testRequestFormInstance'])
+            ->whereIn('id', $this->selectedFormInstanceIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($this->selectedFormInstanceIds as $instanceId) {
+            if (isset($this->checkInTrfFields[$instanceId])) {
+                continue;
+            }
+
+            $instance = $instances->get($instanceId);
+            $trfi = $instance?->testRequestFormInstance
+                ?? $instance?->sampleSubmissionRequest?->testRequestFormInstance;
+            $formData = is_array($trfi?->form_data) ? $trfi->form_data : [];
+
+            $this->checkInTrfFields[$instanceId] = $metadataService->hydrateFromFormData($formData);
+        }
     }
 
     private function resolveApproval(): ?Approval

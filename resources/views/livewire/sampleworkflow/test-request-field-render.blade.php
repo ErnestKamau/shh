@@ -5,7 +5,9 @@
     @endif
 </label>
 
-@if(in_array($field['name'], ['customer_name', 'client_name', 'customer', 'client'], true))
+@if(($field['name'] ?? '') === 'job_number')
+    {{-- Job number hidden in walk-in TRF modal --}}
+@elseif(in_array($field['name'], ['customer_name', 'client_name', 'customer', 'client'], true))
     <select id="field_{{ $field['name'] }}" wire:model.live="formData.{{ $field['name'] }}"
         class="form-control form-control-sm @error('formData.' . $field['name']) is-invalid @enderror">
         <option value="">-- Select Customer --</option>
@@ -29,6 +31,18 @@
             <option value="{{ $param->name }}">{{ $param->name }}</option>
         @endforeach
     </select>
+@elseif(($field['type'] ?? '') === 'signature')
+    @php
+        $sigFieldName = $field['name'] ?? 'customer_rep_signature';
+        $canvasId = 'trf-sig-'.$sigFieldName;
+    @endphp
+    <div class="acc-signature-pad trf-signature-pad" wire:ignore>
+        <canvas id="{{ $canvasId }}-canvas" class="trf-signature-canvas" data-field="{{ $sigFieldName }}" data-livewire-model="formData.{{ $sigFieldName }}" style="width: 100%; height: 120px; touch-action: none;"></canvas>
+        <div class="acc-signature-actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary trf-signature-clear" data-canvas="{{ $canvasId }}-canvas" data-input="field_{{ $sigFieldName }}">Clear</button>
+        </div>
+    </div>
+    <input type="hidden" id="field_{{ $sigFieldName }}" wire:model="formData.{{ $sigFieldName }}">
 @elseif(($field['type'] ?? '') === 'textarea')
     <textarea id="field_{{ $field['name'] }}" wire:model="formData.{{ $field['name'] }}"
         class="form-control form-control-sm @error('formData.' . $field['name']) is-invalid @enderror"

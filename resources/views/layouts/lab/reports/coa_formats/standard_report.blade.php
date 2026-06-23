@@ -183,7 +183,7 @@ $printed_pos = [];
             <table class="table table-sm" style="font-size: 10px;border:solid 0 transparent !important;width:100%">
                 <tr>
                     <td style="border:solid 0 transparent !important;width:15%"><b>TEST REPORT REF : </b></td>
-                    <td style="border:solid 0 transparent !important;width:25%">{{ $sample->report_number.(isset($ammendment->id) ? ' V'.$ammendment->version_number : '' ) ?? $sample->sample_code  }}
+                    <td style="border:solid 0 transparent !important;width:25%">{{ $sample->report_number ?? $sample->sample_code }}
                     </td>
                     <td style="border:solid 0 transparent !important;width:12%"><b>SAMPLE TYPE :</b></td>
                     <td style="border:solid 0 transparent !important;width:20%">{{ $sample->sample_type_name }}</td>

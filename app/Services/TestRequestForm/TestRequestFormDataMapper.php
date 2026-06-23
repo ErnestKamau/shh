@@ -288,8 +288,16 @@ final class TestRequestFormDataMapper
             $normalizedRow = [];
             foreach ($row as $key => $value) {
                 $canonicalKey = $this->rowFieldAliases[(string) $key] ?? $this->scalarAliases[(string) $key] ?? (string) $key;
+
+                if ($canonicalKey === 'chemical_analysis') {
+                    $canonicalKey = 'chemistry';
+                }
+
                 $normalizedRow[$canonicalKey] = $value;
             }
+
+            $normalizedRow = $this->normalizeTestCategoryOnRow($normalizedRow);
+            $normalizedRow = $this->normalizeQuantityOnRow($normalizedRow);
 
             if ($normalizedRow !== []) {
                 $normalized[] = $normalizedRow;
@@ -297,6 +305,73 @@ final class TestRequestFormDataMapper
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function normalizeTestCategoryOnRow(array $row): array
+    {
+        $category = strtolower(trim((string) ($row['test_category'] ?? '')));
+
+        if ($category === 'chemical_analysis' || $category === 'chemical') {
+            $category = 'chemistry';
+        }
+
+        if ($category === '') {
+            if (filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $category = 'microbiology';
+            } elseif (filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $category = 'legionella';
+            } elseif (filter_var($row['chemistry'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $category = 'chemistry';
+            }
+        }
+
+        if ($category !== '') {
+            $row['test_category'] = $category;
+            $row['microbiology'] = $category === 'microbiology';
+            $row['legionella'] = $category === 'legionella';
+            $row['chemistry'] = $category === 'chemistry';
+            unset($row['chemical_analysis']);
+        }
+
+        return $row;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function normalizeQuantityOnRow(array $row): array
+    {
+        if (
+            (! isset($row['sample_quantity']) || $row['sample_quantity'] === '')
+            && isset($row['qty'])
+            && $row['qty'] !== ''
+        ) {
+            $legacyQty = trim((string) $row['qty']);
+
+            if (preg_match('/^([\d.]+)\s*(.*)$/u', $legacyQty, $matches)) {
+                $row['sample_quantity'] = $matches[1];
+                if (trim($matches[2]) !== '') {
+                    $row['sample_quantity_unit'] = trim($matches[2]);
+                }
+            } else {
+                $row['sample_quantity'] = $legacyQty;
+            }
+
+            if (! isset($row['attributes']) || ! is_array($row['attributes'])) {
+                $row['attributes'] = [];
+            }
+
+            $row['attributes']['legacy_qty'] = $legacyQty;
+        }
+
+        unset($row['qty']);
+
+        return $row;
     }
 
     /**

@@ -239,7 +239,7 @@ class PricelistManager extends Component
             'id' => $pricelist->id,
             'description' => $pricelist->description,
             'currency_id' => $pricelist->currency_id,
-            'valid_till' => $pricelist->valid_till,
+            'valid_till' => $pricelist->valid_till?->format('Y-m-d'),
             'is_master' => (bool) $pricelist->is_master,
             'active' => (bool) $pricelist->active,
             'status' => $pricelist->status ?: 'no-changes',
@@ -321,7 +321,9 @@ class PricelistManager extends Component
                 $payload = [
                     'description' => $this->pricelistForm['description'],
                     'currency_id' => $this->pricelistForm['currency_id'],
-                    'valid_till' => $this->pricelistForm['valid_till'] ?: null,
+                    'valid_till' => filled($this->pricelistForm['valid_till'])
+                        ? \Illuminate\Support\Carbon::parse($this->pricelistForm['valid_till'])->toDateString()
+                        : null,
                     'is_master' => (bool) ($this->pricelistForm['is_master'] ?? false),
                     'active' => (bool) ($this->pricelistForm['active'] ?? true),
                     'status' => $this->pricelistForm['status'] ?: 'no-changes',

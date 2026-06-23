@@ -86,16 +86,10 @@
                                                             @if($isSignature && $displayValue && $displayValue !== 'N/A')
                                                                 <img src="{{ $displayValue }}" alt="Signature" class="clinical-signature">
                                                             @elseif($isMediaField && $mediaUrl)
-                                                                @if($isImageMedia)
-                                                                    <a href="{{ $mediaUrl }}" target="_blank" rel="noopener">
-                                                                        <img src="{{ $mediaUrl }}" alt="Uploaded image" class="clinical-upload-preview">
-                                                                    </a>
-                                                                @else
-                                                                    <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="clinical-file-link">
-                                                                        <i class="mdi mdi-file-document-outline"></i>
-                                                                        {{ basename($mediaPath) ?: 'View file' }}
-                                                                    </a>
-                                                                @endif
+                                                                <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="clinical-file-link">
+                                                                    <i class="mdi mdi-paperclip"></i>
+                                                                    {{ basename($mediaPath) ?: 'View file' }}
+                                                                </a>
                                                             @else
                                                                 <span class="clinical-field-value">{{ $displayValue }}</span>
                                                             @endif
@@ -171,16 +165,10 @@
                                             @if($isSignature && $displayValue && $displayValue !== 'N/A')
                                                 <img src="{{ $displayValue }}" alt="Signature" class="clinical-signature">
                                             @elseif($isMediaField && $mediaUrl)
-                                                @if($isImageMedia)
-                                                    <a href="{{ $mediaUrl }}" target="_blank" rel="noopener">
-                                                        <img src="{{ $mediaUrl }}" alt="Uploaded image" class="clinical-upload-preview">
-                                                    </a>
-                                                @else
-                                                    <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="clinical-file-link">
-                                                        <i class="mdi mdi-file-document-outline"></i>
-                                                        {{ basename($mediaPath) ?: 'View file' }}
-                                                    </a>
-                                                @endif
+                                                <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="clinical-file-link">
+                                                    <i class="mdi mdi-paperclip"></i>
+                                                    {{ basename($mediaPath) ?: 'View file' }}
+                                                </a>
                                             @else
                                                 <span class="clinical-field-value">{{ $displayValue }}</span>
                                             @endif

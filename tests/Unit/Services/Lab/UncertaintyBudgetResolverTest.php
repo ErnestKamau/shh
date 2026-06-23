@@ -62,5 +62,117 @@ class UncertaintyBudgetResolverTest extends TestCase
 
         $this->assertArrayHasKey('loq', $lines[0]);
         $this->assertArrayHasKey('mu_percent', $lines[0]);
+        $this->assertSame('', $lines[0]['loq']);
+        $this->assertSame('', $lines[0]['mu_percent']);
+    }
+
+    public function test_resolve_for_element_matches_budget_by_analyte_and_method_ids(): void
+    {
+        $analyteId = (string) \Illuminate\Support\Str::uuid();
+        $methodId = (string) \Illuminate\Support\Str::uuid();
+
+        $element = new AnalysisElements([
+            'analyte_id' => $analyteId,
+            'method' => $methodId,
+            'lod' => 0.01,
+        ]);
+
+        $budget = new UncertaintyBudget([
+            'analyte_id' => $analyteId,
+            'method_ids' => $methodId.',other-method',
+            'expanded_uncertainty' => 2.5,
+            'active' => true,
+            'version_number' => 1,
+        ]);
+
+        $resolver = app(UncertaintyBudgetResolver::class);
+
+        $this->assertSame('2.5', $resolver->formatMuPercent($element, $budget));
+    }
+
+    public function test_enrich_lines_with_lab_metrics_populates_mu_when_element_and_budget_exist(): void
+    {
+        $elementId = (string) \Illuminate\Support\Str::uuid();
+        $analyteId = (string) \Illuminate\Support\Str::uuid();
+        $methodId = (string) \Illuminate\Support\Str::uuid();
+
+        \App\Analyte::query()->create([
+            'id' => $analyteId,
+            'code' => 'FE',
+            'name' => 'Iron',
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $elementId,
+            'analyte_id' => $analyteId,
+            'method' => $methodId,
+            'lod' => 0.005,
+            'active' => 1,
+        ]);
+
+        UncertaintyBudget::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'analyte_id' => $analyteId,
+            'method_ids' => $methodId,
+            'expanded_uncertainty' => 1.75,
+            'active' => true,
+            'version_number' => 1,
+        ]);
+
+        $resolver = app(UncertaintyBudgetResolver::class);
+        $lines = $resolver->enrichLinesWithLabMetrics([
+            [
+                'analysis_element_id' => $elementId,
+                'parameter_label' => 'Iron',
+            ],
+        ]);
+
+        $this->assertSame('0.005', $lines[0]['loq']);
+        $this->assertSame('1.75', $lines[0]['mu_percent']);
+    }
+
+    public function test_enrich_lines_matches_budget_when_ltm_method_differs_from_budget_method(): void
+    {
+        $elementId = (string) Str::uuid();
+        $analyteId = (string) Str::uuid();
+        $budgetMethodId = (string) Str::uuid();
+        $ltmMethodId = (string) Str::uuid();
+
+        \App\Analyte::query()->create([
+            'id' => $analyteId,
+            'code' => 'TVC',
+            'name' => 'Total viable count',
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $elementId,
+            'analyte_id' => $analyteId,
+            'ltm_method_id' => $ltmMethodId,
+            'method' => $budgetMethodId,
+            'lod' => 10,
+            'active' => 1,
+        ]);
+
+        UncertaintyBudget::query()->create([
+            'id' => (string) Str::uuid(),
+            'analyte_id' => $analyteId,
+            'method_ids' => $budgetMethodId,
+            'expanded_uncertainty' => 2.0,
+            'active' => true,
+            'version_number' => 1,
+        ]);
+
+        $resolver = app(UncertaintyBudgetResolver::class);
+        $lines = $resolver->enrichLinesWithLabMetrics([
+            [
+                'analysis_element_id' => $elementId,
+                'parameter_label' => 'Total viable count',
+            ],
+        ]);
+
+        $this->assertSame('10', $lines[0]['loq']);
+        $this->assertSame('2', $lines[0]['mu_percent']);
     }
 }

@@ -86,8 +86,16 @@ class TestRequestForm extends Model
     }
 
     /**
+     * @param  array<string, mixed>  $section
      * @return array<string, mixed>
      */
+    public static function collapsibleSection(array $section): array
+    {
+        $section['collapsible'] = true;
+
+        return $section;
+    }
+
     public static function defaultSampleRow(string $variant): array
     {
         if ($variant === 'food') {
@@ -95,7 +103,8 @@ class TestRequestForm extends Model
                 'sample_no' => '',
                 'sample_description' => '',
                 'sampling_point' => '',
-                'qty' => '',
+                'sample_quantity' => '',
+                'sample_quantity_unit' => '',
                 'sample_type' => '',
                 'sample_condition' => '',
                 'sample_temp' => '',
@@ -104,6 +113,10 @@ class TestRequestForm extends Model
                 'batch_number' => '',
                 'parameters' => '',
                 'state_of_sample' => '',
+                'microbiology' => false,
+                'legionella' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
@@ -111,7 +124,8 @@ class TestRequestForm extends Model
             'sample_no' => '',
             'sample_description' => '',
             'location' => '',
-            'qty' => '',
+            'sample_quantity' => '',
+            'sample_quantity_unit' => '',
             'sampling_point' => '',
             'ph' => '',
             'appearance' => '',
@@ -120,7 +134,34 @@ class TestRequestForm extends Model
             'sample_temp' => '',
             'microbiology' => false,
             'legionella' => false,
-            'chemical_analysis' => false,
+            'chemistry' => false,
+            'test_category' => '',
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public static function signatureSectionFields(): array
+    {
+        return [
+            ['name' => 'statement_of_conformity', 'label' => 'Statement of Conformity Required in Reports', 'type' => 'select', 'options' => ['YES', 'No', 'As per Contract', 'As per Email'], 'required' => false],
+            ['name' => 'sampled_by', 'label' => 'Sampled By: Name and Employee ID', 'type' => 'text', 'required' => false],
+            ['name' => 'customer_rep_signature', 'label' => 'Customer Representative Name/Sign.', 'type' => 'signature', 'required' => false],
+            ['name' => 'customer_rep_contact', 'label' => 'Customer Representative Contact Number', 'type' => 'text', 'required' => false],
+            ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea', 'required' => false],
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public static function labUseSectionFields(): array
+    {
+        return [
+            ['name' => 'lab_received_datetime', 'label' => 'Received Date & Time', 'type' => 'datetime-local', 'required' => false],
+            ['name' => 'lab_received_by', 'label' => 'Received by', 'type' => 'text', 'required' => false],
+            ['name' => 'lab_sample_condition', 'label' => 'Sample Condition', 'type' => 'select', 'options' => ['Acceptable', 'Not Acceptable'], 'required' => false],
         ];
     }
 
@@ -137,12 +178,12 @@ class TestRequestForm extends Model
         }
 
         $wasteWaterType = \App\SampleType::where('name', 'like', '%Waste Water%')
-            ->orWhere('code', 'SMP-WWTR')
+            ->orWhere('code', 'SMP WWTR')
             ->first();
         if (!$wasteWaterType) {
             $wasteWaterType = \App\SampleType::create([
                 'name' => 'Waste Water',
-                'code' => 'SMP-WWTR',
+                'code' => 'SMP WWTR',
                 'description' => 'Waste Water samples',
                 'company_id' => $companyId,
                 'active' => true,
@@ -168,7 +209,7 @@ class TestRequestForm extends Model
             if ($isFood) {
                 $fields = [
                     'sections' => [
-                        [
+                        self::collapsibleSection([
                             'title' => 'CUSTOMER DETAILS',
                             'fields' => [
                                 ['name' => 'customer_name', 'label' => 'Name', 'type' => 'text', 'required' => true],
@@ -176,13 +217,13 @@ class TestRequestForm extends Model
                                 ['name' => 'customer_phone', 'label' => 'Tel/ Fax No.', 'type' => 'text', 'required' => false],
                                 ['name' => 'contact_person', 'label' => 'Contact Person', 'type' => 'text', 'required' => false],
                                 ['name' => 'mobile_number', 'label' => 'Mobile Number', 'type' => 'text', 'required' => false],
-                                ['name' => 'job_number', 'label' => 'JOB NUMBER', 'type' => 'text', 'required' => false],
-                            ]
-                        ],
-                        [
+                                // ['name' => 'job_number', 'label' => 'JOB NUMBER', 'type' => 'text', 'required' => false],
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'SAMPLE COLLECTION DATA',
                             'fields' => [
-                                ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => true],
+                                ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => false],
                                 ['name' => 'sampling_time', 'label' => 'Sampling Time', 'type' => 'text', 'required' => false],
                                 ['name' => 'sampling_location', 'label' => 'Sampling Location', 'type' => 'text', 'required' => false],
                                 ['name' => 'sampling_apparatus', 'label' => 'Sampling Apparatus', 'type' => 'select', 'options' => ['STERILE BAG', 'AIR SAMPLER', 'STERILE BOTTLE', 'GRABBER', 'STERILE SWAB', 'OTHERS'], 'required' => false],
@@ -190,32 +231,22 @@ class TestRequestForm extends Model
                                 ['name' => 'method_of_sampling', 'label' => 'Method of Sampling', 'type' => 'select', 'options' => ['APHA', 'US FDA', 'SASO', 'CCFRA', 'ASTM', 'DM', 'SOP', 'OTHERS'], 'required' => false],
                                 ['name' => 'reason_of_collection', 'label' => 'Reason of Collection', 'type' => 'select', 'options' => ['CONTRACT', 'NON-CONTRACT', 'HACCP REQUIREMENT', 'DISPUTED/AUDIT'], 'required' => false],
                                 ['name' => 'transport_condition', 'label' => 'Transport Condition', 'type' => 'select', 'options' => ['CHILLER VEHICLE', 'FROZEN', 'AMBIENT'], 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'STATEMENT OF CONFORMITY & SIGNATURES',
-                            'fields' => [
-                                ['name' => 'statement_of_conformity', 'label' => 'Statement of Conformity Required in Reports', 'type' => 'select', 'options' => ['YES', 'No', 'As per Contract', 'As per Email'], 'required' => false],
-                                ['name' => 'sampled_by', 'label' => 'Sampled By: Name and Employee ID', 'type' => 'text', 'required' => false],
-                                ['name' => 'customer_rep_name', 'label' => 'Customer Representative Name/Sign.', 'type' => 'text', 'required' => false],
-                                ['name' => 'customer_rep_contact', 'label' => 'Customer Representative Contact Number', 'type' => 'text', 'required' => false],
-                                ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea', 'required' => false],
-                            ]
-                        ],
-                        [
+                            'fields' => self::signatureSectionFields(),
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'FOR LAB USE ONLY',
-                            'fields' => [
-                                ['name' => 'lab_received_datetime', 'label' => 'Received Date & Time', 'type' => 'datetime-local', 'required' => false],
-                                ['name' => 'lab_received_by', 'label' => 'Received by', 'type' => 'text', 'required' => false],
-                                ['name' => 'lab_sample_condition', 'label' => 'Sample Condition', 'type' => 'select', 'options' => ['Acceptable', 'Not Acceptable'], 'required' => false],
-                            ]
-                        ]
-                    ]
+                            'fields' => self::labUseSectionFields(),
+                        ]),
+                    ],
                 ];
             } elseif ($isWater) {
                 $fields = [
                     'sections' => [
-                        [
+                        self::collapsibleSection([
                             'title' => 'CUSTOMER DETAILS',
                             'fields' => [
                                 ['name' => 'customer_name', 'label' => 'Name', 'type' => 'text', 'required' => true],
@@ -223,13 +254,13 @@ class TestRequestForm extends Model
                                 ['name' => 'customer_phone', 'label' => 'Tel/ Fax No.', 'type' => 'text', 'required' => false],
                                 ['name' => 'contact_person', 'label' => 'Contact Person', 'type' => 'text', 'required' => false],
                                 ['name' => 'mobile_number', 'label' => 'Mobile Number', 'type' => 'text', 'required' => false],
-                                ['name' => 'job_number', 'label' => 'JOB NUMBER', 'type' => 'text', 'required' => false],
-                            ]
-                        ],
-                        [
+                                // ['name' => 'job_number', 'label' => 'JOB NUMBER', 'type' => 'text', 'required' => false],
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'SAMPLE COLLECTION DATA',
                             'fields' => [
-                                ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => true],
+                                ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => false],
                                 ['name' => 'sampling_time', 'label' => 'Sampling Time', 'type' => 'text', 'required' => false],
                                 ['name' => 'sampling_location', 'label' => 'Sampling Location', 'type' => 'text', 'required' => false],
                                 ['name' => 'sampling_apparatus', 'label' => 'Sampling Apparatus', 'type' => 'select', 'options' => ['STERILE BAG', 'GRABBER', 'STERILE BOTTLE', 'OTHERS'], 'required' => false],
@@ -237,32 +268,22 @@ class TestRequestForm extends Model
                                 ['name' => 'method_of_sampling', 'label' => 'Method of Sampling', 'type' => 'select', 'options' => ['APHA', 'US FDA', 'SASO', 'CCFRA', 'ASTM', 'DM', 'SOP', 'OTHERS'], 'required' => false],
                                 ['name' => 'reason_of_collection', 'label' => 'Reason of Collection', 'type' => 'select', 'options' => ['CONTRACT', 'NON-CONTRACT', 'HACCP REQUIREMENT', 'DISPUTED/AUDIT'], 'required' => false],
                                 ['name' => 'transport_condition', 'label' => 'Transport Condition', 'type' => 'select', 'options' => ['CHILLER VEHICLE', 'FROZEN', 'AMBIENT'], 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'STATEMENT OF CONFORMITY & SIGNATURES',
-                            'fields' => [
-                                ['name' => 'statement_of_conformity', 'label' => 'Statement of Conformity Required in Reports', 'type' => 'select', 'options' => ['YES', 'No', 'As per Contract', 'As per Email'], 'required' => false],
-                                ['name' => 'sampled_by', 'label' => 'Sampled By: Name and Employee ID', 'type' => 'text', 'required' => false],
-                                ['name' => 'customer_rep_name', 'label' => 'Customer Representative Name/Sign.', 'type' => 'text', 'required' => false],
-                                ['name' => 'customer_rep_contact', 'label' => 'Customer Representative Number', 'type' => 'text', 'required' => false],
-                                ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea', 'required' => false],
-                            ]
-                        ],
-                        [
+                            'fields' => self::signatureSectionFields(),
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'FOR LAB USE ONLY',
-                            'fields' => [
-                                ['name' => 'lab_received_datetime', 'label' => 'Received Date & Time', 'type' => 'datetime-local', 'required' => false],
-                                ['name' => 'lab_received_by', 'label' => 'Received by', 'type' => 'text', 'required' => false],
-                                ['name' => 'lab_sample_condition', 'label' => 'Sample Condition', 'type' => 'select', 'options' => ['Acceptable', 'Not Acceptable'], 'required' => false],
-                            ]
-                        ]
-                    ]
+                            'fields' => self::labUseSectionFields(),
+                        ]),
+                    ],
                 ];
             } elseif ($isWasteWater) {
                 $fields = [
                     'sections' => [
-                        [
+                        self::collapsibleSection([
                             'title' => 'CUSTOMER DETAILS',
                             'fields' => [
                                 ['name' => 'customer_name', 'label' => 'Name', 'type' => 'text', 'required' => true],
@@ -270,20 +291,20 @@ class TestRequestForm extends Model
                                 ['name' => 'customer_phone', 'label' => 'Tel/ Fax No.', 'type' => 'text', 'required' => false],
                                 ['name' => 'contact_person', 'label' => 'Contact Person', 'type' => 'text', 'required' => false],
                                 ['name' => 'mobile_number', 'label' => 'Mobile Number', 'type' => 'text', 'required' => false],
-                                ['name' => 'job_number', 'label' => 'JOB NUMBER', 'type' => 'text', 'required' => false],
+                                // ['name' => 'job_number', 'label' => 'JOB NUMBER', 'type' => 'text', 'required' => false],
                                 ['name' => 'sample_number', 'label' => 'SAMPLE NUMBER', 'type' => 'text', 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'SAMPLE DETAILS',
                             'fields' => [
-                                ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => true],
+                                ['name' => 'sampling_date', 'label' => 'Sampling Date', 'type' => 'date', 'required' => false],
                                 ['name' => 'sampling_time', 'label' => 'Sampling Time', 'type' => 'text', 'required' => false],
                                 ['name' => 'sampling_location', 'label' => 'Sampling Location', 'type' => 'text', 'required' => false],
                                 ['name' => 'sample_description', 'label' => 'SAMPLE & SAMPLING POINT DESCRIPTION', 'type' => 'textarea', 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'SAMPLING APPARATUS & TECHNIQUES',
                             'fields' => [
                                 ['name' => 'sampling_apparatus', 'label' => 'Sampling Apparatus', 'type' => 'select', 'options' => ['STERILE BOTTLE', 'BOTTLE CATCHER', 'OTHERS'], 'required' => false],
@@ -294,17 +315,17 @@ class TestRequestForm extends Model
                                 ['name' => 'method_of_sampling', 'label' => 'Method of Sampling', 'type' => 'select', 'options' => ['APHA', 'US FDA', 'EPA', 'CCFRA', 'DM', 'SOP', 'OTHERS'], 'required' => false],
                                 ['name' => 'reason_of_collection', 'label' => 'Reason of Collection', 'type' => 'select', 'options' => ['CONTRACT', 'NON-CONTRACT', 'DM REQUIREMENT', 'DISPUTED/AUDIT'], 'required' => false],
                                 ['name' => 'sampling_technique', 'label' => 'Sampling Technique', 'type' => 'select', 'options' => ['GRAB', 'COMPOSITE', 'OTHER'], 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'SAMPLING SOURCE & TYPES',
                             'fields' => [
                                 ['name' => 'sampling_source', 'label' => 'Sampling Source', 'type' => 'select', 'options' => ['TANK', 'HOLDING TANK', 'IND./DOMESTIC EFFLUENT', 'POOL WATER', 'DISCHARGE TO MARINE', 'GROUND WATER', 'STP', 'MUNICIPAL TAP WATER'], 'required' => false],
                                 ['name' => 'sample_types_ww', 'label' => 'Sample Types', 'type' => 'select', 'options' => ['LIQUID', 'SEMI SOLID', 'SLUDGE', 'MARINE SEDIMENT'], 'required' => false],
                                 ['name' => 'transport_condition', 'label' => 'Transport Condition', 'type' => 'select', 'options' => ['CHILLER VEHICLE', 'FROZEN', 'AMBIENT'], 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'FIELD DATA & REQUIREMENTS',
                             'fields' => [
                                 ['name' => 'field_data_quantity', 'label' => 'QUANTITY', 'type' => 'text', 'required' => false],
@@ -315,27 +336,17 @@ class TestRequestForm extends Model
                                 ['name' => 'field_data_temperature', 'label' => 'TEMPERATURE', 'type' => 'text', 'required' => false],
                                 ['name' => 'field_data_free_chlorine', 'label' => 'FREE CHLORINE', 'type' => 'text', 'required' => false],
                                 ['name' => 'field_data_requirements', 'label' => 'Requirements', 'type' => 'select', 'options' => ['MICROBIOLOGY', 'CHEMISTRY', 'MICROBIOLOGY + CHEMISTRY'], 'required' => false],
-                            ]
-                        ],
-                        [
+                            ],
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'STATEMENT OF CONFORMITY & SIGNATURES',
-                            'fields' => [
-                                ['name' => 'statement_of_conformity', 'label' => 'Statement of Conformity Required in Reports', 'type' => 'select', 'options' => ['YES', 'No', 'As per Contract', 'As per Email'], 'required' => false],
-                                ['name' => 'sampled_by', 'label' => 'Sampled By: Name and Employee ID', 'type' => 'text', 'required' => false],
-                                ['name' => 'customer_rep_name', 'label' => 'Customer Representative Name/Sign.', 'type' => 'text', 'required' => false],
-                                ['name' => 'customer_rep_contact', 'label' => 'Customer Representative Number', 'type' => 'text', 'required' => false],
-                                ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea', 'required' => false],
-                            ]
-                        ],
-                        [
+                            'fields' => self::signatureSectionFields(),
+                        ]),
+                        self::collapsibleSection([
                             'title' => 'FOR LAB USE ONLY',
-                            'fields' => [
-                                ['name' => 'lab_received_datetime', 'label' => 'Received Date & Time', 'type' => 'datetime-local', 'required' => false],
-                                ['name' => 'lab_received_by', 'label' => 'Received by', 'type' => 'text', 'required' => false],
-                                ['name' => 'lab_sample_condition', 'label' => 'Sample Condition', 'type' => 'select', 'options' => ['Acceptable', 'Not Acceptable'], 'required' => false],
-                            ]
-                        ]
-                    ]
+                            'fields' => self::labUseSectionFields(),
+                        ]),
+                    ],
                 ];
             } else {
                 // Find a SubmissionForm template linked to this sample type

@@ -143,6 +143,7 @@
 <script>
 (function () {
     var tabActivationAttempts = 0;
+    var hashNavigationDone = false;
     var batchDetailsHashes = [
         'sample-receipt-notification',
         'laboratory-acceptance',
@@ -172,14 +173,22 @@
         }
 
         tabActivationAttempts = 0;
+        hashNavigationDone = true;
         setTimeout(function () {
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 150);
     }
 
-    function activateTabFromHash() {
+    function activateTabFromHash(force) {
+        if (hashNavigationDone && !force) {
+            return;
+        }
+
         var hash = window.location.hash;
-        if (!hash) return;
+        if (!hash) {
+            return;
+        }
+
         var tabId = hash.replace('#', '');
 
         if (isBatchDetailsHash(tabId)) {
@@ -192,12 +201,15 @@
         if (!$tabLink.length) {
             if (tabActivationAttempts < 12) {
                 tabActivationAttempts += 1;
-                window.setTimeout(activateTabFromHash, 100);
+                window.setTimeout(function () {
+                    activateTabFromHash(force);
+                }, 100);
             }
             return;
         }
 
         tabActivationAttempts = 0;
+        hashNavigationDone = true;
         $tabLink.tab('show');
 
         setTimeout(function () {
@@ -205,14 +217,14 @@
         }, 300);
     }
 
-    document.addEventListener('livewire:init', function () {
-        Livewire.hook('commit', function () {
-            activateTabFromHash();
-        });
+    $(document).ready(function () {
+        activateTabFromHash(true);
     });
 
-    $(document).ready(function () {
-        activateTabFromHash();
+    window.addEventListener('hashchange', function () {
+        hashNavigationDone = false;
+        tabActivationAttempts = 0;
+        activateTabFromHash(true);
     });
 })();
 </script>

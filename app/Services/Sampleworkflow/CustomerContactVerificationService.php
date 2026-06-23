@@ -20,8 +20,6 @@ class CustomerContactVerificationService
         string $password,
         ?string $acceptanceFormId = null
     ): array {
-        $this->guardFailedAttempts($acceptanceFormId);
-
         $contact = CustomerContact::query()
             ->where('id', $contactId)
             ->where('crm_customer_id', $crmCustomerId)
@@ -29,16 +27,31 @@ class CustomerContactVerificationService
             ->where('can_login', 1)
             ->first();
 
-        if (!$contact) {
-            $this->recordFailedAttempt($acceptanceFormId);
+        if (! $contact) {
+            if (trim($password) !== '') {
+                $this->guardFailedAttempts($acceptanceFormId);
+                $this->recordFailedAttempt($acceptanceFormId);
+            }
+
             throw ValidationException::withMessages([
                 'password' => ['Invalid contact or password.'],
             ]);
         }
 
+        if (trim($password) === '') {
+            $this->clearFailedAttempts($acceptanceFormId);
+
+            return [
+                'contact_id' => (string) $contact->id,
+                'signer_name' => $this->contactDisplayName($contact),
+            ];
+        }
+
+        $this->guardFailedAttempts($acceptanceFormId);
+
         $user = $this->resolvePortalUser($contact, $crmCustomerId);
 
-        if (!$user || !Hash::check($password, (string) $user->password)) {
+        if (! $user || ! Hash::check($password, (string) $user->password)) {
             $this->recordFailedAttempt($acceptanceFormId);
             throw ValidationException::withMessages([
                 'password' => ['Invalid contact or password.'],
@@ -58,12 +71,35 @@ class CustomerContactVerificationService
      */
     public function portalContactsForCustomer(string $crmCustomerId): array
     {
-        return CustomerContact::query()
+        return $this->contactsForCustomerQuery($crmCustomerId, portalOnly: true);
+    }
+
+    /**
+     * All active CRM contacts for in-person acceptance signing (no portal login required).
+     *
+     * @return list<array{id: string, label: string}>
+     */
+    public function activeContactsForCustomer(string $crmCustomerId): array
+    {
+        return $this->contactsForCustomerQuery($crmCustomerId, portalOnly: false);
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    private function contactsForCustomerQuery(string $crmCustomerId, bool $portalOnly): array
+    {
+        $query = CustomerContact::query()
             ->where('crm_customer_id', $crmCustomerId)
             ->where('active', 1)
-            ->where('can_login', 1)
             ->orderBy('first_name')
-            ->orderBy('last_name')
+            ->orderBy('last_name');
+
+        if ($portalOnly) {
+            $query->where('can_login', 1);
+        }
+
+        return $query
             ->get()
             ->map(fn (CustomerContact $contact) => [
                 'id' => (string) $contact->id,

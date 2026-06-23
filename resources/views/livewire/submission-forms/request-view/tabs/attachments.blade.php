@@ -48,7 +48,10 @@
                                 <td class="text-nowrap">{{ optional($cAttachment->created_at)->format('Y-m-d H:i') ?? '—' }}</td>
                                 <td>
                                     @if($cAttachment->file_url)
-                                        <a href="{{ $cAttachment->file_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ $cAttachment->file_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mr-1">
+                                            View
+                                        </a>
+                                        <a href="{{ $cAttachment->file_url }}" download class="btn btn-sm btn-outline-secondary">
                                             Download
                                         </a>
                                     @endif
@@ -74,7 +77,10 @@
                                 <td class="text-nowrap">{{ optional($fAttachment->created_at)->format('Y-m-d H:i') ?? '—' }}</td>
                                 <td>
                                     @if($fAttachment->file_url)
-                                        <a href="{{ $fAttachment->file_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ $fAttachment->file_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mr-1">
+                                            View
+                                        </a>
+                                        <a href="{{ $fAttachment->file_url }}" download class="btn btn-sm btn-outline-secondary">
                                             Download
                                         </a>
                                     @endif
@@ -122,8 +128,11 @@
                                 <td class="text-nowrap">{{ optional($bAttachment->created_at)->format('Y-m-d H:i') ?? '—' }}</td>
                                 <td>
                                     @if($bAttachment->attachment_url)
-                                        <a href="{{ $bAttachment->attachment_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            Download PDF
+                                        <a href="{{ $bAttachment->attachment_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mr-1">
+                                            View
+                                        </a>
+                                        <a href="{{ $bAttachment->attachment_url }}" download class="btn btn-sm btn-outline-secondary">
+                                            Download
                                         </a>
                                     @endif
                                 </td>

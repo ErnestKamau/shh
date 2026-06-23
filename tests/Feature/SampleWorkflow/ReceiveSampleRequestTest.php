@@ -3,6 +3,8 @@
 namespace Tests\Feature\SampleWorkflow;
 
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
+use App\Models\TestRequestForm;
+use App\Models\TestRequestFormInstance;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
@@ -172,6 +174,150 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertDispatched('receive-completed');
 
         $this->assertSame('received', $instance->fresh()->status);
+    }
+
+    public function test_walk_in_capture_creates_trfi_with_normalized_form_data(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Walk-in Customer',
+                'customer_phone' => '555-0100',
+                'mobile_number' => '555-0200',
+                'sampling_date' => '2026-06-18',
+                'sample_rows' => [[
+                    'sample_no' => '1',
+                    'sample_description' => 'Tap Water',
+                ]],
+            ])
+            ->call('confirmReceive')
+            ->assertDispatched('receive-completed');
+
+        $trfi = \App\Models\TestRequestFormInstance::query()->first();
+        $this->assertNotNull($trfi);
+        $this->assertSame(\App\Models\TestRequestFormInstance::CHANNEL_WALK_IN, $trfi->source_channel);
+        $this->assertSame('Walk-in Customer', $trfi->form_data['customer_name']);
+        $this->assertSame('555-0100', $trfi->form_data['customer_phone']);
+        $this->assertSame('555-0200', $trfi->form_data['mobile_number']);
+        $this->assertSame('2026-06-18', $trfi->form_data['sampling_date']);
+        $this->assertSame('Tap Water', $trfi->form_data['sample_rows'][0]['sample_description']);
+
+        $this->assertDatabaseHas('sample_submission_requests', [
+            'test_request_form_instance_id' => $trfi->id,
+            'source_channel' => 'walk_in',
+        ]);
+    }
+
+    public function test_walk_in_capture_succeeds_without_sampling_date(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Walk-in Customer',
+                'sample_rows' => [[
+                    'sample_description' => 'Tap Water',
+                    'test_category' => 'chemistry',
+                ]],
+            ])
+            ->call('confirmReceive')
+            ->assertDispatched('receive-completed');
+
+        $trfi = \App\Models\TestRequestFormInstance::query()->first();
+        $this->assertNotNull($trfi);
+        $this->assertArrayNotHasKey('sampling_date', $trfi->form_data);
+    }
+
+    public function test_walk_in_capture_persists_sample_quantity_and_unit(): void
+    {
+        $sampleType = $this->createSampleType('Food', 'SMP-FOOD');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Walk-in Customer',
+                'sample_rows' => [[
+                    'sample_description' => 'Chicken',
+                    'sample_quantity' => '2',
+                    'sample_quantity_unit' => 'kg',
+                    'test_category' => 'microbiology',
+                ]],
+            ])
+            ->call('confirmReceive')
+            ->assertDispatched('receive-completed');
+
+        $trfi = \App\Models\TestRequestFormInstance::query()->first();
+        $this->assertSame('2', $trfi->form_data['sample_rows'][0]['sample_quantity']);
+        $this->assertSame('kg', $trfi->form_data['sample_rows'][0]['sample_quantity_unit']);
+    }
+
+    public function test_physical_check_in_persists_trf_metadata_on_linked_trfi(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+        $quotation = QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ260609-002',
+            'quote_date' => now()->toDateString(),
+            'sent_to_customer_at' => now(),
+            'status' => 'Quote Complete',
+        ]);
+        $enquiry = $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION, $quotation->id);
+
+        $trfi = \App\Models\TestRequestFormInstance::query()->create([
+            'id' => (string) Str::uuid7(),
+            'test_request_form_id' => TestRequestForm::query()->create([
+                'id' => (string) Str::uuid7(),
+                'name' => 'TRF',
+                'code' => 'TRF-TEST',
+                'sample_type_id' => $this->createSampleType('Water', 'WTR-2')->id,
+                'form_fields' => ['sections' => []],
+                'is_active' => true,
+            ])->id,
+            'submission_form_instance_id' => $instance->id,
+            'sample_submission_request_id' => $enquiry->id,
+            'status' => TestRequestFormInstance::STATUS_SUBMITTED,
+            'form_data' => [],
+        ]);
+
+        $instance->update(['test_request_form_instance_id' => $trfi->id]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [$instance->id],
+            ])
+            ->set('checkInTrfFields.'.$instance->id.'.statement_of_conformity', 'YES')
+            ->set('checkInTrfFields.'.$instance->id.'.sampled_by', 'John Doe / E123')
+            ->set('checkInTrfFields.'.$instance->id.'.customer_rep_contact', '+971 4 000 0000')
+            ->set('checkInTrfFields.'.$instance->id.'.remarks', 'Checked at reception')
+            ->call('confirmReceive')
+            ->assertDispatched('receive-completed');
+
+        $trfi->refresh();
+        $enquiry->refresh();
+
+        $this->assertSame('YES', $trfi->form_data['statement_of_conformity']);
+        $this->assertSame('John Doe / E123', $trfi->form_data['sampled_by']);
+        $this->assertSame('Checked at reception', $trfi->form_data['remarks']);
+        $this->assertSame('YES', $enquiry->statement_of_conformity);
     }
 
     public function test_confirm_receive_applies_same_checklist_to_multiple_instances(): void

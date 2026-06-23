@@ -9,6 +9,7 @@ use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\SampleDetails;
@@ -65,6 +66,19 @@ class AcceptanceFormPricingService
 
             foreach ($submissionRequest->requestedAnalyses()->select('analysis_key', 'analysis_label')->get() as $analysis) {
                 $parameters[] = $this->tokenToLineSeed((string) $analysis->analysis_key, (string) $analysis->analysis_label, $sampleTypeId);
+            }
+
+            if ($parameters === []) {
+                $trfi = $submissionRequest->resolveLinkedTrfi();
+                if ($trfi instanceof TestRequestFormInstance) {
+                    $trfiLines = app(SubmissionRequestSampleLineService::class)->linesForTrfi($trfi);
+                    $parameters = $this->parameterSeedsFromTrfi($trfi, $sampleTypeId);
+                    if ($parameters !== []) {
+                        $numberOfSamples = max(1, count($trfiLines));
+                    }
+                }
+            } elseif ((int) $submissionRequest->number_of_samples > 0) {
+                $numberOfSamples = max(1, (int) $submissionRequest->number_of_samples);
             }
         } elseif ($submissionFormInstanceId) {
             $instance = SubmissionFormInstance::with([
@@ -186,6 +200,36 @@ class AcceptanceFormPricingService
         }
 
         return Pricelist::where('active', 1)->orderBy('id')->first();
+    }
+
+    /**
+     * Returns true only when the customer has an explicit pricelist assignment.
+     * Does NOT fall back to the global active pricelist.
+     */
+    public function hasCustomerAssignedPricelist(string $customerId): bool
+    {
+        return $this->resolveCustomerAssignedPricelist($customerId) !== null;
+    }
+
+    /**
+     * Resolves the pricelist explicitly assigned to a customer.
+     * Returns null when no assignment exists — no global fallback.
+     */
+    public function resolveCustomerAssignedPricelist(?string $customerId): ?Pricelist
+    {
+        if (empty($customerId)) {
+            return null;
+        }
+
+        $pricelistCustomer = PricelistCustomer::where('customer_id', $customerId)
+            ->select('pricelist_id')
+            ->first();
+
+        if (!$pricelistCustomer) {
+            return null;
+        }
+
+        return Pricelist::find($pricelistCustomer->pricelist_id);
     }
 
     /**
@@ -766,6 +810,45 @@ class AcceptanceFormPricingService
     }
 
     /**
+     * All active sample types for unrestricted add-line picker.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function allSampleTypesForPicker(): array
+    {
+        return SampleType::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (SampleType $type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * All active analysis types for unrestricted add-line picker.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function allAnalysisTypesForPicker(?string $sampleTypeId = null): array
+    {
+        $query = AnalysisType::query()->orderBy('name');
+
+        if ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $query->where('sample_type_id', $sampleTypeId);
+        }
+
+        return $query
+            ->get(['id', 'name'])
+            ->map(fn (AnalysisType $type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->all();
+    }
+
+    /**
      * Analysis types for add-line picker: pricelist plus types already on the table for the sample type.
      *
      * @param  list<array<string, mixed>>  $existingLines
@@ -885,6 +968,37 @@ class AcceptanceFormPricingService
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function parameterSeedsFromTrfi(TestRequestFormInstance $trfi, ?string $defaultSampleTypeId): array
+    {
+        $lines = app(SubmissionRequestSampleLineService::class)->linesForTrfi($trfi);
+        $parameters = [];
+
+        foreach ($lines as $line) {
+            if (empty($line['analysis_type_id']) && empty($line['analysis_element_id'])) {
+                continue;
+            }
+
+            $parameters[] = array_merge(
+                $this->tokenToLineSeed(
+                    (string) ($line['analysis_element_id'] ?? $line['analysis_type_id'] ?? ''),
+                    (string) ($line['parameter_label'] ?? 'Parameter'),
+                    $line['sample_type_id'] ?? $defaultSampleTypeId
+                ),
+                [
+                    'sample_type_id' => $line['sample_type_id'] ?? $defaultSampleTypeId,
+                    'analysis_type_id' => (string) ($line['analysis_type_id'] ?? ''),
+                    'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                    'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
+                ]
+            );
+        }
+
+        return $parameters;
     }
 
     private function resolveEnquiryForPrefill(?string $submissionRequestId, ?string $submissionFormInstanceId): ?SampleSubmissionRequest

@@ -54,6 +54,7 @@ class TestRequestFormReportDataBuilder
         $instance->loadMissing([
             'testRequestForm.sampleType',
             'submissionFormInstance.crmCustomer.contacts',
+            'crmCustomer.contacts',
             'creator',
         ]);
 
@@ -62,7 +63,8 @@ class TestRequestFormReportDataBuilder
             $instance->testRequestForm?->sampleType,
             $instance->submissionFormInstance,
             $forPdf,
-            $instance->creator
+            $instance->creator,
+            $instance,
         );
     }
 
@@ -90,13 +92,14 @@ class TestRequestFormReportDataBuilder
         ?\App\SampleType $sampleType,
         $submission,
         bool $forPdf,
-        $creator = null
+        $creator = null,
+        ?TestRequestFormInstance $trfi = null,
     ): array {
         $variant = TestRequestForm::resolveReportVariant($sampleType);
         $company = getActiveCompany();
         $branding = $this->resolveBranding($forPdf);
 
-        $customer = $this->resolveCustomerFields($formData, $submission);
+        $customer = $this->resolveCustomerFields($formData, $submission, $trfi);
         $collection = $this->resolveCollectionFields($formData, $variant);
         $wasteWaterFields = $variant === 'waste_water'
             ? $this->resolveWasteWaterFields($formData)
@@ -131,7 +134,7 @@ class TestRequestFormReportDataBuilder
             'variant' => $variant,
             'formTitle' => $formTitle,
             'documentRef' => $documentRef,
-            'serialNumber' => $this->resolveSerialNumber($submission),
+            'serialNumber' => $this->resolveSerialNumber($submission, $trfi),
             'company' => $company,
             'companyHeader' => $companyHeader,
             'branding' => $branding,
@@ -145,6 +148,7 @@ class TestRequestFormReportDataBuilder
                 'statement_of_conformity' => $conformity,
                 'sampled_by' => (string) ($formData['sampled_by'] ?? $creator?->name ?? ''),
                 'customer_rep_name' => (string) ($formData['customer_rep_name'] ?? ''),
+                'customer_rep_signature' => (string) ($formData['customer_rep_signature'] ?? $formData['customer_representative_signature'] ?? ''),
                 'customer_rep_contact' => (string) ($formData['customer_rep_contact'] ?? ''),
                 'remarks' => (string) ($formData['remarks'] ?? ''),
             ],
@@ -327,13 +331,13 @@ class TestRequestFormReportDataBuilder
      * @param  array<string, mixed>  $formData
      * @return array<string, string>
      */
-    private function resolveCustomerFields(array $formData, $submission): array
+    private function resolveCustomerFields(array $formData, $submission, ?TestRequestFormInstance $trfi = null): array
     {
-        $crm = $submission?->crmCustomer;
+        $crm = $trfi?->crmCustomer ?? $submission?->crmCustomer;
         $contact = $crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null;
 
         return [
-            'job_number' => $this->resolveJobNumber($formData, $submission),
+            'job_number' => $this->resolveJobNumber($formData, $submission, $trfi),
             'customer_name' => (string) ($formData['customer_name'] ?? $formData['client_name'] ?? $crm?->name ?? ''),
             'customer_address' => (string) ($formData['customer_address'] ?? $formData['address'] ?? $crm?->physical_address ?? $crm?->postal_address ?? ''),
             'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
@@ -345,10 +349,14 @@ class TestRequestFormReportDataBuilder
     /**
      * @param  array<string, mixed>  $formData
      */
-    private function resolveJobNumber(array $formData, $submission): string
+    private function resolveJobNumber(array $formData, $submission, ?TestRequestFormInstance $trfi = null): string
     {
         if (! empty($formData['job_number'])) {
             return (string) $formData['job_number'];
+        }
+
+        if ($trfi?->form_number) {
+            return (string) $trfi->form_number;
         }
 
         if ($submission) {
@@ -419,7 +427,7 @@ class TestRequestFormReportDataBuilder
                     'sample_no' => (string) ($row['sample_no'] ?? ''),
                     'sample_description' => (string) ($row['sample_description'] ?? ''),
                     'sampling_point' => (string) ($row['sampling_point'] ?? ''),
-                    'qty' => (string) ($row['qty'] ?? ''),
+                    'qty' => $this->formatRowQuantity($row),
                     'sample_type' => $sampleType,
                     'sample_type_checks' => self::sampleTypeChecks($sampleType),
                     'sample_condition' => $sampleCondition,
@@ -440,7 +448,7 @@ class TestRequestFormReportDataBuilder
                 'sample_no' => (string) ($row['sample_no'] ?? ''),
                 'sample_description' => (string) ($row['sample_description'] ?? ''),
                 'location' => (string) ($row['location'] ?? ''),
-                'qty' => (string) ($row['qty'] ?? ''),
+                'qty' => $this->formatRowQuantity($row),
                 'sampling_point' => $samplingPoint,
                 'sampling_point_checks' => self::samplingPointChecks($samplingPoint),
                 'ph' => (string) ($row['ph'] ?? ''),
@@ -450,7 +458,7 @@ class TestRequestFormReportDataBuilder
                 'sample_temp' => (string) ($row['sample_temp'] ?? ''),
                 'microbiology' => filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'legionella' => filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                'chemical_analysis' => filter_var($row['chemical_analysis'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'chemistry' => filter_var($row['chemistry'] ?? $row['chemical_analysis'] ?? false, FILTER_VALIDATE_BOOLEAN),
             ];
         }
 
@@ -486,8 +494,12 @@ class TestRequestFormReportDataBuilder
         ];
     }
 
-    private function resolveSerialNumber($submission): string
+    private function resolveSerialNumber($submission, ?TestRequestFormInstance $trfi = null): string
     {
+        if ($trfi?->form_number) {
+            return (string) $trfi->form_number;
+        }
+
         if (! $submission) {
             return '';
         }
@@ -836,6 +848,27 @@ class TestRequestFormReportDataBuilder
         };
 
         return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function formatRowQuantity(array $row): string
+    {
+        $quantity = trim((string) ($row['sample_quantity'] ?? ''));
+        $unit = trim((string) ($row['sample_quantity_unit'] ?? ''));
+
+        if ($quantity !== '' && $unit !== '') {
+            return $quantity.' '.$unit;
+        }
+
+        if ($quantity !== '') {
+            return $quantity;
+        }
+
+        $legacy = trim((string) ($row['qty'] ?? ''));
+
+        return $legacy !== '' ? $legacy : '';
     }
 
 }

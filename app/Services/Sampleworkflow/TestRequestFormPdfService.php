@@ -101,9 +101,7 @@ class TestRequestFormPdfService
         $pdf->loadView($viewName, $viewData);
         $this->applyPaperSettings($pdf, $viewData['variant']);
 
-        $filename = 'test-request-form-' . ($viewData['serialNumber'] ?: $instance->id) . '.pdf';
-
-        return $pdf->stream($filename);
+        return $pdf->stream($this->resolveDownloadFilename($instance, $viewData));
     }
 
     public function download(TestRequestFormInstance $instance)
@@ -112,9 +110,23 @@ class TestRequestFormPdfService
 
         $storagePath = $this->resolveStoragePath($instance);
         $viewData = $this->buildViewData($instance, true);
-        $filename = 'test-request-form-' . ($viewData['serialNumber'] ?: $instance->id) . '.pdf';
 
-        return Storage::disk('public')->download($storagePath, $filename);
+        return Storage::disk('public')->download(
+            $storagePath,
+            $this->resolveDownloadFilename($instance, $viewData)
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $viewData
+     */
+    public function resolveDownloadFilename(TestRequestFormInstance $instance, ?array $viewData = null): string
+    {
+        $viewData ??= $this->buildViewData($instance, true);
+        $label = (string) ($viewData['serialNumber'] ?: $instance->id);
+        $safeLabel = preg_replace('/[\/\\\\]/', '-', $label) ?: (string) $instance->id;
+
+        return 'test-request-form-' . $safeLabel . '.pdf';
     }
 
     public function ensureStored(TestRequestFormInstance $instance): string

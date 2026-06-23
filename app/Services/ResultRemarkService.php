@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Analyte;
 use App\CapturedResult;
 use App\StandardAnalytes;
 use App\StandardValue;
@@ -54,9 +55,9 @@ class ResultRemarkService
     public function calculateUsingCapturedResult(CapturedResult $capturedResult, string $result, ?string $reportingSymbol = null): ?string
     {
         $sample = $capturedResult->sample;
-        $analyte = $capturedResult->analyte;
+        $analyte = $this->resolveAnalyteForCapturedResult($capturedResult);
 
-        if (!$sample || !$analyte) {
+        if (! $sample || ! $analyte) {
             return null;
         }
 
@@ -132,7 +133,7 @@ class ResultRemarkService
         return $remarks[0] ?? null;
     }
 
-    protected function getResultRemarkForStandard(int $standardId, int $analyteId, string $result, ?string $reportingSymbol): ?string
+    protected function getResultRemarkForStandard(string|int $standardId, string|int $analyteId, string $result, ?string $reportingSymbol): ?string
     {
         $analyteGuide = StandardAnalytes::where('analyte_id', $analyteId)
             ->where('standard_id', $standardId)
@@ -330,6 +331,14 @@ class ResultRemarkService
             return '-';
         }
 
+        if (preg_match('/^(min|max)\s+(\d+(?:\.\d+)?)$/i', $standardTrim, $matches)) {
+            return $this->evaluateManualLimitOperator($effectiveResult, $matches[2], strtolower($matches[1]));
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s+(min|max)$/i', $standardTrim, $matches)) {
+            return $this->evaluateManualLimitOperator($effectiveResult, $matches[1], strtolower($matches[2]));
+        }
+
         // Handle numeric limits with optional prefixes (MAX, MIN, <, >, <=, >=)
         if (preg_match('/^(MAX|MIN|<|>|<=|>=)?\s*(\d+(?:\.\d+)?)$/i', $standardUpper, $matches)) {
             $prefix = $matches[1] !== '' ? $matches[1] : 'MAX'; // Default to MAX
@@ -375,6 +384,36 @@ class ResultRemarkService
         return '-';
     }
 
+    public function evaluateTypedLimit(?string $result, ?string $limitValue, ?string $limitType, ?string $reportingSymbol = null): ?string
+    {
+        $normalizedResult = $this->normalizeResult($result);
+        if ($normalizedResult === null || $limitValue === null || trim($limitValue) === '') {
+            return null;
+        }
+
+        if (! $this->isNumeric($normalizedResult) || ! $this->isNumeric($limitValue)) {
+            return null;
+        }
+
+        return $this->evaluateNumericValue(
+            (float) $normalizedResult,
+            (float) $limitValue,
+            $this->normalizeLimitType($limitType),
+            $reportingSymbol,
+        );
+    }
+
+    protected function normalizeLimitType(?string $type): string
+    {
+        $normalized = strtolower(trim((string) $type));
+
+        return match ($normalized) {
+            'maximum' => 'max',
+            'minimum' => 'min',
+            default => $normalized,
+        };
+    }
+
     protected function normalizeResult(?string $value): ?string
     {
         if ($value === null) {
@@ -404,5 +443,29 @@ class ResultRemarkService
         }
 
         return is_numeric($value);
+    }
+
+    protected function evaluateManualLimitOperator(string $result, string $limitValue, string $operator): string
+    {
+        if (! $this->isNumeric($result) || ! $this->isNumeric($limitValue)) {
+            return '-';
+        }
+
+        $remark = $this->evaluateNumericValue((float) $result, (float) $limitValue, $operator, null);
+
+        return $remark ?? '-';
+    }
+
+    protected function resolveAnalyteForCapturedResult(CapturedResult $capturedResult): ?Analyte
+    {
+        if ($capturedResult->relationLoaded('my_analyte')) {
+            return $capturedResult->my_analyte;
+        }
+
+        if (! empty($capturedResult->analyte_id)) {
+            return Analyte::query()->find($capturedResult->analyte_id);
+        }
+
+        return null;
     }
 }

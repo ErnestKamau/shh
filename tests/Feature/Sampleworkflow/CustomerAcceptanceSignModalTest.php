@@ -56,6 +56,22 @@ class CustomerAcceptanceSignModalTest extends TestCase
             ->assertSet('customerSignerName', 'Jane Customer');
     }
 
+    public function test_verify_identity_without_password_advances_when_contact_selected(): void
+    {
+        [$acceptanceForm, $contact] = $this->createAwaitingCustomerSignFixture('correct-password');
+
+        Livewire::actingAs($this->labUser)
+            ->test(CustomerAcceptanceSignModal::class)
+            ->call('openModal', $acceptanceForm->id)
+            ->set('selectedContactId', $contact->id)
+            ->set('password', '')
+            ->call('verifyIdentity')
+            ->assertHasNoErrors()
+            ->assertSet('currentStep', 2)
+            ->assertSet('verifiedContactId', $contact->id)
+            ->assertSet('customerSignerName', 'Jane Customer');
+    }
+
     public function test_wrong_password_stays_on_step_one(): void
     {
         [$acceptanceForm, $contact] = $this->createAwaitingCustomerSignFixture('correct-password');

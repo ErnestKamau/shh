@@ -22,7 +22,17 @@
         <td style="width:50%;"><span class="trf-field-label">Received Date &amp; Time:</span> <span class="trf-field-value">{{ $labUse['lab_received_datetime'] ?: '&nbsp;' }}</span></td>
     </tr>
     <tr>
-        <td><span class="trf-field-label">Customer Representative Name/Sign:</span> <span class="trf-field-value">{{ $signatures['customer_rep_name'] ?: '&nbsp;' }}</span></td>
+        <td>
+            <span class="trf-field-label">Customer Representative Name/Sign:</span>
+            @php
+                $repSignature = $signatures['customer_rep_signature'] ?? $signatures['customer_rep_name'] ?? '';
+            @endphp
+            @if(is_string($repSignature) && str_starts_with($repSignature, 'data:image'))
+                <img src="{{ $repSignature }}" alt="Customer signature" style="max-height: 48px; max-width: 180px; display: block; margin-top: 4px;">
+            @else
+                <span class="trf-field-value">{{ $repSignature ?: '&nbsp;' }}</span>
+            @endif
+        </td>
         <td><span class="trf-field-label">Received by:</span> <span class="trf-field-value">{{ $labUse['lab_received_by'] ?: '&nbsp;' }}</span></td>
     </tr>
     <tr>

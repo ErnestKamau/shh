@@ -9,6 +9,7 @@ use Database\Seeders\Setup\EquipmentPermissionsSeeder;
 use Database\Seeders\Setup\Languages\MasLanguageDatabaseSeeder;
 use Database\Seeders\Setup\Languages\CRMLanguageSeeder;
 use Database\Seeders\Setup\Languages\EquipmentLanguageSeeder;
+use Database\Seeders\Setup\Languages\LabDashboardLanguageSeeder;
 use Database\Seeders\Setup\Languages\PersonnelLanguageSeeder;
 use Database\Seeders\Setup\Languages\SystemTranslationsSeeder;
 use Database\Seeders\Setup\AuditModulePermissionsSeeder;
@@ -50,6 +51,7 @@ class DatabaseSeeder extends Seeder
             PersonnelLanguageSeeder::class,
             CRMLanguageSeeder::class,
             EquipmentLanguageSeeder::class,
+            LabDashboardLanguageSeeder::class,
             // Keep MAS translations last so migrated MAS keys win on overlap.
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,
@@ -57,18 +59,20 @@ class DatabaseSeeder extends Seeder
             // GCLA01FormSeeder::class,
             // PF180FormSeeder::class,
             // DCEA001FormSeeder::class,
+            ClearsSampleWorkflowDataSeeder::class,
             Phase1FoundationSeeder::class,
             Phase2LocationSeeder::class,
             Phase3CrmMasterDataSeeder::class,
             Phase4SampleTaxonomySeeder::class,
-            // Portal TRF forms (water, food, waste water) — keep existing seeder definitions
-            TestRequestFormWaterSeeder::class,
-            TestRequestFormFoodSeeder::class,
-            TestRequestFormWasteWaterSeeder::class,
             Phase5LaboratoryOrganizationSeeder::class,
             Phase6PersonnelLabInsightsSeeder::class,
             Phase7InventoryManagementSeeder::class,
             Phase8AnalyticalParameterMatrixSeeder::class,
+            // Portal TRF forms — must run after Phase 8 so sample-type links match current taxonomy IDs.
+            TestRequestFormWaterSeeder::class,
+            TestRequestFormFoodSeeder::class,
+            TestRequestFormWasteWaterSeeder::class,
+            Phase13FoodStandardsAndPricelistSeeder::class,
             Phase9SampleWorkflowSeeder::class,
             Phase10AnalyticalResultsSeeder::class,
             Phase11QcAnalyticsSeeder::class,

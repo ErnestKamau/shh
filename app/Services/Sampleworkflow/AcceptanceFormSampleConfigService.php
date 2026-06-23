@@ -9,6 +9,7 @@ use App\SampleCondition;
 use App\SampleType;
 use App\Standards;
 use App\Zone;
+use App\SampleAnalysisStage;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -21,7 +22,7 @@ class AcceptanceFormSampleConfigService
     ) {}
 
     /**
-     * @return array{id: string, sample_type_id: string|null, analysis_type_id: string|null, sample_condition_id: string|null, main_standard_id: string|null, zone_id: string|null, number_of_samples: int, parameter_keys: list<string>, parameter_search: string, instances: list<array{customer_sample_id: string, sample_marking: string}>}
+     * @return array{id: string, sample_type_id: string|null, analysis_type_id: string|null, sample_condition_id: string|null, main_standard_id: string|null, zone_id: string|null, lab_section_id: string|null, number_of_samples: int, parameter_keys: list<string>, parameter_search: string, instances: list<array{customer_sample_id: string, sample_marking: string}>}
      */
     public function emptyConfig(): array
     {
@@ -32,9 +33,11 @@ class AcceptanceFormSampleConfigService
             'sample_condition_id' => null,
             'main_standard_id' => null,
             'zone_id' => null,
+            'lab_section_id' => null,
             'number_of_samples' => 1,
             'parameter_keys' => [],
             'parameter_search' => '',
+            'sample_code_prefix' => null,
             'instances' => [
                 ['customer_sample_id' => '', 'sample_marking' => ''],
             ],
@@ -63,12 +66,18 @@ class AcceptanceFormSampleConfigService
                 $buckets[$key]['sample_type_id'] = $sampleTypeId !== '' ? $sampleTypeId : null;
                 $buckets[$key]['analysis_type_id'] = $analysisTypeId !== '' ? $analysisTypeId : null;
                 $buckets[$key]['zone_id'] = $defaultZoneId;
-                $buckets[$key]['number_of_samples'] = max(1, (int) ($line['number_of_samples'] ?? 1));
+                $buckets[$key]['lab_section_id'] = $this->resolveLabSectionIdForAnalysisType($analysisTypeId);
+                $buckets[$key]['number_of_samples'] = 1;
                 $buckets[$key]['sample_condition_id'] = $this->resolveSampleConditionId(
                     $line['sample_condition_id'] ?? null,
                     $line['sample_condition'] ?? null,
                     $sampleTypeId !== '' ? $sampleTypeId : null
                 );
+                if (! empty($line['sample_code_prefix'])) {
+                    $buckets[$key]['sample_code_prefix'] = $line['sample_code_prefix'];
+                }
+            } else {
+                $buckets[$key]['number_of_samples'] = max(1, (int) $buckets[$key]['number_of_samples']) + 1;
             }
 
             $elementId = $line['analysis_element_id'] ?? null;
@@ -183,6 +192,22 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function allSampleTypesForPicker(): array
+    {
+        return $this->pricingService->allSampleTypesForPicker();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function allAnalysisTypesForPicker(?string $sampleTypeId): array
+    {
+        return $this->pricingService->allAnalysisTypesForPicker($sampleTypeId);
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function parametersForConfig(string $customerId, ?string $sampleTypeId, ?string $analysisTypeId): array
@@ -233,6 +258,43 @@ class AcceptanceFormSampleConfigService
                 'name' => trim(($zone->key ? $zone->key . ' — ' : '') . $zone->value),
             ])
             ->all();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function labSectionsForPicker(): array
+    {
+        return SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->where('is_system', 0)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code'])
+            ->map(fn (SampleAnalysisStage $stage) => [
+                'id' => (string) $stage->id,
+                'name' => trim($stage->name . ($stage->code ? ' — ' . $stage->code : '')),
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function resolveLabSectionIdForAnalysisType(?string $analysisTypeId): ?string
+    {
+        if ($analysisTypeId === null || $analysisTypeId === '') {
+            return null;
+        }
+
+        $analysisType = AnalysisType::query()->find($analysisTypeId);
+        if ($analysisType === null || empty($analysisType->lab_section_id)) {
+            return null;
+        }
+
+        $candidate = (string) $analysisType->lab_section_id;
+        if (! Str::isUuid($candidate)) {
+            return null;
+        }
+
+        return SampleAnalysisStage::query()->whereKey($candidate)->exists() ? $candidate : null;
     }
 
     private function resolveZoneIdFromConfig(array $config): ?string
@@ -359,7 +421,7 @@ class AcceptanceFormSampleConfigService
      *
      * @throws ValidationException
      */
-    public function validateConfigs(array $configs): void
+    public function validateConfigs(array $configs, bool $requireLabSection = false): void
     {
         if ($configs === []) {
             throw ValidationException::withMessages([
@@ -379,6 +441,9 @@ class AcceptanceFormSampleConfigService
             }
             if (empty($config['parameter_keys']) || !is_array($config['parameter_keys'])) {
                 $errors["sampleConfigs.{$index}.parameter_keys"] = "Row {$row}: select at least one parameter.";
+            }
+            if ($requireLabSection && empty($config['lab_section_id'])) {
+                $errors["sampleConfigs.{$index}.lab_section_id"] = "Row {$row}: lab section is required.";
             }
             $count = max(1, (int) ($config['number_of_samples'] ?? 1));
             $instances = $config['instances'] ?? [];
@@ -438,6 +503,7 @@ class AcceptanceFormSampleConfigService
                     'sample_condition_id' => $config['sample_condition_id'] ?? null,
                     'main_standard_id' => $config['main_standard_id'] ?? null,
                     'zone_id' => $this->resolveZoneIdFromConfig($config),
+                    'lab_section_id' => $config['lab_section_id'] ?? null,
                     'instances' => $config['instances'] ?? [],
                 ];
             }
@@ -472,6 +538,7 @@ class AcceptanceFormSampleConfigService
                 'sample_condition_id' => $config['sample_condition_id'] ?? null,
                 'main_standard_id' => $config['main_standard_id'] ?? null,
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
+                'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
                 'number_of_samples' => $count,
                 'parameter_keys' => array_values(array_map('strval', $config['parameter_keys'] ?? [])),
                 'instances' => $this->syncInstances($config['instances'] ?? [], $count),
@@ -490,6 +557,7 @@ class AcceptanceFormSampleConfigService
      *     sample_condition_id: ?string,
      *     main_standard_id: ?string,
      *     zone_id: ?string,
+     *     lab_section_id: ?string,
      *     customer_sample_id: ?string,
      *     sample_marking: ?string
      * }>
@@ -518,12 +586,14 @@ class AcceptanceFormSampleConfigService
                     'sample_condition_id' => $config['sample_condition_id'] ?? null,
                     'main_standard_id' => $config['main_standard_id'] ?? null,
                     'zone_id' => $this->resolveZoneIdFromConfig($config),
+                    'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
                     'customer_sample_id' => $instance['customer_sample_id'] !== ''
                         ? $instance['customer_sample_id']
                         : null,
                     'sample_marking' => $instance['sample_marking'] !== ''
                         ? $instance['sample_marking']
                         : null,
+                    'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
                 ];
             }
         }

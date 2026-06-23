@@ -12,8 +12,11 @@ use App\QuotationDetailAnalysisSplit;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
-use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Billing\QuotationLineTaxResolver;
+use App\Services\Billing\QuotationReportService;
+use App\Services\Billing\QuotationRevisionService;
 use App\Services\Lab\UncertaintyBudgetResolver;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -23,15 +26,20 @@ final class QuotationFromEnquiryService
     public function __construct(
         private AcceptanceFormPricingService $pricingService,
         private UncertaintyBudgetResolver $uncertaintyBudgetResolver,
+        private QuotationLineTaxResolver $taxResolver,
+        private QuotationRevisionService $quotationRevisionService,
     ) {}
 
     public function createOrOpen(SampleSubmissionRequest $enquiry): QuotationHeader
     {
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
         $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
 
         if ($enquiry->current_quotation_header_id) {
             $existing = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
             if ($existing !== null) {
+                $existing = $this->syncHeaderCustomerFromEnquiry($existing, $enquiry);
+
                 if ($enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
                     && $existing->sent_to_customer_at !== null) {
                     return $this->createRevision($enquiry, $existing);
@@ -61,12 +69,17 @@ final class QuotationFromEnquiryService
             $header->from_enquiry = true;
             $header->sample_submission_request_id = $enquiry->id;
             $header->pricelist_id = $pricelist?->id;
+            $header->currency_id = $pricelist?->currency_id
+                ?? $enquiry->customer?->currency_id;
             $header->is_draft = 0;
             $header->is_complete = 1;
             $header->is_approved = 1;
             $header->save();
 
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
+
+            app(QuotationReportService::class)->seedDefaultTermsOfSale($header);
+            app(QuotationReportService::class)->seedDefaultStructuredTerms($header);
 
             $lines = $this->buildInlineLines($enquiry);
             $this->persistInlineLines($header, $lines);
@@ -123,7 +136,12 @@ final class QuotationFromEnquiryService
                 'parameter_label' => $label,
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
-                'tax' => 0,
+                'tax' => $this->taxResolver->resolveLineTaxPercent(
+                    $pricelist,
+                    $sampleTypeId !== '' ? $sampleTypeId : null,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                ),
                 'subcontracted' => false,
             ];
         }
@@ -144,7 +162,12 @@ final class QuotationFromEnquiryService
                     'parameter_label' => 'Parameter',
                     'quantity' => $qty,
                     'unit_price' => $this->pricingService->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $elementId),
-                    'tax' => 0,
+                    'tax' => $this->taxResolver->resolveLineTaxPercent(
+                        $pricelist,
+                        $sampleTypeId !== '' ? $sampleTypeId : null,
+                        $analysisTypeId,
+                        $elementId,
+                    ),
                     'subcontracted' => false,
                 ];
             }
@@ -160,7 +183,7 @@ final class QuotationFromEnquiryService
     public function buildInlineLinesFromAcceptanceLines(SampleSubmissionRequest $enquiry, array $acceptanceLines): array
     {
         $customerId = (string) $enquiry->crm_customer_id;
-        $pricelist = $this->pricingService->resolvePricelist($customerId);
+        $pricelist = $this->pricingService->resolveCustomerAssignedPricelist($customerId);
         $lines = [];
 
         foreach ($acceptanceLines as $index => $line) {
@@ -187,12 +210,87 @@ final class QuotationFromEnquiryService
                 'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
-                'tax' => (float) ($line['tax'] ?? 0),
+                'tax' => $this->taxResolver->resolveLineTaxPercent(
+                    $pricelist,
+                    $sampleTypeId !== '' ? $sampleTypeId : null,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                ),
                 'subcontracted' => (bool) ($line['subcontracted'] ?? false),
             ];
         }
 
         return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function applyTaxFromAssignedPricelist(SampleSubmissionRequest $enquiry, array $lines, bool $overwrite = true): array
+    {
+        $pricelist = $this->pricingService->resolveCustomerAssignedPricelist((string) $enquiry->crm_customer_id);
+
+        return $this->taxResolver->applyTaxToLines($pricelist, $lines, $overwrite);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function applyTaxFromPricelist(SampleSubmissionRequest $enquiry, array $lines, bool $overwrite = true): array
+    {
+        $pricelist = $this->pricingService->resolvePricelist((string) $enquiry->crm_customer_id);
+
+        return $this->taxResolver->applyTaxToLines($pricelist, $lines, $overwrite);
+    }
+
+    /**
+     * Internal quotation snapshot for scheduled contract customers (not sent to customer).
+     */
+    public function createInternalContractQuotation(SampleSubmissionRequest $enquiry): QuotationHeader
+    {
+        return DB::transaction(function () use ($enquiry): QuotationHeader {
+            $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
+
+            $contactId = $this->resolveContactId($enquiry);
+            $pricelist = $this->pricingService->resolvePricelist((string) $enquiry->crm_customer_id);
+            $preparedById = Auth::id();
+
+            $header = new QuotationHeader();
+            $header->crm_customer_id = $enquiry->crm_customer_id;
+            $header->crm_customer_contact_id = $contactId;
+            $header->quote_date = now()->toDateString();
+            $header->expiring_date = now()->addDays(30)->toDateString();
+            $header->prepared_by_id = $preparedById !== null ? (string) $preparedById : null;
+            $header->quotation_type = 'Analysis';
+            $header->status = 'Quote Complete';
+            $header->from_enquiry = true;
+            $header->sample_submission_request_id = $enquiry->id;
+            $header->pricelist_id = $pricelist?->id;
+            $header->currency_id = $pricelist?->currency_id
+                ?? $enquiry->customer?->currency_id;
+            $header->is_draft = 0;
+            $header->is_complete = 1;
+            $header->is_approved = 1;
+            $header->save();
+
+            AmSpecQuotationNumberGenerator::assignIfMissing($header);
+
+            $lines = $this->buildInlineLines($enquiry);
+            $this->persistInlineLines($header, $lines);
+
+            $enquiry->current_quotation_header_id = $header->id;
+            $enquiry->accepted_quotation_header_id = (string) $header->id;
+            if ($this->hasContractPricelist((string) $enquiry->crm_customer_id)) {
+                $enquiry->pricing_source = 'contract';
+            } elseif ((string) $enquiry->pricing_source === '') {
+                $enquiry->pricing_source = 'sampling_contract';
+            }
+            $enquiry->save();
+
+            return $header->fresh(['details']);
+        });
     }
 
     /**
@@ -288,7 +386,7 @@ final class QuotationFromEnquiryService
     {
         $this->ensureHeaderReadyForPrint($header);
 
-        $header = app(AmSpecQuotationPdfService::class)->generateAndStore($header);
+        $header = app(QuotationReportService::class)->storePdf($header->fresh());
 
         if (empty($header->upload_url)) {
             throw new RuntimeException('PDF was not saved. Check quotation lines and customer contact.');
@@ -388,63 +486,13 @@ final class QuotationFromEnquiryService
     public function createRevision(SampleSubmissionRequest $enquiry, QuotationHeader $priorHeader): QuotationHeader
     {
         return DB::transaction(function () use ($enquiry, $priorHeader): QuotationHeader {
-            $enquiry->loadMissing(['requestedAnalyses']);
-            $priorHeader->loadMissing('details');
-
-            $preparedById = Auth::id();
-            if ($preparedById === null) {
-                throw new RuntimeException('You must be signed in to revise a quotation.');
-            }
-
-            $header = new QuotationHeader();
-            $header->crm_customer_id = $priorHeader->crm_customer_id;
-            $header->crm_customer_contact_id = $priorHeader->crm_customer_contact_id;
-            $header->quote_date = now()->toDateString();
-            $header->expiring_date = now()->addDays(30)->toDateString();
-            $header->prepared_by_id = (string) $preparedById;
-            $header->quotation_type = $priorHeader->quotation_type ?? 'Analysis';
-            $header->status = 'Quote Complete';
-            $header->from_enquiry = true;
-            $header->sample_submission_request_id = $enquiry->id;
-            $header->pricelist_id = $priorHeader->pricelist_id;
-            $header->currency_id = $priorHeader->currency_id;
-            $header->revision_of_quotation_header_id = $priorHeader->id;
-            $header->is_draft = 0;
-            $header->is_complete = 1;
-            $header->is_approved = 1;
-            $header->sub_total = $priorHeader->sub_total;
-            $header->tax = $priorHeader->tax;
-            $header->total_amount = $priorHeader->total_amount;
-            $header->save();
-
-            AmSpecQuotationNumberGenerator::assignIfMissing($header);
-
-            foreach ($priorHeader->details as $detail) {
-                $cloned = QuotationDetails::query()->create([
-                    'quotation_header_id' => $header->id,
-                    'sample_type' => $detail->sample_type,
-                    'quantity' => $detail->quantity,
-                    'unit_price' => $detail->unit_price,
-                    'tax' => $detail->tax,
-                    'part_no' => $detail->part_no,
-                    'accredited_analytes' => $detail->accredited_analytes,
-                    'subcontracted_analytes' => $detail->subcontracted_analytes,
-                    'default_analytes' => $detail->default_analytes,
-                    'sub_acc_analytes' => $detail->sub_acc_analytes,
-                    'description' => $detail->description,
-                ]);
-
-                $split = QuotationDetailAnalysisSplit::query()
-                    ->where('quotation_detail_id', $detail->id)
-                    ->first();
-
-                if ($split !== null) {
-                    QuotationDetailAnalysisSplit::query()->create([
-                        'quotation_detail_id' => $cloned->id,
-                        'analysis_type_id' => $split->analysis_type_id,
-                    ]);
-                }
-            }
+            $header = $this->quotationRevisionService->createRevision($priorHeader, [
+                'from_enquiry' => true,
+                'sample_submission_request_id' => $enquiry->id,
+                'status' => 'Quote Complete',
+                'is_complete' => 1,
+                'is_approved' => 1,
+            ]);
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
@@ -456,7 +504,11 @@ final class QuotationFromEnquiryService
 
     public function ensureHeaderReadyForPrint(QuotationHeader $header): QuotationHeader
     {
-        $header->loadMissing(['customer', 'contact']);
+        $header->loadMissing(['customer', 'contact', 'sampleSubmissionRequest']);
+
+        if (empty($header->crm_customer_id) && $header->sampleSubmissionRequest !== null) {
+            $header = $this->syncHeaderCustomerFromEnquiry($header, $header->sampleSubmissionRequest);
+        }
 
         if (empty($header->crm_customer_contact_id) && ! empty($header->crm_customer_id)) {
             $contactId = CustomerContact::query()
@@ -494,6 +546,31 @@ final class QuotationFromEnquiryService
             ->value('id');
 
         return $fallback !== null ? (string) $fallback : null;
+    }
+
+    private function syncHeaderCustomerFromEnquiry(
+        QuotationHeader $header,
+        SampleSubmissionRequest $enquiry,
+    ): QuotationHeader {
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
+        $enquiry->loadMissing(['customer', 'contact']);
+
+        if (empty($header->crm_customer_id) && ! empty($enquiry->crm_customer_id)) {
+            $header->crm_customer_id = $enquiry->crm_customer_id;
+        }
+
+        if (empty($header->crm_customer_contact_id)) {
+            $contactId = $this->resolveContactId($enquiry);
+            if ($contactId !== null) {
+                $header->crm_customer_contact_id = $contactId;
+            }
+        }
+
+        if ($header->isDirty()) {
+            $header->save();
+        }
+
+        return $header->fresh(['customer', 'contact']) ?? $header;
     }
 
     private function hasContractPricelist(string $customerId): bool

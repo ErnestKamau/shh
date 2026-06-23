@@ -50,6 +50,7 @@ class SampleSubmissionRequest extends Model
     protected $fillable = [
         'sample_header_id',
         'submission_form_instance_id',
+        'test_request_form_instance_id',
         'crm_customer_id',
         'crm_contact_id',
         'source_channel',
@@ -195,6 +196,32 @@ class SampleSubmissionRequest extends Model
     public function submissionFormInstance(): BelongsTo
     {
         return $this->belongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
+    }
+
+    public function testRequestFormInstance(): BelongsTo
+    {
+        return $this->belongsTo(TestRequestFormInstance::class, 'test_request_form_instance_id');
+    }
+
+    public function resolveLinkedTrfi(): ?TestRequestFormInstance
+    {
+        if ($this->relationLoaded('testRequestFormInstance') && $this->testRequestFormInstance !== null) {
+            return $this->testRequestFormInstance;
+        }
+
+        if ($this->test_request_form_instance_id) {
+            $trfi = TestRequestFormInstance::query()
+                ->with(['testRequestForm.sampleType', 'crmCustomer', 'submissionFormInstance'])
+                ->find($this->test_request_form_instance_id);
+
+            if ($trfi !== null) {
+                return $trfi;
+            }
+        }
+
+        $instance = $this->resolveLinkedFormInstance();
+
+        return $instance?->testRequestFormInstance;
     }
 
     public function resolveLinkedFormInstance(): ?SubmissionFormInstance

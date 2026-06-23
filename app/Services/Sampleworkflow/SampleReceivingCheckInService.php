@@ -5,14 +5,18 @@ namespace App\Services\Sampleworkflow;
 use App\Models\Equipments\Equipment;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
+use App\Services\Commercial\ContractCustomerService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\User;
 
 final class SampleReceivingCheckInService
 {
     public function __construct(
         private CommercialEnquiryFromFormService $commercialEnquiryService,
         private EnquiryReceptionReadinessService $receptionReadinessService,
+        private ContractCustomerService $contractCustomerService,
     ) {}
 
     /**
@@ -23,20 +27,24 @@ final class SampleReceivingCheckInService
         $instance->loadMissing([
             'crmCustomer',
             'submissionForm',
+            'testRequestFormInstance',
             'sampleSubmissionRequest.acceptedQuotation',
             'sampleSubmissionRequest.currentQuotation',
+            'sampleSubmissionRequest.testRequestFormInstance',
             'values.element',
         ]);
 
         $enquiry = $instance->sampleSubmissionRequest;
+        $trfi = $instance->testRequestFormInstance ?? $enquiry?->testRequestFormInstance;
+        $formData = is_array($trfi?->form_data) ? $trfi->form_data : [];
         $values = $this->indexedFormValues($instance);
 
         $collectionData = is_array($enquiry?->collection_data) ? $enquiry->collection_data : [];
 
-        $thermometerId = $values['thermometer_id'] ?? $collectionData['thermometer_id'] ?? null;
+        $thermometerId = $formData['thermometer_id'] ?? $values['thermometer_id'] ?? $collectionData['thermometer_id'] ?? null;
         $thermometerLabel = $this->resolveThermometerLabel($thermometerId);
 
-        $samplingApparatus = $values['sampling_apparatus'] ?? $collectionData['sampling_apparatus'] ?? null;
+        $samplingApparatus = $formData['sampling_apparatus'] ?? $values['sampling_apparatus'] ?? $collectionData['sampling_apparatus'] ?? null;
         if (is_array($samplingApparatus)) {
             $samplingApparatus = implode(', ', array_filter($samplingApparatus));
         }
@@ -47,7 +55,10 @@ final class SampleReceivingCheckInService
 
         return [
             'instance_id' => $instance->id,
-            'form_number' => (string) ($instance->getDocumentControlNumber() ?? $instance->form_number ?? ''),
+            'form_number' => (string) (
+                $trfi?->form_number
+                ?? $instance->canonicalFormNumber()
+            ),
             'customer_name' => (string) ($instance->crmCustomer?->name ?? ''),
             'sample_description' => (string) (
                 $enquiry?->sample_description
@@ -62,12 +73,14 @@ final class SampleReceivingCheckInService
                 ?? 1
             ),
             'sampling_date' => (string) (
-                $values['sampling_date']
+                $formData['sampling_date']
+                ?? $values['sampling_date']
                 ?? $collectionData['sampling_date']
                 ?? ''
             ),
             'sampling_location' => (string) (
-                $values['sampling_location']
+                $formData['sampling_location']
+                ?? $values['sampling_location']
                 ?? $collectionData['sampling_location']
                 ?? ''
             ),
@@ -101,7 +114,8 @@ final class SampleReceivingCheckInService
             ->with([
                 'crmCustomer',
                 'submissionForm',
-                'sampleSubmissionRequest',
+                'testRequestFormInstance',
+                'sampleSubmissionRequest.testRequestFormInstance',
                 'values.element',
             ])
             ->whereIn('id', $instanceIds)
@@ -109,6 +123,31 @@ final class SampleReceivingCheckInService
             ->map(fn (SubmissionFormInstance $instance) => $this->buildCheckInContext($instance))
             ->values()
             ->all();
+    }
+
+    public function receiveInstance(SubmissionFormInstance $instance, User $user, ?string $notes = null): bool
+    {
+        if (! $this->canReceiveInstance($instance)) {
+            return false;
+        }
+
+        $instance->markAsReceived($user, $notes);
+        $this->syncTrfiReceivedStatus($instance);
+
+        return true;
+    }
+
+    public function syncTrfiReceivedStatus(SubmissionFormInstance $instance): void
+    {
+        $instance->loadMissing('testRequestFormInstance');
+
+        if ($instance->testRequestFormInstance === null) {
+            return;
+        }
+
+        $instance->testRequestFormInstance->update([
+            'status' => TestRequestFormInstance::STATUS_RECEIVED,
+        ]);
     }
 
     public function canReceiveInstance(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry = null): bool
@@ -141,6 +180,14 @@ final class SampleReceivingCheckInService
     public function receiveBlockReason(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry = null): ?string
     {
         if ($this->canReceiveInstance($instance, $enquiry)) {
+            return null;
+        }
+
+        $enquiry ??= $instance->sampleSubmissionRequest;
+
+        if ($enquiry !== null
+            && $this->contractCustomerService->isScheduledEnquiry($enquiry)
+            && in_array((string) $instance->status, ['received', 'Received'], true)) {
             return null;
         }
 

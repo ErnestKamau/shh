@@ -30,16 +30,23 @@ use App\QuotationHeaderView;
 use App\SampleType;
 use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\QuotationReportService;
+use App\Services\Billing\QuotationRevisionService;
+use App\Exports\Billing\QuotationKpiExport;
+use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
     public function __construct(
         private readonly QuotationReportService $quotationReportService,
-        private readonly QuotationPricingResolver $quotationPricingResolver
+        private readonly QuotationPricingResolver $quotationPricingResolver,
+        private readonly QuotationStatisticsService $quotationStatisticsService,
+        private readonly QuotationRevisionService $quotationRevisionService,
     ) {
         $this->middleware('auth');
     }
@@ -69,8 +76,53 @@ class QuotationController extends Controller
         // }
         $sample_types = SampleType::where('active', 1)->get();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types'));
+        $metrics = $stage === 'All Quotations'
+            ? $this->quotationStatisticsService->getOverviewMetrics()
+            : null;
+
+        $kpiPeriod = $stage === 'All Quotations'
+            ? $this->resolveKpiPeriodMetrics(request())
+            : null;
+
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod'));
     }
+
+    public function exportQuotationKpi(Request $request)
+    {
+        $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+        $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+
+        $rows = $this->quotationStatisticsService->getKpiDailyRows($startDate, $endDate);
+        $filename = sprintf(
+            'quotation-kpis-%s-to-%s.xlsx',
+            $startDate->format('Y-m-d'),
+            $endDate->format('Y-m-d')
+        );
+
+        return Excel::download(new QuotationKpiExport($rows), $filename);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveKpiPeriodMetrics(Request $request): array
+    {
+        $startDate = $request->filled('kpi_start_date')
+            ? Carbon::parse($request->input('kpi_start_date'))->startOfDay()
+            : now()->startOfMonth();
+
+        $endDate = $request->filled('kpi_end_date')
+            ? Carbon::parse($request->input('kpi_end_date'))->endOfDay()
+            : now()->endOfMonth();
+
+        return $this->quotationStatisticsService->getKpiPeriodMetrics($startDate, $endDate);
+    }
+
     public function filterQuotations(Request $request)
     {
 
@@ -100,8 +152,10 @@ class QuotationController extends Controller
         $stage = 'All Quotations';
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
         $sample_types = SampleType::where('active', 1)->get();
+        $metrics = $this->quotationStatisticsService->getOverviewMetrics();
+        $kpiPeriod = $this->resolveKpiPeriodMetrics($request);
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types'));
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod'));
     }
     public function populateQuotationDetailSplit()
     {
@@ -165,15 +219,18 @@ class QuotationController extends Controller
         $header->status = 'Quote In Preparation';
         // return response()->json($header,200);
         $header->save();
-        if (! isset($request->quote_id)) {
-            AmSpecQuotationNumberGenerator::assignIfMissing($header);
-            if (empty($header->laboratory_ref)) {
-                $header->laboratory_ref = $this->quotationReportService->generateLaboratoryRef($header);
-            }
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        if (! isset($request->quote_id) && empty($header->laboratory_ref)) {
+            $header->laboratory_ref = $this->quotationReportService->generateLaboratoryRef($header);
+            $header->save();
         }
-        $header->is_draft = 1;
+        if (! isset($request->quote_id)) {
+            $header->is_draft = 0;
+        }
         $header->save();
         $this->quotationReportService->ensureHeaderMetadata($header);
+        $this->quotationReportService->seedDefaultTermsOfSale($header);
+        $this->quotationReportService->seedDefaultStructuredTerms($header);
         // return response()->json($header,200);
 
         return redirect()->route('add-qoute-details-view', ['id' => $header->id, 'stage' => $header->status]);
@@ -204,6 +261,8 @@ class QuotationController extends Controller
         // return response()->json('test');
         $customers = CRMCustomer::all();
         $header = QuotationHeader::find($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
         $sample_types = SampleType::all();
         if ($stage == false) {
             $header->is_draft = 0;
@@ -284,8 +343,11 @@ class QuotationController extends Controller
             ->get();
 
         $currencies = Currency::query()->orderBy('code')->get();
+        $structuredTermsConfig = $this->quotationReportService->resolveStructuredTermsConfig();
+        $structuredTerms = $this->quotationReportService->resolveStructuredTerms($header);
+        $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($header);
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'terms_array', 'users', 'samplePoints', 'currencies'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'terms_array', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -301,14 +363,11 @@ class QuotationController extends Controller
 
                 $header->is_approved = 0;
             }
-            if (in_array($header->status, ['Quote In Preparation', 'Quote In Approval']) && in_array($stage, ['Quote Complete'])) {
-                return redirect()->back()->with('error', 'Quote ' . $header->quote_number . ' has not being approved');
-            }
-
             $previous = $header->status;
             $header->status = $stage;
             if ($stage == 'Quote Complete') {
                 $header->approved_by = auth()->user()->id;
+                $header->is_approved = 1;
                 $header->is_complete = 1;
                 $header->is_draft = 0;
             } else {
@@ -402,17 +461,26 @@ class QuotationController extends Controller
         $header->sampling_location = $request->input('sampling_location', $header->sampling_location);
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
         $header->terms_override = $termsOverride;
-        $header->show_loq_column = $request->has('show_loq_column');
+        $header->show_loq_column = true;
         $header->show_mu_column = $request->has('show_mu_column');
+        $header->show_unit_price_column = $request->has('show_unit_price_column');
+
+        $structuredTerms = [];
+        foreach (array_keys(QuotationReportService::STRUCTURED_TERM_DEFINITIONS) as $key) {
+            $structuredTerms[$key] = (string) $request->input('structured_terms.'.$key, '');
+        }
+        $header->structured_terms = $structuredTerms;
+
         $header->save();
         $this->quotationReportService->ensureHeaderMetadata($header);
 
-
+        $hasNewGeneralLines = is_array($request->part_no) && count(array_filter($request->part_no, fn ($value) => $value !== '' && $value !== null)) > 0;
+        $hasNewAnalysisLines = is_array($request->sample_type) && count(array_filter($request->sample_type, fn ($value) => $value !== '' && $value !== null)) > 0;
 
         if ($header->quotation_type == 'General') {
             $count = 0;
-            if ($request->part_no == '') {
-                return redirect()->back();
+            if (! $hasNewGeneralLines) {
+                return redirect()->back()->with('success', 'Quotation configuration saved successfully.');
             }
             foreach ($request->part_no as $id) {
                 $detail = new QuotationDetails();
@@ -440,8 +508,8 @@ class QuotationController extends Controller
             // return response()->json($request->all(),200);
 
             $count = 0;
-            if ($request->sample_type == '') {
-                return redirect()->back();
+            if (! $hasNewAnalysisLines) {
+                return redirect()->back()->with('success', 'Quotation configuration saved successfully.');
             }
             foreach ($request->sample_type as $id) {
                 $detail = new QuotationDetails();
@@ -528,6 +596,10 @@ class QuotationController extends Controller
         $header->sampling_location = $request->input('sampling_location', $header->sampling_location);
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
 
+        if ($request->filled('currency_id')) {
+            $header->currency_id = $request->currency_id;
+        }
+
         // Pricelist no longer used - using invoicable items instead
         $header->pricelist_id = null;
         $header->save();
@@ -569,9 +641,10 @@ class QuotationController extends Controller
 
         $labs = Lab::where('active', 1)->get();
         $reportViewData = $this->quotationReportService->buildViewData($hd);
+        $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($hd);
 
         return view('layouts.lab.invoice.quotation-doc', array_merge(
-            compact('header', 'currency', 'labs'),
+            compact('header', 'currency', 'labs', 'revisionFamily'),
             $reportViewData
         ));
     }
@@ -579,6 +652,13 @@ class QuotationController extends Controller
     public function previewQuotation(string $id)
     {
         $header = QuotationHeader::findOrFail($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
+
+        if ($header->details()->count() === 0) {
+            return redirect()->back()->with('error', 'Add at least one line item before previewing the quotation.');
+        }
+
         $this->recalculateQuotationTotals($header);
         $data = $this->quotationReportService->buildViewData($header->fresh());
 
@@ -698,6 +778,8 @@ class QuotationController extends Controller
         $header->sub_total = (int) $request->sub_total;
         $header->total_amount = (int) $request->total;
         $header->is_draft = 0;
+        $header->is_approved = 1;
+        $header->approved_by = auth()->user()->id;
         $header->is_complete = 1;
         $header->save();
         return redirect()->back()->with('success', 'Quotation ' . $header->quote_number . ' saved successfully');
@@ -738,6 +820,22 @@ class QuotationController extends Controller
         }
         return redirect()->route('add-qoute-details-view', ['id' => $header_clone->id]);
     }
+
+    public function create_quotation_revision(string $id)
+    {
+        $priorHeader = QuotationHeader::findOrFail($id);
+
+        if ($priorHeader->details()->count() === 0) {
+            return redirect()->back()->with('error', 'Add at least one line item before creating a revision.');
+        }
+
+        $revision = $this->quotationRevisionService->createRevision($priorHeader);
+
+        return redirect()
+            ->route('add-qoute-details-view', ['id' => $revision->id])
+            ->with('success', 'Revision '.$revision->revision_number.' created as '.$revision->quote_number.'.');
+    }
+
     public function redirect_from_docs($id, $stage)
     {
         $header = QuotationHeader::find($id);
@@ -751,6 +849,13 @@ class QuotationController extends Controller
     {
         ini_set('max_execution_time', 300);
         $header = QuotationHeader::findOrFail($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
+
+        if ($header->details()->count() === 0) {
+            return redirect()->back()->with('error', 'Add at least one line item before generating the quotation PDF.');
+        }
+
         $this->recalculateQuotationTotals($header);
         $stored = $this->quotationReportService->storePdf($header->fresh());
 

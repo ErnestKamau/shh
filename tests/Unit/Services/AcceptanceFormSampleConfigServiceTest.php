@@ -20,7 +20,7 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
                 'sample_type_id' => 'st-1',
                 'analysis_type_id' => 'at-1',
                 'analysis_element_id' => 'el-1',
-                'number_of_samples' => 2,
+                'number_of_samples' => 1,
             ],
             [
                 'sample_type_id' => 'st-1',
@@ -34,8 +34,39 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame('st-1', $configs[0]['sample_type_id']);
         $this->assertSame('at-1', $configs[0]['analysis_type_id']);
         $this->assertSame(['el-1'], $configs[0]['parameter_keys']);
-        $this->assertCount(2, $configs[0]['instances']);
+        $this->assertSame(1, $configs[0]['number_of_samples']);
+        $this->assertCount(1, $configs[0]['instances']);
         $this->assertSame('at-2', $configs[1]['analysis_type_id']);
+    }
+
+    public function test_build_configs_increments_sample_count_per_prefill_line_in_same_bucket(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $configs = $service->buildConfigsFromPrefill([
+            [
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'analysis_element_id' => 'el-1',
+                'number_of_samples' => 1,
+            ],
+            [
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'analysis_element_id' => 'el-2',
+                'number_of_samples' => 1,
+            ],
+            [
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'analysis_element_id' => 'el-3',
+                'number_of_samples' => 1,
+            ],
+        ]);
+
+        $this->assertCount(1, $configs);
+        $this->assertSame(3, $configs[0]['number_of_samples']);
+        $this->assertCount(3, $configs[0]['instances']);
     }
 
     public function test_sync_instances_preserves_existing_values_when_count_increases(): void

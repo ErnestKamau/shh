@@ -142,6 +142,16 @@ class TrfPortalSubmitCreatesCanonicalTrfiTest extends TestCase
             'submission_form_element_id' => $customerName->id,
             'value' => 'Portal Customer',
         ]);
+
+        $this->assertNotNull($trfi->form_number);
+        $this->assertSame(self::CUSTOMER_ID, $trfi->crm_customer_id);
+        $this->assertSame(TestRequestFormInstance::CHANNEL_PORTAL, $trfi->source_channel);
+
+        $this->assertDatabaseHas('sample_submission_requests', [
+            'submission_form_instance_id' => $instance->id,
+            'test_request_form_instance_id' => $trfi->id,
+            'crm_customer_id' => self::CUSTOMER_ID,
+        ]);
     }
 
     private function createElement(SubmissionFormElementHolder $holder, string $name, int $sortOrder): SubmissionFormElement

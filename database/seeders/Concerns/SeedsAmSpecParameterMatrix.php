@@ -14,6 +14,7 @@ use App\SampleType;
 
 trait SeedsAmSpecParameterMatrix
 {
+    use ClearsAmSpecTaxonomyData;
     use ReadsAmSpecParametersSpreadsheet;
 
     /** @var array<string, string> */
@@ -40,6 +41,8 @@ trait SeedsAmSpecParameterMatrix
      */
     protected function seedAmSpecParameterMatrix(Company $company): array
     {
+        $this->clearAmSpecTaxonomyData($company);
+
         $rows = $this->readAmSpecParameterRows();
         $stats = [
             'rows' => $rows->count(),

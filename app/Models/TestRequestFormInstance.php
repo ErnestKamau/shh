@@ -2,47 +2,103 @@
 
 namespace App\Models;
 
+use App\Models\CRM\CRMCustomer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TestRequestFormInstance extends Model
 {
     use HasUuids;
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_SUBMITTED = 'submitted';
+
+    public const STATUS_RECEIVED = 'received';
+
+    public const STATUS_IN_REVIEW = 'in_review';
+
+    public const STATUS_APPROVED = 'approved';
+
+    public const CHANNEL_PORTAL = 'portal';
+
+    public const CHANNEL_WALK_IN = 'walk_in';
+
+    public const CHANNEL_SCHEDULED = 'scheduled';
+
+    public const CHANNEL_STAFF = 'staff';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
         'test_request_form_id',
         'submission_form_instance_id',
         'sampling_schedule_id',
+        'form_number',
+        'sequence_number',
+        'crm_customer_id',
+        'portal_account_id',
+        'source_channel',
+        'submitted_by',
+        'submitted_at',
+        'zone_id',
+        'receiving_lab_id',
+        'sample_submission_request_id',
         'form_data',
         'status',
         'created_by',
     ];
 
-    protected $casts = [
-        'form_data' => 'array',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'form_data' => 'array',
+            'submitted_at' => 'datetime',
+            'sequence_number' => 'integer',
+        ];
+    }
 
-    public function testRequestForm()
+    public function testRequestForm(): BelongsTo
     {
         return $this->belongsTo(TestRequestForm::class, 'test_request_form_id');
     }
 
-    public function submissionFormInstance()
+    public function submissionFormInstance(): BelongsTo
     {
         return $this->belongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
     }
 
-    public function samplingSchedule()
+    public function samplingSchedule(): BelongsTo
     {
         return $this->belongsTo(SamplingSchedule::class, 'sampling_schedule_id');
     }
 
-    public function creator()
+    public function sampleSubmissionRequest(): BelongsTo
+    {
+        return $this->belongsTo(SampleSubmissionRequest::class, 'sample_submission_request_id');
+    }
+
+    public function crmCustomer(): BelongsTo
+    {
+        return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
+    }
+
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(\App\User::class, 'created_by');
+    }
+
+    public function submitter(): BelongsTo
+    {
+        return $this->belongsTo(\App\User::class, 'submitted_by');
+    }
+
+    public function documentControlNumber(): ?string
+    {
+        return $this->form_number ?: null;
     }
 
     /**
@@ -141,8 +197,10 @@ class TestRequestFormInstance extends Model
                     if (!empty($row['legionella']) && $row['legionella']) {
                         $parametersRequested[] = 'Legionella';
                     }
-                    if (!empty($row['chemical_analysis']) && $row['chemical_analysis']) {
-                        $parametersRequested[] = 'Chemical Analysis';
+                    if (!empty($row['chemistry']) && $row['chemistry']) {
+                        $parametersRequested[] = 'Chemistry';
+                    } elseif (!empty($row['chemical_analysis']) && $row['chemical_analysis']) {
+                        $parametersRequested[] = 'Chemistry';
                     }
                 }
             }

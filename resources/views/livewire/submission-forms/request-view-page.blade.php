@@ -49,44 +49,96 @@
                     @elseif($instance->submittedBy)
                         <span class="text-muted"><i class="mdi mdi-account-outline"></i> {{ $instance->submittedBy->name }}</span>
                     @endif
+                    @if($commercialEnquiry && $commercialEnquiry->isCommercialEnquiry())
+                        <span class="text-muted"><i class="mdi mdi-file-chart-outline"></i> {{ $commercialEnquiry->commercialStatus() }}</span>
+                    @endif
                     <span class="workflow-status-chip {{ $statusChipClass }}">{{ ucfirst(str_replace('_', ' ', $instance->status)) }}</span>
                     <span class="priority-chip {{ $priorityChipClass }}">{{ ucfirst($instance->priority) }} priority</span>
                 </div>
             </div>
             <div class="batch-header-actions">
-                <div class="btn-group">
-                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-toggle="dropdown">
-                        <i class="mdi mdi-menu-down"></i> Actions
+                <div class="btn-group request-view-actions-dropdown">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Actions
                     </button>
-                    <div class="dropdown-menu dropdown-menu-right">
+                    <div class="dropdown-menu dropdown-menu-right request-view-actions-menu">
                         @unless($instance->isDraft())
                             <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
-                                <i class="mdi mdi-pencil mr-2"></i> Edit information
+                                <i class="mdi mdi-pencil" aria-hidden="true"></i>
+                                <span>Edit information</span>
                             </a>
                             @if($canCreateSamples)
                             <a href="#" class="dropdown-item create-samples-btn" data-instance-id="{{ $instance->id }}">
-                                <i class="mdi mdi-flask mr-2"></i> Create Job / Batch
+                                <i class="mdi mdi-flask" aria-hidden="true"></i>
+                                <span>Create job / batch</span>
                             </a>
                             @endif
                             @if($instance->batches->isNotEmpty() && $linkedBatchesOutOfSyncWithForm)
-                                <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" class="d-inline w-100" onsubmit="return confirm('Update all linked batches from the current saved form data?');">
+                                <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" class="request-view-actions-form" onsubmit="return confirm('Update all linked batches from the current saved form data?');">
                                     @csrf
                                     <button type="submit" class="dropdown-item">
-                                        <i class="mdi mdi-sync mr-2"></i> Apply form to linked batches
+                                        <i class="mdi mdi-sync" aria-hidden="true"></i>
+                                        <span>Apply form to linked batches</span>
                                     </button>
                                 </form>
                             @endif
                         @endunless
                         @if($instance->isDraft())
                             <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
-                                <i class="mdi mdi-pencil mr-2"></i> Continue editing
+                                <i class="mdi mdi-pencil" aria-hidden="true"></i>
+                                <span>Continue editing</span>
                             </a>
                         @endif
                         @if($this->shouldShowSampleCollectionLabel())
                         <a href="{{ route('submission-forms.instances.sample-collection-label', $instance->id) }}" target="_blank" class="dropdown-item">
-                            <i class="mdi mdi-label mr-2"></i> SAMPLE COLLECTION LABEL
+                            <i class="mdi mdi-label" aria-hidden="true"></i>
+                            <span>Sample collection label</span>
                         </a>
                         @endif
+                        @if($commercialEnquiry && $commercialEnquiry->isCommercialEnquiry())
+                            <div class="dropdown-divider"></div>
+                            @if(in_array($commercialEnquiry->status, [
+                                \App\Models\SampleSubmissionRequest::STATUS_REQUESTED,
+                                \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+                                \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+                                \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+                            ], true))
+                                <button type="button" class="dropdown-item" wire:click="openProcessEnquiry">
+                                    <i class="mdi mdi-file-chart-outline" aria-hidden="true"></i>
+                                    <span>Process enquiry</span>
+                                </button>
+                            @endif
+                            @if($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT
+                                && strtolower((string) ($commercialEnquiry->source_channel ?? '')) === 'walk_in')
+                                <button type="button" class="dropdown-item" wire:click="recordWalkInQuotationAcceptance" wire:loading.attr="disabled">
+                                    <i class="mdi mdi-check-decagram" aria-hidden="true"></i>
+                                    <span>Record walk-in acceptance</span>
+                                </button>
+                            @endif
+                            @if($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED)
+                                <button type="button" class="dropdown-item" wire:click="openPoCaptureModal">
+                                    <i class="mdi mdi-file-document-edit-outline" aria-hidden="true"></i>
+                                    <span>Record PO</span>
+                                </button>
+                            @endif
+                            @if($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION)
+                                <button type="button" class="dropdown-item" wire:click="openPhysicalReceiveModal">
+                                    <i class="mdi mdi-package-variant-closed" aria-hidden="true"></i>
+                                    <span>Receive physical samples</span>
+                                </button>
+                                <a href="{{ route('sample-workflow', ['status' => 'Samples Receiving']) }}?workflowSubTab=ready_for_reception" class="dropdown-item">
+                                    <i class="mdi mdi-open-in-new" aria-hidden="true"></i>
+                                    <span>Open on receiving board</span>
+                                </a>
+                            @endif
+                            @if($commercialEnquiry->currentQuotation)
+                                <a href="{{ route('quotation.preview.pdf', ['id' => $commercialEnquiry->currentQuotation->id]) }}" target="_blank" class="dropdown-item">
+                                    <i class="mdi mdi-file-pdf-box" aria-hidden="true"></i>
+                                    <span>View quotation PDF ({{ $commercialEnquiry->currentQuotation->quote_number }})</span>
+                                </a>
+                            @endif
+                        @endif
+                        {{-- Duplicate of Generate TRF; kept commented per product request.
                         @if($instance->testRequestFormInstance)
                             <div class="dropdown-divider"></div>
                             <button
@@ -96,44 +148,45 @@
                                 wire:loading.attr="disabled"
                                 wire:target="generateTestRequestFormReport"
                             >
-                                <span wire:loading.remove wire:target="generateTestRequestFormReport">
-                                    <i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Form
-                                </span>
-                                <span wire:loading wire:target="generateTestRequestFormReport">
-                                    <span class="spinner-border spinner-border-sm mr-2" role="status"></span> Generating…
-                                </span>
+                                <i class="mdi mdi-file-document-edit-outline" aria-hidden="true"></i>
+                                <span wire:loading.remove wire:target="generateTestRequestFormReport">Generate test request form</span>
+                                <span wire:loading wire:target="generateTestRequestFormReport">Generating…</span>
                             </button>
                         @endif
+                        --}}
                         @php $firstBatch = $instance->batches->first(); @endphp
                         @if($firstBatch)
                             <a href="{{ route('view-batch-details', ['batch' => $firstBatch->id, 'client' => 0, 'portal' => 0, 'status' => $firstBatch->status]) }}" class="dropdown-item">
-                                <i class="mdi mdi-flask mr-2"></i> View sample batch
+                                <i class="mdi mdi-flask" aria-hidden="true"></i>
+                                <span>View sample batch</span>
                             </a>
                         @endif
                         @if($this->isTrfForm())
                             <div class="dropdown-divider"></div>
-                            <button type="button" class="dropdown-item" wire:click="generateTrfPdf" wire:loading.attr="disabled">
-                                <i class="mdi mdi-file-pdf-box mr-2"></i>
+                            <button type="button" class="dropdown-item" wire:click="generateTrfPdf" wire:loading.attr="disabled" wire:target="generateTrfPdf">
+                                <i class="mdi mdi-file-pdf-box" aria-hidden="true"></i>
                                 <span wire:loading.remove wire:target="generateTrfPdf">Generate TRF</span>
                                 <span wire:loading wire:target="generateTrfPdf">Generating…</span>
                             </button>
                             @if($trfPdfUrl)
                                 <button type="button" class="dropdown-item" wire:click="downloadTrfPdf">
-                                    <i class="mdi mdi-download mr-2"></i> Download TRF
+                                    <i class="mdi mdi-download" aria-hidden="true"></i>
+                                    <span>Download TRF</span>
                                 </button>
-                                <button type="button" class="dropdown-item" wire:click="sendTrfPdfToCustomer" wire:loading.attr="disabled">
-                                    <i class="mdi mdi-email-send-outline mr-2"></i>
+                                <button type="button" class="dropdown-item" wire:click="sendTrfPdfToCustomer" wire:loading.attr="disabled" wire:target="sendTrfPdfToCustomer">
+                                    <i class="mdi mdi-email-send-outline" aria-hidden="true"></i>
                                     <span wire:loading.remove wire:target="sendTrfPdfToCustomer">Send to customer</span>
                                     <span wire:loading wire:target="sendTrfPdfToCustomer">Sending…</span>
                                 </button>
                             @endif
                         @endif
                         <div class="dropdown-divider"></div>
-                        <form action="{{ route('submission-forms.instances.destroy', [$submissionForm->id, $instance->id]) }}" method="POST" onsubmit="return confirm('Delete this submission and all linked batches?');">
+                        <form action="{{ route('submission-forms.instances.destroy', [$submissionForm->id, $instance->id]) }}" method="POST" class="request-view-actions-form request-view-actions-form--danger" onsubmit="return confirm('Delete this submission and all linked batches?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="dropdown-item text-danger">
-                                <i class="mdi mdi-delete-empty mr-2"></i> Delete submission
+                            <button type="submit" class="dropdown-item dropdown-item-danger">
+                                <i class="mdi mdi-delete-outline" aria-hidden="true"></i>
+                                <span>Delete submission</span>
                             </button>
                         </form>
                     </div>
@@ -148,118 +201,6 @@
             <div class="mt-2 mb-0" style="white-space: pre-wrap;">{{ $commercialEnquiry->customerFeedbackNotes() }}</div>
         </div>
     @endif
-
-    @if($commercialEnquiry && $commercialEnquiry->isCommercialEnquiry())
-        <div class="workflow-board-panel mb-3">
-            <div class="workflow-board-panel-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="mdi mdi-file-chart-outline"></i> Commercial / Quotation</h5>
-                @if(in_array($commercialEnquiry->status, [
-                    \App\Models\SampleSubmissionRequest::STATUS_REQUESTED,
-                    \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
-                    \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT,
-                    \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
-                ], true))
-                    <button type="button" class="btn btn-sm btn-primary" wire:click="openProcessEnquiry">
-                        <i class="mdi mdi-file-chart-outline"></i> Process enquiry
-                    </button>
-                @endif
-            </div>
-            <div class="workflow-board-panel-body">
-                <div class="row small mb-2">
-                    <div class="col-md-3">
-                        <strong>Enquiry status</strong><br>
-                        {{ $commercialEnquiry->commercialStatus() }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Request #</strong><br>
-                        {{ $commercialEnquiry->formatted_number }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Channel</strong><br>
-                        {{ ucfirst(str_replace('_', ' ', $commercialEnquiry->source_channel ?? '—')) }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Current quote</strong><br>
-                        @if($commercialEnquiry->currentQuotation)
-                            {{ $commercialEnquiry->currentQuotation->quote_number }}
-                            <a href="{{ route('print_quotation', $commercialEnquiry->currentQuotation->id) }}" class="ml-1" target="_blank">PDF</a>
-                        @else
-                            —
-                        @endif
-                    </div>
-                </div>
-                @if($commercialEnquiry->hasCustomerFeedback())
-                    <div class="alert alert-light border mb-0">
-                        <strong class="d-block mb-1">Customer feedback</strong>
-                        <div style="white-space: pre-wrap;">{{ $commercialEnquiry->customerFeedbackNotes() }}</div>
-                    </div>
-                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
-                    <div class="text-muted small mb-0">Quotation is under review. No customer comment was provided.</div>
-                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT
-                    && strtolower((string) ($commercialEnquiry->source_channel ?? '')) === 'walk_in')
-                    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                        <span class="text-muted small mb-0">Customer accepted the quotation in person?</span>
-                        <button type="button" class="btn btn-sm btn-outline-success" wire:click="recordWalkInQuotationAcceptance" wire:loading.attr="disabled">
-                            <i class="mdi mdi-check-decagram"></i> Record walk-in acceptance
-                        </button>
-                    </div>
-                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED)
-                    <div class="alert alert-light border mb-0 mt-2">
-                        <strong class="d-block mb-2">Purchase order required</strong>
-                        <p class="small text-muted mb-2">Record the customer PO (or skip for non-credit clients) to move this request to <strong>Ready for Reception</strong>.</p>
-                        <button type="button" class="btn btn-sm btn-primary" wire:click="openPoCaptureModal">
-                            <i class="mdi mdi-file-document-edit-outline"></i> Record PO
-                        </button>
-                    </div>
-                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION)
-                    <div class="alert alert-success border mb-0 mt-2">
-                        <strong class="d-block mb-1">Ready for physical reception</strong>
-                        <p class="small mb-2">Samples can be checked in at reception. AmSpec commercial acceptance does not require a laboratory acceptance form.</p>
-                        <div class="d-flex flex-wrap gap-2">
-                            <button type="button" class="btn btn-sm btn-success" wire:click="openPhysicalReceiveModal">
-                                <i class="mdi mdi-package-variant-closed"></i> Receive physical samples
-                            </button>
-                            <a href="{{ route('sample-workflow', ['status' => 'Samples Receiving']) }}?workflowSubTab=ready_for_reception" class="btn btn-sm btn-outline-primary">
-                                <i class="mdi mdi-open-in-new"></i> Open on receiving board
-                            </a>
-                        </div>
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endif
-
-    <div class="stat-cards-row mb-3">
-        <div class="stat-card">
-            <div class="stat-card-label">Status</div>
-            <div class="stat-card-content">
-                <div class="stat-card-value">
-                    <span class="stat-status-label">{{ ucfirst(str_replace('_', ' ', $instance->status)) }}</span>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-card-label">Sample lines</div>
-            <div class="stat-card-content">
-                <div class="stat-card-value">{{ count($this->sampleLines) }}</div>
-                <div class="stat-card-icon"><i class="mdi mdi-flask-outline"></i></div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-card-label">Notes</div>
-            <div class="stat-card-content">
-                <div class="stat-card-value">{{ $instance->notes->count() }}</div>
-                <div class="stat-card-icon"><i class="mdi mdi-comment-text-outline"></i></div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-card-label">Linked batches</div>
-            <div class="stat-card-content">
-                <div class="stat-card-value">{{ $instance->batches->count() }}</div>
-                <div class="stat-card-icon"><i class="mdi mdi-link-variant"></i></div>
-            </div>
-        </div>
-    </div>
 
     <div class="workflow-board-panel mb-3">
         <div class="workflow-board-panel-header">
@@ -445,6 +386,15 @@
         if (url) {
             window.open(url, '_blank');
         }
+    });
+
+    $wire.on('show-receive-sample-modal', () => {
+        $('#receive-sample-modal').modal('show');
+        setTimeout(function () {
+            if (typeof window.initTrfSignaturePads === 'function') {
+                window.initTrfSignaturePads();
+            }
+        }, 300);
     });
 </script>
 @endscript

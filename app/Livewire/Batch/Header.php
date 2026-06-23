@@ -5,6 +5,7 @@ namespace App\Livewire\Batch;
 use App\Livewire\Batch\Concerns\InteractsWithCaseFileReviewForm;
 use App\SampleHeader;
 use App\CapturedResult;
+use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
 use App\Services\WorkflowService;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -478,7 +479,9 @@ class Header extends Component
         $status = 'Sample Verification'; // Hardcoded as per form input hidden value in legacy
 
         // Status Logic
-        $batch->status = ($level == '0') ? $status : $batch->status;
+        if ($level == '0') {
+            app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus($batch, $status);
+        }
         $batch->report_status = ($level == '0') ? (int)$level : $batch->report_status;
         $batch->prelim_report_status = ($level != '0') ? (int)$level : $batch->prelim_report_status;
         $batch->prelim_batch_status = ($level != '0') ? $status : $batch->prelim_batch_status;
@@ -578,6 +581,7 @@ class Header extends Component
         }
 
         $batch->save();
+        $this->batch->refresh();
 
         // Set the Processing Date to today when batch is moved to verification
         if ($status === 'Sample Verification') {
@@ -662,9 +666,10 @@ class Header extends Component
         $approver->show_report = 1;
         $approver->save();
 
-        // Update batch status
-        $batch->status = 'Sample Approval';
+        // Update batch status and keep tracking stage aligned with workflow
+        app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus($batch, 'Sample Approval');
         $batch->save();
+        $this->batch->refresh();
 
         // Send notifications if requested
         $user = \App\User::find($this->approvalData['user_id']);

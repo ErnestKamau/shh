@@ -610,7 +610,12 @@
                                                                                     @endif
                                                                                 </td>
                                                                                 <td>{{ number_format((float) ($item->cost_price ?? 0), 2) }}</td>
-                                                                                <td>{{ number_format((float) ($item->display_selling_price ?? $item->selling_price ?? 0), 2) }}</td>
+                                                                                <td>
+                                                                                    {{ number_format((float) ($item->display_selling_price ?? $item->selling_price ?? 0), 2) }}
+                                                                                    @if($item->has_pending_change)
+                                                                                        <span class="badge badge-warning badge-pill ml-1" title="Applied price: {{ number_format((float) ($item->applied_selling_price ?? $item->selling_price ?? 0), 2) }}">Pending</span>
+                                                                                    @endif
+                                                                                </td>
                                                                                 <td>{{ number_format((float) ($item->profit ?? 0), 2) }}</td>
                                                                                 <td>{{ number_format((float) ($item->profit_margin ?? 0), 2) }}%</td>
                                                                                 <td>
@@ -687,7 +692,7 @@
         @if($showItemModal)
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.55);">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content item-modal-content">
+                    <div class="modal-content item-modal-content" wire:click.stop>
                         <div class="modal-header item-modal-header border-0">
                             <div>
                                 <span class="item-modal-kicker">Pricing Item</span>
@@ -799,11 +804,11 @@
                                                             <div class="table-primary-line">{{ $row['analyte_label'] ?: 'N/A' }}</div>
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" wire:model="itemElementRows.{{ $index }}.cost_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.cost_price') is-invalid @enderror">
+                                                            <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.cost_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.cost_price') is-invalid @enderror">
                                                             @error('itemElementRows.' . $index . '.cost_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" wire:model="itemElementRows.{{ $index }}.selling_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.selling_price') is-invalid @enderror">
+                                                            <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.selling_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.selling_price') is-invalid @enderror">
                                                             @error('itemElementRows.' . $index . '.selling_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                                         </td>
                                                         <td>
@@ -863,9 +868,19 @@
                                 New and updated prices are saved as pending until you use Apply Price Changes on the pricelist items tab.
                             </div>
                         </div>
-                        <div class="modal-footer border-0 item-modal-footer">
+                        <div class="modal-footer border-0 item-modal-footer flex-column align-items-stretch">
+                            @if ($errors->any())
+                                <div class="alert alert-danger py-2 px-3 mb-2 w-100 small">
+                                    Please fix the highlighted fields before saving.
+                                </div>
+                            @endif
+                            <div class="d-flex justify-content-end w-100" style="gap: 8px;">
                             <button type="button" class="btn btn-light item-modal-cancel-btn" wire:click="closeItemModal">Cancel</button>
-                            <button type="button" class="btn btn-primary item-modal-save-btn" wire:click="saveItem"><i class="mdi mdi-content-save"></i> Save Item</button>
+                            <button type="button" class="btn btn-primary item-modal-save-btn" wire:click="saveItem" wire:loading.attr="disabled">
+                                <span wire:loading.remove wire:target="saveItem"><i class="mdi mdi-content-save"></i> Save Item</span>
+                                <span wire:loading wire:target="saveItem"><span class="spinner-border spinner-border-sm mr-1"></span> Saving…</span>
+                            </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2388,4 +2403,15 @@
             }
         }
     </style>
+
+    <script>
+        document.addEventListener('livewire:init', function () {
+            Livewire.on('pricelist-scroll-to-message', function () {
+                const alertEl = document.querySelector('.pricelist-show-page .alert[role="alert"]');
+                if (alertEl) {
+                    alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        });
+    </script>
 </div>
