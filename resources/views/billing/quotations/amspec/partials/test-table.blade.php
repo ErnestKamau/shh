@@ -2,13 +2,25 @@
     $primaryColor = $branding['primary'] ?? '#6D0A0E';
     $accentColor = $branding['accent'] ?? '#4CAF50';
     $isPdf = (bool) ($forPdf ?? false);
-    $colSample = $isPdf ? '14%' : '14%';
-    $colParams = $isPdf ? '20%' : '20%';
-    $colMethod = $isPdf ? '18%' : '18%';
-    $colOptional = $isPdf ? '9%' : '9%';
-    $colLoq = $isPdf ? '9%' : '9%';
-    $colPrice = $isPdf ? '10%' : '11%';
-    $colTotal = $isPdf ? '10%' : '11%';
+    $showMu = (bool) ($showMuColumn ?? true);
+    $showPrice = (bool) ($showUnitPriceColumn ?? true);
+
+    // Columns that are always shown
+    $colSample = '16%';
+    $colMethod = '20%';
+    $colLoq = '10%';
+    $colTotal = '14%';
+
+    // Optional columns
+    $colOptional = $showMu ? '12%' : '0%';
+    $colPrice = $showPrice ? '12%' : '0%';
+
+    // Dynamically calculate the parameters column width so total is exactly 100%
+    $remaining = 100 - 16 - 20 - 10 - 14;
+    if ($showMu) { $remaining -= 12; }
+    if ($showPrice) { $remaining -= 12; }
+    $colParams = $remaining . '%';
+
     $optionalSubLabel = $isPdf ? '' : '(optional)';
     $columnCount = 4 + ($showMuColumn ? 1 : 0) + ($showUnitPriceColumn ? 1 : 0) + 1;
     $labelColspan = $columnCount - 1;

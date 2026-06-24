@@ -36,11 +36,11 @@
         'transportColspan' => 2,
     ])
     <tr class="trf-sample-header-row">
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['S.', 'NO.']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'NO.']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col-wide">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'DESCRIPTION']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col-wide">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['LOCATION']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['QTY.']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['S.', 'NO.']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'NO.']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'DESCRIPTION']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['LOCATION']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['QTY.']])</th>
         <th colspan="5" class="trf-tick-col-header">SAMPLING POINT</th>
         <th colspan="5">FIELD DATA</th>
         <th colspan="3" class="trf-tick-col-header">TEST REQUIREMENTS</th>
@@ -65,8 +65,8 @@
         <tr class="trf-data-row">
             <td class="trf-center">{{ $row['serial'] ?? '' }}</td>
             <td>{{ $row['sample_no'] ?? '' }}</td>
-            <td class="trf-text-cell">{{ $row['sample_description'] ?? '' }}</td>
-            <td class="trf-text-cell">{{ $row['location'] ?? '' }}</td>
+            <td class="trf-text-cell">{!! $row['sample_description'] ?? '' !!}</td>
+            <td class="trf-text-cell">{!! $row['location'] ?? '' !!}</td>
             <td class="trf-center">{{ $row['qty'] ?? '' }}</td>
             @foreach($samplingPointKeys as $key)
                 <td class="trf-tick-cell">

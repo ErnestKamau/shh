@@ -87,11 +87,9 @@ trait ManagesSampleConfigurationWizard
         $config = $this->sampleConfigs[$index];
         $configService = app(AcceptanceFormSampleConfigService::class);
 
-        if (! empty($config['analysis_type_id']) && empty($config['lab_section_id'])) {
-            $this->sampleConfigs[$index]['lab_section_id'] = $configService->resolveLabSectionIdForAnalysisType(
-                (string) $config['analysis_type_id']
-            );
-        }
+        $this->sampleConfigs[$index]['lab_section_id'] = ! empty($config['analysis_type_id'])
+            ? $configService->resolveLabSectionIdForAnalysisType((string) $config['analysis_type_id'])
+            : null;
 
         if (! $this->crmCustomerId || empty($config['analysis_type_id'])) {
             $this->sampleConfigs[$index]['parameter_keys'] = [];

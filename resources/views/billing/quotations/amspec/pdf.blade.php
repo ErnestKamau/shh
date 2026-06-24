@@ -11,6 +11,7 @@
         $shellMode = 'download';
         $stylesLoaded = true;
     @endphp
+    @include('billing.quotations.amspec.partials.footer')
     @include('billing.quotations.amspec.shell')
 </body>
 </html>

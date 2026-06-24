@@ -6,13 +6,42 @@
     * { font-family: DejaVu Sans, sans-serif; box-sizing: border-box; }
     body { font-size: 8pt; color: #000; margin: 0; padding: 0; line-height: 1.2; }
     body.trf-layout-centered { margin: 0; padding: 0; }
+    
+    @if(empty($forPdf) || !$forPdf)
+    body.trf-layout-centered {
+        background: #e9ecef;
+        padding: 30px 15px;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+    }
+    .trf-page {
+        background: #ffffff;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.12);
+        border-radius: 6px;
+        padding: 12mm 16mm;
+        margin: 0 auto;
+        box-sizing: border-box;
+    }
+    body.trf-layout-centered:not(.trf-waste-water) .trf-page {
+        width: min(95vw, 297mm);
+        min-height: 210mm;
+    }
+    body.trf-layout-centered.trf-waste-water .trf-page {
+        width: min(95vw, 210mm);
+        min-height: 297mm;
+    }
+    @else
     .trf-page { width: 100%; margin: 0; }
+    @endif
     .trf-section-title {
         background: {{ $maroon }};
         color: #fff;
         font-weight: bold;
         font-size: 8pt;
-        padding: 3px 5px;
+        padding: 8px 10px;
         text-transform: uppercase;
         border: 1px solid #000;
         text-align: center;
@@ -20,7 +49,7 @@
     .trf-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
     .trf-table td, .trf-table th {
         border: 1px solid #000;
-        padding: 1px 2px;
+        padding: 4px 5px;
         vertical-align: middle;
         font-size: 7pt;
         word-wrap: break-word;
@@ -34,24 +63,27 @@
     }
     .trf-header-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; table-layout: fixed; }
     .trf-header-table > tbody > tr > td { border: none; vertical-align: middle; padding: 1px 3px; }
-    .trf-header-logo { width: 10%; vertical-align: middle; }
-    .trf-header-center { width: 72%; text-align: center; vertical-align: middle; padding: 6px 0; }
-    .trf-header-serial { width: 18%; text-align: center; vertical-align: middle; padding: 6px 0; }
-    .trf-header-company-grid { width: 100%; max-width: 100%; border-collapse: collapse; margin: 0 auto; table-layout: fixed; }
+    .trf-header-left { width: 89%; text-align: left; vertical-align: middle; padding: 6px 0; }
+    .trf-header-serial { width: 11%; text-align: center; vertical-align: middle; padding: 6px 0; }
+    .trf-header-company-grid { width: 100%; max-width: 100%; border-collapse: collapse; margin: 0 auto; table-layout: auto; }
     .trf-header-company-grid td {
         border: none;
-        padding: 2px 4px;
+        padding: 0px 4px;
         font-size: 7pt;
         text-align: left;
-        vertical-align: middle;
-        line-height: 1.55;
+        vertical-align: top;
+        line-height: 1.15;
         white-space: nowrap;
     }
-    .trf-company-col-left { width: 48%; padding-right: 28px; text-align: right; }
-    .trf-company-col-right { width: 48%; padding-left: 28px; text-align: left; }
-    .trf-company-address-cell { width: 100%; padding: 2px 4px; text-align: center; white-space: nowrap; }
-    .trf-company-name-cell { font-weight: bold; font-size: 8pt; padding-bottom: 2px; }
-    .trf-logo { max-height: 42px; max-width: 80px; }
+    .trf-company-col-logo { width: 10%; }
+    .trf-company-logo-cell { width: 10%; vertical-align: middle; text-align: left; padding-right: 15px !important; }
+    .trf-company-col-left { width: 50%; padding-right: 20px; text-align: left; }
+    .trf-company-col-right { width: 40%; padding-left: 20px; text-align: left; }
+    .trf-company-address-cell { width: 100%; padding: 2px 4px; text-align: left; white-space: nowrap; font-size: 6.8pt; }
+    .trf-company-address-cell .trf-field-label,
+    .trf-company-address-cell .trf-field-value { font-size: 6.8pt; }
+    .trf-company-name-cell { font-weight: bold; font-size: 10pt; padding-bottom: 2px; }
+    .trf-logo { max-height: 48px; max-width: 100px; margin-right: 15px; }
     .trf-title-row td { border: none; padding: 0 0 3px; }
     .trf-title {
         font-size: 11pt;
@@ -81,7 +113,7 @@
     .trf-right { text-align: right; }
     .trf-meta-key { font-weight: bold; display: block; font-size: 7pt; }
     .trf-meta-val { display: inline; font-size: 7pt; line-height: 1.2; word-wrap: break-word; }
-    .trf-meta-cell { vertical-align: middle; padding: 3px 4px; min-height: 18px; border: 1px solid #000; word-wrap: break-word; line-height: 1.2; background: #fff; }
+    .trf-meta-cell { vertical-align: middle; padding: 8px 10px; min-height: 32px; border: 1px solid #000; word-wrap: break-word; line-height: 1.2; background: #fff; }
     .trf-collection-section-header { background: #d9d9d9 !important; }
     .trf-collection-check-cell { vertical-align: top; padding: 0; border: 1px solid #000; background: #fff; }
     .trf-dotted-leader { color: {{ $maroon }}; letter-spacing: 0.5px; }
@@ -95,8 +127,8 @@
     }
     .trf-water-table .trf-data-row td {
         overflow: visible;
-        min-height: 18px;
-        height: 18px;
+        min-height: 30px;
+        height: 30px;
     }
     .trf-state-cell { font-size: 5pt; text-align: center; vertical-align: middle; padding: 0; overflow: hidden; background: #fff; }
     .trf-check-grid { width: 100%; border-collapse: collapse; margin: 0; }
@@ -121,13 +153,15 @@
         table-layout: fixed;
     }
     .trf-check-grid-bordered td {
-        border: 1px solid #b0b0b0;
-        padding: 3px 4px;
+        border: 1px solid #000;
+        padding: 4px 5px;
         font-size: 6pt;
         vertical-align: middle;
-        min-height: 17px;
-        height: 17px;
+        min-height: 20px;
+        height: 20px;
         background: #fff;
+        white-space: normal;
+        word-break: normal;
     }
     .trf-check-grid-bordered.trf-check-grid-2 td { width: 50%; }
     .trf-check-grid-bordered.trf-check-grid-1 td { width: 100%; }
@@ -171,9 +205,9 @@
         color: #fff;
         font-weight: bold;
         text-transform: uppercase;
-        font-size: 7.5pt;
+        font-size: 9pt;
         text-align: center;
-        padding: 3px 4px;
+        padding: 8px 10px;
     }
     .trf-banner-row td.trf-job-cell,
     .trf-banner-row td.trf-banner-cell + .trf-job-cell {
@@ -226,34 +260,35 @@
     .trf-check-mini::before { font-size: 5pt; line-height: 1; }
     .trf-state-header { text-align: center; vertical-align: middle; padding: 1px 2px; font-size: 5pt; line-height: 1; font-weight: bold; overflow: hidden; background: #d9d9d9 !important; }
     .trf-state-header .trf-vtext-br { font-size: 5pt; line-height: 1; font-weight: bold; }
-    .trf-food-table col.trf-col-serial { width: 2.5%; }
-    .trf-food-table col.trf-col-sample-no { width: 5%; }
-    .trf-food-table col.trf-col-desc { width: 10%; }
-    .trf-food-table col.trf-col-location { width: 9%; }
-    .trf-food-table col.trf-col-qty { width: 2.5%; }
-    .trf-food-table col.trf-col-tick { width: 1.6%; }
-    .trf-food-table col.trf-col-temp { width: 3.5%; }
-    .trf-food-table col.trf-col-date { width: 5.5%; }
+    .trf-food-table col.trf-col-serial { width: 3%; }
+    .trf-food-table col.trf-col-sample-no { width: 6%; }
+    .trf-food-table col.trf-col-desc { width: 18%; }
+    .trf-food-table col.trf-col-location { width: 12%; }
+    .trf-food-table col.trf-col-qty { width: 4%; }
+    .trf-food-table col.trf-col-tick { width: 2.2%; }
+    .trf-food-table col.trf-col-temp { width: 4.6%; }
+    .trf-food-table col.trf-col-date { width: 6%; }
     .trf-food-table col.trf-col-batch { width: 7%; }
-    .trf-food-table col.trf-col-params { width: 11%; }
-    .trf-food-table col.trf-col-state { width: 12%; }
+    .trf-food-table col.trf-col-params { width: 12%; }
+    .trf-food-table col.trf-col-state { width: 6%; }
     .trf-water-table col.trf-col-serial { width: 3.5%; }
     .trf-water-table col.trf-col-sample-no { width: 6%; }
-    .trf-water-table col.trf-col-desc { width: 14%; }
-    .trf-water-table col.trf-col-location { width: 11%; }
-    .trf-water-table col.trf-col-qty { width: 3.5%; }
-    .trf-water-table col.trf-col-tick { width: 2.2%; }
+    .trf-water-table col.trf-col-desc { width: 20%; }
+    .trf-water-table col.trf-col-location { width: 12%; }
+    .trf-water-table col.trf-col-qty { width: 4%; }
+    .trf-water-table col.trf-col-tick { width: 2.4%; }
     .trf-water-table col.trf-col-field { width: 5.5%; }
-    .trf-water-table col.trf-col-test { width: 6%; }
+    .trf-water-table col.trf-col-test { width: 5%; }
     .trf-customer-table .trf-banner-row td { border-right: 1px solid #000; }
-    .trf-customer-field { vertical-align: middle; padding: 3px 4px; min-height: 18px; word-wrap: break-word; line-height: 1.2; }
+    .trf-customer-field { vertical-align: middle; padding: 8px 10px; min-height: 32px; word-wrap: break-word; line-height: 1.2; }
     .trf-customer-field .trf-field-value { word-wrap: break-word; }
-    .trf-text-cell { font-size: 6.5pt; padding: 1px 2px; vertical-align: middle; word-wrap: break-word; line-height: 1.15; }
+    .trf-text-cell { font-size: 6.5pt; padding: 6px 6px; vertical-align: middle; word-wrap: break-word; line-height: 1.2; }
+    .trf-text-cell p { margin: 0; padding: 0; display: inline; }
     .trf-job-cell {
         vertical-align: top;
-        padding: 4px 6px;
+        padding: 10px 12px;
         border: 1px solid #000;
-        min-height: 58px;
+        min-height: 80px;
     }
     .trf-job-number-label {
         display: block;
@@ -261,21 +296,21 @@
         font-size: 8pt;
         color: {{ $maroon }};
         text-transform: uppercase;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
     }
-    .trf-job-number-value { display: block; font-size: 7pt; font-weight: normal; min-height: 36px; }
-    .trf-customer-left { width: 68%; vertical-align: middle; padding: 2px 4px; }
-    .trf-customer-right { width: 32%; vertical-align: middle; padding: 2px 4px; }
-    .trf-data-row td { min-height: 16px; height: 16px; vertical-align: middle; font-weight: normal; font-size: 6.5pt; overflow: hidden; background: #fff; }
+    .trf-job-number-value { display: block; font-size: 7pt; font-weight: normal; min-height: 50px; }
+    .trf-customer-left { width: 68%; vertical-align: middle; padding: 6px 8px; }
+    .trf-customer-right { width: 32%; vertical-align: middle; padding: 6px 8px; }
+    .trf-data-row td { min-height: 28px; height: 28px; vertical-align: middle; font-weight: normal; font-size: 6.5pt; overflow: hidden; background: #fff; }
     .trf-lab-box {
-        padding: 3px 4px;
+        padding: 8px 10px;
         vertical-align: top;
     }
-    .trf-lab-box .trf-lab-field { margin-bottom: 3px; }
+    .trf-lab-box .trf-lab-field { margin-bottom: 4px; }
     .trf-lab-box .trf-field-label { display: inline; margin-top: 0; }
     .trf-lab-box .trf-field-value { display: inline; }
     .trf-footer-sign-row td { vertical-align: middle; padding: 0; }
-    .trf-footer-cell { padding: 4px 6px; font-size: 7pt; line-height: 1.35; vertical-align: middle; min-height: 18px; }
+    .trf-footer-cell { padding: 10px 12px; font-size: 7pt; line-height: 1.35; vertical-align: middle; min-height: 32px; }
     .trf-footer-lab-head { vertical-align: middle; }
     .trf-lab-title { font-weight: bold; font-size: 7pt; text-transform: uppercase; margin: 0; padding: 0; }
     .trf-footer-check-item { margin-left: 6px; margin-right: 2px; white-space: nowrap; font-size: 7pt; }
@@ -434,24 +469,29 @@
     body.trf-waste-water .trf-header-table td { border: none !important; }
     body.trf-waste-water .trf-title { font-size: 11pt; }
     body.trf-waste-water .trf-title-row td { padding: 0 0 2px; }
-    body.trf-waste-water .trf-logo { max-height: 34px; max-width: 64px; }
-    body.trf-waste-water .trf-header-center,
+    body.trf-waste-water .trf-logo { max-height: 34px; max-width: 64px; margin-right: 15px; }
+    body.trf-waste-water .trf-header-left,
     body.trf-waste-water .trf-header-serial { padding: 2px 0; }
     body.trf-waste-water .trf-header-company-grid td {
-        padding: 1px 3px;
+        padding: 0px 4px;
         font-size: 7pt;
-        line-height: 1.2;
+        line-height: 1.15;
+        vertical-align: top;
     }
-    body.trf-waste-water .trf-company-name-cell { font-size: 7.5pt; padding-bottom: 0; }
-    body.trf-waste-water .trf-company-col-left { padding-right: 8px; }
-    body.trf-waste-water .trf-company-col-right { padding-left: 8px; }
+    body.trf-waste-water .trf-company-name-cell { font-size: 9pt; padding-bottom: 2px; }
+    body.trf-waste-water .trf-company-col-logo { width: 10%; }
+    body.trf-waste-water .trf-company-logo-cell { padding-right: 15px !important; }
+    body.trf-waste-water .trf-company-col-left { width: 50%; padding-right: 15px; }
+    body.trf-waste-water .trf-company-col-right { width: 40%; padding-left: 15px; }
+    body.trf-waste-water .trf-company-address-cell .trf-field-label,
+    body.trf-waste-water .trf-company-address-cell .trf-field-value { font-size: 7.1pt; }
     body.trf-waste-water .trf-serial { font-size: 10pt; }
     body.trf-waste-water .trf-field-label,
     body.trf-waste-water .trf-field-value { font-size: 7.5pt; }
     body.trf-waste-water .trf-check { font-size: 7.5pt; }
     body.trf-waste-water .trf-waste-water-table td,
     body.trf-waste-water .trf-waste-water-table th {
-        padding: 3px 4px;
+        padding: 5px 6px;
         font-size: 7.5pt;
         line-height: 1.2;
         vertical-align: top;
@@ -465,12 +505,12 @@
     }
     body.trf-waste-water .trf-banner-row td {
         font-size: 8pt;
-        padding: 3px 4px;
+        padding: 6px 8px;
     }
     body.trf-waste-water .trf-waste-water-table .trf-customer-field,
     body.trf-waste-water .trf-waste-water-table .trf-meta-cell,
     body.trf-waste-water .trf-waste-water-table .trf-ww-description-cell {
-        padding: 3px 4px;
+        padding: 6px 8px;
         min-height: 0 !important;
         vertical-align: top;
         text-align: left;
@@ -491,7 +531,7 @@
     }
     body.trf-waste-water .trf-ww-job-half,
     body.trf-waste-water .trf-ww-sample-half {
-        padding: 3px 4px;
+        padding: 6px 8px;
         min-height: 0 !important;
         vertical-align: top;
         text-align: left;
@@ -505,7 +545,7 @@
     }
     body.trf-waste-water .trf-waste-water-table .trf-job-number-label {
         font-size: 7.5pt;
-        margin-bottom: 1px;
+        margin-bottom: 2px;
         line-height: 1.2;
     }
     body.trf-waste-water .trf-waste-water-table .trf-job-number-value {
@@ -516,7 +556,7 @@
         line-height: 1.2;
     }
     body.trf-waste-water .trf-waste-water-table .trf-meta-cell {
-        padding: 3px 4px;
+        padding: 6px 8px;
         min-height: 0 !important;
         line-height: 1.2;
         vertical-align: top;
@@ -559,7 +599,7 @@
         vertical-align: top;
         text-align: left;
         background: #fff;
-        padding: 3px 4px;
+        padding: 5px 6px !important;
         font-size: 7pt;
         line-height: 1.2;
         min-height: 14px;
@@ -583,32 +623,32 @@
         font-size: 7pt;
         text-align: center;
         text-transform: uppercase;
-        padding: 3px 4px;
+        padding: 5px 6px;
         border: none !important;
         vertical-align: middle;
     }
     body.trf-waste-water .trf-waste-water-table .trf-collection-section-header {
         font-size: 7.5pt;
-        padding: 3px 4px;
+        padding: 5px 6px;
     }
     body.trf-waste-water .trf-ww-subheader {
         font-size: 7pt;
-        padding: 3px 4px;
+        padding: 5px 6px;
     }
     body.trf-waste-water .trf-ww-description-cell {
-        padding: 3px 4px;
+        padding: 5px 6px;
         min-height: 0 !important;
         line-height: 1.2;
     }
     body.trf-waste-water .trf-ww-instrument-row {
-        padding: 3px 4px;
+        padding: 5px 6px;
         font-size: 7pt;
         line-height: 1.2;
         vertical-align: top;
         text-align: left;
     }
     body.trf-waste-water .trf-ww-field-row {
-        padding: 3px 4px;
+        padding: 5px 6px;
         font-size: 7.5pt;
         min-height: 18px;
         line-height: 1.25;
@@ -616,7 +656,7 @@
         text-align: left;
     }
     body.trf-waste-water .trf-ww-requirement-row {
-        padding: 8px 4px;
+        padding: 10px 6px;
         font-size: 7.5pt;
         line-height: 1.25;
         min-height: 28px;
@@ -635,21 +675,21 @@
     body.trf-waste-water .trf-ww-section-stack td,
     body.trf-waste-water .trf-ww-section-cell {
         border: none !important;
-        padding: 3px 4px !important;
+        padding: 5px 6px !important;
     }
     body.trf-waste-water .trf-ww-section-rows.trf-check-grid-normal td,
     body.trf-waste-water .trf-ww-section-rows.trf-check-grid-normal .trf-ww-section-cell {
-        padding: 2px 3px !important;
+        padding: 4px 5px !important;
         font-size: 7pt !important;
-        min-height: 14px !important;
+        min-height: 16px !important;
         height: auto !important;
         line-height: 1.2 !important;
     }
     body.trf-waste-water .trf-ww-section-rows.trf-check-grid-relaxed td,
     body.trf-waste-water .trf-ww-section-rows.trf-check-grid-relaxed .trf-ww-section-cell {
-        padding: 3px 4px !important;
+        padding: 5px 6px !important;
         font-size: 7.5pt !important;
-        min-height: 18px !important;
+        min-height: 20px !important;
         height: auto !important;
         line-height: 1.25 !important;
     }

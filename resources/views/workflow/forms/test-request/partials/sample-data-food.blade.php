@@ -31,17 +31,17 @@
     </tr>
     @include('workflow.forms.test-request.partials.collection-grid-section', [
         'detailsColspan' => 2,
-        'apparatusColspan' => 5,
-        'methodColspan' => 5,
+        'apparatusColspan' => 4,
+        'methodColspan' => 6,
         'reasonColspan' => 3,
         'transportColspan' => 3,
     ])
     <tr>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['S.', 'No.']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'NO.']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col-wide">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'DESCRIPTION']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col-wide">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLING', 'POINT/', 'LOCATION']])</th>
-        <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['QTY.']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['S.', 'No.']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'NO.']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'DESCRIPTION']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLING', 'POINT/', 'LOCATION']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['QTY.']])</th>
         <th colspan="3" class="trf-tick-col-header">SAMPLE TYPE</th>
         <th colspan="5" class="trf-tick-col-header">SAMPLE CONDITION</th>
         <th rowspan="2" class="trf-vtext-wrap trf-col-date">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Production', 'Date']])</th>
@@ -71,8 +71,8 @@
         <tr class="trf-data-row">
             <td class="trf-center">{{ $row['serial'] ?? '' }}</td>
             <td>{{ $row['sample_no'] ?? '' }}</td>
-            <td class="trf-text-cell">{{ $row['sample_description'] ?? '' }}</td>
-            <td class="trf-text-cell">{{ $row['sampling_point'] ?? '' }}</td>
+            <td class="trf-text-cell">{!! $row['sample_description'] ?? '' !!}</td>
+            <td class="trf-text-cell">{!! $row['sampling_point'] ?? '' !!}</td>
             <td class="trf-center">{{ $row['qty'] ?? '' }}</td>
             @foreach($typeKeys as $key)
                 <td class="trf-tick-cell">

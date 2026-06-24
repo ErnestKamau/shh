@@ -56,7 +56,7 @@
     $chunkCount = count($chunks);
     $fullWidthRowCount = count($fullWidthRows);
     $hasTrailing = ! empty($trailingHtml);
-    $gridLine = ($sectionFit || $solidGrid) ? '#000' : '#b0b0b0';
+    $gridLine = '#000';
     $sizeStyles = [
         'compact' => 'padding:0 2px;font-size:5.5pt;line-height:1.05;vertical-align:top;text-align:left;background:#fff;min-height:10px;height:10px;',
         'normal' => 'padding:2px 3px;font-size:7pt;line-height:1.2;vertical-align:top;text-align:left;background:#fff;min-height:14px;height:14px;',
