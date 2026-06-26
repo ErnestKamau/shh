@@ -78,7 +78,7 @@ class ComplaintTabExport implements FromQuery, WithHeadings, WithMapping
                     $row->action,
                     $row->actionTaker->name ?? 'N/A',
                     $row->workflow_stage,
-                    $row->comments,
+                    strip_tags($row->comments ?? ''),
                     $row->created_at->format('Y-m-d H:i:s')
                 ];
             case 'notes':

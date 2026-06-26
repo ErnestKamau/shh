@@ -2,20 +2,15 @@
 
 namespace App\Models\CRM;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-
 use App\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaintsresolutions extends Model implements Auditable
 {
-    use HasUuids;
-
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     use \OwenIt\Auditing\Auditable;
+    use HasUuids;
 
     protected $table = 'complaintsresolutions';
 
@@ -24,6 +19,8 @@ class Complaintsresolutions extends Model implements Auditable
         'action_taken',
         'findings',
         'root_cause_analysis',
+        'root_cause_by',
+        'root_cause_date',
         'corrective_action_taken',
         'preventive_action',
         'officer_responsible',
@@ -45,6 +42,7 @@ class Complaintsresolutions extends Model implements Auditable
         'ncr_required',
         'client_remarks',
         'send_to_customer',
+        'internal_remarks',
         'issued_to',
         'issued_by',
         'date_issued',
@@ -67,6 +65,7 @@ class Complaintsresolutions extends Model implements Auditable
             'ncr_required' => 'boolean',
             'send_to_customer' => 'boolean',
             'action_taken_date' => 'date',
+            'root_cause_date' => 'date',
             'corrective_action_date' => 'date',
             'date_issued' => 'date',
             'proposed_close_out_date' => 'date',
@@ -96,5 +95,95 @@ class Complaintsresolutions extends Model implements Auditable
     public function capaApprovedBy()
     {
         return $this->belongsTo(User::class, 'capa_approved_by');
+    }
+
+    public function actionTakenBy()
+    {
+        return $this->belongsTo(User::class, 'action_taken_by');
+    }
+
+    public function correctiveActionBy()
+    {
+        return $this->belongsTo(User::class, 'corrective_action_by');
+    }
+
+    public static function isValidUuid($value): bool
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+        return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value) === 1;
+    }
+
+    public function getRootCauseByNamesAttribute(): string
+    {
+        $val = $this->root_cause_by;
+        if (empty($val)) {
+            return 'System';
+        }
+
+        $parts = array_map('trim', explode(',', $val));
+        $names = [];
+
+        foreach ($parts as $part) {
+            if (self::isValidUuid($part)) {
+                $user = \App\User::find($part);
+                if ($user) {
+                    $names[] = $user->name;
+                }
+            } else {
+                $names[] = $part;
+            }
+        }
+
+        return !empty($names) ? implode(', ', $names) : 'System';
+    }
+
+    public function getActionTakenByNamesAttribute(): string
+    {
+        $val = $this->action_taken_by;
+        if (empty($val)) {
+            return 'System';
+        }
+
+        $parts = array_map('trim', explode(',', $val));
+        $names = [];
+
+        foreach ($parts as $part) {
+            if (self::isValidUuid($part)) {
+                $user = \App\User::find($part);
+                if ($user) {
+                    $names[] = $user->name;
+                }
+            } else {
+                $names[] = $part;
+            }
+        }
+
+        return !empty($names) ? implode(', ', $names) : 'System';
+    }
+
+    public function getCorrectiveActionByNamesAttribute(): string
+    {
+        $val = $this->corrective_action_by;
+        if (empty($val)) {
+            return 'System';
+        }
+
+        $parts = array_map('trim', explode(',', $val));
+        $names = [];
+
+        foreach ($parts as $part) {
+            if (self::isValidUuid($part)) {
+                $user = \App\User::find($part);
+                if ($user) {
+                    $names[] = $user->name;
+                }
+            } else {
+                $names[] = $part;
+            }
+        }
+
+        return !empty($names) ? implode(', ', $names) : 'System';
     }
 }

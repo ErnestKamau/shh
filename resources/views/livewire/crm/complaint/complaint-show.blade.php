@@ -1,3 +1,4 @@
+<div class="complaint-show-section">
 @push('styles')
     <style>
         /* ========================================
@@ -306,6 +307,21 @@
             z-index: 101 !important;
         }
 
+        .complaint-show-section .workflow-actions .btn-approve {
+            background: #ffffff;
+            color: #16a34a;
+            border: 1px solid #16a34a;
+            font-weight: 700;
+        }
+
+        .complaint-show-section .workflow-actions .btn-approve:hover {
+            background: #16a34a;
+            color: #ffffff;
+            border-color: #16a34a;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+            transform: translateY(-1px);
+        }
+
         /* Info Cards/Details */
         .complaint-show-section .info-card {
             background: #f7fafc;
@@ -397,7 +413,6 @@
     </style>
 @endpush
 
-
 @push('scripts')
     {{-- Global Modal Event Listeners --}}
     <script>
@@ -424,51 +439,104 @@
         }
     </style>
 @endpush
-
-
-<div class="complaint-show-section">
     <main>
-        <div class="container-fluid px-2 px-md-4">
-            @php
-                $complaintSubtitle = ($complaint->client->name ?? $complaint->received_from) . ' · Logged ' . \Carbon\Carbon::parse($complaint->date)->format('d M Y');
-                $pLower = strtolower((string) ($complaint->priority ?? ''));
-                $priBadge = $pLower === 'high' || $pLower === 'critical' ? 'crm-badge-danger' : ($pLower === 'medium' ? 'crm-badge-warning' : 'crm-badge-secondary');
-            @endphp
-            <x-crm.page-header
-                :breadcrumbItems="$this->breadcrumbItems"
-                :title="$complaint->complaint_id"
-                :subtitle="$complaintSubtitle"
-                icon="mdi-comment-alert"
-            >
-                <x-slot:actions>
-                    <span class="d-inline-flex flex-wrap align-items-center justify-content-end" style="gap:8px;">
-                        @if($complaint->complaint_workflow == 1)
-                            <button type="button" class="btn btn-outline-success btn-sm crm-outline-btn-sm"
-                                wire:click="$dispatch('initiate-workflow-action', 'approveNext')">
-                                <i class="mdi mdi-check-all"></i> Approve & Proceed
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm crm-outline-btn-sm"
-                                wire:click="$dispatch('initiate-workflow-action', 'logForRecordOnly')">
-                                <i class="mdi mdi-archive-outline"></i> Log for Record Only
-                            </button>
-                        @endif
-                        @if($complaint->complaint_workflow >= 5 && $activeTab !== 'capa')
-                            <button type="button" class="btn btn-outline-danger btn-sm crm-outline-btn-sm"
-                                wire:click="generateReport({{ $complaint->id }})">
-                                <i class="mdi mdi-file-pdf-box"></i> Export to PDF
-                            </button>
-                        @endif
-                    </span>
-                </x-slot:actions>
-            </x-crm.page-header>
+        <x-bread-crumb :items="$this->breadcrumbItems"></x-bread-crumb>
 
-            <div class="mb-3 d-flex flex-wrap align-items-center">
-                <span class="crm-badge {{ $priBadge }} mr-2">{{ ucfirst($complaint->priority ?? 'Low') }} priority</span>
-                <span class="crm-badge crm-badge-primary">{{ $workflowStage }}</span>
+        {{-- Incident Identity Card --}}
+        <div class="px-4 pb-4 pt-3"> {{-- Increased padding for better vertical spacing --}}
+            <div class="d-flex align-items-start justify-content-between flex-wrap">
+                <div class="d-flex align-items-center">
+                    <div class="mr-3 d-flex align-items-center justify-content-center rounded"
+                        style="width:48px;height:48px;background:#fff3f3;flex-shrink:0;border:2px solid #f8d6d6;">
+                        <i class="mdi mdi-comment-alert text-danger" style="font-size:1.3rem;"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center flex-wrap">
+                            <span class="font-weight-bold text-dark mr-2"
+                                style="font-size:1.15rem;font-family:monospace;letter-spacing:.03em;">{{ $complaint->complaint_id }}</span>
+                            @php
+                                $priColor = match ($complaint->priority) {
+                                    'high' => 'badge-danger',
+                                    'medium' => 'badge-warning',
+                                    default => 'badge-secondary',
+                                };
+                            @endphp
+                            <span class="badge {{ $priColor }} mr-1"
+                                style="font-size:0.68rem;padding:3px 8px;">{{ ucfirst($complaint->priority ?? 'Low') }}
+                                Priority</span>
+                            <span class="badge badge-light border text-uppercase"
+                                style="font-size:0.68rem;padding:3px 8px; font-weight: 700; color: #495057;">
+                                <i class="mdi mdi-ray-start-arrow mr-1 text-primary"></i> {{ $this->granularStatus }}
+                            </span>
+                        </div>
+                        <small class="text-muted" style="font-size:0.72rem;">
+                            <i
+                                class="mdi mdi-account-outline mr-1"></i>{{ $complaint->client->name ?? $complaint->received_from }}
+                            <span class="mx-2">&middot;</span>
+                            <i class="mdi mdi-calendar-outline mr-1"></i>Logged
+                            {{ \Carbon\Carbon::parse($complaint->date)->format('d M Y') }}
+                        </small>
+                    </div>
+                </div>
+
+                {{-- Open Complaint Actions --}}
+                @if($complaint->complaint_workflow == 1 && !$complaint->is_closed)
+                    <div class="workflow-actions ml-auto">
+                        <button type="button"
+                            wire:click="$dispatch('initiate-workflow-action', { action: 'approveNext' })"
+                            style="background:#fff; color:#16a34a; border:2px solid #16a34a; border-radius:8px; font-weight:700; padding:10px 24px; font-size:0.875rem; cursor:pointer; transition:all 0.2s;"
+                            onmouseover="this.style.background='#16a34a';this.style.color='#fff';this.style.boxShadow='0 4px 12px rgba(22,163,74,0.25)'"
+                            onmouseout="this.style.background='#fff';this.style.color='#16a34a';this.style.boxShadow='none'">
+                            <i class="mdi mdi-check-circle-outline mr-1"></i> Approve
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                            wire:click="$dispatch('initiate-workflow-action', { action: 'reject' })"
+                            style="border-radius:8px; font-weight:600; padding:10px 20px; font-size:0.875rem;">
+                            <i class="mdi mdi-close-circle-outline mr-1"></i> Reject
+                        </button>
+                    </div>
+                @endif
+
+                {{-- Closed Complaint Actions --}}
+                @if($complaint->is_closed)
+                    <div class="dropdown ml-auto">
+                        <button class="btn btn-outline-primary dropdown-toggle d-flex align-items-center" type="button" 
+                            id="complaintActionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                            style="border-radius:6px; padding: 8px 16px; font-weight: 500;">
+                            <i class="mdi mdi-file-download-outline mr-2" style="font-size: 1.1rem;"></i> Actions
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right shadow-sm border-0" aria-labelledby="complaintActionsDropdown" style="border-radius:8px; padding: 8px 0;">
+                            <div class="px-3 py-2 text-muted font-weight-bold" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Download Reports</div>
+                            
+                            <a class="dropdown-item py-2 d-flex align-items-center" href="#" wire:click.prevent="downloadInvestigationReport">
+                                <i class="mdi mdi-file-document-outline mr-2 text-primary" style="font-size: 1.1rem;"></i> 
+                                <span>Investigation Form</span>
+                            </a>
+
+                            @if($this->hasCarIssued)
+                                <a class="dropdown-item py-2 d-flex align-items-center" href="#" wire:click.prevent="downloadCapaReport">
+                                    <i class="mdi mdi-file-check-outline mr-2 text-danger" style="font-size: 1.1rem;"></i> 
+                                    <span>CAPA Report</span>
+                                </a>
+                            @endif
+
+                            @if($this->hasNcrRequired)
+                                <a class="dropdown-item py-2 d-flex align-items-center" href="#" wire:click.prevent="downloadNcrReport">
+                                    <i class="mdi mdi-alert-circle-outline mr-2 text-warning" style="font-size: 1.1rem;"></i> 
+                                    <span>Non-conformance report</span>
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
             </div>
+        </div>
 
-            <div class="row no-gutters">
-                <div class="col-sm-12 p-2">
+        {{-- Workflow transitions and checkpoints are now handled inside the individual tabs for better context and state-aware logic --}}
+
+        <div class="row no-gutters">
+            <div class="col-sm-12 p-2">
                 <div class="card tab-card">
                     <div class="card-header tab-card-header">
                         <ul class="crm-tab-nav" id="complaint-tabs" role="tablist">
@@ -485,27 +553,11 @@
                                     <span class="crm-tab-badge">{{ $attachmentsCount }}</span>
                                 </a>
                             </li>
-                            @if($complaint->complaint_workflow >= 2 && !$this->hasCarIssued)
+                            @if($complaint->complaint_workflow >= 2)
                                 <li class="crm-tab-item">
-                                    <a class="crm-tab-link {{ $activeTab == 'investigation' ? 'active' : '' }}"
-                                        wire:click="switchTab('investigation')" href="#complaint-investigation" role="tab">
-                                        <i class="mdi mdi-briefcase-search-outline"></i> Investigation
-                                    </a>
-                                </li>
-                            @endif
-                            @if($this->hasCarIssued && $complaint->complaint_workflow >= 3)
-                                <li class="crm-tab-item">
-                                    <a class="crm-tab-link {{ $activeTab == 'capa' ? 'active' : '' }}"
-                                        wire:click="switchTab('capa')" href="#complaint-capa" role="tab">
-                                        <i class="mdi mdi-microscope"></i> CAPA & RCA
-                                    </a>
-                                </li>
-                            @endif
-                            @if($complaint->complaint_workflow >= 4)
-                                <li class="crm-tab-item">
-                                    <a class="crm-tab-link {{ $activeTab == 'closure' ? 'active' : '' }}"
-                                        wire:click="switchTab('closure')" href="#complaint-closure" role="tab">
-                                        <i class="mdi mdi-email-fast-outline"></i> Client Comms
+                                    <a class="crm-tab-link {{ $activeTab == 'resolution' ? 'active' : '' }}"
+                                        wire:click="switchTab('resolution')" href="#complaint-resolution" role="tab">
+                                        <i class="mdi mdi-briefcase-search-outline"></i> Resolution
                                     </a>
                                 </li>
                             @endif
@@ -528,23 +580,16 @@
                             <div class="tab-pane fade show active p-3" id="complaint-attachments" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintAttachmentsTab::class, ['complaintId' => $complaint->id], 'attachments-' . $complaint->id)
                             </div>
-                        @elseif($activeTab == 'investigation')
-                            <div class="tab-pane fade show active p-3" id="complaint-investigation" role="tabpanel">
-                                @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintInvestigationTab::class, ['complaintId' => $complaint->id], 'investigation-' . $complaint->id)
-                            </div>
-                        @elseif($activeTab == 'capa')
-                            <div class="tab-pane fade show active p-3" id="complaint-capa" role="tabpanel">
-                                @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintCapaTab::class, ['complaintId' => $complaint->id], 'capa-' . $complaint->id)
-                            </div>
-                        @elseif($activeTab == 'closure')
-                            <div class="tab-pane fade show active p-3" id="complaint-closure" role="tabpanel">
-                                @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintClosureTab::class, ['complaintId' => $complaint->id], 'closure-' . $complaint->id)
+                        @elseif($activeTab == 'resolution')
+                            <div class="tab-pane fade show active p-3" id="complaint-resolution" role="tabpanel">
+                                @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintInvestigationTab::class, ['complaintId' => $complaint->id], 'resolution-' . $complaint->id)
                             </div>
                         @elseif($activeTab == 'workflow')
-                            @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintWorkflowTab::class, ['complaintId' => $complaint->id, 'viewMode' => 'tab'], 'workflow-tab-' . $complaint->id)
+                            <div class="tab-pane fade show active p-3" id="complaint-workflow" role="tabpanel">
+                                @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintWorkflowTab::class, ['complaintId' => $complaint->id, 'viewMode' => 'tab'], 'workflow-tab-' . $complaint->id)
+                            </div>
                         @endif
                     </div>
-                </div>
                 </div>
             </div>
         </div>

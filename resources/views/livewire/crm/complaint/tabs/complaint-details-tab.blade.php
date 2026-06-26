@@ -1,6 +1,6 @@
 <div>
     <div class="row mb-3">
-        <div class="col-md-12">
+        <div class="col-md-12 d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
                 <span class="mr-2 d-flex align-items-center justify-content-center rounded"
                     style="width:28px;height:28px;background:#fef3c7;">
@@ -12,11 +12,23 @@
                         classification &amp; registration info</small>
                 </div>
             </div>
+            
+            @php $nxt = $this->parent?->nextAction ?? null; @endphp
+            @if($nxt && !$complaint->is_closed)
+                <div class="ml-auto">
+                    <button class="btn btn-primary px-4 py-2 d-flex align-items-center shadow-sm" 
+                        wire:click="$parent.triggerNextAction"
+                        style="border-radius:6px; font-weight: 600; background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); border: none;">
+                        <i class="mdi {{ $nxt['icon'] }} mr-2" style="font-size: 1.15rem;"></i> 
+                        {{ $nxt['label'] }}
+                    </button>
+                </div>
+            @endif
         </div>
     </div>
     <div class="row">
         <div class="col-md-6">
-            <x-crm.data-table plain-rows>
+            <x-crm.data-table>
                 <x-slot:header>
                     <tr>
                         <th>Detail</th>
@@ -93,9 +105,23 @@
                 </tr>
                 <tr>
                     <th style="width:35%;background:#f8fafc;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;">Status:</th>
-                    <td><span class="crm-badge crm-badge-primary">
-                        {{ $complaint->complaint_workflow == 1 ? 'Stage 1: Intake & Triage' : 'Stage ' . $complaint->complaint_workflow . ': ' . $workflowStage }}
-                    </span></td>
+                    <td>
+                        @php
+                            $stages = getComplaintWorkflow();
+                            $stageName = $stages[$complaint->complaint_workflow] ?? 'Unknown Stage';
+                            $badgeClass = match((int)$complaint->complaint_workflow) {
+                                1 => 'crm-badge-primary',
+                                2 => 'crm-badge-info',
+                                4 => 'crm-badge-warning',
+                                5 => 'crm-badge-success',
+                                6 => 'crm-badge-danger',
+                                default => 'crm-badge-secondary'
+                            };
+                        @endphp
+                        <span class="crm-badge {{ $badgeClass }}">
+                            {{ $stageName }}
+                        </span>
+                    </td>
                 </tr>
                 @if($complaint->intakeApprovedBy)
                 <tr>
@@ -126,14 +152,10 @@
                 @endif
                 @if($workflowStage == 'Closed Complaints' || $complaint->closure_recipient_emails || $complaint->closure_sent_at)
                     <tr>
-                        <th colspan="2"
-                            style="background:#f8fbf9; color:#1a6b3a; padding:12px 15px; border-top:2px solid #28a745; border-bottom:1px solid #e9ecef;">
+                        <th colspan="2" class="crm-closure-section-header">
                             <div class="d-flex align-items-center">
-                                <i class="mdi mdi-checkbox-marked-circle-outline mr-2 text-success"
-                                    style="font-size: 1.2rem;"></i>
-                                <span class="font-weight-bold"
-                                    style="letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem;">Closure
-                                    Information</span>
+                                <i class="mdi mdi-checkbox-marked-circle-outline mr-2" style="font-size: 1.2rem;"></i>
+                                <span class="font-weight-bold" style="letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem;">Closure Information</span>
                             </div>
                         </th>
                     </tr>

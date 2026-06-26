@@ -22,7 +22,7 @@
                 'icon' => null
               ),
             array(
-                'link'=>route('crm.complaints-manager',['stage'=>$workflow_stage]),
+                'link'=>route('complaint-workflow',['stage'=>$workflow_stage]),
                 'name'=>$workflow_stage,
                 'icon'=>null
             ),
@@ -35,6 +35,11 @@
     
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
+    @if($complaint->is_feedback_related && $complaint->feedback)
+    <div class="alert alert-info" role="alert">
+        <i class="mdi mdi-information-outline"></i> This complaint originated from Feedback #{{ $complaint->feedback->id }} on {{ $complaint->feedback->submitted_at ? $complaint->feedback->submitted_at->format('d M Y') : 'N/A' }}.
+    </div>
+    @endif
     <h3 class="p-4">
         <i class="mdi mdi-comment-alert"></i>{{$workflow_stage}}<br>
         @if($workflow_stage == "Log & Intake")

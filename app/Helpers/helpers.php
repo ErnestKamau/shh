@@ -650,33 +650,55 @@ function getSampleWorkflowStageLabel($stage)
 
 	return $labels[$stage] ?? $stage;
 }
+function getVisibleComplaintWorkflowMap()
+{
+        return array(
+                "Open Complaint" => 1,
+                "Complaint Resolution" => 2,
+                "Resolution Approval" => 4,
+                "Closed Complaint" => 5,
+                "Cancelled" => 6,
+        );
+}
+function getComplaintWorkflowMenuItems()
+{
+        return array("All Complaints" => 0) + getVisibleComplaintWorkflowMap();
+}
+function getComplaintWorkflowNextStageMap()
+{
+        return array(
+                1 => 2,
+                2 => 4,
+                4 => 5,
+        );
+}
+function getComplaintWorkflowPreviousStageMap()
+{
+        return array(
+                2 => 1,
+                4 => 2,
+                5 => 4,
+        );
+}
 function getComplaintWorkflowStages()
 {
-	return array("All Complaints", "Open Complaints", "Complaints Approval", "Complaints Resolution", "Resolution Approval", "Closed Complaints", "Cancelled Complaints");
+        return array_keys(getComplaintWorkflowMenuItems());
 }
 function getComplaintsWorkFlowValues()
 {
-	return array(
-		"All Complaints" => 0,
-		"Open Complaints" => 1,
-		"Complaints Approval" => 2,
-		"Complaints Resolution" => 3,
-		"Resolution Approval" => 4,
-		"Closed Complaints" => 5,
-		"Cancelled Complaints" => 6
-	);
+        return getComplaintWorkflowMenuItems();
 }
 function getComplaintWorkflow()
 {
-	return array(
-		0 => "All Complaints",
-		1 => "Open Complaints",
-		2 => "Complaints Approval",
-		3 => "Complaints Resolution",
-		4 => "Resolution Approval",
-		5 => "Closed Complaints",
-		6 => "Cancelled Complaints"
-	);
+        return array(
+                0 => "All Complaints",
+                1 => "Open Complaint",
+                2 => "Complaint Resolution",
+                3 => "Complaint Verification (Removed)",
+                4 => "Resolution Approval",
+                5 => "Closed Complaint",
+                6 => "Cancelled"
+        );
 }
 
 function getComplaintWorkflowStageTranslationKey(string $stage): ?string
@@ -689,6 +711,10 @@ function getComplaintWorkflowStageTranslationKey(string $stage): ?string
 		"Resolution Approval" => 'complaint_stage_resolution_approval',
 		"Closed Complaints" => 'complaint_stage_closed_complaints',
 		"Cancelled Complaints" => 'complaint_stage_cancelled_complaints',
+		"Open Complaint" => 'complaint_stage_open_complaints',
+		"Complaint Resolution" => 'complaint_stage_complaints_resolution',
+		"Closed Complaint" => 'complaint_stage_closed_complaints',
+		"Cancelled" => 'complaint_stage_cancelled_complaints',
 		"Log & Intake" => 'complaint_stage_log_intake',
 		"Active Investigations" => 'complaint_stage_active_investigations',
 		"Pending Closure" => 'complaint_stage_pending_closure',
@@ -713,12 +739,12 @@ function translateComplaintWorkflowStage(string $stage): string
 
 function getComplaintsActionsApproval()
 {
-	return array(
-		1 => "Request Complaints Approval",
-		2 => "Approve Compliant",
-		3 => "Request Resolution Approval",
-		4 => "Approve Resolution"
-	);
+        return array(
+                1 => "Approve Complaint & Move to Resolution",
+                2 => "Approve Resolution & Move to Approval",
+                // 3 => "Approve Verification & Move to Pending Closure",
+                4 => "Final Review & Close Complaint"
+        );
 }
 
 function mamboSawa($licenseType = false)
@@ -751,10 +777,12 @@ function getAllComplaints()
 }
 function getComplaintActionReverse()
 {
-	return array(
-		2 => "Return complaint to open complaints",
-		4 => "Return resolution to complaints resolution"
-	);
+        return array(
+                2 => "Return to Open Complaint",
+                // 3 => "Return to Investigation Stage",
+                4 => "Return to Resolution Stage",
+                5 => "Return for Final Review"
+        );
 }
 function getComplaintById($id)
 {

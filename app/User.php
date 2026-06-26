@@ -20,10 +20,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Auth\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Casts\SafeEncrypted;
 
 class User extends Authenticatable implements Auditable
 {
@@ -77,16 +79,16 @@ class User extends Authenticatable implements Auditable
 		'date_of_gazzette' => 'date',
 		'gazzette_no' => 'string',
 		'start_of_career' => 'datetime',
-		'phone' => 'encrypted',
-		'gender' => 'encrypted',
-		'designation' => 'encrypted',
-		'date_of_birth' => 'encrypted',
-		'id_number' => 'encrypted',
-		'first_name' => 'encrypted',
-		'middle_name' => 'encrypted',
-		'last_name' => 'encrypted',
-		'two_factor_secret' => 'encrypted',
-		'two_factor_recovery_codes' => 'encrypted',
+		'phone' => SafeEncrypted::class,
+		'gender' => SafeEncrypted::class,
+		'designation' => SafeEncrypted::class,
+		'date_of_birth' => SafeEncrypted::class,
+		'id_number' => SafeEncrypted::class,
+		'first_name' => SafeEncrypted::class,
+		'middle_name' => SafeEncrypted::class,
+		'last_name' => SafeEncrypted::class,
+		'two_factor_secret' => SafeEncrypted::class,
+		'two_factor_recovery_codes' => SafeEncrypted::class,
 		'client_id' => 'string',
 		'crm_contact_id' => 'string',
 		'crmcontact_id' => 'string',
@@ -474,5 +476,132 @@ class User extends Authenticatable implements Auditable
 				}
 			})
 			->update(['active' => 0]);
+	}
+
+	public function check_permission($role)
+	{
+		// 1. Spatie Standard Permission & Admin Fallback
+		try {
+			if ($this->isSystemAdmin()) {
+				return true;
+			}
+			$permissionString = is_array($role) ? implode('.', $role) : (string)$role;
+			if ($this->spatieHasPermissionTo($permissionString)) {
+				return true;
+			}
+		} catch (\Throwable $e) {
+			// Ignore spatie exceptions if permission or guard doesn't exist
+		}
+
+		if (!is_array($role)) {
+			return false;
+		}
+
+		// 2. Session-based Nested Permission Check (with Case-Insensitivity & implicit 'components' fallback)
+		$permissions = Session::get('permissions');
+		if (is_array($permissions)) {
+			// Helper to get nested value case-insensitively
+			$getNested = function ($array, array $keys) use (&$getNested) {
+				$current = $array;
+				foreach ($keys as $key) {
+					if (!is_array($current)) {
+						return null;
+					}
+					$found = false;
+					foreach ($current as $k => $val) {
+						if (strtolower((string)$k) === strtolower((string)$key)) {
+							$current = $val;
+							$found = true;
+							break;
+						}
+					}
+					if (!$found) {
+						return null;
+					}
+				}
+				return $current;
+			};
+
+			// Try direct case-insensitive lookup
+			$val = $getNested($permissions, $role);
+			if ($val !== null && strtolower(trim((string)$val)) === 'true') {
+				return true;
+			}
+
+			// Try with implicit 'components' inserted after the category (e.g. ['crm', 'components', 'complaints', 'view'])
+			if (count($role) >= 2) {
+				$insertedRole = $role;
+				array_splice($insertedRole, 1, 0, ['components']);
+				$val = $getNested($permissions, $insertedRole);
+				if ($val !== null && strtolower(trim((string)$val)) === 'true') {
+					return true;
+				}
+			}
+
+			// Try mapping new ISO-compliant section names to legacy names for backward compatibility (Aliases)
+			// --- Permission Aliasing for Complaint Workflow Redesign ---
+			$aliases = [
+				'Open Complaint'                => ['Open Complaints', 'Open Complaint'],
+				'Open Complaints'               => ['Open Complaint', 'Open Complaints'],
+
+				'Complaint Investigation'       => ['Complaints Approval', 'Complaints Resolution', 'Complaint Resolution', 'Complaint Investigation'],
+				'Complaints Approval'           => ['Complaint Investigation', 'Complaints Resolution', 'Complaint Resolution', 'Complaints Approval'],
+				'Complaints Resolution'         => ['Complaint Investigation', 'Complaints Approval', 'Complaint Resolution', 'Complaints Resolution'],
+				'Complaint Resolution'          => ['Complaint Investigation', 'Complaints Approval', 'Complaint Resolution', 'Complaint Resolution'],
+
+				'Complaint Verification'        => ['Resolution Approval', 'Resolution Approval', 'Complaint Pending Closure', 'Complaint Verification'],
+				'Complaint Pending Closure'     => ['Resolution Approval', 'Resolution Approval', 'Complaint Verification', 'Complaint Pending Closure'],
+				'Resolution Approval'           => ['Complaint Verification', 'Complaint Pending Closure', 'Resolution Approval', 'Resolution Approval'],
+
+				'Closed Complaint'              => ['Closed Complaints', 'Closed Complaint'],
+				'Closed Complaints'             => ['Closed Complaint', 'Closed Complaints'],
+
+				'Cancelled'                     => ['Cancelled Complaints', 'Cancelled'],
+				'Cancelled Complaints'          => ['Cancelled', 'Cancelled Complaints'],
+			];
+
+			$category = $role[0] ?? null;
+			$component = null;
+			$action = null;
+
+			if (count($role) === 3) {
+				$component = $role[1];
+				$action = $role[2];
+			} elseif (count($role) >= 4) {
+				$component = $role[2];
+				$action = $role[3];
+			}
+
+			if ($category && strtolower($category) === 'crm' && $component && $action && isset($aliases[$component])) {
+				$aliasTargets = (array) $aliases[$component];
+				foreach ($aliasTargets as $target) {
+					// Check target with components group
+					$testRoleWithGroup = [$category, 'components', $target, $action];
+					$val = $getNested($permissions, $testRoleWithGroup);
+					if ($val !== null && strtolower(trim((string)$val)) === 'true') {
+						Log::info("Permission matched on CRM alias target with group: " . $target);
+						return true;
+					}
+
+					// Check target without components group
+					$testRoleWithoutGroup = [$category, $target, $action];
+					$val = $getNested($permissions, $testRoleWithoutGroup);
+					if ($val !== null && strtolower(trim((string)$val)) === 'true') {
+						Log::info("Permission matched on CRM alias target: " . $target);
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public function getSignaturePath(): ?string
+	{
+		if (empty($this->electronic_sig)) {
+			return null;
+		}
+		return getCoaApproverSignature($this->electronic_sig);
 	}
 }

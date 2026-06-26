@@ -5,6 +5,7 @@ namespace App\Livewire\Crm\Complaint;
 use App\Models\CRM\Complaint;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\Complaint_Type;
+use App\Models\CRM\CustomerFeedback;
 use App\Models\CRM\Chain_of_Custody_Complaint;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
@@ -18,6 +19,7 @@ class ComplaintForm extends BaseCrmComponent
 {
     public $complaintId = null;
     public $customerId = null;
+    public $feedback_id = null;
     public $description = '';
     public $priority = '';
     public $type = '';
@@ -37,29 +39,51 @@ class ComplaintForm extends BaseCrmComponent
     public $contacts = [];
     public $samples = [];
     public $serial_nos = [];
-    public $organizationSearch = '';
-    public $showOrganizationDropdown = false;
-    public $contactSearch = '';
-    public $showContactDropdown = false;
-    public $deliveryModeSearch = '';
-    public $showDeliveryModeDropdown = false;
-    public $typeSearch = '';
-    public $showTypeDropdown = false;
-    public $prioritySearch = '';
-    public $showPriorityDropdown = false;
-    public $testItemSearch = '';
-    public $showTestItemDropdown = false;
-    public $serialSearch = '';
-    public $showSerialDropdown = false;
+    public $isStandalone = false;
 
     public function mount($complaintId = null, $customerId = null)
     {
         $this->initialize();
+        $this->isStandalone = \Illuminate\Support\Facades\Route::currentRouteName() === 'complaint-create';
         $this->customerId = $customerId;
         $this->customers = CRMCustomer::where('company_id', $this->getUserCompany())->orderBy('name')->get();
         $this->complaint_types = Complaint_Type::all();
         $this->date = date('Y-m-d');
-        
+
+        // Check for feedback_id to link complaint and auto-fill form data
+        $feedbackId = request()->query('feedback_id');
+        if ($feedbackId) {
+            $this->feedback_id = $feedbackId;
+            $feedback = CustomerFeedback::with(['customer', 'contact'])->find($feedbackId);
+            if ($feedback) {
+                // 1. Customer / Organization
+                if ($feedback->customer) {
+                    $this->customerId        = $feedback->customer->id;
+                    $this->organization_name = $feedback->customer->name;
+                }
+
+                // 2. Contact (store ID so the Select2 dropdown pre-selects it)
+                if ($feedback->contact_id) {
+                    $this->contact_name   = $feedback->contact_id;
+                    $this->title_position = optional($feedback->contact)->job_occupation ?? '';
+                }
+
+                // 3. Mode of delivery — always "Customer Feedback Survey" when raised from feedback
+                $this->mode_of_delivery = ['Customer Feedback Survey'];
+
+                // 4. Description — use the reported issue text as the starting complaint detail
+                if (!empty($feedback->issue_description)) {
+                    $this->description = $feedback->issue_description;
+                }
+
+                // 5. Keep received_from_type as Customer
+                $this->received_from_type = 'Customer';
+
+                // 6. Populate contacts & samples dropdowns for the pre-selected customer
+                $this->loadDynamicData();
+            }
+        }
+
         if ($complaintId) {
             $this->loadComplaint($complaintId);
         } elseif ($customerId) {
@@ -89,9 +113,8 @@ class ComplaintForm extends BaseCrmComponent
 
         if ($customer) {
             $this->customerId = $customer->id;
-            $this->contacts = \App\Models\CRM\CustomerContact::query()
-                ->where('crm_customer_id', $customer->id)
-                ->where('active', true)
+            $this->contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $customer->id)
+                ->where('active', 1)
                 ->get();
 
             // Auto-select if ONLY one contact exists
@@ -102,350 +125,19 @@ class ComplaintForm extends BaseCrmComponent
             }
             
             // Fetch unique SampleTypes for this customer from their orders
-            $this->samples = SampleType::join('sample_headers', 'sample_headers.sample_type_id', '=', 'sample_types.id')
-                ->where('sample_headers.crm_customer_id', $customer->id)
-                ->select('sample_types.id', 'sample_types.name')
+            $sampleTypeIds = SampleHeader::query()
+                ->where('crm_customer_id', $customer->id)
+                ->whereNotNull('sample_type_id')
+                ->where('sample_type_id', '!=', '')
                 ->distinct()
+                ->pluck('sample_type_id')
+                ->toArray();
+
+            $this->samples = SampleType::query()
+                ->whereIn('id', $sampleTypeIds)
+                ->select('id', 'name')
                 ->get();
         }
-    }
-
-    public function getSelectedOrganizationProperty()
-    {
-        if (empty($this->organization_name)) {
-            return null;
-        }
-
-        return collect($this->customers)->first(function ($customer) {
-            return $customer->name === $this->organization_name;
-        });
-    }
-
-    public function getFilteredOrganizationOptionsProperty()
-    {
-        $search = strtolower(trim($this->organizationSearch));
-
-        return collect($this->customers)
-            ->filter(function ($customer) use ($search) {
-                if ($customer->name === $this->organization_name) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($customer->name), $search);
-            })
-            ->values();
-    }
-
-    public function selectOrganization(string $customerId): void
-    {
-        $customer = CRMCustomer::query()
-            ->where('company_id', $this->getUserCompany())
-            ->find($customerId);
-
-        if ($customer === null) {
-            return;
-        }
-
-        $this->customerId = $customer->id;
-        $this->organization_name = $customer->name;
-        $this->organizationSearch = '';
-        $this->showOrganizationDropdown = false;
-        $this->contact_name = '';
-        $this->contactSearch = '';
-        $this->title_position = '';
-        $this->loadDynamicData();
-    }
-
-    public function clearOrganization()
-    {
-        $this->organization_name = '';
-        $this->organizationSearch = '';
-        $this->showOrganizationDropdown = false;
-        $this->customerId = null;
-        $this->contacts = [];
-        $this->samples = [];
-        $this->contact_name = '';
-        $this->title_position = '';
-    }
-
-    public function getSelectedContactProperty()
-    {
-        if ($this->contact_name === '' || $this->contact_name === null) {
-            return null;
-        }
-
-        return collect($this->contacts)->first(function ($contact) {
-            return (string) $contact->id === (string) $this->contact_name;
-        });
-    }
-
-    public function getFilteredContactOptionsProperty()
-    {
-        $search = strtolower(trim($this->contactSearch));
-
-        return collect($this->contacts)
-            ->filter(function ($contact) use ($search) {
-                if ($search === '') {
-                    return true;
-                }
-
-                $name = strtolower(trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')));
-
-                return str_contains($name, $search);
-            })
-            ->values();
-    }
-
-    public function selectContact($id)
-    {
-        $this->contact_name = (string) $id;
-        $this->contactSearch = '';
-        $this->showContactDropdown = false;
-        $this->syncContactTitle($this->contact_name);
-    }
-
-    public function clearContact()
-    {
-        $this->contact_name = '';
-        $this->contactSearch = '';
-        $this->showContactDropdown = false;
-        $this->title_position = '';
-    }
-
-    public function getDeliveryModeOptionsProperty()
-    {
-        return ['Phone', 'E-mail', 'Fax', 'Verbal/Meeting', 'Other'];
-    }
-
-    public function getSelectedDeliveryModesProperty()
-    {
-        $selected = collect($this->mode_of_delivery)->map('strval')->all();
-        return collect($this->deliveryModeOptions)->filter(fn($mode) => in_array((string) $mode, $selected, true))->values();
-    }
-
-    public function getFilteredDeliveryModeOptionsProperty()
-    {
-        $search = strtolower(trim($this->deliveryModeSearch));
-        $selected = collect($this->mode_of_delivery)->map('strval')->all();
-
-        return collect($this->deliveryModeOptions)
-            ->filter(function ($mode) use ($search, $selected) {
-                if (in_array((string) $mode, $selected, true)) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($mode), $search);
-            })
-            ->values();
-    }
-
-    public function toggleDeliveryMode($mode)
-    {
-        $mode = (string) $mode;
-        $selected = collect($this->mode_of_delivery)->map('strval')->all();
-
-        if (in_array($mode, $selected, true)) {
-            $this->mode_of_delivery = array_values(array_filter($selected, fn($item) => $item !== $mode));
-        } else {
-            $selected[] = $mode;
-            $this->mode_of_delivery = array_values(array_unique($selected));
-        }
-
-        $this->deliveryModeSearch = '';
-        $this->showDeliveryModeDropdown = true;
-    }
-
-    public function removeDeliveryMode($mode)
-    {
-        $mode = (string) $mode;
-        $this->mode_of_delivery = array_values(array_filter(
-            collect($this->mode_of_delivery)->map('strval')->all(),
-            fn($item) => $item !== $mode
-        ));
-    }
-
-    public function clearDeliveryModes()
-    {
-        $this->mode_of_delivery = [];
-        $this->deliveryModeSearch = '';
-        $this->showDeliveryModeDropdown = false;
-    }
-
-    public function getSelectedComplaintTypeProperty()
-    {
-        return $this->type ?: null;
-    }
-
-    public function getFilteredComplaintTypeOptionsProperty()
-    {
-        $search = strtolower(trim($this->typeSearch));
-
-        return collect($this->complaint_types)
-            ->map(fn($item) => $item->name)
-            ->filter(function ($name) use ($search) {
-                if ($name === $this->type) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($name), $search);
-            })
-            ->values();
-    }
-
-    public function selectComplaintType($value)
-    {
-        $this->type = $value;
-        $this->typeSearch = '';
-        $this->showTypeDropdown = false;
-    }
-
-    public function clearComplaintType()
-    {
-        $this->type = '';
-        $this->typeSearch = '';
-        $this->showTypeDropdown = false;
-    }
-
-    public function getPriorityOptionsProperty()
-    {
-        return ['High', 'Medium', 'Low'];
-    }
-
-    public function getSelectedPriorityProperty()
-    {
-        return $this->priority ?: null;
-    }
-
-    public function getFilteredPriorityOptionsProperty()
-    {
-        $search = strtolower(trim($this->prioritySearch));
-
-        return collect($this->priorityOptions)
-            ->filter(function ($item) use ($search) {
-                if ($item === $this->priority) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($item), $search);
-            })
-            ->values();
-    }
-
-    public function selectPriority($value)
-    {
-        $this->priority = $value;
-        $this->prioritySearch = '';
-        $this->showPriorityDropdown = false;
-    }
-
-    public function clearPriority()
-    {
-        $this->priority = '';
-        $this->prioritySearch = '';
-        $this->showPriorityDropdown = false;
-    }
-
-    public function getSelectedTestItemProperty()
-    {
-        if (empty($this->test_item) || !is_numeric($this->test_item)) {
-            return null;
-        }
-
-        return collect($this->samples)->first(function ($sample) {
-            return (string) $sample->id === (string) $this->test_item;
-        });
-    }
-
-    public function getFilteredTestItemOptionsProperty()
-    {
-        $search = strtolower(trim($this->testItemSearch));
-
-        return collect($this->samples)
-            ->filter(function ($sample) use ($search) {
-                if ((string) $sample->id === (string) $this->test_item) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($sample->name), $search);
-            })
-            ->values();
-    }
-
-    public function selectTestItem($id)
-    {
-        $this->test_item = (string) $id;
-        $this->testItemSearch = '';
-        $this->showTestItemDropdown = false;
-        $this->updatedTestItem($this->test_item);
-    }
-
-    public function clearTestItem()
-    {
-        $this->test_item = '';
-        $this->testItemSearch = '';
-        $this->showTestItemDropdown = false;
-        $this->report_serial_no = '';
-        $this->serial_nos = [];
-    }
-
-    public function getSelectedSerialProperty()
-    {
-        return $this->report_serial_no ?: null;
-    }
-
-    public function getFilteredSerialOptionsProperty()
-    {
-        $search = strtolower(trim($this->serialSearch));
-        $options = collect($this->serial_nos)->values();
-
-        return $options
-            ->filter(function ($batchCode) use ($search) {
-                $batchCode = (string) $batchCode;
-                if ($batchCode === (string) $this->report_serial_no) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($batchCode), $search);
-            })
-            ->values();
-    }
-
-    public function selectSerial($value)
-    {
-        $this->report_serial_no = (string) $value;
-        $this->serialSearch = '';
-        $this->showSerialDropdown = false;
-    }
-
-    public function clearSerial()
-    {
-        $this->report_serial_no = '';
-        $this->serialSearch = '';
-        $this->showSerialDropdown = false;
     }
 
     public function updated($name, $value)
@@ -469,39 +161,39 @@ class ComplaintForm extends BaseCrmComponent
         $this->syncContactTitle($value);
     }
 
-    protected function syncContactTitle($value): void
+    protected function syncContactTitle($value)
     {
-        if ($this->received_from_type !== 'Customer' || $value === '' || $value === null) {
-            $this->title_position = '';
+        if ($this->received_from_type === 'Customer' && $value) {
+            $contact = null;
+            if (is_numeric($value)) {
+                $contact = \App\Models\CRM\CustomerContact::find($value);
+            } else {
+                // Defensive: resolve customerId if it's missing
+                if (!$this->customerId && $this->organization_name) {
+                    $customer = CRMCustomer::where('name', $this->organization_name)->first();
+                    if ($customer) {
+                        $this->customerId = $customer->id;
+                    }
+                }
 
-            return;
-        }
-
-        $contact = \App\Models\CRM\CustomerContact::find($value);
-
-        if ($contact === null) {
-            if (! $this->customerId && $this->organization_name) {
-                $customer = CRMCustomer::where('name', $this->organization_name)->first();
-                if ($customer) {
-                    $this->customerId = $customer->id;
+                if ($this->customerId) {
+                    // Try to find by full name if it's a string (backwards compatibility)
+                    $contact = \App\Models\CRM\CustomerContact::where('crm_customer_id', $this->customerId)
+                        ->where(DB::raw("TRIM(CONCAT_WS(' ', first_name, middle_name, last_name))"), $value)
+                        ->first();
                 }
             }
 
-            if ($this->customerId) {
-                $contact = \App\Models\CRM\CustomerContact::where('crm_customer_id', $this->customerId)
-                    ->where(DB::raw("TRIM(CONCAT_WS(' ', first_name, middle_name, last_name))"), $value)
-                    ->first();
+            if ($contact) {
+                $this->title_position = $contact->job_occupation;
+                // If we matched a string name to an ID, update the model to use the ID
+                if (!is_numeric($value)) {
+                    $this->contact_name = $contact->id;
+                }
             }
+        } else {
+            $this->title_position = '';
         }
-
-        if ($contact !== null) {
-            $this->title_position = $contact->job_occupation ?? '';
-            $this->contact_name = (string) $contact->id;
-
-            return;
-        }
-
-        $this->title_position = '';
     }
 
     public function updatedReceivedFromType($value)
@@ -512,12 +204,6 @@ class ComplaintForm extends BaseCrmComponent
             $this->report_serial_no = '';
             $this->contacts = [];
             $this->samples = [];
-            $this->contactSearch = '';
-            $this->showContactDropdown = false;
-            $this->testItemSearch = '';
-            $this->showTestItemDropdown = false;
-            $this->serialSearch = '';
-            $this->showSerialDropdown = false;
         } else {
             $this->loadDynamicData();
         }
@@ -528,10 +214,6 @@ class ComplaintForm extends BaseCrmComponent
         if (!$value) {
             $this->test_item = '';
             $this->report_serial_no = '';
-            $this->testItemSearch = '';
-            $this->showTestItemDropdown = false;
-            $this->serialSearch = '';
-            $this->showSerialDropdown = false;
         }
     }
 
@@ -550,7 +232,7 @@ class ComplaintForm extends BaseCrmComponent
     #[On('add-complaint')]
     public function resetForm()
     {
-        $this->reset(['complaintId', 'description', 'priority', 'type', 'received_from', 'received_from_type', 'is_lab_related', 'mode_of_delivery', 'nature_of_complaint', 'test_item', 'report_serial_no', 'title_position', 'organization_name', 'contact_name', 'contacts', 'samples', 'serial_nos', 'organizationSearch', 'showOrganizationDropdown', 'contactSearch', 'showContactDropdown', 'deliveryModeSearch', 'showDeliveryModeDropdown', 'typeSearch', 'showTypeDropdown', 'prioritySearch', 'showPriorityDropdown', 'testItemSearch', 'showTestItemDropdown', 'serialSearch', 'showSerialDropdown']);
+        $this->reset(['complaintId', 'description', 'priority', 'type', 'received_from', 'received_from_type', 'is_lab_related', 'mode_of_delivery', 'nature_of_complaint', 'test_item', 'report_serial_no', 'title_position', 'organization_name', 'contact_name', 'contacts', 'samples', 'serial_nos']);
         $this->date = date('Y-m-d');
         $this->received_from_type = 'Customer';
         $this->mode_of_delivery = [];
@@ -629,11 +311,11 @@ class ComplaintForm extends BaseCrmComponent
         $this->validate();
 
         if ($this->complaintId) {
-            $this->checkPermission(\App\Constants\CRM\CrmConstants::PERMISSION_COMPLAINT_EDIT);
+            $this->checkPermission('CRM.components.Complaints.Edit');
             $complaint = Complaint::find($this->complaintId);
             $complaint->edited_by = auth()->user()->name;
         } else {
-            $this->checkPermission(\App\Constants\CRM\CrmConstants::PERMISSION_COMPLAINT_ADD);
+            $this->checkPermission('CRM.components.Open Complaint.Add');
             $complaint = new Complaint();
             
             // Generate complaint ID
@@ -667,27 +349,29 @@ class ComplaintForm extends BaseCrmComponent
         $complaint->title_position = $this->title_position;
         $complaint->organization_name = $this->organization_name;
         
-        // Handle Contact Name conversion from ID to Full Name for storage (IDs may be UUID strings)
-        if ($this->received_from_type === 'Customer' && $this->contact_name !== '' && $this->contact_name !== null) {
+        // Handle Contact Name conversion from ID to Full Name for storage
+        if ($this->received_from_type === 'Customer' && is_numeric($this->contact_name)) {
             $contact = \App\Models\CRM\CustomerContact::find($this->contact_name);
-            $complaint->contact_name = $contact
-                ? trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? ''))
-                : (string) $this->contact_name;
+            $complaint->contact_name = $contact ? ($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name) : $this->contact_name;
         } else {
-            $complaint->contact_name = (string) $this->contact_name;
+            $complaint->contact_name = $this->contact_name;
         }
         
-        if ($this->received_from_type === 'Customer') {
-            if ($this->customerId) {
-                $complaint->client_id = $this->customerId;
-            } else {
-                $customer = CRMCustomer::where('name', $this->organization_name)->first();
-                $complaint->client_id = $customer?->id;
-            }
+        if ($this->customerId) {
+            $complaint->client_id = $this->customerId;
         } else {
-            $complaint->client_id = null;
+             $customer = CRMCustomer::where('name', $this->organization_name)->first();
+             if ($customer) {
+                $complaint->client_id = $customer->id;
+             }
         }
-        
+
+        if ($this->feedback_id) {
+            $complaint->feedback_id = $this->feedback_id;
+            $complaint->is_feedback_related = true;
+            $complaint->origin = 'Customer Feedback Survey';
+        }
+
         $complaint->save();
 
         // Create chain of custody entry
@@ -712,17 +396,33 @@ class ComplaintForm extends BaseCrmComponent
 
         $this->showSuccess($this->complaintId ? 'Complaint edited successfully!' : 'Complaint added successfully!');
         $this->dispatch('complaint-saved');
+        
+        // If loaded as a standalone page route, redirect back to the Open Complaint list
+        if ($this->isStandalone) {
+             return redirect()->route('complaint-workflow', ['stage' => 'Open Complaint']);
+        }
+        
         $this->close();
     }
 
     public function close()
     {
+        if ($this->isStandalone) {
+            // If the form was opened from a feedback record, return to the feedback list
+            if ($this->feedback_id) {
+                return redirect()->route('feedback-home');
+            }
+            return redirect()->route('complaint-workflow', ['stage' => 'Open Complaint']);
+        }
+
         $this->dispatch('complaint-form-closed');
     }
 
     public function render()
     {
-        return view('livewire.crm.complaint.complaint-form');
+        return view('livewire.crm.complaint.complaint-form')
+            ->extends('layouts.crm.layout.app', ['dataTable' => false, 'select2' => true])
+            ->section('content2');
     }
 }
 

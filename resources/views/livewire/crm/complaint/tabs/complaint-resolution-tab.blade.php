@@ -1,267 +1,173 @@
 <div x-data="resolutionTab">
     <style>
-        /* Tab content area — white card with elevation, generous spacing for captions */
+        .select2-container { z-index: 100000 !important; }
+        .select2-dropdown { z-index: 100000 !important; }
+
+        /* Tab content area */
         .resolution-tab-content {
-            border: 1px solid #E5E7EB;
+            border: var(--crm-border);
             border-top: none;
-            border-radius: 0 0 8px 8px;
-            padding: 24px 20px 20px;
+            border-radius: 0 0 var(--crm-radius-md) var(--crm-radius-md);
+            padding: var(--crm-space-5) var(--crm-space-4) var(--crm-space-4);
             background: #fff;
             min-height: 240px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: var(--crm-shadow-card);
         }
 
-        /* Caption text — clear separation from tab row and editor */
+        /* Hint text in tab panes */
         .resolution-tab-content .tab-pane > p.text-muted {
             margin-top: 0;
             margin-bottom: 1rem;
-            padding: 12px 14px;
-            background: #F8FAFC;
-            border-left: 3px solid #3B82F6;
-            border-radius: 0 6px 6px 0;
+            padding: var(--crm-space-3) var(--crm-space-4);
+            background: var(--crm-neutral-50);
+            border-left: 3px solid var(--crm-primary);
+            border-radius: 0 var(--crm-radius-sm) var(--crm-radius-sm) 0;
             line-height: 1.5;
         }
 
-        .resolution-tab-content .tab-pane > p.text-muted + .resolution-editor-wrap {
-            margin-top: 1.25rem;
-        }
-
         .resolution-editor-label {
-            font-size: 1.05rem;
+            font-size: var(--crm-font-section);
             font-weight: 600;
-            color: #1a202c;
+            color: var(--crm-neutral-900);
             margin-bottom: 0.75rem;
             margin-top: 0.5rem;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--crm-space-2);
         }
 
-        /* TinyMCE wrapper spacing & focus glow */
+        /* TinyMCE glow */
         .resolution-editor-wrap .tox-tinymce {
-            border-radius: 6px;
-            border: 1px solid #E5E7EB !important;
+            border-radius: var(--crm-radius-sm);
+            border: var(--crm-border) !important;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-
         .resolution-editor-wrap .tox-tinymce:focus-within {
-            border-color: #3B82F6 !important;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+            border-color: var(--crm-primary) !important;
+            box-shadow: var(--crm-shadow-focus) !important;
         }
 
-        /* Officer field — minimal left-accent, no heavy box */
+        /* Officer field */
         .resolution-officer-wrap {
             background: #fff;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px 8px 0 0;
-            padding: 16px 20px;
+            border: var(--crm-border);
+            border-radius: var(--crm-radius-md) var(--crm-radius-md) 0 0;
+            padding: var(--crm-space-4) var(--crm-space-5);
             margin-bottom: 0;
             border-bottom: none;
         }
-
         .resolution-officer-wrap label {
-            font-size: 0.85rem;
+            font-size: var(--crm-font-muted);
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: #475569;
-            margin-bottom: 8px;
+            color: var(--crm-neutral-600);
+            margin-bottom: var(--crm-space-2);
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
-        /* Modal header — more breathing room */
-        #resolutionModal .modal-header {
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 1rem 1.5rem;
-        }
-
-        #resolutionModal .modal-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #2d3748;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        #resolutionModal .modal-title i {
-            font-size: 1.3rem;
-        }
-
+        /* Resolution modal overrides (align with crm.css) */
         #resolutionModal .modal-body {
-            background: #F8FAFC;
-            padding: 24px 30px 12px !important;
+            background: var(--crm-neutral-50) !important;
+            padding: var(--crm-space-5) var(--crm-space-6) var(--crm-space-3) !important;
         }
 
-        #resolutionModal .modal-footer {
-            background: #f8f9fa;
-            border-top: 1px solid #e2e8f0;
-            padding: 0.75rem 1.75rem;
-        }
-
-        #resolutionModal .btn-primary {
-            transition: background 0.2s, transform 0.15s, box-shadow 0.15s;
-        }
-
-        #resolutionModal .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
-        }
-
-        /* Validation error below hidden tab pane */
+        /* Validation errors */
         .tab-pane .text-danger.small {
             display: block;
             margin-top: 4px;
         }
 
-        /* Resolution Modal Enhancements */
-        .resolution-modal-header {
-            background: #f8f9fa;
-            border-bottom: 2px solid #e2e8f0;
-            padding: 1.25rem 1.5rem;
-        }
-
+        /* Resolution meta bar */
         .resolution-meta-bar {
-            background: #e3f2fd;
-            border-left: 4px solid #4299e1;
-            padding: 12px 16px;
-            border-radius: 8px;
+            background: var(--crm-primary-light);
+            border-left: 4px solid var(--crm-primary);
+            padding: var(--crm-space-3) var(--crm-space-4);
+            border-radius: var(--crm-radius-md);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: var(--crm-space-5);
         }
 
         .res-label {
             text-transform: uppercase;
-            font-size: 0.75rem;
+            font-size: var(--crm-font-muted);
             font-weight: 700;
-            color: #718096;
-            margin-bottom: 4px;
+            color: var(--crm-neutral-500);
+            margin-bottom: var(--crm-space-1);
             display: block;
             letter-spacing: 0.05em;
         }
 
         .res-value {
-            font-size: 0.95rem;
+            font-size: var(--crm-font-body);
             font-weight: 500;
-            color: #2d3748;
+            color: var(--crm-neutral-800);
             word-break: break-word;
         }
 
         .res-section-title {
-            font-size: 0.9rem;
+            font-size: var(--crm-font-body);
             font-weight: 600;
-            color: #4a5568;
-            border-bottom: 1px solid #edf2f7;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
+            color: var(--crm-neutral-600);
+            border-bottom: var(--crm-border);
+            padding-bottom: var(--crm-space-2);
+            margin-bottom: var(--crm-space-3);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--crm-space-2);
         }
-
         .res-section-title i {
             font-size: 1.1rem;
-            color: #4299e1;
+            color: var(--crm-primary);
         }
 
+        /* Read-only doc text boxes */
         .res-text-box {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 12px 16px;
+            background: var(--crm-neutral-50);
+            border: var(--crm-border);
+            border-radius: var(--crm-radius-md);
+            padding: var(--crm-space-3) var(--crm-space-4);
             min-height: 60px;
-            margin-bottom: 20px;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+            margin-bottom: var(--crm-space-5);
         }
+        .res-text-box.accent-green { border-left: 4px solid var(--crm-success); }
+        .res-text-box.accent-blue { border-left: 4px solid var(--crm-primary); }
 
-        .res-text-box.accent-green {
-            border-left: 4px solid #48bb78;
-        }
-
-        .res-text-box.accent-blue {
-            border-left: 4px solid #4299e1;
-        }
-
+        /* Person card */
         .res-person-card {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px;
-            background: #f7fafc;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            gap: var(--crm-space-3);
+            padding: var(--crm-space-3);
+            background: var(--crm-neutral-50);
+            border-radius: var(--crm-radius-md);
+            border: var(--crm-border);
+            margin-bottom: var(--crm-space-5);
         }
-
         .res-avatar-icon {
             width: 36px;
             height: 36px;
-            background: #ebf8ff;
-            color: #3182ce;
+            background: var(--crm-primary-light);
+            color: var(--crm-primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
+            flex-shrink: 0;
         }
-
         .car-number {
             font-family: 'Courier New', Courier, monospace;
             font-weight: 700;
-            color: #2b6cb0;
+            color: var(--crm-primary);
         }
 
-        /* Prevent Bootstrap .tab-content overflow:hidden from creating a stacking context
-           that traps the modal backdrop — Bootstrap sets overflow:hidden on .tab-content by default */
-        .tab-content {
-            overflow: visible !important;
-        }
-
-        .tag-select-container { position: relative; }
-        .tag-select-input {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 6px;
-            min-height: 42px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            background: #fff;
-            padding: 6px 10px;
-        }
-        .selected-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: #e8f1ff;
-            border-radius: 999px;
-            padding: 2px 8px;
-            font-size: 12px;
-            color: #1f2937;
-        }
-        .selected-tag i { cursor: pointer; font-size: 14px; }
-        .tag-input { border: none; outline: none; flex: 1 1 170px; min-width: 120px; }
-        .clear-icon { cursor: pointer; color: #9ca3af; font-size: 18px; }
-        .tag-dropdown {
-            position: absolute;
-            top: calc(100% + 4px);
-            left: 0;
-            right: 0;
-            max-height: 220px;
-            overflow-y: auto;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            background: #fff;
-            z-index: 1070;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-        }
-        .tag-dropdown-item { padding: 8px 10px; cursor: pointer; }
-        .tag-dropdown-item:hover { background: #f3f4f6; }
-        .tag-dropdown-empty { padding: 8px 10px; color: #6b7280; font-size: 13px; }
+        /* Prevent Bootstrap overflow trapping modal backdrops */
+        .tab-content { overflow: visible !important; }
     </style>
 
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -277,11 +183,11 @@
             </div>
         </div>
         <div class="d-flex align-items-center" style="gap:8px;">
-            <button type="button" class="btn btn-outline-success btn-sm text-nowrap crm-outline-btn-sm" wire:click="exportToExcel">
+            <button type="button" class="btn btn-outline-success btn-sm text-nowrap" wire:click="exportToExcel">
                 <i class="mdi mdi-microsoft-excel"></i> Export to Excel
             </button>
-            @if($complaint->complaint_workflow == 3)
-                <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="openResolutionModal">
+            @if($complaint->complaint_workflow == 2)
+                <button type="button" class="btn btn-add btn-sm" wire:click="openResolutionModal">
                     <i class="mdi mdi-plus"></i> Create Resolution
                 </button>
             @endif
@@ -291,37 +197,37 @@
     <div wire:loading wire:target="openResolutionModal,viewResolution,saveResolution" class="crm-loading-indicator">
         <i class="mdi mdi-loading mdi-spin"></i> Loading...
     </div>
-    <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50" plain-rows>
+    <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
-                <th style="min-width:100px;">Actions</th>
                 <th>CAR No</th>
                 <th>Officer Responsible</th>
                 <th>Registered By</th>
                 <th>Date</th>
                 <th>Status</th>
+                <th style="min-width:120px;">Actions</th>
             </tr>
         </x-slot:header>
                     @forelse($resolutions as $index => $res)
                         <tr wire:key="resolution-{{ $res->id }}">
-                            <td nowrap>
-                                <div class="d-flex flex-nowrap">
-                                    <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--view"
-                                        wire:click="viewResolution('{{ $res->id }}')" title="View Resolution">
-                                        <i class="mdi mdi-eye-outline"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit"
-                                        wire:click="openResolutionModal('{{ $res->id }}')" title="Edit Resolution">
-                                        <i class="mdi mdi-pencil-outline"></i>
-                                    </button>
-                                </div>
-                            </td>
                             <td>{{ $res->car_no }}</td>
                             <td>{{ $res->officer_responsible }}</td>
                             <td>{{ $res->registered_by }}</td>
                             <td>{{ $res->created_at->format('Y-m-d H:i') }}</td>
                             <td>
                                 <span class="crm-badge crm-badge-success">Active</span>
+                            </td>
+                            <td nowrap>
+                                <x-crm.action-buttons>
+                                    <button class="btn crm-btn crm-btn-view btn-sm"
+                                        wire:click="viewResolution({{ $res->id }})" title="View Resolution">
+                                        <i class="mdi mdi-eye-outline"></i>
+                                    </button>
+                                    <button class="btn crm-btn crm-btn-edit btn-sm"
+                                        wire:click="openResolutionModal({{ $res->id }})" title="Edit Resolution">
+                                        <i class="mdi mdi-pencil-outline"></i>
+                                    </button>
+                                </x-crm.action-buttons>
                             </td>
                         </tr>
                     @empty
@@ -356,34 +262,13 @@
                     <div class="resolution-officer-wrap">
                         <label><i class="mdi mdi-account-tie mr-1"></i> Officer Responsible <span
                                 class="text-danger">*</span></label>
-                        <div class="tag-select-container" wire:click.outside="$set('showOfficerDropdown', false)">
-                            <div class="tag-select-input">
-                                @forelse($this->selectedOfficers as $officer)
-                                    <span class="selected-tag">
-                                        {{ $officer->name }}
-                                        <i class="mdi mdi-close" wire:click.stop="removeOfficer('{{ $officer->id }}')"></i>
-                                    </span>
-                                @empty
-                                    <span class="text-muted small">No officer selected</span>
-                                @endforelse
-                                <input type="text" class="tag-input" placeholder="Search officer..."
-                                    wire:model.live.debounce.200ms="officerSearch"
-                                    wire:focus="$set('showOfficerDropdown', true)" />
-                                @if(!empty($resolved_by_user_id))
-                                    <i class="mdi mdi-close-circle clear-icon" wire:click="clearOfficers"></i>
-                                @endif
-                            </div>
-                            @if($showOfficerDropdown)
-                                <div class="tag-dropdown">
-                                    @forelse($this->filteredOfficerOptions as $officer)
-                                        <div class="tag-dropdown-item" wire:click="toggleOfficer('{{ $officer->id }}')">
-                                            {{ $officer->name }}
-                                        </div>
-                                    @empty
-                                        <div class="tag-dropdown-empty">No officers found</div>
-                                    @endforelse
-                                </div>
-                            @endif
+                        <div wire:ignore>
+                            <select class="form-control no-select2" id="officer_responsible_select" size="1" multiple
+                                required>
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         @error('resolved_by_user_id') <span class="text-danger small">{{ $message }}</span>
                         @enderror
@@ -661,6 +546,9 @@
         })();
 
         Alpine.data('resolutionTab', () => ({
+            initSelect2() {
+                window.initSelect2('#officer_responsible_select', $wire, 'resolved_by_user_id', 'Select Officer(s)', '#resolutionModal', { multiple: true, closeOnSelect: false });
+            },
             initTinyMCE() {
                 const doInit = function () {
                     if (typeof tinymce === 'undefined') return;
@@ -694,7 +582,7 @@
                                 const val = wireValues[editor.id];
                                 if (val) editor.setContent(val);
                             });
-                            editor.on('change keyup input', function () {
+                            editor.on('blur', function () {
                                 const fid = editor.id;
                                 if (fieldMap[fid]) $wire.set(fieldMap[fid], editor.getContent());
                             });
@@ -741,7 +629,18 @@
                     $("#resolutionModal").one("shown.bs.modal", () => {
                         // Reset to Findings tab on every open
                         $('a[href="#tab-findings"]').tab("show");
+                        this.initSelect2();
                         this.initTinyMCE();
+
+                        let officer = data.officer || (data[0] ? data[0].officer : null);
+                        setTimeout(() => {
+                            if (officer) {
+                                let values = Array.isArray(officer) ? officer : [officer];
+                                $("#officer_responsible_select").val(values).trigger("change");
+                            } else {
+                                $("#officer_responsible_select").val(null).trigger("change");
+                            }
+                        }, 50);
                     });
                 });
 

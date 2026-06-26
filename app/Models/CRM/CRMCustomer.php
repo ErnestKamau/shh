@@ -15,6 +15,7 @@ class CRMCustomer extends Model implements Auditable
 
     protected $keyType = 'string';
     public $incrementing = false;
+    protected $guarded = [];
 
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_customers";

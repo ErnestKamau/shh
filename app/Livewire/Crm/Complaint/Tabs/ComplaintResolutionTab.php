@@ -25,8 +25,6 @@ class ComplaintResolutionTab extends BaseCrmComponent
     public $resolved_by_user_id = '';
     public $users = [];
     public $activeTab = 'findings';
-    public $officerSearch = '';
-    public $showOfficerDropdown = false;
 
     public $selectedResolution;
 
@@ -37,73 +35,6 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $this->complaint = Complaint::findOrFail($complaintId);
         $this->loadResolutions();
         $this->users = getAllUsers();
-        $this->resolved_by_user_id = [];
-    }
-
-    public function getSelectedOfficersProperty()
-    {
-        $selectedIds = collect($this->resolved_by_user_id)->map(fn($id) => (int) $id)->all();
-        if (empty($selectedIds)) {
-            return collect();
-        }
-
-        return collect($this->users)
-            ->filter(fn($user) => in_array((int) $user->id, $selectedIds, true))
-            ->values();
-    }
-
-    public function getFilteredOfficerOptionsProperty()
-    {
-        $search = strtolower(trim($this->officerSearch));
-        $selectedIds = collect($this->resolved_by_user_id)->map(fn($id) => (int) $id)->all();
-
-        return collect($this->users)
-            ->filter(function ($user) use ($search, $selectedIds) {
-                if (in_array((int) $user->id, $selectedIds, true)) {
-                    return false;
-                }
-
-                if ($search === '') {
-                    return true;
-                }
-
-                return str_contains(strtolower($user->name), $search);
-            })
-            ->values();
-    }
-
-    public function toggleOfficer($userId)
-    {
-        $userId = (string) $userId;
-
-        if (in_array($userId, $this->resolved_by_user_id, true)) {
-            $this->resolved_by_user_id = array_values(array_filter(
-                $this->resolved_by_user_id,
-                fn($id) => (string) $id !== $userId
-            ));
-        } else {
-            $this->resolved_by_user_id[] = $userId;
-            $this->resolved_by_user_id = array_values(array_unique(array_map('strval', $this->resolved_by_user_id)));
-        }
-
-        $this->officerSearch = '';
-        $this->showOfficerDropdown = true;
-    }
-
-    public function removeOfficer($userId)
-    {
-        $userId = (string) $userId;
-        $this->resolved_by_user_id = array_values(array_filter(
-            $this->resolved_by_user_id,
-            fn($id) => (string) $id !== $userId
-        ));
-    }
-
-    public function clearOfficers()
-    {
-        $this->resolved_by_user_id = [];
-        $this->officerSearch = '';
-        $this->showOfficerDropdown = false;
     }
 
     public function loadResolutions()
@@ -115,7 +46,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('crm.permission');
+        $this->checkPermission('CRM.permission');
         return (new ComplaintTabExport($this->complaintId, 'resolutions'))->download('complaint_resolutions_' . now()->format('Ymd_His') . '.xlsx');
     }
 
@@ -162,9 +93,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
                 $this->corrective_action = $resolution->corrective_action_taken;
                 $this->preventive_action = $resolution->preventive_action;
                 $this->officer_responsible = $resolution->officer_responsible;
-                $this->resolved_by_user_id = $resolution->resolved_by_user_id ? [(string) $resolution->resolved_by_user_id] : [];
-                $this->officerSearch = '';
-                $this->showOfficerDropdown = false;
+                $this->resolved_by_user_id = $resolution->resolved_by_user_id;
                 
                 // Dispatch with data for editing
                 $this->dispatch('show-resolution-modal', [
@@ -174,7 +103,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
                     'root_cause_analysis' => $this->root_cause_analysis,
                     'corrective_action' => $this->corrective_action,
                     'preventive_action' => $this->preventive_action,
-                    'officer' => $this->resolved_by_user_id,
+                    'officer' => $this->resolved_by_user_id, // Send ID for Select2
                 ]);
                 return;
             }
@@ -189,8 +118,6 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $this->preventive_action = '';
         $this->officer_responsible = '';
         $this->resolved_by_user_id = [];
-        $this->officerSearch = '';
-        $this->showOfficerDropdown = false;
         $this->dispatch('show-resolution-modal', []);
     }
 
@@ -218,18 +145,18 @@ class ComplaintResolutionTab extends BaseCrmComponent
 
         if ($this->editingResolutionId) {
             $resolution = Complaintsresolutions::find($this->editingResolutionId);
-            $resolution->edited_by = auth()->user()->name;
+            $resolution->edited_by = Auth::user()?->name;
         } else {
             $resolution = new Complaintsresolutions();
 
             // Generate CAR number using str_pad
             // Pattern: [COMPLAINT_ID]RES[000X]
             $resolutions_count = Complaintsresolutions::where('complaint_id', $this->complaint->id)->count() + 1;
-            $resolution->car_no = $this->complaint->complaint_id . "RES" . str_pad($resolutions_count, 4, '0', STR_PAD_LEFT);
+            $resolution->car_no = $this->complaint->complaint_id . "CAR" . $resolutions_count;
 
             $resolution->complaint_id = $this->complaint->id;
             $resolution->workflow_stage = $this->complaint->complaint_workflow;
-            $resolution->registered_by = auth()->user()->name;
+            $resolution->registered_by = Auth::user()?->name;
         }
 
         // Concatenate for backward compatibility or leave empty/generic
@@ -252,7 +179,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $chain_custody = new Chain_of_Custody_Complaint();
         $chain_custody->complaint_id = $this->complaint->id;
         $chain_custody->action = $this->editingResolutionId ? "Updated resolution" : CrmConstants::ACTION_CREATE_RESOLUTION;
-        $chain_custody->action_taker_id = auth()->user()->id;
+        $chain_custody->action_taker_id = Auth::id();
         $chain_custody->workflow_stage = getComplaintWorkflow()[$this->complaint->complaint_workflow] ?? $this->complaint->complaint_workflow;
         $chain_custody->save();
 
@@ -261,7 +188,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $this->dispatch('close-resolution-modal');
         $this->dispatch('resolution-saved');
         
-        $this->reset(['editingResolutionId', 'action', 'findings', 'root_cause_analysis', 'corrective_action', 'preventive_action', 'officer_responsible', 'resolved_by_user_id', 'officerSearch', 'showOfficerDropdown']);
+        $this->reset(['editingResolutionId', 'action', 'findings', 'root_cause_analysis', 'corrective_action', 'preventive_action', 'officer_responsible', 'resolved_by_user_id']);
     }
 
     #[On('resolution-saved')]

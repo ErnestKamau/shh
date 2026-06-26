@@ -81,7 +81,7 @@
 				@php
 					$complaintCountBadge = $item === 'All Complaints'
 						? getAllComplaints()
-						: (getComplaintsInWorkflow($loop->iteration - 1) ?? 0);
+						: (getComplaintsInWorkflow(getComplaintWorkflowMenuItems()[$item] ?? 0) ?? 0);
 					$complaintBadgeClass = $item === 'Samples Request Review' ? 'badge-danger' : 'badge-dark';
 				@endphp
 				<a href="{{ route('crm.complaints-manager', ['stage' => $item]) }}" class="list-group-item list-group-item-action crm-sidebar-complaint-stage-link">

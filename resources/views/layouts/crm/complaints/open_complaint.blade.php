@@ -12,7 +12,7 @@
           'icon' => null
         ),
         array(
-          'link' => route('crm.complaints-manager',['stage'=>$stage]),
+          'link' => route('complaint-workflow',['stage'=>$stage]),
           'name' => $stage,
           'icon' => null
         )
