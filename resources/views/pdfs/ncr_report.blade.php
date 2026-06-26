@@ -46,7 +46,7 @@
         .main-report-table td, .main-report-table th {
             padding: 6px 10px;
             vertical-align: top;
-            border: none;
+            border: 1px solid #000;
         }
         .section-header {
             background-color: #f2f2f2;
@@ -184,7 +184,7 @@
             <td colspan="4" class="section-header-no-line">02. PROBLEM STATEMENT</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 50px;">
+            <td colspan="4">
                 {!! html_entity_decode($whys['problem_statement'] ?? 'N/A') !!}
             </td>
         </tr>
@@ -240,24 +240,17 @@
         <tr class="section-row">
             <td colspan="4" class="section-header-no-line">05. CLOSURE & VERIFICATION</td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="20%" class="label" style="padding: 10px;">AUTHORIZED BY:</td>
-                        <td width="25%" style="padding: 10px;"><strong>{{ $complaint->closedBy->name ?? '........' }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                             @php $sigCl = getSig($complaint->closedBy->name ?? null); @endphp
-                            @if($sigCl)
-                                <img src="{{ $sigCl }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 10px;">
-                            DATE: <strong>{{ $complaint->date_closed ? \Carbon\Carbon::parse($complaint->date_closed)->format('d/m/Y') : '........' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">AUTHORIZED BY:</td>
+            <td>
+                <strong>{{ $complaint->closedBy->name ?? '........' }}</strong>
+                @php $sigCl = getSig($complaint->closedBy->name ?? null); @endphp
+                @if($sigCl)
+                    <img src="{{ $sigCl }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $complaint->date_closed ? \Carbon\Carbon::parse($complaint->date_closed)->format('d/m/Y') : '........' }}</strong></td>
         </tr>
     </table>
 

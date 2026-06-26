@@ -46,7 +46,7 @@
         .main-report-table td, .main-report-table th {
             padding: 6px 10px;
             vertical-align: top;
-            border: none;
+            border: 1px solid #000;
         }
         .section-header {
             background-color: #f2f2f2;
@@ -204,7 +204,7 @@
             <td colspan="4" class="sub-header">COMPLAINT DETAILS:</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 80px;">
+            <td colspan="4">
                 {!! $complaint->description !!}
             </td>
         </tr>
@@ -214,33 +214,20 @@
             <td colspan="4" class="section-header-no-line">03. ROOT CAUSE ANALYSIS</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td class="label" style="width: 25%; padding: 8px 10px;">CAUSE OF COMPLAINT:</td>
-                        <td style="padding: 8px 10px;">{!! na($resolution->cause_of_complaint) !!}</td>
-                    </tr>
-                </table>
-            </td>
+            <td class="label">CAUSE OF COMPLAINT:</td>
+            <td colspan="3">{!! na($resolution->cause_of_complaint) !!}</td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="15%" class="label" style="padding: 8px 10px;">INVESTIGATED BY:</td>
-                        <td width="30%" style="padding: 8px 10px;"><strong>{{ na($resolution->root_cause_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigRc = getSig($resolution->root_cause_by); @endphp
-                            @if($sigRc)
-                                <img src="{{ $sigRc }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->root_cause_date ? \Carbon\Carbon::parse($resolution->root_cause_date)->format('d/m/Y') : '........' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">INVESTIGATED BY:</td>
+            <td>
+                <strong>{{ na($resolution->root_cause_by) }}</strong>
+                @php $sigRc = getSig($resolution->root_cause_by); @endphp
+                @if($sigRc)
+                    <img src="{{ $sigRc }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->root_cause_date ? \Carbon\Carbon::parse($resolution->root_cause_date)->format('d/m/Y') : '........' }}</strong></td>
         </tr>
 
         <!-- 04. RESOLUTION & CORRECTIVE ACTIONS -->
@@ -259,56 +246,42 @@
             <td colspan="4" class="sub-header">Immediate Action (Containment):</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 40px;">
+            <td colspan="4">
                 {!! na($resolution->action_taken) !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="15%" class="label" style="padding: 8px 10px;">ACTION BY:</td>
-                        <td width="30%" style="padding: 8px 10px;"><strong>{{ na($resolution->action_taken_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigAt = getSig($resolution->action_taken_by); @endphp
-                            @if($sigAt)
-                                <img src="{{ $sigAt }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->action_taken_date ? \Carbon\Carbon::parse($resolution->action_taken_date)->format('d/m/Y') : '........' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">ACTION BY:</td>
+            <td>
+                <strong>{{ na($resolution->action_taken_by) }}</strong>
+                @php $sigAt = getSig($resolution->action_taken_by); @endphp
+                @if($sigAt)
+                    <img src="{{ $sigAt }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->action_taken_date ? \Carbon\Carbon::parse($resolution->action_taken_date)->format('d/m/Y') : '........' }}</strong></td>
         </tr>
 
         <tr class="section-row">
             <td colspan="4" class="sub-header">Corrective Action (Long-term):</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 40px;">
+            <td colspan="4">
                 {!! na($corrective_action) !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="15%" class="label" style="padding: 8px 10px;">ACTION BY:</td>
-                        <td width="30%" style="padding: 8px 10px;"><strong>{{ na($resolution->corrective_action_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigCa = getSig($resolution->corrective_action_by); @endphp
-                            @if($sigCa)
-                                <img src="{{ $sigCa }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : '........' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">ACTION BY:</td>
+            <td>
+                <strong>{{ na($resolution->corrective_action_by) }}</strong>
+                @php $sigCa = getSig($resolution->corrective_action_by); @endphp
+                @if($sigCa)
+                    <img src="{{ $sigCa }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : '........' }}</strong></td>
         </tr>
 
         <!-- 05. REVIEW & CLOSURE -->
@@ -316,48 +289,35 @@
             <td colspan="4" class="section-header-no-line">05. REVIEW & CLOSURE</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%; border-bottom: 0.5px solid #000;">
-                    <tr>
-                        <td width="25%" class="label" style="padding: 8px 10px; background-color: #fcfcfc;">CLIENT REMARKS:</td>
-                        <td style="padding: 8px 10px;">{!! na($resolution->client_remarks) !!}</td>
-                    </tr>
-                    <tr>
-                        <td width="25%" class="label" style="padding: 8px 10px; background-color: #fcfcfc;">CLOSURE REMARKS:</td>
-                        <td style="padding: 8px 10px;">
-                            @if($complaint->is_approved_for_closure || $complaint->is_closed)
-                                {!! na($resolution->internal_remarks ?: 'Resolution approved and verified.') !!}
-                            @else
-                                <em style="color: #666;">Complaint in progress. Pending final closure review.</em>
-                            @endif
-                        </td>
-                    </tr>
-                </table>
+            <td class="label">CLIENT REMARKS:</td>
+            <td colspan="3">{!! na($resolution->client_remarks) !!}</td>
+        </tr>
+        <tr class="section-row">
+            <td class="label">CLOSURE REMARKS:</td>
+            <td colspan="3">
+                @if($complaint->is_approved_for_closure || $complaint->is_closed)
+                    {!! na($resolution->internal_remarks ?: 'Resolution approved and verified.') !!}
+                @else
+                    <em style="color: #666;">Complaint in progress. Pending final closure review.</em>
+                @endif
             </td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        @php
-                            $closer = $complaint->closedBy;
-                            $closureDate = $complaint->date_closed ?? ($complaint->chainOfCustody()->where('action', 'like', '%Approval Recorded%')->latest()->first()->created_at ?? null);
-                            $closerPosition = $closer ? $closer->position_name() : null;
-                        @endphp
-                        <td width="15%" class="label" style="padding: 12px 10px;">REVIEWED BY:</td>
-                        <td width="30%" style="padding: 12px 10px;"><strong>{{ $closer->name ?? '........' }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigCl = getSig($closer->name ?? null); @endphp
-                            @if($sigCl)
-                                <img src="{{ $sigCl }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 12px 10px;">
-                            DATE: <strong>{{ $closureDate ? \Carbon\Carbon::parse($closureDate)->format('d/m/Y') : '........' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+            @php
+                $closer = $complaint->closedBy;
+                $closureDate = $complaint->date_closed ?? ($complaint->chainOfCustody()->where('action', 'like', '%Approval Recorded%')->latest()->first()->created_at ?? null);
+                $closerPosition = $closer ? $closer->position_name() : null;
+            @endphp
+            <td class="label">REVIEWED BY:</td>
+            <td>
+                <strong>{{ $closer->name ?? '........' }}</strong>
+                @php $sigCl = getSig($closer->name ?? null); @endphp
+                @if($sigCl)
+                    <img src="{{ $sigCl }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $closureDate ? \Carbon\Carbon::parse($closureDate)->format('d/m/Y') : '........' }}</strong></td>
         </tr>
     </table>
 

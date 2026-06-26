@@ -46,7 +46,7 @@
         .main-report-table td, .main-report-table th {
             padding: 6px 10px;
             vertical-align: top;
-            border: none;
+            border: 1px solid #000;
         }
         .section-header {
             background-color: #f2f2f2;
@@ -188,28 +188,21 @@
             <td colspan="4" class="sub-header">DETAILS OF NON-CONFORMANCE:</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 80px;">
+            <td colspan="4">
                {!! $capaRecord->details_of_non_conformance ?? ($resolution->findings ?: 'N/A') !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="20%" class="label" style="padding: 8px 10px;">IDENTIFIED BY:</td>
-                        <td width="25%" style="padding: 8px 10px;"><strong>{{ na($resolution->capa_identified_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigCap = getSig($resolution->capa_identified_by); @endphp
-                            @if($sigCap)
-                                <img src="{{ $sigCap }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->capa_identified_date ? \Carbon\Carbon::parse($resolution->capa_identified_date)->format('d/m/Y') : 'N/A' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">IDENTIFIED BY:</td>
+            <td>
+                <strong>{{ na($resolution->capa_identified_by) }}</strong>
+                @php $sigCap = getSig($resolution->capa_identified_by); @endphp
+                @if($sigCap)
+                    <img src="{{ $sigCap }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->capa_identified_date ? \Carbon\Carbon::parse($resolution->capa_identified_date)->format('d/m/Y') : 'N/A' }}</strong></td>
         </tr>
 
         <!-- SECTION 3: ROOT CAUSE & ACTION PLAN -->
@@ -224,60 +217,46 @@
             <td colspan="4" class="sub-header">IMMEDIATE ACTION TAKEN (CONTAINMENT):</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 40px;">
+            <td colspan="4">
                 {!! na($resolution->action_taken) !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="20%" class="label" style="padding: 8px 10px;">IDENTIFIED BY:</td>
-                        <td width="25%" style="padding: 8px 10px;"><strong>{{ na($resolution->corrective_action_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigRel = getSig($resolution->corrective_action_by); @endphp
-                            @if($sigRel)
-                                <img src="{{ $sigRel }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : 'N/A' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">IDENTIFIED BY:</td>
+            <td>
+                <strong>{{ na($resolution->corrective_action_by) }}</strong>
+                @php $sigRel = getSig($resolution->corrective_action_by); @endphp
+                @if($sigRel)
+                    <img src="{{ $sigRel }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : 'N/A' }}</strong></td>
         </tr>
 
         <tr class="section-row border-top-row">
             <td class="label">ROOT CAUSE SUMMARY:</td>
-            <td colspan="3" style="font-weight: bold; min-height: 40px;">
+            <td colspan="3" style="font-weight: bold;">
                 {!! na($resolution->root_cause_analysis) !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="20%" class="label" style="padding: 8px 10px;">IDENTIFIED BY:</td>
-                        <td width="25%" style="padding: 8px 10px;"><strong>{{ na($resolution->corrective_action_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @if($sigRel)
-                                <img src="{{ $sigRel }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : 'N/A' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">IDENTIFIED BY:</td>
+            <td>
+                <strong>{{ na($resolution->corrective_action_by) }}</strong>
+                @if($sigRel)
+                    <img src="{{ $sigRel }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : 'N/A' }}</strong></td>
         </tr>
 
         <tr class="section-row border-top-row">
             <td colspan="4" class="sub-header">CORRECTIVE ACTION (CA) PLAN:</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 60px;">
+            <td colspan="4">
                 @php
                     $whys = $capaRecord->why_why_analysis ?? [];
                     if (is_string($whys)) $whys = json_decode($whys, true);
@@ -286,23 +265,16 @@
                 {!! $ca !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="20%" class="label" style="padding: 8px 10px;">IDENTIFIED BY:</td>
-                        <td width="25%" style="padding: 8px 10px;"><strong>{{ na($resolution->corrective_action_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @if($sigRel)
-                                <img src="{{ $sigRel }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : 'N/A' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">IDENTIFIED BY:</td>
+            <td>
+                <strong>{{ na($resolution->corrective_action_by) }}</strong>
+                @if($sigRel)
+                    <img src="{{ $sigRel }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $resolution->corrective_action_date ? \Carbon\Carbon::parse($resolution->corrective_action_date)->format('d/m/Y') : 'N/A' }}</strong></td>
         </tr>
 
         <!-- SECTION 4: VERIFICATION OF EFFECTIVENESS -->
@@ -310,29 +282,22 @@
             <td colspan="4" class="section-header-no-line">SECTION 4: VERIFICATION OF EFFECTIVENESS</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="min-height: 60px;">
+            <td colspan="4">
                 <div class="font-bold" style="font-size: 7.5pt; margin-bottom: 5px; color: #555;">VERIFICATION FINDINGS:</div>
                 {!! na($resolution->findings) !!}
             </td>
         </tr>
-        <tr class="section-row border-top-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        <td width="20%" class="label" style="padding: 8px 10px;">VERIFIED BY:</td>
-                        <td width="25%" style="padding: 8px 10px;"><strong>{{ na($capaRecord->effectiveness_verified_by) }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @php $sigV = getSig($capaRecord->effectiveness_verified_by); @endphp
-                            @if($sigV)
-                                <img src="{{ $sigV }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 8px 10px;">
-                            DATE: <strong>{{ $capaRecord->effectiveness_date ? \Carbon\Carbon::parse($capaRecord->effectiveness_date)->format('d/m/Y') : 'N/A' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+        <tr class="section-row">
+            <td class="label">VERIFIED BY:</td>
+            <td>
+                <strong>{{ na($capaRecord->effectiveness_verified_by) }}</strong>
+                @php $sigV = getSig($capaRecord->effectiveness_verified_by); @endphp
+                @if($sigV)
+                    <img src="{{ $sigV }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $capaRecord->effectiveness_date ? \Carbon\Carbon::parse($capaRecord->effectiveness_date)->format('d/m/Y') : 'N/A' }}</strong></td>
         </tr>
 
         <!-- SECTION 5: FINAL CLOSURE & SIGN-OFF -->
@@ -340,26 +305,19 @@
             <td colspan="4" class="section-header-no-line">SECTION 5: FINAL CLOSURE & SIGN-OFF</td>
         </tr>
         <tr class="section-row">
-            <td colspan="4" style="padding: 0;">
-                <table class="no-border" style="width: 100%;">
-                    <tr>
-                        @php
-                            $closer = $complaint->closedBy;
-                            $sigCl = getSig($closer->name ?? null);
-                        @endphp
-                        <td width="20%" class="label" style="padding: 12px 10px;">CLOSED BY:</td>
-                        <td width="25%" style="padding: 12px 10px;"><strong>{{ $closer->name ?? '........' }}</strong></td>
-                        <td width="35%" style="padding: 0;">
-                            @if($sigCl)
-                                <img src="{{ $sigCl }}" class="signature-img">
-                            @endif
-                        </td>
-                        <td width="20%" class="text-right" style="padding: 12px 10px;">
-                            DATE: <strong>{{ $complaint->date_closed ? \Carbon\Carbon::parse($complaint->date_closed)->format('d/m/Y') : '........' }}</strong>
-                        </td>
-                    </tr>
-                </table>
+            @php
+                $closer = $complaint->closedBy;
+                $sigCl = getSig($closer->name ?? null);
+            @endphp
+            <td class="label">CLOSED BY:</td>
+            <td>
+                <strong>{{ $closer->name ?? '........' }}</strong>
+                @if($sigCl)
+                    <img src="{{ $sigCl }}" class="signature-img" style="margin-top: 5px;">
+                @endif
             </td>
+            <td class="label">DATE:</td>
+            <td><strong>{{ $complaint->date_closed ? \Carbon\Carbon::parse($complaint->date_closed)->format('d/m/Y') : '........' }}</strong></td>
         </tr>
     </table>
 
