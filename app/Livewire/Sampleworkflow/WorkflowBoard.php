@@ -786,7 +786,7 @@ class WorkflowBoard extends Component
                 'submittedBy',
                 'batches',
                 'crmCustomer',
-                'sampleSubmissionRequest',
+                'sampleSubmissionRequest.currentQuotation',
                 'testRequestFormInstance',
                 'values.element',
                 'latestIntray.toUser',
@@ -823,6 +823,7 @@ class WorkflowBoard extends Component
                     'submittedBy',
                     'batches.batch_attachments',
                     'crmCustomer',
+                    'sampleSubmissionRequest.currentQuotation',
                     'values.element',
                     'workflowForms',
                     'analysisAcceptanceForms',
@@ -854,6 +855,7 @@ class WorkflowBoard extends Component
                 'submittedBy',
                 'batches',
                 'crmCustomer',
+            'sampleSubmissionRequest.currentQuotation',
             'values.element',
             ])
             ->select('submission_form_instances.*')
@@ -1396,6 +1398,7 @@ class WorkflowBoard extends Component
 
         $query = SampleSubmissionRequest::with([
                 'customer',
+            'currentQuotation',
                 'supportingDocumentTemplates',
                 'supportingDocumentInstances.template',
             'supportingDocumentInstances.values.element',
@@ -1643,6 +1646,20 @@ class WorkflowBoard extends Component
     public function openProcessEnquiryFromInstances(array $ids = []): void
     {
         $this->openProcessEnquiryModal($ids);
+    }
+
+    public function openProcessEnquiryByEnquiryId(string $enquiryId): void
+    {
+        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
+
+        if ($enquiry === null) {
+            session()->flash('error', 'Enquiry not found.');
+
+            return;
+        }
+
+        $this->dispatch('process-enquiry-open', enquiryId: $enquiry->id)
+            ->to(ProcessEnquiryWizard::class);
     }
 
     public function openPoCaptureModal(string $enquiryId): void

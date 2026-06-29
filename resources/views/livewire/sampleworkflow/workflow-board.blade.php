@@ -2338,6 +2338,23 @@
 																		title="View details">
 																		<i class="mdi mdi-eye"></i>
 																	</a>
+																	@php
+																		$enquiryStatus = trim((string) ($instance->sampleSubmissionRequest?->status ?? ''));
+																		$normalizedEnquiryStatus = strtolower($enquiryStatus);
+																		$reviewQuotationId = $instance->sampleSubmissionRequest?->current_quotation_header_id
+																			?? $instance->sampleSubmissionRequest?->currentQuotation?->id
+																			?? $instance->sampleSubmissionRequest?->accepted_quotation_header_id;
+																	@endphp
+																	@if(($normalizedEnquiryStatus === strtolower(\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
+																			|| str_contains($normalizedEnquiryStatus, 'quotation under review'))
+																		&& !empty($reviewQuotationId))
+																		<button type="button"
+																			wire:click="openProcessEnquiryByEnquiryId('{{ $instance->sampleSubmissionRequest->id }}')"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			title="Review quotation">
+																			<i class="mdi mdi-file-document-edit-outline"></i>
+																		</button>
+																	@endif
 																	@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted' && $instance->sampleSubmissionRequest && $instance->sampleSubmissionRequest->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED)
 																		<button type="button"
 																			class="btn btn-sm rm-act-btn rm-act-btn--view"
@@ -2552,6 +2569,14 @@
 															<a href="{{ route('sample-submission-requests.show', $request) }}" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View details">
 																<i class="mdi mdi-eye"></i>
 															</a>
+															@if(($request->status ?? '') === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW && !empty($request->current_quotation_header_id))
+																<button type="button"
+																	wire:click="openProcessEnquiryByEnquiryId('{{ $request->id }}')"
+																	class="btn btn-sm rm-act-btn rm-act-btn--view"
+																	title="Review quotation">
+																	<i class="mdi mdi-file-document-edit-outline"></i>
+																</button>
+															@endif
 														</td>
 														<td>
 															<strong>{{ $request->unique_identification ?? $request->getFormattedNumberAttribute() }}</strong>
