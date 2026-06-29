@@ -16,6 +16,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLog;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
+use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
@@ -163,6 +164,16 @@ class WorkflowBoard extends Component
     public bool $poSkipped = false;
 
     public string $advancePaymentReference = '';
+
+    public string $poRuleType = 'walk_in';
+
+    public bool $poRequiresPo = false;
+
+    public bool $poRequiresAdvanceReference = false;
+
+    public bool $poAllowsSkip = true;
+
+    public string $poRuleMessage = '';
 
 
     /**
@@ -1382,7 +1393,7 @@ class WorkflowBoard extends Component
         ));
 
         return SampleSubmissionRequest::query()
-            ->whereIn('status', $statuses)
+            ->whereIn('status', $statuses, 'and', false)
             ->whereNull('sample_header_id');
     }
 
@@ -1705,9 +1716,15 @@ class WorkflowBoard extends Component
             return;
         }
 
+        $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
+        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
+        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
+        $this->poRequiresAdvanceReference = (bool) ($rules['requires_advance_reference'] ?? false);
+        $this->poAllowsSkip = (bool) ($rules['allows_po_skip'] ?? true);
+        $this->poRuleMessage = $this->resolvePoRuleMessage();
         $this->poCaptureEnquiryId = $enquiryId;
         $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
-        $this->poSkipped = (bool) $enquiry->po_skipped;
+        $this->poSkipped = (bool) ($enquiry->po_skipped && $this->poAllowsSkip);
         $this->advancePaymentReference = (string) ($enquiry->advance_payment_reference ?? '');
         $this->showPoCaptureModal = true;
     }
@@ -1719,6 +1736,11 @@ class WorkflowBoard extends Component
         $this->clientPoNumber = '';
         $this->poSkipped = false;
         $this->advancePaymentReference = '';
+        $this->poRuleType = 'walk_in';
+        $this->poRequiresPo = false;
+        $this->poRequiresAdvanceReference = false;
+        $this->poAllowsSkip = true;
+        $this->poRuleMessage = '';
     }
 
     public function submitPoAndReadyForReception(): void
@@ -1735,6 +1757,15 @@ class WorkflowBoard extends Component
         }
 
         try {
+            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
+                $enquiry->customer,
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                    'po_skipped' => $this->poSkipped,
+                    'advance_payment_reference' => $this->advancePaymentReference,
+                ],
+            );
+
             app(EnquiryReceptionReadinessService::class)->markReadyForReception(
                 $enquiry,
                 (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
@@ -1747,9 +1778,28 @@ class WorkflowBoard extends Component
 
             $this->closePoCaptureModal();
             session()->flash('message', 'PO recorded. Request is ready for physical reception.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
         } catch (Throwable $exception) {
             session()->flash('error', $exception->getMessage());
         }
+    }
+
+    protected function resolvePoRuleMessage(): string
+    {
+        if ($this->poRequiresPo) {
+            return 'This customer account requires a purchase order number before the request can be marked ready.';
+        }
+
+        if ($this->poRequiresAdvanceReference) {
+            return 'This customer account requires an advance payment reference before the request can be marked ready.';
+        }
+
+        if ($this->poAllowsSkip) {
+            return 'This customer may proceed without a PO number.';
+        }
+
+        return '';
     }
 
     /**
@@ -2312,7 +2362,7 @@ class WorkflowBoard extends Component
         // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
         $tatTodayBatches = $this->tatTodayBatches;
 
-        $natureOfSampleOptions = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Nature of Sample')
+        $natureOfSampleOptions = \App\Models\System\SystemConfigurationsType::where('configuration_type', '=', 'Nature of Sample', 'and')
             ->with('configurations')
             ->first()
             ?->configurations

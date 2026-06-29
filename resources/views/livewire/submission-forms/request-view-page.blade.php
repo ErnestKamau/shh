@@ -355,17 +355,29 @@
                         </button>
                     </div>
                     <div class="modal-body">
+                        <div class="alert alert-info py-2 mb-3 small">
+                            {{ $poRuleMessage }}
+                        </div>
                         <div class="form-group">
                             <label for="clientPoNumber">Client PO number</label>
                             <input type="text" id="clientPoNumber" class="form-control" wire:model="clientPoNumber" @disabled($poSkipped)>
+                            @error('client_po_number')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
                         </div>
                         <div class="form-group form-check">
-                            <input type="checkbox" class="form-check-input" id="poSkipped" wire:model.live="poSkipped">
+                            <input type="checkbox" class="form-check-input" id="poSkipped" wire:model.live="poSkipped" @disabled(! $poAllowsSkip)>
                             <label class="form-check-label" for="poSkipped">Skip PO (non-credit / walk-in without PO)</label>
+                            @error('po_skipped')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
                         </div>
                         <div class="form-group mb-0">
                             <label for="advancePaymentReference">Advance payment reference (optional)</label>
                             <input type="text" id="advancePaymentReference" class="form-control" wire:model="advancePaymentReference">
+                            @error('advance_payment_reference')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
                         </div>
                     </div>
                     <div class="modal-footer">

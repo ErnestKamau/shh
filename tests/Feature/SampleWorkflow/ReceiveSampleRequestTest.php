@@ -4,6 +4,7 @@ namespace Tests\Feature\SampleWorkflow;
 
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Livewire\Sampleworkflow\WorkflowBoard;
+use App\Models\CRM\CRMCustomer;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
 use App\Models\SampleSubmissionRequest;
@@ -193,6 +194,44 @@ class ReceiveSampleRequestTest extends TestCase
             ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
             ->call('openReviewQuotationFromInstances', [$instance->id])
             ->assertDispatched('process-enquiry-open');
+    }
+
+    public function test_workflow_board_po_modal_requires_po_number_for_credit_customers(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+        $creditStatus = SystemConfiguration::query()->create([
+            'key' => 'Account holder - credit',
+            'value' => 'Account holder credit',
+            'status' => 1,
+        ]);
+        $customer = CRMCustomer::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Credit Customer',
+            'code' => 'CR-CREDIT',
+            'active' => 1,
+            'account_status' => $creditStatus->id,
+        ]);
+
+        $quotation = QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ260629-002',
+            'quote_date' => now()->toDateString(),
+            'sent_to_customer_at' => now(),
+            'status' => 'Quote Complete',
+        ]);
+
+        $enquiry = $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED, $quotation->id, $customer->id);
+
+        Livewire::actingAs($this->user)
+            ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
+            ->call('openPoCaptureModal', $enquiry->id)
+            ->assertSet('poRequiresPo', true)
+            ->set('clientPoNumber', '')
+            ->call('submitPoAndReadyForReception')
+            ->assertHasErrors(['client_po_number']);
+
+        $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED, $enquiry->fresh()->status);
     }
 
     public function test_walk_in_capture_creates_trfi_with_normalized_form_data(): void
@@ -456,6 +495,7 @@ class ReceiveSampleRequestTest extends TestCase
         SubmissionFormInstance $instance,
         string $status,
         ?string $acceptedQuotationId = null,
+        ?string $crmCustomerId = null,
     ): SampleSubmissionRequest {
         return SampleSubmissionRequest::query()->create([
             'id' => (string) Str::uuid7(),
@@ -464,6 +504,7 @@ class ReceiveSampleRequestTest extends TestCase
             'source_channel' => 'portal',
             'accepted_quotation_header_id' => $acceptedQuotationId,
             'current_quotation_header_id' => $acceptedQuotationId,
+            'crm_customer_id' => $crmCustomerId,
             'quotation_accepted_at' => in_array($status, [
                 SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
                 SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,

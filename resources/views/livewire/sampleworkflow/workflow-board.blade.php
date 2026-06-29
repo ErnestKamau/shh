@@ -6208,17 +6208,29 @@
 						<button type="button" class="close" wire:click="closePoCaptureModal"><span>&times;</span></button>
 					</div>
 					<div class="modal-body">
+							<div class="alert alert-info py-2 mb-3 small">
+							{{ $poRuleMessage }}
+							</div>
 						<div class="form-group">
 							<label>Client PO number</label>
 							<input type="text" class="form-control" wire:model.defer="clientPoNumber">
+								@error('client_po_number')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
 						</div>
 						<div class="form-group">
 							<label>Advance payment reference</label>
 							<input type="text" class="form-control" wire:model.defer="advancePaymentReference">
+								@error('advance_payment_reference')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
 						</div>
 						<div class="form-check">
-							<input type="checkbox" class="form-check-input" id="poSkippedCheck" wire:model="poSkipped">
+								<input type="checkbox" class="form-check-input" id="poSkippedCheck" wire:model="poSkipped" @disabled(! $poAllowsSkip)>
 							<label class="form-check-label" for="poSkippedCheck">PO not required / skipped</label>
+								@error('po_skipped')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
 						</div>
 					</div>
 					<div class="modal-footer">
