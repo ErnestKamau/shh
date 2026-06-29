@@ -7,6 +7,12 @@ use Tests\TestCase;
 
 class TestRequestFormDataMapperTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     private TestRequestFormDataMapper $mapper;
 
     protected function setUp(): void

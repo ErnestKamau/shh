@@ -7,6 +7,12 @@ use PHPUnit\Framework\TestCase;
 
 class TrfSampleFieldMapperTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     private TrfSampleFieldMapper $mapper;
 
     protected function setUp(): void

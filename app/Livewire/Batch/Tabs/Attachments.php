@@ -594,7 +594,7 @@ class Attachments extends Component
 
                 $attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
                     ->resolveOrCreateAttachmentTypeId('Laboratory Analysis Acceptance Form');
-                $title = 'Laboratory Analysis Acceptance Form (GCLA/F/03)';
+                $title = 'Laboratory Analysis Acceptance Form';
 
                 $attachment = BatchAttachment::where('batch_id', $this->batch->id)
                     ->where('title', $title)

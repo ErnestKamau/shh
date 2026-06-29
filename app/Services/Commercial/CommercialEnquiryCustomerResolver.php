@@ -4,10 +4,14 @@ namespace App\Services\Commercial;
 
 use App\Models\CRM\CRMCustomer;
 use App\Models\SampleSubmissionRequest;
-use App\Models\TestRequestFormInstance;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 
 final class CommercialEnquiryCustomerResolver
 {
+    public function __construct(
+        private SubmissionFormValueNormalizer $valueNormalizer,
+    ) {}
+
     public function resolveCustomerId(SampleSubmissionRequest $enquiry): ?string
     {
         if (! empty($enquiry->crm_customer_id)) {
@@ -36,15 +40,14 @@ final class CommercialEnquiryCustomerResolver
     {
         $this->resolveCustomerId($enquiry);
 
-        return $enquiry->fresh(['customer', 'contact', 'testRequestFormInstance']);
+        return $enquiry->fresh(['customer', 'contact', 'submissionFormInstance']);
     }
 
     public function customerNameFromEnquiry(SampleSubmissionRequest $enquiry): string
     {
         $enquiry->loadMissing([
             'customer',
-            'submissionFormInstance.testRequestFormInstance',
-            'testRequestFormInstance',
+            'submissionFormInstance.values.element',
         ]);
 
         $name = trim((string) ($enquiry->customer?->name ?? ''));
@@ -52,31 +55,14 @@ final class CommercialEnquiryCustomerResolver
             return $name;
         }
 
-        foreach ([
-            $enquiry->testRequestFormInstance,
-            $enquiry->submissionFormInstance?->testRequestFormInstance,
-        ] as $trfi) {
-            $fromTrfi = $this->customerNameFromTrfi($trfi);
-            if ($fromTrfi !== '') {
-                return $fromTrfi;
-            }
-        }
+        if ($enquiry->submissionFormInstance !== null) {
+            $formData = $this->valueNormalizer->valuesMapFromInstance($enquiry->submissionFormInstance);
 
-        return '';
-    }
-
-    private function customerNameFromTrfi(?TestRequestFormInstance $trfi): string
-    {
-        if ($trfi === null) {
-            return '';
-        }
-
-        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
-
-        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-            $candidate = trim((string) ($formData[$key] ?? ''));
-            if ($candidate !== '') {
-                return $candidate;
+            foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
+                $candidate = trim((string) ($formData[$key] ?? ''));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
             }
         }
 

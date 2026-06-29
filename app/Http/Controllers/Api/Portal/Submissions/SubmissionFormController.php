@@ -92,32 +92,13 @@ class SubmissionFormController extends Controller
             return response()->json(['message' => 'This form is not a test request form template.'], 422);
         }
 
-        $form->loadMissing('sampleTypes');
-        $sampleTypeId = $form->sampleTypes->first()?->id;
-
-        if ($sampleTypeId === null) {
-            return response()->json(['message' => 'No sample type linked to this test request form.'], 404);
-        }
-
-        $testRequestForm = \App\Models\TestRequestForm::query()
-            ->where('sample_type_id', $sampleTypeId)
-            ->where('is_active', true)
-            ->first();
-
-        if ($testRequestForm === null) {
-            return response()->json(['message' => 'No linked TestRequestForm found for this sample type.'], 404);
-        }
+        $form->loadMissing(['sampleTypes', 'sections.elementHolders.elements']);
 
         return response()->json([
-            'data' => [
-                'submission_form_id' => $form->id,
-                'document_code' => $form->document_code,
-                'test_request_form_id' => $testRequestForm->id,
-                'sample_type_id' => $sampleTypeId,
-                'form_fields' => $testRequestForm->form_fields,
-            ],
+            'data' => $this->schemaBuilder->buildTemplateWithAttachments($form),
             'meta' => [
                 'crm_customer_id' => $customerId,
+                'sample_type_id' => $form->sampleTypes->first()?->id,
             ],
         ]);
     }

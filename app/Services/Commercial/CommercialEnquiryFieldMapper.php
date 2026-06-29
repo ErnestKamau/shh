@@ -3,6 +3,7 @@
 namespace App\Services\Commercial;
 
 use App\Models\SampleSubmissionRequest;
+use Illuminate\Support\Str;
 
 final class CommercialEnquiryFieldMapper
 {
@@ -80,30 +81,39 @@ final class CommercialEnquiryFieldMapper
      */
     public function applyHeaderFieldsFromIndexedValues(SampleSubmissionRequest $enquiry, array $values): void
     {
-        $enquiry->reporting_language = $values['reporting_language'] ?? $enquiry->reporting_language;
-        $enquiry->request_date_of_service = $values['request_date_of_service'] ?? $enquiry->request_date_of_service;
-        $enquiry->zone_id = $values['lab_zone_location'] ?? $values['zone_id'] ?? $enquiry->zone_id;
+        $enquiry->reporting_language = $this->pickScalar($values, 'reporting_language') ?? $enquiry->reporting_language;
+        $enquiry->request_date_of_service = $this->pickScalar($values, 'request_date_of_service') ?? $enquiry->request_date_of_service;
+        $enquiry->zone_id = $this->pickUuid($values, 'lab_zone_location', 'zone_id') ?? $enquiry->zone_id;
         $enquiry->request_for_sampling = filter_var($values['request_for_sampling'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $enquiry->mode_of_service_priority = $values['mode_of_service'] ?? $values['mode_of_service_priority'] ?? $enquiry->mode_of_service_priority;
-        $enquiry->mode_of_payment = $values['mode_of_payment'] ?? $enquiry->mode_of_payment;
-        $enquiry->purpose = $values['remarks'] ?? $values['purpose'] ?? $enquiry->purpose;
-        $enquiry->crm_contact_id = $values['crm_contact_id'] ?? $enquiry->crm_contact_id;
-        $enquiry->submitted_by_full_name = $values['customer_representative_name']
-            ?? $values['submitted_by_full_name']
-            ?? $values['submitting_personnel']
-            ?? $values['sampled_by']
-            ?? $enquiry->submitted_by_full_name;
-        $enquiry->submitted_by_signature = $values['customer_representative_signature']
-            ?? $values['customer_rep_signature']
-            ?? $values['submitted_by_signature']
-            ?? $enquiry->submitted_by_signature;
-        $enquiry->further_request = $values['further_request'] ?? $enquiry->further_request;
-        $enquiry->statement_of_conformity = $values['statement_of_conformity'] ?? $enquiry->statement_of_conformity;
-        $enquiry->submitted_by_title = $values['submitted_by_title'] ?? $enquiry->submitted_by_title;
-        $enquiry->submitted_by_date = $values['submitted_by_date'] ?? $values['date_of_submission'] ?? $enquiry->submitted_by_date;
-        $enquiry->unique_identification = $values['unique_identification'] ?? $enquiry->unique_identification;
-        $enquiry->safety_precautions = $values['safety_precautions'] ?? $enquiry->safety_precautions;
-        $enquiry->safety_precautions_mention = $values['safety_precautions_mention'] ?? $enquiry->safety_precautions_mention;
+        $enquiry->mode_of_service_priority = $this->pickScalar($values, 'mode_of_service', 'mode_of_service_priority')
+            ?? $enquiry->mode_of_service_priority;
+        $enquiry->mode_of_payment = $this->pickScalar($values, 'mode_of_payment') ?? $enquiry->mode_of_payment;
+        $enquiry->purpose = $this->pickScalar($values, 'remarks', 'purpose') ?? $enquiry->purpose;
+        $enquiry->crm_contact_id = $this->pickUuid($values, 'crm_contact_id') ?? $enquiry->crm_contact_id;
+        $enquiry->submitted_by_full_name = $this->pickScalar(
+            $values,
+            'customer_representative_name',
+            'submitted_by_full_name',
+            'submitting_personnel',
+            'sampled_by',
+        ) ?? $enquiry->submitted_by_full_name;
+        $enquiry->submitted_by_signature = $this->pickScalar(
+            $values,
+            'customer_representative_signature',
+            'customer_rep_signature',
+            'submitted_by_signature',
+        ) ?? $enquiry->submitted_by_signature;
+        $enquiry->further_request = $this->pickScalar($values, 'further_request') ?? $enquiry->further_request;
+        $enquiry->statement_of_conformity = $this->pickScalar($values, 'statement_of_conformity')
+            ?? $enquiry->statement_of_conformity;
+        $enquiry->submitted_by_title = $this->pickScalar($values, 'submitted_by_title') ?? $enquiry->submitted_by_title;
+        $enquiry->submitted_by_date = $this->pickScalar($values, 'submitted_by_date', 'date_of_submission')
+            ?? $enquiry->submitted_by_date;
+        $enquiry->unique_identification = $this->pickScalar($values, 'unique_identification')
+            ?? $enquiry->unique_identification;
+        $enquiry->safety_precautions = $this->pickScalar($values, 'safety_precautions') ?? $enquiry->safety_precautions;
+        $enquiry->safety_precautions_mention = $this->pickScalar($values, 'safety_precautions_mention')
+            ?? $enquiry->safety_precautions_mention;
 
         $collectionData = $this->buildCollectionData($values);
         if ($collectionData !== []) {
@@ -170,6 +180,72 @@ final class CommercialEnquiryFieldMapper
         }
 
         return ucwords(str_replace('_', ' ', $token));
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @param  string  ...$keys
+     */
+    private function pickScalar(array $values, string ...$keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $values)) {
+                continue;
+            }
+
+            $normalized = $this->nullableScalar($values[$key]);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @param  string  ...$keys
+     */
+    private function pickUuid(array $values, string ...$keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $values)) {
+                continue;
+            }
+
+            $normalized = $this->nullableUuid($values[$key]);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private function nullableScalar(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_array($value)) {
+            $isSequential = array_keys($value) === range(0, count($value) - 1);
+            $value = $isSequential ? implode(', ', $value) : implode(', ', array_keys(array_filter($value)));
+        }
+
+        $string = trim((string) $value);
+
+        return $string === '' ? null : $string;
+    }
+
+    private function nullableUuid(mixed $value): ?string
+    {
+        $string = $this->nullableScalar($value);
+        if ($string === null) {
+            return null;
+        }
+
+        return Str::isUuid($string) ? $string : null;
     }
 
     /**

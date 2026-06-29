@@ -787,7 +787,6 @@ class WorkflowBoard extends Component
                 'batches',
                 'crmCustomer',
                 'sampleSubmissionRequest',
-                'testRequestFormInstance',
                 'values.element',
                 'latestIntray.toUser',
                 'latestIntray.fromUser',
@@ -1271,7 +1270,7 @@ class WorkflowBoard extends Component
      */
     public function getSamplesReceptionStatsProperty(): array
     {
-        if (!in_array($this->status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving'], true)) {
+        if (! in_array($this->status, ['Samples Reception', 'Samples En-Route'], true)) {
             return [
                 'customers_requested' => 0,
                 'portal_submitted' => 0,
@@ -1339,6 +1338,58 @@ class WorkflowBoard extends Component
             'waiting_for_delivery' => (clone $portalRequestQuery)
                 ->whereIn('status', ['submitted', 'Submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
                 ->count(),
+        ];
+    }
+
+    /**
+     * Physical check-ins logged today (audit action "received").
+     */
+    public function getReceivingTodayCheckInCountProperty(): int
+    {
+        if ($this->status !== 'Samples Receiving') {
+            return 0;
+        }
+
+        $instanceIds = $this->receivingSubmissionFormsBaseQuery()->pluck('id');
+
+        if ($instanceIds->isEmpty()) {
+            return 0;
+        }
+
+        return (int) \App\Models\SubmissionFormAuditLog::query()
+            ->where('action', 'received')
+            ->whereIn('submission_form_instance_id', $instanceIds)
+            ->whereDate('created_at', today())
+            ->pluck('submission_form_instance_id')
+            ->unique()
+            ->count();
+    }
+
+    /**
+     * Dashboard KPIs for the Samples Receiving board.
+     *
+     * @return array{my_intray: int, submitted: int, ready_for_reception: int, received: int, todays_check_ins: int}
+     */
+    public function getReceivingDashboardStatsProperty(): array
+    {
+        if ($this->status !== 'Samples Receiving') {
+            return [
+                'my_intray' => 0,
+                'submitted' => 0,
+                'ready_for_reception' => 0,
+                'received' => 0,
+                'todays_check_ins' => 0,
+            ];
+        }
+
+        $tabCounts = $this->receivingRequestTabCounts;
+
+        return [
+            'my_intray' => $this->myPendingIntrayCount,
+            'submitted' => (int) ($tabCounts['submitted'] ?? 0),
+            'ready_for_reception' => (int) ($tabCounts['ready_for_reception'] ?? 0),
+            'received' => (int) ($tabCounts['received'] ?? 0),
+            'todays_check_ins' => $this->receivingTodayCheckInCount,
         ];
     }
 
@@ -1545,7 +1596,7 @@ class WorkflowBoard extends Component
             }
 
             if ($blockedReasons !== []) {
-                session()->flash('error', collect($blockedReasons)->unique()->first());
+                $this->workflowNotify('error', (string) collect($blockedReasons)->unique()->first());
 
                 return;
             }
@@ -1570,10 +1621,11 @@ class WorkflowBoard extends Component
      */
     public function openPoCaptureFromInstances(array $ids = []): void
     {
-        $enquiryId = $this->resolveEnquiryIdFromSelection($ids);
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+        $enquiryId = $this->resolveEnquiryIdFromSelection($this->selectedFormInstanceIds);
 
         if ($enquiryId === null) {
-            session()->flash('error', 'Select a request with an accepted quotation to record PO and move to Ready for Reception.');
+            $this->workflowNotify('error', 'Select a request with an accepted quotation to record PO and move to Ready for Reception.');
 
             return;
         }
@@ -1582,14 +1634,22 @@ class WorkflowBoard extends Component
     }
 
     /**
-     * @param  array<int, string>  $ids
+     * @param  array<int, string>  $ids  Checked instance IDs from the browser (deferred wire:model may not be synced yet).
      */
     public function recordWalkInAcceptanceFromInstances(array $ids = []): void
     {
-        $enquiryId = $this->resolveEnquiryIdFromSelection($ids);
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+
+        if ($this->selectedFormInstanceIds === []) {
+            $this->workflowNotify('error', 'Select a walk-in request with a sent quotation to record acceptance.');
+
+            return;
+        }
+
+        $enquiryId = $this->resolveEnquiryIdFromSelection($this->selectedFormInstanceIds);
 
         if ($enquiryId === null) {
-            session()->flash('error', 'Select a walk-in request with a sent quotation to record acceptance.');
+            $this->workflowNotify('error', 'Select a walk-in request with a sent quotation to record acceptance.');
 
             return;
         }
@@ -1597,22 +1657,24 @@ class WorkflowBoard extends Component
         $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
 
         if ($enquiry === null) {
-            session()->flash('error', 'Enquiry not found.');
+            $this->workflowNotify('error', 'Enquiry not found.');
 
             return;
         }
 
         if (strtolower((string) ($enquiry->source_channel ?? '')) !== 'walk_in') {
-            session()->flash('error', 'Walk-in acceptance only applies to in-person enquiries.');
+            $this->workflowNotify('error', 'Walk-in acceptance only applies to in-person enquiries.');
 
             return;
         }
 
         try {
             app(\App\Services\Commercial\QuotationFromEnquiryService::class)->recordWalkInAcceptance($enquiry);
-            session()->flash('message', 'Quotation accepted. Record the customer PO to move this request to Ready for Reception.');
+            $this->selectedFormInstanceIds = [];
+            $this->workflowNotify('success', 'Quotation accepted. Record the customer PO to move this request to Ready for Reception.');
+            $this->openPoCaptureModal($enquiryId);
         } catch (\Throwable $exception) {
-            session()->flash('error', $exception->getMessage());
+            $this->workflowNotify('error', $exception->getMessage());
         }
     }
 
@@ -1621,14 +1683,15 @@ class WorkflowBoard extends Component
      */
     public function openProcessEnquiryModal(array $ids = []): void
     {
-        $enquiryId = $this->resolveEnquiryIdFromSelection($ids);
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+        $enquiryId = $this->resolveEnquiryIdFromSelection($this->selectedFormInstanceIds);
 
-        if ($enquiryId === null && $ids !== []) {
-            $enquiryId = $this->createCommercialEnquiryFromSelection($ids);
+        if ($enquiryId === null && $this->selectedFormInstanceIds !== []) {
+            $enquiryId = $this->createCommercialEnquiryFromSelection($this->selectedFormInstanceIds);
         }
 
         if ($enquiryId === null) {
-            session()->flash('error', 'Could not open enquiry processing. Select a submitted test request with customer details.');
+            $this->workflowNotify('error', 'Could not open enquiry processing. Select a submitted test request with customer details.');
 
             return;
         }
@@ -1649,7 +1712,7 @@ class WorkflowBoard extends Component
     {
         $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
         if ($enquiry === null || $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED) {
-            session()->flash('error', 'PO can only be recorded for accepted quotations.');
+            $this->workflowNotify('error', 'PO can only be recorded for accepted quotations.');
 
             return;
         }
@@ -1695,10 +1758,15 @@ class WorkflowBoard extends Component
             );
 
             $this->closePoCaptureModal();
-            session()->flash('message', 'PO recorded. Request is ready for physical reception.');
+            $this->workflowNotify('success', 'PO recorded. Request is ready for physical reception.');
         } catch (Throwable $exception) {
-            session()->flash('error', $exception->getMessage());
+            $this->workflowNotify('error', $exception->getMessage());
         }
+    }
+
+    protected function workflowNotify(string $type, string $message): void
+    {
+        $this->dispatch('notify', type: $type, message: $message);
     }
 
     /**
@@ -1745,7 +1813,7 @@ class WorkflowBoard extends Component
         }
 
         $instance = SubmissionFormInstance::query()
-            ->with(['submissionForm', 'values.element', 'crmCustomer', 'testRequestFormInstance', 'sampleSubmissionRequest'])
+            ->with(['submissionForm', 'values.element', 'crmCustomer', 'sampleSubmissionRequest'])
             ->find($instanceId);
 
         if ($instance === null) {
@@ -2005,16 +2073,14 @@ class WorkflowBoard extends Component
         }
 
         $instance = SubmissionFormInstance::query()
-            ->with(['sampleSubmissionRequest', 'testRequestFormInstance.sampleSubmissionRequest'])
+            ->with(['sampleSubmissionRequest'])
             ->find($formInstanceId);
 
         if ($instance === null) {
             return null;
         }
 
-        $enquiryId = $instance->sampleSubmissionRequest?->id
-            ?? $instance->testRequestFormInstance?->sample_submission_request_id
-            ?? $instance->testRequestFormInstance?->sampleSubmissionRequest?->id;
+        $enquiryId = $instance->sampleSubmissionRequest?->id;
 
         if ($enquiryId !== null) {
             return (string) $enquiryId;
@@ -2253,6 +2319,7 @@ class WorkflowBoard extends Component
             'portalSubmissions' => $this->portalSubmissions,
             'commercialEnquiries' => $this->commercialEnquiries,
             'samplesReceptionStats' => $this->samplesReceptionStats,
+            'receivingDashboardStats' => $this->receivingDashboardStats,
             'receivingRequestTabs' => self::receivingRequestTabs(),
             'receivingRequestTabCounts' => $this->receivingRequestTabCounts,
             'requestReviewTabs' => self::requestReviewTabs(),

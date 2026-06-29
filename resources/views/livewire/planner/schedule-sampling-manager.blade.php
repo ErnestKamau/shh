@@ -541,7 +541,7 @@
                         @endif
 
                         {{-- Tied Request Forms --}}
-                        @if($viewingSchedule->testRequestFormInstances->count() > 0)
+                        @if($viewingSchedule->submissionFormInstances->count() > 0)
                         <div class="mb-4">
                             <h6 class="font-weight-bold text-uppercase text-muted mb-2" style="font-size:12px;letter-spacing:1px;"><i class="mdi mdi-file-document-outline mr-1"></i>Tied Request Forms</h6>
                             <div class="p-0" style="background:#fafbfc;border-radius:8px;border:1px solid #eee;overflow:hidden;max-height: 250px; overflow-y: auto;">
@@ -555,20 +555,20 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($viewingSchedule->testRequestFormInstances as $instance)
+                                        @foreach($viewingSchedule->submissionFormInstances as $instance)
                                         <tr style="border-top: 1px solid #eee;">
                                             <td class="px-3 py-2">
-                                                <div class="font-weight-bold" style="font-size:13px;color:#333;">{{ $instance->testRequestForm->title ?? 'Request Form' }}</div>
-                                                <small class="text-muted">{{ $instance->testRequestForm->sampleType->name ?? 'N/A' }}</small>
+                                                <div class="font-weight-bold" style="font-size:13px;color:#333;">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
+                                                <small class="text-muted">{{ $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
                                             </td>
                                             <td class="px-3 py-2" style="font-size:12px;vertical-align:middle;color:#555;">
-                                                {{ $instance->creator->name ?? 'N/A' }}
+                                                {{ $instance->submittedBy?->name ?? 'N/A' }}
                                             </td>
                                             <td class="px-3 py-2" style="vertical-align:middle;">
                                                 <span class="badge badge-success" style="font-size:11px;padding:3px 8px;">{{ ucfirst($instance->status) }}</span>
                                             </td>
                                             <td class="px-3 py-2" style="font-size:12px;vertical-align:middle;color:#6c757d;">
-                                                {{ $instance->created_at->format('M d, Y H:i') }}
+                                                {{ $instance->submitted_at?->format('M d, Y H:i') ?? $instance->created_at?->format('M d, Y H:i') }}
                                             </td>
                                         </tr>
                                         @endforeach
@@ -627,213 +627,14 @@
                         @enderror
                     </div>
 
-                    <!-- Dynamic Test Request Form Fields -->
-                    @php
-                        $formTemplate = null;
-                        if ($selectedSampleTypeId) {
-                            $formTemplate = \App\Models\TestRequestForm::where('sample_type_id', $selectedSampleTypeId)->where('is_active', true)->first();
-                        }
-                    @endphp
-
-                     @if($formTemplate && is_array($formTemplate->form_fields))
-                        @php
-                            $isSectioned = isset($formTemplate->form_fields['sections']) && is_array($formTemplate->form_fields['sections']);
-                        @endphp
-                        <div class="card bg-light border-0 mb-0 shadow-none rounded">
-                            <div class="card-body p-3">
-                                <h6 class="font-weight-bold mb-3 text-primary"><i class="mdi mdi-clipboard-text mr-1"></i> Test Request Form</h6>
-                                
-                                @if($isSectioned)
-                                    @foreach($formTemplate->form_fields['sections'] as $sectionIndex => $section)
-                                        <div class="form-section mb-4" wire:key="section-{{ $sectionIndex }}">
-                                            <h6 class="form-section-title font-weight-bold text-dark border-bottom pb-2 mb-3">
-                                                {{ $section['title'] ?? 'Section' }}
-                                            </h6>
-                                            <div class="row">
-                                                @foreach($section['fields'] ?? [] as $field)
-                                                    @if(!empty($field['name']))
-                                                        <div class="col-md-6 mb-3">
-                                                            @include('livewire.sampleworkflow.test-request-field-render', ['field' => $field])
-                                                        </div>
-                                                    @endif
-                                                @endforeach
-
-                                                @if(($section['title'] ?? '') === 'STATEMENT OF CONFORMITY & SIGNATURES')
-                                                    @if($this->isFood)
-                                                        <!-- Food Samples Table -->
-                                                        <div class="col-12 mb-4">
-                                                            <h6 class="font-weight-bold text-dark border-bottom pb-2 mb-3">SAMPLE DETAILS TABLE</h6>
-                                                            <div class="table-responsive">
-                                                                <table class="table table-bordered table-sm">
-                                                                    <thead class="bg-secondary text-white text-center small">
-                                                                        <tr>
-                                                                            <th style="width: 5%">S. No.</th>
-                                                                            <th style="width: 15%">Sample Description</th>
-                                                                            <th style="width: 15%">Sampling Point/Location</th>
-                                                                            <th style="width: 8%">Qty.</th>
-                                                                            <th style="width: 12%">Sample Type</th>
-                                                                            <th style="width: 15%">Sample Condition</th>
-                                                                            <th style="width: 10%">Dates & Batch</th>
-                                                                            <th style="width: 10%">State</th>
-                                                                            <th style="width: 10%">Micro/Chem Param</th>
-                                                                            <th style="width: 5%">Actions</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody class="small">
-                                                                        @foreach($formData['sample_rows'] ?? [] as $rowIdx => $row)
-                                                                            <tr wire:key="food-row-{{ $rowIdx }}">
-                                                                                <td class="text-center align-middle font-weight-bold">{{ $rowIdx + 1 }}</td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_description" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Description">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sampling_point" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Point/Loc">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.qty" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Qty">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <select wire:model="formData.sample_rows.{{ $rowIdx }}.sample_type" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;">
-                                                                                        <option value="">Select Type</option>
-                                                                                        <option value="Raw">Raw</option>
-                                                                                        <option value="Cooked">Cooked</option>
-                                                                                        <option value="Ready To Eat">Ready To Eat</option>
-                                                                                    </select>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <select wire:model="formData.sample_rows.{{ $rowIdx }}.sample_condition" class="form-control form-control-xs mb-1" style="padding: 2px 5px; height: auto; font-size: 11px;">
-                                                                                        <option value="">Select Cond.</option>
-                                                                                        <option value="Acceptable">Acceptable</option>
-                                                                                        <option value="Chilled">Chilled</option>
-                                                                                        <option value="Frozen">Frozen</option>
-                                                                                        <option value="Ambient">Ambient</option>
-                                                                                    </select>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_temp" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Temp (°C)">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <label class="mb-0 text-muted" style="font-size: 9px;">Prod:</label>
-                                                                                    <input type="date" wire:model="formData.sample_rows.{{ $rowIdx }}.production_date" class="form-control form-control-xs p-1 mb-1" style="font-size: 10px; height: auto;">
-                                                                                    <label class="mb-0 text-muted" style="font-size: 9px;">Exp:</label>
-                                                                                    <input type="date" wire:model="formData.sample_rows.{{ $rowIdx }}.expiration_date" class="form-control form-control-xs p-1 mb-1" style="font-size: 10px; height: auto;">
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.batch_number" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Batch No.">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <select wire:model="formData.sample_rows.{{ $rowIdx }}.state_of_sample" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;">
-                                                                                        <option value="">Select State</option>
-                                                                                        <option value="Liquid">L - Liquid</option>
-                                                                                        <option value="Semi Solid">SS - Semi Solid</option>
-                                                                                        <option value="Solid">S - Solid</option>
-                                                                                    </select>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <textarea wire:model="formData.sample_rows.{{ $rowIdx }}.parameters" class="form-control form-control-xs" rows="2" style="padding: 2px 5px; font-size: 11px;" placeholder="Micro/Chem"></textarea>
-                                                                                </td>
-                                                                                <td class="text-center align-middle">
-                                                                                    <button type="button" wire:click="removeSampleRow({{ $rowIdx }})" class="btn btn-danger btn-xs p-1"><i class="mdi mdi-trash-can"></i></button>
-                                                                                </td>
-                                                                            </tr>
-                                                                        @endforeach
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                            <div class="mt-2 text-right">
-                                                                <button type="button" wire:click="addSampleRow" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-plus mr-1"></i> Add Sample Row</button>
-                                                            </div>
-                                                        </div>
-                                                    @elseif($this->isWater)
-                                                        <!-- Water Samples Table -->
-                                                        <div class="col-12 mb-4">
-                                                            <h6 class="font-weight-bold text-dark border-bottom pb-2 mb-3">SAMPLE DETAILS TABLE</h6>
-                                                            <div class="table-responsive">
-                                                                <table class="table table-bordered table-sm">
-                                                                    <thead class="bg-secondary text-white text-center small">
-                                                                        <tr>
-                                                                            <th style="width: 5%">S. No.</th>
-                                                                            <th style="width: 15%">Sample Description</th>
-                                                                            <th style="width: 15%">Location</th>
-                                                                            <th style="width: 8%">Qty.</th>
-                                                                            <th style="width: 12%">Sampling Point</th>
-                                                                            <th style="width: 20%">Field Data (pH, Cl, Temp, Odor)</th>
-                                                                            <th style="width: 15%">Test Requirements</th>
-                                                                            <th style="width: 5%">Actions</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody class="small">
-                                                                        @foreach($formData['sample_rows'] ?? [] as $rowIdx => $row)
-                                                                            <tr wire:key="water-row-{{ $rowIdx }}">
-                                                                                <td class="text-center align-middle font-weight-bold">{{ $rowIdx + 1 }}</td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_description" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Description">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.location" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Location">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.qty" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Qty">
-                                                                                </td>
-                                                                                <td>
-                                                                                    <select wire:model="formData.sample_rows.{{ $rowIdx }}.sampling_point" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;">
-                                                                                        <option value="">Select Point</option>
-                                                                                        <option value="Tap">Tap</option>
-                                                                                        <option value="Tank">Tank</option>
-                                                                                        <option value="Pool">Pool</option>
-                                                                                        <option value="Shower Head">Shower Head</option>
-                                                                                        <option value="Others">Others</option>
-                                                                                    </select>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="row no-gutters">
-                                                                                        <div class="col-6 pr-1 mb-1">
-                                                                                            <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.ph" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="pH">
-                                                                                        </div>
-                                                                                        <div class="col-6 mb-1">
-                                                                                            <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.residual_chlorine" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Res. Cl">
-                                                                                        </div>
-                                                                                        <div class="col-6 pr-1">
-                                                                                            <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_temp" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Temp (°C)">
-                                                                                        </div>
-                                                                                        <div class="col-6">
-                                                                                            <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.odor" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Odor">
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.appearance" class="form-control form-control-xs mt-1" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Appearance">
-                                                                                </td>
-                                                                                <td>
-                                                                                    @include('workflow.forms.test-request.partials.test-category-radios', ['rowIdx' => $rowIdx, 'showLegionella' => true])
-                                                                                </td>
-                                                                                <td class="text-center align-middle">
-                                                                                    <button type="button" wire:click="removeSampleRow({{ $rowIdx }})" class="btn btn-danger btn-xs p-1"><i class="mdi mdi-trash-can"></i></button>
-                                                                                </td>
-                                                                            </tr>
-                                                                        @endforeach
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                            <div class="mt-2 text-right">
-                                                                <button type="button" wire:click="addSampleRow" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-plus mr-1"></i> Add Sample Row</button>
-                                                            </div>
-                                                        </div>
-                                                    @endif
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                @else
-                                    <div class="row">
-                                        @foreach(($formTemplate->form_fields ?? []) as $field)
-                                            @if(!empty($field['name']))
-                                                <div class="col-md-6 mb-3">
-                                                    @include('livewire.sampleworkflow.test-request-field-render', ['field' => $field])
-                                                </div>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
+                    @if($selectedSampleTypeId && $submissionForm)
+                        @include('livewire.partials.submission-form-capture-sections', [
+                            'submissionForm' => $submissionForm,
+                            'formData' => $formData,
+                        ])
                     @elseif($selectedSampleTypeId)
                         <div class="alert alert-warning mb-0">
-                            No active form template found for the selected sample type.
+                            No active Test Request Form template found for the selected sample type.
                         </div>
                     @endif
 

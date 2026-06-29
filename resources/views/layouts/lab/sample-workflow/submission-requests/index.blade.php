@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main class="container-fluid workflow-board-page lab-panel-theme">
+<main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
 	@include('layouts.lab.partials.lab-panel-theme-styles')
 
 	<?php
@@ -29,16 +29,18 @@
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 
-	<div class="row mb-4">
+	<div class="row mb-3">
 		<div class="col-12">
-			<div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-				<div>
-					<h3 class="fw-bold mb-1" style="color: #1e293b;">Sample Workflow</h3>
-					<div class="d-flex align-items-center gap-2">
-						<span class="badge badge-primary px-3 py-2" style="border-radius: 6px; font-weight: 600;">Samples Receiving</span>
+			<div class="batch-header-bar submission-requests-hero">
+				<div class="batch-header-top">
+					<div class="batch-title-group">
+						<span class="batch-code-label">Sample Workflow</span>
+						<span class="batch-stage-pill">
+							<i class="mdi mdi-sitemap" style="font-size:0.75rem;"></i>
+							Samples Receiving
+						</span>
 					</div>
-				</div>
-				<div class="d-flex align-items-center flex-wrap gap-2">
+					<div class="d-flex align-items-center flex-wrap batch-header-actions" style="gap: 6px;">
 					@livewire('sampleworkflow.portal-access-requests')
 					<button type="button" class="btn btn-outline-secondary btn-action-sm">
 						<i class="mdi mdi-clock-outline"></i> TAT Today Batches
@@ -57,6 +59,7 @@
 						</div>
 					</div>
 				</div>
+			</div>
 			</div>
 		</div>
 	</div>

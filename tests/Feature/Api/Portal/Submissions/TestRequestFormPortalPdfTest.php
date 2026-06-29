@@ -17,6 +17,12 @@ class TestRequestFormPortalPdfTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     private const GATEWAY_KEY = 'test-portal-gateway-key';
     private const CUSTOMER_ID = '019e2d90-ce2d-70af-882c-0b22576a6b7e';
 

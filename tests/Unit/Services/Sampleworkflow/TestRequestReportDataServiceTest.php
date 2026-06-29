@@ -41,4 +41,12 @@ class TestRequestReportDataServiceTest extends TestCase
 
         $this->assertSame('STERILE BOTTLE', $result);
     }
+
+    public function test_resolve_reporting_unit_label_returns_legacy_name_unchanged(): void
+    {
+        $this->assertSame('mg/L', resolveReportingUnitLabel('mg/L'));
+        $this->assertSame('CFU/g', resolveReportingUnitLabel('CFU/g'));
+        $this->assertSame('-', resolveReportingUnitLabel(null));
+        $this->assertSame('-', resolveReportingUnitLabel(''));
+    }
 }

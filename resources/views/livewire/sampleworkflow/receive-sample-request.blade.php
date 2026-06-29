@@ -5,13 +5,81 @@
             padding: 1rem 1.25rem;
             border-top: 1px solid #e2e8f0;
         }
+        .receive-sample-modal-body .receive-sample-type-field {
+            margin-top: 2px;
+        }
+        .receive-sample-modal-body .walk-in-trf-rows-table .table th,
+        .receive-sample-modal-body .walk-in-trf-rows-table .table td {
+            vertical-align: top;
+        }
+        .receive-sample-modal-body .walk-in-trf-rows-table .select2-container {
+            font-size: 11px;
+        }
+        .receive-sample-modal-body .walk-in-trf-rows-table .select2-container--default .select2-selection--multiple {
+            min-height: 28px;
+            padding: 1px 2px;
+        }
+        .receive-sample-modal-body .walk-in-trf-rows-grid {
+            table-layout: fixed;
+            min-width: 1280px;
+            font-size: 11px;
+        }
+        .receive-sample-modal-body .walk-in-trf-rows-grid th,
+        .receive-sample-modal-body .walk-in-trf-rows-grid td {
+            padding: 5px 6px;
+            vertical-align: top;
+        }
+        .receive-sample-modal-body .walk-in-trf-rows-grid th {
+            font-size: 10px;
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .receive-sample-modal-body .walk-in-trf-col-sn { width: 42px; min-width: 42px; }
+        .receive-sample-modal-body .walk-in-trf-col-desc { width: 40px; min-width: 40px; }
+        .receive-sample-modal-body .walk-in-trf-col-location { width: 110px; min-width: 110px; }
+        .receive-sample-modal-body .walk-in-trf-col-qty { width: 200px; min-width: 200px; }
+        .receive-sample-modal-body .walk-in-trf-col-analysis-type { width: 145px; min-width: 145px; }
+        .receive-sample-modal-body .walk-in-trf-col-parameters { width: 180px; min-width: 180px; }
+        .receive-sample-modal-body .walk-in-trf-col-radio { width: 105px; min-width: 105px; }
+        .receive-sample-modal-body .walk-in-trf-col-date { width: 115px; min-width: 115px; }
+        .receive-sample-modal-body .walk-in-trf-col-batch { width: 90px; min-width: 90px; }
+        .receive-sample-modal-body .walk-in-trf-col-field-data { width: 80px; min-width: 80px; }
+        .receive-sample-modal-body .walk-in-trf-col-default { width: 90px; min-width: 90px; }
+        .receive-sample-modal-body .walk-in-trf-col-actions { width: 36px; min-width: 36px; }
+        .receive-sample-modal-body .walk-in-trf-desc-btn {
+            font-size: 14px;
+            padding: 4px 6px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+        }
+        .receive-sample-modal-body .walk-in-trf-parameters-wrap .select2-container {
+            width: 100% !important;
+        }
+        .receive-sample-modal-body .walk-in-trf-parameters-wrap .select2-container--default .select2-selection--multiple {
+            min-height: 32px;
+            max-height: 72px;
+            overflow-y: auto;
+        }
+        .receive-sample-modal-body .walk-in-trf-desc-modal .modal-dialog {
+            max-width: 640px;
+        }
+        .walk-in-trf-desc-modal {
+            z-index: 1065 !important;
+        }
+        .walk-in-trf-desc-modal + .modal-backdrop {
+            z-index: 1060 !important;
+        }
     </style>
     @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
             <section class="receive-sample-selected mb-3">
                 <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
                 <div class="receive-sample-chips">
                     @foreach ($selectedFormSummaries as $summary)
-                        <span class="receive-sample-chip badge badge-info mr-1 mb-1 p-2">
+                        <span class="receive-sample-chip badge mr-1 mb-1 p-2">
                             <span class="receive-sample-chip-code font-weight-bold">{{ $summary['label'] ?? 'Request' }}</span>
                             @if (!empty($summary['customer']))
                                 <span class="receive-sample-chip-meta small">({{ $summary['customer'] }})</span>
@@ -118,8 +186,18 @@
         @endif
 
         @unless($this->isPhysicalCheckIn)
+        @if ($errors->any())
+            <div class="alert alert-danger py-2 px-3 mb-3 small" role="alert">
+                <strong class="d-block mb-1">Please fix the following before submitting:</strong>
+                <ul class="mb-0 pl-3">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <!-- Walk-in only: Sample Type + TRF -->
-        <div class="form-group mb-4">
+        <div class="form-group mb-4 receive-sample-type-field">
             <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample Type <span class="text-danger">*</span></label>
             <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
                 <option value="">-- Select Sample Type --</option>
@@ -132,70 +210,12 @@
             @enderror
         </div>
 
-        @if($selectedSampleTypeId && $formTemplate)
-        <!-- Dynamic Test Request Form Fields -->
-        @if($formTemplate && is_array($formTemplate->form_fields))
-            @php
-                $isSectioned = isset($formTemplate->form_fields['sections']) && is_array($formTemplate->form_fields['sections']);
-            @endphp
-            <div class="card bg-light border-0 mb-4 shadow-none rounded">
-                <div class="card-body p-3">
-                    @if($isSectioned)
-                        @foreach($formTemplate->form_fields['sections'] as $sectionIndex => $section)
-                            @php
-                                $isCollapsible = ($section['collapsible'] ?? true) === true;
-                                $sectionTitle = strtoupper(trim((string) ($section['title'] ?? '')));
-                                $isCustomerSection = $sectionTitle === 'CUSTOMER DETAILS';
-                            @endphp
-                            <div
-                                class="form-section mb-3"
-                                wire:key="section-{{ $sectionIndex }}"
-                                @if($isCollapsible) x-data="{ open: false }" @endif
-                            >
-                                @if($isCollapsible)
-                                    <button
-                                        type="button"
-                                        class="form-section-title font-weight-bold text-dark border-bottom pb-2 mb-0 w-100 text-left bg-transparent border-0 d-flex align-items-center justify-content-between"
-                                        @click="open = !open; $nextTick(() => { if (typeof window.initTrfSignaturePads === 'function') window.initTrfSignaturePads(true); })"
-                                    >
-                                        <span>{{ $section['title'] ?? 'Section' }}</span>
-                                        <i class="mdi" :class="open ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
-                                    </button>
-                                    <div class="row pt-3" x-show="open" x-collapse>
-                                @else
-                                    <h6 class="form-section-title font-weight-bold text-dark border-bottom pb-2 mb-3">
-                                        {{ $section['title'] ?? 'Section' }}
-                                    </h6>
-                                    <div class="row">
-                                @endif
-                                    @foreach($section['fields'] ?? [] as $field)
-                                        @if(!empty($field['name']) && ($field['name'] ?? '') !== 'job_number')
-                                            <div class="col-md-6 mb-3">
-                                                @include('livewire.sampleworkflow.test-request-field-render', ['field' => $field])
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-                                @if($isCustomerSection && ($this->isFood || $this->isWater))
-                                    @include('livewire.partials.trf-sample-details-section')
-                                @endif
-                            </div>
-                        @endforeach
-                    @else
-                        <div class="row">
-                            @foreach(($formTemplate->form_fields ?? []) as $field)
-                                @if(!empty($field['name']) && ($field['name'] ?? '') !== 'job_number')
-                                    <div class="col-md-6 mb-3">
-                                        @include('livewire.sampleworkflow.test-request-field-render', ['field' => $field])
-                                    </div>
-                                @endif
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </div>
-        @endif
+        @if($selectedSampleTypeId && $submissionForm)
+            @include('livewire.partials.walk-in-trf-capture-sections', [
+                'submissionForm' => $submissionForm,
+                'formData' => $formData,
+                'walkInSections' => $walkInSections,
+            ])
         @endif
         @endunless
 
@@ -223,6 +243,7 @@
             class="btn btn-sm btn-primary receive-sample-submit-btn"
             wire:click="confirmReceive"
             wire:loading.attr="disabled"
+            onclick="if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); }"
             @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
         >
             <span wire:loading.remove wire:target="confirmReceive">

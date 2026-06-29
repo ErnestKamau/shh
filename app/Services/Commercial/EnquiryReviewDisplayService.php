@@ -109,7 +109,6 @@ final class EnquiryReviewDisplayService
     public function sampleRows(SampleSubmissionRequest $enquiry): array
     {
         $enquiry->loadMissing([
-            'submissionFormInstance.testRequestFormInstance.testRequestForm',
             'submissionFormInstance.submissionForm.sampleTypes',
         ]);
 

@@ -69,12 +69,13 @@ class AcceptanceFormPricingService
             }
 
             if ($parameters === []) {
-                $trfi = $submissionRequest->resolveLinkedTrfi();
-                if ($trfi instanceof TestRequestFormInstance) {
-                    $trfiLines = app(SubmissionRequestSampleLineService::class)->linesForTrfi($trfi);
-                    $parameters = $this->parameterSeedsFromTrfi($trfi, $sampleTypeId);
+                $instance = $submissionRequest->resolveLinkedFormInstance();
+                if ($instance !== null) {
+                    $lineService = app(SubmissionRequestSampleLineService::class);
+                    $instanceLines = $lineService->linesForInstance($instance);
+                    $parameters = $this->parameterSeedsFromInstanceLines($instanceLines, $sampleTypeId);
                     if ($parameters !== []) {
-                        $numberOfSamples = max(1, count($trfiLines));
+                        $numberOfSamples = max(1, count($instanceLines));
                     }
                 }
             } elseif ((int) $submissionRequest->number_of_samples > 0) {
@@ -971,11 +972,11 @@ class AcceptanceFormPricingService
     }
 
     /**
+     * @param  list<array<string, mixed>>  $lines
      * @return list<array<string, mixed>>
      */
-    private function parameterSeedsFromTrfi(TestRequestFormInstance $trfi, ?string $defaultSampleTypeId): array
+    private function parameterSeedsFromInstanceLines(array $lines, ?string $defaultSampleTypeId): array
     {
-        $lines = app(SubmissionRequestSampleLineService::class)->linesForTrfi($trfi);
         $parameters = [];
 
         foreach ($lines as $line) {
@@ -999,6 +1000,19 @@ class AcceptanceFormPricingService
         }
 
         return $parameters;
+    }
+
+    /**
+     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 4
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function parameterSeedsFromTrfi(TestRequestFormInstance $trfi, ?string $defaultSampleTypeId): array
+    {
+        return $this->parameterSeedsFromInstanceLines(
+            app(SubmissionRequestSampleLineService::class)->linesForTrfi($trfi),
+            $defaultSampleTypeId,
+        );
     }
 
     private function resolveEnquiryForPrefill(?string $submissionRequestId, ?string $submissionFormInstanceId): ?SampleSubmissionRequest

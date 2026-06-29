@@ -1,4 +1,6 @@
 @if($this->isFood || $this->isWater)
+    @php($hideOuterSection = $hideOuterSection ?? false)
+    @if(! $hideOuterSection)
     <div class="form-section mb-3" x-data="{ open: false }">
         <button
             type="button"
@@ -9,6 +11,7 @@
             <i class="mdi" :class="open ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
         </button>
         <div class="pt-3" x-show="open" x-collapse>
+    @endif
             @if($this->isFood)
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm">
@@ -153,6 +156,8 @@
             <div class="mt-2 text-right">
                 <button type="button" wire:click="addSampleRow" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-plus mr-1"></i> Add Sample Row</button>
             </div>
+    @if(! $hideOuterSection)
         </div>
     </div>
+    @endif
 @endif

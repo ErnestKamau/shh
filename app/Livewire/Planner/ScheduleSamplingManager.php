@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\SamplingSchedule;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
+use App\Models\SubmissionForm;
 use App\SampleType;
 use App\AnalysisType;
 use App\AnalysisElements;
@@ -17,10 +18,10 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
+use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
-use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
-use App\Services\TestRequestForm\TestRequestFormSubmissionService;
-use App\Models\TestRequestFormInstance;
+use App\Services\SubmissionForm\SubmissionFormSubmissionService;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 
 class ScheduleSamplingManager extends Component
 {
@@ -384,8 +385,8 @@ class ScheduleSamplingManager extends Component
             'client',
             'contact',
             'personnel',
-            'testRequestFormInstances.testRequestForm',
-            'testRequestFormInstances.creator'
+            'submissionFormInstances.submissionForm.sampleTypes',
+            'submissionFormInstances.submittedBy',
         ])->findOrFail($id);
         $this->showViewModal = true;
     }
@@ -997,27 +998,20 @@ class ScheduleSamplingManager extends Component
     {
         $this->formData = [];
         if ($value) {
-            // Self-healing check: ensure defaults exist
-            \App\Models\TestRequestForm::seedDefaults();
-
-            $form = \App\Models\TestRequestForm::where('sample_type_id', $value)->where('is_active', true)->first();
-            if ($form) {
-                $fields = $form->getFlatFields();
-                foreach ($fields as $field) {
-                    if (empty($field['name'])) {
+            $submissionForm = $this->submissionForm;
+            if ($submissionForm) {
+                foreach ($submissionForm->sections->sortBy('sort_order') as $section) {
+                    $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
+                    if (($section->section_type ?? '') === 'rows_section') {
+                        foreach ($elements as $element) {
+                            $this->formData[$element->name] = [$element->element_type === 'checkbox' ? false : ''];
+                        }
                         continue;
                     }
-                    $isMulti = in_array($field['name'], ['sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition', 'sampling_source', 'sample_types_ww', 'sampling_technique', 'field_data_requirements'], true);
-                    if ($isMulti) {
-                        $this->formData[$field['name']] = [];
-                    } else {
-                        $this->formData[$field['name']] = ($field['type'] ?? '') === 'checkbox' ? false : '';
+                    foreach ($elements as $element) {
+                        $this->formData[$element->name] = $element->element_type === 'checkbox' ? false : '';
                     }
                 }
-            }
-
-            if ($this->isFood || $this->isWater) {
-                $this->formData['sample_rows'] = [$this->getDefaultSampleRow()];
             }
 
             // Auto-prefill client/customer details from schedule client if available
@@ -1204,36 +1198,24 @@ class ScheduleSamplingManager extends Component
             'selectedSampleTypeId.required' => 'Please select a Sample Type.',
         ]);
 
-        $form = \App\Models\TestRequestForm::where('sample_type_id', $this->selectedSampleTypeId)->where('is_active', true)->first();
-        if (!$form) {
-            $this->addError('selectedSampleTypeId', 'No active form template found for the selected sample type.');
+        $submissionForm = app(PortalSubmissionFormAccess::class)
+            ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
+        if ($submissionForm === null) {
+            $this->addError('selectedSampleTypeId', 'No active Test Request Form template found for the selected sample type.');
+
             return;
         }
 
-        // Build dynamic field validation rules
+        $submissionForm->loadMissing(['sections.elementHolders.elements']);
         $rules = [];
         $messages = [];
-        $fields = $form->getFlatFields();
-        foreach ($fields as $field) {
-            if (empty($field['name'])) {
+        foreach ($submissionForm->sections->flatMap->elementHolders->flatMap->elements as $element) {
+            if (! $element->is_required) {
                 continue;
             }
-            $key = 'formData.' . $field['name'];
-            $fieldRules = [];
-            if ($field['required'] ?? false) {
-                $fieldRules[] = 'required';
-            } else {
-                $fieldRules[] = 'nullable';
-            }
-
-            if (($field['type'] ?? '') === 'number') {
-                $fieldRules[] = 'numeric';
-            } elseif (($field['type'] ?? '') === 'date') {
-                $fieldRules[] = 'date';
-            }
-
-            $rules[$key] = $fieldRules;
-            $messages[$key . '.required'] = ($field['label'] ?? $field['name']) . ' is required.';
+            $key = 'formData.'.$element->name;
+            $rules[$key] = 'required';
+            $messages[$key.'.required'] = ($element->label ?? $element->name).' is required.';
         }
 
         if (!empty($rules)) {
@@ -1252,19 +1234,15 @@ class ScheduleSamplingManager extends Component
                 throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
             }
 
-            $context = new TestRequestFormSubmissionContext(
-                sourceChannel: TestRequestFormInstance::CHANNEL_SCHEDULED,
-                crmCustomerId: $schedule->crm_customer_id,
-                submittedBy: (string) auth()->id(),
-                samplingScheduleId: $this->selectedScheduleId,
-                portalSubmissionForm: $submissionForm,
-                markShadowAsReceived: true,
-            );
+            $payload = app(SubmissionFormValueNormalizer::class)->toRequestPayload($this->formData);
 
-            $trfi = app(TestRequestFormSubmissionService::class)->submit(
-                $form,
-                $this->formData,
-                $context,
+            app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
+                $submissionForm,
+                $payload,
+                $schedule->crm_customer_id !== null ? (string) $schedule->crm_customer_id : null,
+                (string) $this->selectedSampleTypeId,
+                CommercialEnquirySyncService::SOURCE_SCHEDULED,
+                (string) $this->selectedScheduleId,
             );
 
             $schedule->is_collected = true;
@@ -1283,8 +1261,22 @@ class ScheduleSamplingManager extends Component
         }
     }
 
+    public function getSubmissionFormProperty(): ?SubmissionForm
+    {
+        if (! $this->selectedSampleTypeId) {
+            return null;
+        }
+
+        $form = app(PortalSubmissionFormAccess::class)
+            ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
+
+        return $form?->loadMissing(['sections.elementHolders.elements']);
+    }
+
     public function render()
     {
-        return view('livewire.planner.schedule-sampling-manager');
+        return view('livewire.planner.schedule-sampling-manager', [
+            'submissionForm' => $this->submissionForm,
+        ]);
     }
 }

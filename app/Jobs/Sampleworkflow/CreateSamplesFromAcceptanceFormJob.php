@@ -57,7 +57,6 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ->with([
                 'lines',
                 'submissionFormInstance.batches',
-                'testRequestFormInstance.submissionFormInstance.batches',
                 'sampleSubmissionRequest',
             ])
             ->find($this->acceptanceFormId);
@@ -193,21 +192,9 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 }
             }
 
-            $trfi = $submissionRequest?->resolveLinkedTrfi();
-            if ($trfi?->submissionFormInstance) {
-                return $trfi->submissionFormInstance->loadMissing('batches');
-            }
-        }
-
-        if ($form->test_request_form_instance_id) {
-            $trfi = $form->relationLoaded('testRequestFormInstance')
-                ? $form->testRequestFormInstance
-                : \App\Models\TestRequestFormInstance::query()
-                    ->with('submissionFormInstance.batches')
-                    ->find($form->test_request_form_instance_id);
-
-            if ($trfi?->submissionFormInstance) {
-                return $trfi->submissionFormInstance;
+            $instance = $submissionRequest?->resolveLinkedFormInstance();
+            if ($instance !== null) {
+                return $instance->loadMissing('batches');
             }
         }
 
@@ -325,12 +312,13 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         $trfRows = [];
         $crmCustomerId = (string) ($header->crm_customer_id ?? '');
         if ($header->submission_form_instance_id) {
-            $trfi = \App\Models\TestRequestFormInstance::query()
-                ->where('submission_form_instance_id', $header->submission_form_instance_id)
-                ->orderByDesc('created_at')
-                ->first();
-            if ($trfi !== null && is_array($trfi->form_data)) {
-                $trfRows = app(TrfSampleFieldMapper::class)->sampleRowsFromFormData($trfi->form_data);
+            $sfi = SubmissionFormInstance::query()
+                ->with('values.element')
+                ->find($header->submission_form_instance_id);
+            if ($sfi !== null) {
+                $formData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+                    ->valuesMapFromInstance($sfi);
+                $trfRows = app(TrfSampleFieldMapper::class)->sampleRowsFromFormData($formData);
             }
         }
         $trfMapper = app(TrfSampleFieldMapper::class);

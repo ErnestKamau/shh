@@ -2813,6 +2813,24 @@ function resolveReportingUnitIdFromName(?string $unitName): ?string
 }
 
 /**
+ * Human-readable reporting unit label from a UUID id or legacy name string.
+ */
+function resolveReportingUnitLabel(?string $value): string
+{
+	if ($value === null || trim($value) === '') {
+		return '-';
+	}
+
+	$value = trim($value);
+
+	if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $value)) {
+		return App\ReportingUnit::query()->where('id', $value)->value('name') ?? '-';
+	}
+
+	return $value;
+}
+
+/**
  * Resolve reporting_unit_id from analysis_elements.reporting_unit (unit name string).
  */
 function resolveReportingUnitIdFromAnalyte(?string $analysisTypeId, ?string $analyteId, ?string $existingReportingUnitId): ?string

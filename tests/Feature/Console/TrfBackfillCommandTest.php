@@ -16,6 +16,12 @@ class TrfBackfillCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     public function test_backfill_links_ssr_to_existing_trfi(): void
     {
         $sampleType = SampleType::query()->create([

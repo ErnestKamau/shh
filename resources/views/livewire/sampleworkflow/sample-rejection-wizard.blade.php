@@ -130,7 +130,7 @@
     @endif
 
     <style>
-        .acc-wizard-root {
+        .acc-wizard-root--rejection {
             --acc-accent: #3b5fc0;
             --acc-accent-dark: #2f4ba0;
             --acc-accent-soft: #eef2ff;

@@ -190,6 +190,27 @@ document.addEventListener('DOMContentLoaded', function() {
 			$canLabReports = $user->can('laboratory.components.lab-reports.view');
 			$canReportingUnits = $user->can('laboratory.components.reporting-units.view');
 			$canEquipmentRequests = $user->can('laboratory.components.equipment-requests.view');
+
+			$labRouteName = optional(request()->route())->getName();
+			$labRouteStatus = request()->route('status');
+			$labWorkflowStatus = is_string($labRouteStatus) ? trim(urldecode($labRouteStatus)) : '';
+			$isLabDashboardActive = request()->routeIs('dashboard-lab');
+			$isInSampleWorkflow = request()->routeIs(
+				'sample-workflow',
+				'sample-workflow-stage',
+				'view-batch-details',
+				'batch-worksheets',
+				'submission-forms.instances.*',
+				'lab.submission-requests.*',
+				'sample-workflow.submission-requests.*'
+			);
+			$isSampleWorkflowStageActive = static function (string $stage) use ($labWorkflowStatus, $labRouteName): bool {
+				if ($labWorkflowStatus === $stage) {
+					return true;
+				}
+
+				return request()->routeIs('view-batch-details') && $labWorkflowStatus === $stage;
+			};
 		@endphp
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
@@ -203,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
 			@if($canLabDashboard)
-			<a href="{{ route('dashboard-lab') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('dashboard-lab') }}" class="list-group-item list-group-item-action {{ $isLabDashboardActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
@@ -211,14 +232,14 @@ document.addEventListener('DOMContentLoaded', function() {
 			</a>
 			@endif
 			@if($canAllSamples || $canInterLabLogs)
-			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="{{ $isInSampleWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInSampleWorkflow ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
 					<span class="menu-collapsed">Sample Workflow</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="sample-workflow-menu" class="collapse sidebar-submenu">
+			<div id="sample-workflow-menu" class="collapse sidebar-submenu {{ $isInSampleWorkflow ? 'show' : '' }}">
 				<?php
                 $menuTotals = getSampleWorkFLowTotals();
                 ?>
@@ -237,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				</a>
 				@endif
 				@if($canAllSamples)
-				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action">
+				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive($item) ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
 							<i class="mdi mdi-circle-medium"></i>{{ getSampleWorkflowStageLabel($item) }}
@@ -312,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		</div>
 			@endif
 			@if($canEquipmentRequests)
-			<a href="{{ route('lab.equipment-requests.index') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('lab.equipment-requests.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.equipment-requests.*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools mr-3"></span>
 					<span class="menu-collapsed">Equipment Requests</span>

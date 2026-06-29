@@ -1,7 +1,7 @@
 <style>
 	.lab-panel-theme {
-		--workflow-accent: #3b5fc0;
-		--workflow-accent-soft: #f0f4ff;
+		--workflow-accent: var(--color-primary, #6D0A0E);
+		--workflow-accent-soft: var(--color-primary-soft, rgba(109, 10, 14, 0.08));
 		--workflow-border: #e2e8f0;
 		--workflow-muted: #64748b;
 		--workflow-surface: #ffffff;
@@ -35,8 +35,8 @@
 	.lab-panel-theme .workflow-board-panel-header h5,
 	.lab-panel-theme .workflow-board-panel-header h6 {
 		margin: 0;
-		font-size: 1.1rem;
-		font-weight: 700;
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
 		color: var(--workflow-text-main);
 		display: flex;
 		align-items: center;
@@ -46,7 +46,7 @@
 	.lab-panel-theme .workflow-board-panel-header h5 .mdi,
 	.lab-panel-theme .workflow-board-panel-header h6 .mdi {
 		color: var(--workflow-accent);
-		font-size: 1.25rem;
+		font-size: var(--text-lg);
 	}
 
 	/* Stat Cards */
@@ -75,8 +75,8 @@
 	}
 
 	.lab-panel-theme .stat-card-label {
-		font-size: 0.75rem;
-		font-weight: 700;
+		font-size: var(--text-caption);
+		font-weight: var(--font-semibold);
 		color: var(--workflow-text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.025em;
@@ -90,8 +90,8 @@
 	}
 
 	.lab-panel-theme .stat-card-value {
-		font-size: 1.875rem;
-		font-weight: 800;
+		font-size: var(--text-metric);
+		font-weight: var(--font-bold);
 		color: var(--workflow-text-main);
 	}
 
@@ -104,7 +104,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 1.5rem;
+		font-size: var(--text-lg);
 	}
 
 	.lab-panel-theme .workflow-board-panel-body {
@@ -126,10 +126,10 @@
 	.lab-panel-theme .workflow-table thead th {
 		background: #f8fafc !important;
 		color: var(--workflow-text-muted) !important;
-		font-size: 0.75rem;
-		font-weight: 700;
+		font-size: var(--text-caption);
+		font-weight: var(--font-semibold);
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		letter-spacing: 0.04em;
 		border-bottom: 1px solid var(--workflow-border) !important;
 		padding: 14px 16px;
 	}
@@ -137,6 +137,7 @@
 	.lab-panel-theme .workflow-table tbody td {
 		padding: 16px;
 		vertical-align: middle;
+		font-size: var(--text-sm);
 		color: var(--workflow-text-main);
 		border-bottom: 1px solid var(--workflow-border);
 	}
@@ -150,8 +151,8 @@
 		align-items: center;
 		padding: 4px 10px;
 		border-radius: 20px;
-		font-weight: 600;
-		font-size: 0.75rem;
+		font-weight: var(--font-semibold);
+		font-size: var(--text-caption);
 		background: #f1f5f9;
 		color: #475569;
 		border: 1px solid #e2e8f0;
@@ -160,9 +161,9 @@
 	.lab-panel-theme .btn-action-sm {
 		height: 38px;
 		padding: 0 18px;
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
 		border-radius: 8px;
-		font-weight: 600;
+		font-weight: var(--font-semibold);
 		transition: all 0.2s;
 	}
 
@@ -177,8 +178,8 @@
 		border-bottom: 2px solid transparent;
 		color: var(--workflow-text-muted);
 		padding: 14px 16px;
-		font-weight: 600;
-		font-size: 0.875rem;
+		font-weight: var(--font-semibold);
+		font-size: var(--text-sm);
 	}
 
 	.lab-panel-theme .nav-tabs .nav-link:hover {
@@ -207,8 +208,8 @@
 	}
 
 	.lab-panel-theme .batch-details-checkboxes-panel .control-label {
-		font-size: 0.875rem;
-		font-weight: 500;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
 		color: var(--workflow-text-main);
 		line-height: 1.45;
 	}

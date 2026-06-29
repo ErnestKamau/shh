@@ -7,20 +7,20 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestForm;
-use App\Models\TestRequestFormInstance;
 use App\SampleAnalysisStage;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
+use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
-use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
-use App\Services\TestRequestForm\TestRequestFormSubmissionService;
+use App\Services\SubmissionForm\SubmissionFormSubmissionService;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\User;
 use App\Zone;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -91,16 +91,16 @@ trait SeedsTrfWorkflowSamples
      */
     protected function protectedSeedTrfHeaderIds(): Collection
     {
-        $seedTrfiIds = TestRequestFormInstance::query()
+        $seedSfiIds = SubmissionFormInstance::query()
             ->where('form_number', 'like', 'SEED-TRF-%')
             ->pluck('id');
 
-        if ($seedTrfiIds->isEmpty()) {
+        if ($seedSfiIds->isEmpty()) {
             return collect();
         }
 
         return AnalysisAcceptanceForm::query()
-            ->whereIn('test_request_form_instance_id', $seedTrfiIds)
+            ->whereIn('submission_form_instance_id', $seedSfiIds)
             ->whereNotNull('sample_header_id')
             ->pluck('sample_header_id');
     }
@@ -130,19 +130,7 @@ trait SeedsTrfWorkflowSamples
             ->where('form_number', 'like', 'SEED-TRF-%')
             ->pluck('id');
 
-        $keepTrfiIds = TestRequestFormInstance::query()
-            ->where('form_number', 'like', 'SEED-TRF-%')
-            ->pluck('id');
-
         $orphanAcceptanceQuery = AnalysisAcceptanceForm::query()
-            ->where(function ($query) use ($keepTrfiIds): void {
-                if ($keepTrfiIds->isEmpty()) {
-                    $query->whereRaw('1 = 1');
-                } else {
-                    $query->whereNull('test_request_form_instance_id')
-                        ->orWhereNotIn('test_request_form_instance_id', $keepTrfiIds->all());
-                }
-            })
             ->where(function ($query) use ($keepSfiIds): void {
                 if ($keepSfiIds->isEmpty()) {
                     $query->whereRaw('1 = 1');
@@ -163,23 +151,10 @@ trait SeedsTrfWorkflowSamples
 
         $enquiryQuery = SampleSubmissionRequest::query();
 
-        if ($keepTrfiIds->isNotEmpty() || $keepSfiIds->isNotEmpty()) {
-            $enquiryQuery->where(function ($query) use ($keepTrfiIds, $keepSfiIds): void {
-                $query->where(function ($inner) use ($keepTrfiIds): void {
-                    if ($keepTrfiIds->isEmpty()) {
-                        $inner->whereRaw('1 = 1');
-                    } else {
-                        $inner->whereNull('test_request_form_instance_id')
-                            ->orWhereNotIn('test_request_form_instance_id', $keepTrfiIds->all());
-                    }
-                })->where(function ($inner) use ($keepSfiIds): void {
-                    if ($keepSfiIds->isEmpty()) {
-                        $inner->whereRaw('1 = 1');
-                    } else {
-                        $inner->whereNull('submission_form_instance_id')
-                            ->orWhereNotIn('submission_form_instance_id', $keepSfiIds->all());
-                    }
-                });
+        if ($keepSfiIds->isNotEmpty()) {
+            $enquiryQuery->where(function ($query) use ($keepSfiIds): void {
+                $query->whereNull('submission_form_instance_id')
+                    ->orWhereNotIn('submission_form_instance_id', $keepSfiIds->all());
             });
         }
 
@@ -187,23 +162,6 @@ trait SeedsTrfWorkflowSamples
         if ($deletedEnquiries > 0) {
             $enquiryQuery->delete();
             $this->command?->warn("Purged {$deletedEnquiries} non-seed commercial enquiries.");
-        }
-
-        $deletedTrfis = 0;
-        if ($keepTrfiIds->isNotEmpty()) {
-            $deletedTrfis = TestRequestFormInstance::query()
-                ->whereNotIn('id', $keepTrfiIds->all())
-                ->count();
-            TestRequestFormInstance::query()
-                ->whereNotIn('id', $keepTrfiIds->all())
-                ->delete();
-        } else {
-            $deletedTrfis = TestRequestFormInstance::query()->count();
-            TestRequestFormInstance::query()->delete();
-        }
-
-        if ($deletedTrfis > 0) {
-            $this->command?->warn("Purged {$deletedTrfis} non-seed TRF instances.");
         }
 
         $deletedSfis = 0;
@@ -226,19 +184,19 @@ trait SeedsTrfWorkflowSamples
 
     protected function purgeAllSeedTrfChains(): void
     {
-        $trfis = TestRequestFormInstance::query()
+        $instances = SubmissionFormInstance::query()
             ->where('form_number', 'like', 'SEED-TRF-%')
             ->get();
 
-        if ($trfis->isEmpty()) {
+        if ($instances->isEmpty()) {
             return;
         }
 
-        $this->command?->warn('Resetting '.$trfis->count().' SEED-TRF workflow chains.');
+        $this->command?->warn('Resetting '.$instances->count().' SEED-TRF workflow chains.');
 
-        foreach ($trfis as $trfi) {
+        foreach ($instances as $instance) {
             $acceptance = AnalysisAcceptanceForm::query()
-                ->where('test_request_form_instance_id', $trfi->id)
+                ->where('submission_form_instance_id', $instance->id)
                 ->first();
 
             if ($acceptance?->sample_header_id) {
@@ -249,16 +207,10 @@ trait SeedsTrfWorkflowSamples
             }
 
             SampleSubmissionRequest::query()
-                ->where('test_request_form_instance_id', $trfi->id)
+                ->where('submission_form_instance_id', $instance->id)
                 ->delete();
 
-            if ($trfi->submission_form_instance_id) {
-                SubmissionFormInstance::query()
-                    ->whereKey($trfi->submission_form_instance_id)
-                    ->delete();
-            }
-
-            $trfi->delete();
+            $instance->delete();
         }
     }
 
@@ -280,7 +232,6 @@ trait SeedsTrfWorkflowSamples
      * @param  array<string, SampleAnalysisStage>  $stages
      * @return array{
      *     submissionFormInstance: SubmissionFormInstance,
-     *     testRequestFormInstance: TestRequestFormInstance,
      *     submissionRequest: SampleSubmissionRequest,
      *     acceptanceForm: ?AnalysisAcceptanceForm,
      *     sampleHeader: ?SampleHeader
@@ -305,15 +256,6 @@ trait SeedsTrfWorkflowSamples
         $receivingUser = $users->first();
         $reviewUser = $users->skip(1)->first() ?? $users->first();
         $analystUser = $users->skip(2)->first() ?? $reviewUser;
-
-        $testRequestForm = TestRequestForm::query()
-            ->where('sample_type_id', $sampleType->id)
-            ->where('is_active', true)
-            ->first();
-
-        if ($testRequestForm === null) {
-            throw new \RuntimeException("No TestRequestForm template for sample type {$sampleType->code}.");
-        }
 
         $labId = (string) ($analysisType->lab_id ?? '');
         $pipelineStage = (string) ($scenario['pipeline_stage'] ?? 'accepted');
@@ -347,37 +289,28 @@ trait SeedsTrfWorkflowSamples
             (string) $scenario['category_flag'] => true,
         ];
 
-        $trfi = app(TestRequestFormSubmissionService::class)->submit(
-            $testRequestForm,
-            [
-                'customer_name' => $customer->name,
-                'sampling_date' => $submittedAt->copy()->subDay()->format('Y-m-d'),
-                'sample_rows' => [$row],
-            ],
-            new TestRequestFormSubmissionContext(
-                sourceChannel: TestRequestFormInstance::CHANNEL_STAFF,
-                crmCustomerId: (string) $customer->id,
-                submittedBy: $receivingUser?->id,
-                existingSubmissionFormInstance: $instance,
-                portalSubmissionForm: $submissionForm,
-                zoneId: (string) $zone->id,
-                receivingLabId: $labId !== '' ? $labId : null,
-                syncEnquiry: true,
-                generatePdf: false,
-                isDraft: false,
-                markShadowAsReceived: $pipelineStage === 'received',
-            ),
-        );
-
-        $trfi->update([
-            'form_number' => $seedKey,
-            'status' => TestRequestFormInstance::STATUS_RECEIVED,
+        $instance->update([
+            'source_channel' => CommercialEnquirySyncService::SOURCE_STAFF,
         ]);
+
+        $submissionService = app(SubmissionFormSubmissionService::class);
+        $formData = app(SubmissionFormValueNormalizer::class)->toRequestPayload([
+            'customer_name' => $customer->name,
+            'sampling_date' => $submittedAt->copy()->subDay()->format('Y-m-d'),
+            'sample_rows' => [$row],
+        ]);
+        $request = Request::create('/', 'POST', $formData);
+        $elements = $submissionService->elementsForForm($submissionForm);
+        $submissionService->processFormData($instance, $request, $elements);
+
+        app(CommercialEnquirySyncService::class)->syncFromSubmittedInstance(
+            $instance->fresh(['values.element', 'submissionForm', 'crmCustomer']),
+        );
 
         $instance->update(['status' => $sfiStatus]);
 
         $enquiry = SampleSubmissionRequest::query()
-            ->where('test_request_form_instance_id', $trfi->id)
+            ->where('submission_form_instance_id', $instance->id)
             ->firstOrFail();
 
         $enquiry->update([
@@ -400,7 +333,7 @@ trait SeedsTrfWorkflowSamples
         $header = null;
 
         if ($pipelineStage === 'received') {
-            return $this->buildSeedChainResult($instance, $trfi, $enquiry, null, null);
+            return $this->buildSeedChainResult($instance, $enquiry, null, null);
         }
 
         $acceptanceService = app(AcceptanceFormService::class);
@@ -444,7 +377,7 @@ trait SeedsTrfWorkflowSamples
                 );
             }
 
-            return $this->buildSeedChainResult($instance, $trfi, $enquiry, $acceptanceForm, null);
+            return $this->buildSeedChainResult($instance, $enquiry, $acceptanceForm, null);
         }
 
         $acceptanceForm = $acceptanceService->createFromStep1(
@@ -499,7 +432,6 @@ trait SeedsTrfWorkflowSamples
 
         return $this->buildSeedChainResult(
             $instance,
-            $trfi,
             $enquiry->fresh(),
             $acceptanceForm->fresh(['lines', 'sampleHeader']),
             $header->fresh(),
@@ -509,7 +441,6 @@ trait SeedsTrfWorkflowSamples
     /**
      * @return array{
      *     submissionFormInstance: SubmissionFormInstance,
-     *     testRequestFormInstance: TestRequestFormInstance,
      *     submissionRequest: SampleSubmissionRequest,
      *     acceptanceForm: ?AnalysisAcceptanceForm,
      *     sampleHeader: ?SampleHeader
@@ -517,14 +448,12 @@ trait SeedsTrfWorkflowSamples
      */
     private function buildSeedChainResult(
         SubmissionFormInstance $instance,
-        TestRequestFormInstance $trfi,
         SampleSubmissionRequest $enquiry,
         ?AnalysisAcceptanceForm $acceptanceForm,
         ?SampleHeader $header,
     ): array {
         return [
             'submissionFormInstance' => $instance->fresh(),
-            'testRequestFormInstance' => $trfi->fresh(),
             'submissionRequest' => $enquiry->fresh(),
             'acceptanceForm' => $acceptanceForm,
             'sampleHeader' => $header,

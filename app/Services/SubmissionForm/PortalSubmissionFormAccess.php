@@ -5,7 +5,7 @@ namespace App\Services\SubmissionForm;
 use App\Exceptions\Api\Portal\PortalApiException;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
-use App\Services\TestRequestForm\TestRequestFormTemplateProvisioner;
+use App\SampleType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -129,8 +129,7 @@ class PortalSubmissionFormAccess
             return $match;
         }
 
-        return app(TestRequestFormTemplateProvisioner::class)
-            ->ensureSubmissionFormForSampleType($sampleTypeId);
+        return null;
     }
 
     private function findTestRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
@@ -148,7 +147,7 @@ class PortalSubmissionFormAccess
             return $trfMatch;
         }
 
-        return SubmissionForm::query()
+        $templateMatch = SubmissionForm::query()
             ->where('is_active', true)
             ->where('form_type', 'template')
             ->where(function (Builder $builder): void {
@@ -158,6 +157,28 @@ class PortalSubmissionFormAccess
             })
             ->where($scopedToSampleType)
             ->orderByRaw("case when document_code like 'TRF-%' then 0 when document_code = 'LSR-001' then 1 else 2 end")
+            ->first();
+
+        if ($templateMatch !== null) {
+            return $templateMatch;
+        }
+
+        return $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId);
+    }
+
+    private function findTestRequestFormBySampleTypeDocumentCode(string $sampleTypeId): ?SubmissionForm
+    {
+        $sampleType = SampleType::query()->find($sampleTypeId);
+        $documentCode = app(TrfDocumentCodeForSampleType::class)->resolve($sampleType);
+
+        if ($documentCode === null) {
+            return null;
+        }
+
+        return SubmissionForm::query()
+            ->where('document_code', $documentCode)
+            ->where('is_active', true)
+            ->where('form_type', 'template')
             ->first();
     }
 

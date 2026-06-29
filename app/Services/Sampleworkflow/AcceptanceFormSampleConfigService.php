@@ -474,11 +474,16 @@ class AcceptanceFormSampleConfigService
             $configKey = (string) ($config['id'] ?? Str::uuid());
 
             $parameters = $this->parametersForConfig($customerId, $sampleTypeId, $analysisTypeId);
-            $parameterMap = collect($parameters)->keyBy(fn (array $p) => (string) ($p['analysis_element_id'] ?? $p['id']));
+            $parameterMap = collect($parameters)->keyBy(
+                fn (array $parameter): string => (string) ($parameter['analysis_element_id'] ?? $parameter['id'] ?? ''),
+            );
 
             foreach ($parameterKeys as $paramKey) {
                 $paramKey = (string) $paramKey;
                 $parameter = $parameterMap->get($paramKey);
+                if ($parameter === null) {
+                    $parameter = $this->resolveParameterOptionByElementId($parameters, $paramKey);
+                }
                 if ($parameter === null) {
                     continue;
                 }
@@ -523,12 +528,146 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * Keep only parameter keys that exist for this config's analysis type on the customer pricelist.
+     * Maps stale TRF element ids to pricelist keys by matching analyte label when possible.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    public function reconcileParameterKeysForConfig(array $config, string $customerId): array
+    {
+        $parameters = $this->parametersForConfig(
+            $customerId,
+            $config['sample_type_id'] ?? null,
+            $config['analysis_type_id'] ?? null,
+        );
+
+        $validKeys = collect($parameters)
+            ->flatMap(fn (array $parameter): array => array_values(array_filter([
+                (string) ($parameter['analysis_element_id'] ?? ''),
+                (string) ($parameter['id'] ?? ''),
+            ])))
+            ->unique()
+            ->values();
+
+        $selectedKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+            ->map(fn (mixed $key): string => trim((string) $key))
+            ->filter(fn (string $key): bool => $key !== '');
+
+        $config['parameter_keys'] = $selectedKeys
+            ->filter(fn (string $key): bool => $validKeys->contains($key))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $config;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $configs
      * @return list<array<string, mixed>>
      */
-    public function normalizeConfigsForStorage(array $configs): array
+    public function alignPrefillParameterKeysForConfigs(array $configs, string $customerId): array
     {
-        return collect($configs)->map(function (array $config) {
+        return array_values(array_map(
+            fn (array $config): array => $this->alignPrefillParameterKeysForConfig($config, $customerId),
+            $configs,
+        ));
+    }
+
+    /**
+     * Map TRF analysis element ids onto pricelist parameter keys when the analyte label matches.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    public function alignPrefillParameterKeysForConfig(array $config, string $customerId): array
+    {
+        $parameters = $this->parametersForConfig(
+            $customerId,
+            $config['sample_type_id'] ?? null,
+            $config['analysis_type_id'] ?? null,
+        );
+
+        if ($parameters === []) {
+            return $config;
+        }
+
+        $validKeys = collect($parameters)
+            ->flatMap(fn (array $parameter): array => array_values(array_filter([
+                (string) ($parameter['analysis_element_id'] ?? ''),
+                (string) ($parameter['id'] ?? ''),
+            ])))
+            ->unique()
+            ->values();
+
+        $parametersByLabel = collect($parameters)->keyBy(
+            fn (array $parameter): string => strtolower(trim((string) ($parameter['label'] ?? '')))
+        );
+
+        $aligned = [];
+
+        foreach (is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [] as $key) {
+            $key = trim((string) $key);
+            if ($key === '') {
+                continue;
+            }
+
+            if ($validKeys->contains($key)) {
+                $aligned[] = $key;
+
+                continue;
+            }
+
+            if (! Str::isUuid($key)) {
+                continue;
+            }
+
+            $element = AnalysisElements::query()->with('analyte:id,name')->find($key);
+            $label = strtolower(trim((string) ($element?->analyte?->name ?? '')));
+            if ($label === '') {
+                continue;
+            }
+
+            $match = $parametersByLabel->get($label);
+            if ($match === null) {
+                continue;
+            }
+
+            $mappedKey = trim((string) ($match['analysis_element_id'] ?? $match['id'] ?? ''));
+            if ($mappedKey !== '' && $validKeys->contains($mappedKey)) {
+                $aligned[] = $mappedKey;
+            }
+        }
+
+        $config['parameter_keys'] = collect($aligned)->unique()->values()->all();
+
+        return $config;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array<string, mixed>>
+     */
+    public function reconcileConfigsParameterKeys(array $configs, string $customerId): array
+    {
+        return array_values(array_map(
+            fn (array $config): array => $this->reconcileParameterKeysForConfig($config, $customerId),
+            $configs,
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array<string, mixed>>
+     */
+    public function normalizeConfigsForStorage(array $configs, ?string $customerId = null): array
+    {
+        return collect($configs)->map(function (array $config) use ($customerId) {
+            if ($customerId !== null && trim($customerId) !== '') {
+                $config = $this->reconcileParameterKeysForConfig($config, $customerId);
+            }
+
             $count = max(1, (int) ($config['number_of_samples'] ?? 1));
 
             return [
@@ -599,5 +738,37 @@ class AcceptanceFormSampleConfigService
         }
 
         return $plans;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $parameters
+     * @return array<string, mixed>|null
+     */
+    private function resolveParameterOptionByElementId(array $parameters, string $elementId): ?array
+    {
+        if ($elementId === '' || ! Str::isUuid($elementId)) {
+            return null;
+        }
+
+        foreach ($parameters as $parameter) {
+            $candidate = (string) ($parameter['analysis_element_id'] ?? $parameter['id'] ?? '');
+            if ($candidate === $elementId) {
+                return $parameter;
+            }
+        }
+
+        $element = AnalysisElements::query()->with('analyte:id,name')->find($elementId);
+        $label = strtolower(trim((string) ($element?->analyte?->name ?? '')));
+        if ($label === '') {
+            return null;
+        }
+
+        foreach ($parameters as $parameter) {
+            if (strtolower(trim((string) ($parameter['label'] ?? ''))) === $label) {
+                return $parameter;
+            }
+        }
+
+        return null;
     }
 }

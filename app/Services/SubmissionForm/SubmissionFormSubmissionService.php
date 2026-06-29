@@ -6,8 +6,8 @@ use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
-use App\Services\TestRequestForm\TestRequestFormDataMapper;
-use App\Services\TestRequestForm\TestRequestFormSubmissionService;
+use App\Services\Commercial\CommercialEnquirySyncService;
+use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -184,8 +184,7 @@ class SubmissionFormSubmissionService
             'submitted_at' => now(),
         ]);
 
-        // Create TestRequestFormInstance if this is a test request form submission
-        $this->createTestRequestFormInstanceIfApplicable($instance, $submissionForm);
+        $this->syncCommercialPipelineIfApplicable($instance, $submissionForm);
 
         $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
 
@@ -203,70 +202,92 @@ class SubmissionFormSubmissionService
         return $instance->fresh(['submissionForm', 'values.element']);
     }
 
+    /**
+     * Walk-in capture from Samples Receiving modal.
+     *
+     * @param  array<string, mixed>  $fieldValues
+     */
+    public function submitWalkInInstance(
+        SubmissionForm $submissionForm,
+        array $fieldValues,
+        ?string $crmCustomerId = null,
+        ?string $sampleTypeId = null,
+        string $sourceChannel = CommercialEnquirySyncService::SOURCE_WALK_IN,
+        ?string $samplingScheduleId = null,
+    ): SubmissionFormInstance {
+        return DB::transaction(function () use ($submissionForm, $fieldValues, $crmCustomerId, $sampleTypeId, $sourceChannel, $samplingScheduleId): SubmissionFormInstance {
+            $userId = Auth::id();
+
+            $instance = SubmissionFormInstance::query()->create([
+                'submission_form_id' => $submissionForm->id,
+                'selected_sample_type_id' => $sampleTypeId !== null && $sampleTypeId !== ''
+                    ? $sampleTypeId
+                    : null,
+                'title' => 'Test Request Form - '.now()->format('Y-m-d H:i'),
+                'submitted_by' => $userId,
+                'status' => 'submitted',
+                'submitted_at' => now(),
+                'priority' => 'normal',
+                'crm_customer_id' => $crmCustomerId,
+                'source_channel' => $sourceChannel,
+                'sampling_schedule_id' => $samplingScheduleId,
+            ]);
+
+            $elements = $this->elementsForForm($submissionForm);
+            $request = new Request();
+            $request->merge($fieldValues);
+            $this->processFormData($instance, $request, $elements);
+
+            $this->assignFormNumberWithRetry($instance, $submissionForm);
+            $instance->refresh();
+
+            $this->syncCommercialPipelineIfApplicable($instance->fresh(['values.element']), $submissionForm);
+
+            return $instance->fresh(['submissionForm', 'values.element']);
+        });
+    }
+
+    private function syncCommercialPipelineIfApplicable(
+        SubmissionFormInstance $instance,
+        SubmissionForm $submissionForm,
+    ): void {
+        unset($submissionForm);
+
+        $syncService = app(CommercialEnquirySyncService::class);
+        if (! $syncService->isCommercialTestRequestForm($instance)) {
+            return;
+        }
+
+        try {
+            $syncService->syncFromSubmittedInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
+        } catch (\Throwable $exception) {
+            Log::warning('Commercial enquiry sync failed after submission form submit.', [
+                'instance_id' => $instance->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        try {
+            app(TestRequestFormPdfService::class)->generateAndStore($instance->fresh(['values.element', 'submissionForm']));
+        } catch (\Throwable $exception) {
+            Log::warning('Test Request Form PDF generation failed after submission.', [
+                'instance_id' => $instance->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /*
+     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 1
+     * Replaced by syncCommercialPipelineIfApplicable — retained for reference.
+     *
     private function createTestRequestFormInstanceIfApplicable(
         SubmissionFormInstance $instance,
         SubmissionForm $submissionForm
     ): void {
-        $instance->loadMissing(['values.element']);
-        $submissionForm->loadMissing('sampleTypes');
-        $elements = $this->elementsForForm($submissionForm);
-
-        $hasTestRequestFields = $elements->contains(function ($element): bool {
-            $name = (string) ($element->name ?? '');
-            $type = (string) ($element->element_type ?? '');
-
-            return in_array($name, ['sample_rows', 'rows_section', 'customer_name', 'sampling_date'], true)
-                || in_array($type, ['sample_rows', 'rows_section', 'test_request_section'], true);
-        });
-
-        if (! $hasTestRequestFields) {
-            return;
-        }
-
-        $mapper = app(TestRequestFormDataMapper::class);
-        $rawFormData = $mapper->fromSubmissionFormInstance($instance, $submissionForm);
-
-        $hasRowPayload = isset($rawFormData['sample_rows']) && is_array($rawFormData['sample_rows'])
-            && $rawFormData['sample_rows'] !== [];
-
-        if (! $hasRowPayload) {
-            $hasRowPayload = $elements->contains(fn ($element): bool => in_array(
-                (string) ($element->element_type ?? ''),
-                ['sample_rows', 'rows_section'],
-                true
-            ));
-        }
-
-        if (! $hasRowPayload && ! isset($rawFormData['customer_name'])) {
-            return;
-        }
-
-        $sampleTypeId = $submissionForm->sampleTypes->first()?->id;
-        if (! $sampleTypeId && is_array($rawFormData['sample_rows'] ?? null)) {
-            $firstRow = $rawFormData['sample_rows'][0] ?? null;
-            if (is_array($firstRow) && ! empty($firstRow['sample_type_id'])) {
-                $sampleTypeId = $firstRow['sample_type_id'];
-            }
-        }
-
-        if (! $sampleTypeId) {
-            return;
-        }
-
-        $testRequestForm = \App\Models\TestRequestForm::where('sample_type_id', $sampleTypeId)
-            ->where('is_active', true)
-            ->first();
-
-        if (! $testRequestForm) {
-            return;
-        }
-
-        app(TestRequestFormSubmissionService::class)->submitFromPortalInstance(
-            $instance,
-            $submissionForm,
-            $testRequestForm,
-        );
+        ...
     }
+    */
 
     public function assignFormNumberWithRetry(
         SubmissionFormInstance $instance,
@@ -323,11 +344,9 @@ class SubmissionFormSubmissionService
      */
     public function elementsForForm(SubmissionForm $submissionForm): Collection
     {
-        return SubmissionFormElement::query()
-            ->whereHas('holder.section', function ($query) use ($submissionForm): void {
-                $query->where('submission_form_id', $submissionForm->id);
-            })
-            ->get();
+        $elements = app(SubmissionFormSchemaHelper::class)->uniqueElements($submissionForm);
+
+        return new Collection($elements->all());
     }
 
     private function processSingleField(

@@ -10,6 +10,7 @@ use App\AnalysisType;
 use App\Concerns\HasVarcharUuidRelationships;
 use App\User;
 use App\Models\CRM\CRMCustomer;
+use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +32,7 @@ class SubmissionFormInstance extends Model implements Auditable
 
     protected $fillable = [
         'submission_form_id',
+        'selected_sample_type_id',
         'form_number',
         'sequence_number',
         'title',
@@ -50,6 +52,8 @@ class SubmissionFormInstance extends Model implements Auditable
         'reviewed_by',
         'review_notes',
         'receiving_lab_id',
+        'source_channel',
+        'sampling_schedule_id',
     ];
 
     protected $casts = [
@@ -64,16 +68,6 @@ class SubmissionFormInstance extends Model implements Auditable
     public function submissionForm(): BelongsTo
     {
         return $this->belongsTo(SubmissionForm::class);
-    }
-
-    public function testRequestFormInstances(): HasMany
-    {
-        return $this->hasMany(TestRequestFormInstance::class, 'submission_form_instance_id');
-    }
-
-    public function testRequestFormInstance(): HasOne
-    {
-        return $this->hasOne(TestRequestFormInstance::class, 'submission_form_instance_id');
     }
 
     /**
@@ -225,12 +219,13 @@ class SubmissionFormInstance extends Model implements Auditable
         };
     }
 
-    /**
-     * Get sample types associated with this instance's form (from the form-level pivot).
-     * This is more reliable than reading from form values for portal submissions.
-     */
     public function getFormSampleTypeNames(): array
     {
+        $selectedName = $this->selectedSampleTypeName();
+        if ($selectedName !== null) {
+            return [$selectedName];
+        }
+
         if ($this->relationLoaded('submissionForm') && $this->submissionForm) {
             if ($this->submissionForm->relationLoaded('sampleTypes')) {
                 return $this->submissionForm->sampleTypes->pluck('name')->filter()->values()->all();
@@ -239,11 +234,38 @@ class SubmissionFormInstance extends Model implements Auditable
         return [];
     }
 
+    public function selectedSampleTypeName(): ?string
+    {
+        $sampleTypeId = $this->resolveSelectedSampleTypeId();
+        if ($sampleTypeId === null) {
+            return null;
+        }
+
+        $name = \App\SampleType::query()->whereKey($sampleTypeId)->value('name');
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
+    }
+
+    public function resolveSelectedSampleTypeId(): ?string
+    {
+        $selected = trim((string) ($this->selected_sample_type_id ?? ''));
+        if ($selected !== '' && \Illuminate\Support\Str::isUuid($selected)) {
+            return $selected;
+        }
+
+        return null;
+    }
+
     /**
      * Resolve sample type names from submitted values first, then fall back to form-level pivot mapping.
      */
     public function getResolvedSampleTypeNames(): array
     {
+        $selectedName = $this->selectedSampleTypeName();
+        if ($selectedName !== null) {
+            return [$selectedName];
+        }
+
         $source = $this->relationLoaded('values')
             ? $this->values
             : $this->values()->with('element')->get();
@@ -370,7 +392,7 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function receivingOriginChannel(): string
     {
-        $this->loadMissing(['sampleSubmissionRequest', 'testRequestFormInstance']);
+        $this->loadMissing(['sampleSubmissionRequest']);
 
         $enquiryChannel = strtolower(trim((string) ($this->sampleSubmissionRequest?->source_channel ?? '')));
 
@@ -382,7 +404,12 @@ class SubmissionFormInstance extends Model implements Auditable
             return 'scheduled';
         }
 
-        if ($this->testRequestFormInstance?->sampling_schedule_id) {
+        if ($this->sampling_schedule_id) {
+            return 'scheduled';
+        }
+
+        $sourceChannel = strtolower(trim((string) ($this->source_channel ?? '')));
+        if ($sourceChannel === 'scheduled') {
             return 'scheduled';
         }
 
@@ -444,12 +471,7 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function receivingFormDisplayName(): string
     {
-        $this->loadMissing(['submissionForm', 'testRequestFormInstance']);
-
-        if ($this->testRequestFormInstance !== null) {
-            return 'Test Request Form';
-        }
-
+        $this->loadMissing(['submissionForm']);
         $form = $this->submissionForm;
         if ($form === null) {
             return 'Test Request Form';
@@ -498,11 +520,8 @@ class SubmissionFormInstance extends Model implements Auditable
 
     public function canonicalFormNumber(): string
     {
-        $this->loadMissing('testRequestFormInstance');
-
         return (string) (
-            $this->testRequestFormInstance?->form_number
-            ?? $this->getDocumentControlNumber()
+            $this->getDocumentControlNumber()
             ?? $this->form_number
             ?? ''
         );
@@ -1232,6 +1251,40 @@ class SubmissionFormInstance extends Model implements Auditable
             return $total;
         }
 
+        $formData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+            ->valuesMapFromInstance($this);
+        $rows = is_array($formData['sample_rows'] ?? null) ? $formData['sample_rows'] : [];
+        $fromRows = 0;
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $tokens = $this->extractValueTokens((string) ($row['parameters'] ?? ''));
+            if ($tokens !== []) {
+                $fromRows += count($tokens);
+
+                continue;
+            }
+
+            if (trim((string) ($row['test_category'] ?? '')) !== '') {
+                $fromRows++;
+
+                continue;
+            }
+
+            foreach (['microbiology', 'legionella', 'chemistry', 'chemical_analysis'] as $flag) {
+                if (filter_var($row[$flag] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    $fromRows++;
+                    break;
+                }
+            }
+        }
+
+        if ($fromRows > 0) {
+            return $fromRows;
+        }
+
         return $this->countRequestedTestsFromCommercialEnquiry();
     }
 
@@ -1771,6 +1824,14 @@ class SubmissionFormInstance extends Model implements Auditable
             return null;
         }
 
+        if (app(TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($id)) {
+            return $id;
+        }
+
+        if (! Str::isUuid($id)) {
+            return null;
+        }
+
         $name = AnalysisType::query()->find($id)?->name;
 
         return is_string($name) && trim($name) !== '' ? trim($name) : null;
@@ -1781,45 +1842,85 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function resolveSingleValue($elementType, $id)
     {
+        $id = trim((string) $id);
+        if ($id === '') {
+            return $id;
+        }
+
+        if ($elementType === 'analysis_type_select'
+            && app(TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($id)) {
+            return $id;
+        }
+
         try {
             switch ($elementType) {
                 case 'client_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $client = DB::table('crm_customers')->where('id', $id)->first();
                     return $client ? $client->name : $id;
 
                 case 'client_unit_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $unit = DB::table('crm_company_units')->where('id', $id)->first();
                     return $unit ? $unit->name : $id;
 
                 case 'sample_type_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $sampleType = DB::table('sample_types')->where('id', $id)->first();
                     return $sampleType ? $sampleType->name : $id;
 
                 case 'analysis_type_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $analysisType = DB::table('analysis_types')->where('id', $id)->first();
                     return $analysisType ? $analysisType->name : $id;
 
                 case 'sample_point_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $samplePoint = DB::table('sample_points')->where('id', $id)->first();
                     return $samplePoint ? $samplePoint->name : $id;
 
                 case 'sample_condition_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $condition = DB::table('sample_conditions')->where('id', $id)->first();
                     return $condition ? $condition->name : $id;
 
                 case 'standard_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $standard = DB::table('standards')->where('id', $id)->first();
                     return $standard ? $standard->name : $id;
 
                 case 'store_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $store = DB::table('inventory_stores')->where('id', $id)->first();
                     return $store ? $store->name : $id;
 
                 case 'store_slot_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $slot = DB::table('inventory_store_slots')->where('id', $id)->first();
                     return $slot ? $slot->name : $id;
 
                 case 'client_contact_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $contact = DB::table('crm_customer_contacts')
                         ->where('id', $id)
                         ->first();
@@ -1844,6 +1945,9 @@ class SubmissionFormInstance extends Model implements Auditable
                     return (string) $id;
 
                 case 'user_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
                     $user = DB::table('users')->where('id', $id)->first();
                     if ($user) {
                         return $user->name ?: $user->email ?: $id;
@@ -1861,10 +1965,15 @@ class SubmissionFormInstance extends Model implements Auditable
                 default:
                     return $id;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // If there's any error resolving the value, return the original value
             return $id;
         }
+    }
+
+    private function isResolvableReferenceId(string $id): bool
+    {
+        return Str::isUuid($id);
     }
 
     /**

@@ -17,6 +17,12 @@ class SubmissionRequestSampleLineServiceTrfiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     public function test_lines_for_trfi_returns_normalized_sample_rows(): void
     {
         $sampleType = SampleType::query()->create([

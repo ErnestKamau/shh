@@ -3,7 +3,7 @@
 namespace App\Services\Sampleworkflow;
 
 use App\BatchLabSectionApprover;
-use App\Models\TestRequestFormInstance;
+use App\Models\SubmissionFormInstance;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
 use App\SampleHeader;
@@ -24,9 +24,11 @@ class TestRequestReportDataService
     {
         $batch->loadMissing(['customer', 'sample_type', 'samples', 'receivingofficer']);
 
-        $trfi = $this->resolveTestRequestFormInstance($batch);
-        $trfPayload = $trfi !== null ? $this->trfReportBuilder->build($trfi) : null;
-        $formData = $trfi !== null && is_array($trfi->form_data) ? $trfi->form_data : [];
+        $sfi = $this->resolveSubmissionFormInstance($batch);
+        $trfPayload = $sfi !== null ? $this->trfReportBuilder->buildFromSubmissionFormInstance($sfi) : null;
+        $formData = $sfi !== null
+            ? app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)->valuesMapFromInstance($sfi)
+            : [];
         $trfRows = $this->trfMapper->sampleRowsFromFormData($formData);
         $normalizedRows = is_array($trfPayload['sampleRows'] ?? null) ? $trfPayload['sampleRows'] : [];
 
@@ -153,16 +155,15 @@ class TestRequestReportDataService
         ];
     }
 
-    private function resolveTestRequestFormInstance(SampleHeader $batch): ?TestRequestFormInstance
+    private function resolveSubmissionFormInstance(SampleHeader $batch): ?SubmissionFormInstance
     {
         if (! $batch->submission_form_instance_id) {
             return null;
         }
 
-        return TestRequestFormInstance::query()
-            ->where('submission_form_instance_id', $batch->submission_form_instance_id)
-            ->orderByDesc('created_at')
-            ->first();
+        return SubmissionFormInstance::query()
+            ->with(['values.element', 'submissionForm', 'crmCustomer'])
+            ->find($batch->submission_form_instance_id);
     }
 
     /**
@@ -197,7 +198,10 @@ class TestRequestReportDataService
         }
 
         $approverUser = $approver ? User::find($approver->user_id) : null;
-        $approverRole = $approverUser ? ($approverUser->designation ?? 'Laboratory Manager') : 'Laboratory Manager';
+        $positionLabel = $approver ? $approver->getApproverPositionDetails() : '-';
+        $approverRole = ($positionLabel !== '' && $positionLabel !== '-')
+            ? $positionLabel
+            : 'Laboratory Manager';
         $approvalDate = $approver && $approver->approval_date
             ? date('d/m/Y', strtotime((string) $approver->approval_date))
             : date('d/m/Y');
@@ -220,15 +224,30 @@ class TestRequestReportDataService
             return $electronicSig;
         }
 
+        if (str_starts_with($electronicSig, 'http')) {
+            return $electronicSig;
+        }
+
+        if ($this->signatureFileIsReadable($electronicSig) && function_exists('imageTobase64')) {
+            return imageTobase64($electronicSig);
+        }
+
+        return '';
+    }
+
+    private function signatureFileIsReadable(string $electronicSig): bool
+    {
         if (function_exists('getCoaApproverSignature')) {
-            $storagePath = getCoaApproverSignature($electronicSig);
-            $dataUri = $this->pathToDataUri($storagePath);
-            if ($dataUri !== '') {
-                return $dataUri;
+            $path = getCoaApproverSignature($electronicSig);
+            if (is_readable($path)) {
+                return true;
             }
         }
 
-        return $this->pathToDataUri($electronicSig);
+        $parts = explode('/storage', $electronicSig);
+        $suffix = end($parts);
+
+        return is_readable(storage_path('app'.$suffix));
     }
 
     /**

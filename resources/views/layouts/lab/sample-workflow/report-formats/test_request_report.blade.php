@@ -463,7 +463,7 @@
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
-                                <td>{{ $cr->reporting_unit_id ?? '-' }}</td>
+                                <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
                                 <td>
                                     @php
                                         $specStd = $cr->main_standard_id ?? null;
@@ -537,14 +537,6 @@
                 <div class="sig-center">
                     @if(!empty($signatureSrc))
                         <img src="{{ $signatureSrc }}" alt="Signature">
-                    @elseif($approverUser && $approverUser->electronic_sig)
-                        @php
-                            $sigSrc = $approverUser->electronic_sig;
-                            if (!str_starts_with($sigSrc, 'http') && !str_starts_with($sigSrc, 'data:')) {
-                                $sigSrc = rtrim(config('app.url'), '/') . '/' . ltrim($sigSrc, '/');
-                            }
-                        @endphp
-                        <img src="{{ $sigSrc }}" alt="Signature">
                     @else
                         <span style="color:#aaa;font-size:9px;font-style:italic;">{{ $labels['no_signature'] }}</span>
                     @endif

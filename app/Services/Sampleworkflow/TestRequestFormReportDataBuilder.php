@@ -3,8 +3,9 @@
 namespace App\Services\Sampleworkflow;
 
 use App\Models\System\SystemConfiguration;
-use App\Models\TestRequestForm;
+use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestFormInstance;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use Carbon\Carbon;
 
@@ -46,6 +47,31 @@ class TestRequestFormReportDataBuilder
         'statement_of_conformity' => ['YES', 'No', 'As per Contract', 'As per Email'],
         'lab_sample_condition' => ['Acceptable', 'Not Acceptable'],
     ];
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function buildFromSubmissionFormInstance(SubmissionFormInstance $instance, bool $forPdf = true): array
+    {
+        $instance->loadMissing([
+            'submissionForm.sampleTypes',
+            'crmCustomer.contacts',
+            'submittedBy',
+            'values.element',
+        ]);
+
+        $formData = app(SubmissionFormValueNormalizer::class)->valuesMapFromInstance($instance);
+        $sampleType = $instance->submissionForm?->sampleTypes->first();
+
+        return $this->buildPayload(
+            $formData,
+            $sampleType,
+            $instance,
+            $forPdf,
+            $instance->submittedBy,
+            null,
+        );
+    }
 
     /**
      * @return array<string, mixed>
@@ -96,7 +122,14 @@ class TestRequestFormReportDataBuilder
         $creator = null,
         ?TestRequestFormInstance $trfi = null,
     ): array {
-        $variant = TestRequestForm::resolveReportVariant($sampleType);
+        $documentCode = null;
+        if ($submission instanceof SubmissionFormInstance) {
+            $documentCode = $submission->submissionForm?->document_code;
+        } elseif (is_object($submission) && isset($submission->submissionForm)) {
+            $documentCode = $submission->submissionForm->document_code ?? null;
+        }
+
+        $variant = $this->resolveVariant($sampleType, $documentCode);
         $company = getActiveCompany();
         $branding = $this->resolveBranding($forPdf);
 
@@ -870,6 +903,40 @@ class TestRequestFormReportDataBuilder
         $legacy = trim((string) ($row['qty'] ?? ''));
 
         return $legacy !== '' ? $legacy : '';
+    }
+
+    private function resolveVariant(?\App\SampleType $sampleType, ?string $documentCode): string
+    {
+        $code = strtoupper((string) $documentCode);
+        if (str_contains($code, 'FOOD')) {
+            return 'food';
+        }
+        if (str_contains($code, 'WASTE')) {
+            return 'waste_water';
+        }
+        if (str_contains($code, 'WATER')) {
+            return 'water';
+        }
+
+        if ($sampleType === null) {
+            return 'water';
+        }
+
+        $isFood = stripos($sampleType->name, 'Food') !== false || stripos($sampleType->code, 'FOOD') !== false;
+        $isWasteWater = stripos($sampleType->name, 'Waste Water') !== false || stripos($sampleType->code, 'WWTR') !== false;
+        $isWater = ! $isWasteWater && (stripos($sampleType->name, 'Water') !== false || stripos($sampleType->code, 'WTR') !== false);
+
+        if ($isFood) {
+            return 'food';
+        }
+        if ($isWasteWater) {
+            return 'waste_water';
+        }
+        if ($isWater) {
+            return 'water';
+        }
+
+        return 'water';
     }
 
 }

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\AnalysisType;
 use App\Company;
-use App\Models\TestRequestForm;
 use App\SampleAnalysisStage;
 use App\SampleType;
 use App\User;
@@ -53,8 +52,6 @@ class Phase9SampleWorkflowSeeder extends Seeder
 
                 return;
             }
-
-            TestRequestForm::seedDefaults();
 
             $stages = $this->seedWorkflowStages($company, $analysisTypes);
 

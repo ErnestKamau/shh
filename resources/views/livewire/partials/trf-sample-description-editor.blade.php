@@ -1,13 +1,14 @@
 @php
     $rowIdx = $rowIdx ?? 0;
     $editorId = 'trf-sample-desc-'.$rowIdx;
+    $wireKey = $wirePrefix ?? ('formData.sample_rows.'.$rowIdx.'.sample_description');
 @endphp
 <div
     class="trf-sample-desc-editor"
     wire:ignore
     x-data="{
         editorId: @js($editorId),
-        wireKey: @js('formData.sample_rows.'.$rowIdx.'.sample_description'),
+        wireKey: @js($wireKey),
         initEditor() {
             if (typeof tinymce === 'undefined') {
                 const s = document.createElement('script');

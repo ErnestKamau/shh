@@ -118,11 +118,11 @@ final class CommercialEnquirySampleLineSync
     /**
      * @return list<array<string, mixed>>
      */
-    public function linesForEnquirySync(SampleSubmissionRequest $enquiry, ?\App\Models\TestRequestFormInstance $trfi, ?\App\Models\SubmissionFormInstance $instance): array
-    {
-        if ($trfi !== null) {
-            return $this->sampleLineService->linesForTrfi($trfi);
-        }
+    public function linesForEnquirySync(
+        SampleSubmissionRequest $enquiry,
+        ?SubmissionFormInstance $instance,
+    ): array {
+        unset($enquiry);
 
         if ($instance !== null) {
             return $this->sampleLineService->linesForInstance($instance);

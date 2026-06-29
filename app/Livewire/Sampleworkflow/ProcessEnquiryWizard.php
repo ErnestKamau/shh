@@ -173,7 +173,6 @@ class ProcessEnquiryWizard extends Component
                 'currentQuotation.details',
                 'submissionFormInstance.submissionForm',
                 'submissionFormInstance.crmCustomer',
-                'submissionFormInstance.testRequestFormInstance',
             ])
             ->find($enquiryId);
 
@@ -192,7 +191,6 @@ class ProcessEnquiryWizard extends Component
                     'currentQuotation.details',
                     'submissionFormInstance.submissionForm',
                     'submissionFormInstance.crmCustomer',
-                    'submissionFormInstance.testRequestFormInstance',
                 ])
                 ->find($enquiryId);
         }
@@ -274,11 +272,13 @@ class ProcessEnquiryWizard extends Component
         }
 
         if ($step === 'pricing') {
+            $this->rebuildQuotationLinesFromSampleConfigs();
             $this->ensureQuotationHeader();
         }
 
         if ($step === 'sample_config') {
             $this->quotationManuallyEdited = false;
+            $this->reconcileSampleConfigParameterKeys();
             $this->normalizeSampleConfigs();
             $this->setStatus('info', '');
         }
@@ -379,7 +379,8 @@ class ProcessEnquiryWizard extends Component
         }
 
         $configService = app(AcceptanceFormSampleConfigService::class);
-        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
+        $this->reconcileSampleConfigParameterKeys();
+        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs, $this->crmCustomerId);
 
         try {
             $configService->validateConfigs($this->sampleConfigs, requireLabSection: true);
@@ -685,7 +686,8 @@ class ProcessEnquiryWizard extends Component
         }
 
         $configService = app(AcceptanceFormSampleConfigService::class);
-        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
+        $this->reconcileSampleConfigParameterKeys();
+        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs, $this->crmCustomerId);
 
         if (Schema::hasColumn('sample_submission_requests', 'enquiry_sample_configuration')) {
             $enquiry->enquiry_sample_configuration = $this->sampleConfigs;
@@ -728,6 +730,7 @@ class ProcessEnquiryWizard extends Component
 
         if ($stored !== []) {
             $this->sampleConfigs = $stored;
+            $this->reconcileSampleConfigParameterKeys();
             $this->normalizeSampleConfigs();
             $this->backfillLabSectionIdsOnConfigs();
 
@@ -770,6 +773,13 @@ class ProcessEnquiryWizard extends Component
         }
 
         $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
+        if ($this->crmCustomerId !== null && trim($this->crmCustomerId) !== '') {
+            $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
+                $this->sampleConfigs,
+                $this->crmCustomerId,
+            );
+        }
+        $this->reconcileSampleConfigParameterKeys();
         $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);
 
         if ($defaultZoneId !== null) {
@@ -827,7 +837,7 @@ class ProcessEnquiryWizard extends Component
         }
 
         $enquiry = SampleSubmissionRequest::query()
-            ->with(['requestedAnalyses', 'currentQuotation', 'customer', 'testRequestFormInstance'])
+            ->with(['requestedAnalyses', 'currentQuotation', 'customer', 'submissionFormInstance'])
             ->find($this->enquiryId);
 
         if ($enquiry === null) {
@@ -926,6 +936,38 @@ class ProcessEnquiryWizard extends Component
             true,
             $assignedPricelist,
         );
+        $this->reconcileSampleConfigParameterKeys();
+    }
+
+    private function reconcileSampleConfigParameterKeys(): void
+    {
+        if ($this->crmCustomerId === null || trim($this->crmCustomerId) === '' || $this->sampleConfigs === []) {
+            return;
+        }
+
+        $this->sampleConfigs = app(AcceptanceFormSampleConfigService::class)
+            ->reconcileConfigsParameterKeys($this->sampleConfigs, $this->crmCustomerId);
+    }
+
+    private function rebuildQuotationLinesFromSampleConfigs(): void
+    {
+        if ($this->enquiryId === null || $this->crmCustomerId === null || trim($this->crmCustomerId) === '') {
+            return;
+        }
+
+        $this->reconcileSampleConfigParameterKeys();
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $acceptanceLines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
+        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+        if ($enquiry === null) {
+            return;
+        }
+
+        $existingLines = $this->lines;
+        $this->lines = app(QuotationFromEnquiryService::class)
+            ->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
+        $this->lines = $this->mergePreservedQuotationLineValues($existingLines, $this->lines);
     }
 
     /**
@@ -970,6 +1012,18 @@ class ProcessEnquiryWizard extends Component
      */
     private function buildTrfLineSeedsForConfigSync(SampleSubmissionRequest $enquiry): array
     {
+        $enquiry->loadMissing('requestedAnalyses');
+
+        if ($enquiry->requestedAnalyses->isNotEmpty()) {
+            return $enquiry->requestedAnalyses->map(fn ($analysis): array => [
+                'sample_type_id' => $analysis->sample_type_id ?? null,
+                'analysis_type_id' => $analysis->analysis_type_id ?? null,
+                'analysis_element_id' => $analysis->analysis_element_id ?? $analysis->analysis_key ?? null,
+                'parameter_label' => $analysis->analysis_label ?? 'Parameter',
+                'number_of_samples' => max(1, (int) ($analysis->number_of_samples ?? 1)),
+            ])->all();
+        }
+
         $seeds = [];
 
         foreach (is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [] as $line) {
@@ -979,17 +1033,6 @@ class ProcessEnquiryWizard extends Component
                 'analysis_element_id' => $line['analysis_element_id'] ?? null,
                 'parameter_label' => $line['parameter_label'] ?? 'Parameter',
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
-            ];
-        }
-
-        $enquiry->loadMissing('requestedAnalyses');
-        foreach ($enquiry->requestedAnalyses as $analysis) {
-            $seeds[] = [
-                'sample_type_id' => $analysis->sample_type_id ?? null,
-                'analysis_type_id' => $analysis->analysis_type_id ?? null,
-                'analysis_element_id' => $analysis->analysis_element_id ?? $analysis->analysis_key ?? null,
-                'parameter_label' => $analysis->analysis_label ?? 'Parameter',
-                'number_of_samples' => max(1, (int) ($analysis->number_of_samples ?? 1)),
             ];
         }
 

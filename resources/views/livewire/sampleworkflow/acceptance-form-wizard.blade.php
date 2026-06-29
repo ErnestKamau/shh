@@ -113,7 +113,7 @@
     @endif
 
     <style>
-        .acc-wizard-root {
+        .acc-wizard-root--acceptance {
             --acc-accent: #3b5fc0;
             --acc-accent-dark: #2f4da0;
             --acc-border: #e2e8f0;

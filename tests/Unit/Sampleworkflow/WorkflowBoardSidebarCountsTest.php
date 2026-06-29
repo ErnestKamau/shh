@@ -25,4 +25,21 @@ class WorkflowBoardSidebarCountsTest extends TestCase
         $this->assertGreaterThanOrEqual(0, WorkflowBoard::sidebarReceivingRequestCount());
         $this->assertGreaterThanOrEqual(0, WorkflowBoard::sidebarRequestReviewCount());
     }
+
+    #[Test]
+    public function receiving_dashboard_stats_shape_includes_todays_check_ins(): void
+    {
+        $board = new WorkflowBoard;
+        $board->status = 'All Samples';
+
+        $stats = $board->receivingDashboardStats;
+
+        $this->assertSame([
+            'my_intray' => 0,
+            'submitted' => 0,
+            'ready_for_reception' => 0,
+            'received' => 0,
+            'todays_check_ins' => 0,
+        ], $stats);
+    }
 }

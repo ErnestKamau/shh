@@ -29,7 +29,7 @@
             $keys = ['sys_theme_primary_color', 'sys_theme_secondary_color', 'sys_theme_accent_color', 'sys_sidebar_bg_color', 'sys_sidebar_link_bg'];
             $configs = \App\Models\System\SystemConfiguration::whereIn('key', $keys)->get()->keyBy('key');
             
-            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? '#2a2a2a';
+            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? '#1A1D24';
             
             // Calculate dynamic contrast color for text in sidebar
             $hex = str_replace('#', '', $sidebarBg);
@@ -55,16 +55,17 @@
             ];
         });
     @endphp
+    @include('layouts.partials.global-styling')
+    @include('layouts.partials.typography-styles')
+    @include('layouts.partials.sidebar-styles')
+    @include('layouts.partials.modal-styles')
+    @include('layouts.partials.page-header-styles')
+    @include('layouts.partials.table-styles')
+    @include('layouts.partials.form-styles')
+    @include('layouts.partials.button-styles')
+    @include('layouts.partials.workflow-page-styles')
     <style type="text/css">
-        :root {
-            --sys-primary-color: {{ $themeVars['primary'] }};
-            --sys-secondary-color: {{ $themeVars['secondary'] }};
-            --sys-accent-color: {{ $themeVars['accent'] }};
-            --sys-sidebar-bg: {{ $themeVars['sidebar_bg'] }};
-            --sys-sidebar-link-bg: {{ $themeVars['sidebar_link_bg'] }};
-            --sys-sidebar-text: {{ $themeVars['sidebar_text'] ?? 'rgba(255, 255, 255, 0.95)' }};
-            --sys-sidebar-text-muted: {{ $themeVars['sidebar_text_muted'] ?? 'rgba(255, 255, 255, 0.6)' }};
-        }
+        /* legacy layout rules — tokens in global-styling partial */
 
         /* html,body{
       background-color: #2a2a2a;
@@ -732,7 +733,6 @@
 
         body {
             padding-top: 56px;
-            font-size: 0.8rem !important;
         }
 
         .sticky-offset {
@@ -799,17 +799,11 @@
         }
 
         #sidebar-container:hover::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 0.6) 0%, rgba(80, 227, 194, 0.6) 100%);
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(200, 200, 200, 0.25) 100%);
         }
 
         #sidebar-container:hover::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 0.8) 0%, rgba(80, 227, 194, 0.8) 100%);
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-        }
-
-        #sidebar-container::-webkit-scrollbar-thumb:active {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 1) 0%, rgba(80, 227, 194, 1) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(200, 200, 200, 0.35) 100%);
         }
 
         /* Sidebar sizes when expanded and expanded */
@@ -821,248 +815,22 @@
             width: 60px !important;
         }
 
-        /* Menu item*/
-        #sidebar-container .list-group a {
-            height: 50px;
-            color: var(--sys-sidebar-text-muted) !important;
-            margin: 2px 0;
-            border-radius: 8px;
-            background: var(--sys-sidebar-link-bg);
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        #sidebar-container .list-group a {
-            position: relative;
-            overflow: hidden;
-        }
-
-        #sidebar-container .list-group a::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.6s ease;
-        }
-
-        #sidebar-container .list-group a:hover {
-            background: var(--sys-sidebar-link-bg);
-            transform: translateX(5px) scale(1.02);
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 6px 20px var(--sys-primary-color);
-            border: 1px solid var(--sys-primary-color);
-            color: var(--sys-sidebar-text) !important;
-        }
-
-        #sidebar-container .list-group a:hover::before {
-            left: 100%;
-        }
-
-        #sidebar-container .list-group a.active {
-            background: var(--sys-sidebar-link-bg);
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15), 0 4px 15px var(--sys-primary-color);
-            border: 2px solid transparent;
-            background-clip: padding-box;
-            position: relative;
-            color: var(--sys-sidebar-text) !important;
-        }
-
-        #sidebar-container .list-group a.active::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border-radius: 8px;
-            padding: 2px;
-            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color), var(--sys-accent-color), var(--sys-primary-color));
-            background-size: 300% 300%;
-            animation: gradientShift 3s ease infinite;
-            animation-play-state: paused;
-            transform: translateZ(0);
-            will-change: background-position, mask;
-            backface-visibility: hidden;
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: exclude;
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: exclude;
-        }
-
-        @keyframes gradientShift {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
-
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        /* Submenu item - Enhanced Modern Styling */
-        #sidebar-container .list-group .sidebar-submenu a {
-            height: 42px;
-            margin: 2px 0 2px 20px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.05),
-                inset 0 -1px 2px rgba(0, 0, 0, 0.1),
-                0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: var(--sys-sidebar-text-muted) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-            transition: left 0.6s ease;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 3px;
-            height: 0;
-            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color));
-            border-radius: 0 2px 2px 0;
-            transition: all 0.3s ease;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover {
-            background: var(--sys-sidebar-link-bg);
-            transform: translateX(1px);
-            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06),
-                inset 0 -1px 2px rgba(0, 0, 0, 0.06),
-                0 1px 3px var(--sys-sidebar-bg);
-            border-color: transparent;
-            color: var(--sys-sidebar-text) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover::before {
-            left: 100%;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover::after {
-            height: 30%;
-            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color));
-            box-shadow: 0 0 2px var(--sys-primary-color);
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active {
-            background: var(--sys-sidebar-link-bg);
-            border: 2px solid transparent;
-            background-clip: padding-box;
-            box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.1),
-                inset 0 -2px 6px rgba(0, 0, 0, 0.1),
-                0 2px 10px rgba(0, 0, 0, 0.2);
-            position: relative;
-            color: var(--sys-sidebar-text) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border-radius: 8px;
-            padding: 2px;
-            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color), var(--sys-accent-color));
-            background-size: 200% 200%;
-            animation: gradientShift 3s ease infinite;
-            animation-play-state: paused;
-            transform: translateZ(0);
-            will-change: background-position, mask;
-            backface-visibility: hidden;
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: exclude;
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: exclude;
-        }
-
-        #sidebar-container:hover .list-group a.active::before,
-        #sidebar-container:hover .list-group .sidebar-submenu a.active::before {
-            animation-play-state: running;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            #sidebar-container .list-group a.active::before,
-            #sidebar-container .list-group .sidebar-submenu a.active::before {
-                animation: none !important;
-                background-size: 100% 100% !important;
-            }
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active::after {
-            height: 80%;
-            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color));
-            box-shadow: 0 0 12px var(--sys-primary-color);
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover .mdi {
-            transform: scale(1.02);
-            opacity: 1;
-            text-shadow: 0 0 3px var(--sys-primary-color);
-            color: var(--sys-primary-color);
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active .mdi {
-            transform: scale(1.2) rotate(0deg);
-            opacity: 1;
-            text-shadow: 0 0 15px var(--sys-primary-color);
-            color: var(--sys-primary-color);
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover span {
-            text-shadow: 0 0 2px var(--sys-primary-color);
-            color: var(--sys-primary-color);
-            font-weight: 500;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active span {
-            text-shadow: 0 0 10px var(--sys-primary-color);
-            font-weight: 600;
-            color: var(--sys-primary-color);
-        }
+        /* Sidebar menu interaction styles: layouts/partials/sidebar-styles.blade.php */
 
         .sidebar-submenu {
-            font-size: 0.78rem;
+            font-size: var(--text-sidebar);
             margin: 4px 0;
         }
 
-        /* Badge styling for submenu items - Right-aligned element */
         #sidebar-container .list-group .sidebar-submenu a .badge,
         #sidebar-container .list-group .sidebar-submenu a .floating-badge {
             margin-left: auto;
             margin-right: 15px;
             flex-shrink: 0;
-            font-size: 0.7rem;
+            font-size: 0.6875rem;
             padding: 2px 6px;
             border-radius: 10px;
-            font-weight: 500;
+            font-weight: var(--font-medium);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1071,26 +839,26 @@
         }
 
         .form-control {
-            font-size: 0.8rem !important;
+            font-size: var(--text-sm) !important;
         }
 
         /* Separators */
         .sidebar-separator-title {
-            background-color: #333;
+            background-color: rgba(255, 255, 255, 0.06);
             height: 35px;
             margin: 4px 0;
             border-radius: 6px;
         }
 
         .sidebar-separator {
-            background-color: #333;
+            background-color: rgba(255, 255, 255, 0.06);
             height: 25px;
             margin: 2px 0;
             border-radius: 4px;
         }
 
         .logo-separator {
-            background-color: #333;
+            background-color: rgba(255, 255, 255, 0.06);
             height: 60px;
             margin: 4px 0;
             border-radius: 8px;
@@ -1419,8 +1187,8 @@
 
         .sidebar-module-div i {
             font-size: 3.5rem !important;
-            color: var(--sys-primary-color) !important;
-            text-shadow: 0 0 20px var(--sys-primary-color);
+            color: #ffffff !important;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.45);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: block;
             margin-bottom: 8px;
@@ -1428,14 +1196,15 @@
 
         .sidebar-module-div:hover i {
             transform: scale(1.1) rotate(5deg);
-            text-shadow: 0 0 30px var(--sys-primary-color);
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.55);
         }
 
         .sidebar-module-div span {
             color: var(--sys-sidebar-text) !important;
-            font-size: 1.1rem !important;
-            font-weight: 700 !important;
-            letter-spacing: 1px;
+            font-size: var(--text-sidebar) !important;
+            font-weight: var(--font-semibold) !important;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
         }
@@ -1489,9 +1258,9 @@
 
         #sidebar-container:hover::after {
             background: linear-gradient(180deg,
-                    rgba(74, 144, 226, 0.1) 0%,
-                    rgba(80, 227, 194, 0.1) 50%,
-                    rgba(74, 144, 226, 0.1) 100%);
+                    rgba(255, 255, 255, 0.08) 0%,
+                    rgba(200, 200, 200, 0.06) 50%,
+                    rgba(255, 255, 255, 0.08) 100%);
         }
 
         #sidebar-container .list-group-item {
@@ -1515,7 +1284,7 @@
         #sidebar-container .list-group a.active .mdi {
             transform: scale(1.15);
             opacity: 1;
-            text-shadow: 0 0 15px rgba(74, 144, 226, 0.8);
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.55);
         }
 
         /* Text effects */
@@ -1524,7 +1293,7 @@
         }
 
         #sidebar-container .list-group a.active span {
-            text-shadow: 0 0 10px rgba(74, 144, 226, 0.6);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
             font-weight: 600;
         }
 
@@ -2028,221 +1797,6 @@
             }
         }
 
-        /* ==========================================================================
-           AmSpec Maroon & White Premium Theming Overrides
-           ========================================================================== */
-        
-        :root {
-            --sys-primary-color: #6D0A0E;
-            --sys-secondary-color: #8B1E22;
-        }
-
-        /* 1. Sidebar Styles (Maroon Background, White Text and Icons) */
-        #sidebar-container {
-            background-color: #6D0A0E !important;
-        }
-
-        /* Module Header in Sidebar */
-        .sidebar-module-div {
-            background: rgba(255, 255, 255, 0.08) !important;
-            border: 1px solid rgba(255, 255, 255, 0.15) !important;
-            color: #ffffff !important;
-        }
-        
-        .sidebar-module-div i {
-            color: #ffffff !important;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6) !important;
-        }
-
-        .sidebar-module-div span {
-            color: #ffffff !important;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
-        }
-
-        /* Sidebar link items */
-        #sidebar-container .list-group a {
-            color: rgba(255, 255, 255, 0.8) !important;
-            background: rgba(255, 255, 255, 0.04) !important;
-            border: 1px solid transparent !important;
-        }
-
-        #sidebar-container .list-group a:hover {
-            background: rgba(255, 255, 255, 0.12) !important;
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
-            color: #ffffff !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
-        }
-
-        #sidebar-container .list-group a.active {
-            background: rgba(255, 255, 255, 0.18) !important;
-            color: #ffffff !important;
-            border: 1px solid #ffffff !important;
-            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15) !important;
-        }
-
-        #sidebar-container .list-group a.active::before {
-            background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.7), #ffffff) !important;
-        }
-
-        /* Submenu items */
-        #sidebar-container .list-group .sidebar-submenu a {
-            color: rgba(255, 255, 255, 0.75) !important;
-            background: rgba(255, 255, 255, 0.02) !important;
-            border: 1px solid rgba(255, 255, 255, 0.06) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover {
-            background: rgba(255, 255, 255, 0.1) !important;
-            color: #ffffff !important;
-            border-color: rgba(255, 255, 255, 0.2) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active {
-            background: rgba(255, 255, 255, 0.15) !important;
-            border: 1px solid rgba(255, 255, 255, 0.35) !important;
-            color: #ffffff !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active::before {
-            background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.5), #ffffff) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a:hover .mdi,
-        #sidebar-container .list-group .sidebar-submenu a.active .mdi,
-        #sidebar-container .list-group .sidebar-submenu a:hover span,
-        #sidebar-container .list-group .sidebar-submenu a.active span {
-            color: #ffffff !important;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5) !important;
-        }
-
-        #sidebar-container .list-group .sidebar-submenu a.active::after {
-            background: #ffffff !important;
-            box-shadow: 0 0 10px #ffffff !important;
-        }
-
-        /* Copyright notice in sidebar */
-        .copyright-lims {
-            background-color: rgba(0, 0, 0, 0.15) !important;
-            color: rgba(255, 255, 255, 0.6) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        }
-
-        .copyright-lims span.text-red {
-            color: #ffffff !important;
-            font-weight: bold;
-        }
-
-        /* 2. Global Button Styles (Maroon background, White text on primary buttons) */
-        .btn-primary, 
-        .btn-add,
-        button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(#toggle-main-sidebar),
-        .btn-primary-custom,
-        .w3-btn.w3-brown,
-        .w3-button.w3-brown {
-            background-color: #6D0A0E !important;
-            border-color: #6D0A0E !important;
-            color: #ffffff !important;
-        }
-
-        .btn-primary:hover,
-        .btn-primary:focus,
-        .btn-add:hover,
-        .btn-add:focus,
-        button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(#toggle-main-sidebar):hover,
-        button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(#toggle-main-sidebar):focus,
-        .w3-btn.w3-brown:hover,
-        .w3-button.w3-brown:hover {
-            background-color: #8B1E22 !important;
-            border-color: #8B1E22 !important;
-            color: #ffffff !important;
-            box-shadow: 0 4px 8px rgba(109, 10, 14, 0.3) !important;
-        }
-
-        .btn-primary i, .btn-primary span,
-        .btn-add i, .btn-add span,
-        .w3-btn.w3-brown i, .w3-button.w3-brown i {
-            color: #ffffff !important;
-        }
-
-        /* Outline Buttons */
-        .btn-outline-primary {
-            color: #6D0A0E !important;
-            border-color: #6D0A0E !important;
-            background-color: transparent !important;
-        }
-
-        .btn-outline-primary:hover,
-        .btn-outline-primary:focus {
-            background-color: #6D0A0E !important;
-            color: #ffffff !important;
-            border-color: #6D0A0E !important;
-        }
-        
-        .btn-outline-primary:hover i,
-        .btn-outline-primary:hover span {
-            color: #ffffff !important;
-        }
-
-        /* 3. Navigation Tabs (Maroon active border, White text when Maroon) */
-        .nav-tabs .nav-link.active,
-        .nav-pills .nav-link.active {
-            color: #6D0A0E !important;
-            border-bottom: 3px solid #6D0A0E !important;
-            font-weight: bold;
-        }
-
-        .nav-tabs .nav-link:hover {
-            color: #8B1E22 !important;
-            border-bottom-color: rgba(109, 10, 14, 0.3) !important;
-        }
-
-        /* 4. Badges (Primary badges are Maroon and White) */
-        .badge-primary {
-            background-color: #6D0A0E !important;
-            color: #ffffff !important;
-        }
-
-        /* 5. Modal Header & Accents & bg-primary */
-        .bg-primary {
-            background-color: #6D0A0E !important;
-            color: #ffffff !important;
-        }
-
-        .modal-header {
-            background-color: #6D0A0E !important;
-            color: #ffffff !important;
-        }
-
-        .modal-header .modal-title,
-        .modal-header h5,
-        .modal-header button.close {
-            color: #ffffff !important;
-            text-shadow: none !important;
-            opacity: 0.9;
-        }
-        
-        .modal-header button.close:hover {
-            opacity: 1;
-        }
-
-        /* 6. Text Elements and Accents */
-        .text-primary {
-            color: #6D0A0E !important;
-        }
-        
-        .search-btn:hover {
-            background: rgba(109, 10, 14, 0.1) !important;
-            color: #6D0A0E !important;
-        }
-        
-        .search-input-group:focus-within .search-btn::after {
-            background: #6D0A0E !important;
-        }
-
-        #toggle-main-sidebar:hover {
-            color: #6D0A0E !important;
-            border-color: #6D0A0E !important;
-        }
     </style>
 
     @if (isset($dataTable))

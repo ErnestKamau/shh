@@ -1,10 +1,6 @@
 <div>
     <style>
         .batch-header-bar {
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 14px 20px 0 20px;
             margin-bottom: 0;
         }
 
@@ -27,18 +23,14 @@
         .batch-code-label {
             font-size: 1.15rem;
             font-weight: 700;
-            color: #1e293b;
             letter-spacing: 0.01em;
         }
 
         .batch-stage-pill {
-            background: #f0f4ff;
-            color: #3b5fc0;
             border-radius: 20px;
             padding: 3px 12px;
             font-size: 0.78rem;
             font-weight: 600;
-            border: 1px solid #c7d7fc;
         }
 
         .batch-priority-pill {
@@ -154,7 +146,7 @@
 
             {{-- Action Buttons --}}
             @if(isset($batch->id))
-                <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
+                <div class="d-flex align-items-center flex-wrap batch-header-actions" style="gap: 6px;">
 
                     <a href="{{ route('batch-worksheets', ['batch' => $batch->id]) }}"
                         class="btn btn-sm btn-outline-info btn-action-sm">
@@ -438,14 +430,11 @@
         }
 
         .modal-header-modern {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
             border-radius: 8px 8px 0 0;
             padding: 15px 20px;
         }
 
         .modal-title-modern {
-            color: #343a40;
             font-weight: 600;
             font-size: 1.1rem;
         }
@@ -489,14 +478,11 @@
         }
 
         .btn-primary-modern {
-            background-color: #6c757d;
-            border-color: #6c757d;
-            color: #fff;
+            border-radius: 6px;
         }
 
         .btn-primary-modern:hover {
-            background-color: #5a6268;
-            border-color: #545b62;
+            opacity: 0.95;
         }
 
         .modal-label-small {

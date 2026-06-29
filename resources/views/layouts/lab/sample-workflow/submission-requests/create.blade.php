@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main class="container-fluid lab-panel-theme">
+<main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
 	@include('layouts.lab.partials.lab-panel-theme-styles')
 
 	<?php
@@ -28,6 +28,22 @@
 	];
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
+
+	<div class="row mb-3">
+		<div class="col-12">
+			<div class="batch-header-bar submission-requests-hero">
+				<div class="batch-header-top">
+					<div class="batch-title-group">
+						<span class="batch-code-label">Add Submission Request</span>
+						<span class="batch-stage-pill">
+							<i class="mdi mdi-plus-circle-outline" style="font-size:0.75rem;"></i>
+							New request
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<div class="row">
 		<div class="col-12 col-xl-8">

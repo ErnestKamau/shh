@@ -265,7 +265,7 @@
                         <span class="badge">{{ count($this->sampleLines) }}</span>
                     </button>
                 </li>
-                @if($instance->testRequestFormInstance)
+                @if($this->isTrfForm())
                     <li class="nav-item">
                         <button type="button" class="nav-link {{ $activeTab === 'attached' ? 'active' : '' }}" wire:click="setTab('attached')">
                             <i class="mdi mdi-paperclip"></i> Attached
