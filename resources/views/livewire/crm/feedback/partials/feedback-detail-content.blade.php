@@ -45,6 +45,15 @@
                 {{ $feedback->results_issued_date ?? 'N/A' }}
             </p>
         </div>
+        @if(!empty($feedback->business_frequency))
+            <div class="col-md-6 mb-2">
+                <p class="mb-0 text-muted"
+                    style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Business Frequency</p>
+                <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;">
+                    {{ $feedback->business_frequency }}
+                </p>
+            </div>
+        @endif
     </div>
 
     <hr style="border-color:#f0f0f0;margin:0 0 1rem 0;">
@@ -58,8 +67,14 @@
         <span class="text-uppercase font-weight-bold text-muted" style="font-size:0.65rem;letter-spacing:.07em;">Quality
             Performance Ratings</span>
         @if($feedback->rating_overall)
-            <span class="badge {{ $feedback->rating_overall >= 4 ? 'badge-success' : ($feedback->rating_overall < 2.5 ? 'badge-danger' : 'badge-warning') }} ml-auto py-1 px-2" style="font-size: 0.75rem;">
-                Overall Score: {{ $feedback->rating_overall }} / 5
+            @php
+                $isTenScale = ($feedback->rating_overall > 5) || ($feedback->ratings()->whereHas('metric', function($q) { $q->where('max_rating', '>', 5); })->exists());
+                $maxScale = $isTenScale ? 10 : 5;
+                $scorePercent = ($feedback->rating_overall / $maxScale) * 100;
+                $badgeClass = $scorePercent >= 80 ? 'badge-success' : ($scorePercent < 50 ? 'badge-danger' : 'badge-warning');
+            @endphp
+            <span class="badge {{ $badgeClass }} ml-auto py-1 px-2" style="font-size: 0.75rem;">
+                Overall Score: {{ number_format($feedback->rating_overall, 1) }} / {{ $maxScale }}
             </span>
         @endif
     </div>
@@ -205,7 +220,7 @@
         <span class="text-uppercase font-weight-bold text-muted" style="font-size:0.65rem;letter-spacing:.07em;">Referral & Advocacy</span>
     </div>
     <div class="px-1 mb-4">
-        <p class="mb-1 text-muted" style="font-size:0.7rem;font-weight:600;text-transform:uppercase;">Would recommend laboratory?</p>
+        <p class="mb-1 text-muted" style="font-size:0.7rem;font-weight:600;text-transform:uppercase;">Would you recommend our services to others?</p>
         @if($feedback->will_recommend === 1 || $feedback->will_recommend === true || $feedback->will_recommend === "1")
             <span class="badge badge-success px-3 py-2" style="font-size:0.8rem;"><i class="mdi mdi-check-circle mr-1"></i> YES, Highly Recommended</span>
         @elseif($feedback->will_recommend === 0 || $feedback->will_recommend === false || $feedback->will_recommend === "0")
@@ -214,6 +229,52 @@
             <span class="text-muted" style="font-size:0.8rem;">— Not Specified —</span>
         @endif
     </div>
+
+    @if((!empty($feedback->hear_about_us) && count(array_filter($feedback->hear_about_us)) > 0) || (!empty($feedback->critical_services) && count(array_filter($feedback->critical_services)) > 0))
+        <hr style="border-color:#f0f0f0;margin:0 0 1rem 0;">
+
+        {{-- ── SECTION: Survey Discovery & Services ─────────────────── --}}
+        <div class="d-flex align-items-center mb-3">
+            <span class="mr-2 d-flex align-items-center justify-content-center rounded"
+                style="width:24px;height:24px;background:#eef2ff;flex-shrink:0;">
+                <i class="mdi mdi-compass-outline text-primary" style="font-size:0.85rem;"></i>
+            </span>
+            <span class="text-uppercase font-weight-bold text-muted" style="font-size:0.65rem;letter-spacing:.07em;">Survey Discovery &amp; Critical Services</span>
+        </div>
+
+        <div class="row mb-4 px-1">
+            @if(!empty($feedback->hear_about_us) && count(array_filter($feedback->hear_about_us)) > 0)
+                <div class="col-md-6 mb-3">
+                    <p class="mb-1 text-muted"
+                        style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">How they heard about us</p>
+                    <div class="d-flex flex-wrap" style="gap: 4px;">
+                        @foreach(array_filter($feedback->hear_about_us) as $source)
+                            <span class="badge badge-light border text-dark px-2 py-1 mr-1 mb-1" style="font-size:0.75rem; border-radius:4px;">
+                                {{ $source }}
+                                @if($source === 'Other' && !empty($feedback->hear_about_us_other))
+                                    <span class="text-muted">({{ $feedback->hear_about_us_other }})</span>
+                                @endif
+                            </span>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if(!empty($feedback->critical_services) && count(array_filter($feedback->critical_services)) > 0)
+                <div class="col-md-6 mb-3">
+                    <p class="mb-1 text-muted"
+                        style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Critical Services (Ranked Top 3)</p>
+                    <ol class="pl-3 mb-0" style="font-size:0.82rem; line-height:1.5;">
+                        @foreach(array_filter($feedback->critical_services) as $index => $service)
+                            <li class="text-dark font-weight-bold">
+                                <span class="text-muted font-weight-normal mr-1">#{{ $index + 1 }}</span> {{ $service }}
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
+            @endif
+        </div>
+    @endif
 
     <hr style="border-color:#f0f0f0;margin:0 0 1rem 0;">
 

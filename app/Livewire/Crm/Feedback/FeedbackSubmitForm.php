@@ -40,6 +40,12 @@ class FeedbackSubmitForm extends Component
     // Dynamic Ratings
     public array $dynamic_ratings = [];
 
+    // Custom AmSpec Fields
+    public $business_frequency;
+    public array $hear_about_us = [];
+    public $hear_about_us_other;
+    public array $critical_services = ['', '', ''];
+
     // Phase 2 Demographic Fields
     public $contact_person;
     public $contact_position;
@@ -100,7 +106,7 @@ class FeedbackSubmitForm extends Component
 
         // Default Type of Service so the required field is not left out when filling the form
         if (empty($this->service_type)) {
-            $this->service_type = 'Testing';
+            $this->service_type = ['Laboratory Testing'];
         }
 
         // Validate token if provided
@@ -144,7 +150,7 @@ class FeedbackSubmitForm extends Component
     {
         $rules = [
             'results_issued_date' => 'nullable|date',
-            'service_reference_no' => 'required',
+            'service_reference_no' => 'nullable',
             'service_type' => 'required',
             'service_type_other' => 'required_if:service_type,Other',
             'specific_feedback' => 'nullable|string',
@@ -152,12 +158,16 @@ class FeedbackSubmitForm extends Component
             'contact_position' => 'nullable|string|max:255',
             'contact_phone' => 'nullable|string|max:255',
             'usage_duration' => 'nullable|string',
+            'business_frequency' => 'required|string',
+            'hear_about_us' => 'nullable|array',
+            'hear_about_us_other' => 'nullable|string',
+            'critical_services' => 'nullable|array',
         ];
 
         // Dynamic Ratings - All Required with dynamic scales
         $metrics = \App\Models\CRM\EvaluationMetric::where('is_active', true)->get();
         foreach ($metrics as $metric) {
-            $rules['dynamic_ratings.' . $metric->id] = 'required|integer|between:1,' . $metric->max_rating;
+            $rules['dynamic_ratings.' . $metric->id] = 'required|integer|between:0,' . $metric->max_rating;
         }
 
         return $rules;
@@ -165,11 +175,13 @@ class FeedbackSubmitForm extends Component
 
     public function messages()
     {
-        $messages = [];
+        $messages = [
+            'business_frequency.required' => 'Please select how often you do business with us.',
+        ];
         $metrics = \App\Models\CRM\EvaluationMetric::where('is_active', true)->get();
         foreach ($metrics as $metric) {
             $messages['dynamic_ratings.' . $metric->id . '.required'] = 'Please provide a rating for "' . $metric->name . '".';
-            $messages['dynamic_ratings.' . $metric->id . '.between'] = 'Rating for "' . $metric->name . '" must be between 1 and ' . $metric->max_rating . '.';
+            $messages['dynamic_ratings.' . $metric->id . '.between'] = 'Rating for "' . $metric->name . '" must be between 0 and ' . $metric->max_rating . '.';
         }
         return $messages;
     }
@@ -261,7 +273,7 @@ class FeedbackSubmitForm extends Component
                 $feedbackData = [
                     'customer_id' => $this->contact->customer->id,
                     'contact_id' => $this->contact_id, 
-                    'service_type' => $this->service_type,
+                    'service_type' => is_array($this->service_type) ? implode(', ', $this->service_type) : $this->service_type,
                     'service_type_other' => $sanitize($this->service_type_other),
                     'service_reference_no' => $sanitize($this->service_reference_no),
                     'equipment_sample_id' => $sanitize($this->equipment_sample_id),
@@ -280,6 +292,11 @@ class FeedbackSubmitForm extends Component
                     'usage_duration' => $sanitize($this->usage_duration),
                     'doc_ref' => $sanitize($this->doc_ref),
                     'doc_version' => $sanitize($this->doc_version),
+                    // AmSpec Fields
+                    'business_frequency' => $this->business_frequency,
+                    'hear_about_us' => $this->hear_about_us,
+                    'hear_about_us_other' => $sanitize($this->hear_about_us_other),
+                    'critical_services' => $this->critical_services,
                 ];
 
                 $this->feedback = CustomerFeedback::findOrFail($freshRequest->feedback_id);
@@ -293,6 +310,7 @@ class FeedbackSubmitForm extends Component
 
                 foreach ($this->dynamic_ratings as $metricId => $score) {
                     $ratingsData[] = [
+                        'id' => (string) Str::uuid(),
                         'customer_feedback_id' => $this->feedback->id,
                         'evaluation_metric_id' => $metricId,
                         'rating' => $score,
@@ -311,9 +329,9 @@ class FeedbackSubmitForm extends Component
                 }
 
                 if ($metricsCount > 0) {
-                    // Normalize to a 5-point scale
+                    // Normalize to a 10-point scale
                     $overallRatio = ($totalPercentage / $metricsCount);
-                    $scaledScore = round($overallRatio * 5, 2);
+                    $scaledScore = round($overallRatio * 10, 2);
                     $this->feedback->update(['rating_overall' => $scaledScore]);
                 }
 
@@ -344,13 +362,20 @@ class FeedbackSubmitForm extends Component
      */
     private function triggerAlertIfNeeded($feedback)
     {
-        // Collect any rating below "Good" (< 3)
+        // Collect any rating below or equal to 40% of max rating (e.g. <= 4 for max_rating 10)
         $lowRatings = [];
         $feedback->load('ratings.metric');
         foreach ($feedback->ratings as $ratingRecord) {
-            if ($ratingRecord->rating < 3 && $ratingRecord->metric) {
-                // Use metric name as key so email template looks nice
-                $lowRatings[$ratingRecord->metric->name] = $ratingRecord->rating;
+            if ($ratingRecord->metric) {
+                $maxRating = $ratingRecord->metric->max_rating ?: 4;
+                $threshold = $maxRating * 0.4;
+                if ($ratingRecord->rating <= $threshold) {
+                    $lowRatings[] = [
+                        'metric_name' => $ratingRecord->metric->name,
+                        'rating' => $ratingRecord->rating,
+                        'max_rating' => $maxRating,
+                    ];
+                }
             }
         }
 

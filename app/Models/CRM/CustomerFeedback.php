@@ -62,6 +62,10 @@ class CustomerFeedback extends Model implements Auditable
         'feedback',
         'user_type',
         'date',
+        'business_frequency',
+        'hear_about_us',
+        'hear_about_us_other',
+        'critical_services',
     ];
 
     const STATUS_SUBMITTED = 0;
@@ -69,6 +73,8 @@ class CustomerFeedback extends Model implements Auditable
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'hear_about_us' => 'array',
+        'critical_services' => 'array',
     ];
 
     /**
@@ -734,4 +740,43 @@ class CustomerFeedback extends Model implements Auditable
 
         return ['labels' => $labels, 'values' => $values];
     }
+
+    protected static function booted()
+    {
+        static::creating(function ($feedback) {
+            if (empty($feedback->code)) {
+                $feedback->code = static::generateUniqueCode();
+            }
+        });
+    }
+
+    public static function generateUniqueCode()
+    {
+        $year = date('Y');
+        $prefix = "FB-" . $year . "-";
+
+        // Query the database for the latest sequential code in the current year
+        $latest = static::where('code', 'like', $prefix . '%')
+            ->orderByRaw('LENGTH(code) DESC')
+            ->orderBy('code', 'desc')
+            ->first();
+
+        if ($latest) {
+            $lastNumber = intval(substr($latest->code, strlen($prefix)));
+            $nextNumber = $lastNumber + 1;
+        } else {
+            $nextNumber = 1;
+        }
+
+        $code = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+
+        // Ensure absolute uniqueness
+        while (static::where('code', $code)->exists()) {
+            $nextNumber++;
+            $code = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        }
+
+        return $code;
+    }
 }
+

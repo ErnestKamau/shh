@@ -143,11 +143,8 @@ class SendFeedbackCampaign extends BaseCrmComponent
              return;
         }
 
-        $this->sending = true;
-        $this->completed = false;
-        $this->batchFeedbackIds = []; 
-        $this->feedbackProgress = [];
-        $this->progressStats['total'] = $contactsToSend->count();
+        $this->sending = false;
+        $this->completed = true;
 
         // 1. Create Pending Records synchronously
         foreach ($contactsToSend as $contact) {
@@ -172,14 +169,10 @@ class SendFeedbackCampaign extends BaseCrmComponent
                         'user_type'       => 'Customer',
                     ]);
 
-                     if (strlen($feedback->id) < 4) {
-                        $diff = 4 - strlen($feedback->id);
-                        $zero = str_repeat("0", $diff);
-                        $feedback->code = "FB" . $zero . $feedback->id;
-                    } else {
-                        $feedback->code = "FB" . $feedback->id;
+                    if (empty($feedback->code)) {
+                        $feedback->code = CustomerFeedback::generateUniqueCode();
+                        $feedback->save();
                     }
-                    $feedback->save();
 
                     // Create Token Request
                     $token = FeedbackRequest::generateUniqueToken();
@@ -198,31 +191,10 @@ class SendFeedbackCampaign extends BaseCrmComponent
                     ]);
 
                     // Dispatch Job (Fire and Forget)
-                    // Passing IDs instead of models will be handled in Phase 2, but for now we keep the call signature
-                    // and let the Job constructor handle the change or we update the call here to pass IDs if we change the Job first.
-                    // The plan says "Change __construct to accept IDs". So I should update the dispatch call here to pass IDs.
-                    
-                    \App\Jobs\SendFeedbackEmail::dispatch($feedback->id, $request->id, $this->getUserCompany())->onConnection('sync');
-
-                    $this->batchFeedbackIds[] = $feedback->id;
-                    $this->feedbackProgress[$feedback->id] = [
-                        'id'       => $feedback->id,
-                        'name'     => trim(($freshContact->first_name ?? '') . ' ' . ($freshContact->surname ?? '')),
-                        'email'    => $freshContact->email,
-                        'customer' => $freshContact->customer->name ?? 'Unknown Customer',
-                        'status'   => 'pending',
-                    ];
+                    \App\Jobs\SendFeedbackEmail::dispatch($feedback->id, $request->id, $this->getUserCompany());
                 });
             }
         }
-        
-        $this->progressStats = [
-            'pending'    => count($this->batchFeedbackIds),
-            'processing' => 0,
-            'sent'       => 0,
-            'failed'     => 0,
-            'total'      => count($this->batchFeedbackIds)
-        ];
 
         // Tell parent list to refresh in the background
         $this->dispatch('feedback-requests-sent');
@@ -249,55 +221,6 @@ class SendFeedbackCampaign extends BaseCrmComponent
             
         // Default: Select ALL found recipients
         $this->selectedRecipients = $this->recipients->pluck('id')->map(fn($id) => (string)$id)->toArray();
-    }
-    
-    public function checkProgress()
-    {
-        if (empty($this->batchFeedbackIds)) return;
-
-        // Fetch latest statuses
-        $feedbacks = CustomerFeedback::whereIn('id', $this->batchFeedbackIds)
-            ->get(['id', 'delivery_status']);
-            
-        $counts = [
-            'pending' => 0,
-            'processing' => 0,
-            'sent' => 0,
-            'failed' => 0
-        ];
-
-        foreach ($feedbacks as $fb) {
-            $status = $fb->delivery_status ?? 'pending';
-            
-            // Update individual progress
-            if (isset($this->feedbackProgress[$fb->id])) {
-                $this->feedbackProgress[$fb->id]['status'] = $status;
-            }
-            
-            // Update counts
-            if (isset($counts[$status])) {
-                $counts[$status]++;
-            } elseif (in_array($status, ['generating_report', 'sending_email'])) {
-                $counts['processing']++;
-            } else {
-                 $counts['pending']++; // Fallback
-            }
-        }
-
-        $this->progressStats = [
-            'pending'    => $counts['pending'],
-            'processing' => $counts['processing'],
-            'sent'       => $counts['sent'],
-            'failed'     => $counts['failed'],
-            'total'      => count($this->batchFeedbackIds)
-        ];
-
-        // Check completion
-        $outstanding = ($this->progressStats['pending'] + $this->progressStats['processing']);
-        if ($outstanding === 0 && $this->progressStats['total'] > 0) {
-            $this->sending = false;
-            $this->completed = true;
-        }
     }
 
     public function close()
