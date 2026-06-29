@@ -20,7 +20,7 @@ class ComplaintAttachmentController extends Controller
     /**
      * Stream a complaint attachment for download/view. Ensures file is under public disk and user can view complaint.
      */
-    public function download(int $complaint, int $attachment): StreamedResponse|\Illuminate\Http\Response
+    public function download(string $complaint, string $attachment): StreamedResponse|\Illuminate\Http\Response
     {
         $attachmentModel = Complaintattachment::where('id', $attachment)
             ->where('complaint_id', $complaint)

@@ -1202,6 +1202,9 @@ Route::post('/add/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController
 Route::post('/edit/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController@edit')->name('edit-notes')->middleware('can:crm.complaints.edit');
 Route::post('/add/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@add')->name('add-attachment')->middleware('can:crm.complaints.edit');
 Route::post('/edit/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@edit')->name('edit-attachment')->middleware('can:crm.complaints.edit');
+Route::get('/crm/complaint/{complaint}/attachment/{attachment}/download', 'CRM\Complaint\ComplaintAttachmentController@download')
+    ->name('crm.complaint.attachment.download')
+    ->middleware('can:crm.complaints.view');
 Route::post('/approve-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@approve_next')->name('approve-complaint')->middleware('can:crm.complaints-approval.edit');
 Route::post('/reverse-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_approval')->name('reverse-complaint')->middleware('can:crm.complaints-approval.delete');
 Route::post('/reject-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_complaint')->name('reject-complaint')->middleware('can:crm.complaints-approval.delete');
