@@ -1212,6 +1212,9 @@ Route::get('/show/complaint/{id}', '\\' . \App\Livewire\Crm\Complaint\ComplaintS
     ->middleware('can:crm.complaints.view');
 
 Route::get('/customer-feedback/home', [CRMAppController::class, 'feedbacks'])->name('feedback-home')->middleware('can:crm.feedback.view');
+Route::get('/show/feedback/{id}', '\\' . \App\Livewire\Crm\Feedback\FeedbackShow::class)
+    ->name('feedback-show')
+    ->middleware('can:crm.feedback.view');
 Route::get('/customer-feedback/configuration', '\\' . \App\Livewire\Crm\Feedback\EvaluationMetricManager::class)
     ->name('feedback-config')
     ->middleware('auth')

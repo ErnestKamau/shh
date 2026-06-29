@@ -21,30 +21,36 @@
                 @endif
             </p>
         </div>
-        <div class="col-md-6 mb-2">
-            <p class="mb-0 text-muted"
-                style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Service Reference
-                No.</p>
-            <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;font-family:monospace;">
-                {{ $feedback->service_reference_no ?? '—' }}
-            </p>
-        </div>
-        <div class="col-md-6 mb-2">
-            <p class="mb-0 text-muted"
-                style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Equipment / Sample
-                ID</p>
-            <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;">
-                {{ $feedback->equipment_sample_id ?? 'N/A' }}
-            </p>
-        </div>
-        <div class="col-md-6 mb-2">
-            <p class="mb-0 text-muted"
-                style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Results Issued Date
-            </p>
-            <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;">
-                {{ $feedback->results_issued_date ?? 'N/A' }}
-            </p>
-        </div>
+        @if(!empty($feedback->service_reference_no))
+            <div class="col-md-6 mb-2">
+                <p class="mb-0 text-muted"
+                    style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Service Reference
+                    No.</p>
+                <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;font-family:monospace;">
+                    {{ $feedback->service_reference_no }}
+                </p>
+            </div>
+        @endif
+        @if(!empty($feedback->equipment_sample_id))
+            <div class="col-md-6 mb-2">
+                <p class="mb-0 text-muted"
+                    style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Equipment / Sample
+                    ID</p>
+                <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;">
+                    {{ $feedback->equipment_sample_id }}
+                </p>
+            </div>
+        @endif
+        @if(!empty($feedback->results_issued_date))
+            <div class="col-md-6 mb-2">
+                <p class="mb-0 text-muted"
+                    style="font-size:0.67rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Results Issued Date
+                </p>
+                <p class="font-weight-bold text-dark mb-0" style="font-size:0.85rem;">
+                    {{ is_object($feedback->results_issued_date) && method_exists($feedback->results_issued_date, 'format') ? $feedback->results_issued_date->format('d M Y') : date('d M Y', strtotime($feedback->results_issued_date)) }}
+                </p>
+            </div>
+        @endif
         @if(!empty($feedback->business_frequency))
             <div class="col-md-6 mb-2">
                 <p class="mb-0 text-muted"
@@ -350,7 +356,7 @@
     <div class="d-flex justify-content-end pt-3 mt-2 border-top">
         <small class="text-muted" style="font-size:0.67rem;">
             <i class="mdi mdi-calendar-check-outline mr-1"></i>Submitted
-            {{ $feedback->created_at->format('d M Y \a\t H:i') }}
+            {{ $feedback->created_at ? $feedback->created_at->format('d M Y \a\t H:i') : '—' }}
         </small>
     </div>
 

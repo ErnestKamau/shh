@@ -26,18 +26,20 @@
 
 
         <x-crm.filter-bar title="Filters" class="crm-filter-bar-sticky">
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <div class="crm-search-wrapper w-100" style="max-width: 100%;">
+            <div class="col-12 d-flex justify-content-between align-items-center flex-wrap px-3" style="gap: 16px; padding-top: 4px; padding-bottom: 4px;">
+                <!-- Left side: Search input -->
+                <div style="flex: 1; min-width: 240px; max-width: 320px;">
+                    <div class="crm-search-wrapper w-100">
                         <i class="mdi mdi-magnify crm-search-icon"></i>
                         <input type="text" class="form-control w-100" placeholder="Search by ID, description..."
                             wire:model.live.debounce.300ms="search">
                     </div>
                 </div>
 
-                <!-- Filters & Show Entries on Right -->
-                <div class="col-md-9 d-flex justify-content-md-end align-items-center flex-wrap filter-row">
+                <!-- Right side: Dropdown Filters and PerPage selectors -->
+                <div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
                     @if($stage == 'All Complaints')
-                        <div class="d-flex align-items-center mr-3 mb-2 mb-md-0">
+                        <div class="d-flex align-items-center">
                             <select class="crm-select custom-select-sm no-select2" style="width: 220px;"
                                 wire:model.live="activeTab" wire:key="complaint-status-filter">
                                 <option value="all">All Complaint Workflow Stages</option>
@@ -50,7 +52,7 @@
                         </div>
                     @endif
 
-                    <div class="d-flex align-items-center mr-3 mb-2 mb-md-0">
+                    <div class="d-flex align-items-center">
                         <select class="crm-select custom-select-sm no-select2" style="width: 180px;"
                             wire:model.live="typeFilter" wire:key="filter-type">
                             <option value="">All Complaint Categories</option>
@@ -60,7 +62,7 @@
                         </select>
                     </div>
 
-                    <div class="d-flex align-items-center mr-3 mb-2 mb-md-0">
+                    <div class="d-flex align-items-center">
                         <select class="crm-select custom-select-sm no-select2" style="width: 180px;"
                             wire:model.live="priorityFilter" wire:key="filter-priority">
                             <option value="">All Severity Levels</option>
@@ -71,7 +73,7 @@
                     </div>
 
                     <!-- Show Entries -->
-                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                    <div class="d-flex align-items-center">
                         <label class="mb-0 mr-2 crm-filter-label text-nowrap">Show</label>
                         <select wire:model.live="perPage" wire:key="per-page-select"
                             class="crm-select custom-select-sm no-select2" style="width: 70px;">
@@ -83,6 +85,7 @@
                         <label class="mb-0 ml-2 crm-filter-label text-nowrap">entries</label>
                     </div>
                 </div>
+            </div>
         </x-crm.filter-bar>
 
         <x-crm.data-table wire:loading.class="opacity-50" class="crm-loading-overlay">

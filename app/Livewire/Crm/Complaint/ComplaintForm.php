@@ -165,7 +165,7 @@ class ComplaintForm extends BaseCrmComponent
     {
         if ($this->received_from_type === 'Customer' && $value) {
             $contact = null;
-            if (is_numeric($value)) {
+            if (is_numeric($value) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
                 $contact = \App\Models\CRM\CustomerContact::find($value);
             } else {
                 // Defensive: resolve customerId if it's missing
@@ -187,7 +187,7 @@ class ComplaintForm extends BaseCrmComponent
             if ($contact) {
                 $this->title_position = $contact->job_occupation;
                 // If we matched a string name to an ID, update the model to use the ID
-                if (!is_numeric($value)) {
+                if (!is_numeric($value) && !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
                     $this->contact_name = $contact->id;
                 }
             }
@@ -338,7 +338,7 @@ class ComplaintForm extends BaseCrmComponent
         $complaint->nature_of_complaint = $this->nature_of_complaint;
         
         // Handle Test Item conversion from ID to Name for storage
-        if ($this->received_from_type === 'Customer' && is_numeric($this->test_item)) {
+        if ($this->received_from_type === 'Customer' && (is_numeric($this->test_item) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $this->test_item))) {
             $sampleType = SampleType::find($this->test_item);
             $complaint->test_item = $sampleType ? $sampleType->name : $this->test_item;
         } else {
@@ -350,9 +350,9 @@ class ComplaintForm extends BaseCrmComponent
         $complaint->organization_name = $this->organization_name;
         
         // Handle Contact Name conversion from ID to Full Name for storage
-        if ($this->received_from_type === 'Customer' && is_numeric($this->contact_name)) {
+        if ($this->received_from_type === 'Customer' && (is_numeric($this->contact_name) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $this->contact_name))) {
             $contact = \App\Models\CRM\CustomerContact::find($this->contact_name);
-            $complaint->contact_name = $contact ? ($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name) : $this->contact_name;
+            $complaint->contact_name = $contact ? ($contact->first_name . ' ' . ($contact->middle_name ? $contact->middle_name . ' ' : '') . $contact->last_name) : $this->contact_name;
         } else {
             $complaint->contact_name = $this->contact_name;
         }

@@ -73,6 +73,9 @@ class CustomerFeedback extends Model implements Auditable
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'last_reminded_at' => 'datetime',
+        'date' => 'datetime',
+        'results_issued_date' => 'date',
         'hear_about_us' => 'array',
         'critical_services' => 'array',
     ];
@@ -107,6 +110,22 @@ class CustomerFeedback extends Model implements Auditable
     public function ratings()
     {
         return $this->hasMany(\App\Models\CRM\FeedbackRating::class, 'customer_feedback_id');
+    }
+
+    /**
+     * Get the complaint associated with this feedback.
+     */
+    public function complaint()
+    {
+        return $this->hasOne(\App\Models\CRM\Complaint::class, 'feedback_id');
+    }
+
+    /**
+     * Get the corrective action associated with this feedback.
+     */
+    public function correctiveAction()
+    {
+        return $this->hasOne(\App\Models\CRM\FeedbackCorrectiveAction::class, 'customer_feedback_id');
     }
 
     /**

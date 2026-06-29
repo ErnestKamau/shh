@@ -20,9 +20,16 @@ class FeedbackShow extends BaseCrmComponent
     public function mount($id)
     {
         $this->initialize();
-        $this->checkPermission('CRM.components.Feedbacks.View');
+        $this->authorizeFeedbackView();
 
         $this->feedbackId = $id;
+        $feedback = CustomerFeedback::findOrFail($id);
+
+        if (empty($feedback->code) || !preg_match('/^FB-\d{4}-\d+$/', $feedback->code)) {
+            $feedback->code = CustomerFeedback::generateUniqueCode();
+            $feedback->save();
+        }
+
         $this->feedback = CustomerFeedback::with([
             'ratings.metric',
             'customer',
@@ -35,6 +42,13 @@ class FeedbackShow extends BaseCrmComponent
         ])->findOrFail($id);
 
         $this->showTabs = $this->feedback->complaint && $this->feedback->complaint->exists;
+    }
+
+    protected function authorizeFeedbackView(): void
+    {
+        if (! $this->hasPermission('crm.components.feedbacks.view')) {
+            $this->checkPermission('crm.feedback.view');
+        }
     }
 
     public function setActiveTab($tab)

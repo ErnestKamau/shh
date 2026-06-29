@@ -61,6 +61,17 @@ class Complaint extends Model implements Auditable
         ];
     }
 
+    public function getContactNameAttribute($value)
+    {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+            $contact = CustomerContact::find($value);
+            if ($contact) {
+                return trim($contact->first_name . ' ' . ($contact->middle_name ? $contact->middle_name . ' ' : '') . $contact->last_name);
+            }
+        }
+        return $value;
+    }
+
     public function client()
     {
         return $this->belongsTo(CRMCustomer::class, 'client_id');
