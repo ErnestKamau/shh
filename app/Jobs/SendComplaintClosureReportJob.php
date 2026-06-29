@@ -25,7 +25,7 @@ class SendComplaintClosureReportJob implements ShouldQueue
      * @param  array<int, string>  $emails
      */
     public function __construct(
-        public int $complaintId,
+        public string $complaintId,
         public array $emails,
         public string $relativePath,
     ) {}

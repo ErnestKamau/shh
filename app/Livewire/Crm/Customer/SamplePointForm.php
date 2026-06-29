@@ -137,6 +137,8 @@ class SamplePointForm extends BaseCrmComponent
 
         if ($this->longitude || $this->latitude) {
             $point->gps = $this->longitude . ',' . $this->latitude;
+        } else {
+            $point->gps = '';
         }
 
         $point->save();

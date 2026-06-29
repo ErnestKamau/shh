@@ -1183,6 +1183,13 @@ Route::post('/add/customer-certification/{id}', 'CRM\CustomerCertificationContro
 Route::post('/edit/customer-certification/{id}', 'CRM\CustomerCertificationController@edit')->name('edit-customer-certification')->middleware('can:crm.certifications.edit');
 Route::post('/delete/customer-certification/{id}', 'CRM\CustomerCertificationController@delete')->name('delete-customer-certification')->middleware('can:crm.certifications.delete');
 
+Route::get('/complaint/{stage}', '\\' . \App\Livewire\Crm\Complaint\ComplaintList::class)
+    ->name('complaint-workflow')
+    ->middleware('can:crm.complaints.view');
+Route::get('/complaints/create', '\\' . \App\Livewire\Crm\Complaint\ComplaintForm::class)
+    ->name('complaint-create')
+    ->middleware('can:crm.complaints.add');
+
 Route::get('/complaint-type/home', 'CRM\Complaint\ComplaintTypeController@index')->name('complaint-type-home')->middleware('can:crm.complaint-types.view');
 Route::post('/edit/complaint-type/{id}', 'CRM\Complaint\ComplaintTypeController@edit')->name('edit-complaint-type')->middleware('can:crm.complaint-types.edit');
 Route::post('/add/complaint-type', 'CRM\Complaint\ComplaintTypeController@add')->name('add-complaint-type')->middleware('can:crm.complaint-types.add');
@@ -1195,14 +1202,22 @@ Route::post('/add/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController
 Route::post('/edit/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController@edit')->name('edit-notes')->middleware('can:crm.complaints.edit');
 Route::post('/add/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@add')->name('add-attachment')->middleware('can:crm.complaints.edit');
 Route::post('/edit/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@edit')->name('edit-attachment')->middleware('can:crm.complaints.edit');
+Route::get('/crm/complaint/{complaint}/attachment/{attachment}/download', 'CRM\Complaint\ComplaintAttachmentController@download')
+    ->name('crm.complaint.attachment.download')
+    ->middleware('can:crm.complaints.view');
 Route::post('/approve-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@approve_next')->name('approve-complaint')->middleware('can:crm.complaints-approval.edit');
 Route::post('/reverse-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_approval')->name('reverse-complaint')->middleware('can:crm.complaints-approval.delete');
 Route::post('/reject-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_complaint')->name('reject-complaint')->middleware('can:crm.complaints-approval.delete');
 Route::post('/add/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutionController@add')->name('add-resolution')->middleware('can:crm.complaints-resolution.add');
 Route::post('/edit/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutionController@edit')->name('edit-resolution')->middleware('can:crm.complaints-resolution.edit');
-Route::get('/show/complaint/{id}', 'CRM\Complaint\ComplaintController@show_all')->name('complaint-show')->middleware('can:crm.complaints.view');
+Route::get('/show/complaint/{id}', '\\' . \App\Livewire\Crm\Complaint\ComplaintShow::class)
+    ->name('complaint-show')
+    ->middleware('can:crm.complaints.view');
 
 Route::get('/customer-feedback/home', [CRMAppController::class, 'feedbacks'])->name('feedback-home')->middleware('can:crm.feedback.view');
+Route::get('/show/feedback/{id}', '\\' . \App\Livewire\Crm\Feedback\FeedbackShow::class)
+    ->name('feedback-show')
+    ->middleware('can:crm.feedback.view');
 Route::get('/customer-feedback/configuration', '\\' . \App\Livewire\Crm\Feedback\EvaluationMetricManager::class)
     ->name('feedback-config')
     ->middleware('auth')

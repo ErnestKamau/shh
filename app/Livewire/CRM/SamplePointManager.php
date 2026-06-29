@@ -213,6 +213,7 @@ class SamplePointManager extends Component
                 $samplePoint = new SamplePoint();
                 $samplePoint->name = $this->samplePointForm['name'];
                 $samplePoint->code = $this->samplePointForm['code'];
+                $samplePoint->gps = '';
                 $samplePoint->created_by = Auth::id();
             }
 

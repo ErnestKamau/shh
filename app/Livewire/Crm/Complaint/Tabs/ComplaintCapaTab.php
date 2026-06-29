@@ -10,57 +10,120 @@ use App\Livewire\Crm\BaseCrmComponent;
 use App\Constants\CRM\CrmConstants;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\On;
 
 class ComplaintCapaTab extends BaseCrmComponent
 {
+    // CAPA Internal Workflow Statuses
+    public const STATUS_DRAFT = 'Draft';
+    public const STATUS_ASSIGNED = 'Assigned';
+    public const STATUS_TRIAGED = 'Triaged';
+    public const STATUS_ACTION = 'Action';
+    public const STATUS_VERIFY = 'Verify';
+    public const STATUS_COMPLETED = 'Completed';
+
     public $complaintId;
     public $complaint;
     public $capaRecord;
     public $resolution;
 
     // View State
-    public $activeView = 'capa'; // 'capa' or 'ncr'
     public $isCapaSaved = false;
-    public bool $ncr_required = false; // Decision Gate 2: NCR/Why-Why toggle
-    public string $step_status = 'ncr_pending_init'; // Tracks phase: ncr_pending_init, ncr_in_progress, ncr_verification, capa_completed
-    public bool $isNcrSaved = false;
-    public bool $isEditing = false; // Dual-State master switch
+    public bool $isEditing = false; 
+    public int $activeStep = 1;
+    public string $capa_status = self::STATUS_DRAFT;
 
-    // CAPA Fields (Action Plan - Image 2)
-    public $issued_to = '';
-    public $issued_by = '';
+    // CAPA Fields (Action Plan)
+    public $issued_to = [];
+    public $issued_by = [];
     public $date_issued = '';
     public $proposed_close_out_date = '';
     public $ref_clause = '';
     public $car_type = ''; // Major/Minor
-    public $risk_level = ''; // Low/Medium/High
+    public $capa_risk_level = ''; // Low/Medium/High
     public $action_taken = ''; 
     public $acceptance = '';
-    public $capa_identified_by = '';
+    public $capa_identified_by = [];
     public $capa_identified_date = '';
-
-    // NCR Fields (Non-Conformance & RCA - Image 4)
+    public $capa_corrective_action = '';
+    public $root_cause = '';
+    public $root_cause_by = [];
+    public $root_cause_date = '';
+    public $action_taken_by = [];
+    public $action_taken_date = '';
+    public $corrective_action_by = [];
+    public $corrective_action_date = '';
+    public $corrective_action_by_user = null;
     public $lab_no = '';
     public $details_of_non_conformance = '';
-    public $identified_by = '';
-    public $ncr_identified_date = '';
-    public $why_1 = '';
-    public $why_2 = '';
-    public $why_3 = '';
-    public $why_4 = '';
-    public $why_5 = '';
-    public $root_cause = '';
-    public $capa_corrective_action = '';
-    public $problem_statement = '';
 
     // Verification
-    public $effectiveness_verified_by = '';
+    public $effectiveness_verified_by = [];
     public $effectiveness_date = '';
 
-    public function mount($complaintId)
+    public function getCapaButtonLabelProperty()
+    {
+        if ($this->capa_status === self::STATUS_COMPLETED) {
+            return 'Review/Edit CAPA';
+        }
+
+        return match($this->capa_status) {
+            self::STATUS_DRAFT    => 'Fill Case Assignment',
+            self::STATUS_ASSIGNED => 'Continue to Non-Conformance Details',
+            self::STATUS_TRIAGED  => 'Continue to Corrective Action Plan',
+            self::STATUS_ACTION,
+            self::STATUS_VERIFY   => 'Continue to Acceptance & Effectiveness of Actions',
+            default               => 'Add CAPA'
+        };
+    }
+
+    #[On('toggle-active-step-edit')]
+    public function handleToggleEdit($isEditing)
+    {
+        $this->isEditing = $isEditing;
+        if (!$this->isEditing) {
+            $this->mount($this->complaint->id);
+        }
+    }
+
+    #[On('trigger-next-action')]
+    public function handleTriggerNextAction($action)
+    {
+        if ($action === 'add_capa') {
+            $this->isEditing = true;
+            $this->activeStep = 1;
+        } elseif ($action === 'add_plan') {
+            $this->isEditing = true;
+            $this->activeStep = 3;
+        } elseif ($action === 'add_verification') {
+            $this->isEditing = true;
+            $this->activeStep = 4;
+        } elseif ($action === 'toggle_edit') {
+            $this->toggleEdit();
+        }
+    }
+
+    #[On('nc-completed')]
+    public function handleNcCompleted()
+    {
+        $this->isEditing = true;
+        Log::info("CAPA Tab: NC Completed event received. Re-deriving status.");
+        $this->mount($this->complaint->id, true);
+    }
+
+    public function toggleEdit()
+    {
+        $this->isEditing = !$this->isEditing;
+        if (!$this->isEditing) {
+            $this->mount($this->complaint->id); // Reset data if cancelling
+        }
+    }
+
+    public function mount($complaintId, $isEditing = false, $prefilledData = [])
     {
         $this->initialize();
         $this->complaintId = $complaintId;
+        $this->isEditing = $isEditing;
         $this->complaint = Complaint::findOrFail($complaintId);
         
         $this->capaRecord = CapaRecord::where('complaint_id', $this->complaintId)->first();
@@ -73,147 +136,227 @@ class ComplaintCapaTab extends BaseCrmComponent
             $this->resolution->save();
         }
 
-        // Auto-populate lab_no if empty
-        if (!$this->capaRecord || empty($this->capaRecord->lab_no)) {
-            $this->lab_no = $this->complaint->report_serial_no ?: ($this->complaint->test_item_report_serial_no ?: '');
-        }
-
         // 1. Initialize CAPA Data (Action Plan)
         if ($this->resolution) {
             $this->acceptance = $this->resolution->findings;
-            $this->root_cause = $this->resolution->root_cause_analysis;
             $this->action_taken = $this->resolution->action_taken;
-            $this->issued_to = $this->resolution->issued_to;
-            $this->issued_by = $this->resolution->issued_by;
-            $this->date_issued = $this->resolution->date_issued ? $this->resolution->date_issued->format('Y-m-d') : '';
-            $this->proposed_close_out_date = $this->resolution->proposed_close_out_date ? $this->resolution->proposed_close_out_date->format('Y-m-d') : ($this->resolution->corrective_action_date ? $this->resolution->corrective_action_date->format('Y-m-d') : '');
-            $this->ref_clause = $this->resolution->ref_clause;
-            $this->car_type = $this->resolution->car_type;
-            $this->risk_level = $this->resolution->risk_level;
-            $this->capa_identified_by = $this->resolution->capa_identified_by;
-            $this->capa_identified_date = $this->resolution->capa_identified_date ? $this->resolution->capa_identified_date->format('Y-m-d') : '';
+            $this->action_taken_by = $this->resolution->action_taken_by ? array_map('trim', explode(',', $this->resolution->action_taken_by)) : [];
+            $this->action_taken_date = $this->resolution->action_taken_date ? $this->resolution->action_taken_date->format('Y-m-d') : now()->format('Y-m-d');
             
+            $this->root_cause = $this->resolution->root_cause_analysis;
+            $this->root_cause_by = $this->resolution->root_cause_by ? array_map('trim', explode(',', $this->resolution->root_cause_by)) : [];
+            $this->root_cause_date = $this->resolution->root_cause_date ? $this->resolution->root_cause_date->format('Y-m-d') : now()->format('Y-m-d');
+            
+            $this->issued_to = $this->resolution->issued_to ? array_map('trim', explode(',', $this->resolution->issued_to)) : [];
+
+            $this->capa_corrective_action = $this->resolution->corrective_action_taken;
+            $this->corrective_action_by = $this->resolution->corrective_action_by ? array_map('trim', explode(',', $this->resolution->corrective_action_by)) : [];
+            $this->corrective_action_date = $this->resolution->corrective_action_date ? $this->resolution->corrective_action_date->format('Y-m-d') : now()->format('Y-m-d');
+
+            $this->issued_to = $this->resolution->issued_to ? array_map('trim', explode(',', $this->resolution->issued_to)) : [];
+            $this->issued_by = $this->resolution->issued_by ? array_map('trim', explode(',', $this->resolution->issued_by)) : [];
+            $this->date_issued = $this->resolution->date_issued ? $this->resolution->date_issued->format('Y-m-d') : now()->format('Y-m-d');
+            
+            $dbProposedDate = $this->resolution->proposed_close_out_date ? $this->resolution->proposed_close_out_date->format('Y-m-d') : null;
+            
+            // Force 25-day gap if no date set OR if it's currently the same as issue date (likely an old bug fallback)
+            if (!$dbProposedDate || $dbProposedDate === $this->date_issued) {
+                $this->proposed_close_out_date = \Carbon\Carbon::parse($this->date_issued)->addDays(25)->format('Y-m-d');
+            } else {
+                $this->proposed_close_out_date = $dbProposedDate;
+            }
+            $this->ref_clause = $this->resolution->ref_clause;
+            $this->car_type = $this->resolution->car_type ?: '';
+            $this->capa_risk_level = $this->resolution->risk_level ?: '';
+            $this->capa_identified_by = $this->resolution->capa_identified_by ? array_map('trim', explode(',', $this->resolution->capa_identified_by)) : [];
+            $this->capa_identified_date = $this->resolution->capa_identified_date ? $this->resolution->capa_identified_date->format('Y-m-d') : now()->format('Y-m-d');
+
+            if (!empty($this->corrective_action_by)) {
+                $firstName = $this->corrective_action_by[0] ?? null;
+                if ($firstName) {
+                    $this->corrective_action_by_user = \App\User::where('name', $firstName)->first();
+                }
+            }
+        } else {
+            // Default Dates
+            $this->action_taken_date = now()->format('Y-m-d');
+            $this->root_cause_date = now()->format('Y-m-d');
+            $this->corrective_action_date = now()->format('Y-m-d');
+            $this->date_issued = now()->format('Y-m-d');
+            $this->capa_identified_date = now()->format('Y-m-d');
+            $this->proposed_close_out_date = now()->addDays(25)->format('Y-m-d');
+        }
+            
+            // Fallback for existing records with no close out date or where it's mistakenly equal to issue date
+            if ((empty($this->proposed_close_out_date) || $this->proposed_close_out_date === $this->date_issued) && !empty($this->date_issued)) {
+                $this->proposed_close_out_date = \Carbon\Carbon::parse($this->date_issued)->addDays(25)->format('Y-m-d');
+            }
+            
+            // Initial data loading
+            if ($this->capaRecord) {
+                $this->lab_no = $this->capaRecord->lab_no;
+                $this->details_of_non_conformance = $this->capaRecord->details_of_non_conformance;
+                
+                $this->effectiveness_verified_by = $this->capaRecord->effectiveness_verified_by ? array_map('trim', explode(',', $this->capaRecord->effectiveness_verified_by)) : [];
+                $this->effectiveness_date = $this->capaRecord->effectiveness_date ? \Carbon\Carbon::parse($this->capaRecord->effectiveness_date)->format('Y-m-d') : now()->format('Y-m-d');
+            } else {
+                $this->effectiveness_date = now()->format('Y-m-d');
+            }
+
+            if (empty($this->details_of_non_conformance)) {
+                $this->details_of_non_conformance = $this->complaint->description;
+            }
+
+            // Autopick the lab report no. strictly if lab-related
+            if ($this->complaint->is_lab_related) {
+                if (empty($this->lab_no)) {
+                    $this->lab_no = $this->complaint->report_serial_no;
+                }
+            }
+           
             // If essential CAPA is already filled out, mark as saved
-            if (!empty($this->acceptance) && !empty($this->root_cause)) {
+            if (!empty($this->acceptance) && !empty($this->root_cause) && !empty($this->capa_corrective_action)) {
                 $this->isCapaSaved = true;
             }
-        }
 
-        // 2. Initialize NCR/RCA Data (Root Cause)
+
+
+        // 2. Initialize Verification Data
         if ($this->capaRecord) {
-            $this->details_of_non_conformance = $this->capaRecord->details_of_non_conformance;
-            $this->identified_by = $this->capaRecord->identified_by;
-            $this->ncr_identified_date = $this->capaRecord->ncr_identified_date ? $this->capaRecord->ncr_identified_date->format('Y-m-d') : '';
-            $this->root_cause = $this->capaRecord->root_cause;
-            $this->lab_no = $this->capaRecord->lab_no ?: $this->lab_no;
-            $this->effectiveness_verified_by = $this->capaRecord->effectiveness_verified_by;
+            $this->effectiveness_verified_by = $this->capaRecord->effectiveness_verified_by ? array_map('trim', explode(',', $this->capaRecord->effectiveness_verified_by)) : [];
             $this->effectiveness_date = $this->capaRecord->effectiveness_date ? \Carbon\Carbon::parse($this->capaRecord->effectiveness_date)->format('Y-m-d') : '';
 
             $whys = $this->capaRecord->why_why_analysis ?? [];
             if (is_string($whys)) {
                 $whys = json_decode($whys, true) ?? [];
             }
-            $this->why_1 = $whys['why_1'] ?? '';
-            $this->why_2 = $whys['why_2'] ?? '';
-            $this->why_3 = $whys['why_3'] ?? '';
-            $this->why_4 = $whys['why_4'] ?? '';
-            $this->why_5 = $whys['why_5'] ?? '';
-            $this->capa_corrective_action = $whys['corrective_action'] ?? '';
-            $this->problem_statement = $whys['problem_statement'] ?? '';
-
-            if (!empty($this->problem_statement) && !empty($this->why_1) && !empty($this->why_2)) {
-                $this->isNcrSaved = true;
-            }
+            // Corrective action and root cause are now primarily managed in the resolution table columns
+            // to ensure synchronization across sections. Pulling from legacy JSON here was overwriting valid data.
         }
 
         // 3. Set default view based on progression
-        // Load ncr_required from resolution FIRST
-        if ($this->resolution) {
-            $this->ncr_required = (bool) $this->resolution->ncr_required;
-        }
 
-        // Determine step_status
-        if ($this->ncr_required) {
-            if ($this->isCapaSaved) { 
-                 $this->step_status = 'capa_completed';
-            } elseif (!empty($this->capaRecord) && !empty($this->problem_statement)) {
-                 $this->step_status = 'ncr_verification'; 
-                 $this->activeView = 'capa'; // Force back to CAPA for step 3
-            } elseif ($this->resolution && !empty($this->resolution->date_issued)) {
-                 $this->step_status = 'ncr_in_progress';
-                 $this->activeView = 'ncr'; // Force to NCR for step 2
-            } else {
-                 $this->step_status = 'ncr_pending_init';
-                 $this->activeView = 'capa';
-            }
-        } else {
-            // Normal fallback if NCR not required
-            $this->step_status = 'ncr_pending_init';
-            if ($this->isCapaSaved) {
-                $this->step_status = 'capa_completed';
-            }
+        // 4. Derive Internal CAPA Status
+        $this->deriveCapaStatus();
+    }
+
+    public function getCapaStatusIndexProperty(): int
+    {
+        $map = [
+            self::STATUS_DRAFT => 0,
+            self::STATUS_TRIAGED => 1,
+            self::STATUS_ACTION => 2,
+            self::STATUS_VERIFY => 3,
+            self::STATUS_COMPLETED => 4,
+        ];
+        return $map[$this->capa_status] ?? 0;
+    }
+
+    public function updatedActiveStep($value)
+    {
+        // Autopopulate verification date when step 4 is activated
+        if ($value === 4 && empty($this->effectiveness_date)) {
+            $this->effectiveness_date = now()->format('Y-m-d');
         }
     }
 
-    /**
-     * React to NCR Required toggle change.
-     */
-    public function updatedNcrRequired()
+    public function updatedDateIssued($value)
     {
-        if ($this->resolution) {
-            $this->resolution->ncr_required = $this->ncr_required;
-            $this->resolution->save();
+        if (!empty($value)) {
+            $this->proposed_close_out_date = \Carbon\Carbon::parse($value)->addDays(25)->format('Y-m-d');
         }
+    }
+
+    public function getIsReadyToAdvanceProperty()
+    {
+        // Validation for NC/CAPA completeness
+        $hasNC = !empty(trim(strip_tags((string)$this->details_of_non_conformance)));
+        $hasAction = !empty(trim(strip_tags((string)$this->capa_corrective_action)));
+        $hasImmediateAction = !empty(trim(strip_tags((string)$this->action_taken)));
+        $hasRootCause = !empty(trim(strip_tags((string)$this->root_cause)));
         
-        // Recalculate status based on toggle
-        if (!$this->ncr_required) {
-            $this->step_status = 'ncr_pending_init';
-            if ($this->isCapaSaved) {
-                $this->step_status = 'capa_completed';
-            }
-            $this->activeView = 'capa';
+        $hasAssignment = !empty($this->issued_to) && 
+                         !empty($this->issued_by) && 
+                         !empty($this->date_issued) && 
+                         !empty($this->proposed_close_out_date);
+
+        $hasNCMeta = !empty($this->capa_identified_by) && !empty($this->capa_identified_date);
+        
+        return $hasNC && $hasAction && $hasRootCause && $hasImmediateAction && $hasAssignment && $hasNCMeta;
+    }
+
+    public function getNextPendingActionProperty()
+    {
+        $status = $this->capa_status;
+        $cleanDetails = trim(strip_tags((string)$this->details_of_non_conformance));
+        $cleanAction = trim(strip_tags((string)$this->action_taken));
+        $cleanRootCause = trim(strip_tags((string)$this->root_cause));
+        $cleanCorrectiveAction = trim(strip_tags((string)$this->capa_corrective_action));
+        $cleanAcceptance = trim(strip_tags((string)$this->acceptance));
+
+        if (empty($this->issued_to) || empty($this->issued_by)) return "Assign Personnel & Dates";
+        if (empty($cleanDetails) || empty($this->car_type)) return "Describe Non-Conformance";
+        if (empty($cleanRootCause) || empty($cleanCorrectiveAction)) return "Formulate RCA & Action Plan";
+        if (empty($this->effectiveness_verified_by) || empty($cleanAcceptance)) return "Verify Effectiveness & Approve";
+        
+        return "CAPA Completed";
+    }
+
+    protected function deriveCapaStatus()
+    {
+        // Use stripped/trimmed strings to detect real content
+        $cleanDetails = trim(strip_tags((string)$this->details_of_non_conformance));
+        $cleanAction = trim(strip_tags((string)$this->action_taken));
+        $cleanRootCause = trim(strip_tags((string)$this->root_cause));
+        $cleanCorrectiveAction = trim(strip_tags((string)$this->capa_corrective_action));
+        $cleanAcceptance = trim(strip_tags((string)$this->acceptance));
+
+        // 1. Check Step 1 Completion (Assignment)
+        if (empty($this->issued_to) || empty($this->issued_by) || empty($this->date_issued) || empty($this->proposed_close_out_date)) {
+            $this->capa_status = self::STATUS_DRAFT;
+            $this->activeStep = 1;
+            return;
+        }
+
+        // 2. Check Step 2 Completion (Non-Conformance)
+        if (empty($cleanDetails) || empty($this->car_type) || empty($this->capa_identified_by) || empty($this->capa_identified_date)) {
+            $this->capa_status = self::STATUS_ASSIGNED;
+            $this->activeStep = 2;
+            return;
+        }
+
+        // 3. Check Step 3 Completion (Corrective Action Plan)
+        if (empty($this->capa_risk_level) || empty($cleanRootCause) || empty($cleanCorrectiveAction) || empty($cleanAction) || empty($this->root_cause_by) || empty($this->corrective_action_by)) {
+            $this->capa_status = self::STATUS_TRIAGED;
+            $this->activeStep = 3;
+            return;
+        }
+
+        // 4. Check Step 4 Completion (Verification)
+        if (!empty($this->effectiveness_verified_by) && !empty($this->effectiveness_date) && !empty($cleanAcceptance)) {
+            $this->capa_status = self::STATUS_COMPLETED;
+            $this->activeStep = 4;
+        } else if ($this->effectiveness_verified_by || $this->effectiveness_date) {
+            $this->capa_status = self::STATUS_VERIFY;
+            $this->activeStep = 4;
         } else {
-            // Re-evaluate based on existing data
-            if ($this->isCapaSaved) { 
-                 $this->step_status = 'capa_completed';
-            } elseif (!empty($this->capaRecord) && !empty($this->problem_statement)) {
-                 $this->step_status = 'ncr_verification'; 
-            } elseif ($this->resolution && !empty($this->resolution->date_issued)) {
-                 $this->step_status = 'ncr_in_progress';
-            } else {
-                 $this->step_status = 'ncr_pending_init';
-            }
+            $this->capa_status = self::STATUS_ACTION;
+            $this->activeStep = 4;
+        }
+
+        // Autopopulate verification date when entering final step
+        if ($this->activeStep == 4 && empty($this->effectiveness_date)) {
+            $this->effectiveness_date = now()->format('Y-m-d');
         }
     }
 
-    public function switchView($view)
+    public function getIsRcaCompletedProperty(): bool
     {
-        // When ncr_required=true, enforce NCR completion before CAPA
-        if ($this->ncr_required) {
-            if ($view === 'capa' && $this->step_status === 'ncr_in_progress') {
-                $this->dispatch('alert', ['type' => 'warning', 'message' => 'Please complete the Why-Why (NCR) analysis first before filling the CAPA form.']);
-                return;
-            }
-            if ($view === 'ncr' && $this->step_status === 'ncr_pending_init') {
-                $this->dispatch('alert', ['type' => 'warning', 'message' => 'Please complete and save the CAPA initial setup first.']);
-                return;
-            }
-        } else {
-            // Original logic for non-NCR
-            if ($view === 'ncr' && !$this->isCapaSaved) {
-                $this->dispatch('alert', ['type' => 'warning', 'message' => 'Please complete and save the CAPA Action Plan first.']);
-                return;
-            }
-        }
-        $this->activeView = $view;
-        $this->dispatch('view-switched', $view);
-    }
-
-    public function toggleEdit()
-    {
-        $this->checkPermission('crm.components.complaint verification.edit');
-        $this->isEditing = true;
-        $this->dispatch('edit-mode-activated');
+        // Now RCA is in NC tab, we check if it's present in capaRecord
+        if (!$this->capaRecord) return false;
+        $whys = $this->capaRecord->why_why_analysis ?? [];
+        if (is_string($whys)) $whys = json_decode($whys, true) ?? [];
+        return !empty(strip_tags($whys['problem_statement'] ?? '')) && !empty(strip_tags($whys['why_1'] ?? ''));
     }
 
     public function cancelEdit()
@@ -221,226 +364,181 @@ class ComplaintCapaTab extends BaseCrmComponent
         $this->isEditing = false;
         $this->mount($this->complaintId); // Re-load from DB to discard unsaved changes
         $this->dispatch('edit-mode-deactivated');
-    }
-
-    public function saveCapaInit()
-    {
-        $this->checkPermission('crm.components.complaint verification.edit');
-
-        if (!$this->resolution) {
-            $this->resolution = new Complaintsresolutions();
-            $this->resolution->complaint_id = $this->complaint->id;
-            $this->resolution->registered_by = Auth::user()?->name;
-            $this->resolution->workflow_stage = $this->complaint->complaint_workflow;
-        }
-
-        $this->resolution->issued_to = $this->issued_to;
-        $this->resolution->issued_by = $this->issued_by;
-        $this->resolution->date_issued = $this->date_issued ?: null;
-        $this->resolution->proposed_close_out_date = $this->proposed_close_out_date ?: null;
-        $this->resolution->ref_clause = $this->ref_clause;
-        $this->resolution->car_type = $this->car_type;
-        $this->resolution->risk_level = $this->risk_level;
-        $this->resolution->save();
-        
-        // Save Details of Non conformance since moved to Section 2 of CAPA
-        if (!$this->capaRecord) {
-            $this->capaRecord = new CapaRecord();
-            $this->capaRecord->complaint_id = $this->complaint->id;
-        }
-        $this->capaRecord->details_of_non_conformance = $this->details_of_non_conformance;
-        $this->capaRecord->save();
-
-        if ($this->ncr_required) {
-            $this->step_status = 'ncr_in_progress';
-            $this->activeView = 'ncr';
-            $this->dispatch('view-switched', 'ncr');
-
-            // Log to Chain of Custody
-            $chain = new Chain_of_Custody_Complaint();
-            $chain->complaint_id = $this->complaint->id;
-            $chain->action = "CAPA Initialized. Moved to Why-Why Analysis.";
-            $chain->action_taker_id = Auth::id();
-            $chain->workflow_stage = getComplaintWorkflow()[$this->complaint->complaint_workflow] ?? "Stage " . $this->complaint->complaint_workflow;
-            $chain->save();
-
-            $this->dispatch('alert', ['type' => 'success', 'message' => 'CAPA Initial Setup saved. Please complete Root Cause Analysis.']);
-        } else {
-            $this->dispatch('alert', ['type' => 'success', 'message' => 'CAPA Initial Setup saved.']);
-        }
-
-        $this->isEditing = false;
-    }
-
-    public function approveCapaVerification()
-    {
-        $this->checkPermission('crm.components.complaint verification.edit');
-
-        $this->validate([
-            'acceptance' => 'required|string',
-            'action_taken' => 'required|string',
-        ], [
-            'acceptance.required' => 'Please provide the acceptance of corrective action.',
-            'action_taken.required' => 'Please provide the action taken.',
-        ]);
-
-        if ($this->ncr_required) {
-             $this->validate([
-                 'root_cause' => 'required|string',
-                 'capa_corrective_action' => 'required|string',
-             ], [
-                 'root_cause.required' => 'Root cause must be defined in the NCR step.',
-                 'capa_corrective_action.required' => 'Corrective Action must be defined in the NCR step.',
-             ]);
-        } else {
-            // If NCR not required, we still need root cause from stage 1 probably
-             $this->validate([
-                 'root_cause' => 'required|string',
-             ], [
-                 'root_cause.required' => 'Please provide the root cause analysis.',
-             ]);
-        }
-
-        if (!$this->resolution) {
-            $this->resolution = new Complaintsresolutions();
-            $this->resolution->complaint_id = $this->complaint->id;
-            $this->resolution->registered_by = Auth::user()?->name;
-            $this->resolution->workflow_stage = $this->complaint->complaint_workflow;
-        }
-
-        $this->resolution->findings = $this->acceptance;
-        $this->resolution->root_cause_analysis = $this->root_cause;
-        $this->resolution->action_taken = $this->action_taken;
-        // Keep Sec 1 & 2 in case changed
-        $this->resolution->issued_to = $this->issued_to;
-        $this->resolution->issued_by = $this->issued_by;
-        $this->resolution->date_issued = $this->date_issued ?: null;
-        $this->resolution->proposed_close_out_date = $this->proposed_close_out_date ?: null;
-        $this->resolution->ref_clause = $this->ref_clause;
-        $this->resolution->car_type = $this->car_type;
-        $this->resolution->risk_level = $this->risk_level;
-        $this->resolution->ncr_required = $this->ncr_required;
-        $this->resolution->save();
-
-        if ($this->capaRecord) {
-            $this->capaRecord->root_cause = $this->root_cause;
-            $this->capaRecord->effectiveness_verified_by = $this->effectiveness_verified_by;
-            $this->capaRecord->effectiveness_date = $this->effectiveness_date ?: null;
-            $whys = $this->capaRecord->why_why_analysis ?? [];
-            if (is_string($whys)) {
-                $whys = json_decode($whys, true) ?? [];
-            }
-            $whys['corrective_action'] = $this->capa_corrective_action;
-            $this->capaRecord->why_why_analysis = $whys;
-            $this->capaRecord->save();
-        }
-
-        $this->isCapaSaved = true;
-        
-        $this->step_status = 'capa_completed';
-
-        // Advance to Stage 4 (Pending Closure)
-        $nextStage = 4;
-        $this->complaint->complaint_workflow = $nextStage;
-        $this->complaint->save();
-
-        if ($this->resolution) {
-            $this->resolution->workflow_stage = $nextStage;
-            $this->resolution->save();
-        }
-
-        $chain = new Chain_of_Custody_Complaint();
-        $chain->complaint_id = $this->complaint->id;
-        $chain->action = "CAPA Approved & Finalized (Split Workflow)";
-        $chain->action_taker_id = Auth::id();
-        $chain->workflow_stage = getComplaintWorkflow()[$nextStage] ?? "Stage $nextStage";
-        $chain->save();
-
-        $this->showSuccess('CAPA Approved. Complaint has moved to Pending Closure.');
-        $this->isEditing = false;
-        $this->dispatch('complaint-workflow-updated');
-    }
-
-    public function saveDraftNcr()
-    {
-        $this->checkPermission('crm.components.complaint verification.edit');
-
-        $this->saveNcrData();
-        $this->dispatch('alert', ['type' => 'success', 'message' => 'NCR draft saved successfully.']);
-    }
-
-    public function saveNcrOnly()
-    {
-        $this->checkPermission('crm.components.complaint verification.edit');
-
-        $this->validate([
-            'problem_statement' => 'required|string',
-            'why_1' => 'required|string',
-            'why_2' => 'required|string',
-        ]);
-
-        $this->saveNcrData();
-        $this->isNcrSaved = true;
-        $this->isEditing = false;
-
-        $this->dispatch('alert', ['type' => 'success', 'message' => 'Why-Why Analysis saved successfully. You can now Return to CAPA.']);
-    }
-
-    public function returnToCapa()
-    {
-        $this->checkPermission('crm.components.complaint verification.edit');
-        
-        // Ensure NCR is saved before returning
-        if (!$this->isNcrSaved) {
-            $this->saveNcrOnly();
-        }
-
-        $this->step_status = 'ncr_verification';
-        $this->activeView = 'capa';
-        $this->dispatch('view-switched', 'capa');
-
-        // Log to Chain of Custody
-        $chain = new Chain_of_Custody_Complaint();
-        $chain->complaint_id = $this->complaint->id;
-        $chain->action = "Why-Why Analysis Completed. Returned to CAPA.";
-        $chain->action_taker_id = Auth::id();
-        $chain->workflow_stage = getComplaintWorkflow()[$this->complaint->complaint_workflow] ?? "Stage " . $this->complaint->complaint_workflow;
-        $chain->save();
-    }
-
-    protected function saveNcrData()
-    {
-        if (!$this->capaRecord) {
-            $this->capaRecord = new CapaRecord();
-            $this->capaRecord->complaint_id = $this->complaint->id;
-        }
-
-        $this->capaRecord->details_of_non_conformance = $this->details_of_non_conformance;
-        $this->capaRecord->identified_by = $this->identified_by;
-        $this->capaRecord->ncr_identified_date = $this->ncr_identified_date ?: null;
-        $this->capaRecord->root_cause = $this->root_cause;
-        $this->capaRecord->lab_no = $this->lab_no;
-        $this->capaRecord->effectiveness_verified_by = $this->effectiveness_verified_by;
-        $this->capaRecord->effectiveness_date = $this->effectiveness_date ?: null;
-        
-        $this->capaRecord->why_why_analysis = [
-            'why_1' => $this->why_1,
-            'why_2' => $this->why_2,
-            'why_3' => $this->why_3,
-            'why_4' => $this->why_4,
-            'why_5' => $this->why_5,
-            'corrective_action' => $this->capa_corrective_action,
-            'problem_statement' => $this->problem_statement,
-        ];
-
-        $this->capaRecord->save();
+        $this->dispatch('section-toggled'); // Trigger re-init of any needed JS
     }
 
     /**
-     * Background autosave for all CAPA/NCR fields.
-     * Skips strict validation and flash messages.
+     * Bridge Methods for Rich Text synchronization from the frontend
      */
-    public function performAutosave()
+    public function applyRichTextData(array $data)
+    {
+        foreach ($data as $field => $content) {
+            if (property_exists($this, $field)) {
+                $this->$field = $content;
+            }
+        }
+    }
+
+    public function syncRichTextAndAutosave(array $data)
+    {
+        $this->applyRichTextData($data);
+        $this->saveAllData();
+        $this->dispatch('autosave-completed', ['time' => now()->format('H:i:s')]);
+    }
+
+    public function syncRichTextAndComplete(array $data)
+    {
+        $this->applyRichTextData($data);
+        $this->saveFinalVerification([]);
+    }
+
+    /**
+     * Section-Specific Save Methods
+     */
+    public function saveAssignment(array $richTextData = [])
+    {
+        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
+        if (!empty($richTextData)) $this->applyRichTextData($richTextData);
+        $this->saveAllData(); // Save as draft first
+
+        $this->validate([
+            'date_issued' => 'required|date',
+            'proposed_close_out_date' => 'required|date',
+            'issued_to' => 'required|array|min:1',
+            'lab_no' => ($this->complaint->is_lab_related ? 'required' : 'nullable') . '|string',
+            'issued_by' => 'required|array|min:1',
+        ], [
+            'issued_to.required' => 'Please identify who this CAPA is issued to.',
+            'issued_by.required' => 'Please identify who issued this CAPA.',
+        ]);
+
+        $this->deriveCapaStatus();
+        $isFullEdit = ($this->capa_status === self::STATUS_COMPLETED);
+        if (!$isFullEdit) {
+            $this->activeStep = 2;
+            $this->dispatch('capa-step-saved', ['nextStep' => 2]);
+        }
+        $this->dispatch('alert', ['type' => 'success', 'message' => 'Assignment details saved.']);
+    }
+
+    public function saveNcDetails(array $richTextData = [])
+    {
+        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
+        if (!empty($richTextData)) $this->applyRichTextData($richTextData);
+        
+        $this->saveAllData(); // Save as draft even if validation fails
+
+        $this->validate([
+            'details_of_non_conformance' => 'required|string',
+            'car_type' => 'required',
+            'capa_identified_by' => 'required|array|min:1',
+            'capa_identified_date' => 'required|date',
+        ], [
+            'capa_identified_by.required' => 'Please identify who found the non-conformance.',
+            'capa_identified_date.required' => 'The identification date is required.',
+        ]);
+
+        $this->deriveCapaStatus();
+        $isFullEdit = ($this->capa_status === self::STATUS_COMPLETED);
+        if (!$isFullEdit) {
+            $this->activeStep = 3;
+            $this->dispatch('capa-step-saved', ['nextStep' => 3]);
+        }
+        $this->dispatch('alert', ['type' => 'success', 'message' => 'Non-conformance details saved.']);
+    }
+
+
+    public function saveCorrectiveAction(array $richTextData = [])
+    {
+        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
+        if (!empty($richTextData)) $this->applyRichTextData($richTextData);
+        
+        $this->saveAllData(); // Save draft before validation
+
+        $this->validate([
+            'capa_risk_level' => 'required',
+            'action_taken' => 'required',
+            'action_taken_by' => 'required|array|min:1',
+            'action_taken_date' => 'required|date',
+            'root_cause' => 'required',
+            'root_cause_by' => 'required|array|min:1',
+            'root_cause_date' => 'required|date',
+            'capa_corrective_action' => 'required',
+            'corrective_action_by' => 'required|array|min:1',
+            'corrective_action_date' => 'required|date',
+        ], [
+            'action_taken_by.required' => 'Identify who performed the immediate action.',
+            'root_cause_by.required' => 'Identify who determined the root cause.',
+            'corrective_action_by.required' => 'Identify who proposed the corrective action.',
+        ]);
+
+        $this->deriveCapaStatus();
+        $isFullEdit = ($this->capa_status === self::STATUS_COMPLETED);
+        if (!$isFullEdit) {
+            $this->activeStep = 4;
+            $this->dispatch('capa-step-saved', ['nextStep' => 4]);
+        }
+        $this->dispatch('alert', ['type' => 'success', 'message' => 'Corrective action plan saved.']);
+    }
+
+    public function saveFinalVerification(array $richTextData = [])
+    {
+        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
+        if (!empty($richTextData)) $this->applyRichTextData($richTextData);
+        
+        $this->validate([
+            // Triage
+            'issued_to' => 'required|array',
+            'issued_by' => 'required|array',
+            'date_issued' => 'required|date',
+            'proposed_close_out_date' => 'required|date|after_or_equal:date_issued',
+            'car_type' => 'required',
+            'capa_risk_level' => 'required',
+            
+            // Action Plan
+            'root_cause' => 'required',
+            'capa_corrective_action' => 'required',
+            'action_taken' => 'required',
+
+            // Verification
+            'effectiveness_verified_by' => 'required|array',
+            'effectiveness_verified_by.*' => 'string',
+            'effectiveness_date' => 'required|date',
+            'acceptance' => 'required',
+        ], [
+            'proposed_close_out_date.after_or_equal' => 'The target closure date must be on or after the issue date.',
+        ]);
+
+        $this->saveAllData();
+        $this->deriveCapaStatus();
+        
+        $this->isEditing = false;
+        $this->dispatch('alert', ['type' => 'success', 'message' => 'CAPA has been successfully verified and finalized.']);
+        $this->dispatch('capa-completed');
+        $this->dispatch('initiate-workflow-action', action: 'approveCapa');
+        $this->dispatch('refresh-workflow');
+    }
+
+    public function saveDraft()
+    {
+        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
+        $this->saveAllData();
+        $this->deriveCapaStatus();
+        $this->dispatch('alert', ['type' => 'success', 'message' => 'Progress saved.']);
+    }
+
+    #[On('save-investigation-draft')]
+    public function persistDraft()
+    {
+        if (!$this->isEditing) return;
+        $this->saveAllData();
+        $this->deriveCapaStatus();
+    }
+
+    /**
+     * Centralized Persistence Method
+     */
+    public function saveAllData()
     {
         if (!Auth::check()) return;
 
@@ -452,53 +550,50 @@ class ComplaintCapaTab extends BaseCrmComponent
             $this->resolution->workflow_stage = $this->complaint->complaint_workflow;
         }
 
-        $this->resolution->issued_to = $this->issued_to;
-        $this->resolution->issued_by = $this->issued_by;
+        $this->resolution->issued_to = is_array($this->issued_to) ? implode(', ', array_filter($this->issued_to)) : $this->issued_to;
+        $this->resolution->issued_by = is_array($this->issued_by) ? implode(', ', array_filter($this->issued_by)) : $this->issued_by;
         $this->resolution->date_issued = $this->date_issued ?: null;
         $this->resolution->proposed_close_out_date = $this->proposed_close_out_date ?: null;
         $this->resolution->ref_clause = $this->ref_clause;
         $this->resolution->car_type = $this->car_type;
-        $this->resolution->risk_level = $this->risk_level;
-        $this->resolution->ncr_required = $this->ncr_required;
+        $this->resolution->risk_level = $this->capa_risk_level;
+        $this->resolution->capa_identified_by = is_array($this->capa_identified_by) ? implode(', ', array_filter($this->capa_identified_by)) : $this->capa_identified_by;
+        $this->resolution->capa_identified_date = $this->capa_identified_date ?: null;
         
         $this->resolution->findings = $this->acceptance;
+        
         $this->resolution->root_cause_analysis = $this->root_cause;
+        $this->resolution->root_cause_by = is_array($this->root_cause_by) ? implode(', ', array_filter($this->root_cause_by)) : $this->root_cause_by;
+        $this->resolution->root_cause_date = $this->root_cause_date ?: null;
+        
+        $this->resolution->corrective_action_taken = $this->capa_corrective_action;
+        $this->resolution->corrective_action_by = is_array($this->corrective_action_by) ? implode(', ', array_filter($this->corrective_action_by)) : $this->corrective_action_by;
+        $this->resolution->corrective_action_date = $this->corrective_action_date ?: null;
+        
         $this->resolution->action_taken = $this->action_taken;
+        $this->resolution->action_taken_by = is_array($this->action_taken_by) ? implode(', ', array_filter($this->action_taken_by)) : $this->action_taken_by;
+        $this->resolution->action_taken_date = $this->action_taken_date ?: null;
         
         $this->resolution->save();
 
-        // 2. Update CAPA Record (NCR specific)
+        // 2. Update CAPA Record (Verification specific)
         if (!$this->capaRecord) {
             $this->capaRecord = new CapaRecord();
             $this->capaRecord->complaint_id = $this->complaint->id;
         }
 
-        $this->capaRecord->details_of_non_conformance = $this->details_of_non_conformance;
-        $this->capaRecord->identified_by = $this->identified_by;
-        $this->capaRecord->ncr_identified_date = $this->ncr_identified_date ?: null;
-        $this->capaRecord->root_cause = $this->root_cause;
+        $this->capaRecord->effectiveness_verified_by = is_array($this->effectiveness_verified_by) ? implode(', ', array_filter($this->effectiveness_verified_by)) : $this->effectiveness_verified_by;
         $this->capaRecord->lab_no = $this->lab_no;
-        $this->capaRecord->effectiveness_verified_by = $this->effectiveness_verified_by;
+        $this->capaRecord->details_of_non_conformance = $this->details_of_non_conformance;
         $this->capaRecord->effectiveness_date = $this->effectiveness_date ?: null;
         
-        $this->capaRecord->why_why_analysis = [
-            'why_1' => $this->why_1,
-            'why_2' => $this->why_2,
-            'why_3' => $this->why_3,
-            'why_4' => $this->why_4,
-            'why_5' => $this->why_5,
-            'problem_statement' => $this->problem_statement,
-            'corrective_action' => $this->capa_corrective_action,
-        ];
-
+        // Corrective action is now managed directly in the resolution table
         $this->capaRecord->save();
-        
-        $this->dispatch('autosave-completed', ['time' => now()->format('H:i:s')]);
     }
 
     public function rejectCapa()
     {
-        $this->checkPermission('crm.components.complaint verification.edit');
+        $this->checkPermission('CRM.components.Complaint Pending Closure.Edit');
         
         $this->complaint->complaint_workflow = 2; // Back to Stage 2
         $this->complaint->save();
@@ -512,16 +607,16 @@ class ComplaintCapaTab extends BaseCrmComponent
         $chain->complaint_id = $this->complaint->id;
         $chain->action = "CAPA Rejected. Returned to Investigation.";
         $chain->action_taker_id = Auth::id();
-        $chain->workflow_stage = getComplaintWorkflow()[2] ?? "Stage 2";
+        $chain->workflow_stage = getComplaintWorkflow()[2] ?? "Complaint Investigation";
         $chain->save();
 
-        $this->showSuccess('CAPA rejected. Complaint returned to Active Investigations.');
+        $this->showSuccess('CAPA rejected. Complaint returned to Complaint Investigation.');
         $this->dispatch('complaint-workflow-updated');
     }
 
     public function downloadCapaReport()
     {
-        $this->checkPermission('crm.components.complaint verification.view');
+        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
         if (!$this->resolution) return;
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.capa_report', [
@@ -536,25 +631,19 @@ class ComplaintCapaTab extends BaseCrmComponent
         }, 'CAPA_Report_' . $safeCarNo . '.pdf');
     }
 
-    public function downloadNcrReport()
+
+
+    public function toggleRisk($level)
     {
-        $this->checkPermission('crm.components.complaint verification.view');
-        if (!$this->capaRecord) return;
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.ncr_report', [
-            'complaint' => $this->complaint,
-            'resolution' => $this->resolution,
-            'capaRecord' => $this->capaRecord
-        ]);
-
-        $safeId = str_replace(['/', '\\'], '-', ($this->capaRecord->lab_no ?: $this->complaint->complaint_id));
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, 'NCR_Report_' . $safeId . '.pdf');
+        $this->capa_risk_level = ($this->capa_risk_level === $level) ? '' : $level;
     }
+
+
 
     public function render()
     {
-        return view('livewire.crm.complaint.tabs.complaint-capa-tab');
+        return view('livewire.crm.complaint.tabs.complaint-capa-tab', [
+            'users' => getAllUsers()
+        ]);
     }
 }

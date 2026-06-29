@@ -103,7 +103,7 @@
                         </td>
                         <td class="text-center" nowrap>
                             <x-crm.action-buttons class="justify-content-center">
-                                <button class="btn crm-btn crm-btn-view btn-sm" wire:click="viewFeedback({{ $item->id }})">
+                                <button class="btn crm-btn crm-btn-view btn-sm" wire:click="viewFeedback('{{ $item->id }}')">
                                     <i class="mdi mdi-eye-outline"></i>
                                 </button>
                             </x-crm.action-buttons>

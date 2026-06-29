@@ -13,53 +13,17 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    @if($sending || $completed)
-                        <div wire:poll.2s="checkProgress">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0">
-                                    @if($completed) 
-                                        <i class="mdi mdi-check-circle text-success"></i> Sending Completed 
-                                    @else 
-
-                                        <i class="mdi mdi-loading mdi-spin text-primary"></i> Sending Feedback... 
-                                    @endif
-                                </h4>
-                                <span class="crm-badge crm-badge-primary">
-                                    {{ $progressStats['sent'] + $progressStats['failed'] }} / {{ $progressStats['total'] }}
-                                </span>
+                    @if($completed)
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <div class="mx-auto d-flex align-items-center justify-content-center rounded-circle" style="width: 80px; height: 80px; background-color: rgba(40, 167, 69, 0.1);">
+                                    <i class="mdi mdi-check-circle text-success" style="font-size: 48px;"></i>
+                                </div>
                             </div>
-
-                            @php 
-                                $percent = $progressStats['total'] > 0 ? (($progressStats['sent'] + $progressStats['failed']) / $progressStats['total']) * 100 : 0; 
-                            @endphp
-                            <div class="progress mb-3" style="height: 10px;">
-                                <div class="progress-bar @if($completed) bg-success @else progress-bar-striped progress-bar-animated @endif" 
-                                     role="progressbar" style="width: {{ $percent }}%"></div>
-                            </div>
-
-                            <div class="list-group list-group-flush border rounded" style="max-height: 300px; overflow-y: auto;">
-                                @foreach($feedbackProgress as $item)
-                                    <div class="list-group-item d-flex justify-content-between align-items-center p-2">
-                                        <div class="text-truncate mr-2">
-                                            <strong>{{ $item['name'] }}</strong> <br>
-                                            <small class="text-muted">{{ $item['email'] }} • {{ $item['customer'] }}</small>
-                                        </div>
-                                        <div style="min-width: 100px; text-align: right;">
-                                            @if($item['status'] == 'pending')
-                                                <span class="crm-badge crm-badge-neutral"><i class="mdi mdi-clock-outline"></i> Pending</span>
-                                            @elseif(in_array($item['status'], ['processing', 'generating_report']))
-                                                <span class="crm-badge crm-badge-primary"><i class="mdi mdi-loading mdi-spin"></i> Generating Report...</span>
-                                            @elseif($item['status'] == 'sending_email')
-                                                <span class="crm-badge crm-badge-primary"><i class="mdi mdi-loading mdi-spin"></i> Sending Email...</span>
-                                            @elseif($item['status'] == 'sent')
-                                                <span class="crm-badge crm-badge-success"><i class="mdi mdi-check"></i> Sent</span>
-                                            @elseif($item['status'] == 'failed')
-                                                <span class="crm-badge crm-badge-danger"><i class="mdi mdi-alert-circle"></i> Failed</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
+                            <h4 class="font-weight-bold text-dark mb-2">Feedback Requests Sent!</h4>
+                            <p class="text-muted mb-0 px-4 mx-auto" style="max-width: 500px; font-size: 14px; line-height: 1.6;">
+                                The feedback campaign has been successfully launched. Individual evaluation requests have been dispatched and are being processed in the background.
+                            </p>
                         </div>
                     @else
                         @if($errors->has('recipients'))
@@ -135,10 +99,8 @@
                     @endif
                 </div>
                 <div class="modal-footer">
-                    @if($sending || $completed)
-                        <button type="button" class="btn btn-secondary" wire:click="close" @if(!$completed) disabled @endif>
-                            @if($completed) Close @else Please Wait... @endif
-                        </button>
+                    @if($completed)
+                        <button type="button" class="btn btn-secondary" wire:click="close">Close</button>
                     @else
                         <button type="button" class="btn btn-secondary" wire:click="close">Close</button>
                         <button type="button" class="btn btn-success" wire:click="send" wire:loading.attr="disabled">

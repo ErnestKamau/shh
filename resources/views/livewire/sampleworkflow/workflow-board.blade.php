@@ -964,6 +964,13 @@
 									</li>
 									<li>
 										<button type="button" class="dropdown-item"
+											data-sf-trigger="workflow-review-quotation"
+											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
+											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Review quotation</button>
+									</li>
+									<li>
+										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-walk-in-acceptance"
 											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
@@ -1361,6 +1368,11 @@
 											class="btn btn-sm btn-outline-success"
 											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
 											<i class="mdi mdi-check-decagram mr-1"></i> Walk-in acceptance
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Review quotation
 										</button>
 									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
@@ -2323,6 +2335,23 @@
 																		title="View details">
 																		<i class="mdi mdi-eye"></i>
 																	</a>
+																	@php
+																		$enquiryStatus = trim((string) ($instance->sampleSubmissionRequest?->status ?? ''));
+																		$normalizedEnquiryStatus = strtolower($enquiryStatus);
+																		$reviewQuotationId = $instance->sampleSubmissionRequest?->current_quotation_header_id
+																			?? $instance->sampleSubmissionRequest?->currentQuotation?->id
+																			?? $instance->sampleSubmissionRequest?->accepted_quotation_header_id;
+																	@endphp
+																	@if(($normalizedEnquiryStatus === strtolower(\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
+																			|| str_contains($normalizedEnquiryStatus, 'quotation under review'))
+																		&& !empty($reviewQuotationId))
+																		<button type="button"
+																			wire:click="openReviewQuotationByEnquiryId('{{ $instance->sampleSubmissionRequest->id }}')"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			title="Review quotation">
+																			<i class="mdi mdi-file-document-edit-outline"></i>
+																		</button>
+																	@endif
 																	@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted' && $instance->sampleSubmissionRequest && $instance->sampleSubmissionRequest->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED)
 																		<button type="button"
 																			class="btn btn-sm rm-act-btn rm-act-btn--view"
@@ -2540,6 +2569,14 @@
 															<a href="{{ route('sample-submission-requests.show', $request) }}" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View details">
 																<i class="mdi mdi-eye"></i>
 															</a>
+															@if(($request->status ?? '') === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW && !empty($request->current_quotation_header_id))
+																<button type="button"
+																	wire:click="openProcessEnquiryByEnquiryId('{{ $request->id }}')"
+																	class="btn btn-sm rm-act-btn rm-act-btn--view"
+																	title="Review quotation">
+																	<i class="mdi mdi-file-document-edit-outline"></i>
+																</button>
+															@endif
 														</td>
 														<td>
 															<strong>{{ $request->unique_identification ?? $request->getFormattedNumberAttribute() }}</strong>

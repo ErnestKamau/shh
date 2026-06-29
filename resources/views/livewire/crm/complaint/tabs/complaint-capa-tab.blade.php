@@ -1,607 +1,1102 @@
-<div>
-    {{-- Decision Gate 2: NCR/Why-Why Toggle --}}
-    <div class="card shadow-sm border-0 mb-3" style="border-radius: 12px;">
-        <div class="card-body p-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="font-weight-bold text-dark" style="font-size: 0.9rem;">
-                        <i class="mdi mdi-clipboard-search-outline mr-2 text-warning"></i>
-                        Does this complaint require a Non-Conformance Report (NCR) / Why-Why Analysis?
+<div x-data="capaLedger()">
+    <script src="{{ asset('tinymce/tinymce.min.js') }}"></script>
+
+    <style>
+        /* ============================================
+           CAPA Tab — LIMS Scientific Bridge Styles
+           ============================================ */
+
+        /* Editor Loading State */
+        .capa-editor { opacity: 0; transition: opacity 0.2s ease-in; min-height: 150px; }
+        .tox-tinymce { border-radius: 8px !important; border-color: #e2e8f0 !important; }
+
+        /* Breadcrumb Context Bar */
+        .capa-context-bar {
+            background: var(--crm-neutral-50);
+            border: var(--crm-border);
+            border-radius: var(--crm-radius-lg);
+            padding: var(--crm-space-3) var(--crm-space-5);
+            margin-bottom: var(--crm-space-4);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--crm-space-4);
+            flex-wrap: wrap;
+        }
+        .capa-context-breadcrumb {
+            font-size: 0.78rem;
+            color: var(--crm-neutral-500);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .capa-context-breadcrumb .id-token {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: var(--crm-neutral-800);
+            background: #fff;
+            border: var(--crm-border);
+            border-radius: 4px;
+            padding: 2px 8px;
+            letter-spacing: 0.03em;
+        }
+        .capa-context-breadcrumb .separator {
+            color: var(--crm-neutral-400);
+            font-size: 0.7rem;
+        }
+        .capa-context-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--crm-space-4);
+            font-size: 0.75rem;
+            color: var(--crm-neutral-500);
+            flex-wrap: wrap;
+        }
+        .capa-context-meta .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .capa-context-meta .meta-item strong {
+            color: var(--crm-neutral-700);
+        }
+
+        .capa-editing-active {
+            border-color: var(--crm-neutral-200) !important;
+            border-left: 4px solid var(--crm-success) !important;
+        }
+
+        /* Risk & CAR badges in edit mode */
+        .risk-btn-group .risk-btn {
+            cursor: pointer;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            border: 2px solid transparent;
+            transition: all 0.15s ease;
+            letter-spacing: 0.02em;
+        }
+        .risk-btn.risk-high       { border-color: #fed7d7; color: #c53030; background: #fff5f5; }
+        .risk-btn.risk-high.active { background: #c53030; color: #fff; border-color: #c53030; }
+        .risk-btn.risk-medium     { border-color: #feebc8; color: #c05621; background: #fff8f1; }
+        .risk-btn.risk-medium.active { background: #dd6b20; color: #fff; border-color: #dd6b20; }
+        .risk-btn.risk-low        { border-color: #c6f6d5; color: #276749; background: #f0fff4; }
+        .risk-btn.risk-low.active { background: #276749; color: #fff; border-color: #276749; }
+
+        .car-type-btn {
+            cursor: pointer;
+            padding: 4px 20px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: 2px solid transparent;
+            transition: all 0.15s ease;
+        }
+        .car-type-btn.car-major         { border-color: #fed7d7; color: #c53030; background: #fff5f5; }
+        .car-type-btn.car-major.active  { background: #c53030; color: #fff; border-color: #c53030; }
+        .car-type-btn.car-minor         { border-color: #feebc8; color: #c05621; background: #fff8f1; }
+        .car-type-btn.car-minor.active  { background: #dd6b20; color: #fff; border-color: #dd6b20; }
+
+        .capa-linkage-card {
+            background: var(--crm-neutral-50);
+            border: var(--crm-border);
+            border-left: 4px solid var(--crm-success) !important;
+            border-radius: var(--crm-radius-lg);
+            padding: var(--crm-space-4) var(--crm-space-5);
+            margin-bottom: var(--crm-space-4);
+        }
+        .capa-linkage-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--crm-success);
+            margin-bottom: var(--crm-space-2);
+        }
+        .capa-linkage-value {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--crm-neutral-800);
+            letter-spacing: 0.04em;
+        }
+
+        /* Monospace ID tokens in read mode */
+        .mono-id {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        /* Previously used green aliases — now mapped to proper tokens */
+        .text-indigo  { color: var(--crm-success); }     /* legacy: was #38a169 */
+        .bg-soft-indigo { background: var(--crm-success-light); } /* legacy: was #f0fff4 */
+        .bg-indigo    { background: var(--crm-success); } /* legacy: was #38a169 */
+        .bg-soft-dark { background: var(--crm-neutral-100); }
+
+        /* bg-soft-success and bg-success-light — defer to crm.css global definitions */
+
+        .why-chain { border-left: 2px dashed var(--crm-neutral-300); }
+        .why-dot {
+            position: absolute;
+            left: -25px;
+            top: 15px;
+            width: 8px;
+            height: 8px;
+            background: var(--crm-primary);
+            border-radius: 50%;
+            z-index: 2;
+        }
+        .why-item:hover .why-dot { box-shadow: 0 0 0 4px var(--crm-primary-light); }
+
+        .tox-tinymce {
+            border-radius: var(--crm-radius-md) !important;
+            border: var(--crm-border) !important;
+            width: 100% !important;
+        }
+        /* .investigation-label — defined globally in crm.css; kept here for display:block !important override */
+        .investigation-label {
+            display: block !important;
+            font-size: var(--crm-font-muted);
+            font-weight: 700;
+            color: var(--crm-neutral-600);
+            margin-bottom: var(--crm-space-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .capa-editor-wrapper { min-height: 250px; }
+        .bg-indigo.text-white { background: var(--crm-primary) !important; }
+
+        /* Section Locking */
+        .capa-section-locked {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(0.5);
+            position: relative;
+        }
+        .capa-section-locked::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+        }
+        .capa-section-active {
+            border-left: 4px solid var(--crm-success) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .capa-section-complete {
+            border-left: 4px solid var(--crm-success) !important;
+        }
+        .section-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            margin-right: 10px;
+        }
+        /* .badge-locked, .badge-active, .badge-complete — now defined in crm.css */
+
+        /* Wizard Step Tracker */
+        .capa-wizard-stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--crm-space-5);
+            position: relative;
+            padding: 0 10px;
+        }
+        .capa-wizard-stepper::before {
+            content: "";
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: var(--crm-neutral-200);
+            z-index: 1;
+        }
+        .wizard-step {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid var(--crm-neutral-300);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--crm-neutral-500);
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+        }
+        .wizard-step.active .step-circle {
+            background: var(--crm-success);
+            border-color: var(--crm-success);
+            color: #fff;
+            box-shadow: 0 0 0 4px var(--crm-success-light);
+        }
+        .wizard-step.completed .step-circle {
+            background: var(--crm-success);
+            border-color: var(--crm-success);
+            color: #fff;
+        }
+        .step-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--crm-neutral-500);
+            text-align: center;
+        }
+        .wizard-step.active .step-label { color: var(--crm-success); }
+        .wizard-step.completed .step-label { color: var(--crm-success); }
+    </style>
+
+    <div class="lab-ledger-container">
+        @php
+            $fullEditMode = ($isEditing && $capa_status === \App\Livewire\Crm\Complaint\Tabs\ComplaintCapaTab::STATUS_COMPLETED);
+        @endphp
+
+        {{-- ═══════════════════════════════════════════
+             CONTEXT BAR — Breadcrumb + Status
+             ═══════════════════════════════════════════ --}}
+        <div class="capa-context-bar">
+            <div>
+                <div class="capa-context-breadcrumb mb-1">
+                    <span>Corrective Action Request</span>
+                    <span class="id-token">{{ $resolution->car_no ?? 'NEW-CAR' }}</span>
+                </div>
+                <div class="capa-context-meta">
+                    Status:&nbsp;<span class="crm-badge crm-badge-primary" style="font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">{{ $this->next_pending_action }}</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center" style="gap: 12px;">
+                <div x-data="{ lastSaved: '' }"
+                    x-on:autosave-completed.window="lastSaved = $event.detail.time || ($event.detail[0] ? $event.detail[0].time : '')"
+                    class="small text-muted">
+                    <template x-if="lastSaved">
+                        <span><i class="mdi mdi-check-circle-outline text-success mr-1"></i>Saved: <span x-text="lastSaved"></span></span>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+
+        {{-- ═══════════════════════════════════════════════════
+             STEP 2-4 — CAPA & VERIFICATION
+             ═══════════════════════════════════════════════════ --}}
+        <div class="capa-form-container">
+
+            {{-- 01. CASE TRIAGE & ASSIGNMENT --}}
+            <div id="section_assignment" class="lab-ledger-card {{ ($isEditing && $activeStep == 1) || $fullEditMode ? 'capa-editing-active' : '' }}" x-show="(!isEditingMode) || (isEditingMode && activeStep >= 1)">
+                <div class="lab-ledger-header crm-glass d-flex justify-content-between align-items-center" x-on:click="toggleSection('assignment')">
+                    <span class="font-weight-bold text-dark">
+                        <i class="mdi mdi-account-cog-outline mr-2 text-primary"></i>
+                        SECTION 1: ASSIGNMENT &amp; TIMELINE
                     </span>
-                    <div class="text-muted" style="font-size: 0.78rem; margin-top: 2px;">
-                        Enable if the root cause is unknown or complex (Incident 1). The CAPA form will be locked until the Why-Why analysis is completed first.
-                    </div>
+                    <i class="mdi {{ (!$isEditing && $activeStep > 1) ? 'mdi-check-circle text-success' : 'mdi-chevron-down' }} text-muted"></i>
                 </div>
-                <div class="custom-control custom-switch ml-4" style="flex-shrink:0;">
-                    <input type="checkbox" class="custom-control-input" id="ncr_required_toggle"
-                        wire:model.live="ncr_required"
-                        {{ in_array($step_status, ['ncr_verification', 'capa_completed']) ? 'disabled' : '' }}>
-                    <label class="custom-control-label font-weight-bold text-{{ $ncr_required ? 'warning' : 'muted' }}" for="ncr_required_toggle">
-                        {{ $ncr_required ? 'NCR Required' : 'No NCR Required' }}
-                    </label>
-                </div>
-            </div>
-            @if($ncr_required && $step_status === 'ncr_pending_init')
-                <div class="alert alert-warning mb-0 mt-2 py-2">
-                    <i class="mdi mdi-alert-outline mr-1"></i>
-                    <strong>NCR Path:</strong> Please complete Assignment Details (Section 1) and Risk Assessment (Section 2) to unlock the Why-Why Root Cause Analysis.
-                </div>
-            @endif
-        </div>
-    </div>
-
-    @php
-        $lockSec12 = $ncr_required && in_array($step_status, ['ncr_verification', 'capa_completed']);
-        $lockSec3 = $ncr_required && $step_status === 'ncr_pending_init';
-        $ncrActive = in_array($step_status, ['ncr_in_progress', 'ncr_verification', 'capa_completed']) || (!$ncr_required && $isCapaSaved);
-        $capaDone = in_array($step_status, ['ncr_verification', 'capa_completed']) || (!$ncr_required && $isCapaSaved);
-    @endphp
-
-    @if($activeView == 'ncr' && $isNcrSaved)
-    <template x-teleport=".workflow-actions">
-        <div class="d-flex align-items-center">
-            <button type="button" class="btn btn-outline-danger font-weight-bold shadow-sm d-flex align-items-center ml-2" wire:click="downloadNcrReport" style="border-radius: 20px; font-size: 0.85rem; padding: 6px 14px; height: 32px;">
-                <i class="mdi mdi-file-pdf text-danger mr-1" style="font-size: 1.1rem;"></i> Export to PDF
-            </button>
-            <button type="button" class="btn btn-success font-weight-bold shadow-sm d-flex align-items-center ml-2" wire:click="returnToCapa" style="border-radius: 20px; font-size: 0.85rem; padding: 6px 14px; letter-spacing: 0.5px; height: 32px;">
-                <i class="mdi mdi-arrow-left-circle-outline mr-1" style="font-size: 1.1rem; margin-top:-1px;"></i> Return to CAPA
-            </button>
-        </div>
-    </template>
-    @endif
-
-    {{-- Sub-Navigation for Sequential Steps --}}
-    <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
-
-        <div class="card-body p-0">
-            <div class="d-flex bg-light">
-                <div 
-                    wire:click="switchView('capa')" 
-                    class="flex-fill py-3 px-4 text-center cursor-pointer border-right transition-all {{ $activeView == 'capa' ? 'bg-white shadow-sm' : 'text-muted' }}"
-                    style="cursor: pointer;"
-                >
-                    <div class="d-flex align-items-center justify-content-center">
-                        <span class="badge {{ $capaDone ? 'badge-success' : 'badge-primary' }} mr-2 rounded-circle d-inline-flex align-items-center justify-content-center" style="width:24px; height:24px;">
-                            @if($capaDone) <i class="mdi mdi-check"></i> @else 1 @endif
-                        </span>
-                        <span class="font-weight-bold" style="font-size: 0.9rem;">Step 1: Action Plan (CAPA)</span>
-                    </div>
-                </div>
-                <div 
-                    @if($ncrActive) wire:click="switchView('ncr')" @endif
-                    class="flex-fill py-3 px-4 text-center transition-all {{ $activeView == 'ncr' ? 'bg-white shadow-sm' : 'text-muted' }} {{ $ncrActive ? 'cursor-pointer' : 'bg-light' }}"
-                    style="{{ $ncrActive ? 'cursor: pointer;' : 'cursor: not-allowed; opacity: 0.6;' }}"
-                >
-                    <div class="d-flex align-items-center justify-content-center">
-                        <span class="badge {{ in_array($step_status, ['ncr_verification', 'capa_completed']) || (!$ncr_required && $root_cause) ? 'badge-success' : ($step_status === 'ncr_in_progress' || (!$ncr_required && $isCapaSaved) ? 'badge-primary' : 'badge-secondary') }} mr-2 rounded-circle d-inline-flex align-items-center justify-content-center" style="width:24px; height:24px;">
-                            @if(in_array($step_status, ['ncr_verification', 'capa_completed']) || (!$ncr_required && $root_cause)) <i class="mdi mdi-check"></i> @elseif(!$ncrActive) <i class="mdi mdi-lock" style="font-size: 0.8rem;"></i> @else 2 @endif
-                        </span>
-                        <span class="font-weight-bold" style="font-size: 0.9rem;">Step 2: Why Why Analysis</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Form Content Wrapper --}}
-    <div class="modern-capa-container" style="font-family: 'Inter', sans-serif;" x-data="capaForm">
-        
-        {{-- Step 1: CAPA Actions --}}
-        @if($activeView == 'capa')
-            <form wire:submit.prevent="saveCapaInit">
-                
-                {{-- Header with Title and CAR No --}}
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h4 class="font-weight-bold text-dark mb-1">Corrective and Preventive Action Plan</h4>
-                        <p class="text-muted small mb-0">Formal operational plan to address identification findings.</p>
-                    </div>
-                    <div class="d-flex align-items-center" style="gap: 10px;">
-                        <div x-data="{ lastSaved: '' }" x-on:autosave-completed.window="lastSaved = $event.detail.time" class="mr-3 text-muted small">
-                            <span x-show="lastSaved" class="bg-soft-success text-success px-2 py-1 rounded" style="font-size: 0.7rem;">
-                                <i class="mdi mdi-checkbox-marked-circle-outline mr-1"></i> Autosaved: <span x-text="lastSaved"></span>
-                            </span>
-                            <span wire:loading wire:target="performAutosave" class="text-primary" style="font-size: 0.7rem;">
-                                <i class="mdi mdi-loading mdi-spin mr-1"></i> Saving...
-                            </span>
-                        </div>
-                        @if(!$isEditing)
-                            <button type="button" class="btn btn-primary btn-sm rounded-pill font-weight-bold px-3 shadow-sm" wire:click="toggleEdit">
-                                <i class="mdi mdi-pencil-outline mr-1"></i> Edit CAPA
-                            </button>
-                        @endif
-                        <span class="badge bg-soft-primary text-primary px-3 py-2 border" style="font-size: 0.9rem; font-weight: 700;">
-                            <i class="mdi mdi-ticket-confirmation-outline mr-1"></i>
-                            {{ $resolution->car_no ?? 'NEW-CAR' }}
-                        </span>
-                    </div>
-                </div>
-
-                <fieldset {{ $lockSec12 ? 'disabled' : '' }}>
-                {{-- Section 1: Assignment Details --}}
-                <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; {{ $lockSec12 ? 'opacity:0.8; background-color:#f8fafc;' : '' }}">
-                    <div class="card-header bg-transparent border-0 pt-4 pb-0">
-                        <h6 class="font-weight-bold text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.05em;">Section 1: Assignment Details</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
+                <div class="lab-ledger-body" x-show="sections.assignment" x-collapse
+                     wire:key="assignment-body-{{ ($isEditing && $activeStep >= 1) || $fullEditMode ? 'edit' : 'read' }}">
+                    @if(($isEditing && $activeStep >= 1) || $fullEditMode)
+                        <div class="row mb-3">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label font-weight-bold text-dark small">DATE ISSUED</label>
-                                <input type="date" wire:model.live.debounce.2000ms="date_issued" class="form-control form-control-lg bg-white border shadow-sm" style="font-weight: 600;">
+                                <label class="investigation-label">Date Issued <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" wire:model.live="date_issued">
+                                @error('date_issued') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label font-weight-bold text-dark small">PROPOSED CLOSE OUT DATE</label>
-                                <input type="date" wire:model.live.debounce.2000ms="proposed_close_out_date" class="form-control form-control-lg bg-white border shadow-sm" style="font-weight: 600;">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label font-weight-bold text-dark small">ISSUED TO</label>
-                                <input type="text" wire:model.live.debounce.2000ms="issued_to" class="form-control form-control-lg bg-white border shadow-sm" placeholder="Department or Officer Name">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label font-weight-bold text-dark small">ISSUED BY</label>
-                                <input type="text" wire:model.live.debounce.2000ms="issued_by" class="form-control form-control-lg bg-white border shadow-sm" placeholder="Authorizing Manager">
+                                <label class="investigation-label">Proposed Close Out Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" wire:model="proposed_close_out_date">
+                                @error('proposed_close_out_date') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {{-- Section 2: Risk Assessment --}}
-                <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; {{ $lockSec12 ? 'opacity:0.8; background-color:#f8fafc;' : '' }}">
-                    <div class="card-header bg-transparent border-0 pt-4 pb-0">
-                        <h6 class="font-weight-bold text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.05em;">Section 2: Risk Assessment</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row align-items-end">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label font-weight-bold text-dark small">RISK(S) LEVEL</label>
-                                <select wire:model.live.debounce.2000ms="risk_level" class="form-control form-control-lg bg-white border shadow-sm font-weight-bold">
-                                    <option value="">Select...</option>
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label font-weight-bold text-dark small">REF. CLAUSE</label>
-                                <input type="text" wire:model.live.debounce.2000ms="ref_clause" class="form-control form-control-lg bg-white border shadow-sm" placeholder="e.g. ISO/IEC 17025">
-                            </div>
-                            <div class="col-md-4 mb-3 pb-2">
-                                <label class="form-label font-weight-bold text-dark small d-block mb-3">CAR TYPE</label>
-                                <div class="d-flex align-items-center">
-                                    <div class="custom-control custom-radio custom-control-inline mr-4">
-                                        <input type="radio" id="modern_car_major" name="car_type" wire:model.live.debounce.2000ms="car_type" value="Major" class="custom-control-input">
-                                        <label class="custom-control-label font-weight-bold text-danger" for="modern_car_major">MAJOR</label>
-                                    </div>
-                                    <div class="custom-control custom-radio custom-control-inline">
-                                        <input type="radio" id="modern_car_minor" name="car_type" wire:model.live.debounce.2000ms="car_type" value="Minor" class="custom-control-input">
-                                        <label class="custom-control-label font-weight-bold text-warning" for="modern_car_minor">MINOR</label>
-                                    </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">Issued To <span class="text-danger">*</span></label>
+                                <div wire:ignore>
+                                    <select class="form-control capa-select2" multiple="multiple" 
+                                            x-data="{
+                                                init() {
+                                                    let el = $(this.$el);
+                                                    el.select2({ placeholder: 'Select personnel...', width: '100%' });
+                                                    
+                                                    // Sync from Livewire to Select2
+                                                    this.$watch('$wire.issued_to', value => {
+                                                        el.val(value).trigger('change.select2');
+                                                    });
+
+                                                    // Sync from Select2 to Livewire
+                                                    el.on('change', () => {
+                                                        this.$wire.set('issued_to', el.val());
+                                                    });
+
+                                                    // Set initial value
+                                                    el.val(this.$wire.issued_to).trigger('change.select2');
+                                                }
+                                            }">
+                                        @foreach($users as $user)
+                                            <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
+                                @error('issued_to') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
-
-                            @if($ncr_required)
-                            <div class="col-md-12 mb-3 mt-3">
-                                <label class="form-label font-weight-bold text-dark small">DETAILS OF NON-CONFORMANCE</label>
-                                @if($lockSec12 || !$isEditing)
-                                    <div class="bg-white p-3 border rounded shadow-sm" style="min-height: 100px; line-height: 1.6;">
-                                        {!! $details_of_non_conformance ?: '<span class="text-muted italic">No details provided.</span>' !!}
-                                    </div>
-                                @else
-                                    <div wire:ignore>
-                                        <textarea id="capa_details_editor" class="capa-rich-editor">{{ $details_of_non_conformance }}</textarea>
-                                    </div>
-                                    @error('details_of_non_conformance') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
-                                @endif
+                            @if($complaint->is_lab_related)
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">Lab Report No <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" wire:model="lab_no" placeholder="e.g. LR/001/24">
+                                @error('lab_no') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
                             @endif
                         </div>
-                    </div>
-                </div>
-                </fieldset>
 
-                {{-- Section 3: Action Plan & Verification --}}
-                <div class="card shadow-sm border-0 mb-5 position-relative" style="border-radius: 12px; border-left: 5px solid #10b981 !important;">
-                    @if($lockSec3)
-                        <div class="position-absolute w-100 h-100 bg-white" style="top:0; left:0; z-index:10; opacity:0.8; border-radius: 12px;"></div>
-                        <div class="position-absolute w-100 text-center" style="top:40%; left:0; z-index:11;">
-                            <i class="mdi mdi-lock text-muted" style="font-size: 2.5rem;"></i>
-                            <p class="text-muted font-weight-bold mt-2">Locked until NCR analysis is completed</p>
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">Issued By <span class="text-danger">*</span></label>
+                                <div wire:ignore>
+                                    <select class="form-control capa-select2" multiple="multiple"
+                                            x-data="{
+                                                init() {
+                                                    let el = $(this.$el);
+                                                    el.select2({ placeholder: 'Select personnel...', width: '100%' });
+                                                    
+                                                    // Sync from Livewire to Select2
+                                                    this.$watch('$wire.issued_by', value => {
+                                                        el.val(value).trigger('change.select2');
+                                                    });
+
+                                                    // Sync from Select2 to Livewire
+                                                    el.on('change', () => {
+                                                        this.$wire.set('issued_by', el.val());
+                                                    });
+
+                                                    // Set initial value
+                                                    el.val(this.$wire.issued_by).trigger('change.select2');
+                                                }
+                                            }">
+                                        @foreach($users as $user)
+                                            <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @error('issued_by') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4 border-top pt-3">
+                            <button type="button" class="btn btn-success btn-sm px-4 font-weight-bold shadow-sm"
+                                wire:click="saveAssignment" wire:loading.attr="disabled" wire:target="saveAssignment">
+                                <span wire:loading.remove wire:target="saveAssignment"><i class="mdi mdi-content-save-outline mr-1"></i>{{ $fullEditMode ? 'Update Assignment' : 'Save Assignment' }}</span>
+                                <span wire:loading wire:target="saveAssignment"><i class="mdi mdi-loading mdi-spin mr-1"></i>Saving...</span>
+                            </button>
+                        </div>
+                    @else
+                        {{-- READ MODE --}}
+                        <div class="row mb-4">
+                            <div class="col-md-4 mb-3">
+                                <span class="crm-read-label">Proposed Close Out Date</span>
+                                <span class="crm-field-value">{{ $proposed_close_out_date ?: '—' }}</span>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <span class="crm-read-label">Issued To</span>
+                                <span class="crm-field-value">{{ is_array($issued_to) ? implode(', ', $issued_to) : ($issued_to ?: '—') }}</span>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <span class="crm-read-label">Lab Report No</span>
+                                <span class="crm-field-value">{{ $lab_no ?: '—' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="crm-attribution-bar">
+                            <div><span class="attr-label">Issued By:</span> <span class="attr-value">{{ is_array($issued_by) ? implode(', ', $issued_by) : ($issued_by ?: '—') }}</span></div>
+                            <div><span class="attr-label">On:</span> <span class="attr-value mono-id">{{ $date_issued ?: '—' }}</span></div>
                         </div>
                     @endif
-                    <div class="card-header bg-white border-0 pt-4 pb-0">
-                        <h6 class="font-weight-bold text-uppercase text-success" style="font-size: 0.75rem; letter-spacing: 0.05em;">Section 3: Action Plan & Verification</h6>
+                </div>
+            </div>
+
+            {{-- 02. NON-CONFORMANCE DETAILS --}}
+            <div id="section_ncdetails" class="lab-ledger-card {{ ($isEditing && $activeStep == 2) || $fullEditMode ? 'capa-editing-active' : '' }}" x-show="(!isEditingMode && ['Assigned', 'Triaged', 'Action', 'Verify', 'Completed'].includes($wire.capa_status)) || (isEditingMode && activeStep >= 2) || fullEditMode">
+                <div class="lab-ledger-header crm-glass d-flex justify-content-between align-items-center" x-on:click="toggleSection('ncdetails')">
+                    <span class="font-weight-bold text-dark d-flex align-items-center">
+                        <i class="mdi mdi-alert-circle-outline mr-2" style="font-size: 1.2rem; color: var(--crm-success);"></i>
+                        02. DETAILS OF NON-CONFORMANCE
+                    </span>
+                    <div class="d-flex align-items-center" style="gap: 12px;">
+                        <i class="mdi {{ (!$isEditing && $activeStep > 2) ? 'mdi-check-circle text-success' : 'mdi-chevron-down' }} text-muted"></i>
                     </div>
-                    <div class="card-body">
-                        <div class="mb-4 pt-2">
-                            <label class="form-label font-weight-bold text-dark small d-block mb-3">
-                                <span class="bg-soft-primary text-primary px-2 py-1 rounded mr-2">C</span>
-                                ROOT CAUSE OF PROBLEM <span class="text-danger">*</span>
-                            </label>
-                            @if(!$isEditing)
-                                <div class="bg-white p-3 border rounded shadow-sm" style="min-height: 100px; line-height: 1.6;">
-                                    {!! $root_cause ?: '<span class="text-muted italic">No root cause documented.</span>' !!}
+                </div>
+                <div class="lab-ledger-body" x-show="sections.ncdetails" x-collapse
+                     wire:key="ncdetails-body-{{ ($isEditing && $activeStep >= 2) || $fullEditMode ? 'edit' : 'read' }}">
+                    @if(($isEditing && $activeStep >= 2) || $fullEditMode)
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">CAR Type <span class="text-danger">*</span></label>
+                                <div class="d-flex" style="gap:8px;">
+                                    <span class="car-type-btn car-major {{ $car_type == 'Major' ? 'active' : '' }}" wire:click="$set('car_type', 'Major')">Major</span>
+                                    <span class="car-type-btn car-minor {{ $car_type == 'Minor' ? 'active' : '' }}" wire:click="$set('car_type', 'Minor')">Minor</span>
                                 </div>
-                            @else
-                                <div wire:ignore>
-                                    <textarea id="capa_root_cause_editor" class="capa-rich-editor">{{ $root_cause }}</textarea>
-                                </div>
-                                @error('root_cause') <span class="text-danger small mt-2 d-block">{{ $message }}</span> @enderror
-                            @endif
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label font-weight-bold text-dark small d-block mb-3">
-                                <span class="bg-soft-primary text-primary px-2 py-1 rounded mr-2">C2</span>
-                                CORRECTIVE ACTION (CA) <span class="text-danger">*</span>
-                            </label>
-                            @if(!$isEditing)
-                                <div class="bg-white p-3 border rounded shadow-sm" style="min-height: 100px; line-height: 1.6;">
-                                    {!! $capa_corrective_action ?: '<span class="text-muted italic">No corrective action documented.</span>' !!}
-                                </div>
-                            @else
-                                <div wire:ignore>
-                                    <textarea id="capa_corrective_action_editor" class="capa-rich-editor">{{ $capa_corrective_action }}</textarea>
-                                </div>
-                                @error('capa_corrective_action') <span class="text-danger small mt-2 d-block">{{ $message }}</span> @enderror
-                            @endif
-                        </div>
-
-                        <hr class="my-5 border-light">
-
-                        <div class="mb-4">
-                            <label class="form-label font-weight-bold text-dark small d-block mb-3">
-                                <span class="bg-soft-warning text-warning px-2 py-1 rounded mr-2">A</span>
-                                ACTION TAKEN <span class="text-danger">*</span>
-                            </label>
-                            @if(!$isEditing)
-                                <div class="bg-white p-3 border rounded shadow-sm" style="min-height: 100px; line-height: 1.6;">
-                                    {!! $action_taken ?: '<span class="text-muted italic">No action taken documented.</span>' !!}
-                                </div>
-                            @else
-                                <div wire:ignore>
-                                    <textarea id="capa_action_taken_editor" class="capa-rich-editor">{{ $action_taken }}</textarea>
-                                </div>
-                                @error('action_taken') <span class="text-danger small mt-2 d-block">{{ $message }}</span> @enderror
-                            @endif
-                        </div>
-
-                        <hr class="my-5 border-light">
-
-                        <div class="mb-4 pt-2">
-                            <label class="form-label font-weight-bold text-dark small d-block mb-3">
-                                <span class="bg-soft-success text-success px-2 py-1 rounded mr-2">B</span>
-                                ACCEPTANCE OF CORRECTIVE ACTION AND ACTION TAKEN <span class="text-danger">*</span>
-                            </label>
-                            @if(!$isEditing)
-                                <div class="bg-white p-3 border rounded shadow-sm" style="min-height: 100px; line-height: 1.6;">
-                                    {!! $acceptance ?: '<span class="text-muted italic">No acceptance details documented.</span>' !!}
-                                </div>
-                            @else
-                                <div wire:ignore>
-                                    <textarea id="capa_acceptance_editor" class="capa-rich-editor">{{ $acceptance }}</textarea>
-                                </div>
-                                @error('acceptance') <span class="text-danger small mt-2 d-block">{{ $message }}</span> @enderror
-                            @endif
-                        </div>
-
-                        <div class="bg-soft-success p-4 rounded mb-4 shadow-xs mt-4">
-                            <h6 class="font-weight-bold text-success mb-3 text-uppercase" style="font-size: 0.75rem;">Verification</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label class="small font-weight-bold text-dark text-uppercase mb-1">Verified By (Name/Title)</label>
-                                    <input type="text" wire:model.live.debounce.2000ms="effectiveness_verified_by" class="form-control border bg-white shadow-sm" placeholder="Lab Manager / Officer">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="small font-weight-bold text-dark text-uppercase mb-1">Date of Verification</label>
-                                    <input type="date" wire:model.live.debounce.2000ms="effectiveness_date" class="form-control border bg-white shadow-sm">
-                                </div>
+                                @error('car_type') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">Ref. Clause</label>
+                                <input type="text" class="form-control border mb-3" wire:model="ref_clause" placeholder="e.g. ISO 9001:2015">
+                                @error('ref_clause') <span class="text-danger small d-block mb-2">{{ $message }}</span> @enderror
                             </div>
                         </div>
-                        
-                        <div class="mt-4 p-3 bg-soft-dark rounded text-muted small border-left" style="border-left: 3px solid #64748b !important;">
-                            <i class="mdi mdi-information-outline mr-1"></i> Formulate the underlying reason for the non-conformance and define corrective actions.
-                        </div>
-                    </div>
 
-                    <div class="card-footer bg-white border-0 pt-0 pb-4 px-4 position-relative" style="z-index: 12;">
-                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-                            <div>
-                                @if(in_array($step_status, ['ncr_verification', 'capa_completed']) || (!$ncr_required && $isCapaSaved))
-                                <button type="button" class="btn btn-outline-danger px-4 rounded-pill" wire:click="rejectCapa" wire:confirm="Are you sure you want to reject this CAPA and return to investigation?">
-                                    <i class="mdi mdi-close-circle-outline mr-1"></i> Reject & Return
+                        <div class="row mb-3">
+                            <div class="col-md-12 mb-3">
+                                <label class="investigation-label">Details of Non-Conformance <span class="text-danger">*</span></label>
+                                <div wire:ignore wire:key="ncr-details-editor-container">
+                                    <textarea id="ncr_details_editor" class="capa-editor">{{ $details_of_non_conformance }}</textarea>
+                                </div>
+                                @error('details_of_non_conformance') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">Identified By Name <span class="text-danger">*</span></label>
+                                <div wire:ignore>
+                                    <select class="form-control capa-select2" multiple="multiple"
+                                            x-data="{
+                                                init() {
+                                                    let el = $(this.$el);
+                                                    el.select2({ placeholder: 'Select personnel...', width: '100%' });
+                                                    this.$watch('$wire.capa_identified_by', value => {
+                                                        el.val(value).trigger('change.select2');
+                                                    });
+                                                    el.on('change', () => {
+                                                        this.$wire.set('capa_identified_by', el.val());
+                                                    });
+                                                    el.val(this.$wire.capa_identified_by).trigger('change.select2');
+                                                }
+                                            }">
+                                        @foreach($users as $user)
+                                            <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @error('capa_identified_by') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="investigation-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" wire:model="capa_identified_date">
+                                @error('capa_identified_date') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4 border-top pt-3">
+                            @if(!$fullEditMode)
+                                <button type="button" class="btn btn-soft-secondary btn-sm px-4 font-weight-bold"
+                                    wire:click="$set('activeStep', 1)">
+                                    <i class="mdi mdi-arrow-left mr-1"></i>Back to Assignment
                                 </button>
-                                @endif
+                            @else
+                                <div></div> {{-- Spacer to keep "Save" on the right --}}
+                            @endif
+                            <button type="button" class="btn btn-success btn-sm px-4 font-weight-bold shadow-sm"
+                                x-on:click="saveNcStep()" wire:loading.attr="disabled" wire:target="saveNcDetails">
+                                <span wire:loading.remove wire:target="saveNcDetails"><i class="mdi mdi-content-save-outline mr-1"></i>{{ $fullEditMode ? 'Update NC Details' : 'Save & Continue' }}</span>
+                                <span wire:loading wire:target="saveNcDetails"><i class="mdi mdi-loading mdi-spin mr-1"></i>Saving...</span>
+                            </button>
+                        </div>
+                    @else
+                        {{-- READ MODE --}}
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <span class="crm-read-label">CAR Type</span>
+                                <span class="badge {{ $car_type == 'Major' ? 'badge-danger' : 'badge-warning' }} px-2 py-1">
+                                    {{ $car_type ?: 'Not Set' }}
+                                </span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <span class="crm-read-label">Ref. Clause</span>
+                                <span class="crm-field-value d-block mb-3">{{ $ref_clause ?: '—' }}</span>
+                            </div>
+                        </div>
+
+                        {{-- Details Row --}}
+                        <div class="row mb-4">
+                            <div class="col-md-12 mb-3">
+                                <span class="crm-read-label">Details of Non-Conformance</span>
+                                <div class="investigation-text" style="min-height: 60px;">
+                                    {!! $details_of_non_conformance ?: '<span class="text-muted">No details provided.</span>' !!}
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Identified By Row --}}
+                        <div class="crm-attribution-bar" wire:key="display-assignment-personnel">
+                            <div><span class="attr-label">Identified By:</span> <span class="attr-value">{{ is_array($capa_identified_by) ? implode(', ', $capa_identified_by) : ($capa_identified_by ?: '—') }}</span></div>
+                            <div><span class="attr-label">On:</span> <span class="attr-value mono-id">{{ $capa_identified_date ?: '—' }}</span></div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+
+            {{-- 03. CORRECTIVE ACTION --}}
+            <div id="section_action" class="lab-ledger-card {{ ($isEditing && $activeStep == 3) || $fullEditMode ? 'capa-editing-active' : '' }}" x-show="(!isEditingMode && ['Triaged', 'Action', 'Verify', 'Completed'].includes($wire.capa_status)) || (isEditingMode && activeStep >= 3) || fullEditMode">
+                <div class="lab-ledger-header crm-glass d-flex justify-content-between align-items-center" x-on:click="toggleSection('why_why')">
+                    <span class="font-weight-bold text-dark d-flex align-items-center">
+                        <i class="mdi mdi-check-decagram-outline mr-2" style="font-size: 1.2rem; color: var(--crm-success);"></i>
+                        03. CORRECTIVE ACTION PLAN
+                    </span>
+                    <div class="d-flex align-items-center" style="gap: 12px;">
+                        <div x-show="lastSaved" class="animate__animated animate__fadeIn mx-3" style="display: none;">
+                            <span class="crm-badge crm-badge-success">
+                                <i class="mdi mdi-check-all mr-1"></i> Autosaved <span x-text="lastSaved"></span>
+                            </span>
+                        </div>
+                        <i class="mdi {{ (!$isEditing && $activeStep > 3) ? 'mdi-check-circle text-success' : 'mdi-chevron-down' }} text-muted ml-auto"></i>
+                    </div>
+                </div>
+                <div class="lab-ledger-body" x-show="sections.why_why" x-collapse
+                     wire:key="action-body-{{ ($isEditing && $activeStep >= 3) || $fullEditMode ? 'edit' : 'read' }}">
+                    @if(($isEditing && $activeStep >= 3) || $fullEditMode)
+                        <div class="row">
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label text-success font-weight-bold">Risk Level <span class="text-danger">*</span></label>
+                                <div class="d-flex flex-wrap gap-1 risk-btn-group mb-2" style="gap:6px;">
+                                    @foreach(['High','Medium','Low'] as $rl)
+                                        <span class="risk-btn risk-{{ strtolower($rl) }} {{ $capa_risk_level == $rl ? 'active' : '' }}"
+                                            wire:click="$set('capa_risk_level', '{{ $rl }}')">{{ $rl }}</span>
+                                    @endforeach
+                                </div>
+                                @error('capa_risk_level') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
 
-                            @if($isEditing)
-                                <div class="d-flex align-items-center">
-                                    <button type="button" class="btn btn-link text-muted mr-3 font-weight-bold" wire:click="cancelEdit">Cancel</button>
-                                    
-                                    @if($ncr_required && $step_status === 'ncr_pending_init')
-                                        <button type="button" class="btn btn-primary px-5 font-weight-bold shadow rounded-pill" x-on:click.prevent="savePhase1Editors()">
-                                            <span wire:loading.remove wire:target="saveCapaInit">Save & Proceed to NCR <i class="mdi mdi-arrow-right ml-1"></i></span>
-                                            <span wire:loading wire:target="saveCapaInit"><i class="mdi mdi-loading mdi-spin mr-1"></i> Saving Plan...</span>
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label text-dark font-weight-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+                                    <i class="mdi mdi-flash-outline mr-1"></i> IMMEDIATE ACTION TAKEN <span class="text-danger">*</span>
+                                </label>
+                                <div wire:ignore wire:key="action-taken-editor-container" x-init="initTinyMCE()">
+                                    <textarea id="action_taken_editor" class="capa-editor">{{ $action_taken }}</textarea>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-7 mb-3">
+                                        <label class="investigation-label">Action Taken By <span class="text-danger">*</span></label>
+                                        <div wire:ignore>
+                                            <select class="form-control capa-select2" multiple="multiple"
+                                                    x-data="{
+                                                        init() {
+                                                            let el = $(this.$el);
+                                                            el.select2({ placeholder: 'Select Immediate Action Identifier...', width: '100%' });
+                                                            this.$watch('$wire.action_taken_by', value => {
+                                                                el.val(value).trigger('change.select2');
+                                                            });
+                                                            el.on('change', () => {
+                                                                this.$wire.set('action_taken_by', el.val());
+                                                            });
+                                                            el.val(this.$wire.action_taken_by).trigger('change.select2');
+                                                        }
+                                                    }">
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5 mb-0">
+                                        <label class="investigation-label">Date of Action <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" wire:model="action_taken_date">
+                                        @error('action_taken_date') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @error('action_taken_by') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                                @error('action_taken') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label text-dark font-weight-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+                                    <i class="mdi mdi-magnify mr-1"></i> ROOT CAUSE SUMMARY <span class="text-danger">*</span>
+                                </label>
+                                <div wire:ignore wire:key="root-cause-editor-container" x-init="initTinyMCE()">
+                                    <textarea id="root_cause_editor" class="capa-editor">{{ $root_cause }}</textarea>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-7 mb-3">
+                                        <label class="investigation-label">Identified By <span class="text-danger">*</span></label>
+                                        <div wire:ignore>
+                                            <select class="form-control capa-select2" multiple="multiple"
+                                                    x-data="{
+                                                        init() {
+                                                            let el = $(this.$el);
+                                                            el.select2({ placeholder: 'Select Root Cause Identifier...', width: '100%' });
+                                                            this.$watch('$wire.root_cause_by', value => {
+                                                                el.val(value).trigger('change.select2');
+                                                            });
+                                                            el.on('change', () => {
+                                                                this.$wire.set('root_cause_by', el.val());
+                                                            });
+                                                            el.val(this.$wire.root_cause_by).trigger('change.select2');
+                                                        }
+                                                    }">
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5 mb-0">
+                                        <label class="investigation-label">Date Identified <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" wire:model="root_cause_date">
+                                        @error('root_cause_date') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @error('root_cause_by') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                                @error('root_cause') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                            </div>
+    
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label text-dark font-weight-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+                                    <i class="mdi mdi-check-decagram-outline mr-1"></i> PROPOSED CORRECTIVE ACTION <span class="text-danger">*</span>
+                                </label>
+                                <div wire:ignore wire:key="corrective-action-editor-container" x-init="initTinyMCE()">
+                                    <textarea id="corrective_action_editor" class="capa-editor">{{ $capa_corrective_action }}</textarea>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-7 mb-3">
+                                        <label class="investigation-label">Proposed By <span class="text-danger">*</span></label>
+                                        <div wire:ignore>
+                                            <select class="form-control capa-select2" multiple="multiple"
+                                                    x-data="{
+                                                        init() {
+                                                            let el = $(this.$el);
+                                                            el.select2({ placeholder: 'Select Corrective Action Identifier...', width: '100%' });
+                                                            this.$watch('$wire.corrective_action_by', value => {
+                                                                el.val(value).trigger('change.select2');
+                                                            });
+                                                            el.on('change', () => {
+                                                                this.$wire.set('corrective_action_by', el.val());
+                                                            });
+                                                            el.val(this.$wire.corrective_action_by).trigger('change.select2');
+                                                        }
+                                                    }">
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5 mb-0">
+                                        <label class="investigation-label">Date Proposed <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" wire:model="corrective_action_date">
+                                        @error('corrective_action_date') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @error('corrective_action_by') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                                @error('capa_corrective_action') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4 border-top pt-3">
+                            @if(!$fullEditMode)
+                                <button type="button" class="btn btn-soft-secondary btn-sm px-4 font-weight-bold"
+                                    x-on:click="goBack()">
+                                    <i class="mdi mdi-arrow-left mr-1"></i>Back to Non-Conformance Details
+                                </button>
+                            @else
+                                <div></div>
+                            @endif
+                            <button type="button" class="btn btn-success btn-sm px-4 font-weight-bold shadow-sm"
+                                x-on:click="saveStepTwo()" wire:loading.attr="disabled" wire:target="saveCorrectiveAction">
+                                <span wire:loading.remove wire:target="saveCorrectiveAction"><i class="mdi mdi-content-save-outline mr-1"></i>{{ $fullEditMode ? 'Update Corrective Action' : 'Save & Continue' }}</span>
+                                <span wire:loading wire:target="saveCorrectiveAction"><i class="mdi mdi-loading mdi-spin mr-1"></i>Saving...</span>
+                            </button>
+                        </div>
+                    @else
+                        {{-- READ MODE --}}
+                        <div class="row">
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label text-success font-weight-bold">Risk Level</label>
+                                <div class="mt-1">
+                                    @if($capa_risk_level)
+                                        <span class="badge {{ $capa_risk_level == 'High' ? 'badge-danger' : ($capa_risk_level == 'Medium' ? 'badge-warning' : 'badge-success') }} px-2 py-1">
+                                            {{ $capa_risk_level }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted small">Not Set</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label">
+                                    <i class="mdi mdi-flash-outline mr-1"></i> IMMEDIATE ACTION TAKEN
+                                </label>
+                                <div class="investigation-text">
+                                    {!! html_entity_decode($action_taken ?: '<span class="text-muted italic">No immediate actions recorded.</span>') !!}
+                                    <div class="crm-attribution-bar">
+                                        <div><span class="attr-label">Action Taken By:</span> <span class="attr-value">{{ is_array($action_taken_by) ? implode(', ', $action_taken_by) : ($action_taken_by ?: 'Not Set') }}</span></div>
+                                        <div><span class="attr-label">On:</span> <span class="attr-value">{{ $action_taken_date ?: 'No Date' }}</span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label">
+                                    <i class="mdi mdi-magnify mr-1"></i> ROOT CAUSE SUMMARY
+                                </label>
+                                <div class="investigation-text">
+                                    {!! html_entity_decode($root_cause ?: '<span class="text-muted italic">No root cause summary.</span>') !!}
+                                    <div class="crm-attribution-bar">
+                                        <div><span class="attr-label">Identified By:</span> <span class="attr-value">{{ is_array($root_cause_by) ? implode(', ', $root_cause_by) : ($root_cause_by ?: 'Not Set') }}</span></div>
+                                        <div><span class="attr-label">On:</span> <span class="attr-value">{{ $root_cause_date ?: 'No Date' }}</span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <label class="investigation-label">
+                                    <i class="mdi mdi-check-decagram-outline mr-1"></i> PROPOSED CORRECTIVE ACTION
+                                </label>
+                                <div class="investigation-text">
+                                    {!! html_entity_decode($capa_corrective_action ?: '<span class="text-muted italic">No corrective actions defined.</span>') !!}
+                                    <div class="crm-attribution-bar">
+                                        <div><span class="attr-label">Proposed By:</span> <span class="attr-value">{{ is_array($corrective_action_by) ? implode(', ', $corrective_action_by) : ($corrective_action_by ?: 'Not Set') }}</span></div>
+                                        <div><span class="attr-label">On:</span> <span class="attr-value">{{ $corrective_action_date ?: 'No Date' }}</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        {{-- Attribution block removed as individual fields are now present for each section --}}
+
+                    @endif
+                </div>
+            </div>
+
+            {{-- 04. ACCEPTANCE & VERIFICATION --}}
+            <div id="section_closure" class="lab-ledger-card {{ ($isEditing && $activeStep == 4) || $fullEditMode ? 'capa-editing-active' : '' }}" x-show="(!isEditingMode && ['Verify', 'Completed'].includes($wire.capa_status)) || (isEditingMode && activeStep >= 4) || fullEditMode">
+                <div class="lab-ledger-header crm-glass d-flex justify-content-between align-items-center" x-on:click="toggleSection('effectiveness')">
+                    <span class="font-weight-bold text-dark d-flex align-items-center">
+                        <i class="mdi mdi-shield-check-outline mr-2" style="font-size: 1.2rem; color: var(--crm-success);"></i>
+                        04. ACCEPTANCE OF CORRECTIVE ACTION AND ACTION TAKEN
+                    </span>
+                    <div class="d-flex align-items-center" style="gap: 12px;">
+                        <i class="mdi mdi-chevron-down text-muted"></i>
+                    </div>
+                </div>
+                <div class="lab-ledger-body" x-show="sections.effectiveness" x-collapse
+                     wire:key="closure-body-{{ ($isEditing && $activeStep == 4) || $fullEditMode ? 'edit' : 'read' }}">
+                    <div class="row">
+                        <div class="col-md-12 mb-4">
+                            <label class="investigation-label font-weight-bold">Acceptance of Corrective Action and Action Taken</label>
+                            @if(($isEditing && $activeStep == 4) || $fullEditMode)
+                                <div wire:ignore wire:key="acceptance-editor-container" x-init="initTinyMCE()">
+                                    <textarea id="acceptance_editor" class="capa-editor">{{ $acceptance }}</textarea>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="investigation-label">Effectiveness Verified By <span class="text-danger">*</span></label>
+                                        <div wire:ignore>
+                                            <select class="form-control capa-select2" multiple="multiple"
+                                                    x-data="{
+                                                        init() {
+                                                            let el = $(this.$el);
+                                                            el.select2({ placeholder: 'Select personnel...', width: '100%' });
+                                                            this.$watch('$wire.effectiveness_verified_by', value => {
+                                                                el.val(value).trigger('change.select2');
+                                                            });
+                                                            el.on('change', () => {
+                                                                this.$wire.set('effectiveness_verified_by', el.val());
+                                                            });
+                                                            el.val(this.$wire.effectiveness_verified_by).trigger('change.select2');
+                                                        }
+                                                    }">
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        @error('effectiveness_verified_by') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="investigation-label">Date of Verification</label>
+                                        <input type="date" class="form-control" wire:model="effectiveness_date">
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                                    @if(!$fullEditMode)
+                                        <button type="button" class="btn btn-soft-secondary btn-sm px-4 font-weight-bold"
+                                            x-on:click="goBack()">
+                                            <i class="mdi mdi-arrow-left mr-1"></i>Back to Investigation Details
                                         </button>
                                     @else
-                                        <button type="button" class="btn btn-success px-5 font-weight-bold shadow rounded-pill" x-on:click="saveWithEditors()">
-                                            <span wire:loading.remove wire:target="approveCapaVerification"><i class="mdi mdi-checkbox-marked-circle-outline mr-1"></i> Save Changes & Approve</span>
-                                            <span wire:loading wire:target="approveCapaVerification"><i class="mdi mdi-loading mdi-spin mr-1"></i> Finalizing...</span>
+                                        <div></div>
+                                    @endif
+                                    @if($this->isReadyToAdvance)
+                                        <button type="button" class="btn btn-success px-5 font-weight-bold shadow-sm"
+                                            x-on:click="saveFinalAndComplete()" wire:loading.attr="disabled" wire:target="saveFinalVerification">
+                                            <span wire:loading.remove wire:target="saveFinalVerification"><i class="mdi mdi-check-decagram-outline mr-2"></i>{{ $fullEditMode ? 'Update Verification' : 'Approve & Advance' }}</span>
+                                            <span wire:loading wire:target="saveFinalVerification"><i class="mdi mdi-loading mdi-spin mr-2"></i>Saving...</span>
                                         </button>
+                                    @else
+                                        <div class="alert alert-soft-warning d-flex align-items-center mb-0 px-4 py-3" style="border-radius: 12px; border: 1px dashed #fbbf24;">
+                                            <i class="mdi mdi-information-outline mr-3" style="font-size: 1.4rem;"></i>
+                                            <div style="font-size: 0.85rem;">
+                                                <strong class="d-block mb-1">Completion Required</strong>
+                                                Please ensure all preceding sections (Assignment, NC Details, and Corrective Action Plan) are fully recorded before approving.
+                                            </div>
+                                        </div>
                                     @endif
                                 </div>
                             @else
-                                <div class="text-muted small italic">
-                                    <i class="mdi mdi-lock-outline mr-1"></i> Click "Edit CAPA" at the top to make changes.
+                                <div class="investigation-text mb-3" wire:key="display-effectiveness">
+                                    {!! html_entity_decode($acceptance ?: '<span class="text-muted">Acceptance details pending.</span>') !!}
+                                </div>
+                                <div class="crm-attribution-bar">
+                                    <div><span class="attr-label">Verified By:</span> <span class="attr-value">{{ is_array($effectiveness_verified_by) ? implode(', ', $effectiveness_verified_by) : ($effectiveness_verified_by ?: '—') }}</span></div>
+                                    <div><span class="attr-label">On:</span> <span class="attr-value mono-id">{{ $effectiveness_date ?: '—' }}</span></div>
                                 </div>
                             @endif
                         </div>
                     </div>
-                </div>
-            </form>
-        @endif
 
-        {{-- Step 2: NCR & RCA (Simplified) --}}
-        @if($activeView == 'ncr')
-            <div class="card shadow-sm border-0" style="border-radius: 12px;">
-                <div class="card-body p-4">
-                    <form wire:submit.prevent="finalizeNcr">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="font-weight-bold text-dark mb-0">Step 2: Why Why Analysis</h5>
-                            <div class="d-flex align-items-center" style="gap: 10px;">
-                                @if(!$isEditing)
-                                    <button type="button" class="btn btn-primary btn-sm rounded-pill font-weight-bold px-3 shadow-sm" wire:click="toggleEdit">
-                                        <i class="mdi mdi-pencil-outline mr-1"></i> Edit Analysis
-                                    </button>
-                                @endif
-                                <span class="badge bg-soft-dark text-dark border px-3 py-2">{{ $resolution->car_no ?? 'NCR-PENDING' }}</span>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="bg-light p-3 rounded d-flex align-items-center mb-4">
-                                    <label class="font-weight-bold text-dark mb-0 mr-3 small text-uppercase">Lab No / LR No:</label>
-                                    <input type="text" wire:model.live.debounce.2000ms="lab_no" class="form-control form-control-flat border bg-white shadow-sm font-weight-bold text-primary px-3" style="font-size: 1.1rem; width: 300px; border-radius: 8px;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label class="font-weight-bold text-dark small text-uppercase mb-2">Identified by</label>
-                                <input type="text" wire:model.live.debounce.2000ms="identified_by" class="form-control bg-white border shadow-sm" style="border-radius: 8px;">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="font-weight-bold text-dark small text-uppercase mb-2">Date</label>
-                                <input type="date" wire:model.live.debounce.2000ms="ncr_identified_date" class="form-control bg-white border shadow-sm" style="border-radius: 8px;">
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="font-weight-bold text-dark small text-uppercase d-block mb-2">Problem Statement</label>
-                            @if(!$isEditing)
-                                <div class="bg-white p-3 border rounded shadow-sm" style="min-height: 80px; line-height: 1.6;">
-                                    {!! $problem_statement ?: '<span class="text-muted italic">No problem statement documented.</span>' !!}
-                                </div>
-                            @else
-                                <div wire:ignore>
-                                    <textarea id="ncr_problem_statement_editor" class="ncr-rich-editor">{{ $problem_statement ?? '' }}</textarea>
-                                </div>
-                                @error('problem_statement') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
-                            @endif
-                        </div>
-
-                        <div class="row no-gutters rounded border mb-4 shadow-sm" style="overflow: hidden;">
-                            <div class="col-md-12 bg-white p-4">
-                                <h6 class="font-weight-bold text-primary text-uppercase mb-4" style="font-size: 0.75rem; letter-spacing: 1px;">Why-Why Analysis</h6>
-                                @foreach(['why_1', 'why_2'] as $index => $field)
-                                    <div class="mb-4">
-                                        <label class="font-weight-bold text-dark small text-uppercase mb-2">
-                                            <span class="bg-primary text-white rounded-circle px-2 py-1 mr-1" style="font-size: 0.7rem;">WHY {{ $index + 1 }}</span>
-                                        </label>
-                                        @if(!$isEditing)
-                                            <div class="bg-light p-3 border rounded mb-3" style="min-height: 60px; line-height: 1.6;">
-                                                {!! ${$field} ?: '<span class="text-muted italic">Not documented.</span>' !!}
-                                            </div>
-                                        @else
-                                            <div wire:ignore class="mb-4">
-                                                <textarea id="ncr_why_{{ $index + 1 }}_editor" class="ncr-rich-editor">{{ ${$field} }}</textarea>
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <!-- RCA and CA have been moved to CAPA Tab Section 3 -->
-
-                        <!-- Acceptance & Verification has been moved to CAPA Tab Section 3 -->
-
-                        <div class="d-flex justify-content-between align-items-center pt-4 border-top mt-4">
-                            <button type="button" class="btn btn-link text-muted font-weight-bold" wire:click="switchView('capa')">
-                                <i class="mdi mdi-chevron-left mr-1"></i> Back to Action Plan
-                            </button>
-                            <div class="d-flex align-items-center">
-                                @if($isEditing)
-                                    <button type="button" class="btn btn-link text-muted mr-3 font-weight-bold" wire:click="cancelEdit">Cancel</button>
-                                    <button type="button" class="btn btn-outline-secondary mr-3 px-4 rounded-pill transition-all" wire:click="saveDraftNcr">
-                                        Save Progress
-                                    </button>
-                                    <button type="button" class="btn btn-success px-5 font-weight-bold shadow rounded-pill" x-on:click="saveNcrOnlyEditors()">
-                                        <i class="mdi mdi-content-save mr-1"></i> Save NCR
-                                    </button>
-                                @else
-                                    <div class="text-muted small italic">
-                                        <i class="mdi mdi-lock-outline mr-1"></i> Click "Edit Analysis" at the top to make changes.
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </form>
                 </div>
             </div>
-        @endif
-    </div>
-    
-    <style>
-        .modern-capa-container { padding: 0; }
-        .cursor-pointer { cursor: pointer; }
-        .transition-all { transition: all 0.2s ease-in-out; }
-        .bg-soft-primary { background-color: #ebf5ff; }
-        .bg-soft-secondary { background-color: #f8fafc; }
-        .bg-soft-success { background-color: #f0fdf4; }
-        .bg-soft-warning { background-color: #fffbeb; }
-        .bg-soft-dark { background-color: #f1f5f9; }
-        .text-soft-muted { color: #94a3b8; }
-        .shadow-xs { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .tox-tinymce { border-radius: 8px !important; border: 1px solid #e2e8f0 !important; }
-        .form-control-lg { font-size: 0.95rem; }
-        .x-small { font-size: 0.7rem; }
-    </style>
+
+
+        </div>
+
+    </div>{{-- end lab-ledger-container --}}
 
     @script
     <script>
-        (function () {
-            if (typeof tinymce === 'undefined') {
-                var s = document.createElement('script');
-                s.src = '/tinymce/tinymce.min.js';
-                s.onload = function () {
-                    window.__tinyMCEReady = true;
-                    document.dispatchEvent(new Event('tinymce:loaded'));
-                };
-                document.head.appendChild(s);
-            } else {
-                window.__tinyMCEReady = true;
-            }
-        })();
-
-        Alpine.data('capaForm', () => ({
-            autosaveTimeout: null,
-            triggerAutosave() {
-                if (this.autosaveTimeout) clearTimeout(this.autosaveTimeout);
-                this.autosaveTimeout = setTimeout(() => {
-                    $wire.performAutosave();
-                }, 2500); // 2.5s debounce for rich text
+        Alpine.data('capaLedger', () => ({
+            activeStep: @entangle('activeStep'),
+            isEditingMode: @entangle('isEditing').live,
+            get fullEditMode() {
+                return this.isEditingMode && this.$wire.capa_status === 'Completed';
             },
-            initTinyMCE() {
-                const doInit = function () {
-                    if (typeof tinymce === 'undefined') return;
-                    
-                    const edMap = {
-                        capa_details_editor: 'details_of_non_conformance',
-                        capa_root_cause_editor: 'root_cause',
-                        capa_corrective_action_editor: 'capa_corrective_action',
-                        capa_action_taken_editor: 'action_taken',
-                        capa_acceptance_editor: 'acceptance',
-                        ncr_problem_statement_editor: 'problem_statement',
-                        ncr_why_1_editor: 'why_1',
-                        ncr_why_2_editor: 'why_2'
-                    };
-
-                    const initialValues = {
-                        capa_details_editor: $wire.get('details_of_non_conformance'),
-                        capa_root_cause_editor: $wire.get('root_cause'),
-                        capa_corrective_action_editor: $wire.get('capa_corrective_action'),
-                        capa_action_taken_editor: $wire.get('action_taken'),
-                        capa_acceptance_editor: $wire.get('acceptance'),
-                        ncr_problem_statement_editor: $wire.get('problem_statement'),
-                        ncr_why_1_editor: $wire.get('why_1'),
-                        ncr_why_2_editor: $wire.get('why_2')
-                    };
-
-                    tinymce.remove('.capa-rich-editor, .ncr-rich-editor');
-                    tinymce.init({
-                        selector: '.capa-rich-editor, .ncr-rich-editor',
-                        height: 350,
-                        menubar: false,
-                        auto_focus: false,
-                        plugins: 'lists link',
-                        toolbar: 'bold italic underline | bullist numlist | link',
-                        branding: false,
-                        promotion: false,
-                        skin: 'oxide',
-                        content_css: 'default',
-                        content_style: 'body { font-family: Inter, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b; padding: 15px; }',
-                        setup: function (editor) {
-                            editor.on('init', function () {
-                                if (initialValues[editor.id]) {
-                                    editor.setContent(initialValues[editor.id]);
-                                }
-                            });
-                            editor.on('change keyup input', function () {
-                                const fid = edMap[editor.id];
-                                if (fid) $wire.set(fid, editor.getContent());
-                                this.triggerAutosave();
-                            }.bind(this));
-                        }
-                    });
-                };
-
-                if (typeof tinymce !== 'undefined') {
-                    doInit();
-                } else {
-                    document.addEventListener('tinymce:loaded', doInit, { once: true });
-                }
+            sections: {
+                assignment: true,
+                ncdetails: true,
+                why_why: true,
+                effectiveness: true
             },
-            savePhase1Editors() {
-                if (typeof tinymce !== 'undefined') {
-                    tinymce.triggerSave();
-                    const ed = tinymce.get('capa_details_editor');
-                    if (ed) $wire.set('details_of_non_conformance', ed.getContent());
-                }
-                $wire.saveCapaInit();
-            },
-            saveWithEditors() {
-                if (typeof tinymce !== 'undefined') {
-                    tinymce.triggerSave();
-                    const edMap = {
-                        capa_root_cause_editor: 'root_cause',
-                        capa_corrective_action_editor: 'capa_corrective_action',
-                        capa_action_taken_editor: 'action_taken',
-                        capa_acceptance_editor: 'acceptance'
-                    };
-                    Object.keys(edMap).forEach(id => {
-                        const ed = tinymce.get(id);
-                        if (ed) $wire.set(edMap[id], ed.getContent());
-                    });
-                }
-                
-                // If ncr_pending_init button is shown, it calls saveCapaInit natively because it doesn't use this function.
-                // This function is only called from the Approve CAPA button.
-                $wire.approveCapaVerification();
-            },
-            saveNcrOnlyEditors() {
-                if (typeof tinymce !== 'undefined') {
-                    tinymce.triggerSave();
-                    const edMap = {
-                        ncr_problem_statement_editor: 'problem_statement',
-                        ncr_why_1_editor: 'why_1',
-                        ncr_why_2_editor: 'why_2'
-                    };
-                    Object.keys(edMap).forEach(id => {
-                        const ed = tinymce.get(id);
-                        if (ed) $wire.set(edMap[id], ed.getContent());
-                    });
-                }
-                
-                $wire.saveNcrOnly();
-            },
+            lastSaved: '',
             init() {
-                setTimeout(() => this.initTinyMCE(), 100);
-                
-                $wire.on('view-switched', (data) => {
-                    setTimeout(() => this.initTinyMCE(), 100);
-                });
+                this.determineActiveStep();
 
-                $wire.on('edit-mode-activated', () => {
-                    setTimeout(() => this.initTinyMCE(), 100);
-                });
-
-                $wire.on('edit-mode-deactivated', () => {
-                    if (typeof tinymce !== 'undefined') {
-                        tinymce.remove('.capa-rich-editor, .ncr-rich-editor');
+                // 1.1 Listen for Global Draft Save
+                this.$wire.on('sync-and-save-draft', () => {
+                    if (this.isEditingMode) {
+                        const data = this._collectEditorData();
+                        this.$wire.syncRichTextAndAutosave(data);
                     }
                 });
+
+                // 1. Initial Load
+                if (this.isEditingMode) {
+                    this.initTinyMCE();
+                }
+
+                // 2. Listen for Livewire Step progression
+                $wire.on('capa-step-saved', (eventData) => {
+                    let data = eventData;
+                    if (Array.isArray(eventData)) data = eventData[0];
+                    if (data && data.nextStep) {
+                        this.activeStep = parseInt(data.nextStep);
+                    }
+                });
+
+                // Listen for NC completion from the other tab
+                $wire.on('nc-completed', () => {
+                    this.determineActiveStep();
+                    if (this.isEditingMode) {
+                        this.initTinyMCE();
+                    }
+                });
+
+                // 3. Listen for Edit mode changes (Cancel/Save)
+                $wire.on('edit-mode-deactivated', () => { 
+                    this.activeStep = 1; 
+                    if (typeof tinymce !== 'undefined') tinymce.remove('.capa-editor');
+                });
+
+                // 4. Watchers for dynamic re-init
+                this.$watch('isEditingMode', (val) => {
+                    if (val) {
+                        this.determineActiveStep();
+                        this.initTinyMCE();
+                    } else {
+                        if (typeof tinymce !== 'undefined') tinymce.remove('.capa-editor');
+                    }
+                });
+
+                this.$watch('activeStep', (val) => {
+                    if (this.isEditingMode) {
+                        this.initTinyMCE();
+                    }
+                });
+
+                this.$wire.on('progress-saved-silently', (eventData) => {
+                    let data = eventData;
+                    if (Array.isArray(eventData)) data = eventData[0];
+                    if (data && data.time) {
+                        this.lastSaved = data.time;
+                    }
+                });
+
+                // 5. Periodic Autosave
+                setInterval(() => {
+                    if (this.isEditingMode) this.triggerAutosave();
+                }, 30000); // 30 seconds
+            },
+            determineActiveStep() {
+                const status = $wire.capa_status;
+                if (status === 'Draft') this.activeStep = 1;
+                else if (status === 'Assigned') this.activeStep = 2;
+                else if (status === 'Triaged') this.activeStep = 3;
+                else if (status === 'Action' || status === 'Verify') this.activeStep = 4;
+                else this.activeStep = 4;
+            },
+            goBack() {
+                if (this.activeStep > 1) {
+                    this.activeStep--;
+                }
+            },
+            toggleSection(section) {
+                this.sections[section] = !this.sections[section];
+                
+                // Jump to step if in edit mode and opening the section
+                if (this.isEditingMode && this.sections[section]) {
+                    const stepMap = { assignment: 1, ncdetails: 2, why_why: 3, effectiveness: 4 };
+                    if (stepMap[section]) {
+                        this.activeStep = stepMap[section];
+                    }
+                }
+            },
+            initTinyMCE() {
+                if (typeof tinymce === 'undefined') {
+                    setTimeout(() => this.initTinyMCE(), 100);
+                    return;
+                }
+
+                // Configuration for editors per step
+                const stepEditors = {
+                    2: ['ncr_details_editor'],
+                    3: ['root_cause_editor', 'corrective_action_editor', 'action_taken_editor'],
+                    4: ['acceptance_editor']
+                };
+
+                const allPossibleIds = ['ncr_details_editor', 'root_cause_editor', 'corrective_action_editor', 'action_taken_editor', 'acceptance_editor'];
+
+                // In edit mode or full edit mode, init ALL editors that are present in the DOM
+                const currentIds = this.isEditingMode ? allPossibleIds : [];
+
+                // Cleanup: Only remove editors for steps that are NOT visible (skip in full edit mode)
+                if (!this.fullEditMode) {
+                    allPossibleIds.forEach(id => {
+                        if (!currentIds.includes(id) && tinymce.get(id)) {
+                            tinymce.remove('#' + id);
+                        }
+                    });
+                }
+                
+                this.$nextTick(() => {
+                    // Small timeout ensures targeted textareas are rendered/visible in DOM
+                    setTimeout(() => {
+                        currentIds.forEach(id => {
+                            const textarea = document.getElementById(id);
+                            if (!textarea) return;
+
+                            // Check if already initialized
+                            if (tinymce.get(id)) {
+                                textarea.style.opacity = '1';
+                                return;
+                            }
+
+                            tinymce.init({
+                                selector: '#' + id,
+                                height: id === 'ncr_details_editor' ? 300 : 250,
+                                menubar: false,
+                                plugins: 'lists link',
+                                toolbar: 'bold italic underline | bullist numlist | link',
+                                branding: false,
+                                promotion: false,
+                                setup: (editor) => {
+                                    editor.on('init', () => {
+                                        textarea.style.opacity = '1';
+                                        
+                                        // Force sync with state on load
+                                        const field = this._getFieldNameForEditor(id);
+                                        if (field) {
+                                            editor.setContent($wire[field] || '');
+                                        }
+                                    });
+                                    editor.on('change', () => {
+                                        editor.save(); 
+                                    });
+                                },
+                                content_style: 'body { font-family: Inter, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b; padding: 12px; }'
+                            });
+                        });
+                    }, this.fullEditMode ? 150 : 50); // Give extra time in full edit mode for all DOM elements to render
+                });
+            },
+            _getFieldNameForEditor(id) {
+                const map = {
+                    ncr_details_editor:         'details_of_non_conformance',
+                    root_cause_editor:          'root_cause',
+                    corrective_action_editor:   'capa_corrective_action',
+                    action_taken_editor:        'action_taken',
+                    acceptance_editor:          'acceptance'
+                };
+                return map[id];
+            },
+            async saveNcStep() {
+                const data = this._collectEditorData();
+                await $wire.saveNcDetails(data);
+            },
+            async saveStepTwo() {
+                const data = this._collectEditorData();
+                await $wire.saveCorrectiveAction(data);
+            },
+            async saveFinalAndComplete() {
+                const data = this._collectEditorData();
+                await $wire.saveFinalVerification(data);
+            },
+            async triggerAutosave() {
+                if (typeof tinymce === 'undefined') return;
+                const data = this._collectEditorData();
+                await $wire.syncRichTextAndAutosave(data);
+            },
+            _collectEditorData() {
+                if (typeof tinymce === 'undefined') return {};
+                tinymce.triggerSave();
+                
+                const ids = ['ncr_details_editor', 'root_cause_editor', 'corrective_action_editor', 'action_taken_editor', 'acceptance_editor'];
+                const data = {};
+                
+                ids.forEach(id => {
+                    const ed = tinymce.get(id);
+                    if (ed) {
+                        data[this._getFieldNameForEditor(id)] = ed.getContent();
+                    }
+                });
+                return data;
             }
         }));
     </script>

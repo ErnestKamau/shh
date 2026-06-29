@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Casts\SafeEncrypted;
 
 class Company extends Model implements Auditable
 {
@@ -41,17 +42,17 @@ class Company extends Model implements Auditable
     ];
 
     protected $casts = [
-        'name' => 'encrypted',
-        'location' => 'encrypted',
-        'address' => 'encrypted',
-        'website' => 'encrypted',
-        'license_key' => 'encrypted',
-        'license_expiry' => 'encrypted',
-        'client_number' => 'encrypted',
-        'email' => 'encrypted',
-        'cell_phone' => 'encrypted',
-        'street' => 'encrypted',
-        'fax' => 'encrypted',
+        'name' => SafeEncrypted::class,
+        'location' => SafeEncrypted::class,
+        'address' => SafeEncrypted::class,
+        'website' => SafeEncrypted::class,
+        'license_key' => SafeEncrypted::class,
+        'license_expiry' => SafeEncrypted::class,
+        'client_number' => SafeEncrypted::class,
+        'email' => SafeEncrypted::class,
+        'cell_phone' => SafeEncrypted::class,
+        'street' => SafeEncrypted::class,
+        'fax' => SafeEncrypted::class,
     ];
 
   public function labs(){

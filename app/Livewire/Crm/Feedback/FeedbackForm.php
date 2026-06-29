@@ -127,14 +127,10 @@ class FeedbackForm extends BaseCrmComponent
 
         // Generate code if new
         if (!$this->feedbackId) {
-            if (strlen($feedback->id) < 4) {
-                $diff = 4 - strlen($feedback->id);
-                $zero = str_repeat("0", $diff);
-                $feedback->code = "FB" . $zero . $feedback->id;
-            } else {
-                $feedback->code = "FB" . $feedback->id;
+            if (empty($feedback->code)) {
+                $feedback->code = CustomerFeedback::generateUniqueCode();
+                $feedback->save();
             }
-            $feedback->save();
 
             // Send email notifications
             $config = SystemConfigurationsType::where('configuration_type', 'Personnel to Recieve Feedback and Complaint Notification')->first();

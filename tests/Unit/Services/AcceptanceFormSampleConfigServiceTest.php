@@ -145,4 +145,52 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
 
         $this->assertSame(['visible-element-id'], $reconciled['parameter_keys']);
     }
+
+    public function test_resolve_lab_section_id_falls_back_to_analysis_elements(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $existing = \App\AnalysisType::query()->whereNotNull('company_id')->whereNotNull('lab_id')->whereNotNull('sample_type_id')->first();
+        $companyId = $existing?->company_id ?: (string) \Illuminate\Support\Str::uuid();
+        $labId = $existing?->lab_id ?: (string) \Illuminate\Support\Str::uuid();
+        $sampleTypeId = $existing?->sample_type_id ?: (string) \Illuminate\Support\Str::uuid();
+
+        $stageId = (string) \Illuminate\Support\Str::uuid();
+
+        \Illuminate\Support\Facades\DB::table('lab_sections')->insert([
+            'id' => $stageId,
+            'lab_id' => $labId,
+            'company_id' => $companyId,
+            'name' => 'Test Section',
+            'code' => 'TST',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $analysisType = \App\AnalysisType::create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'name' => 'Test Type No Lab Section',
+            'code' => 'TTNLS',
+            'sample_type_id' => $sampleTypeId,
+            'lab_id' => $labId,
+            'company_id' => $companyId,
+            'lab_section_id' => null,
+            'active' => 1,
+        ]);
+
+        $analyteId = \App\AnalysisElements::query()->whereNotNull('analyte_id')->value('analyte_id') ?: (string) \Illuminate\Support\Str::uuid();
+
+        \App\AnalysisElements::create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'lab_section_id' => $stageId,
+            'analyte_id' => $analyteId,
+            'active' => 1,
+        ]);
+
+        $resolved = $service->resolveLabSectionIdForAnalysisType($analysisType->id);
+
+        $this->assertSame($stageId, $resolved);
+    }
 }

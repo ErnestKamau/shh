@@ -602,17 +602,7 @@ class TestRequestFormReportDataBuilder
      */
     private function padSampleRows(array $rows, int $minRows): array
     {
-        if (count($rows) >= $minRows) {
-            return $rows;
-        }
-
-        $padded = $rows;
-        $start = count($rows) + 1;
-        for ($i = $start; $i <= $minRows; $i++) {
-            $padded[] = ['serial' => $i];
-        }
-
-        return $padded;
+        return $rows;
     }
 
     /**

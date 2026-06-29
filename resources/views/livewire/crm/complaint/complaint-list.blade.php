@@ -8,36 +8,38 @@
             <x-crm.page-header
                 :breadcrumbItems="$this->breadcrumbItems"
                 :title="$pageTitle ?? $stage"
-                :subtitle="$pageSubtitle ?? 'Tracking, resolution, and compliance status of all reported complaints.'"
+                subtitle="Tracking, resolution, and compliance status of all reported complaints"
                 icon="mdi-comment-alert"
             >
                 <x-slot:actions>
-                    <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export crm-outline-btn-sm" wire:click="exportToExcel" wire:loading.attr="disabled">
+                    <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click="exportToExcel" wire:loading.attr="disabled">
                         <i class="fa fa-file-excel mr-1"></i> Export to Excel
                     </button>
-                    @if($this->getStageName($this->stage) === 'Open Complaints' && $this->canAddComplaint)
-                        <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="addComplaint">
+                    @if($this->getStageName($this->stage) == "Open Complaint")
+                        <button type="button" class="btn btn-add btn-sm crm-btn-add" wire:click="addComplaint">
                             <i class="mdi mdi-plus"></i> Add New Complaint
                         </button>
                     @endif
                 </x-slot:actions>
             </x-crm.page-header>
 
-            <div class="card tab-card">
-                <div class="card-body p-0">
-        <x-crm.filter-bar :title="__('crm.filters')" class="crm-filter-bar-sticky p-3 border-bottom">
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <div class="crm-search-wrapper w-100" style="max-width: 100%;">
+
+
+        <x-crm.filter-bar title="Filters" class="crm-filter-bar-sticky">
+            <div class="col-12 d-flex justify-content-between align-items-center flex-wrap px-3" style="gap: 16px; padding-top: 4px; padding-bottom: 4px;">
+                <!-- Left side: Search input -->
+                <div style="flex: 1; min-width: 240px; max-width: 320px;">
+                    <div class="crm-search-wrapper w-100">
                         <i class="mdi mdi-magnify crm-search-icon"></i>
                         <input type="text" class="form-control w-100" placeholder="Search by ID, description..."
                             wire:model.live.debounce.300ms="search">
                     </div>
                 </div>
 
-                <!-- Filters & Show Entries on Right -->
-                <div class="col-md-9 d-flex justify-content-md-end align-items-center flex-wrap filter-row">
+                <!-- Right side: Dropdown Filters and PerPage selectors -->
+                <div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
                     @if($stage == 'All Complaints')
-                        <div class="d-flex align-items-center mr-3 mb-2 mb-md-0">
+                        <div class="d-flex align-items-center">
                             <select class="crm-select custom-select-sm no-select2" style="width: 220px;"
                                 wire:model.live="activeTab" wire:key="complaint-status-filter">
                                 <option value="all">All Complaint Workflow Stages</option>
@@ -50,7 +52,7 @@
                         </div>
                     @endif
 
-                    <div class="d-flex align-items-center mr-3 mb-2 mb-md-0">
+                    <div class="d-flex align-items-center">
                         <select class="crm-select custom-select-sm no-select2" style="width: 180px;"
                             wire:model.live="typeFilter" wire:key="filter-type">
                             <option value="">All Complaint Categories</option>
@@ -60,7 +62,7 @@
                         </select>
                     </div>
 
-                    <div class="d-flex align-items-center mr-3 mb-2 mb-md-0">
+                    <div class="d-flex align-items-center">
                         <select class="crm-select custom-select-sm no-select2" style="width: 180px;"
                             wire:model.live="priorityFilter" wire:key="filter-priority">
                             <option value="">All Severity Levels</option>
@@ -71,7 +73,7 @@
                     </div>
 
                     <!-- Show Entries -->
-                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                    <div class="d-flex align-items-center">
                         <label class="mb-0 mr-2 crm-filter-label text-nowrap">Show</label>
                         <select wire:model.live="perPage" wire:key="per-page-select"
                             class="crm-select custom-select-sm no-select2" style="width: 70px;">
@@ -83,18 +85,20 @@
                         <label class="mb-0 ml-2 crm-filter-label text-nowrap">entries</label>
                     </div>
                 </div>
+            </div>
         </x-crm.filter-bar>
 
-        <x-crm.data-table wire:loading.class="opacity-50" class="p-3 crm-loading-overlay" plain-rows>
+        <x-crm.data-table wire:loading.class="opacity-50" class="crm-loading-overlay">
                 <x-slot:header>
                         <tr>
-                            <th style="width: 100px;">Actions</th>
-                            <th>Date Received</th>
+                            <th>Actions</th>
                             <th nowrap>Serial No.</th>
+                            <th>Date Received</th>
+                            <th>Source</th>
+                            <th>Status</th>
                             <th>Organization / Customer</th>
                             <th>Contact Person</th>
                             <th>Mode</th>
-                            <th>Received By</th>
                             <th>Test Item</th>
                             <th>Lab Related?</th>
                             <th>Date Closed</th>
@@ -103,16 +107,36 @@
                 </x-slot:header>
                         @forelse($complaints as $complaint)
                             <tr wire:key="complaint-{{ $complaint->id }}">
-                                <td nowrap>
-                                    <div class="d-flex flex-nowrap">
+                                <td>
+                                    <x-crm.action-buttons>
                                         <a href="{{ route('complaint-show', ['id' => $complaint->id]) }}"
-                                            class="btn btn-sm rm-act-btn rm-act-btn--view" title="View Details">
+                                            class="btn crm-btn crm-btn-view btn-sm" title="View Details">
                                             <i class="mdi mdi-eye-outline"></i>
                                         </a>
-                                    </div>
+                                    </x-crm.action-buttons>
                                 </td>
+                                <td><a href="{{ route('complaint-show', ['id' => $complaint->id]) }}" class="text-primary font-weight-medium">{{ $complaint->complaint_id }}</a></td>
                                 <td>{{ $complaint->date ? $complaint->date->format('d-M-Y') : '-' }}</td>
-                                <td>{{ $complaint->complaint_id }}</td>
+                                <td>
+                                    @if($complaint->is_feedback_related)
+                                    <span class="badge badge-soft-info" title="Originated from Feedback"><i class="mdi mdi-message-text"></i> Feedback</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @php
+                                        $stages = getComplaintWorkflow();
+                                        $stageName = $stages[$complaint->complaint_workflow] ?? 'Unknown';
+                                        $badgeClass = match((int)$complaint->complaint_workflow) {
+                                            1 => 'badge-soft-primary',
+                                            2 => 'badge-soft-info',
+                                            4 => 'badge-soft-warning',
+                                            5 => 'badge-soft-success',
+                                            6 => 'badge-soft-danger',
+                                            default => 'badge-soft-secondary'
+                                        };
+                                    @endphp
+                                    <span class="badge {{ $badgeClass }}">{{ $stageName }}</span>
+                                </td>
                                 <td>
                                     {{ $complaint->organization_name ?? $complaint->received_from }}
                                     @if($complaint->client)
@@ -128,7 +152,6 @@
                                     @endif
                                 </td>
                                 <td>{{ $complaint->mode_of_delivery ?? '-' }}</td>
-                                <td>{{ $complaint->received_by ?? '-' }}</td>
                                 <td>{{ $complaint->test_item ?? $complaint->test_item_report_serial_no ?? '-' }}</td>
                                 <td>
                                     @if($complaint->is_lab_related)
@@ -142,7 +165,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12">
+                                <td colspan="11">
                                     <x-crm.empty-state
                                         icon="mdi-comment-check-outline"
                                         message="No complaints found"
@@ -156,11 +179,8 @@
             <x-crm.pagination :summary="'Showing ' . ($complaints->firstItem() ?? 0) . ' to ' . ($complaints->lastItem() ?? 0) . ' of ' . $complaints->total() . ' results'">
                 {{ $complaints->links() }}
             </x-crm.pagination>
-                </div>
-            </div>
 
-        </div>
-        @if($showForm)
+        </div>        @if($showForm)
             <div class="modal fade show"
                 style="display: flex; align-items: flex-start; overflow-y: auto; background-color: rgba(0,0,0,0.5); padding-top: 30px; padding-bottom: 30px;"
                 tabindex="-1" role="dialog" aria-hidden="true" wire:ignore.self>

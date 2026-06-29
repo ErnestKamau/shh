@@ -53,6 +53,16 @@
 							Actions
 						</button>
 						<div class="dropdown-menu dropdown-menu-right">
+							@php
+								$reviewableRequest = $requests->getCollection()->first(function ($request) {
+									return ($request->currentQuotation?->status ?? '') === 'Quotation Under Review';
+								});
+							@endphp
+							@if($reviewableRequest && $reviewableRequest->currentQuotation)
+								<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $reviewableRequest->currentQuotation->id, 'stage' => $reviewableRequest->currentQuotation->status]) }}">
+									<i class="mdi mdi-file-document-edit-outline mr-2"></i> Review Quotation
+								</a>
+							@endif
 							<a class="dropdown-item" href="#" data-toggle="modal" data-target="#add-submission-request-modal">
 								<i class="mdi mdi-plus-circle-outline mr-2"></i> New Submission Request
 							</a>
@@ -196,9 +206,24 @@
 								<div class="text-muted small"><i class="mdi mdi-clock-outline"></i> {{ $req->submitted_by_time ?: '' }}</div>
 							</td>
 							<td class="text-center">
-								<div class="d-flex justify-content-center gap-2">
+								<div class="d-flex justify-content-center gap-2 align-items-center flex-wrap">
 									<span class="badge badge-light px-2" title="Exhibits"><i class="mdi mdi-package-variant"></i> {{ (int) $req->exhibits_count }}</span>
 									<span class="badge badge-light px-2" title="Analyses"><i class="mdi mdi-flask-outline"></i> {{ (int) $req->requested_analyses_count }}</span>
+									<div class="dropdown">
+										<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+											Actions
+										</button>
+										<div class="dropdown-menu dropdown-menu-right">
+											@if(($req->currentQuotation?->status ?? '') === 'Quotation Under Review')
+												<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $req->currentQuotation->id, 'stage' => $req->currentQuotation->status]) }}">
+													<i class="mdi mdi-file-document-edit-outline mr-2"></i> Review Quotation
+												</a>
+											@endif
+											<a class="dropdown-item" href="{{ route('sample-submission-requests.show', ['request' => $req, 'details' => 1]) }}">
+												<i class="mdi mdi-eye-outline mr-2"></i> View Request
+											</a>
+										</div>
+									</div>
 								</div>
 							</td>
 						</tr>

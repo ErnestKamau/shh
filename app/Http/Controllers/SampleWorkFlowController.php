@@ -122,6 +122,7 @@ class SampleWorkFlowController extends Controller
                 'batch:id,batch_code,status',
                 'customer:id,name',
                 'contact:id,first_name,middle_name,last_name,email',
+                'currentQuotation:id,sample_submission_request_id,quote_number,status',
             ])
             ->withCount(['exhibits', 'suspects', 'requestedAnalyses'])
             ->orderByDesc('id');

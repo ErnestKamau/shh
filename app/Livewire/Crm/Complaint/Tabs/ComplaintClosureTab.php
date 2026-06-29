@@ -13,11 +13,13 @@ class ComplaintClosureTab extends BaseCrmComponent
     public $complaint;
     public $resolution;
     public $closureContacts = [];
+    public array $selectedContactIds = [];
 
     // Closure settings
     public bool $send_to_customer = false;
-    public array $selectedContactIds = [];
     public string $client_remarks = '';
+    public $customer_satisfaction = ''; 
+    public $feedback_notes = ''; 
 
     public function mount($complaintId)
     {
@@ -29,6 +31,8 @@ class ComplaintClosureTab extends BaseCrmComponent
         if ($this->resolution) {
             $this->send_to_customer = (bool) $this->resolution->send_to_customer;
             $this->client_remarks = $this->resolution->client_remarks ?? '';
+            $this->customer_satisfaction = $this->resolution->preventive_action ?? '';
+            $this->feedback_notes = $this->resolution->findings_feedback ?? ''; // Fallback to remarks if needed
         }
 
         // Load eligible contacts
@@ -48,7 +52,7 @@ class ComplaintClosureTab extends BaseCrmComponent
      */
     public function saveSettings()
     {
-        $this->checkPermission('crm.components.complaint pending closure.edit');
+        $this->checkPermission('CRM.components.Complaint Pending Closure.Edit');
 
         if (!$this->resolution) {
             $this->showError('No investigation record found. Please complete the investigation first.');
@@ -64,6 +68,19 @@ class ComplaintClosureTab extends BaseCrmComponent
         if ($this->getErrorBag()->isEmpty()) {
             $this->showSuccess('Closure settings saved.');
         }
+    }
+
+    public function saveFeedback()
+    {
+        $this->checkPermission('CRM.components.Complaint Pending Closure.Edit');
+
+        if (!$this->resolution) return;
+
+        $this->resolution->preventive_action = $this->customer_satisfaction;
+        $this->resolution->client_remarks = $this->client_remarks; // Overwrite or append
+        $this->resolution->save();
+
+        $this->showSuccess('Customer feedback recorded successfully.');
     }
 
     /**

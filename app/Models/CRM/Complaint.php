@@ -2,23 +2,14 @@
 
 namespace App\Models\CRM;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaint extends Model implements Auditable
 {
-    use HasUuids;
-
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     use \OwenIt\Auditing\Auditable;
-    use SoftDeletes;
+    use HasUuids;
 
     protected $fillable = [
         'complaint_id',
@@ -51,6 +42,9 @@ class Complaint extends Model implements Auditable
         'title_position',
         'test_item',
         'report_serial_no',
+        'feedback_id',
+        'is_feedback_related',
+        'origin',
     ];
 
     protected function casts(): array
@@ -67,39 +61,20 @@ class Complaint extends Model implements Auditable
         ];
     }
 
+    public function getContactNameAttribute($value)
+    {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+            $contact = CustomerContact::find($value);
+            if ($contact) {
+                return trim($contact->first_name . ' ' . ($contact->middle_name ? $contact->middle_name . ' ' : '') . $contact->last_name);
+            }
+        }
+        return $value;
+    }
+
     public function client()
     {
         return $this->belongsTo(CRMCustomer::class, 'client_id');
-    }
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(TicketCategory::class, 'ticket_category_id');
-    }
-
-    public function ticketStatus(): BelongsTo
-    {
-        return $this->belongsTo(TicketStatus::class, 'complaint_workflow', 'workflow_value');
-    }
-
-    public function ticketPriority(): BelongsTo
-    {
-        return $this->belongsTo(TicketPriority::class, 'priority', 'value');
-    }
-
-    public function assignedUser(): BelongsTo
-    {
-        return $this->belongsTo(\App\User::class, 'assigned_to');
-    }
-
-    public function assignedDevelopers(): HasMany
-    {
-        return $this->hasMany(TicketAssignment::class, 'ticket_id');
-    }
-
-    public function chat(): HasMany
-    {
-        return $this->hasMany(TicketChat::class, 'ticket_id');
     }
 
     public function intakeApprovedBy()
@@ -137,17 +112,41 @@ class Complaint extends Model implements Auditable
         return $this->hasMany(Chain_of_Custody_Complaint::class);
     }
 
-    public function scopeForUser($query, int $userId)
+    public function feedback()
     {
-        $user = \App\User::query()->find($userId);
+        return $this->belongsTo(CustomerFeedback::class, 'feedback_id');
+    }
 
-        if (! $user) {
-            return $query->whereRaw('1 = 0');
-        }
+    /*
+    |--------------------------------------------------------------------------
+    | Closure Status Helpers
+    |--------------------------------------------------------------------------
+    */
 
-        return $query->where(function ($q) use ($user) {
-            $q->where('created_by', $user->id)
-                ->orWhere('created_by', $user->name);
-        });
+    /**
+     * Check if the complaint has an interim approval recorded in chain of custody.
+     */
+    public function getIsApprovedForClosureAttribute(): bool
+    {
+        return $this->chainOfCustody()
+            ->where('action', 'like', '%Approval Recorded%')
+            ->exists();
+    }
+
+    /**
+     * Check if closure remarks have been added to the resolution.
+     */
+    public function getHasClosureRemarksAttribute(): bool
+    {
+        $res = $this->resolutions()->first();
+        return !empty(trim(strip_tags((string)($res->internal_remarks ?? ''))));
+    }
+
+    /**
+     * Determine if the complaint can move to final closure.
+     */
+    public function getCanFinallyCloseAttribute(): bool
+    {
+        return $this->is_approved_for_closure && $this->has_closure_remarks;
     }
 }

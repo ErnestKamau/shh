@@ -806,7 +806,7 @@ class CustomerManager extends Component
                                         $newPoint->code = $originalPoint->code;
                                         $newPoint->description = $originalPoint->description;
                                         $newPoint->active = $originalPoint->active;
-                                        $newPoint->gps = $originalPoint->gps;
+                                        $newPoint->gps = $originalPoint->gps ?? '';
                                         $newPoint->crm_company_sub_unit_id = null;
                                         $newPoint->sample_point_area_id = null;
                                         $newPoint->crm_area_id = null;

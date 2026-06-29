@@ -5,7 +5,7 @@
 @endphp
 <style>
     @page {
-        margin: 10mm 10mm 11mm 10mm;
+        margin: 16mm 16mm 24mm 16mm;
         size: A4 portrait;
     }
 
@@ -14,9 +14,9 @@
         padding: 0;
         background: #ffffff;
         font-family: 'DejaVu Sans', sans-serif;
-        font-size: 10.5pt;
+        font-size: 9.5pt;
         color: #000000;
-        line-height: 1.28;
+        line-height: 1.35;
     }
 
     body.amspec-download-body .amspec-document-shell,
@@ -33,7 +33,7 @@
         margin: 0;
         padding: 0;
         box-shadow: none;
-        background: #ffffff;
+        background: transparent !important;
         box-sizing: border-box;
     }
 
@@ -48,9 +48,10 @@
 
     body.amspec-download-body .amspec-quotation {
         font-family: 'DejaVu Sans', sans-serif;
-        font-size: 10.5pt;
+        font-size: 9.5pt;
         color: #000000;
         width: 100%;
+        position: static !important;
     }
 
     body.amspec-download-body .amspec-company-name {
@@ -83,11 +84,17 @@
 
     body.amspec-download-body .amspec-company-address {
         font-weight: 700;
-        font-size: 10pt;
+        font-size: 9pt;
     }
 
     body.amspec-download-body .amspec-contact-line {
-        font-size: 10pt;
+        font-size: 9pt;
+    }
+
+    body.amspec-download-body .amspec-contact-line div {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
     }
 
     body.amspec-download-body .amspec-meta-table {
@@ -100,7 +107,7 @@
         width: auto !important;
         white-space: nowrap;
         padding-right: 2px;
-        font-size: 10pt;
+        font-size: 9pt;
         font-weight: 700;
     }
 
@@ -108,13 +115,13 @@
     body.amspec-download-body .amspec-meta-value strong {
         width: auto !important;
         padding-left: 0 !important;
-        font-size: 10pt;
+        font-size: 9pt;
         font-weight: 700;
     }
 
     body.amspec-download-body .amspec-intro {
         margin-top: 8px;
-        font-size: 10pt;
+        font-size: 9.5pt;
     }
 
     body.amspec-download-body .amspec-page-logo {
@@ -137,37 +144,37 @@
         word-wrap: break-word;
         overflow-wrap: break-word;
         font-size: 8.5pt;
-        padding: 3px 3px;
-        line-height: 1.22;
+        padding: 4px 5px;
+        line-height: 1.35;
         border: 1px solid #999999;
     }
 
     body.amspec-download-body .amspec-th-primary {
         background-color: {{ $primaryColor }} !important;
         color: #ffffff !important;
-        font-size: 8pt !important;
+        font-size: 8.5pt !important;
         font-weight: 700 !important;
-        padding: 4px 3px !important;
+        padding: 5px 4px !important;
         text-align: center !important;
     }
 
     body.amspec-download-body .amspec-th-accent {
         background-color: {{ $accentColor }} !important;
         color: #ffffff !important;
-        font-size: 8pt !important;
+        font-size: 8.5pt !important;
         font-weight: 700 !important;
-        padding: 4px 3px !important;
+        padding: 5px 4px !important;
         text-align: center !important;
     }
 
     body.amspec-download-body .amspec-terms {
         margin-top: 2px;
-        font-size: 9.5pt;
+        font-size: 9pt;
     }
 
     body.amspec-download-body .amspec-terms-title {
         margin-bottom: 4px;
-        font-size: 10pt;
+        font-size: 10.5pt;
     }
 
     body.amspec-download-body .amspec-terms ol {
@@ -199,8 +206,11 @@
     }
 
     body.amspec-download-body .amspec-footer-wrap {
-        margin-top: 10px;
-        width: 100%;
+        position: fixed;
+        bottom: -15mm;
+        left: 0;
+        width: 100% !important;
+        height: 15mm;
         page-break-inside: avoid;
     }
 
@@ -211,13 +221,13 @@
     }
 
     body.amspec-download-body .amspec-footer-text {
-        width: 78%;
+        width: 88%;
         vertical-align: middle;
         padding-right: 6px;
     }
 
     body.amspec-download-body .amspec-footer-qr-cell {
-        width: 22%;
+        width: 12%;
         vertical-align: middle;
         text-align: right;
         padding: 0;
@@ -225,10 +235,11 @@
 
     body.amspec-download-body .amspec-footer-disclaimer {
         font-size: 6.5pt;
-        line-height: 1.22;
+        line-height: 1.25;
         word-wrap: break-word;
         overflow-wrap: break-word;
         margin: 0;
+        text-align: center;
     }
 
     body.amspec-download-body .amspec-footer-disclaimer a {

@@ -12,10 +12,12 @@
         --amspec-font-footer: 'Aptos Narrow', 'Roboto Condensed', Calibri, Arial, sans-serif;
     }
 
+    @if(!($forPdf ?? false))
     @page {
         margin: 0;
         size: A4 portrait;
     }
+    @endif
 
     .amspec-preview-body {
         margin: 0;
@@ -98,7 +100,7 @@
         width: 220mm;
         min-height: auto;
         margin: 0 auto 20px;
-        padding: 14mm 14mm 12mm;
+        padding: 16mm 16mm 14mm;
         background: #ffffff;
         box-sizing: border-box;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
@@ -108,7 +110,7 @@
     .amspec-shell-preview .amspec-page-sheet,
     .amspec-shell-public .amspec-page-sheet {
         width: min(94vw, 268mm);
-        padding: 15mm 16mm 14mm;
+        padding: 16mm 16mm 14mm;
     }
 
     .amspec-shell-preview .amspec-quotation,
@@ -171,6 +173,12 @@
     .amspec-contact-line {
         font-family: var(--amspec-font-body);
         font-size: 10pt;
+    }
+
+    .amspec-contact-line div {
+        margin: 0 0 1px 0;
+        padding: 0;
+        line-height: 1.15;
     }
 
     .amspec-company-address {
@@ -317,7 +325,7 @@
         font-size: 7.5pt;
         line-height: 1.35;
         color: var(--amspec-text);
-        text-align: left;
+        text-align: center;
     }
 
     .amspec-footer-disclaimer a {
@@ -359,6 +367,7 @@
         background: transparent;
     }
 
+    @if(!($forPdf ?? false))
     @media print {
         @page {
             margin: 10mm;
@@ -457,4 +466,5 @@
             color: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
         }
     }
+    @endif
 </style>

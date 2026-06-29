@@ -28,11 +28,58 @@
                 @endif
 
                 @if($client_remarks)
-                    <div class="text-left bg-white p-3 rounded border mx-auto" style="max-width: 600px;">
+                    <div class="text-left bg-white p-3 rounded border mx-auto mb-4" style="max-width: 600px;">
                         <label class="font-weight-bold text-muted text-uppercase mb-1" style="font-size:0.75rem;"><i class="mdi mdi-comment-quote-outline mr-1"></i> Internal Remarks:</label>
                         <p class="mb-0 font-italic text-dark">{{ $client_remarks }}</p>
                     </div>
                 @endif
+
+                {{-- NEW: Customer Feedback Capture --}}
+                <div class="text-left crm-glass p-4 rounded-lg mx-auto border-left-primary" style="max-width: 600px; border-left: 5px solid #6366f1 !important;">
+                    <h6 class="font-weight-bold text-dark mb-3">
+                        <i class="mdi mdi-account-star-outline mr-2 text-primary"></i>
+                        Post-Closure Customer Feedback
+                    </h6>
+                    <p class="text-muted small mb-4">Capture the customer's response after receiving the closure report.</p>
+                    
+                    <div class="mb-4">
+                        <label class="form-label small font-weight-bold text-muted text-uppercase">Satisfaction Level</label>
+                        <div class="d-flex justify-content-between satisfaction-grid">
+                            @foreach([
+                                'Satisfied' => ['icon' => 'mdi-emoticon-happy-outline', 'color' => 'text-success', 'bg' => 'bg-soft-success'],
+                                'Neutral' => ['icon' => 'mdi-emoticon-neutral-outline', 'color' => 'text-warning', 'bg' => 'bg-soft-warning'],
+                                'Not Satisfied' => ['icon' => 'mdi-emoticon-sad-outline', 'color' => 'text-danger', 'bg' => 'bg-soft-danger']
+                            ] as $level => $config)
+                                <div 
+                                    wire:click="$set('customer_satisfaction', '{{ $level }}')"
+                                    class="text-center p-3 rounded-xl cursor-pointer transition-all border {{ $customer_satisfaction === $level ? $config['bg'] . ' border-' . str_replace('text-', '', $config['color']) : 'bg-white' }}"
+                                    style="flex: 1; margin: 0 5px; border-radius: 12px;"
+                                >
+                                    <i class="mdi {{ $config['icon'] }} {{ $customer_satisfaction === $level ? $config['color'] : 'text-muted' }}" style="font-size: 2rem;"></i>
+                                    <div class="small font-weight-bold mt-1 {{ $customer_satisfaction === $level ? 'text-dark' : 'text-muted' }}">{{ $level }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small font-weight-bold text-muted text-uppercase">Customer Remarks</label>
+                        <textarea 
+                            wire:model.defer="client_remarks" 
+                            class="form-control border shadow-xs" 
+                            rows="4" 
+                            placeholder="Type customer's feedback or response here..."
+                            style="border-radius: 10px;"
+                        ></textarea>
+                    </div>
+
+                    <div class="text-right">
+                        <button type="button" class="btn btn-primary px-4 rounded-pill font-weight-bold" wire:click="saveFeedback">
+                            <i class="mdi mdi-content-save-check mr-2"></i>
+                            Save Feedback
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     @else
@@ -130,6 +177,7 @@
         </div>
 
         {{-- Internal Remarks (optional) --}}
+        @if($complaint->complaint_workflow == 4)
         <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
             <div class="card-body p-4">
                 <label class="font-weight-bold text-dark mb-2">
@@ -146,6 +194,7 @@
                     style="border-radius: 8px;"></textarea>
             </div>
         </div>
+        @endif
 
         {{-- Close Complaint Button --}}
         <div class="d-flex justify-content-end">

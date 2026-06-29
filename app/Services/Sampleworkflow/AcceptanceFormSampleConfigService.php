@@ -9,7 +9,7 @@ use App\SampleCondition;
 use App\SampleType;
 use App\Standards;
 use App\Zone;
-use App\SampleAnalysisStage;
+use App\LabSection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -265,14 +265,13 @@ class AcceptanceFormSampleConfigService
      */
     public function labSectionsForPicker(): array
     {
-        return SampleAnalysisStage::query()
-            ->where('active', 1)
-            ->where('is_system', 0)
+        return LabSection::query()
+            ->where('active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code'])
-            ->map(fn (SampleAnalysisStage $stage) => [
-                'id' => (string) $stage->id,
-                'name' => trim($stage->name . ($stage->code ? ' — ' . $stage->code : '')),
+            ->map(fn (LabSection $section) => [
+                'id' => (string) $section->id,
+                'name' => trim($section->name . ($section->code ? ' — ' . $section->code : '')),
             ])
             ->values()
             ->all();
@@ -280,21 +279,31 @@ class AcceptanceFormSampleConfigService
 
     public function resolveLabSectionIdForAnalysisType(?string $analysisTypeId): ?string
     {
-        if ($analysisTypeId === null || $analysisTypeId === '') {
+        if ($analysisTypeId === null || $analysisTypeId === '' || ! Str::isUuid($analysisTypeId)) {
             return null;
         }
 
         $analysisType = AnalysisType::query()->find($analysisTypeId);
-        if ($analysisType === null || empty($analysisType->lab_section_id)) {
+        if ($analysisType === null) {
             return null;
         }
 
-        $candidate = (string) $analysisType->lab_section_id;
-        if (! Str::isUuid($candidate)) {
+        $candidate = $analysisType->lab_section_id;
+
+        if (empty($candidate)) {
+            // Fallback to first active analysis element's lab section
+            $candidate = \Illuminate\Support\Facades\DB::table('analysis_elements')
+                ->where('analysis_type_id', $analysisType->id)
+                ->where('active', 1)
+                ->whereNotNull('lab_section_id')
+                ->value('lab_section_id');
+        }
+
+        if (empty($candidate) || ! Str::isUuid($candidate)) {
             return null;
         }
 
-        return SampleAnalysisStage::query()->whereKey($candidate)->exists() ? $candidate : null;
+        return LabSection::query()->whereKey($candidate)->exists() ? $candidate : null;
     }
 
     private function resolveZoneIdFromConfig(array $config): ?string

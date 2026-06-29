@@ -5,7 +5,7 @@ namespace App\Livewire\Crm;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
-use App\Livewire\CRM\Traits\HasCrmPermissions;
+use App\Livewire\Crm\Traits\HasCrmPermissions;
 
 abstract class BaseCrmComponent extends Component
 {
@@ -13,6 +13,11 @@ abstract class BaseCrmComponent extends Component
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
+
+    public function toJSON(mixed $value = null): array
+    {
+        return [];
+    }
 
     /**
      * Initialize method called by child components in mount()
@@ -77,11 +82,9 @@ abstract class BaseCrmComponent extends Component
     }
 
     /**
-     * Safe serialization for frontend (e.g. JSON.stringify($wire)).
-     * Prevents "Public method [toJSON] not found on component" when Alpine/Select2 serializes the component.
+     * Backwards-compatibility handler: some client-side code (or devtools)
+     * may attempt to call `toJSON` on the Livewire proxy which results
+     * in a MethodNotFoundException when not present. Provide a safe
+     * handler that returns an empty array to avoid errors.
      */
-    public function toJSON(): array
-    {
-        return ['id' => $this->getId()];
-    }
 }

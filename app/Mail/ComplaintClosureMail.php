@@ -49,9 +49,11 @@ class ComplaintClosureMail extends Mailable
         ]);
         $this->pdfContent = $pdfContent;
         
-        // Fetch logo path and company address from active company (null-safe when no company configured)
         $activeCompany = getActiveCompany();
-        $this->logoPath = ($activeCompany && !empty($activeCompany->logo)) ? public_path($activeCompany->logo) : null;
+        $this->logoPath = ($activeCompany && !empty($activeCompany->logo))
+            ? (str_starts_with($activeCompany->logo, 'http') ? $activeCompany->logo : rtrim(config('app.url'), '/') . '/' . ltrim($activeCompany->logo, '/'))
+            : null;
+
         $this->companyAddress = $activeCompany ? [
             'name' => $activeCompany->name ?? 'IMARA LIMS',
             'line1' => $activeCompany->address ?? '',
@@ -79,44 +81,34 @@ class ComplaintClosureMail extends Mailable
         if ($this->pdfContent) {
             $pdfOutput = $this->pdfContent;
         } else {
-             $pdf = \PDF::loadView('pdfs.closure_report', [
-                'complaint' => $this->complaint,
-                'publicNotes' => $this->complaint->notes,
-                'publicAttachments' => $this->complaint->attachments,
-                'chainOfCustody' => \App\Models\CRM\Chain_of_Custody_Complaint::where('complaint_id', $this->complaint->id)
-                                    ->whereNotIn('action', ['Closure Report Regenerated'])
-                                    ->with('movedInBy')
+            // Regenerate the Investigation Report if content wasn't provided
+            $resolution = $this->complaint->resolutions->last();
+            $chainOfCustody = \App\Models\CRM\Chain_of_Custody_Complaint::where('complaint_id', $this->complaint->id)
+                                    ->whereNotIn('action', ['Closure Report Regenerated', 'Investigation Report Regenerated'])
+                                    ->with('actionTaker')
                                     ->orderBy('created_at', 'asc')
-                                    ->get()
+                                    ->get();
+
+            $pdf = \PDF::loadView('pdfs.investigation_report', [
+                'complaint' => $this->complaint,
+                'resolution' => $resolution,
+                'chainOfCustody' => $chainOfCustody,
             ]);
-            addClosureReportPageNumbers($pdf);
+            
+            // Standard page numbering for complaint reports
+            if (function_exists('addClosureReportPageNumbers')) {
+                addClosureReportPageNumbers($pdf);
+            }
             $pdfOutput = $pdf->output();
         }
 
         $safeId = str_replace(['/', '\\'], '-', $this->complaint->complaint_id);
-        $email = $this->from(config('mail.from.address'), 'IMARA SYSTEM')
-                    ->subject('Official Closure Report: ' . $this->complaint->complaint_id)
-                    ->view('emails.complaint_closure')
-                    ->attachData($pdfOutput, 'Closure_Report_' . $safeId . '.pdf', [
+        
+        return $this->from(config('mail.from.address'), 'IMARA SYSTEM')
+                    ->subject('Investigation Report Update: ' . $this->complaint->complaint_id)
+                    ->view('emails.complaint_investigation')
+                    ->attachData($pdfOutput, 'Investigation_Report_' . $safeId . '.pdf', [
                         'mime' => 'application/pdf',
                     ]);
-
-        // Also check for the auto-generated Investigation Report attachment
-        $investigationAttachment = $this->complaint->attachments()
-            ->where('title', 'Investigation Report')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($investigationAttachment) {
-            $path = storage_path('app/public/' . str_replace('/storage/', '', $investigationAttachment->file_path));
-            if (file_exists($path)) {
-                $email->attach($path, [
-                    'as' => 'Investigation_Report_' . $safeId . '.pdf',
-                    'mime' => 'application/pdf',
-                ]);
-            }
-        }
-
-        return $email;
     }
 }

@@ -48,7 +48,7 @@
         </div>
 
         <h6 class="mt-4">Chain of Custody</h6>
-        <x-crm.data-table plain-rows>
+        <x-crm.data-table>
             <x-slot:header>
                 <tr>
                     <th>Action</th>
@@ -63,7 +63,7 @@
                     <td>{{ $custody->action }}</td>
                     <td>{{ $custody->actionTaker->name ?? '-' }}</td>
                     <td>{{ $custody->workflow_stage }}</td>
-                    <td>{{ $custody->comments ?? '-' }}</td>
+                    <td>{!! $custody->comments ?? '-' !!}</td>
                     <td>{{ $custody->move_out_date ?? $custody->created_at }}</td>
                 </tr>
             @endforeach
