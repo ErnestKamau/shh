@@ -1662,6 +1662,40 @@ class WorkflowBoard extends Component
             ->to(ProcessEnquiryWizard::class);
     }
 
+    public function openReviewQuotationByEnquiryId(string $enquiryId): void
+    {
+        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
+
+        if (
+            $enquiry === null
+            || $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
+            || empty($enquiry->current_quotation_header_id)
+        ) {
+            session()->flash('error', 'Select a request with a quotation under review.');
+
+            return;
+        }
+
+        $this->dispatch('process-enquiry-open', enquiryId: $enquiry->id)
+            ->to(ProcessEnquiryWizard::class);
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    public function openReviewQuotationFromInstances(array $ids = []): void
+    {
+        $enquiryId = $this->resolveReviewQuotationEnquiryIdFromSelection($ids);
+
+        if ($enquiryId === null) {
+            session()->flash('error', 'Select a request with a quotation under review.');
+
+            return;
+        }
+
+        $this->openReviewQuotationByEnquiryId($enquiryId);
+    }
+
     public function openPoCaptureModal(string $enquiryId): void
     {
         $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
@@ -1736,9 +1770,7 @@ class WorkflowBoard extends Component
             $this->syncSelectedFormInstanceIds($ids);
 
             $enquiryId = SubmissionFormInstance::query()
-                ->whereIn('id', $this->selectedFormInstanceIds)
-                ->with('sampleSubmissionRequest')
-                ->get()
+                ->findMany($this->selectedFormInstanceIds)
                 ->map(fn (SubmissionFormInstance $instance) => $instance->sampleSubmissionRequest?->id)
                 ->filter()
                 ->first();
@@ -1747,6 +1779,38 @@ class WorkflowBoard extends Component
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    protected function resolveReviewQuotationEnquiryIdFromSelection(array $ids): ?string
+    {
+        if ($ids === []) {
+            return null;
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        $enquiryId = SubmissionFormInstance::query()
+            ->findMany($this->selectedFormInstanceIds)
+            ->map(fn (SubmissionFormInstance $instance) => $instance->sampleSubmissionRequest)
+            ->filter(fn (?SampleSubmissionRequest $enquiry): bool => $enquiry !== null
+                && $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
+                && ! empty($enquiry->current_quotation_header_id))
+            ->map(fn (SampleSubmissionRequest $enquiry): string => (string) $enquiry->id)
+            ->first();
+
+        if ($enquiryId !== null) {
+            return $enquiryId;
+        }
+
+        return SampleSubmissionRequest::query()
+            ->findMany($ids)
+            ->first(function (SampleSubmissionRequest $enquiry): bool {
+                return $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
+                    && ! empty($enquiry->current_quotation_header_id);
+            })?->id;
     }
 
     /**

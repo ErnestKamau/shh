@@ -999,6 +999,13 @@
 									</li>
 									<li>
 										<button type="button" class="dropdown-item"
+											data-sf-trigger="workflow-review-quotation"
+											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
+											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Review quotation</button>
+									</li>
+									<li>
+										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-walk-in-acceptance"
 											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
@@ -1389,6 +1396,11 @@
 											class="btn btn-sm btn-outline-success"
 											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
 											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Review quotation
 										</button>
 									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
@@ -2349,7 +2361,7 @@
 																			|| str_contains($normalizedEnquiryStatus, 'quotation under review'))
 																		&& !empty($reviewQuotationId))
 																		<button type="button"
-																			wire:click="openProcessEnquiryByEnquiryId('{{ $instance->sampleSubmissionRequest->id }}')"
+																			wire:click="openReviewQuotationByEnquiryId('{{ $instance->sampleSubmissionRequest->id }}')"
 																			class="btn btn-sm rm-act-btn rm-act-btn--view"
 																			title="Review quotation">
 																			<i class="mdi mdi-file-document-edit-outline"></i>

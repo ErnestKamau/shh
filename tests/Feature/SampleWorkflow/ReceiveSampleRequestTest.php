@@ -3,12 +3,12 @@
 namespace Tests\Feature\SampleWorkflow;
 
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
+use App\Livewire\Sampleworkflow\WorkflowBoard;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestForm;
 use App\Models\Workflow\Approval;
 use App\Models\Workflow\ApprovalLog;
 use App\Models\Workflow\ChecklistResponse;
@@ -174,6 +174,25 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertDispatched('receive-completed');
 
         $this->assertSame('received', $instance->fresh()->status);
+    }
+
+    public function test_samples_receiving_review_quotation_action_opens_modal_for_under_review_requests(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+        $quotation = QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ260629-001',
+            'quote_date' => now()->toDateString(),
+            'sent_to_customer_at' => now(),
+            'status' => 'Quote Complete',
+        ]);
+        $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW, $quotation->id);
+
+        Livewire::actingAs($this->user)
+            ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
+            ->call('openReviewQuotationFromInstances', [$instance->id])
+            ->assertDispatched('process-enquiry-open');
     }
 
     public function test_walk_in_capture_creates_trfi_with_normalized_form_data(): void
