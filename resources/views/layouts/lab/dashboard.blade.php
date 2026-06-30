@@ -5,12 +5,12 @@
 <style type="text/css">
     :root {
         --primary-glass: #ffffff;
-        --accent-blue: #0ea5e9;
+        --accent-blue: #6D0A0E;
         --accent-green: #10b981;
         --accent-red: #ef4444;
         --accent-orange: #f59e0b;
         --bg-color: #f8fafc;
-        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08);
     }
     body { background-color: var(--bg-color); }
     .bento-card {
@@ -25,14 +25,23 @@
         transform: translateY(-2px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
     }
-    .pipeline-card { padding: 24px; text-align: center; position: relative; cursor: pointer; }
+    .pipeline-card { padding: var(--space-md); text-align: center; position: relative; cursor: pointer; }
     .pipeline-arrow { 
         position: absolute; right: -15px; top: 50%; transform: translateY(-50%);
-        font-size: 24px; color: #e2e8f0; z-index: 10;
+        font-size: var(--text-xl); color: #e2e8f0; z-index: 10;
     }
-    .stat-value { font-size: 2.5rem; font-weight: 700; line-height: 1; margin: 10px 0; color: #1e293b; }
-    .stat-label { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
-    .stat-subtext { font-size: 0.75rem; color: #94a3b8; margin-top: 5px; }
+    .stat-value { font-size: var(--text-metric); font-weight: var(--font-bold); line-height: var(--leading-tight); margin: 0.5rem 0; color: var(--color-text); }
+    .stat-label { font-size: var(--text-caption); font-weight: var(--font-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-muted); }
+    .stat-subtext { font-size: var(--text-caption); color: var(--color-muted); margin-top: 0.35rem; }
+
+    .section-header { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--color-border); font-size: var(--text-base); font-weight: var(--font-semibold); color: var(--color-text); display: flex; align-items: center; justify-content: space-between;}
+    .section-body { padding: var(--space-md); }
+    
+    .method-list-item { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #f1f5f9; }
+    .method-list-item:last-child { border-bottom: none; }
+    .method-name { font-weight: var(--font-medium); color: var(--color-text-secondary); font-size: var(--text-sm); }
+    .method-bar-bg { height: 6px; background: #e2e8f0; border-radius: 3px; width: 100px; overflow: hidden; }
+    .method-bar-fill { height: 100%; border-radius: 3px; background-color: var(--accent-blue); }
 
     .pulse-dot {
         height: 10px; width: 10px; border-radius: 50%; display: inline-block;
@@ -48,22 +57,13 @@
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(var(--box-color), 0); }
     }
 
-    .section-header { padding: 16px 20px; border-bottom: 1px solid #f8fafc; font-weight: 600; color: #334155; display: flex; align-items: center; justify-content: space-between;}
-    .section-body { padding: 20px; }
-    
-    .method-list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
-    .method-list-item:last-child { border-bottom: none; }
-    .method-name { font-weight: 500; color: #475569; font-size: 0.875rem; }
-    .method-bar-bg { height: 6px; background: #e2e8f0; border-radius: 3px; width: 100px; overflow: hidden; }
-    .method-bar-fill { height: 100%; border-radius: 3px; background-color: var(--accent-blue); }
-
     .nav-tabs.modern-tabs { border-bottom: 2px solid #e2e8f0; }
-    .nav-tabs.modern-tabs .nav-link { border: none; color: #64748b; font-weight: 600; padding: 12px 24px; position: relative; background: transparent; }
-    .nav-tabs.modern-tabs .nav-link.active { color: var(--accent-blue); background: transparent; }
-    .nav-tabs.modern-tabs .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--accent-blue); }
+    .nav-tabs.modern-tabs .nav-link { border: none; color: var(--color-muted); font-size: var(--text-sm); font-weight: var(--font-semibold); padding: 12px 24px; position: relative; background: transparent; }
+    .nav-tabs.modern-tabs .nav-link.active { color: var(--color-primary); background: transparent; }
+    .nav-tabs.modern-tabs .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--color-primary); }
 
-    .smart-table th { background: #f8fafc; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-top: none; }
-    .smart-table td { vertical-align: middle; font-weight: 500; color: #334155; border-color: #f1f5f9; }
+    .smart-table th { background: #f8fafc; font-size: var(--text-caption); font-weight: var(--font-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-muted); border-top: none; }
+    .smart-table td { vertical-align: middle; font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--color-text); border-color: #f1f5f9; }
     .priority-Urgent, .priority-High { color: var(--accent-red); font-weight: 600; }
     .priority-Normal { color: #64748b; }
 </style>
@@ -78,36 +78,39 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <div data-sf-slot="after_breadcrumb"></div>
-    <div class="p-4">
+    @include('layouts.partials.dashboard-page-styles')
+    <div class="p-4 lab-dashboard-page workflow-theme">
         <!-- HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="dashboard-welcome-hero">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
             <div>
-                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">{{ __('dashboard.welcome_back') }}, {{ explode(' ', Auth::user()->name)[0] }} 👋</h3>
-                <p class="text-muted mb-0">{{ \Carbon\Carbon::now()->format('l, jS F Y') }} &mdash; {{ __('dashboard.overview_of_lab_operations') }}</p>
+                <h3 class="mb-1">{{ __('dashboard.welcome_back') }}, {{ explode(' ', Auth::user()->name)[0] }} 👋</h3>
+                <p class="text-muted mb-0 dashboard-welcome-subtitle">{{ \Carbon\Carbon::now()->format('l, jS F Y') }} &mdash; {{ __('dashboard.overview_of_lab_operations') }}</p>
             </div>
             <div class="d-flex align-items-center gap-3">
                 @if(isset($complaint) && count($complaint) > 0)
                 <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center cursor-pointer" onclick="$('#tab-complaints-link').click()">
                     <span class="pulse-dot pulse-red mr-2" style="--box-color: 239, 68, 68;"></span>
-                    <span class="font-weight-bold text-danger text-sm" style="font-size: 0.85rem;">{{ count($complaint) }} Active Complaints</span>
+                    <span class="font-weight-bold text-danger text-sm dashboard-hero-chip">{{ count($complaint) }} Active Complaints</span>
                 </div>
                 @else
                 <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center">
                     <span class="pulse-dot pulse-green mr-2" style="--box-color: 16, 185, 129;"></span>
-                    <span class="font-weight-bold text-success text-sm" style="font-size: 0.85rem;">Zero Complaints</span>
+                    <span class="font-weight-bold text-success text-sm dashboard-hero-chip">Zero Complaints</span>
                 </div>
                 @endif
                 
                 <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center cursor-pointer" onclick="$('#tab-tat-link').click()">
                     <span class="pulse-dot mr-2" style="background-color: var(--accent-orange); --box-color: 245, 158, 11;"></span>
-                    <span class="font-weight-bold text-sm" style="font-size: 0.85rem; color: #f59e0b;">{{ $tat_warnings_count ?? 0 }} TAT Warnings</span>
+                    <span class="font-weight-bold text-sm dashboard-hero-chip" style="color: #f59e0b;">{{ $tat_warnings_count ?? 0 }} TAT Warnings</span>
                 </div>
 
                 <div class="bento-card px-3 py-2 d-flex align-items-center">
                     <span class="pulse-dot mr-2" style="background-color: var(--accent-blue); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); --box-color: 14, 165, 233;"></span>
-                    <span class="font-weight-bold text-muted text-sm" style="font-size: 0.85rem;">{{ isset($notifications) ? count($notifications) : 0 }} Notifications</span>
+                    <span class="font-weight-bold text-muted text-sm dashboard-hero-chip">{{ isset($notifications) ? count($notifications) : 0 }} Notifications</span>
                 </div>
             </div>
+        </div>
         </div>
 
         <!-- HERO PIPELINE -->
@@ -116,7 +119,7 @@
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Samples%20Reception'">
                     <div class="stat-label text-info"><i class="fas fa-inbox"></i> {{ __('dashboard.samples_reception') }}</div>
-                    <div class="stat-value">{{ $draft_forms ?? 0 }} <span style="font-size: 1.25rem; color: #94a3b8; font-weight: 500;">/ {{ $pending_submission_forms ?? 0 }}</span></div>
+                    <div class="stat-value">{{ $draft_forms ?? 0 }} <span class="stat-value-secondary">/ {{ $pending_submission_forms ?? 0 }}</span></div>
                     <div class="stat-subtext">{{ __('dashboard.drafts_total_pending_forms') }}</div>
                     <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
                 </div>

@@ -1,4 +1,4 @@
-<div class="acc-wizard-root">
+<div class="acc-wizard-root acc-wizard-root--manager-sign">
     @if($showModal && $acceptanceForm)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-xl acc-wizard-dialog" role="document">
@@ -314,7 +314,7 @@
     @endif
 
     <style>
-        .acc-wizard-root {
+        .acc-wizard-root--manager-sign {
             --acc-accent: #3b5fc0;
             --acc-border: #e2e8f0;
             --acc-muted: #64748b;
@@ -594,18 +594,18 @@
             background: #fff;
         }
 
-        .acc-wizard-root .tag-select-container {
+        .acc-wizard-root--manager-sign .tag-select-container {
             position: relative;
             width: 100%;
             cursor: text;
         }
 
-        .acc-wizard-root .tag-select-container--disabled {
+        .acc-wizard-root--manager-sign .tag-select-container--disabled {
             opacity: 0.65;
             pointer-events: none;
         }
 
-        .acc-wizard-root .tag-select-input {
+        .acc-wizard-root--manager-sign .tag-select-input {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
@@ -618,12 +618,12 @@
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .acc-wizard-root .tag-select-input:focus-within {
+        .acc-wizard-root--manager-sign .tag-select-input:focus-within {
             border-color: var(--acc-accent, #3b5fc0);
             box-shadow: 0 0 0 3px rgba(59, 95, 192, 0.12);
         }
 
-        .acc-wizard-root .tag-input {
+        .acc-wizard-root--manager-sign .tag-input {
             flex: 1;
             min-width: 140px;
             border: none;
@@ -633,7 +633,7 @@
             background: transparent;
         }
 
-        .acc-wizard-root .tag-badge {
+        .acc-wizard-root--manager-sign .tag-badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
@@ -644,29 +644,29 @@
             white-space: nowrap;
         }
 
-        .acc-wizard-root .tag-badge--success {
+        .acc-wizard-root--manager-sign .tag-badge--success {
             background: #ecfdf5;
             color: #047857;
             border: 1px solid #a7f3d0;
         }
 
-        .acc-wizard-root .tag-badge--primary {
+        .acc-wizard-root--manager-sign .tag-badge--primary {
             background: #eff6ff;
             color: #1d4ed8;
             border: 1px solid #bfdbfe;
         }
 
-        .acc-wizard-root .tag-badge i {
+        .acc-wizard-root--manager-sign .tag-badge i {
             cursor: pointer;
             font-size: 1rem;
             opacity: 0.75;
         }
 
-        .acc-wizard-root .tag-badge i:hover {
+        .acc-wizard-root--manager-sign .tag-badge i:hover {
             opacity: 1;
         }
 
-        .acc-wizard-root .tag-dropdown {
+        .acc-wizard-root--manager-sign .tag-dropdown {
             position: absolute;
             top: calc(100% + 4px);
             left: 0;
@@ -680,22 +680,22 @@
             overflow-y: auto;
         }
 
-        .acc-wizard-root .tag-dropdown-item {
+        .acc-wizard-root--manager-sign .tag-dropdown-item {
             padding: 10px 14px;
             cursor: pointer;
             font-size: 0.9rem;
             border-bottom: 1px solid #f1f5f9;
         }
 
-        .acc-wizard-root .tag-dropdown-item:last-child {
+        .acc-wizard-root--manager-sign .tag-dropdown-item:last-child {
             border-bottom: none;
         }
 
-        .acc-wizard-root .tag-dropdown-item:hover {
+        .acc-wizard-root--manager-sign .tag-dropdown-item:hover {
             background: #f8fafc;
         }
 
-        .acc-wizard-root .tag-select-container.is-invalid .tag-select-input {
+        .acc-wizard-root--manager-sign .tag-select-container.is-invalid .tag-select-input {
             border-color: #dc3545;
         }
 

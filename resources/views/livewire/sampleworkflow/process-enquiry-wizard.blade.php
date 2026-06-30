@@ -242,7 +242,7 @@
                                 </div>
 
                                 <div class="row mb-2 acc-delivery-options">
-                                    @if(strtolower($sourceChannel) !== 'walk_in')
+                                    @if(strtolower($sourceChannel) === 'portal')
                                         <div class="col-md-4">
                                             <label class="acc-label acc-label--compact d-flex align-items-center mb-0">
                                                 <input type="checkbox" wire:model="sendPortal" class="mr-2"> Send to portal
@@ -261,7 +261,7 @@
                                 <button type="button" class="btn btn-outline-secondary" wire:click.stop.prevent="goToStep('sample_config')">
                                     <i class="mdi mdi-arrow-left"></i> Back
                                 </button>
-                                <button type="button" class="btn btn-success" wire:click="sendQuotation" wire:loading.attr="disabled">
+                                <button type="button" class="btn btn-primary" wire:click="sendQuotation" wire:loading.attr="disabled">
                                     <span wire:loading.remove wire:target="sendQuotation">
                                         <i class="mdi mdi-send"></i>
                                         {{ $quotationSent ? 'Send again' : 'Send to customer' }}
@@ -335,6 +335,27 @@
     @include('livewire.partials.acc-wizard-core-styles')
 
     <style>
+        .acc-wizard-root--enquiry {
+            --acc-accent: var(--color-primary, #6D0A0E);
+            --acc-accent-dark: var(--color-primary-hover, #8B1E22);
+            --acc-accent-soft: var(--color-primary-soft, rgba(109, 10, 14, 0.08));
+            --acc-text: #111827;
+            --acc-muted: #6b7280;
+        }
+
+        .acc-wizard-root--enquiry .acc-wizard-section-title {
+            color: #111827;
+        }
+
+        .acc-wizard-root--enquiry .acc-sample-config-table thead th {
+            color: #6b7280;
+        }
+
+        .acc-wizard-root--enquiry .form-control,
+        .acc-wizard-root--enquiry .acc-sample-config-param-chip,
+        .acc-wizard-root--enquiry .acc-sample-config-card-title {
+            color: #111827;
+        }
         .acc-wizard-root--enquiry .acc-pricing-table-wrap--scroll {
             overflow: auto;
             max-height: min(360px, 50vh);

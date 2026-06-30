@@ -2,6 +2,8 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\Models\SubmissionForm;
+use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestFormInstance;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -14,32 +16,32 @@ class TestRequestFormPdfService
         private readonly TestRequestFormReportDataBuilder $builder
     ) {}
 
-    public function resolveStoragePath(TestRequestFormInstance $instance): string
+    public function resolveStoragePath(SubmissionFormInstance $instance): string
     {
-        return 'test-request-forms/trf-' . $instance->id . '.pdf';
+        return 'test-request-forms/trf-sfi-'.$instance->id.'.pdf';
     }
 
-    public function resolvePublicUrl(TestRequestFormInstance $instance): string
+    public function resolvePublicUrl(SubmissionFormInstance $instance): string
     {
-        return '/storage/' . $this->resolveStoragePath($instance);
+        return '/storage/'.$this->resolveStoragePath($instance);
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function buildViewData(TestRequestFormInstance $instance, bool $forPdf = true): array
+    public function buildViewData(SubmissionFormInstance $instance, bool $forPdf = true): array
     {
-        return $this->builder->build($instance, $forPdf);
+        return $this->builder->buildFromSubmissionFormInstance($instance, $forPdf);
     }
 
-    public function resolveViewName(TestRequestFormInstance $instance): string
+    public function resolveViewName(SubmissionFormInstance $instance): string
     {
         $data = $this->buildViewData($instance);
 
         return $this->viewForVariant($data['variant']);
     }
 
-    public function buildHtml(TestRequestFormInstance $instance, bool $forPdf = true): string
+    public function buildHtml(SubmissionFormInstance $instance, bool $forPdf = true): string
     {
         $viewData = $this->buildViewData($instance, $forPdf);
 
@@ -66,7 +68,7 @@ class TestRequestFormPdfService
         $pdf->setPaper('a4', $orientation);
     }
 
-    public function generateAndStore(TestRequestFormInstance $instance): string
+    public function generateAndStore(SubmissionFormInstance $instance): string
     {
         try {
             $viewData = $this->buildViewData($instance, true);
@@ -82,7 +84,7 @@ class TestRequestFormPdfService
 
             return $this->resolvePublicUrl($instance);
         } catch (\Throwable $exception) {
-            Log::warning('Test request form PDF generation failed.', [
+            Log::warning('Test Request Form PDF generation failed.', [
                 'instance_id' => $instance->id,
                 'message' => $exception->getMessage(),
             ]);
@@ -91,7 +93,7 @@ class TestRequestFormPdfService
         }
     }
 
-    public function stream(TestRequestFormInstance $instance)
+    public function stream(SubmissionFormInstance $instance)
     {
         $viewData = $this->buildViewData($instance, true);
         $viewName = $this->viewForVariant($viewData['variant']);
@@ -101,42 +103,44 @@ class TestRequestFormPdfService
         $pdf->loadView($viewName, $viewData);
         $this->applyPaperSettings($pdf, $viewData['variant']);
 
-        return $pdf->stream($this->resolveDownloadFilename($instance, $viewData));
+        $filename = 'Test-Request-Form-'.($instance->form_number ?: $instance->id).'.pdf';
+
+        return $pdf->download($filename);
     }
 
-    public function download(TestRequestFormInstance $instance)
+    public function download(SubmissionFormInstance $instance)
     {
-        $this->ensureStored($instance);
-
-        $storagePath = $this->resolveStoragePath($instance);
-        $viewData = $this->buildViewData($instance, true);
-
-        return Storage::disk('public')->download(
-            $storagePath,
-            $this->resolveDownloadFilename($instance, $viewData)
-        );
+        return $this->stream($instance);
     }
 
     /**
-     * @param  array<string, mixed>  $viewData
+     * @deprecated-remove TRF_LAYER_MANIFEST.md — legacy TRFI entry point.
      */
-    public function resolveDownloadFilename(TestRequestFormInstance $instance, ?array $viewData = null): string
+    public function generateAndStoreLegacyTrfi(TestRequestFormInstance $trfi): string
     {
-        $viewData ??= $this->buildViewData($instance, true);
-        $label = (string) ($viewData['serialNumber'] ?: $instance->id);
-        $safeLabel = preg_replace('/[\/\\\\]/', '-', $label) ?: (string) $instance->id;
-
-        return 'test-request-form-' . $safeLabel . '.pdf';
-    }
-
-    public function ensureStored(TestRequestFormInstance $instance): string
-    {
-        $storagePath = $this->resolveStoragePath($instance);
-
-        if (! Storage::disk('public')->exists($storagePath)) {
-            return $this->generateAndStore($instance);
+        $sfi = $trfi->submissionFormInstance;
+        if ($sfi === null) {
+            throw new \RuntimeException('TRFI has no linked submission form instance.');
         }
 
-        return $this->resolvePublicUrl($instance);
+        return $this->generateAndStore($sfi);
+    }
+
+    /**
+     * Build preview from draft field values before instance is saved.
+     *
+     * @param  array<string, mixed>  $formData
+     */
+    public function buildHtmlFromDraft(
+        array $formData,
+        SubmissionForm $form,
+        ?SubmissionFormInstance $submission = null,
+        bool $forPdf = false,
+    ): string {
+        $sampleType = $form->sampleTypes()->first();
+        $viewData = $this->builder->buildFromDraft($formData, $sampleType, $submission, $forPdf);
+        $viewName = $this->viewForVariant($viewData['variant']);
+
+        return view($viewName, $viewData)->render();
     }
 }

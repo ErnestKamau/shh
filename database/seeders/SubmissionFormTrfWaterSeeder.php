@@ -1,0 +1,45 @@
+<?php
+
+namespace Database\Seeders;
+
+use Database\Seeders\Concerns\BuildsSubmissionFormTrfSections;
+use Illuminate\Database\Seeder;
+
+class SubmissionFormTrfWaterSeeder extends Seeder
+{
+    use BuildsSubmissionFormTrfSections;
+
+    public function run(): void
+    {
+        $form = $this->createOrRefreshTrfSubmissionForm([
+            'name' => 'Test Request Form - Water',
+            'document_code' => 'TRF-WATER-020',
+            'description' => 'AmSpec LWS-020 test request form for water samples.',
+            'naming_convention_prefix' => 'TRFW',
+            'naming_convention_format' => 'TRFW-{YYYY}{MM}-{0000}',
+            'print_template_name' => 'layouts.lab.invoice.print-trf-amspec-water',
+        ]);
+
+        $this->syncSampleTypesByCodes($form, ['WATER', 'WTR', 'SMP-WTR']);
+
+        if ($form->sampleTypes()->count() === 0) {
+            $this->syncSampleTypesByNamePatterns($form, ['potable']);
+        }
+
+        if ($form->sections()->exists()) {
+            $this->command?->info('Test Request Form - Water structure already exists; skipping section creation.');
+
+            return;
+        }
+
+        $this->createCustomerDetailsSection($form, 1);
+        $this->createCollectionDataSection($form, 2, true);
+
+        $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->waterTrfRowFields());
+
+        $this->createSubmitAndSignSection($form, 4);
+        $this->clearCaches();
+
+        $this->command?->info('Test Request Form - Water seeded successfully.');
+    }
+}

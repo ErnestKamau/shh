@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main class="container-fluid workflow-board-page lab-panel-theme">
+<main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
 	@include('layouts.lab.partials.lab-panel-theme-styles')
 
 	<style>
@@ -140,19 +140,21 @@
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 
-	<div class="row mb-4">
+	<div class="row mb-3">
 		<div class="col-12">
-			<div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-				<div>
-					<h3 class="fw-bold mb-1" style="color: #1e293b;">Request Details</h3>
-					<div class="d-flex align-items-center gap-2">
-						<span class="badge badge-primary px-3 py-2" style="border-radius: 6px; font-weight: 600;">{{ $request->formatted_number }}</span>
-						<span class="workflow-status-chip" style="background-color: {{ ($request->status ?? '') === 'Submitted' ? '#eef2ff' : '#f1f5f9' }}; color: {{ ($request->status ?? '') === 'Submitted' ? '#3b5fc0' : '#475569' }}; border-color: {{ ($request->status ?? '') === 'Submitted' ? '#c7d7fc' : '#e2e8f0' }}">
+			<div class="batch-header-bar submission-requests-hero">
+				<div class="batch-header-top">
+					<div class="batch-title-group">
+						<span class="batch-code-label">Request Details</span>
+						<span class="batch-stage-pill">
+							<i class="mdi mdi-file-document-outline" style="font-size:0.75rem;"></i>
+							{{ $request->formatted_number }}
+						</span>
+						<span class="workflow-status-chip" style="background-color: {{ ($request->status ?? '') === 'Submitted' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.12)' }}; color: #fff; border-color: rgba(255,255,255,0.35);">
 							<i class="mdi mdi-circle mr-1" style="font-size: 8px;"></i> {{ $request->status ?: 'Draft' }}
 						</span>
 					</div>
-				</div>
-				<div class="d-flex align-items-center flex-wrap gap-2">
+					<div class="d-flex align-items-center flex-wrap batch-header-actions" style="gap: 6px;">
 					<a class="btn btn-outline-secondary btn-action-sm" href="{{ route('sample-submission-requests.index') }}">
 						<i class="mdi mdi-arrow-left"></i> Back to List
 					</a>
@@ -161,6 +163,7 @@
 						<i class="mdi mdi-plus-circle-outline"></i> Create Batch
 					</button>
 					@endif
+					</div>
 				</div>
 			</div>
 		</div>
@@ -531,7 +534,7 @@
 									@foreach($request->workflowForms as $workflowForm)
 										<tr>
 											<td class="fw-semibold">
-												{{ $workflowForm->form_type === 'laboratory_analysis_acceptance' ? 'Laboratory Analysis Acceptance Form (GCLA/F/03)' : 'Sample Rejection Form (QARM/F/01)' }}
+												{{ $workflowForm->form_type === 'laboratory_analysis_acceptance' ? 'Laboratory Analysis Acceptance Form' : 'Sample Rejection Form (QARM/F/01)' }}
 											</td>
 											<td>{{ $workflowForm->request_reference ?: ($workflowForm->batch_code ?: '—') }}</td>
 											<td>{{ optional($workflowForm->submitted_at)->format('Y-m-d H:i') ?: optional($workflowForm->created_at)->format('Y-m-d H:i') }}</td>

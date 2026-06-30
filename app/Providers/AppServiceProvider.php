@@ -63,7 +63,7 @@ class AppServiceProvider extends ServiceProvider
                 'sys_theme_primary_color' => '#6D0A0E',
                 'sys_theme_secondary_color' => '#8B1E22',
                 'sys_theme_accent_color' => '#ffffff',
-                'sys_sidebar_bg_color' => '#6D0A0E',
+                'sys_sidebar_bg_color' => '#1A1D24',
                 'sys_sidebar_link_bg' => 'rgba(255, 255, 255, 0.08)',
             ];
             $type = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Global System Theme Settings')->first();

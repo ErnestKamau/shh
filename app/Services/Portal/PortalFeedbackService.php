@@ -239,14 +239,10 @@ class PortalFeedbackService
 
     private function assignFeedbackCode(CustomerFeedback $feedback): void
     {
-        if (strlen((string) $feedback->id) < 4) {
-            $diff = 4 - strlen((string) $feedback->id);
-            $feedback->code = 'FB'.str_repeat('0', $diff).$feedback->id;
-        } else {
-            $feedback->code = 'FB'.$feedback->id;
+        if (empty($feedback->code)) {
+            $feedback->code = CustomerFeedback::generateUniqueCode();
+            $feedback->save();
         }
-
-        $feedback->save();
     }
 
     private function mapFeedback(CustomerFeedback $feedback): FeedbackDTO

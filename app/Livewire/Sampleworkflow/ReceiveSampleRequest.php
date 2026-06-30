@@ -3,28 +3,24 @@
 namespace App\Livewire\Sampleworkflow;
 
 use App\Models\CRM\CRMCustomer;
+use App\Models\SubmissionForm;
+use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestForm;
-use App\Models\TestRequestFormInstance;
-use App\Models\Workflow\Approval;
+use App\Models\SubmissionFormSection;
+use App\Services\Sampleworkflow\ReceivingLabMetadataService;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
-use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
-use App\Services\TestRequestForm\TestRequestFormSubmissionService;
-use App\Services\TestRequestForm\TrfCheckInMetadataService;
-use App\Services\WorkflowService;
+use App\Services\SubmissionForm\SubmissionFormSubmissionService;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class ReceiveSampleRequest extends Component
 {
-    public const STAGE_NAME = 'Samples Receiving';
-
-    public const APPROVAL_CODE = 'sro_receiving_sample';
-
     /** @var array<int, string> */
     public array $selectedFormInstanceIds = [];
 
@@ -37,11 +33,7 @@ class ReceiveSampleRequest extends Component
     /** @var array<string, array<string, string>> */
     public array $checkInTrfFields = [];
 
-    public array $responses = [];
-
     public string $remarks = '';
-
-    public ?string $loadError = null;
 
     // New properties for dynamic TestRequestForms
     public ?string $selectedSampleTypeId = null;
@@ -51,17 +43,13 @@ class ReceiveSampleRequest extends Component
     public $sampleTypes = [];
 
     /** @var array<int, string> */
-    public array $lastGeneratedTrfiIds = [];
+    public array $lastGeneratedSfiIds = [];
 
     public function mount(array $selectedFormInstanceIds = [], array $selectedFormSummaries = []): void
     {
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
         $this->selectedFormSummaries = $selectedFormSummaries;
-        $this->syncLoadErrorFromApproval();
-        $this->initializeResponses();
 
-        // Self-healing seeding and load sample types
-        TestRequestForm::seedDefaults();
         $this->sampleTypes = \App\SampleType::orderBy('name')->get();
 
         // Auto-load form data if viewing an existing request
@@ -78,7 +66,7 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $firstInstance = \App\Models\SubmissionFormInstance::with(['crmCustomer', 'testRequestFormInstance', 'submissionForm.sampleTypes', 'batches.sampleType'])->find($this->selectedFormInstanceIds[0]);
+        $firstInstance = SubmissionFormInstance::with(['crmCustomer', 'submissionForm.sampleTypes', 'batches.sampleType', 'values.element'])->find($this->selectedFormInstanceIds[0]);
         
         if (!$firstInstance) {
             return;
@@ -105,51 +93,25 @@ class ReceiveSampleRequest extends Component
 
     private function initializeFormDataForSampleType(string $sampleTypeId): void
     {
-        $this->formData = [];
-        $form = TestRequestForm::where('sample_type_id', $sampleTypeId)->where('is_active', true)->first();
-        if ($form) {
-            $fields = $form->getFlatFields();
-            foreach ($fields as $field) {
-                if (empty($field['name'])) {
-                    continue;
-                }
-                $isMulti = in_array($field['name'], ['sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition', 'sampling_source', 'sample_types_ww', 'sampling_technique', 'field_data_requirements'], true);
-                if ($isMulti) {
-                    $this->formData[$field['name']] = [];
-                } else {
-                    $this->formData[$field['name']] = ($field['type'] ?? '') === 'checkbox' ? false : '';
-                }
-            }
+        $submissionForm = $this->resolveSubmissionFormForSampleType($sampleTypeId);
+        if ($submissionForm === null) {
+            $this->formData = [];
+
+            return;
         }
 
-        if ($this->isFood || $this->isWater) {
-            $this->formData['sample_rows'] = [$this->getDefaultSampleRow()];
-        }
+        $this->initializeFormDataFromSubmissionForm($submissionForm);
     }
 
-    private function loadFormDataFromInstance(\App\Models\SubmissionFormInstance $instance): void
+    private function loadFormDataFromInstance(SubmissionFormInstance $instance): void
     {
-        // Load existing form data from TestRequestFormInstance
-        if ($instance->testRequestFormInstance) {
-            $existingFormData = $instance->testRequestFormInstance->form_data ?? [];
-            if (!empty($existingFormData)) {
-                // Merge existing data, preserving structure
-                foreach ($existingFormData as $key => $val) {
-                    if (array_key_exists($key, $this->formData)) {
-                        $this->formData[$key] = $val;
-                    }
-                }
-                // Ensure sample_rows exists and has at least one row
-                if (isset($existingFormData['sample_rows']) && !empty($existingFormData['sample_rows'])) {
-                    $this->formData['sample_rows'] = $existingFormData['sample_rows'];
-                }
-            }
-        } elseif ($instance->values) {
-            // Try to load from submission form instance values as fallback
-            foreach ($instance->values as $value) {
-                $fieldName = $value->element?->name ?? $value->element_name ?? null;
-                if ($fieldName && array_key_exists($fieldName, $this->formData)) {
-                    $this->formData[$fieldName] = $value->value;
+        $normalizer = app(SubmissionFormValueNormalizer::class);
+        $existingFormData = $normalizer->valuesMapFromInstance($instance);
+
+        if ($existingFormData !== []) {
+            foreach ($existingFormData as $key => $val) {
+                if (array_key_exists($key, $this->formData)) {
+                    $this->formData[$key] = $val;
                 }
             }
         }
@@ -157,6 +119,207 @@ class ReceiveSampleRequest extends Component
         if ($instance->crmCustomer) {
             $this->applyCustomerPrefillFromCrm($instance->crmCustomer, onlyEmpty: true);
         }
+    }
+
+    private function resolveSubmissionFormForSampleType(string $sampleTypeId): ?SubmissionForm
+    {
+        $form = app(PortalSubmissionFormAccess::class)->testRequestFormForSampleType($sampleTypeId);
+        if ($form === null) {
+            return null;
+        }
+
+        return $form->loadMissing(['sections.elementHolders.elements']);
+    }
+
+    private function initializeFormDataFromSubmissionForm(SubmissionForm $submissionForm): void
+    {
+        $this->formData = [];
+
+        foreach (app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm) as $section) {
+            $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
+
+            if (($section->section_type ?? '') === 'rows_section') {
+                foreach ($elements as $element) {
+                    $this->formData[$element->name] = [$this->defaultValueForElement($element)];
+                }
+
+                continue;
+            }
+
+            foreach ($elements as $element) {
+                $this->formData[$element->name] = $this->defaultValueForElement($element);
+            }
+        }
+    }
+
+    public function getWalkInSectionsProperty(): Collection
+    {
+        $form = $this->submissionForm;
+
+        if ($form === null) {
+            return collect();
+        }
+
+        return app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
+            ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage');
+    }
+
+    private function defaultValueForElement(SubmissionFormElement $element): mixed
+    {
+        if ($element->element_type === 'checkbox') {
+            $options = $element->options ?? [];
+
+            if (($element->name ?? '') === 'test_requirements') {
+                return '';
+            }
+
+            return is_array($options) && $options !== [] ? [] : false;
+        }
+
+        if ($element->element_type === 'analysis_elements_select' || ($element->name ?? '') === 'parameters') {
+            return [];
+        }
+
+        return '';
+    }
+
+    /**
+     * @return Collection<int, SubmissionFormElement>
+     */
+    public function uniqueRowElementsForSection(SubmissionFormSection $section): Collection
+    {
+        $elements = $section->elementHolders->flatMap->elements;
+        $hasSampleQuantity = $elements->contains(
+            fn (SubmissionFormElement $el): bool => ($el->name ?? '') === 'sample_quantity',
+        );
+        $seen = [];
+
+        return $elements
+            ->sortBy('sort_order')
+            ->filter(function (SubmissionFormElement $element) use (&$seen, $hasSampleQuantity): bool {
+                $name = trim((string) ($element->name ?? ''));
+                if ($name === '' || isset($seen[$name])) {
+                    return false;
+                }
+
+                if ($this->isHiddenWalkInRowElement($element)) {
+                    return false;
+                }
+
+                if ($name === 'number_of_samples' && $hasSampleQuantity) {
+                    return false;
+                }
+
+                if ($name === 'sample_quantity_unit' && $hasSampleQuantity) {
+                    return false;
+                }
+
+                $seen[$name] = true;
+
+                return true;
+            })
+            ->values();
+    }
+
+    /**
+     * @return list<array{type: string, label: string, class: string, element: SubmissionFormElement, field?: array<string, mixed>}>
+     */
+    public function walkInRowTableColumns(SubmissionFormSection $section): array
+    {
+        $columns = [];
+
+        foreach ($this->uniqueRowElementsForSection($section) as $element) {
+            $name = (string) ($element->name ?? '');
+
+            if ($name === 'sample_quantity') {
+                $columns[] = [
+                    'type' => 'qty_unit',
+                    'label' => 'Qty / Unit',
+                    'class' => 'walk-in-trf-col-qty',
+                    'element' => $element,
+                ];
+
+                continue;
+            }
+
+            $field = app(\App\Services\Sampleworkflow\WalkInTrfFieldMapper::class)->toField($element);
+            $columns[] = [
+                'type' => 'field',
+                'label' => (string) ($field['label'] ?? $name),
+                'class' => $this->walkInRowColumnClass($name),
+                'element' => $element,
+                'field' => $field,
+            ];
+        }
+
+        return $columns;
+    }
+
+    public function walkInRowColumnClass(string $fieldName): string
+    {
+        return match ($fieldName) {
+            'sample_description' => 'walk-in-trf-col-desc',
+            'sampling_point', 'location' => 'walk-in-trf-col-location',
+            'analysis_type_id' => 'walk-in-trf-col-analysis-type',
+            'parameters' => 'walk-in-trf-col-parameters',
+            'state_of_sample', 'test_category', 'test_requirements' => 'walk-in-trf-col-radio',
+            'production_date', 'expiration_date' => 'walk-in-trf-col-date',
+            'batch_number' => 'walk-in-trf-col-batch',
+            default => str_starts_with($fieldName, 'field_') ? 'walk-in-trf-col-field-data' : 'walk-in-trf-col-default',
+        };
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, \App\ReportingUnit>
+     */
+    public function getReportingUnitsProperty(): Collection
+    {
+        return \App\ReportingUnit::query()->where('active', 1)->orderBy('name')->get();
+    }
+
+    private function isHiddenWalkInRowElement(SubmissionFormElement $element): bool
+    {
+        $name = strtolower(trim((string) ($element->name ?? '')));
+        $label = strtolower(trim((string) ($element->label ?? '')));
+
+        if (in_array($name, ['sampling_point_other', 'sampling_point_others', 'other_sampling_point'], true)) {
+            return true;
+        }
+
+        return str_contains($label, 'sampling point (other)');
+    }
+
+    public function getSubmissionFormProperty(): ?SubmissionForm
+    {
+        if (! $this->selectedSampleTypeId) {
+            return null;
+        }
+
+        return $this->resolveSubmissionFormForSampleType((string) $this->selectedSampleTypeId);
+    }
+
+    public function addSchemaRow(string $sectionId): void
+    {
+        $form = $this->submissionForm;
+        if ($form === null) {
+            return;
+        }
+
+        $section = $form->sections->firstWhere('id', $sectionId);
+        if ($section === null || ($section->section_type ?? '') !== 'rows_section') {
+            return;
+        }
+
+        foreach ($section->elementHolders->flatMap->elements as $element) {
+            $existing = $this->formData[$element->name] ?? [];
+            if (! is_array($existing)) {
+                $existing = [];
+            }
+            $existing[] = $this->defaultValueForElement($element);
+            $this->formData[$element->name] = $existing;
+        }
+
+        $this->dispatch('trf-reinit-parameter-selects');
     }
 
     public function getSelectedSampleTypeProperty()
@@ -195,80 +358,33 @@ class ReceiveSampleRequest extends Component
         return stripos($st->name, 'Waste Water') !== false || stripos($st->code, 'WWTR') !== false;
     }
 
-    public function getDefaultSampleRow()
+    public function removeSchemaRow(string $sectionId, int $rowIndex): void
     {
-        if ($this->isFood) {
-            return [
-                'sample_no' => '',
-                'sample_description' => '',
-                'sampling_point' => '',
-                'sample_quantity' => '',
-                'sample_quantity_unit' => '',
-                'sample_type' => '',
-                'sample_condition' => '',
-                'sample_temp' => '',
-                'production_date' => '',
-                'expiration_date' => '',
-                'batch_number' => '',
-                'parameters' => '',
-                'state_of_sample' => '',
-                'microbiology' => false,
-                'chemistry' => false,
-                'test_category' => '',
-            ];
+        $form = $this->submissionForm;
+        if ($form === null) {
+            return;
         }
 
-        if ($this->isWater) {
-            return [
-                'sample_no' => '',
-                'sample_description' => '',
-                'location' => '',
-                'sample_quantity' => '',
-                'sample_quantity_unit' => '',
-                'sampling_point' => '',
-                'ph' => '',
-                'appearance' => '',
-                'residual_chlorine' => '',
-                'odor' => '',
-                'sample_temp' => '',
-                'microbiology' => false,
-                'legionella' => false,
-                'chemistry' => false,
-                'test_category' => '',
-            ];
+        $section = $form->sections->firstWhere('id', $sectionId);
+        if ($section === null || ($section->section_type ?? '') !== 'rows_section') {
+            return;
         }
 
-        return [];
-    }
+        $this->dispatch('trf-destroy-editors');
 
-    public function getReportingUnitsProperty()
-    {
-        return \App\ReportingUnit::query()
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
-    }
+        foreach ($section->elementHolders->flatMap->elements as $element) {
+            $name = (string) ($element->name ?? '');
+            if ($name === '' || ! isset($this->formData[$name]) || ! is_array($this->formData[$name])) {
+                continue;
+            }
 
-    public function addSampleRow(): void
-    {
-        if (!isset($this->formData['sample_rows'])) {
-            $this->formData['sample_rows'] = [];
-        }
-        $this->formData['sample_rows'][] = $this->getDefaultSampleRow();
-    }
-
-    public function removeSampleRow(int $index): void
-    {
-        if (isset($this->formData['sample_rows'][$index])) {
-            $this->dispatch('trf-destroy-editors');
-            unset($this->formData['sample_rows'][$index]);
-            $this->formData['sample_rows'] = array_values($this->formData['sample_rows']);
+            unset($this->formData[$name][$rowIndex]);
+            $this->formData[$name] = array_values($this->formData[$name]);
         }
     }
 
     public function updatedSelectedFormInstanceIds(): void
     {
-        $this->initializeResponses();
         $this->refreshCheckInContexts();
     }
 
@@ -276,62 +392,19 @@ class ReceiveSampleRequest extends Component
     {
         $this->formData = [];
         if ($value) {
-            $form = TestRequestForm::where('sample_type_id', $value)->where('is_active', true)->first();
-            if ($form) {
-                $fields = $form->getFlatFields();
-                foreach ($fields as $field) {
-                    if (empty($field['name'])) {
-                        continue;
-                    }
-                    $isMulti = in_array($field['name'], ['sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition', 'sampling_source', 'sample_types_ww', 'sampling_technique', 'field_data_requirements'], true);
-                    if ($isMulti) {
-                        $this->formData[$field['name']] = [];
-                    } else {
-                        $this->formData[$field['name']] = ($field['type'] ?? '') === 'checkbox' ? false : '';
-                    }
-                }
-            }
+            $this->initializeFormDataForSampleType((string) $value);
 
-            if ($this->isFood || $this->isWater) {
-                $this->formData['sample_rows'] = [$this->getDefaultSampleRow()];
-            }
-
-            // Load existing test request form data if available
-            if (!empty($this->selectedFormInstanceIds)) {
-                $firstInstance = \App\Models\SubmissionFormInstance::with(['crmCustomer', 'testRequestFormInstance', 'values'])->find($this->selectedFormInstanceIds[0]);
-                
-                // Load existing form data from TestRequestFormInstance
-                if ($firstInstance && $firstInstance->testRequestFormInstance) {
-                    $existingFormData = $firstInstance->testRequestFormInstance->form_data ?? [];
-                    if (!empty($existingFormData)) {
-                        // Merge existing data, preserving structure
-                        foreach ($existingFormData as $key => $val) {
-                            if (array_key_exists($key, $this->formData)) {
-                                $this->formData[$key] = $val;
-                            }
-                        }
-                        // Ensure sample_rows exists and has at least one row
-                        if (isset($existingFormData['sample_rows']) && !empty($existingFormData['sample_rows'])) {
-                            $this->formData['sample_rows'] = $existingFormData['sample_rows'];
-                        }
-                    }
-                } elseif ($firstInstance && $firstInstance->values) {
-                    // Try to load from submission form instance values as fallback
-                    foreach ($firstInstance->values as $value) {
-                        $fieldName = $value->element?->name ?? $value->element_name ?? null;
-                        if ($fieldName && array_key_exists($fieldName, $this->formData)) {
-                            $this->formData[$fieldName] = $value->value;
-                        }
-                    }
-                }
-
-                if ($firstInstance && $firstInstance->crmCustomer) {
-                    $this->applyCustomerPrefillFromCrm($firstInstance->crmCustomer, onlyEmpty: true);
+            if (! empty($this->selectedFormInstanceIds)) {
+                $firstInstance = SubmissionFormInstance::with(['crmCustomer', 'values.element'])->find($this->selectedFormInstanceIds[0]);
+                if ($firstInstance) {
+                    $this->loadFormDataFromInstance($firstInstance);
                 }
             }
         }
 
+        $this->dispatch('submission-form-reinit-signatures');
         $this->dispatch('trf-reinit-signatures');
+        $this->dispatch('trf-reset-all-parameter-selects');
     }
 
     public function updatedFormDataCustomerName(?string $value): void
@@ -346,13 +419,23 @@ class ReceiveSampleRequest extends Component
 
     public function updated($propertyName, $value): void
     {
+        if (preg_match('/^formData\.analysis_type_id\.(\d+)$/', $propertyName, $matches)) {
+            $rowIndex = (int) $matches[1];
+            if (isset($this->formData['parameters'][$rowIndex])) {
+                $this->formData['parameters'][$rowIndex] = [];
+            }
+
+            $this->dispatch('walk-in-params-row-reset', rowIndex: $rowIndex, options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(), selected: []);
+
+            return;
+        }
+
         $fieldKey = str_replace('formData.', '', $propertyName);
 
-        // Clear parameter selection when analysis type changes
-        if (in_array($fieldKey, ['analysis_type', 'analysis_types'], true)) {
+        if (in_array($fieldKey, ['analysis_type', 'analysis_types', 'analysis_type_id'], true)) {
             foreach (['parameter', 'parameters'] as $paramKey) {
                 if (array_key_exists($paramKey, $this->formData)) {
-                    $this->formData[$paramKey] = '';
+                    $this->formData[$paramKey] = is_array($this->formData[$paramKey]) ? [] : '';
                 }
             }
         }
@@ -373,26 +456,58 @@ class ReceiveSampleRequest extends Component
 
     public function getParametersProperty()
     {
-        if (!$this->selectedSampleTypeId) {
+        return $this->parametersForRow(null);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, \App\Analyte>
+     */
+    public function parametersForRow(?int $rowIndex = null): \Illuminate\Support\Collection
+    {
+        if (! $this->selectedSampleTypeId) {
             return collect();
         }
+
         $atName = null;
+        $atId = null;
+
         foreach (['analysis_type', 'analysis_types'] as $key) {
-            if (!empty($this->formData[$key])) {
+            if ($rowIndex !== null) {
+                if (! empty($this->formData[$key][$rowIndex] ?? null)) {
+                    $atName = $this->formData[$key][$rowIndex];
+                    break;
+                }
+            } elseif (! empty($this->formData[$key])) {
                 $atName = $this->formData[$key];
                 break;
             }
         }
-        if (!$atName) {
+
+        if ($rowIndex !== null) {
+            $atId = $this->formData['analysis_type_id'][$rowIndex] ?? null;
+        } elseif (! empty($this->formData['analysis_type_id'])) {
+            $atId = is_array($this->formData['analysis_type_id'])
+                ? null
+                : $this->formData['analysis_type_id'];
+        }
+
+        if ($atId) {
+            $at = \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)
+                ->where('id', $atId)
+                ->first();
+        } elseif ($atName) {
+            $at = \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)
+                ->where('name', $atName)
+                ->first();
+        } else {
             return collect();
         }
-        $at = \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)
-            ->where('name', $atName)
-            ->first();
-        if (!$at) {
+
+        if (! $at) {
             return collect();
         }
-        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at) {
+
+        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at): void {
             $q->where('analysis_type_id', $at->id)->where('active', 1);
         })->orderBy('name')->get();
     }
@@ -413,9 +528,6 @@ class ReceiveSampleRequest extends Component
         $this->selectedSampleTypeId = null;
         $this->formData = [];
         $this->resetValidation();
-        $this->syncLoadErrorFromApproval();
-        $this->responses = [];
-        $this->initializeResponses();
         $this->refreshCheckInContexts();
 
         // Dispatched after state is set — JS listener shows the modal.
@@ -453,7 +565,9 @@ class ReceiveSampleRequest extends Component
     {
         $user = Auth::user();
         if (! $user instanceof User) {
-            $this->addError('selection', 'You must be signed in to receive samples.');
+            $message = 'You must be signed in to receive samples.';
+            $this->addError('selection', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
 
             return;
         }
@@ -465,7 +579,7 @@ class ReceiveSampleRequest extends Component
 
         DB::transaction(function () use ($user, $checkInService, &$processed, &$skipped, &$blockedReasons): void {
             $instances = SubmissionFormInstance::query()
-                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest', 'testRequestFormInstance'])
+                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest', 'values.element'])
                 ->whereIn('id', $this->selectedFormInstanceIds)
                 ->get();
 
@@ -487,15 +601,11 @@ class ReceiveSampleRequest extends Component
                 )) {
                     $metadata = $this->checkInTrfFields[$instance->id] ?? [];
                     if ($metadata !== []) {
-                        $trfi = $instance->testRequestFormInstance
-                            ?? $instance->sampleSubmissionRequest?->testRequestFormInstance;
-                        if ($trfi !== null) {
-                            app(TrfCheckInMetadataService::class)->persistForInstance(
-                                $trfi,
-                                $instance->sampleSubmissionRequest,
-                                $metadata,
-                            );
-                        }
+                        app(ReceivingLabMetadataService::class)->persistForInstance(
+                            $instance,
+                            $instance->sampleSubmissionRequest,
+                            $metadata,
+                        );
                     }
                     $processed++;
                 }
@@ -534,55 +644,52 @@ class ReceiveSampleRequest extends Component
             'selectedSampleTypeId.required' => 'Please select a Sample Type.',
         ]);
 
-        $form = TestRequestForm::where('sample_type_id', $this->selectedSampleTypeId)->where('is_active', true)->first();
-        if (! $form) {
-            $this->addError('selectedSampleTypeId', 'No active form template found for the selected sample type.');
+        $submissionForm = $this->submissionForm;
+        if ($submissionForm === null) {
+            $this->addError('selectedSampleTypeId', 'No active Test Request Form template found for the selected sample type.');
 
             return;
         }
 
-        // Build validation rules
         $rules = [];
         $messages = [];
 
-        // Dynamic fields validation (walk-in TRF capture only)
-        $fields = $form->getFlatFields();
-        foreach ($fields as $field) {
-            if (empty($field['name'])) {
+        $hiddenWalkInFields = ['job_number', 'crm_contact_id'];
+        $seenElements = [];
+        foreach ($this->walkInSections as $section) {
+            if (($section->section_type ?? '') === 'rows_section') {
                 continue;
             }
-            $key = 'formData.'.$field['name'];
-            $fieldRules = [];
-            if ($field['required'] ?? false) {
-                $fieldRules[] = 'required';
-            } else {
-                $fieldRules[] = 'nullable';
-            }
 
-            if (($field['type'] ?? '') === 'number') {
-                $fieldRules[] = 'numeric';
-            } elseif (($field['type'] ?? '') === 'date') {
-                $fieldRules[] = 'date';
-            }
+            foreach ($section->elementHolders->flatMap->elements as $element) {
+                $elementName = (string) ($element->name ?? '');
+                if ($elementName === '' || isset($seenElements[$elementName])) {
+                    continue;
+                }
 
-            $rules[$key] = $fieldRules;
-            $messages[$key.'.required'] = ($field['label'] ?? $field['name']).' is required.';
+                if (in_array($elementName, $hiddenWalkInFields, true)) {
+                    continue;
+                }
+
+                $seenElements[$elementName] = true;
+
+                if (! $element->is_required) {
+                    continue;
+                }
+
+                $key = 'formData.'.$elementName;
+                $rules[$key] = 'required';
+                $messages[$key.'.required'] = ($element->label ?? $elementName).' is required.';
+            }
         }
 
         if ($rules !== []) {
             $this->validate($rules, $messages);
         }
 
-        $sampleRows = $this->formData['sample_rows'] ?? [];
-        if (is_array($sampleRows) && $sampleRows !== []) {
-            foreach (array_keys($sampleRows) as $index) {
-                $this->validate([
-                    "formData.sample_rows.{$index}.test_category" => 'required|in:microbiology,legionella,chemistry',
-                ], [
-                    "formData.sample_rows.{$index}.test_category.required" => 'Select a test category for sample row '.($index + 1).'.',
-                    "formData.sample_rows.{$index}.test_category.in" => 'Invalid test category for sample row '.($index + 1).'.',
-                ]);
-            }
+        $this->validateWalkInSchemaRows();
+        if ($this->getErrorBag()->isNotEmpty()) {
+            return;
         }
 
         $this->prepareLabUseFields();
@@ -594,63 +701,197 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $processed = 0;
-        $generatedTrfiIds = [];
+        $crmCustomerId = null;
+        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
+            if (! empty($this->formData[$key])) {
+                $customerName = trim((string) $this->formData[$key]);
+                if ($customerName !== '') {
+                    $crmCustomerId = CRMCustomer::query()
+                        ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
+                        ->value('id');
+                }
+                break;
+            }
+        }
 
-        $submissionForm = app(PortalSubmissionFormAccess::class)
-            ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
+        $payload = $this->walkInSubmissionPayload();
 
-        if (! $submissionForm) {
-            $this->addError(
-                'selectedSampleTypeId',
-                'No active Test Request Form template could be resolved for this sample type. Contact your administrator.'
+        try {
+            $instance = app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
+                $submissionForm,
+                $payload,
+                $crmCustomerId !== null ? (string) $crmCustomerId : null,
+                (string) $this->selectedSampleTypeId,
             );
+        } catch (\Throwable $exception) {
+            report($exception);
+            $message = 'Could not submit walk-in request. '.$exception->getMessage();
+            $this->addError('selection', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
 
             return;
         }
 
-        // Standalone walk-in capture (no pre-selected requests)
-        DB::transaction(function () use ($user, $form, $submissionForm, &$processed, &$generatedTrfiIds): void {
-                $crmCustomerId = null;
-                foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-                    if (! empty($this->formData[$key])) {
-                        $custName = $this->formData[$key];
-                        $crmCustomerId = \App\Models\CRM\CRMCustomer::query()
-                            ->whereRaw('name ILIKE ?', [trim((string) $custName)])
-                            ->value('id');
-                        break;
-                    }
-                }
+        $this->lastGeneratedSfiIds = [$instance->id];
 
-                $context = new TestRequestFormSubmissionContext(
-                    sourceChannel: TestRequestFormInstance::CHANNEL_WALK_IN,
-                    crmCustomerId: $crmCustomerId,
-                    submittedBy: (string) $user->id,
-                    portalSubmissionForm: $submissionForm,
-                    generatePdf: true,
-                );
-
-                $trfi = app(TestRequestFormSubmissionService::class)->submit(
-                    $form,
-                    $this->formData,
-                    $context,
-                );
-
-                if ($crmCustomerId !== null) {
-                    $trfi->update(['crm_customer_id' => $crmCustomerId]);
-                }
-
-                $generatedTrfiIds[] = $trfi->id;
-            });
-
-        $message = 'Walk-in test request submitted successfully.';
-        $processed = 1;
-
-        $this->lastGeneratedTrfiIds = array_values(array_unique($generatedTrfiIds));
-
-        session()->flash('success', $message);
-        $this->dispatch('receive-completed', trfiIds: $this->lastGeneratedTrfiIds);
+        session()->flash('success', 'Walk-in test request submitted successfully.');
+        $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds);
         $this->dispatch('hide-receive-sample-modal');
+    }
+
+    /**
+     * Walk-in Livewire state uses indexed row fields (e.g. parameters[0]); the normalizer
+     * folds those into sample_rows for enquiry sync but processFormData must receive the
+     * indexed keys to persist SubmissionFormInstanceValue rows.
+     *
+     * @return array<string, mixed>
+     */
+    private function walkInSubmissionPayload(): array
+    {
+        $normalizer = app(SubmissionFormValueNormalizer::class);
+
+        return array_merge(
+            $this->formData,
+            $normalizer->toRequestPayload($this->formData),
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function schemaRowFieldNames(): array
+    {
+        return $this->walkInSections
+            ->filter(fn ($section) => ($section->section_type ?? '') === 'rows_section')
+            ->flatMap(fn ($section) => $this->uniqueRowElementsForSection($section))
+            ->map(fn ($element) => (string) ($element->name ?? ''))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function schemaRowCount(): int
+    {
+        $count = 0;
+        foreach ($this->schemaRowFieldNames() as $name) {
+            if (isset($this->formData[$name]) && is_array($this->formData[$name])) {
+                $count = max($count, count($this->formData[$name]));
+            }
+        }
+
+        return max(1, $count);
+    }
+
+    private function validateWalkInSchemaRows(): void
+    {
+        $rowElements = $this->walkInSections
+            ->filter(fn ($section) => ($section->section_type ?? '') === 'rows_section')
+            ->flatMap(fn ($section) => $this->uniqueRowElementsForSection($section));
+
+        if ($rowElements->isEmpty()) {
+            return;
+        }
+
+        $rules = [];
+        $messages = [];
+        $hasFilledRow = false;
+        $rowCount = $this->schemaRowCount();
+
+        for ($index = 0; $index < $rowCount; $index++) {
+            if (! $this->schemaRowHasContent($index)) {
+                continue;
+            }
+
+            $hasFilledRow = true;
+
+            foreach ($rowElements as $element) {
+                if (! $element->is_required) {
+                    continue;
+                }
+
+                $name = (string) ($element->name ?? '');
+                if ($name === '') {
+                    continue;
+                }
+
+                $key = 'formData.'.$name.'.'.$index;
+                $rules[$key] = 'required';
+                $messages[$key.'.required'] = ($element->label ?? $name).' is required for row '.($index + 1).'.';
+            }
+
+            if ($this->isFood && ! $this->rowHasFoodCategorySelection($index)) {
+                $this->addError('formData.test_category.'.$index, 'Test category is required for row '.($index + 1).'.');
+            }
+
+            if ($this->isWater) {
+                $rules['formData.test_requirements.'.$index] = 'required';
+                $messages['formData.test_requirements.'.$index.'.required'] = 'Test requirement is required for row '.($index + 1).'.';
+            }
+        }
+
+        if (! $hasFilledRow) {
+            $this->addError('formData.sample_description.0', 'Add at least one sample row in Test & sample information.');
+
+            return;
+        }
+
+        if ($rules !== []) {
+            $this->validate($rules, $messages);
+        }
+    }
+
+    private function rowHasFoodCategorySelection(int $index): bool
+    {
+        $testCategory = trim((string) ($this->formData['test_category'][$index] ?? ''));
+        if ($testCategory !== '') {
+            return true;
+        }
+
+        $analysisTypeId = trim((string) ($this->formData['analysis_type_id'][$index] ?? ''));
+        if ($analysisTypeId !== '' && app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeId)) {
+            return true;
+        }
+
+        foreach (['analysis_type', 'analysis_types'] as $key) {
+            $analysisTypeName = trim((string) ($this->formData[$key][$index] ?? ''));
+            if ($analysisTypeName !== '' && app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function schemaRowHasContent(int $index): bool
+    {
+        foreach ($this->schemaRowFieldNames() as $name) {
+            $value = $this->formData[$name][$index] ?? null;
+
+            if (is_array($value)) {
+                if (array_filter($value) !== []) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            if ($name === 'sample_description') {
+                $text = trim(strip_tags((string) $value));
+                if ($text !== '') {
+                    return true;
+                }
+
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     public function getIsPhysicalCheckInProperty(): bool
@@ -673,7 +914,9 @@ class ReceiveSampleRequest extends Component
         session([
             'test_request_form_preview_draft' => [
                 'form_data' => $this->formData,
+                'field_values' => $this->formData,
                 'sample_type_id' => $this->selectedSampleTypeId,
+                'submission_form_id' => $this->submissionForm?->id,
                 'submission_form_instance_id' => $submission?->id,
             ],
         ]);
@@ -768,14 +1011,9 @@ class ReceiveSampleRequest extends Component
 
     public function render()
     {
-        $formTemplate = null;
-        if ($this->selectedSampleTypeId) {
-            $formTemplate = TestRequestForm::where('sample_type_id', $this->selectedSampleTypeId)->where('is_active', true)->first();
-        }
-
         return view('livewire.sampleworkflow.receive-sample-request', [
-            'approval' => $this->resolveApproval(),
-            'formTemplate' => $formTemplate,
+            'submissionForm' => $this->submissionForm,
+            'walkInSections' => $this->walkInSections,
         ]);
     }
 
@@ -791,9 +1029,10 @@ class ReceiveSampleRequest extends Component
         $this->checkInContexts = app(SampleReceivingCheckInService::class)
             ->buildCheckInContexts($this->selectedFormInstanceIds);
 
-        $metadataService = app(TrfCheckInMetadataService::class);
+        $metadataService = app(ReceivingLabMetadataService::class);
+        $normalizer = app(SubmissionFormValueNormalizer::class);
         $instances = SubmissionFormInstance::query()
-            ->with(['testRequestFormInstance', 'sampleSubmissionRequest.testRequestFormInstance'])
+            ->with(['values.element', 'submissionForm.sections.elementHolders.elements'])
             ->whereIn('id', $this->selectedFormInstanceIds)
             ->get()
             ->keyBy('id');
@@ -804,113 +1043,12 @@ class ReceiveSampleRequest extends Component
             }
 
             $instance = $instances->get($instanceId);
-            $trfi = $instance?->testRequestFormInstance
-                ?? $instance?->sampleSubmissionRequest?->testRequestFormInstance;
-            $formData = is_array($trfi?->form_data) ? $trfi->form_data : [];
+            $formData = $instance !== null
+                ? $normalizer->valuesMapFromInstance($instance)
+                : [];
 
             $this->checkInTrfFields[$instanceId] = $metadataService->hydrateFromFormData($formData);
         }
     }
 
-    private function resolveApproval(): ?Approval
-    {
-        $approval = $this->workflowService()->getApprovalByCode(self::STAGE_NAME, self::APPROVAL_CODE);
-        $this->syncLoadErrorFromApproval($approval);
-
-        return $approval;
-    }
-
-    private function syncLoadErrorFromApproval(?Approval $approval = null): void
-    {
-        $approval ??= $this->workflowService()->getApprovalByCode(self::STAGE_NAME, self::APPROVAL_CODE);
-
-        $this->loadError = $approval === null
-            ? 'Receiving checklist is not configured. Add approval code "sro_receiving_sample" for Samples Receiving.'
-            : null;
-    }
-
-    private function initializeResponses(): void
-    {
-        $approval = $this->workflowService()->getApprovalByCode(self::STAGE_NAME, self::APPROVAL_CODE);
-        if ($approval === null) {
-            return;
-        }
-
-        foreach ($approval->checklistItems as $item) {
-            if (!array_key_exists($item->id, $this->responses) && $item->type === 'checkbox') {
-                $this->responses[$item->id] = false;
-            }
-        }
-    }
-
-    private function canReceiveInstance(SubmissionFormInstance $instance): bool
-    {
-        if ($instance->status !== 'submitted') {
-            return false;
-        }
-
-        if ($instance->batches->isNotEmpty()) {
-            return false;
-        }
-
-        return $instance->submissionForm !== null
-            && ($instance->submissionForm->form_type ?? '') === 'template';
-    }
-
-    private function rulesForApproval(Approval $approval): array
-    {
-        $rules = [];
-
-        foreach ($approval->checklistItems as $item) {
-            $key = 'responses.' . $item->id;
-
-            if ($item->type === 'checkbox') {
-                $rules[$key] = $item->is_required ? ['accepted'] : ['nullable', 'boolean'];
-                continue;
-            }
-
-            if ($item->type === 'select') {
-                $selectRules = [$item->is_required ? 'required' : 'nullable'];
-                $selectRules[] = Rule::in($item->options ?? []);
-                $rules[$key] = $selectRules;
-                continue;
-            }
-
-            $rules[$key] = $item->is_required
-                ? ['required', 'string']
-                : ['nullable', 'string'];
-        }
-
-        return $rules;
-    }
-
-    private function messagesForApproval(Approval $approval): array
-    {
-        $messages = [];
-
-        foreach ($approval->checklistItems as $item) {
-            $key = 'responses.' . $item->id;
-            $messages[$key . '.required'] = $item->label . ' is required.';
-            $messages[$key . '.accepted'] = $item->label . ' must be checked.';
-            $messages[$key . '.in'] = 'Select a valid option for ' . $item->label . '.';
-        }
-
-        return $messages;
-    }
-
-    private function approvalResponses(Approval $approval): array
-    {
-        $payload = [];
-
-        foreach ($approval->checklistItems as $item) {
-            $payload[$item->id] = $this->responses[$item->id] ?? null;
-        }
-
-        return $payload;
-    }
-
-    private function workflowService(): WorkflowService
-    {
-        return app(WorkflowService::class);
-    }
 }

@@ -28,7 +28,7 @@
             </td>
             <td style="width: 54%;" class="center">
                 <div style="font-weight: bold;">Laboratory Analysis Acceptance Form</div>
-                <div class="small">GCLA/F/03</div>
+                <div class="small">Laboratory Analysis Acceptance Form</div>
             </td>
             <td style="width: 30%;">
                 <div class="small"><strong>Official Use only</strong></div>

@@ -87,6 +87,33 @@
         }
         .why-label { font-weight: bold; font-size: 7.5pt; color: #555; text-transform: uppercase; }
         .no-border td, .no-border th { border: none !important; }
+        .header-grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000 !important;
+        }
+        .header-grid-table td {
+            border: 1px solid #000 !important;
+            padding: 5px 8px;
+            vertical-align: middle;
+        }
+        .header-grid-table .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        .header-grid-table .meta-table td {
+            border: none !important;
+            padding: 3px 6px;
+            font-size: 7.5pt;
+        }
+        .header-grid-table .meta-table tr:not(:last-child) td {
+            border-bottom: 0.5px solid #000 !important;
+        }
+        .header-grid-table .meta-table td:first-child {
+            border-right: 0.5px solid #000 !important;
+            width: 45%;
+        }
         .signature-img {
             max-height: 40px;
             max-width: 140px;
@@ -135,22 +162,31 @@
     @endphp
 
     <header>
-        <table class="no-border" style="border: 0.5px solid #000 !important;">
+        <table class="header-grid-table">
             <tr>
-                <td width="20%" style="vertical-align: middle;">
+                <td width="20%" style="text-align: center;">
                     @if($base64Logo)
-                        <img src="{{ $base64Logo }}" style="max-height: 55px; max-width: 150px;">
+                        <img src="{{ $base64Logo }}" style="max-height: 55px; max-width: 150px; display: block; margin: 0 auto;">
                     @endif
                 </td>
-                <td width="55%" class="text-center" style="vertical-align: middle;">
+                <td width="55%" class="text-center">
                     <div style="font-size: 11pt; font-weight: bold;">{{ strtoupper($company->name) }}</div>
                     <div style="font-size: 10pt; font-weight: bold; margin-top: 2px;">NON-CONFORMANCE REPORT (NCR)</div>
                 </td>
                 <td width="25%" style="padding: 0;">
-                    <table style="border: none; width: 100%;">
-                        <tr><td style="border: none; border-bottom: 0.5px solid #000; border-left: 0.5px solid #000; font-size: 7pt;">Doc Ref:</td><td style="border: none; border-bottom: 0.5px solid #000; border-left: 0.5px solid #000; font-weight: bold;">{{ $reportNumber ?? 'LR-04A' }}</td></tr>
-                        <tr><td style="border: none; border-bottom: 0.5px solid #000; border-left: 0.5px solid #000; font-size: 7pt;">Version:</td><td style="border: none; border-bottom: 0.5px solid #000; border-left: 0.5px solid #000; font-weight: bold;">{{ str_pad($version ?? '1', 2, '0', STR_PAD_LEFT) }}</td></tr>
-                        <tr><td style="border: none; border-left: 0.5px solid #000; font-size: 7pt;">Page:</td><td style="border: none; border-left: 0.5px solid #000; font-weight: bold;"><span class="pagenum"></span></td></tr>
+                    <table class="meta-table">
+                        <tr>
+                            <td>Doc Ref:</td>
+                            <td class="font-bold">{{ $reportNumber ?? 'LR-04A' }}</td>
+                        </tr>
+                        <tr>
+                            <td>Version:</td>
+                            <td class="font-bold">{{ str_pad($version ?? '1', 2, '0', STR_PAD_LEFT) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Page:</td>
+                            <td class="font-bold"><span class="pagenum"></span></td>
+                        </tr>
                     </table>
                 </td>
             </tr>

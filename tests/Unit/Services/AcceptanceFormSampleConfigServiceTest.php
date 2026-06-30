@@ -116,6 +116,36 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame('M2', $plans[1]['sample_marking']);
     }
 
+    public function test_reconcile_parameter_keys_drops_stale_trf_element_ids(): void
+    {
+        $config = app(AcceptanceFormSampleConfigService::class)->emptyConfig();
+        $config['sample_type_id'] = 'st-food';
+        $config['analysis_type_id'] = 'at-cooked';
+        $config['parameter_keys'] = ['stale-trf-element-id', 'visible-element-id'];
+
+        $pricing = \Mockery::mock(AcceptanceFormPricingService::class);
+        $pricing->shouldReceive('parametersForAddLineSelection')
+            ->once()
+            ->with('cust-1', 'st-food', 'at-cooked')
+            ->andReturn([
+                [
+                    'id' => 'visible-element-id',
+                    'analysis_element_id' => 'visible-element-id',
+                    'label' => 'Moisture and volatile matter',
+                    'unit_amount' => 10.0,
+                ],
+            ]);
+
+        $service = new AcceptanceFormSampleConfigService(
+            $pricing,
+            app(\App\Services\Sampleworkflow\InterzoneTransferService::class),
+        );
+
+        $reconciled = $service->reconcileParameterKeysForConfig($config, 'cust-1');
+
+        $this->assertSame(['visible-element-id'], $reconciled['parameter_keys']);
+    }
+
     public function test_resolve_lab_section_id_falls_back_to_analysis_elements(): void
     {
         $service = app(AcceptanceFormSampleConfigService::class);

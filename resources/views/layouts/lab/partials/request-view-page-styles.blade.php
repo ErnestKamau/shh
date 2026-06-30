@@ -13,13 +13,16 @@
 		margin-bottom: 1rem;
 	}
 
-	/* Header bar */
+	/* Header bar — base layout; burgundy gradient applied via workflow-theme */
 	.request-view-page .batch-header-bar {
-		background: #fff;
-		border: 1px solid var(--workflow-border, #e2e8f0);
 		border-radius: 12px;
 		padding: 18px 22px;
 		margin-bottom: 1.25rem;
+	}
+
+	.request-view-page:not(.workflow-theme) .batch-header-bar {
+		background: #fff;
+		border: 1px solid var(--workflow-border, #e2e8f0);
 		box-shadow: var(--card-shadow, 0 1px 3px 0 rgb(0 0 0 / 0.1));
 	}
 
@@ -45,6 +48,10 @@
 		margin: 0;
 		line-height: 1.2;
 		letter-spacing: -0.02em;
+	}
+
+	.request-view-page.workflow-theme .request-view-title {
+		color: #ffffff !important;
 	}
 
 	.request-view-page .request-view-form-name {
@@ -75,6 +82,29 @@
 		padding: 6px 14px;
 	}
 
+	.request-view-page .batch-header-actions .btn-outline-secondary:hover,
+	.request-view-page .batch-header-actions .btn-outline-secondary:focus,
+	.request-view-page .batch-header-actions .btn-outline-secondary:active,
+	.request-view-page .batch-header-actions .btn-outline-secondary.show {
+		background: #f8fafc;
+		border-color: #f8fafc;
+		color: var(--color-primary);
+		box-shadow: 0 0 0 0.15rem rgba(255, 255, 255, 0.35);
+	}
+
+	.request-view-page .batch-header-actions .btn-group {
+		position: relative;
+	}
+
+	.request-view-page .batch-header-actions .dropdown-menu {
+		position: absolute !important;
+		top: 100% !important;
+		right: 0 !important;
+		left: auto !important;
+		transform: none !important;
+		z-index: 1050;
+	}
+
 	.request-view-page .request-view-actions-dropdown .dropdown-toggle::after {
 		margin-left: 0.45rem;
 		vertical-align: 0.15em;
@@ -85,10 +115,10 @@
 		max-width: 20rem;
 		padding: 0.35rem 0;
 		margin-top: 0.35rem;
-		border: 1px solid #dbe5f0;
+		border: 1px solid var(--color-border);
 		border-radius: 10px;
 		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
-		overflow: hidden;
+		overflow: visible;
 	}
 
 	.request-view-page .request-view-actions-menu .dropdown-divider {
@@ -112,7 +142,7 @@
 		font-size: 0.8125rem;
 		font-weight: 500;
 		line-height: 1.35;
-		color: #334155;
+		color: #111827;
 		border: none;
 		background: transparent;
 		text-align: left;
@@ -135,13 +165,13 @@
 
 	.request-view-page .request-view-actions-menu .dropdown-item:hover,
 	.request-view-page .request-view-actions-menu .dropdown-item:focus {
-		background: #f1f5f9;
-		color: #1e293b;
+		background: #f3f4f6;
+		color: #111827;
 	}
 
 	.request-view-page .request-view-actions-menu .dropdown-item:active {
-		background: #e2e8f0;
-		color: #0f172a;
+		background: #e5e7eb;
+		color: #111827;
 	}
 
 	.request-view-page .request-view-actions-menu .dropdown-item-danger,
@@ -250,6 +280,28 @@
 		font-size: 0.875rem;
 		background: transparent;
 		transition: color 0.15s ease, border-color 0.15s ease;
+	}
+
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link:hover {
+		color: #6D0A0E;
+		border-bottom-color: #cbd5e1;
+	}
+
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active {
+		color: #6D0A0E;
+		border-bottom-color: #6D0A0E;
+	}
+
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link:focus,
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.focus {
+		color: #6D0A0E;
+		border-bottom: 2px solid #cbd5e1;
+	}
+
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active:focus,
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active.focus,
+	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active:active {
+		border-bottom-color: #6D0A0E;
 	}
 
 	.request-view-page .batch-tabs-panel .batch-nav-tabs .nav-link:hover {

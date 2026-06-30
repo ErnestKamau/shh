@@ -5,10 +5,10 @@ namespace App\Services\Sampleworkflow;
 use App\Models\Equipments\Equipment;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Commercial\ContractCustomerService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\User;
 
 final class SampleReceivingCheckInService
@@ -17,6 +17,7 @@ final class SampleReceivingCheckInService
         private CommercialEnquiryFromFormService $commercialEnquiryService,
         private EnquiryReceptionReadinessService $receptionReadinessService,
         private ContractCustomerService $contractCustomerService,
+        private SubmissionFormValueNormalizer $valueNormalizer,
     ) {}
 
     /**
@@ -27,16 +28,13 @@ final class SampleReceivingCheckInService
         $instance->loadMissing([
             'crmCustomer',
             'submissionForm',
-            'testRequestFormInstance',
             'sampleSubmissionRequest.acceptedQuotation',
             'sampleSubmissionRequest.currentQuotation',
-            'sampleSubmissionRequest.testRequestFormInstance',
             'values.element',
         ]);
 
         $enquiry = $instance->sampleSubmissionRequest;
-        $trfi = $instance->testRequestFormInstance ?? $enquiry?->testRequestFormInstance;
-        $formData = is_array($trfi?->form_data) ? $trfi->form_data : [];
+        $formData = $this->valueNormalizer->valuesMapFromInstance($instance);
         $values = $this->indexedFormValues($instance);
 
         $collectionData = is_array($enquiry?->collection_data) ? $enquiry->collection_data : [];
@@ -55,10 +53,7 @@ final class SampleReceivingCheckInService
 
         return [
             'instance_id' => $instance->id,
-            'form_number' => (string) (
-                $trfi?->form_number
-                ?? $instance->canonicalFormNumber()
-            ),
+            'form_number' => (string) $instance->canonicalFormNumber(),
             'customer_name' => (string) ($instance->crmCustomer?->name ?? ''),
             'sample_description' => (string) (
                 $enquiry?->sample_description
@@ -114,8 +109,7 @@ final class SampleReceivingCheckInService
             ->with([
                 'crmCustomer',
                 'submissionForm',
-                'testRequestFormInstance',
-                'sampleSubmissionRequest.testRequestFormInstance',
+                'sampleSubmissionRequest',
                 'values.element',
             ])
             ->whereIn('id', $instanceIds)
@@ -132,22 +126,8 @@ final class SampleReceivingCheckInService
         }
 
         $instance->markAsReceived($user, $notes);
-        $this->syncTrfiReceivedStatus($instance);
 
         return true;
-    }
-
-    public function syncTrfiReceivedStatus(SubmissionFormInstance $instance): void
-    {
-        $instance->loadMissing('testRequestFormInstance');
-
-        if ($instance->testRequestFormInstance === null) {
-            return;
-        }
-
-        $instance->testRequestFormInstance->update([
-            'status' => TestRequestFormInstance::STATUS_RECEIVED,
-        ]);
     }
 
     public function canReceiveInstance(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry = null): bool

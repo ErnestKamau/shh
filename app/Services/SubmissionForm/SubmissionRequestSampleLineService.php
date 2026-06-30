@@ -7,12 +7,20 @@ use App\AnalysisType;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
+use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
 use App\Services\TestRequestForm\TestRequestFormDataMapper;
 use Illuminate\Support\Str;
 
 class SubmissionRequestSampleLineService
 {
+    public function __construct(
+        private readonly AnalysisReferenceLabelResolver $referenceLabelResolver,
+        private readonly SubmissionFormSchemaHelper $schemaHelper,
+        private readonly SubmissionFormValueNormalizer $valueNormalizer,
+    ) {}
+
     /**
      * @return list<array{
      *     row_index: int,
@@ -31,18 +39,14 @@ class SubmissionRequestSampleLineService
             'submissionForm.sections.elementHolders.elements' => fn ($q) => $q->orderBy('sort_order'),
             'submissionForm.sampleTypes',
             'values.element',
-            'testRequestFormInstance.testRequestForm.sampleType',
         ]);
 
-        $trfi = $instance->testRequestFormInstance;
-        if ($trfi !== null) {
-            $trfLines = $this->linesForTrfi($trfi);
-            if ($trfLines !== []) {
-                return $trfLines;
-            }
+        $trfRowLines = $this->deduplicateLines($this->linesFromSampleRowsFormData($instance));
+        if ($trfRowLines !== []) {
+            return $trfRowLines;
         }
 
-        $rowLines = $this->parseRowsSections($instance);
+        $rowLines = $this->deduplicateLines($this->parseRowsSections($instance));
 
         if ($this->linesHaveRichSampleDetail($rowLines)) {
             return $rowLines;
@@ -56,40 +60,13 @@ class SubmissionRequestSampleLineService
     }
 
     /**
+     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 4
+     *
      * @return list<array<string, mixed>>
      */
     public function linesForTrfi(\App\Models\TestRequestFormInstance $trfi): array
     {
-        $trfi->loadMissing(['testRequestForm.sampleType']);
-
-        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
-        $mapper = app(TestRequestFormDataMapper::class);
-        $normalized = $mapper->normalizeFormData($formData, $trfi->testRequestForm);
-        $sampleRows = $normalized['sample_rows'] ?? [];
-
-        if (! is_array($sampleRows) || $sampleRows === []) {
-            return [];
-        }
-
-        $defaultSampleTypeId = $trfi->testRequestForm?->sample_type_id;
-        $defaultSampleTypeId = $defaultSampleTypeId !== null ? (string) $defaultSampleTypeId : null;
-        $defaultSampleTypeName = $this->resolveSampleTypeName($defaultSampleTypeId);
-
-        $lines = [];
-
-        foreach (array_values($sampleRows) as $rowIndex => $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-
-            $line = $this->mapTrfSampleRow((int) $rowIndex, $row, $defaultSampleTypeId, $defaultSampleTypeName);
-
-            if ($this->trfRowHasDisplayData($line)) {
-                $lines[] = $line;
-            }
-        }
-
-        return $lines;
+        return [];
     }
 
     /**
@@ -134,8 +111,8 @@ class SubmissionRequestSampleLineService
     {
         $lines = [];
 
-        foreach ($instance->submissionForm->sections as $section) {
-            if ($section->section_type !== 'rows_section') {
+        foreach ($this->schemaHelper->uniqueSections($instance->submissionForm) as $section) {
+            if ((string) ($section->section_type ?? '') !== 'rows_section') {
                 continue;
             }
 
@@ -154,6 +131,80 @@ class SubmissionRequestSampleLineService
         usort($lines, fn (array $a, array $b): int => $a['row_index'] <=> $b['row_index']);
 
         return $lines;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function linesFromSampleRowsFormData(SubmissionFormInstance $instance): array
+    {
+        $formData = $this->valueNormalizer->valuesMapFromInstance($instance);
+        $sampleRows = $formData['sample_rows'] ?? [];
+
+        if (! is_array($sampleRows) || $sampleRows === []) {
+            return [];
+        }
+
+        $defaultSampleTypeId = $this->resolveHeaderSampleTypeId($instance);
+        $defaultSampleTypeName = $this->resolveSampleTypeName($defaultSampleTypeId);
+        $lines = [];
+
+        foreach (array_values($sampleRows) as $rowIndex => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $line = $this->mapTrfSampleRow(
+                (int) $rowIndex,
+                $row,
+                $defaultSampleTypeId,
+                $defaultSampleTypeName,
+            );
+
+            if ($this->trfRowHasDisplayData($line)) {
+                $lines[] = $line;
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function deduplicateLines(array $lines): array
+    {
+        if ($lines === []) {
+            return [];
+        }
+
+        $seen = [];
+        $unique = [];
+
+        foreach ($lines as $line) {
+            $fingerprint = implode('|', [
+                (string) ($line['analysis_type_id'] ?? ''),
+                (string) ($line['analysis_element_id'] ?? ''),
+                mb_strtolower(trim((string) ($line['parameter_label'] ?? ''))),
+                mb_strtolower(trim((string) ($line['sample_description'] ?? ''))),
+                mb_strtolower(trim((string) ($line['customer_sample_id'] ?? ''))),
+            ]);
+
+            if (isset($seen[$fingerprint])) {
+                continue;
+            }
+
+            $seen[$fingerprint] = true;
+            $unique[] = $line;
+        }
+
+        foreach ($unique as $index => &$line) {
+            $line['row_index'] = $index;
+        }
+        unset($line);
+
+        return $unique;
     }
 
     /**
@@ -180,7 +231,7 @@ class SubmissionRequestSampleLineService
                 $rowsData[$arrayIndex][$element->id] = [
                     'element' => $element,
                     'value' => (string) ($value->value ?? ''),
-                    'display_value' => (string) $instance->resolveDisplayValue($element, $value->value),
+                    'display_value' => (string) ($value->value ?? ''),
                     'file_path' => $value->file_path,
                 ];
             }
@@ -207,6 +258,8 @@ class SubmissionRequestSampleLineService
             'analysis_element_id' => null,
             'parameter_label' => null,
             'number_of_samples' => null,
+            'sample_quantity' => null,
+            'sample_quantity_unit' => null,
             'sample_condition' => null,
             'state_of_sample' => null,
             'sampling_point' => null,
@@ -250,6 +303,37 @@ class SubmissionRequestSampleLineService
                 $line['customer_sample_id'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'number_of_samples') {
                 $line['number_of_samples'] = $this->resolveNumericValue($rawValue, $display);
+            } elseif ($name === 'sample_quantity') {
+                $line['sample_quantity'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'sample_quantity_unit') {
+                $line['sample_quantity_unit'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'test_category') {
+                $category = strtolower(trim($display !== '' ? $display : $rawValue));
+                if ($category !== '') {
+                    $line['parameter_category'] = $category;
+                    if (! isset($line['attributes'])) {
+                        $line['attributes'] = [];
+                    }
+                    $line['attributes']['test_category'] = $category;
+                }
+            } elseif ($name === 'test_requirements') {
+                $decoded = json_decode($rawValue, true);
+                if (! is_array($decoded)) {
+                    $selected = strtolower(trim($rawValue));
+                    if ($selected !== '') {
+                        $decoded = [
+                            'microbiology' => $selected === 'microbiology',
+                            'legionella' => $selected === 'legionella',
+                            'chemistry' => $selected === 'chemistry',
+                        ];
+                    }
+                }
+                if (is_array($decoded)) {
+                    if (! isset($line['attributes'])) {
+                        $line['attributes'] = [];
+                    }
+                    $line['attributes']['test_requirements'] = $decoded;
+                }
             } elseif ($name === 'sample_condition') {
                 $line['sample_condition'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'food_sample_type') {
@@ -279,8 +363,45 @@ class SubmissionRequestSampleLineService
             }
         }
 
-        if ($line['attributes'] === []) {
+        if (($line['attributes'] ?? null) === []) {
             unset($line['attributes']);
+        }
+
+        try {
+            $prefixRow = array_merge(
+                is_array($line['attributes'] ?? null) ? $line['attributes'] : [],
+                ['test_category' => $line['parameter_category'] ?? null],
+            );
+            $line['sample_code_prefix'] = app(JobSampleNumberingService::class)->resolveCategoryPrefixFromRow($prefixRow);
+        } catch (\InvalidArgumentException) {
+            $line['sample_code_prefix'] = null;
+        }
+
+        if (trim((string) ($line['parameter_label'] ?? '')) === '') {
+            $tests = [];
+            $requirements = is_array($line['attributes']['test_requirements'] ?? null)
+                ? $line['attributes']['test_requirements']
+                : [];
+
+            foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemistry' => 'Chemistry'] as $key => $label) {
+                if (! empty($requirements[$key])) {
+                    $tests[] = $label;
+                }
+            }
+
+            $category = strtolower(trim((string) ($line['parameter_category'] ?? '')));
+            if ($tests === [] && $category !== '') {
+                $tests[] = match ($category) {
+                    'microbiology' => 'Microbiology',
+                    'legionella' => 'Legionella',
+                    'chemistry', 'chemical', 'chemical_analysis' => 'Chemistry',
+                    default => ucfirst($category),
+                };
+            }
+
+            if ($tests !== []) {
+                $line['parameter_label'] = implode(', ', $tests);
+            }
         }
 
         return $line;
@@ -363,10 +484,28 @@ class SubmissionRequestSampleLineService
      */
     private function applyAnalysisType(array &$line, string $rawValue, string $display): void
     {
+        $foodTypeResolver = app(TrfDocumentCodeForSampleType::class);
+        if ($foodTypeResolver->isFoodSampleTypeLabel($rawValue)) {
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['food_sample_type'] = $rawValue;
+            $line['analysis_type_name'] = $rawValue;
+            $this->resolveFoodMatrixAnalysisTypeOnLine($line, $rawValue);
+
+            return;
+        }
+
         $line['analysis_type_id'] = $rawValue !== '' ? $rawValue : null;
         $line['analysis_type_name'] = $display !== '' ? $display : $this->resolveAnalysisTypeName($line['analysis_type_id']);
 
-        if ($line['sample_type_id'] === null && $line['analysis_type_id'] !== null) {
+        if ($line['analysis_type_name'] !== null
+            && $foodTypeResolver->isFoodSampleTypeLabel((string) $line['analysis_type_name'])) {
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['food_sample_type'] = (string) $line['analysis_type_name'];
+        }
+
+        if ($line['sample_type_id'] === null
+            && $line['analysis_type_id'] !== null
+            && Str::isUuid((string) $line['analysis_type_id'])) {
             $analysisType = AnalysisType::query()->find($line['analysis_type_id']);
             if ($analysisType?->sample_type_id) {
                 $line['sample_type_id'] = (string) $analysisType->sample_type_id;
@@ -381,37 +520,59 @@ class SubmissionRequestSampleLineService
     private function applyAnalysisElement(array &$line, string $rawValue, string $display): void
     {
         $tokens = $this->extractTokens($rawValue);
-        $firstToken = $tokens[0] ?? '';
-
-        if ($firstToken === '') {
+        if ($tokens === []) {
             return;
         }
 
-        $elementRecord = null;
-        if (Str::isUuid($firstToken)) {
-            $elementRecord = AnalysisElements::query()->with('analyte')->find($firstToken);
-        }
+        $resolvedLabels = [];
+        $resolvedElementIds = [];
 
-        if (! $elementRecord) {
-            $elementRecord = AnalysisElements::query()->with('analyte')
-                ->whereHas('analyte', fn ($query) => $query->where('name', $firstToken))
-                ->first();
-        }
-
-        if ($elementRecord) {
-            $line['analysis_element_id'] = (string) $elementRecord->id;
-            $line['parameter_label'] = $display !== '' ? $display : ($elementRecord->analyte?->name ?? 'Parameter');
-            $line['analysis_type_id'] = (string) $elementRecord->analysis_type_id;
-            $line['analysis_type_name'] = $this->resolveAnalysisTypeName($line['analysis_type_id']);
-
-            $analysisType = AnalysisType::query()->find($elementRecord->analysis_type_id);
-            if ($analysisType?->sample_type_id) {
-                $line['sample_type_id'] = (string) $analysisType->sample_type_id;
-                $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
+        foreach ($tokens as $token) {
+            $token = trim($token);
+            if ($token === '') {
+                continue;
             }
 
+            $elementRecord = $this->resolveAnalysisElementToken($token, $line);
+
+            if ($elementRecord) {
+                $resolvedElementIds[] = (string) $elementRecord->id;
+                $resolvedLabels[] = $elementRecord->analyte?->name ?? $token;
+
+                if ($line['analysis_type_id'] === null) {
+                    $line['analysis_type_id'] = (string) $elementRecord->analysis_type_id;
+                    $line['analysis_type_name'] = $this->resolveAnalysisTypeName($line['analysis_type_id']);
+                }
+
+                if ($line['sample_type_id'] === null) {
+                    $analysisType = AnalysisType::query()->find($elementRecord->analysis_type_id);
+                    if ($analysisType?->sample_type_id) {
+                        $line['sample_type_id'] = (string) $analysisType->sample_type_id;
+                        $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
+                    }
+                }
+
+                continue;
+            }
+
+            $resolvedLabels[] = $token;
+        }
+
+        if ($resolvedElementIds !== []) {
+            $line['analysis_element_id'] = $resolvedElementIds[0];
+            if (! isset($line['attributes']) || ! is_array($line['attributes'])) {
+                $line['attributes'] = [];
+            }
+            $line['attributes']['analysis_element_ids'] = $resolvedElementIds;
+        }
+
+        if ($resolvedLabels !== []) {
+            $line['parameter_label'] = $display !== '' ? $display : implode(', ', $resolvedLabels);
+
             return;
         }
+
+        $firstToken = $tokens[0];
 
         $analysisType = null;
         if (Str::isUuid($firstToken)) {
@@ -429,11 +590,9 @@ class SubmissionRequestSampleLineService
                 $line['sample_type_id'] = (string) $analysisType->sample_type_id;
                 $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
             }
-
-            return;
+        } else {
+            $line['parameter_label'] = $display !== '' ? $display : $firstToken;
         }
-
-        $line['parameter_label'] = $display !== '' ? $display : $firstToken;
     }
 
     /**
@@ -476,10 +635,19 @@ class SubmissionRequestSampleLineService
         $sampleTypeId = $this->resolveHeaderSampleTypeId($instance);
         $sampleTypeName = $this->resolveSampleTypeName($sampleTypeId);
 
+        $canonicalElementIds = $this->schemaHelper
+            ->uniqueElements($instance->submissionForm)
+            ->pluck('id')
+            ->flip();
+
         $parameters = $instance->values
-            ->filter(function ($value) {
+            ->filter(function ($value) use ($canonicalElementIds) {
                 $element = $value->element;
                 if (! $element) {
+                    return false;
+                }
+
+                if (! isset($canonicalElementIds[$element->id])) {
                     return false;
                 }
 
@@ -598,6 +766,11 @@ class SubmissionRequestSampleLineService
 
     private function resolveHeaderSampleTypeId(SubmissionFormInstance $instance): ?string
     {
+        $selectedSampleTypeId = $instance->resolveSelectedSampleTypeId();
+        if ($selectedSampleTypeId !== null) {
+            return $selectedSampleTypeId;
+        }
+
         foreach ($instance->values as $value) {
             $element = $value->element;
             if ($element && $element->element_type === 'sample_type_select' && $value->value) {
@@ -612,7 +785,7 @@ class SubmissionRequestSampleLineService
 
     private function resolveSampleTypeName(?string $sampleTypeId): ?string
     {
-        if ($sampleTypeId === null || $sampleTypeId === '') {
+        if ($sampleTypeId === null || $sampleTypeId === '' || ! Str::isUuid($sampleTypeId)) {
             return null;
         }
 
@@ -625,24 +798,25 @@ class SubmissionRequestSampleLineService
             return null;
         }
 
+        if (app(TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeId)) {
+            return $analysisTypeId;
+        }
+
+        if (! Str::isUuid($analysisTypeId)) {
+            return null;
+        }
+
         return AnalysisType::query()->whereKey($analysisTypeId)->value('name');
     }
 
     /**
-     * @deprecated Use linesForTrfi() directly.
-     *
-     * @return list<array<string, mixed>>
+     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 4
      */
     private function linesFromTestRequestFormInstance(SubmissionFormInstance $instance): array
     {
-        $instance->loadMissing(['testRequestFormInstance.testRequestForm.sampleType']);
+        unset($instance);
 
-        $trfi = $instance->testRequestFormInstance;
-        if ($trfi === null) {
-            return [];
-        }
-
-        return $this->linesForTrfi($trfi);
+        return [];
     }
 
     /**
@@ -683,25 +857,60 @@ class SubmissionRequestSampleLineService
         ];
 
         $foodSampleType = $this->nullableString($row['sample_type'] ?? null);
-        if ($foodSampleType !== null) {
+        if ($foodSampleType === null) {
+            $analysisTypeCandidate = $this->nullableString($row['analysis_type_id'] ?? null);
+            if ($analysisTypeCandidate !== null
+                && app(TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeCandidate)) {
+                $foodSampleType = $analysisTypeCandidate;
+            }
+        }
+
+        $this->applyRowAnalysisSelection($line, $row, $defaultSampleTypeId, $foodSampleType);
+
+        if ($foodSampleType !== null
+            && empty($line['attributes']['food_sample_type'])) {
             $line['attributes']['food_sample_type'] = $foodSampleType;
             if ($defaultSampleTypeName !== null && $defaultSampleTypeName !== '') {
                 $line['sample_type_name'] = $defaultSampleTypeName.' — '.$foodSampleType;
             } else {
                 $line['sample_type_name'] = $foodSampleType;
             }
+        } elseif (($line['attributes']['food_sample_type'] ?? null) !== null
+            && $defaultSampleTypeName !== null
+            && $defaultSampleTypeName !== ''
+            && ! str_contains((string) ($line['sample_type_name'] ?? ''), '—')) {
+            $line['sample_type_name'] = $defaultSampleTypeName.' — '.$line['attributes']['food_sample_type'];
         }
 
         $tests = [];
-        $parameters = $this->nullableString($row['parameters'] ?? null);
-        if ($parameters !== null) {
-            $tests[] = $parameters;
+        $parameterTokens = $this->referenceLabelResolver->extractTokens($row['parameters'] ?? null);
+        if ($parameterTokens !== []) {
+            $resolvedParameters = $this->referenceLabelResolver->resolveMixed($parameterTokens);
+            if ($resolvedParameters !== '') {
+                $tests[] = $resolvedParameters;
+            }
+
+            $this->applyParameterTokensToLine($line, $parameterTokens);
         }
 
         foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemistry' => 'Chemistry', 'chemical_analysis' => 'Chemistry'] as $key => $label) {
             if (! empty($row[$key])) {
                 $tests[] = $label;
             }
+        }
+
+        $category = strtolower(trim((string) ($row['test_category'] ?? $row['parameter_category'] ?? '')));
+        if ($category !== '') {
+            $line['parameter_category'] = $category;
+        }
+
+        if ($tests === [] && $category !== '') {
+            $tests[] = match ($category) {
+                'microbiology' => 'Microbiology',
+                'legionella' => 'Legionella',
+                'chemistry', 'chemical', 'chemical_analysis' => 'Chemistry',
+                default => ucfirst($category),
+            };
         }
 
         try {
@@ -779,5 +988,188 @@ class SubmissionRequestSampleLineService
         }
 
         return $text;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  list<string>  $tokens
+     */
+    private function applyParameterTokensToLine(array &$line, array $tokens): void
+    {
+        $elementIds = [];
+        $resolvedLabels = [];
+        $pinnedSampleTypeId = $line['sample_type_id'] ?? null;
+
+        foreach ($tokens as $token) {
+            $token = trim($token);
+            if ($token === '') {
+                continue;
+            }
+
+            $elementRecord = $this->resolveAnalysisElementToken($token, $line);
+
+            if ($elementRecord) {
+                $elementIds[] = (string) $elementRecord->id;
+                $resolvedLabels[] = $elementRecord->analyte?->name ?? $token;
+
+                if ($line['analysis_type_id'] === null) {
+                    $line['analysis_type_id'] = (string) $elementRecord->analysis_type_id;
+                    $line['analysis_type_name'] = $this->resolveAnalysisTypeName($line['analysis_type_id']);
+                }
+
+                continue;
+            }
+
+            if (Str::isUuid($token)) {
+                $analysisType = AnalysisType::query()->find($token);
+                if ($analysisType && $line['analysis_type_id'] === null) {
+                    $line['analysis_type_id'] = (string) $analysisType->id;
+                    $line['analysis_type_name'] = $analysisType->name;
+                }
+            } else {
+                $resolvedLabels[] = $token;
+            }
+        }
+
+        if ($pinnedSampleTypeId !== null) {
+            $line['sample_type_id'] = $pinnedSampleTypeId;
+            $line['sample_type_name'] = $this->resolveSampleTypeName($pinnedSampleTypeId);
+        }
+
+        if ($elementIds === []) {
+            return;
+        }
+
+        $line['analysis_element_id'] = $elementIds[0];
+        if (! isset($line['attributes']) || ! is_array($line['attributes'])) {
+            $line['attributes'] = [];
+        }
+        $line['attributes']['analysis_element_ids'] = $elementIds;
+
+        if (trim((string) ($line['parameter_label'] ?? '')) === '' && $resolvedLabels !== []) {
+            $line['parameter_label'] = implode(', ', $resolvedLabels);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  array<string, mixed>  $row
+     */
+    private function applyRowAnalysisSelection(
+        array &$line,
+        array $row,
+        ?string $defaultSampleTypeId,
+        ?string $foodSampleTypeLabel = null,
+    ): void {
+        $candidate = $this->nullableString($row['analysis_type_id'] ?? null);
+        if ($candidate === null) {
+            if ($foodSampleTypeLabel !== null) {
+                $this->resolveFoodMatrixAnalysisTypeOnLine($line, $foodSampleTypeLabel, $defaultSampleTypeId);
+            }
+
+            return;
+        }
+
+        $foodTypeResolver = app(TrfDocumentCodeForSampleType::class);
+        if ($foodTypeResolver->isFoodSampleTypeLabel($candidate)) {
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['food_sample_type'] = $candidate;
+            $line['analysis_type_name'] = $candidate;
+            $this->resolveFoodMatrixAnalysisTypeOnLine($line, $candidate, $defaultSampleTypeId);
+
+            return;
+        }
+
+        if (Str::isUuid($candidate)) {
+            $this->applyAnalysisType($line, $candidate, $this->resolveAnalysisTypeName($candidate) ?? '');
+
+            return;
+        }
+
+        $analysisType = AnalysisType::query()->where('name', $candidate)->first();
+        if ($analysisType !== null) {
+            $this->applyAnalysisType($line, (string) $analysisType->id, (string) $analysisType->name);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolveFoodMatrixAnalysisTypeOnLine(
+        array &$line,
+        string $foodLabel,
+        ?string $preferredSampleTypeId = null,
+    ): void {
+        $sampleTypeId = (string) ($line['sample_type_id'] ?? $preferredSampleTypeId ?? '');
+        if ($sampleTypeId === '') {
+            return;
+        }
+
+        $analysisType = AnalysisType::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->where('name', $foodLabel)
+            ->first();
+
+        if ($analysisType === null) {
+            return;
+        }
+
+        $line['analysis_type_id'] = (string) $analysisType->id;
+        $line['analysis_type_name'] = (string) $analysisType->name;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolveAnalysisElementToken(string $token, array $line): ?AnalysisElements
+    {
+        if (Str::isUuid($token)) {
+            return AnalysisElements::query()->with('analyte')->find($token);
+        }
+
+        $query = AnalysisElements::query()->with('analyte')
+            ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->where('name', $token));
+
+        $scopedAnalysisTypeId = $this->scopedAnalysisTypeIdForLine($line);
+        if ($scopedAnalysisTypeId !== null) {
+            $query->where('analysis_type_id', $scopedAnalysisTypeId);
+        }
+
+        $element = $query->first();
+        if ($element !== null) {
+            return $element;
+        }
+
+        if ($scopedAnalysisTypeId !== null) {
+            return null;
+        }
+
+        return AnalysisElements::query()->with('analyte')
+            ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->where('name', $token))
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function scopedAnalysisTypeIdForLine(array $line): ?string
+    {
+        $analysisTypeId = trim((string) ($line['analysis_type_id'] ?? ''));
+        if ($analysisTypeId !== '' && Str::isUuid($analysisTypeId)) {
+            return $analysisTypeId;
+        }
+
+        $foodLabel = trim((string) ($line['attributes']['food_sample_type'] ?? ''));
+        $sampleTypeId = trim((string) ($line['sample_type_id'] ?? ''));
+        if ($foodLabel === '' || $sampleTypeId === '' || ! Str::isUuid($sampleTypeId)) {
+            return null;
+        }
+
+        $resolved = AnalysisType::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->where('name', $foodLabel)
+            ->value('id');
+
+        return $resolved ? (string) $resolved : null;
     }
 }

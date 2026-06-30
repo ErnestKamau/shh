@@ -1802,7 +1802,7 @@ class FormInstanceController extends Controller
      */
     public function sampleCollectionLabel(SubmissionFormInstance $instance)
     {
-        $instance->load(['submissionForm', 'crmCustomer', 'testRequestFormInstance', 'values.element']);
+        $instance->load(['submissionForm', 'crmCustomer', 'values.element']);
         
         // Get company logo from system settings
         $company = \App\Models\System\SystemConfiguration::where('key', 'company_logo')->first();
@@ -1827,10 +1827,7 @@ class FormInstanceController extends Controller
         
         // Get job number - check multiple sources
         $jobNumber = $formData['job_number'] ?? null;
-        if (!$jobNumber && $instance->testRequestFormInstance) {
-            $jobNumber = $instance->testRequestFormInstance->form_data['job_number'] ?? null;
-        }
-        if (!$jobNumber) {
+        if (! $jobNumber) {
             $jobNumber = $instance->form_number ?? 'N/A';
         }
         

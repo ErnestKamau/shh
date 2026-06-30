@@ -5,7 +5,6 @@ namespace App\Services\Commercial;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\CRM\CRMCustomer;
 use App\Models\SampleSubmissionRequest;
-use App\Models\TestRequestFormInstance;
 use Carbon\Carbon;
 
 final class ContractCustomerService
@@ -26,7 +25,7 @@ final class ContractCustomerService
 
     public function isScheduledChannel(string $sourceChannel): bool
     {
-        return strtolower(trim($sourceChannel)) === TestRequestFormInstance::CHANNEL_SCHEDULED;
+        return strtolower(trim($sourceChannel)) === CommercialEnquirySyncService::SOURCE_SCHEDULED;
     }
 
     /**

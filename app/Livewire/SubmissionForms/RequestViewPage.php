@@ -115,9 +115,6 @@ class RequestViewPage extends Component
                 'notes.author',
                 'analysisAcceptanceForms',
                 'attachmentInstances.submissionForm',
-                'testRequestFormInstance.testRequestForm',
-                'testRequestFormInstance.creator',
-                'testRequestFormInstance.samplingSchedule',
             ])
             ->where('submission_form_id', $submissionFormId)
             ->findOrFail($instanceId);
@@ -169,8 +166,8 @@ class RequestViewPage extends Component
             return;
         }
 
-        if (strtolower((string) ($this->commercialEnquiry->source_channel ?? '')) !== 'walk_in') {
-            session()->flash('request_view_message', 'Walk-in acceptance only applies to in-person enquiries.');
+        if (strtolower((string) ($this->commercialEnquiry->source_channel ?? '')) === 'portal') {
+            session()->flash('request_view_message', 'Portal requests are accepted by the customer in the portal. Staff quotation approval applies to non-portal sources only.');
 
             return;
         }
@@ -309,17 +306,12 @@ class RequestViewPage extends Component
     {
         $this->authorizeFormAccess(auth()->user());
 
-        $trfi = $this->instance->fresh(['testRequestFormInstance'])->testRequestFormInstance;
-        if (! $trfi) {
-            session()->flash('request_view_message', 'No test request form data is available for this request yet.');
-
-            return;
-        }
+        $instance = $this->instance->fresh(['values.element', 'submissionForm']);
 
         try {
-            app(TestRequestFormPdfService::class)->generateAndStore($trfi->fresh());
+            app(TestRequestFormPdfService::class)->generateAndStore($instance);
             session()->flash('request_view_message', 'Test Request Form generated successfully.');
-            $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $trfi->id));
+            $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $instance->id));
         } catch (\Throwable $exception) {
             session()->flash('request_view_message', 'Failed to generate Test Request Form. Please try again.');
         }

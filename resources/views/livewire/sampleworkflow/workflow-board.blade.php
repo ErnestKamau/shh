@@ -1,4 +1,4 @@
-<div class="container-fluid workflow-board-page lab-panel-theme"
+<div class="container-fluid workflow-board-page lab-panel-theme workflow-theme"
 	wire:init="openPendingReceiveRequestIfNeeded"
 	x-data="{
 		selectedCount: 0,
@@ -62,10 +62,6 @@
 @include('layouts.lab.partials.lab-panel-theme-styles')
 <style>
 	.workflow-board-header .batch-header-bar {
-		background: #fff;
-		border: 1px solid #e9ecef;
-		border-radius: 10px;
-		padding: 14px 20px 0 20px;
 		margin-bottom: 0;
 		overflow: visible;
 	}
@@ -84,25 +80,10 @@
 		gap: 10px;
 		flex-wrap: wrap;
 	}
-	.workflow-board-header .batch-code-label {
-		font-size: 1.15rem;
-		font-weight: 700;
-		color: #1e293b;
-		letter-spacing: 0.01em;
-	}
-	.workflow-board-header .batch-stage-pill {
-		background: rgba(109, 10, 14, 0.08);
-		color: #6D0A0E;
-		border-radius: 20px;
-		padding: 3px 12px;
-		font-size: 0.78rem;
-		font-weight: 600;
-		border: 1px solid rgba(109, 10, 14, 0.25);
-	}
 	.workflow-board-header .btn-action-sm {
 		height: 32px;
 		padding: 0 14px;
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		border-radius: 6px;
 		display: inline-flex;
 		align-items: center;
@@ -320,17 +301,17 @@
 		height: 100%;
 	}
 	.workflow-stat-label {
-		font-size: 0.78rem;
-		color: #64748b;
-		font-weight: 600;
+		font-size: var(--text-caption);
+		color: var(--color-muted);
+		font-weight: var(--font-semibold);
 		text-transform: uppercase;
-		letter-spacing: 0.02em;
+		letter-spacing: 0.04em;
 	}
 	.workflow-stat-value {
-		font-size: 1.6rem;
-		font-weight: 700;
-		line-height: 1.2;
-		color: #0f172a;
+		font-size: var(--text-metric);
+		font-weight: var(--font-bold);
+		line-height: var(--leading-tight);
+		color: var(--color-text);
 	}
 	.workflow-stat-meta {
 		display: flex;
@@ -484,19 +465,6 @@
 		justify-content: flex-end;
 	}
 
-	.receive-sample-modal-content {
-		border-radius: 14px;
-		overflow: hidden;
-	}
-
-	#receive-sample-modal .modal-dialog {
-		max-width: min(1140px, calc(100vw - 2rem));
-	}
-
-	#receive-sample-modal-title-text {
-		color: #1e293b;
-	}
-
 	.trf-signature-pad.acc-signature-pad {
 		background: #fff;
 		border: 1px dashed #cbd5e1;
@@ -622,13 +590,14 @@
 		}
 	}
 
-	.receive-sample-modal-header {
-		padding: 1.25rem 1.5rem 0.5rem;
-		background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+	#receive-sample-modal .modal-content {
+		max-height: calc(100vh - 2rem);
 	}
 
 	#receive-sample-modal .modal-body {
 		padding: 0 1.5rem 1.25rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	.receive-sample-modal-body {
@@ -946,12 +915,14 @@
 								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
 									class="badge badge-light badge-pill pt-1">{{ $tatTodayCount }}</span></span>
 						@endif
+						{{-- Check-in samples hidden in header: use selection bar Receive or Actions → Receive Sample on ready_for_reception.
 						@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
 							<button type="button" class="btn btn-sm btn-outline-primary btn-action-sm"
 								@click.prevent="$wire.openReceiveModal(selectedInstanceIds())">
 								<i class="mdi mdi-package-variant-closed mr-1"></i> Check-in samples
 							</button>
 						@endif
+						--}}
 						{{-- Sample Submissions dropdown hidden: walk-ins use Receive Sample only (P1.1)
 						<div class="btn-group" role="group">
 							<button type="button" class="btn btn-sm btn-primary btn-action-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -1009,7 +980,7 @@
 											data-sf-trigger="workflow-walk-in-acceptance"
 											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedInstanceIds().length > 0 && $wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Walk-in acceptance</button>
+											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Approve quotation (non-portal)</button>
 									</li>
 									<li>
 										<button type="button" class="dropdown-item"
@@ -1027,6 +998,15 @@
 									</li>
 								@endif
 								@if($status === 'Samples Request Review')
+									@if($workflowSubTab === 'in_review')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-walk-in-acceptance"
+												:class="{ 'disabled': selectedInstanceIds().length === 0 }"
+												:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Approve quotation (non-portal)</button>
+										</li>
+									@endif
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-move-to-intray"
@@ -1237,7 +1217,9 @@
 			</div>
 		</div>
 	</div>
-	@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving'], true))
+	@if($status === 'Samples Receiving')
+		@include('livewire.partials.workflow-receiving-kpi-row')
+	@elseif(in_array($status, ['Samples Reception', 'Samples En-Route'], true))
 		<div class="row mb-3">
 			<div class="col-lg-3 col-md-6 mb-3">
 				<div class="workflow-stat-card">
@@ -1397,6 +1379,15 @@
 											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
 											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
 										</button>
+									@endif
+									@if(($status === 'Samples Receiving' && $workflowSubTab === 'submitted') || ($status === 'Samples Request Review' && $workflowSubTab === 'in_review'))
+										<button type="button"
+											class="btn btn-sm btn-outline-success"
+											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-check-decagram mr-1"></i> Approve quotation (non-portal)
+										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())">
@@ -1539,7 +1530,10 @@
 									@endif
 								@endif
 							</div>
-							<div class="bg-light p-3 rounded mb-4 border-bottom">
+							<div class="workflow-brand-filters-card">
+								<div class="workflow-brand-filters-card__title">
+									<i class="mdi mdi-filter-variant"></i> Filters
+								</div>
 								<div class="row workflow-filters-primary-row">
 									<div class="col-md-4">
 										<div class="form-group mb-3 mb-md-0">
@@ -1575,7 +1569,7 @@
 										</div>
 									</div>
 									<div class="col-md-2 d-flex align-items-end">
-										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;">
+										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
 											<i class="mdi mdi-filter-variant"></i>
 											{{ $showAdvancedFilters ? 'Fewer filters' : 'More filters' }}
 										</button>
@@ -1687,6 +1681,7 @@
 									</div>
 								</div>
 							@endif
+							</div>
 							@endif
 							{{-- Interzone Transfers tab panel (tab hidden)
 							@if($workflowSubTab === 'interzone_transfers')
@@ -1838,7 +1833,10 @@
 									@endif
 								@endif
 							</div>
-							<div class="bg-light p-3 rounded mb-4 border-bottom">
+							<div class="workflow-brand-filters-card">
+								<div class="workflow-brand-filters-card__title">
+									<i class="mdi mdi-filter-variant"></i> Filters
+								</div>
 								<div class="row workflow-filters-primary-row">
 									<div class="col-md-4">
 										<div class="form-group mb-3 mb-md-0">
@@ -1874,7 +1872,7 @@
 										</div>
 									</div>
 									<div class="col-md-2 d-flex align-items-end">
-										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;">
+										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
 											<i class="mdi mdi-filter-variant"></i>
 											{{ $showAdvancedFilters ? 'Fewer filters' : 'More filters' }}
 										</button>
@@ -1992,7 +1990,10 @@
 						@endif
 						@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
 						<!-- Consolidated Filters -->
-						<div class="bg-light p-3 rounded mb-4 border-bottom">
+						<div class="workflow-brand-filters-card">
+							<div class="workflow-brand-filters-card__title">
+								<i class="mdi mdi-filter-variant"></i> Filters
+							</div>
 							<div class="row">
 								<div class="col-md-3">
 									<div class="form-group mb-3 mb-md-0">
@@ -2177,6 +2178,9 @@
 												Nothing actioned — awaiting acceptance or rejection
 											</span>
 										</div>
+									@endif
+									@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+									<div class="workflow-table-wrapper">
 									@endif
 									<div class="table-responsive">
 										<table class="table table-hover workflow-table">
@@ -2506,9 +2510,9 @@
 															@endphp
 															<td>
 																@if($hasLabAcceptance)
-																	<span class="badge badge-success">Complete</span>
+																	<span class="workflow-status-pill workflow-status-pill--complete{{ $status === 'Samples Receiving' ? '' : ' badge badge-success' }}">Complete</span>
 																@else
-																	<span class="badge badge-secondary">Pending</span>
+																	<span class="workflow-status-pill workflow-status-pill--pending{{ $status === 'Samples Receiving' ? '' : ' badge badge-secondary' }}">Pending</span>
 																@endif
 															</td>
 														@endif
@@ -2534,6 +2538,9 @@
 											</tbody>
 										</table>
 									</div>
+									@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+									</div>
+									@endif
 									<div class="mt-2">
 										{{ $submissionForms->links() }}
 									</div>
@@ -3246,7 +3253,7 @@
 		@endif
 		@if ($status === 'Samples Receiving')
 			<div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-xl modal-dialog-centered">
+				<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -3908,14 +3915,14 @@
 							<input type="hidden" name="customer_id" value=0>
 
 							<div class="px-3 pt-3 bg-white border-bottom">
-								<strong class="text-dark"><i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory acceptance (GCLA/F/03 &amp; GCLA 01)</strong>
+								<strong class="text-dark"><i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory acceptance (Laboratory Analysis Acceptance Form &amp; GCLA 01)</strong>
 							</div>
 
 							<div class="px-4 py-3">
 								<div id="review-lab-acceptance">
 									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
 										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
-											<h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form (GCLA/F/03)</h5>
+											<h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form</h5>
 										</div>
 										<div class="workflow-board-panel-body">
 											<div class="d-flex flex-wrap mb-3" style="gap: 6px;">
@@ -5961,7 +5968,57 @@
 					if (typeof window.initTrfSignaturePads === 'function') {
 						window.initTrfSignaturePads();
 					}
+					if (typeof window.initWalkInTrfParameterSelects === 'function') {
+						window.initWalkInTrfParameterSelects();
+					}
 				}, 200);
+			});
+
+			Livewire.on('trf-reinit-parameter-selects', function (payload) {
+				setTimeout(function () {
+					if (typeof window.initWalkInTrfParameterSelects === 'function') {
+						window.initWalkInTrfParameterSelects({
+							rowIndex: payload?.rowIndex,
+						});
+					}
+				}, 120);
+			});
+
+			Livewire.on('trf-reset-all-parameter-selects', function () {
+				setTimeout(function () {
+					const modal = document.getElementById('receive-sample-modal');
+					if (modal) {
+						modal.querySelectorAll('.walk-in-trf-parameters-select').forEach(function (select) {
+							if (typeof window.destroyWalkInParamSelect === 'function') {
+								window.destroyWalkInParamSelect($(select));
+							}
+						});
+					}
+
+					if (typeof window.initWalkInTrfParameterSelects === 'function') {
+						window.initWalkInTrfParameterSelects();
+					}
+				}, 150);
+			});
+
+			Livewire.on('walk-in-params-row-reset', function (payload) {
+				setTimeout(function () {
+					if (typeof window.resetWalkInParamRow !== 'function') {
+						return;
+					}
+
+					const modal = document.getElementById('receive-sample-modal');
+					if (!modal || payload?.rowIndex === undefined) {
+						return;
+					}
+
+					const wrap = modal.querySelector('.walk-in-trf-parameters-wrap[data-row-index="' + payload.rowIndex + '"]');
+					if (!wrap) {
+						return;
+					}
+
+					window.resetWalkInParamRow(wrap, payload.options || [], payload.selected || []);
+				}, 80);
 			});
 
 			Livewire.on('trf-reinit-signatures', function () {
@@ -5974,6 +6031,11 @@
 
 			$('#receive-sample-modal').on('hidden.bs.modal', function () {
 				window.dispatchEvent(new CustomEvent('trf-destroy-editors'));
+				document.querySelectorAll('.walk-in-trf-parameters-select').forEach(function (select) {
+					if (typeof window.destroyWalkInParamSelect === 'function') {
+						window.destroyWalkInParamSelect($(select));
+					}
+				});
 				document.querySelectorAll('.trf-signature-canvas').forEach(function (canvas) {
 					delete canvas.dataset.signatureInitialized;
 					canvas._trfSignaturePad = null;
@@ -5986,6 +6048,39 @@
 					});
 				}
 			});
+
+			window.syncTrfSignaturesBeforeSubmit = function () {
+				if (typeof SignaturePad === 'undefined') {
+					return;
+				}
+
+				document.querySelectorAll('.trf-signature-canvas').forEach(function (canvas) {
+					const pad = canvas._trfSignaturePad;
+					const fieldName = canvas.getAttribute('data-field');
+					if (!pad || !fieldName) {
+						return;
+					}
+
+					const input = document.getElementById('field_' + fieldName);
+					if (!input) {
+						return;
+					}
+
+					const value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
+					input.value = value;
+
+					const livewireModel = canvas.getAttribute('data-livewire-model');
+					const componentEl = canvas.closest('[wire\\:id]');
+					if (livewireModel && componentEl && window.Livewire) {
+						const component = Livewire.find(componentEl.getAttribute('wire:id'));
+						if (component) {
+							component.set(livewireModel, value, false);
+						}
+					}
+
+					input.dispatchEvent(new Event('input', { bubbles: true }));
+				});
+			};
 
 			window.initTrfSignaturePads = function (forceReinit) {
 				if (typeof SignaturePad === 'undefined') {
@@ -6061,6 +6156,137 @@
 				}
 
 				document.querySelectorAll('.trf-signature-canvas').forEach(setupTrfSignatureCanvas);
+			};
+
+			window.saveWalkInTrfDescription = function (modalId, editorId, wireKey) {
+				const editor = typeof tinymce !== 'undefined' ? tinymce.get(editorId) : null;
+				const content = editor ? editor.getContent() : '';
+				const componentEl = document.querySelector('#receive-sample-modal [wire\\:id]');
+
+				if (componentEl && window.Livewire && wireKey) {
+					const component = Livewire.find(componentEl.getAttribute('wire:id'));
+					if (component) {
+						component.set(wireKey, content, false);
+					}
+				}
+
+				const $modal = $('#' + modalId);
+				if ($modal.length && $.fn.modal) {
+					$modal.modal('hide');
+				}
+			};
+
+			window.destroyWalkInParamSelect = function ($select) {
+				if (!$select || !$select.length) {
+					return;
+				}
+
+				if ($select.hasClass('select2-hidden-accessible')) {
+					$select.off('change.walkin-params');
+					$select.select2('destroy');
+				}
+
+				$select.removeData('walkin-params-bound');
+			};
+
+			window.bindWalkInParamSelect = function ($select) {
+				if (!$select || !$select.length || $select.data('walkin-params-bound')) {
+					return;
+				}
+
+				const modal = document.getElementById('receive-sample-modal');
+				const livewireModel = $select.data('livewire-model');
+				const componentEl = $select.closest('[wire\\:id]');
+
+				$select.select2({
+					width: '100%',
+					placeholder: 'Select parameters...',
+					allowClear: true,
+					closeOnSelect: false,
+					dropdownParent: modal ? $(modal) : $(document.body),
+				});
+
+				$select.on('change.walkin-params', function () {
+					const val = $(this).val() || [];
+
+					if (livewireModel && componentEl && window.Livewire) {
+						const component = Livewire.find(componentEl.getAttribute('wire:id'));
+						if (component) {
+							component.set(livewireModel, val, false);
+						}
+					}
+				});
+
+				$select.data('walkin-params-bound', true);
+			};
+
+			window.resetWalkInParamRow = function (wrapEl, options, selected) {
+				if (!wrapEl || typeof $ === 'undefined' || !$.fn.select2) {
+					return;
+				}
+
+				const $wrap = $(wrapEl);
+				const $select = $wrap.find('.walk-in-trf-parameters-select');
+				const livewireModel = $wrap.data('livewire-model');
+				const componentEl = $wrap.closest('[wire\\:id]');
+				const safeSelected = Array.isArray(selected) ? selected : [];
+				const safeOptions = Array.isArray(options) ? options : [];
+
+				window.destroyWalkInParamSelect($select);
+				$select.empty();
+
+				safeOptions.forEach(function (name) {
+					const isSelected = safeSelected.indexOf(name) !== -1;
+					$select.append(new Option(name, name, isSelected, isSelected));
+				});
+
+				window.bindWalkInParamSelect($select);
+				$select.val(safeSelected).trigger('change.select2');
+				$wrap.attr('data-options', JSON.stringify(safeOptions));
+				$wrap.attr('data-selected', JSON.stringify(safeSelected));
+
+				if (livewireModel && componentEl && window.Livewire) {
+					const component = Livewire.find(componentEl.getAttribute('wire:id'));
+					if (component) {
+						component.set(livewireModel, safeSelected, false);
+					}
+				}
+			};
+
+			window.initWalkInTrfParameterSelects = function (options) {
+				options = options || {};
+				const targetRowIndex = options.rowIndex;
+
+				if (typeof $ === 'undefined' || !$.fn.select2) {
+					return;
+				}
+
+				const modal = document.getElementById('receive-sample-modal');
+				if (!modal) {
+					return;
+				}
+
+				modal.querySelectorAll('.walk-in-trf-parameters-wrap').forEach(function (wrap) {
+					const rowIndex = wrap.getAttribute('data-row-index');
+					if (targetRowIndex !== undefined && targetRowIndex !== null && String(rowIndex) !== String(targetRowIndex)) {
+						return;
+					}
+
+					const $select = $(wrap).find('.walk-in-trf-parameters-select');
+					if ($select.length === 0 || $select.data('walkin-params-bound')) {
+						return;
+					}
+
+					let selected = [];
+					try {
+						selected = JSON.parse(wrap.getAttribute('data-selected') || '[]');
+					} catch (e) {
+						selected = [];
+					}
+
+					window.bindWalkInParamSelect($select);
+					$select.val(selected).trigger('change.select2');
+				});
 			};
 
 			Livewire.on('hide-receive-sample-modal', function () {

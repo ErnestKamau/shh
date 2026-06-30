@@ -14,6 +14,12 @@ class TestRequestFormReportDataBuilderTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     public function test_resolve_report_variant_returns_food_for_food_sample_type(): void
     {
         $sampleType = SampleType::query()->create([

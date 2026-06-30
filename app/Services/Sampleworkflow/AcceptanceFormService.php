@@ -9,7 +9,6 @@ use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestFormInstance;
 use App\Models\SampleSubmissionRequest;
 use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
 use App\Models\Billing\Pricelist;
@@ -53,7 +52,6 @@ class AcceptanceFormService
             $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN,
                 'submission_form_instance_id' => $submissionFormInstanceId,
-                'test_request_form_instance_id' => $this->resolveTestRequestFormInstanceId($submissionFormInstanceId, $submissionRequestId),
                 'sample_submission_request_id' => $submissionRequestId,
                 'crm_customer_id' => $customerId,
                 'pricelist_id' => $pricelist?->id,
@@ -142,7 +140,6 @@ class AcceptanceFormService
             $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
                 'submission_form_instance_id' => $submissionFormInstanceId,
-                'test_request_form_instance_id' => $this->resolveTestRequestFormInstanceId($submissionFormInstanceId, $submissionRequestId),
                 'sample_submission_request_id' => $submissionRequestId,
                 'crm_customer_id' => $customerId,
                 'pricelist_id' => $pricelist?->id,
@@ -222,7 +219,6 @@ class AcceptanceFormService
             $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
                 'submission_form_instance_id' => $submissionFormInstanceId,
-                'test_request_form_instance_id' => $this->resolveTestRequestFormInstanceId($submissionFormInstanceId, $submissionRequestId),
                 'sample_submission_request_id' => $submissionRequestId,
                 'crm_customer_id' => $customerId,
                 'pricelist_id' => $pricelist?->id,
@@ -563,31 +559,6 @@ class AcceptanceFormService
                 ->where('sample_header_id', $batch->id)
                 ->update(['user_id' => $leadAnalystId]);
         }
-    }
-
-    private function resolveTestRequestFormInstanceId(?string $submissionFormInstanceId, ?string $submissionRequestId): ?string
-    {
-        if ($submissionRequestId) {
-            $trfiId = SampleSubmissionRequest::query()
-                ->whereKey($submissionRequestId)
-                ->value('test_request_form_instance_id');
-
-            if ($trfiId) {
-                return (string) $trfiId;
-            }
-        }
-
-        if ($submissionFormInstanceId) {
-            $trfiId = TestRequestFormInstance::query()
-                ->where('submission_form_instance_id', $submissionFormInstanceId)
-                ->value('id');
-
-            if ($trfiId) {
-                return (string) $trfiId;
-            }
-        }
-
-        return null;
     }
 
     private function normalizeBatchPriority(string $modeOfWork): string

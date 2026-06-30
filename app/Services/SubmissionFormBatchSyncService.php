@@ -287,8 +287,12 @@ class SubmissionFormBatchSyncService
 
         $attributes = [];
 
+        if (array_key_exists('customer_email', $headerData) && ! array_key_exists('schedule_customer_email', $headerData)) {
+            $headerData['schedule_customer_email'] = $headerData['customer_email'];
+        }
+
         $directKeys = [
-            'crm_customer_id', 'crm_contact_id', 'customer_email', 'receipt_date', 'date_collected',
+            'crm_customer_id', 'crm_contact_id', 'schedule_customer_email', 'receipt_date', 'date_collected',
             'batch_scope', 'customer_survey', 'quote_no', 'batch_instructions', 'sampling_method_id',
             'require_mu', 'payment_done_by', 'condition_quality_sample', 'description', 'document_number',
             'importer_address', 'date_expected', 'quote_id', 'reference_number', 'is_routine',
@@ -327,6 +331,8 @@ class SubmissionFormBatchSyncService
 
         if (array_key_exists('sampling_officer_name', $headerData)) {
             $attributes['sampling_officer_name'] = $getSingleValue($headerData['sampling_officer_name'] ?? null);
+        } elseif (array_key_exists('sampled_by', $headerData)) {
+            $attributes['sampling_officer_name'] = $getSingleValue($headerData['sampled_by'] ?? null);
         }
 
         if (array_key_exists('radio_active_levels', $headerData)) {

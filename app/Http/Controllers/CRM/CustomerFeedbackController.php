@@ -31,13 +31,8 @@ class CustomerFeedbackController extends Controller
         $new_feedback->status = $request->status;
         $new_feedback->date = $request->date;
         $new_feedback->save();
-        if(strlen($new_feedback->id)<4){
-            $diff = 4 - strlen($new_feedback->id);
-            $zero = str_repeat("0",$diff);
-            $new_feedback->code = "FB".$zero.$new_feedback->id;
-            $new_feedback->save();
-        }else{
-            $new_feedback->code = "FB".$new_feedback->id;
+        if (empty($new_feedback->code)) {
+            $new_feedback->code = CustomerFeedback::generateUniqueCode();
             $new_feedback->save();
         }
         $config = SystemConfigurationsType::where('configuration_type','Personnel to Recieve Feedback and Complaint Notification')->first();
@@ -65,13 +60,8 @@ class CustomerFeedbackController extends Controller
         $new_feedback->date = $request->date;
         $new_feedback->save();
         $feeds = CustomerFeedback::all();
-        if(strlen($new_feedback->id)<4){
-            $diff = 4 - strlen($new_feedback->id);
-            $zero = str_repeat("0",$diff);
-            $new_feedback->code = "FB".$zero.$new_feedback->id;
-            $new_feedback->save();
-        }else{
-            $new_feedback->code = "FB".$new_feedback->id;
+        if (empty($new_feedback->code)) {
+            $new_feedback->code = CustomerFeedback::generateUniqueCode();
             $new_feedback->save();
         }
         $config = SystemConfigurationsType::where('configuration_type','Personnel to Recieve Feedback and Complaint Notification')->first();
@@ -109,14 +99,10 @@ class CustomerFeedbackController extends Controller
         $customers = CRMCustomer::where('company_id', getUserCompany())->orderBy('name')->where('active',1)->get();
         $feedbacks = CustomerFeedback::orderBy('id','desc')->get();
         foreach($feedbacks as $f){
-            if(strlen($f->id)<4){
-                $diff = 4 - strlen($f->id);
-                $zero = str_repeat("0",$diff);
-                $f->code = "FB".$zero.$f->id;
-            }else{
-                $f->code = "FB".$f->id;
+            if (empty($f->code)) {
+                $f->code = CustomerFeedback::generateUniqueCode();
+                $f->save();
             }
-            $f->save();
         }
 
         return view('layouts.crm.complaints.customer_feedback',compact('feedbacks','customers'));

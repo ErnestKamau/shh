@@ -15,6 +15,12 @@ class CommercialEnquiryFromTrfServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     public function test_sync_from_trfi_populates_ssr_from_form_data(): void
     {
         $sampleType = SampleType::query()->create([

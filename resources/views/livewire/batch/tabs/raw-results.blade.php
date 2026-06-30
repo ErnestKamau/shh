@@ -72,8 +72,8 @@
                                         <div class="standard-limit-container">
                                             <div class="d-flex align-items-center">
                                                 <span class="standard-limit-text text-muted small">
-                                                    @if($result->main_value)
-                                                        {{ $result->main_value }}
+                                                    @if($result->standard_limit_display ?? $result->main_value)
+                                                        {{ $result->standard_limit_display ?? $result->main_value }}
                                                     @else
                                                         No limit set
                                                     @endif

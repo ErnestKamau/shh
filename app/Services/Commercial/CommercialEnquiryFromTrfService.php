@@ -2,191 +2,45 @@
 
 namespace App\Services\Commercial;
 
-use App\Models\Billing\PricelistCustomer;
 use App\Models\SampleSubmissionRequest;
-use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestFormInstance;
-use Illuminate\Support\Facades\DB;
 
+/**
+ * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 1
+ * Replaced by CommercialEnquirySyncService.
+ */
 final class CommercialEnquiryFromTrfService
 {
     public function __construct(
-        private CommercialEnquiryFieldMapper $fieldMapper,
-        private CommercialEnquirySampleLineSync $lineSync,
-        private ContractCustomerService $contractCustomerService,
-        private QuotationFromEnquiryService $quotationFromEnquiryService,
-        private EnquiryReceptionReadinessService $receptionReadinessService,
+        private CommercialEnquirySyncService $syncService,
     ) {}
 
     public function syncFromTrfi(TestRequestFormInstance $trfi, bool $asDraft = false): SampleSubmissionRequest
     {
-        $trfi->loadMissing([
-            'testRequestForm.sampleType',
-            'crmCustomer',
-            'submissionFormInstance',
-        ]);
+        $trfi->loadMissing(['submissionFormInstance']);
 
-        return DB::transaction(function () use ($trfi, $asDraft): SampleSubmissionRequest {
-            $enquiry = $this->findOrCreateEnquiry($trfi);
-            $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
+        $instance = $trfi->submissionFormInstance;
+        if ($instance === null) {
+            throw new \RuntimeException('Deprecated TRF sync requires a linked submission form instance.');
+        }
 
-            $this->fieldMapper->applyHeaderFieldsFromFormData($enquiry, $formData);
+        $enquiry = $this->syncService->syncFromSubmittedInstance($instance);
+        if ($enquiry === null) {
+            throw new \RuntimeException('Commercial enquiry sync failed for submission form instance '.$instance->id);
+        }
 
-            $lines = $this->lineSync->linesForEnquirySync(
-                $enquiry,
-                $trfi,
-                $trfi->submissionFormInstance,
-            );
-            $this->lineSync->syncSampleLines($enquiry, $lines);
-            $this->lineSync->syncRequestedAnalyses($enquiry, $lines);
-
-            if ($trfi->crm_customer_id && PricelistCustomer::query()->where('customer_id', $trfi->crm_customer_id)->exists()) {
-                $enquiry->pricing_source = 'contract';
-            }
-
-            $enquiry->status = $asDraft
-                ? SampleSubmissionRequest::STATUS_DRAFT
-                : SampleSubmissionRequest::STATUS_REQUESTED;
-            $enquiry->source_channel = (string) ($trfi->source_channel ?? 'walk_in');
-            $resolvedCustomerId = app(CommercialEnquiryCustomerResolver::class)->resolveCustomerId($enquiry)
-                ?? $this->resolveCrmCustomerIdFromTrfi($trfi);
-            $enquiry->crm_customer_id = $trfi->crm_customer_id ?? $resolvedCustomerId ?? $enquiry->crm_customer_id;
-            $enquiry->test_request_form_instance_id = $trfi->id;
-
-            if ($trfi->submission_form_instance_id) {
-                $enquiry->submission_form_instance_id = $trfi->submission_form_instance_id;
-            }
-
-            $enquiry->save();
-
-            if (! $asDraft && $this->contractCustomerService->isScheduledEnquiry($enquiry)) {
-                if (! $this->contractCustomerService->hasContractPricelist((string) $enquiry->crm_customer_id)) {
-                    $enquiry->pricing_source = 'sampling_contract';
-                    $enquiry->save();
-                }
-
-                $header = $this->quotationFromEnquiryService->createInternalContractQuotation($enquiry->fresh(['requestedAnalyses', 'customer', 'contact']));
-                $enquiry = $this->receptionReadinessService->markReadyForReception(
-                    $enquiry->fresh(),
-                    (string) $header->id,
-                    ['po_skipped' => true],
-                );
-            }
-
-            if ($trfi->sample_submission_request_id !== $enquiry->id) {
-                $trfi->update(['sample_submission_request_id' => $enquiry->id]);
-            }
-
-            return $enquiry->fresh(['requestedAnalyses', 'customer', 'testRequestFormInstance']);
-        });
+        return $enquiry;
     }
 
     public function resyncSampleDataFromTrfi(TestRequestFormInstance $trfi): ?SampleSubmissionRequest
     {
-        $trfi->loadMissing(['testRequestForm', 'submissionFormInstance']);
+        $trfi->loadMissing(['submissionFormInstance']);
 
-        $enquiry = SampleSubmissionRequest::query()
-            ->where('test_request_form_instance_id', $trfi->id)
-            ->first();
-
-        if ($enquiry === null && $trfi->submission_form_instance_id) {
-            $enquiry = SampleSubmissionRequest::query()
-                ->where('submission_form_instance_id', $trfi->submission_form_instance_id)
-                ->first();
-        }
-
-        if ($enquiry === null) {
+        $instance = $trfi->submissionFormInstance;
+        if ($instance === null) {
             return null;
         }
 
-        return DB::transaction(function () use ($enquiry, $trfi): SampleSubmissionRequest {
-            $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
-            $this->fieldMapper->applyHeaderFieldsFromFormData($enquiry, $formData);
-
-            $lines = $this->lineSync->linesForEnquirySync(
-                $enquiry,
-                $trfi,
-                $trfi->submissionFormInstance,
-            );
-            $this->lineSync->syncSampleLines($enquiry, $lines);
-            $this->lineSync->syncRequestedAnalyses($enquiry, $lines);
-
-            $enquiry->test_request_form_instance_id = $trfi->id;
-            $enquiry->save();
-
-            return $enquiry->fresh(['requestedAnalyses', 'customer', 'testRequestFormInstance']);
-        });
-    }
-
-    private function findOrCreateEnquiry(TestRequestFormInstance $trfi): SampleSubmissionRequest
-    {
-        if ($trfi->sample_submission_request_id) {
-            $existing = SampleSubmissionRequest::query()->find($trfi->sample_submission_request_id);
-            if ($existing !== null) {
-                return $existing;
-            }
-        }
-
-        $existing = SampleSubmissionRequest::query()
-            ->where('test_request_form_instance_id', $trfi->id)
-            ->first();
-
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        if ($trfi->submission_form_instance_id) {
-            $existing = SampleSubmissionRequest::query()
-                ->where('submission_form_instance_id', $trfi->submission_form_instance_id)
-                ->first();
-
-            if ($existing !== null) {
-                return $existing;
-            }
-
-            $instance = $trfi->submissionFormInstance;
-            if ($instance instanceof SubmissionFormInstance) {
-                $portalRequestId = trim((string) ($instance->portal_request_id ?? ''));
-                if ($portalRequestId !== '') {
-                    $linkedViaPortal = SampleSubmissionRequest::query()->find($portalRequestId);
-                    if ($linkedViaPortal !== null) {
-                        return $linkedViaPortal;
-                    }
-                }
-            }
-        }
-
-        return SampleSubmissionRequest::query()->create([
-            'crm_customer_id' => $trfi->crm_customer_id ?? $this->resolveCrmCustomerIdFromTrfi($trfi),
-            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
-            'source_channel' => (string) ($trfi->source_channel ?? 'walk_in'),
-            'test_request_form_instance_id' => $trfi->id,
-            'submission_form_instance_id' => $trfi->submission_form_instance_id,
-        ]);
-    }
-
-    private function resolveCrmCustomerIdFromTrfi(TestRequestFormInstance $trfi): ?string
-    {
-        if (! empty($trfi->crm_customer_id)) {
-            return (string) $trfi->crm_customer_id;
-        }
-
-        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
-        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-            $name = trim((string) ($formData[$key] ?? ''));
-            if ($name === '') {
-                continue;
-            }
-
-            $customerId = \App\Models\CRM\CRMCustomer::query()
-                ->whereRaw('name ILIKE ?', [$name])
-                ->value('id');
-
-            if ($customerId !== null) {
-                return (string) $customerId;
-            }
-        }
-
-        return null;
+        return $this->syncService->resyncSampleDataFromInstance($instance);
     }
 }

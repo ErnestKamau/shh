@@ -217,7 +217,7 @@
 @endsection
 
 @section('content2')
-  <main class="container-fluid lab-panel-theme batch-show-page">
+  <main class="container-fluid lab-panel-theme batch-show-page workflow-theme">
     {{-- Breadcrumbs and alerts from original lines 435-530 --}}
     <?php
       if ($defaultClient) {

@@ -112,6 +112,22 @@ class AcceptanceFormSampleHeaderService
             $attributes['is_client_order'] = 1;
         }
 
+        $sfi = $context['instance'];
+        if ($sfi !== null) {
+            $sfi->loadMissing('values.element');
+            $formData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+                ->valuesMapFromInstance($sfi);
+            $mapper = app(TrfSampleFieldMapper::class);
+            $trfMapped = $mapper->mapToSampleHeader($formData, [
+                'crm_customer_id' => $attributes['crm_customer_id'] ?? null,
+                'crm_contact_id' => $attributes['crm_contact_id'] ?? null,
+                'crm_unit_id' => $attributes['crm_unit_id'] ?? null,
+                'crm_unit_name' => $attributes['crm_unit_name'] ?? null,
+                'email' => $context['portalRequest']?->email,
+            ]);
+            $attributes = $mapper->mergeFillGaps($attributes, $trfMapped);
+        }
+
         return $attributes;
     }
 
@@ -614,4 +630,11 @@ class AcceptanceFormSampleHeaderService
             return null;
         }
     }
+
+    /**
+     * @param  array{
+     *     instance: ?SubmissionFormInstance,
+     *     portalRequest: ?SampleSubmissionRequest,
+     * }  $context
+     */
 }

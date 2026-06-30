@@ -1,11 +1,11 @@
 <div>
     <div class="workflow-board-panel">
         <div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
-            <h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form (GCLA/F/03)</h5>
+            <h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form</h5>
             <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
                 @if($attachmentUrl)
                     <a href="{{ $attachmentUrl }}" target="_blank" class="btn btn-outline-secondary btn-action-sm">
-                        <i class="mdi mdi-eye"></i> View GCLA/F/03
+                        <i class="mdi mdi-eye"></i> View Laboratory Analysis Acceptance Form
                     </a>
                 @endif
                 @if($receiptAttachmentUrl)
@@ -287,7 +287,7 @@
                             <button type="button" class="btn btn-primary btn-action-sm" wire:click="nextPart">Next</button>
                             @if(!$readOnly)
                                 <button type="button" class="btn btn-success btn-action-sm" wire:click="submitForm">
-                                    <i class="mdi mdi-check-circle-outline"></i> Submit GCLA/F/03 &amp; Attach
+                                    <i class="mdi mdi-check-circle-outline"></i> Submit Laboratory Analysis Acceptance Form &amp; Attach
                                 </button>
                             @endif
                         @endif

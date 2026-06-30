@@ -126,6 +126,13 @@ trait ManagesSampleConfigurationWizard
             }
             $this->sampleConfigs[$index]['parameter_keys'] = $keys;
 
+            if (property_exists($this, 'crmCustomerId')
+                && is_string($this->crmCustomerId)
+                && trim($this->crmCustomerId) !== '') {
+                $this->sampleConfigs[$index] = app(AcceptanceFormSampleConfigService::class)
+                    ->reconcileParameterKeysForConfig($this->sampleConfigs[$index], $this->crmCustomerId);
+            }
+
             break;
         }
     }

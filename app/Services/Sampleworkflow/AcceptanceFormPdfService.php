@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class AcceptanceFormPdfService
 {
-    public const ATTACHMENT_TITLE = 'Laboratory Analysis Acceptance Form (GCLA/F/63)';
+    public const ATTACHMENT_TITLE = 'Laboratory Analysis Acceptance Form';
 
     public function generatePdfAndStoreAttachment(AnalysisAcceptanceForm $form): ?string
     {
@@ -80,10 +80,15 @@ class AcceptanceFormPdfService
         $customerEmail = $submissionRequest?->contact?->email ?? $submissionRequest?->email ?? $submissionRequest?->customer?->email ?? '';
         $customerTel = $submissionRequest?->mobile_telephone_no ?? $submissionRequest?->office_telephone_no ?? $submissionRequest?->customer?->telephone1 ?? '';
 
-        // Try to get data from Test Request Form Instance if available
         $trfData = [];
-        if ($form->testRequestFormInstance) {
-            $trfData = $form->testRequestFormInstance->form_data ?? [];
+        if ($form->submission_form_instance_id) {
+            $sfi = \App\Models\SubmissionFormInstance::query()
+                ->with('values.element')
+                ->find($form->submission_form_instance_id);
+            if ($sfi !== null) {
+                $trfData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+                    ->valuesMapFromInstance($sfi);
+            }
         }
 
         // Use TRF data if available, otherwise fall back to existing form data

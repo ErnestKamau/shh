@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main class="container-fluid workflow-board-page lab-panel-theme request-view-page">
+<main class="container-fluid workflow-board-page lab-panel-theme request-view-page workflow-theme">
     @include('layouts.lab.partials.lab-panel-theme-styles')
     @include('layouts.lab.partials.request-view-page-styles')
 

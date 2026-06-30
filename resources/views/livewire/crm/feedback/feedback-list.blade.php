@@ -98,11 +98,11 @@
                             </p>
                             @php
                                 $normalizedAverage = $averageOverallRating ? (float) $averageOverallRating : 0;
-                                $ratingFill = $normalizedAverage ? min(100, round(($normalizedAverage / 5) * 100)) : 0;
+                                $ratingFill = $normalizedAverage ? min(100, round(($normalizedAverage / 10) * 100)) : 0;
                             @endphp
                             <div class="d-flex align-items-baseline" style="gap: 8px;">
                                 <span class="font-weight-bold {{ $ratingFill >= 80 ? 'text-success' : ($ratingFill < 50 ? 'text-danger' : 'text-warning') }}" style="font-size:2rem;line-height:1;">
-                                    {{ $normalizedAverage ? number_format($normalizedAverage, 1) . ' / 5' : 'N/A' }}
+                                    {{ $normalizedAverage ? number_format($normalizedAverage, 1) . ' / 10' : 'N/A' }}
                                 </span>
                                 @if($normalizedAverage)
                                     <span class="badge {{ $ratingFill >= 80 ? 'badge-success' : ($ratingFill < 50 ? 'badge-danger' : 'badge-warning') }}" style="font-size: 0.8rem; padding: 0.4em 0.8em;">
@@ -153,7 +153,7 @@
                                         <span class="font-weight-bold text-dark" style="font-size: 0.85rem;">{{ $lowestFb['code'] ?? 'Ref: ' . $lowestFb['id'] }}</span>
                                         <small class="text-muted" style="font-size: 0.75rem;">{{ $lowestFb['service_type'] ?? 'Unknown' }} | Avg: <span class="font-weight-bold text-danger">{{ $lowestFb['avg_score'] ?? 0 ? round((float)($lowestFb['avg_score'] ?? 0) / 4 * 100) : 0 }}%</span></small>
                                     </div>
-                                    <button class="btn btn-sm btn-light border py-1 px-3 text-dark font-weight-medium" style="font-size: 0.7rem;" wire:click.prevent="viewFeedback({{ $lowestFb['id'] }})">View</button>
+                                    <button class="btn btn-sm btn-light border py-1 px-3 text-dark font-weight-medium" style="font-size: 0.7rem;" wire:click.prevent="viewFeedback('{{ $lowestFb['id'] }}')">View</button>
                                 </div>
                             @empty
                                 <div class="text-center p-4 rounded w-100" style="background:#f8fafc; border: 1px dashed #e2e8f0;">
@@ -259,6 +259,7 @@
                     <th style="width: 120px;">Date</th>
                     <th>Client</th>
                     <th>Feedback Snippet</th>
+                    <th style="width: 130px;">Overall Rating</th>
                     <th style="width: 100px;">Status</th>
                 </tr>
             </x-slot:header>
@@ -267,14 +268,14 @@
                                 $snippet = $feedback->suggestions ?? $feedback->issue_description ?? '';
                                 $snippet = strlen($snippet) > 80 ? substr(strip_tags($snippet), 0, 80) . '…' : strip_tags($snippet);
                             @endphp
-                            <tr wire:key="feedback-{{ $feedback->id }}" wire:click="viewFeedback({{ $feedback->id }})" class="crm-table-row-clickable">
+                            <tr wire:key="feedback-{{ $feedback->id }}" wire:click="viewFeedback('{{ $feedback->id }}')" class="crm-table-row-clickable">
                                 <td wire:click.stop>
                                     <div class="crm-action-buttons">
-                                        <button class="btn btn-sm crm-btn crm-btn-view" wire:click="viewFeedback({{ $feedback->id }})" title="View"><i class="mdi mdi-eye"></i></button>
+                                        <button class="btn btn-sm crm-btn crm-btn-view" wire:click="viewFeedback('{{ $feedback->id }}')" title="View"><i class="mdi mdi-eye"></i></button>
                                         @if($feedback->status == \App\Models\CRM\CustomerFeedback::STATUS_PENDING)
-                                            <button wire:click="confirmResend({{ $feedback->id }})" wire:loading.attr="disabled" class="btn btn-sm crm-btn crm-btn-warning" title="Resend">
-                                                <span wire:loading.remove wire:target="confirmResend({{ $feedback->id }})"><i class="mdi mdi-email-sync"></i></span>
-                                                <span wire:loading wire:target="confirmResend({{ $feedback->id }})"><i class="mdi mdi-loading mdi-spin"></i></span>
+                                            <button wire:click="confirmResend('{{ $feedback->id }}')" wire:loading.attr="disabled" class="btn btn-sm crm-btn crm-btn-warning" title="Resend">
+                                                <span wire:loading.remove wire:target="confirmResend('{{ $feedback->id }}')"><i class="mdi mdi-email-sync"></i></span>
+                                                <span wire:loading wire:target="confirmResend('{{ $feedback->id }}')"><i class="mdi mdi-loading mdi-spin"></i></span>
                                             </button>
                                         @endif
                                     </div>
@@ -318,6 +319,17 @@
                                 </td>
                                 <td class="text-muted small">{{ $snippet ?: '—' }}</td>
                                 <td>
+                                    @if($feedback->status == \App\Models\CRM\CustomerFeedback::STATUS_SUBMITTED && $feedback->rating_overall !== null)
+                                        <div class="d-flex align-items-center" style="gap: 4px;">
+                                            <i class="mdi mdi-star text-warning" style="font-size: 1.1rem;"></i>
+                                            <span class="font-weight-bold text-dark">{{ number_format($feedback->rating_overall, 1) }}</span>
+                                            <span class="text-muted small">/10</span>
+                                        </div>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                <td>
                                     @if($feedback->status == \App\Models\CRM\CustomerFeedback::STATUS_SUBMITTED)
                                         <span class="crm-badge crm-badge-submitted">Submitted</span>
                                     @elseif($feedback->status == \App\Models\CRM\CustomerFeedback::STATUS_PENDING)
@@ -327,7 +339,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6">
+                                <td colspan="7">
                                     <x-crm.empty-state
                                         icon="mdi-file-account-outline"
                                         message="No feedbacks found."

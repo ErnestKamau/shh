@@ -260,8 +260,7 @@ class FeedbackList extends BaseCrmComponent
 
     public function viewFeedback($id)
     {
-        $this->selectedFeedback = CustomerFeedback::find($id);
-        $this->dispatch('open-view-modal');
+        return redirect()->route('feedback-show', ['id' => $id]);
     }
 
     public function openAddForm()

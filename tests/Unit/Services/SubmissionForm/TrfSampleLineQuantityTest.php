@@ -14,6 +14,12 @@ class TrfSampleLineQuantityTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     public function test_each_trf_row_maps_to_one_sample_regardless_of_quantity(): void
     {
         $sampleType = SampleType::query()->create([

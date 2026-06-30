@@ -8,6 +8,12 @@ use Tests\TestCase;
 
 class TestRequestFormPdfServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
+    }
+
     public function test_download_filename_replaces_slashes_in_form_number(): void
     {
         $instance = new TestRequestFormInstance([

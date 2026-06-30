@@ -239,22 +239,18 @@ class SubmissionFormInstanceController extends Controller
     public function testRequestFormPdf(Request $request, string $instance)
     {
         $instanceModel = $this->findAuthorizedInstance($request, $instance);
-        $trfi = $instanceModel->testRequestFormInstance()->first();
-
-        if (! $trfi) {
-            return response()->json([
-                'message' => 'No test request form is available for this submission.',
-            ], 404);
-        }
+        $instanceModel->loadMissing(['values.element', 'submissionForm']);
 
         $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
-        $pdfService->ensureStored($trfi);
+        $storagePath = $pdfService->resolveStoragePath($instanceModel);
 
-        $storagePath = $pdfService->resolveStoragePath($trfi);
+        if (! \Illuminate\Support\Facades\Storage::disk('public')->exists($storagePath)) {
+            $pdfService->generateAndStore($instanceModel);
+        }
 
-        return Storage::disk('public')->download(
+        return \Illuminate\Support\Facades\Storage::disk('public')->download(
             $storagePath,
-            $pdfService->resolveDownloadFilename($trfi)
+            'Test-Request-Form-'.($instanceModel->form_number ?: $instanceModel->id).'.pdf',
         );
     }
 
@@ -461,7 +457,7 @@ class SubmissionFormInstanceController extends Controller
         SubmissionFormInstance $instance,
         bool $includeValues = false
     ): array {
-        $instance->loadMissing(['testRequestFormInstance', 'sampleSubmissionRequest']);
+        $instance->loadMissing(['sampleSubmissionRequest']);
 
         $payload = [
             'id' => $instance->id,
@@ -476,7 +472,7 @@ class SubmissionFormInstanceController extends Controller
             'portal_account_id' => $instance->portal_account_id,
             'crm_customer_id' => $instance->crm_customer_id,
             'portal_request_id' => $instance->portal_request_id,
-            'test_request_form_instance_id' => $instance->testRequestFormInstance?->id,
+            'submission_form_instance_id' => $instance->id,
             'submitted_at' => $instance->submitted_at?->toIso8601String(),
             'created_at' => $instance->created_at?->toIso8601String(),
             'updated_at' => $instance->updated_at?->toIso8601String(),

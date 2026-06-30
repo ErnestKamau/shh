@@ -1,11 +1,11 @@
 <style>
     .acc-wizard-root {
-        --acc-accent: #3b5fc0;
-        --acc-accent-dark: #2f4da0;
-        --acc-accent-soft: #eef2ff;
-        --acc-border: #e2e8f0;
-        --acc-muted: #64748b;
-        --acc-text: #0f172a;
+        --acc-accent: var(--color-primary, #6D0A0E);
+        --acc-accent-dark: var(--color-primary-hover, #8B1E22);
+        --acc-accent-soft: var(--color-primary-soft, rgba(109, 10, 14, 0.08));
+        --acc-border: #e5e7eb;
+        --acc-muted: #6b7280;
+        --acc-text: #111827;
     }
 
     .acc-wizard-backdrop {
@@ -50,8 +50,8 @@
 
     .acc-wizard-eyebrow {
         display: block;
-        font-size: 0.7rem;
-        font-weight: 600;
+        font-size: var(--text-caption);
+        font-weight: var(--font-semibold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--acc-muted);
@@ -60,8 +60,8 @@
 
     .acc-wizard-title {
         margin: 0;
-        font-size: 1.15rem;
-        font-weight: 700;
+        font-size: var(--text-xl);
+        font-weight: var(--font-bold);
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -104,25 +104,29 @@
         border: none;
         background: transparent;
         color: var(--acc-muted);
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
         border-bottom: 3px solid transparent;
         transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
 
     .acc-wizard-step:hover:not(:disabled) {
-        color: var(--acc-accent);
-        background: rgba(59, 95, 192, 0.06);
+        color: #111827;
+        background: var(--acc-accent-soft);
     }
 
     .acc-wizard-step.is-active {
-        color: var(--acc-accent);
+        color: #111827;
         border-bottom-color: var(--acc-accent);
         background: #fff;
     }
 
+    .acc-wizard-step.is-active .acc-wizard-step-label {
+        color: #111827;
+    }
+
     .acc-wizard-step.is-done {
-        color: #059669;
+        color: var(--color-muted, #64748b);
     }
 
     .acc-wizard-step:disabled {
@@ -137,7 +141,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.75rem;
+        font-size: var(--text-caption);
         background: #e2e8f0;
         color: var(--acc-muted);
     }
@@ -157,6 +161,7 @@
         background: #f8fafc;
         max-height: min(70vh, 640px);
         overflow-y: auto;
+        color: var(--acc-text);
     }
 
     .acc-wizard-section {
@@ -172,8 +177,8 @@
     }
 
     .acc-wizard-section-title {
-        font-size: 0.8rem;
-        font-weight: 700;
+        font-size: var(--text-caption);
+        font-weight: var(--font-semibold);
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--acc-muted);
@@ -181,7 +186,7 @@
     }
 
     .acc-wizard-hint {
-        font-size: 0.8rem;
+        font-size: var(--text-caption);
         color: var(--acc-muted);
     }
 
@@ -190,8 +195,8 @@
     }
 
     .acc-label {
-        font-size: 0.75rem;
-        font-weight: 600;
+        font-size: var(--text-caption);
+        font-weight: var(--font-semibold);
         color: var(--acc-muted);
         margin-bottom: 0.35rem;
     }
@@ -199,12 +204,12 @@
     .acc-input {
         border-radius: 8px;
         border-color: var(--acc-border);
-        font-size: 0.9rem;
+        font-size: var(--text-sm);
     }
 
     .acc-input:focus {
         border-color: var(--acc-accent);
-        box-shadow: 0 0 0 3px rgba(59, 95, 192, 0.15);
+        box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.15);
     }
 
     .acc-wizard-footer {
@@ -284,15 +289,15 @@
         font-weight: 600;
         font-size: 0.8125rem;
         padding: 0.35rem 0.85rem;
-        color: #fff;
-        background: var(--acc-accent);
-        border: 1px solid var(--acc-accent);
+        color: #fff !important;
+        background: var(--acc-accent) !important;
+        border: 1px solid var(--acc-accent) !important;
     }
 
     .acc-btn-add:hover {
-        color: #fff;
-        background: var(--acc-accent-dark);
-        border-color: var(--acc-accent-dark);
+        color: #fff !important;
+        background: var(--acc-accent-dark) !important;
+        border-color: var(--acc-accent-dark) !important;
     }
 
     .acc-btn-remove {
@@ -489,7 +494,7 @@
     }
 
     .acc-sample-config-section-toggle:hover {
-        background: rgba(59, 95, 192, 0.06);
+        background: var(--acc-accent-soft);
     }
 
     .acc-sample-config-section-toggle-main {
@@ -518,7 +523,7 @@
         letter-spacing: 0.02em;
         color: var(--acc-accent);
         background: var(--acc-accent-soft);
-        border: 1px solid #c7d7fc;
+        border: 1px solid rgba(109, 10, 14, 0.2);
         white-space: nowrap;
     }
 
@@ -532,14 +537,14 @@
         font-weight: 600;
         padding: 0.2rem 0.65rem;
         color: var(--acc-accent);
-        border-color: #c7d7fc;
+        border-color: rgba(109, 10, 14, 0.25);
         background: #fff;
     }
 
     .acc-sample-config-select-all:hover:not(:disabled) {
-        color: #fff;
-        background: var(--acc-accent);
-        border-color: var(--acc-accent);
+        color: #fff !important;
+        background: var(--acc-accent) !important;
+        border-color: var(--acc-accent) !important;
     }
 
     .acc-sample-config-select-all:disabled {
@@ -581,14 +586,14 @@
     }
 
     .acc-sample-config-param-chip:hover {
-        border-color: #c7d7fc;
-        background: #fafbff;
+        border-color: rgba(109, 10, 14, 0.28);
+        background: var(--acc-accent-soft);
     }
 
     .acc-sample-config-param-chip.is-selected {
         border-color: var(--acc-accent);
         background: var(--acc-accent-soft);
-        box-shadow: inset 0 0 0 1px rgba(59, 95, 192, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(109, 10, 14, 0.12);
     }
 
     .acc-sample-config-param-chip input {

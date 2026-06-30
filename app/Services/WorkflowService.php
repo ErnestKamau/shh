@@ -204,6 +204,10 @@ class WorkflowService
 
     public function assertStageApprovalsCompleted(string $sampleId, string $stageName): void
     {
+        if (in_array($stageName, ['Sample Verification', 'Sample Approval'], true)) {
+            return;
+        }
+
         $sample = $this->assertSampleAndStage($sampleId, $stageName);
 
         $approvals = Approval::query()

@@ -219,12 +219,6 @@ class JobSampleNumberingService
             );
         }
 
-        $testRequestFormInstance = $instance->testRequestFormInstance;
-        if ($testRequestFormInstance) {
-            $formData = $testRequestFormInstance->form_data ?? [];
-            $formData['job_number'] = $jobNumber;
-            $testRequestFormInstance->update(['form_data' => $formData]);
-        }
     }
 
     private function assertValidJobNumber(string $jobNumber): void
