@@ -8,6 +8,7 @@ use App\Models\SubmissionFormElementHolder;
 use App\Models\SubmissionFormSection;
 use App\SampleType;
 use Illuminate\Support\Str;
+
 trait BuildsSubmissionFormTrfSections
 {
     /**
@@ -280,6 +281,133 @@ trait BuildsSubmissionFormTrfSections
         return $element->fresh();
     }
 
+    /**
+     * @param  array{0: string, 1: string, 2: string, 3: int, 4?: mixed}  $field
+     * @param  array<int, array<string, string>>|null  $conditional
+     */
+    protected function upsertScalarElement(SubmissionFormElementHolder $holder, array $field, ?array $conditional = null): SubmissionFormElement
+    {
+        $element = $holder->elements()->where('name', $field[2])->first();
+
+        $payload = [
+            'element_type' => $field[0],
+            'label' => $field[1],
+            'name' => $field[2],
+            'is_required' => false,
+            'sort_order' => $field[3],
+        ];
+
+        if ($conditional !== null) {
+            $payload['conditional_logic'] = $conditional;
+        }
+
+        if (in_array($field[0], ['select', 'checkbox', 'radio'], true) && isset($field[4]) && is_array($field[4])) {
+            $payload['options'] = $field[4];
+        }
+
+        if ($element === null) {
+            return $holder->elements()->create(array_merge($payload, [
+                'id' => (string) Str::uuid7(),
+            ]));
+        }
+
+        $hasValues = \App\Models\SubmissionFormInstanceValue::query()
+            ->where('submission_form_element_id', $element->id)
+            ->exists();
+
+        if ($hasValues) {
+            $element->update([
+                'label' => $payload['label'],
+                'sort_order' => $payload['sort_order'],
+                'is_required' => $payload['is_required'],
+            ]);
+        } else {
+            $element->update($payload);
+        }
+
+        return $element->fresh();
+    }
+
+    /**
+     * @param  list<array{value: string, label: string}>  $extraApparatusOptions
+     * @param  list<array{0: string, 1: string, 2: string, 3: int, 4?: list<array{value: string, label: string}>}>  $extraFields
+     */
+    protected function patchCollectionDataSection(
+        SubmissionForm $form,
+        bool $alwaysVisible = true,
+        array $extraApparatusOptions = [],
+        array $extraFields = [],
+    ): void {
+        $section = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Sample collection data')
+            ->first();
+
+        if ($section === null) {
+            $this->createCollectionDataSection($form, 2, $alwaysVisible, $extraApparatusOptions, $extraFields);
+
+            return;
+        }
+
+        $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+        if ($holder === null) {
+            $holder = $section->elementHolders()->create([
+                'id' => (string) Str::uuid7(),
+                'holder_type' => 'field',
+                'max_elements' => 30,
+                'sort_order' => 1,
+            ]);
+        }
+
+        $holder->update(['max_elements' => max((int) $holder->max_elements, 30)]);
+
+        $conditional = $alwaysVisible ? null : [
+            ['field' => 'request_for_sampling', 'operator' => 'equals', 'value' => '1'],
+        ];
+
+        $apparatusOptions = $this->baseSamplingApparatusOptions($extraApparatusOptions);
+
+        $baseFields = [
+            ['date', 'Sampling date', 'sampling_date', 1],
+            ['text', 'Sampling time', 'sampling_time', 2],
+            ['text', 'Sampling location', 'sampling_location', 3],
+            ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 4, $apparatusOptions],
+            ['radio', 'Method of sampling', 'method_of_sampling', 5, [
+                ['value' => 'apha', 'label' => 'APHA'],
+                ['value' => 'saso', 'label' => 'SASO'],
+                ['value' => 'astm', 'label' => 'ASTM'],
+                ['value' => 'others', 'label' => 'Others'],
+                ['value' => 'us_fda', 'label' => 'US FDA'],
+                ['value' => 'ccfra', 'label' => 'CCFRA'],
+                ['value' => 'dm', 'label' => 'DM'],
+                ['value' => 'sop', 'label' => 'SOP'],
+            ]],
+            ['radio', 'Reason of collection', 'reason_of_collection', 6, [
+                ['value' => 'contract', 'label' => 'Contract'],
+                ['value' => 'non_contract', 'label' => 'Non-contract'],
+                ['value' => 'haccp', 'label' => 'HACCP requirement'],
+                ['value' => 'disputed', 'label' => 'Disputed/Audit'],
+            ]],
+            ['checkbox', 'Transport condition', 'transport_condition', 7, [
+                ['value' => 'chiller', 'label' => 'Chiller vehicle'],
+                ['value' => 'frozen', 'label' => 'Frozen'],
+                ['value' => 'ambient', 'label' => 'Ambient'],
+            ]],
+            ['date', 'Date received', 'date_received', 8],
+            ['text', 'Packaging', 'packaging', 9],
+            ['text', 'Sample weight', 'sample_weight', 10],
+            ['text', 'Sample information', 'sample_information', 11],
+            ['text', 'Ship / vessel', 'ship_name', 12],
+            ['text', 'Port of loading', 'port_of_loading', 13],
+            ['text', 'Port of discharge', 'port_of_discharge', 14],
+            ['text', 'Seal', 'seal_number', 15],
+        ];
+
+        foreach (array_merge($baseFields, $extraFields) as $field) {
+            $this->upsertScalarElement($holder, $field, $conditional);
+        }
+    }
+
     protected function removeTrfStorageElements(SubmissionForm $form): void
     {
         SubmissionFormElement::query()
@@ -365,7 +493,7 @@ trait BuildsSubmissionFormTrfSections
 
         $holder = $section->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 10,
+            'max_elements' => 12,
             'sort_order' => 1,
         ]);
 
@@ -375,7 +503,9 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
             ['text', 'Mobile number', 'mobile_number', 4, false],
             ['client_contact_select', 'Contact person', 'contact_person', 5, false],
-            ['text', 'CRM contact ID', 'crm_contact_id', 6, false],
+            ['text', 'CNPJ / Tax ID', 'customer_tax_id', 6, false],
+            ['text', 'Email', 'customer_email', 7, false],
+            ['text', 'CRM contact ID', 'crm_contact_id', 8, false],
         ] as [$type, $label, $name, $order, $readonly]) {
             $holder->elements()->create([
                 'element_type' => $type,
@@ -408,7 +538,7 @@ trait BuildsSubmissionFormTrfSections
 
         $holder = $section->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 20,
+            'max_elements' => 30,
             'sort_order' => 1,
         ]);
 
@@ -444,6 +574,14 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'frozen', 'label' => 'Frozen'],
                 ['value' => 'ambient', 'label' => 'Ambient'],
             ]],
+            ['date', 'Date received', 'date_received', 8],
+            ['text', 'Packaging', 'packaging', 9],
+            ['text', 'Sample weight', 'sample_weight', 10],
+            ['text', 'Sample information', 'sample_information', 11],
+            ['text', 'Ship / vessel', 'ship_name', 12],
+            ['text', 'Port of loading', 'port_of_loading', 13],
+            ['text', 'Port of discharge', 'port_of_discharge', 14],
+            ['text', 'Seal', 'seal_number', 15],
         ];
 
         foreach (array_merge($baseFields, $extraFields) as $field) {

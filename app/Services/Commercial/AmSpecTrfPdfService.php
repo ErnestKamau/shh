@@ -62,6 +62,22 @@ final class AmSpecTrfPdfService
             $jobNumber = (string) ($batch->batch_code ?? '');
         }
 
+        $customerExtras = [
+            'customer_tax_id' => (string) ($values['customer_tax_id'] ?? ''),
+            'customer_email' => (string) ($values['customer_email'] ?? $instance->crmCustomer?->email ?? ''),
+        ];
+
+        $collectionExtras = [
+            'date_received' => $values['date_received'] ?? null,
+            'packaging' => $values['packaging'] ?? null,
+            'sample_weight' => $values['sample_weight'] ?? null,
+            'sample_information' => $values['sample_information'] ?? null,
+            'ship_name' => $values['ship_name'] ?? null,
+            'port_of_loading' => $values['port_of_loading'] ?? null,
+            'port_of_discharge' => $values['port_of_discharge'] ?? null,
+            'seal_number' => $values['seal_number'] ?? null,
+        ];
+
         return [
             'instance' => $instance,
             'form' => $instance->submissionForm,
@@ -81,6 +97,9 @@ final class AmSpecTrfPdfService
             'customer_address' => (string) ($values['customer_address'] ?? $instance->crmCustomer?->physical_address ?? ''),
             'customer_tel_fax' => (string) ($values['customer_phone'] ?? $values['customer_tel_fax'] ?? $instance->crmCustomer?->telephone1 ?? ''),
             'customer_mobile' => (string) ($values['mobile_number'] ?? $values['customer_mobile'] ?? ''),
+            'customer_tax_id' => $customerExtras['customer_tax_id'],
+            'customer_email' => $customerExtras['customer_email'],
+            'has_customer_extras' => $this->hasAnyFilledValues($customerExtras),
             'contact_person' => (string) ($values['contact_person'] ?? ''),
             'job_number' => $jobNumber,
             'collection' => [
@@ -91,7 +110,16 @@ final class AmSpecTrfPdfService
                 'method_of_sampling' => $this->formatLabel($values['method_of_sampling'] ?? null),
                 'reason_of_collection' => $this->formatLabel($values['reason_of_collection'] ?? null),
                 'transport_condition' => $this->formatList($values['transport_condition'] ?? null),
+                'date_received' => $collectionExtras['date_received'],
+                'packaging' => $collectionExtras['packaging'],
+                'sample_weight' => $collectionExtras['sample_weight'],
+                'sample_information' => $collectionExtras['sample_information'],
+                'ship_name' => $collectionExtras['ship_name'],
+                'port_of_loading' => $collectionExtras['port_of_loading'],
+                'port_of_discharge' => $collectionExtras['port_of_discharge'],
+                'seal_number' => $collectionExtras['seal_number'],
             ],
+            'has_collection_extras' => $this->hasAllFilledValues($collectionExtras),
             'sample_lines' => $this->sampleLineService->linesForInstance($instance),
             'sign' => [
                 'statement_of_conformity' => $this->formatLabel($values['statement_of_conformity'] ?? $enquiry?->statement_of_conformity),
@@ -189,6 +217,43 @@ final class AmSpecTrfPdfService
         }
 
         return ucwords(str_replace('_', ' ', (string) $value));
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    private function hasAnyFilledValues(array $values): bool
+    {
+        foreach ($values as $value) {
+            if ($this->isFilledValue($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    private function hasAllFilledValues(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (! $this->isFilledValue($value)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isFilledValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        return trim((string) $value) !== '';
     }
 
 }

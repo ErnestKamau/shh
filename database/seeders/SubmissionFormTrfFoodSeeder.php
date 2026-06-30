@@ -23,19 +23,22 @@ class SubmissionFormTrfFoodSeeder extends Seeder
         $this->syncSampleTypesByCodes($form, ['FOOD']);
 
         if ($form->sections()->exists()) {
-            $this->command?->info('Test Request Form - Food structure already exists; skipping section creation.');
+            $this->command?->info('Test Request Form - Food structure already exists; patching fields.');
+            $this->patchCollectionDataSection($form, true, [
+                ['value' => 'air_sampler', 'label' => 'Air sampler'],
+            ]);
+            $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
+        } else {
+            $this->createCustomerDetailsSection($form, 1);
+            $this->createCollectionDataSection($form, 2, true, [
+                ['value' => 'air_sampler', 'label' => 'Air sampler'],
+            ]);
 
-            return;
+            $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->foodTrfRowFields());
+
+            $this->createSubmitAndSignSection($form, 4);
         }
 
-        $this->createCustomerDetailsSection($form, 1);
-        $this->createCollectionDataSection($form, 2, true, [
-            ['value' => 'air_sampler', 'label' => 'Air sampler'],
-        ]);
-
-        $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->foodTrfRowFields());
-
-        $this->createSubmitAndSignSection($form, 4);
         $this->clearCaches();
 
         $this->command?->info('Test Request Form - Food seeded successfully.');

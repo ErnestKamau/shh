@@ -19,6 +19,20 @@ use Illuminate\Validation\ValidationException;
 
 class SubmissionFormSubmissionService
 {
+    /**
+     * @var array<int, string>
+     */
+    private const TRF_COLLECTION_EXTRA_FIELDS = [
+        'date_received',
+        'packaging',
+        'sample_weight',
+        'sample_information',
+        'ship_name',
+        'port_of_loading',
+        'port_of_discharge',
+        'seal_number',
+    ];
+
     private ?bool $hasSelectedSampleTypeColumn = null;
 
     public function mergeSubmissionFieldsIntoRequest(Request $request): void
@@ -137,7 +151,76 @@ class SubmissionFormSubmissionService
             }
         }
 
+        $rules = $this->applyTrfCollectionExtrasCompletenessRules($rules, $request);
+
         return $rules;
+    }
+
+    /**
+     * @param  array<string, array<int, mixed>|string>  $rules
+     * @return array<string, array<int, mixed>|string>
+     */
+    private function applyTrfCollectionExtrasCompletenessRules(array $rules, Request $request): array
+    {
+        $fieldsInSchema = array_values(array_filter(
+            self::TRF_COLLECTION_EXTRA_FIELDS,
+            static fn (string $field): bool => array_key_exists($field, $rules)
+        ));
+
+        if ($fieldsInSchema === []) {
+            return $rules;
+        }
+
+        $hasAnyValue = false;
+        foreach ($fieldsInSchema as $field) {
+            if ($this->isFilledValue($request->input($field))) {
+                $hasAnyValue = true;
+                break;
+            }
+        }
+
+        if (! $hasAnyValue) {
+            return $rules;
+        }
+
+        foreach ($fieldsInSchema as $field) {
+            $fieldRules = $rules[$field] ?? [];
+            if (! is_array($fieldRules)) {
+                continue;
+            }
+
+            $fieldRules = array_values(array_filter(
+                $fieldRules,
+                static fn (mixed $rule): bool => $rule !== 'nullable'
+            ));
+
+            if (! in_array('required', $fieldRules, true)) {
+                array_unshift($fieldRules, 'required');
+            }
+
+            $rules[$field] = $fieldRules;
+        }
+
+        return $rules;
+    }
+
+    private function isFilledValue(mixed $value): bool
+    {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if ($this->isFilledValue($item)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if ($value === null) {
+            return false;
+        }
+
+        return trim((string) $value) !== '';
     }
 
     public function processFormData(

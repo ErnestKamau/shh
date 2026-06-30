@@ -183,9 +183,17 @@ final class PortalEnquiryFormInstanceSyncService
             'method_of_sampling',
             'reason_of_collection',
             'transport_condition',
+                'date_received',
+                'packaging',
+                'sample_weight',
+                'sample_information',
+                'ship_name',
+                'port_of_loading',
+                'port_of_discharge',
+                'seal_number',
         ] as $field) {
             $value = $collection[$field] ?? null;
-            if ($field === 'sampling_date') {
+                if (in_array($field, ['sampling_date', 'date_received'], true)) {
                 $value = $this->formatDate($value);
             }
             $this->storeValue($instance, $elementMap, $field, $value);

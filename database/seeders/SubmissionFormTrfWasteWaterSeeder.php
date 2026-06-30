@@ -22,32 +22,47 @@ class SubmissionFormTrfWasteWaterSeeder extends Seeder
         $this->syncSampleTypesByCodes($form, ['SMP WWTR']);
 
         if ($form->sections()->exists()) {
-            $this->command?->info('Test Request Form - Waste Water structure already exists; skipping section creation.');
+            $this->command?->info('Test Request Form - Waste Water structure already exists; patching fields.');
+            $this->patchCollectionDataSection($form, true, [], [
+                ['textarea', 'Sample & sampling point description', 'sample_sampling_point_description', 30],
+                ['select', 'Sampling technique', 'sampling_technique', 31, [
+                    ['value' => 'grab', 'label' => 'Grab'],
+                    ['value' => 'composite', 'label' => 'Composite'],
+                ]],
+                ['select', 'Sampling source', 'sampling_source', 32, [
+                    ['value' => 'tank', 'label' => 'Tank'],
+                    ['value' => 'holding_tank', 'label' => 'Holding tank'],
+                ]],
+                ['select', 'Sample physical state', 'sample_physical_state', 33, [
+                    ['value' => 'liquid', 'label' => 'Liquid'],
+                    ['value' => 'semi_solid', 'label' => 'Semi solid'],
+                ]],
+            ]);
+            $this->patchSampleRowsSection($form, $this->wasteWaterTrfRowFields());
+        } else {
+            $this->createCustomerDetailsSection($form, 1);
 
-            return;
+            $this->createCollectionDataSection($form, 2, true, [], [
+                ['textarea', 'Sample & sampling point description', 'sample_sampling_point_description', 30],
+                ['select', 'Sampling technique', 'sampling_technique', 31, [
+                    ['value' => 'grab', 'label' => 'Grab'],
+                    ['value' => 'composite', 'label' => 'Composite'],
+                ]],
+                ['select', 'Sampling source', 'sampling_source', 32, [
+                    ['value' => 'tank', 'label' => 'Tank'],
+                    ['value' => 'holding_tank', 'label' => 'Holding tank'],
+                ]],
+                ['select', 'Sample physical state', 'sample_physical_state', 33, [
+                    ['value' => 'liquid', 'label' => 'Liquid'],
+                    ['value' => 'semi_solid', 'label' => 'Semi solid'],
+                ]],
+            ]);
+
+            $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->wasteWaterTrfRowFields());
+
+            $this->createSubmitAndSignSection($form, 4);
         }
 
-        $this->createCustomerDetailsSection($form, 1);
-
-        $this->createCollectionDataSection($form, 2, true, [], [
-            ['textarea', 'Sample & sampling point description', 'sample_sampling_point_description', 9],
-            ['select', 'Sampling technique', 'sampling_technique', 10, [
-                ['value' => 'grab', 'label' => 'Grab'],
-                ['value' => 'composite', 'label' => 'Composite'],
-            ]],
-            ['select', 'Sampling source', 'sampling_source', 11, [
-                ['value' => 'tank', 'label' => 'Tank'],
-                ['value' => 'holding_tank', 'label' => 'Holding tank'],
-            ]],
-            ['select', 'Sample physical state', 'sample_physical_state', 12, [
-                ['value' => 'liquid', 'label' => 'Liquid'],
-                ['value' => 'semi_solid', 'label' => 'Semi solid'],
-            ]],
-        ]);
-
-        $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->wasteWaterTrfRowFields());
-
-        $this->createSubmitAndSignSection($form, 4);
         $this->clearCaches();
 
         $this->command?->info('Test Request Form - Waste Water seeded successfully.');

@@ -37,6 +37,12 @@
             <td><strong>Tel/Fax No.:</strong> {{ $customer_tel_fax }}</td>
             <td><strong>Mobile Number:</strong> {{ $customer_mobile }}</td>
         </tr>
+        @if($has_customer_extras ?? false)
+            <tr>
+                <td><strong>CNPJ / Tax ID:</strong> {{ $customer_tax_id }}</td>
+                <td><strong>Email:</strong> {{ $customer_email }}</td>
+            </tr>
+        @endif
         <tr>
             <td colspan="2"><strong>Contact Person:</strong> {{ $contact_person }}</td>
         </tr>
@@ -57,6 +63,23 @@
             <td colspan="2"><strong>Reason:</strong> {{ $collection['reason_of_collection'] }}</td>
             <td colspan="2"><strong>Transport:</strong> {{ $collection['transport_condition'] }}</td>
         </tr>
+        @if($has_collection_extras ?? false)
+            <tr>
+                <td colspan="4"><strong>Additional Shipment Details (Applicable Where Relevant)</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Date received:</strong> {{ $collection['date_received'] }}</td>
+                <td><strong>Packaging:</strong> {{ $collection['packaging'] }}</td>
+                <td><strong>Sample weight:</strong> {{ $collection['sample_weight'] }}</td>
+                <td><strong>Sample information:</strong> {{ $collection['sample_information'] }}</td>
+            </tr>
+            <tr>
+                <td><strong>Ship / vessel:</strong> {{ $collection['ship_name'] }}</td>
+                <td><strong>Port of loading:</strong> {{ $collection['port_of_loading'] }}</td>
+                <td><strong>Port of discharge:</strong> {{ $collection['port_of_discharge'] }}</td>
+                <td><strong>Seal:</strong> {{ $collection['seal_number'] }}</td>
+            </tr>
+        @endif
     </table>
 
     <table style="margin-top: 8px;">
