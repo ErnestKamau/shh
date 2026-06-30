@@ -9,7 +9,10 @@ use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
+use App\Models\SubmissionFormElement;
+use App\Models\SubmissionFormElementHolder;
 use App\Models\SubmissionFormInstance;
+use App\Models\SubmissionFormSection;
 use App\Models\Workflow\Approval;
 use App\Models\Workflow\ApprovalLog;
 use App\Models\Workflow\ChecklistResponse;
@@ -325,6 +328,71 @@ class ReceiveSampleRequestTest extends TestCase
         $trfi = \App\Models\TestRequestFormInstance::query()->first();
         $this->assertSame('2', $trfi->form_data['sample_rows'][0]['sample_quantity']);
         $this->assertSame('kg', $trfi->form_data['sample_rows'][0]['sample_quantity_unit']);
+    }
+
+    public function test_walk_in_capture_requires_customer_name(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR-REQ');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'sample_description' => ['Tap Water'],
+            ])
+            ->call('confirmReceive')
+            ->assertHasErrors(['formData.customer_name'])
+            ->assertDispatched('notify', type: 'error', message: 'Customer name is required in Customer details.')
+            ->assertNotDispatched('receive-completed');
+    }
+
+    public function test_walk_in_capture_requires_at_least_one_sample_row(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR-ROW');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $portalForm->id,
+            'title' => 'Test & sample information',
+            'section_type' => 'rows_section',
+            'sort_order' => 0,
+        ]);
+
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'rows',
+            'sort_order' => 0,
+        ]);
+
+        SubmissionFormElement::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_element_holder_id' => $holder->id,
+            'element_type' => 'rich_text',
+            'label' => 'Sample description',
+            'name' => 'sample_description',
+            'sort_order' => 0,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Walk-in Customer',
+                'sample_description' => [''],
+            ])
+            ->call('confirmReceive')
+            ->assertHasErrors(['formData.sample_description.0'])
+            ->assertDispatched('notify')
+            ->assertNotDispatched('receive-completed');
     }
 
     public function test_physical_check_in_persists_trf_metadata_on_linked_trfi(): void

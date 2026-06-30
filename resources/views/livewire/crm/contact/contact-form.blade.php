@@ -293,7 +293,7 @@
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="createPassword"
                                             wire:model.live="can_login">
-                                        <label class="custom-control-label" for="createPassword">{{ __('crm.create_update_user_passwords') }}</label>
+                                        <label class="custom-control-label" for="createPassword">{{ __('crm.portal_access') }}</label>
                                     </div>
                                 </div>
                             </div>

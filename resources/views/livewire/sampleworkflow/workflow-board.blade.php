@@ -980,7 +980,7 @@
 											data-sf-trigger="workflow-walk-in-acceptance"
 											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Approve quotation (non-portal)</button>
+											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Accept quotation</button>
 									</li>
 									<li>
 										<button type="button" class="dropdown-item"
@@ -1004,7 +1004,7 @@
 												data-sf-trigger="workflow-walk-in-acceptance"
 												:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 												:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-												@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Approve quotation (non-portal)</button>
+												@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Accept quotation</button>
 										</li>
 									@endif
 									<li>
@@ -1378,30 +1378,9 @@
 											<i class="mdi mdi-truck-delivery-outline mr-1"></i> Sub-contracting queue
 										</span>
 										<button type="button"
-											class="btn btn-sm btn-outline-warning"
+											class="btn btn-sm btn-outline-primary"
 											@click.prevent="selectedCount > 0 && $wire.openSubcontractDispatchModal(selectedInstanceIds())">
 											<i class="mdi mdi-barcode-scan mr-1"></i> Dispatch request
-										</button>
-									@endif
-									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
-										<button type="button"
-											class="btn btn-sm btn-outline-success"
-											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
-											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
-										</button>
-									@endif
-									@if(($status === 'Samples Receiving' && $workflowSubTab === 'submitted') || ($status === 'Samples Request Review' && $workflowSubTab === 'in_review'))
-										<button type="button"
-											class="btn btn-sm btn-outline-success"
-											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
-											<i class="mdi mdi-check-decagram mr-1"></i> Approve quotation (non-portal)
-										</button>
-									@endif
-									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
-										<button type="button"
-											class="btn btn-sm btn-outline-primary"
-											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())">
-											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Review quotation
 										</button>
 									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
@@ -1414,7 +1393,7 @@
 									@endif
 									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
-											class="btn btn-sm btn-outline-warning"
+											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-review"
 											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
 											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for Analyst review
@@ -1422,7 +1401,7 @@
 									@endif
 									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
-											class="btn btn-sm btn-outline-warning"
+											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-additional-info"
 											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
 											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
@@ -3218,7 +3197,7 @@
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
 								<h5 class="modal-title mb-1">
-									<i class="mdi mdi-file-document-edit-outline text-warning mr-2"></i>
+									<i class="mdi mdi-file-document-edit-outline text-primary mr-2"></i>
 									Request more info
 								</h5>
 								<p class="text-muted small mb-0">Ask the customer for additional information on received requests.</p>
@@ -3239,7 +3218,7 @@
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
 								<h5 class="modal-title mb-1">
-									<i class="mdi mdi-clipboard-arrow-right text-warning mr-2"></i>
+									<i class="mdi mdi-clipboard-arrow-right text-primary mr-2"></i>
 									Send for Analyst review
 								</h5>
 								<p class="text-muted small mb-0">Send selected requests to the analyst review queue.</p>
@@ -3260,7 +3239,7 @@
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
 								<h5 class="modal-title mb-1">
-									<i class="mdi mdi-truck-delivery-outline text-warning mr-2"></i>
+									<i class="mdi mdi-truck-delivery-outline text-primary mr-2"></i>
 									Dispatch subcontracting request
 								</h5>
 								<p class="text-muted small mb-0">Scan the generated system label barcode before dispatching this subcontracting request.</p>

@@ -148,20 +148,34 @@ class HomeController extends Controller
 	}
 
   public function inventory(){
-		if(!isset(getCurrentUserLocation()->id)){
+		$location = getCurrentUserLocation();
+		if (! $location?->id) {
 			viewableLocations();
+			$location = getCurrentUserLocation();
 		}
 
-		$categoriesNo = InventoryCategories::where('inventory_location_id', getCurrentUserLocation()->id ?? 0)
+		$departments = InventoryDepartment::all()->count();
+
+		if (! $location?->id) {
+			return view('layouts.inventory.index', [
+				'activity' => collect(),
+				'categoriesNo' => 0,
+				'departments' => $departments,
+				'suppliers' => 0,
+			]);
+		}
+
+		$locationId = $location->id;
+
+		$categoriesNo = InventoryCategories::where('inventory_location_id', $locationId)
 			->get()->count();
 
-		$departments = InventoryDepartment::all()->count();
-		$suppliers = Supplier::where('inventory_location_id', getCurrentUserLocation()->id)->get()->count();
+		$suppliers = Supplier::where('inventory_location_id', $locationId)->get()->count();
 
 		$activity = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
 			->join('inventory_sub_categories as isc', 'isc.inventory_category_id', '=', 'ic.id')
 			->selectRaw('isc.name as category, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out')
-			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
+			->where('ic.inventory_location_id', $locationId)
 			->where("ic.category_type", "!=", "is_lab_samples")
 			->where('inventory_items.created_at', '>', (new \Carbon\Carbon)->submonths(1))
 			->groupBy('isc.name')->get();

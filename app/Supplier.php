@@ -67,13 +67,20 @@ class Supplier extends Model implements Auditable
 	}
 
 	public function average_rating(){
-		$rating = \App\RatingCriteria::leftJoin('suppliers_rating_criterias as src', function($join){
-			$join->on('src.criteria_id', '=', 'rating_criterias.id');
-			$join->where('src.supplier_id', '=', $this->id);
-		})->selectRaw('SUM(src.score) as score, SUM(rating_criterias.max_score) as max_score')
-		->where('src.is_current', 1)->where('rating_criterias.active', 1)->first();
+		try {
+			$rating = \App\RatingCriteria::leftJoin('suppliers_rating_criterias as src', function($join){
+				$join->on('src.criteria_id', '=', 'rating_criterias.id');
+				$join->where('src.supplier_id', '=', $this->id);
+			})->selectRaw('SUM(src.score) as score, SUM(rating_criterias.max_score) as max_score')
+			->where('src.is_current', 1)->where('rating_criterias.active', 1)->first();
+		} catch (\Throwable $exception) {
+			return 0;
+		}
 
+		if (! $rating || (float) $rating->max_score === 0.0) {
+			return 0;
+		}
 
-		return $rating->max_score == 0 ? 0 : number_format(floatval($rating->score)/floatval($rating->max_score)*100, 0);
+		return number_format(floatval($rating->score) / floatval($rating->max_score) * 100, 0);
 	}
 }

@@ -72,7 +72,7 @@
         </button>
         <button
             type="button"
-            class="btn btn-warning btn-sm receive-sample-submit-btn"
+            class="btn btn-primary btn-sm receive-sample-submit-btn"
             wire:click="confirmSendForAnalystReview"
             wire:loading.attr="disabled"
             @if ($selectedFormInstanceIds === []) disabled @endif

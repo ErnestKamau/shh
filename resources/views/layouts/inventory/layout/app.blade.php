@@ -318,8 +318,10 @@
 	<script>
 		$(function(){
 			@if (!getCurrentUserLocation())
-				var loc = $('#location-selector').find('.dropdown-item').attr('href');
-				window.location.href = loc;
+				var loc = $('#location-selector').find('.dropdown-item').first().attr('href');
+				if (loc) {
+					window.location.href = loc;
+				}
 			@endif
 		});
 

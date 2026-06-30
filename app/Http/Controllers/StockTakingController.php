@@ -21,9 +21,7 @@ class StockTakingController extends Controller
 	public function index()
 	{
 		$takings = StockTaking::join('users as u', 'u.id', 'stock_takings.created_by')
-		->leftJoin('users as up', 'up.id', 'stock_takings.updated_by')
-		->leftJoin('users as app', 'app.id', 'stock_takings.approved_by')
-		->selectRaw('stock_takings.*, app.name as approver_name, up.name as updater_name, u.name as creator')
+		->selectRaw('stock_takings.*, NULL as approver_name, NULL as updater_name, u.name as creator')
 		->where('stock_takings.inventory_location_id', getCurrentUserLocation()->id)->orderBy('created_at', 'desc')->get();
 		return view('layouts.inventory.stock-taking.index', compact('takings'));
 	}

@@ -17,6 +17,7 @@ use App\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class ReceiveSampleRequest extends Component
@@ -638,6 +639,73 @@ class ReceiveSampleRequest extends Component
 
     private function confirmWalkInCapture(): void
     {
+        try {
+            $this->runWalkInCaptureValidations();
+        } catch (ValidationException $exception) {
+            $this->notifyWalkInValidationFailure($exception->validator->errors()->all());
+            throw $exception;
+        }
+
+        if ($this->getErrorBag()->isNotEmpty()) {
+            $this->notifyWalkInValidationFailure();
+
+            return;
+        }
+
+        $this->prepareLabUseFields();
+
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            $this->addError('selection', 'You must be signed in to receive samples.');
+
+            return;
+        }
+
+        $crmCustomerId = null;
+        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
+            if (! empty($this->formData[$key])) {
+                $customerName = trim((string) $this->formData[$key]);
+                if ($customerName !== '') {
+                    $crmCustomerId = CRMCustomer::query()
+                        ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
+                        ->value('id');
+                }
+                break;
+            }
+        }
+
+        $payload = $this->walkInSubmissionPayload();
+
+        $submissionForm = $this->submissionForm;
+        if ($submissionForm === null) {
+            return;
+        }
+
+        try {
+            $instance = app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
+                $submissionForm,
+                $payload,
+                $crmCustomerId !== null ? (string) $crmCustomerId : null,
+                (string) $this->selectedSampleTypeId,
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+            $message = 'Could not submit walk-in request. '.$exception->getMessage();
+            $this->addError('selection', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
+
+            return;
+        }
+
+        $this->lastGeneratedSfiIds = [$instance->id];
+
+        session()->flash('success', 'Walk-in test request submitted successfully.');
+        $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds);
+        $this->dispatch('hide-receive-sample-modal');
+    }
+
+    private function runWalkInCaptureValidations(): void
+    {
         $this->validate([
             'selectedSampleTypeId' => 'required|exists:sample_types,id',
         ], [
@@ -646,10 +714,14 @@ class ReceiveSampleRequest extends Component
 
         $submissionForm = $this->submissionForm;
         if ($submissionForm === null) {
-            $this->addError('selectedSampleTypeId', 'No active Test Request Form template found for the selected sample type.');
+            $message = 'No active Test Request Form template found for the selected sample type.';
+            $this->addError('selectedSampleTypeId', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
 
             return;
         }
+
+        $this->validateWalkInCustomerInfo();
 
         $rules = [];
         $messages = [];
@@ -688,55 +760,50 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->validateWalkInSchemaRows();
-        if ($this->getErrorBag()->isNotEmpty()) {
-            return;
-        }
+    }
 
-        $this->prepareLabUseFields();
+    private function validateWalkInCustomerInfo(): void
+    {
+        $customerName = '';
 
-        $user = Auth::user();
-        if (! $user instanceof User) {
-            $this->addError('selection', 'You must be signed in to receive samples.');
-
-            return;
-        }
-
-        $crmCustomerId = null;
         foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-            if (! empty($this->formData[$key])) {
-                $customerName = trim((string) $this->formData[$key]);
-                if ($customerName !== '') {
-                    $crmCustomerId = CRMCustomer::query()
-                        ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
-                        ->value('id');
-                }
+            $candidate = trim((string) ($this->formData[$key] ?? ''));
+            if ($candidate !== '') {
+                $customerName = $candidate;
                 break;
             }
         }
 
-        $payload = $this->walkInSubmissionPayload();
+        if ($customerName === '') {
+            $this->addError('formData.customer_name', 'Customer name is required in Customer details.');
+        }
+    }
 
-        try {
-            $instance = app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
-                $submissionForm,
-                $payload,
-                $crmCustomerId !== null ? (string) $crmCustomerId : null,
-                (string) $this->selectedSampleTypeId,
-            );
-        } catch (\Throwable $exception) {
-            report($exception);
-            $message = 'Could not submit walk-in request. '.$exception->getMessage();
-            $this->addError('selection', $message);
-            $this->dispatch('notify', type: 'error', message: $message);
+    /**
+     * @param  list<string>|null  $messages
+     */
+    private function notifyWalkInValidationFailure(?array $messages = null): void
+    {
+        $messages = array_values(array_filter($messages ?? $this->getErrorBag()->all()));
+        if ($messages === []) {
+            return;
+        }
+
+        if (count($messages) === 1) {
+            $this->dispatch('notify', type: 'error', message: $messages[0]);
 
             return;
         }
 
-        $this->lastGeneratedSfiIds = [$instance->id];
+        $this->dispatch(
+            'notify',
+            type: 'error',
+            message: 'Could not submit walk-in request. Please complete the required fields below.',
+        );
 
-        session()->flash('success', 'Walk-in test request submitted successfully.');
-        $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds);
-        $this->dispatch('hide-receive-sample-modal');
+        foreach (array_slice($messages, 0, 4) as $message) {
+            $this->dispatch('notify', type: 'warning', message: $message);
+        }
     }
 
     /**
@@ -830,7 +897,7 @@ class ReceiveSampleRequest extends Component
         }
 
         if (! $hasFilledRow) {
-            $this->addError('formData.sample_description.0', 'Add at least one sample row in Test & sample information.');
+            $this->addError('formData.sample_description.0', 'Add at least one sample row with details in Test & sample information.');
 
             return;
         }

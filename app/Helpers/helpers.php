@@ -1762,13 +1762,22 @@ function getInvoiceById($id)
 }
 function getUserLocations()
 {
+	$user = \Auth::user();
+	if (! $user) {
+		return [];
+	}
+
 	$user_locations = App\InventoryLocationUser::join('inventory_locations as l', 'l.id', '=', 'inventory_location_users.inventory_location_id')
-		->selectRaw('l.name, l.id')->where('user_id', \Auth::user()->id)->orderBy('l.level', 'asc')->get();
+		->selectRaw('l.name, l.id')->where('user_id', $user->id)->orderBy('l.level', 'asc')->get();
 
 	$location_ids = array();
 
 	foreach ($user_locations as $loc) {
 		$location_ids[] = $loc->id;
+	}
+
+	if ($location_ids === [] && $user->hasRole(['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'])) {
+		return App\InventoryLocation::where('level', 1)->orderBy('name', 'asc')->pluck('id')->all();
 	}
 
 	return $location_ids;

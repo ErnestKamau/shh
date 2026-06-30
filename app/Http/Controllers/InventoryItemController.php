@@ -33,14 +33,12 @@ class InventoryItemController extends Controller
 				$join->on('ib.inventory_sub_category_id', 'inventory_items.inventory_sub_category_id');
 			})
 			->leftJoin('request_entities as re', 're.request_code', 'inventory_items.po_number')
-			->leftJoin('request_entities as re2', 're2.id', 're.parent_material_requisition')
-			->leftJoin('request_entity_items as rei', 're.id', 'rei.request_id')
 			->join('inventory_stores as ins', 'ins.id', 'inventory_items.inventory_store_id')
 			->join('inventory_store_slots as iss', 'iss.id', 'inventory_items.inventory_store_slot_id')
 			->join('users as u', 'u.id', '=', 'inventory_items.created_by')
 			->join('inventory_departments as id', 'id.id', '=', 'inventory_items.inventory_department_id')
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw("isc.code, inventory_items.created_at, re2.created_at as req_date, inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, 'Non-Specific') as brand, ins.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code, rei.comments, re2.description, re.cost_center");
+			->selectRaw("isc.code, inventory_items.created_at, re.created_at as req_date, inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, 'Non-Specific') as brand, ins.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code, NULL as comments, re.description, re.cost_center");
 
 		$termOBJ = ['classification' => '', 'range' => [], 'category' => '', 'department' => ''];
 		$typeParts = explode(',', $type);
@@ -80,7 +78,7 @@ class InventoryItemController extends Controller
 		}
 
 		$term = $termOBJ;
-		$items = $items->groupBy('inventory_items.id')->orderBy('re2.id', 'desc')->get();
+		$items = $items->distinct()->orderByDesc('req_date')->orderByDesc('inventory_items.created_at')->get();
 
 		// return response()->json($term, 200);
 
@@ -105,10 +103,8 @@ class InventoryItemController extends Controller
 			->join('inventory_sub_categories as isc', 'isc.id', '=', 'inventory_items.inventory_sub_category_id')
 			->join('users as u', 'u.id', '=', 'inventory_items.created_by')
 			->leftJoin('request_entities as re', 're.request_code', 'inventory_items.po_number')
-			->leftJoin('request_entities as re2', 're2.id', 're.parent_material_requisition')
-			->leftJoin('request_entity_items as rei', 're.id', 'rei.request_id')
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw('inventory_items.created_at,inventory_items.stock_in, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, isc.manufacturer, u.name as creator, u.email as creator_email, rei.comments, re2.description');
+			->selectRaw('inventory_items.created_at,inventory_items.stock_in, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, isc.manufacturer, u.name as creator, u.email as creator_email, NULL as comments, re.description');
 
 		if ($type != false && $term != 0) {
 			$items = $items->where('isc.item_classification', $term);

@@ -1503,33 +1503,33 @@ Route::prefix('tickets')->name('tickets.')->middleware(['auth', 'can:tickets.mod
 //###################################HELP DESK#######################################
 
 //###################################REQUISITION TRAIL#######################################
-Route::get('/req/{stage}', 'RequisitionController@open_stage')->name('go_to_stage')->middleware('can:inventory.components.stage.view');
-Route::get('/get_req_enitites_server_side/{stage}/{type}', 'RequestEntityController@get_entities_server_side')->name('get_req_enitites_server_side')->middleware('can:inventory.components.stage.view');
-Route::post('/make-po-ammendment/{id}/{stage}', 'RequisitionController@make_po_ammendment')->name('make-po-ammendment')->middleware('can:inventory.components.stage.delete');
+Route::get('/req/{stage}', 'RequisitionController@open_stage')->name('go_to_stage')->middleware('can:inventory.module.access');
+Route::get('/get_req_enitites_server_side/{stage}/{type}', 'RequestEntityController@get_entities_server_side')->name('get_req_enitites_server_side')->middleware('can:inventory.module.access');
+Route::post('/make-po-ammendment/{id}/{stage}', 'RequisitionController@make_po_ammendment')->name('make-po-ammendment')->middleware('can:inventory.module.access');
 
 Route::get('/requester_verification_confirmation/{id}', 'RequisitionController@requester_verification_confirmation')->name('requester_verification_confirmation');
 
-Route::post('/req/{stage}/{id}/delete', 'RequisitionController@removeRequestEntity')->name('delete-request-details')->middleware('can:inventory.components.stage.delete');
-Route::post('/req/{stage}/cloned', 'RequisitionController@clone_entity')->name('clone-request-details')->middleware('can:inventory.components.stage.edit');
-Route::get('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@show')->name('view-request-details')->middleware('can:inventory.components.stage.view');
-Route::post('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@update')->name('save-request-details')->middleware('can:inventory.components.stage.edit');
-Route::get('/req-report-generate/{id}/{supply?}', 'ReportGeneratorController@generate_report')->name('req-report-generate')->middleware('can:inventory.components.stage.view');
-Route::get('/req-report-generate-pdf/{id}', 'ReportGeneratorController@generate_report_pdf')->name('req-report-generate-pdf')->middleware('can:inventory.components.stage.view');
-Route::get('/check-pdf-processing-progress/{id}', 'ReportGeneratorController@check_pdf_processing_progress')->name('check-pdf-processing-progress')->middleware('can:inventory.components.stage.view');
+Route::post('/req/{stage}/{id}/delete', 'RequisitionController@removeRequestEntity')->name('delete-request-details')->middleware('can:inventory.module.access');
+Route::post('/req/{stage}/cloned', 'RequisitionController@clone_entity')->name('clone-request-details')->middleware('can:inventory.module.access');
+Route::get('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@show')->name('view-request-details')->middleware('can:inventory.module.access');
+Route::post('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@update')->name('save-request-details')->middleware('can:inventory.module.access');
+Route::get('/req-report-generate/{id}/{supply?}', 'ReportGeneratorController@generate_report')->name('req-report-generate')->middleware('can:inventory.module.access');
+Route::get('/req-report-generate-pdf/{id}', 'ReportGeneratorController@generate_report_pdf')->name('req-report-generate-pdf')->middleware('can:inventory.module.access');
+Route::get('/check-pdf-processing-progress/{id}', 'ReportGeneratorController@check_pdf_processing_progress')->name('check-pdf-processing-progress')->middleware('can:inventory.module.access');
 
 Route::get('/supplier-rfq-pdf/{supplier}/{id}', 'ReportGeneratorController@generate_supplier_pdf')->name('generate-supplier-pdf')->middleware('can:inventory.components.request for quotation.view');
 
-Route::get('/download-request-items/{id}/{isPDF?}', 'ReportGeneratorController@download_items_xlsx')->name('download-request-items')->middleware('can:inventory.components.stage.view');
+Route::get('/download-request-items/{id}/{isPDF?}', 'ReportGeneratorController@download_items_xlsx')->name('download-request-items')->middleware('can:inventory.module.access');
 
 Route::post('/create-lpo-from-mr/{id}', 'RequisitionController@create_lpo_from_mr')->name('create-lpo-from-mr')->middleware('can:inventory.components.purchase orders.edit');
-Route::post('/change-req-approver/{stage}/{id}', 'RequisitionController@change_req_approver')->name('change-req-approver')->middleware('can:inventory.components.stage.edit');
+Route::post('/change-req-approver/{stage}/{id}', 'RequisitionController@change_req_approver')->name('change-req-approver')->middleware('can:inventory.module.access');
 
 Route::post('/add-extra-charge/{id}', 'RequisitionController@add_extra_charge')->name('add-extra-charge')->middleware('can:inventory.components.purchase orders.edit');
 Route::post('/remove-extra-charge/{id}', 'RequisitionController@remove_extra_charge')->name('remove-extra-charge')->middleware('can:inventory.components.purchase orders.edit');
 
-Route::post('/reverse-entity-action/{id}', 'RequisitionController@reverse_entity_action')->name('reverse-entity-action')->middleware('can:inventory.components.stage.edit');
+Route::post('/reverse-entity-action/{id}', 'RequisitionController@reverse_entity_action')->name('reverse-entity-action')->middleware('can:inventory.module.access');
 
-Route::post('/req/download/{id}/{type}', 'RequisitionController@download')->name('download-requisition-doc')->middleware('can:inventory.components.stage.view');
+Route::post('/req/download/{id}/{type}', 'RequisitionController@download')->name('download-requisition-doc')->middleware('can:inventory.module.access');
 Route::post('/mark-gr-as-complete/{id}', 'RequisitionController@mark_gr_as_complete')->name('mark-gr-as-complete')->middleware('can:inventory.components.goods receipt.edit');
 Route::post('/submit-bank-details/{id}', 'RequisitionController@submit_bank_details')->name('submit-bank-details')->middleware('can:inventory.components.purchase orders.edit');
 Route::post('/upload-bank-confirmation/{id}', 'RequisitionController@upload_bank_confirmation')->name('upload-bank-confirmation')->middleware('can:inventory.components.purchase orders.edit');
@@ -1537,8 +1537,8 @@ Route::post('/add-email-body-rfq/{id}', 'RequisitionController@add_email_body_rf
 
 // Route::post('/jump-request-to-status/{id}', 'RequisitionController@jump_request_to_status')->name('jump-request-to-status')->middleware('can:inventory.components.request for quotation.edit');
 
-Route::post('/req-locations-add', 'RequisitionLocationController@add')->name('req-locations-add')->middleware('can:inventory.components.stage.edit');
-Route::post('/req-locations-remove', 'RequisitionLocationController@remove')->name('req-locations-remove')->middleware('can:inventory.components.stage.edit');
+Route::post('/req-locations-add', 'RequisitionLocationController@add')->name('req-locations-add')->middleware('can:inventory.module.access');
+Route::post('/req-locations-remove', 'RequisitionLocationController@remove')->name('req-locations-remove')->middleware('can:inventory.module.access');
 //###################################REQUISITION TRAIL#######################################
 
 //##############################################BATCH COMMENTS#######################################
