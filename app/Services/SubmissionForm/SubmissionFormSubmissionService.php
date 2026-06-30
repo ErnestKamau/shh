@@ -13,11 +13,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SubmissionFormSubmissionService
 {
+    private ?bool $hasSelectedSampleTypeColumn = null;
+
     public function mergeSubmissionFieldsIntoRequest(Request $request): void
     {
         $fields = $request->input('fields');
@@ -218,11 +221,8 @@ class SubmissionFormSubmissionService
         return DB::transaction(function () use ($submissionForm, $fieldValues, $crmCustomerId, $sampleTypeId, $sourceChannel, $samplingScheduleId): SubmissionFormInstance {
             $userId = Auth::id();
 
-            $instance = SubmissionFormInstance::query()->create([
+            $instanceData = [
                 'submission_form_id' => $submissionForm->id,
-                'selected_sample_type_id' => $sampleTypeId !== null && $sampleTypeId !== ''
-                    ? $sampleTypeId
-                    : null,
                 'title' => 'Test Request Form - '.now()->format('Y-m-d H:i'),
                 'submitted_by' => $userId,
                 'status' => 'submitted',
@@ -231,7 +231,15 @@ class SubmissionFormSubmissionService
                 'crm_customer_id' => $crmCustomerId,
                 'source_channel' => $sourceChannel,
                 'sampling_schedule_id' => $samplingScheduleId,
-            ]);
+            ];
+
+            if ($this->supportsSelectedSampleTypeColumn()) {
+                $instanceData['selected_sample_type_id'] = $sampleTypeId !== null && $sampleTypeId !== ''
+                    ? $sampleTypeId
+                    : null;
+            }
+
+            $instance = SubmissionFormInstance::query()->create($instanceData);
 
             $elements = $this->elementsForForm($submissionForm);
             $request = new Request();
@@ -245,6 +253,15 @@ class SubmissionFormSubmissionService
 
             return $instance->fresh(['submissionForm', 'values.element']);
         });
+    }
+
+    private function supportsSelectedSampleTypeColumn(): bool
+    {
+        if ($this->hasSelectedSampleTypeColumn === null) {
+            $this->hasSelectedSampleTypeColumn = Schema::hasColumn('submission_form_instances', 'selected_sample_type_id');
+        }
+
+        return $this->hasSelectedSampleTypeColumn;
     }
 
     private function syncCommercialPipelineIfApplicable(
@@ -378,6 +395,17 @@ class SubmissionFormSubmissionService
         string $fieldName = null
     ): void {
         $inputs = $values;
+
+        // Some checkbox/select controls post associative maps like
+        // ['option_a' => true, 'option_b' => false]. Convert those into
+        // a sequential list of selected option keys so array_index remains numeric.
+        if ($this->isAssociativeSelectionMap($inputs)) {
+            $inputs = array_values(array_map(
+                static fn ($key): string => (string) $key,
+                array_keys(array_filter($inputs, static fn ($selected): bool => (bool) $selected))
+            ));
+        }
+
         $files = [];
 
         if ($request && $fieldName) {
@@ -425,9 +453,34 @@ class SubmissionFormSubmissionService
             }
 
             if (($saveValue !== null && $saveValue !== '') || $filePath !== null) {
-                $this->saveFieldValue($instance, $element, $saveValue, $filePath, $index);
+                $this->saveFieldValue($instance, $element, $saveValue, $filePath, is_numeric($index) ? (int) $index : null);
             }
         }
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function isAssociativeSelectionMap(array $values): bool
+    {
+        if ($values === []) {
+            return false;
+        }
+
+        $hasStringKey = false;
+        foreach ($values as $key => $value) {
+            if (! is_string($key)) {
+                continue;
+            }
+
+            $hasStringKey = true;
+
+            if (is_array($value)) {
+                return false;
+            }
+        }
+
+        return $hasStringKey;
     }
 
     private function isMultipleSelectField(SubmissionFormElement $element, Request $request): bool

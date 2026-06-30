@@ -16,7 +16,10 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLog;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
+use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use App\Lab;
@@ -28,6 +31,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -50,6 +54,7 @@ class WorkflowBoard extends Component
             'submitted' => 'Submitted Requests',
             'ready_for_reception' => 'Ready for Reception',
             'received' => 'Received Request',
+            'sub_contracting' => 'Sub-contracting',
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
@@ -78,6 +83,8 @@ class WorkflowBoard extends Component
      * Sub-tab for status pages that split Requests vs Received.
      */
     public string $workflowSubTab = 'requests';
+
+    public string $subcontractingDispatchStatus = SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING;
 
     /**
      * Initial filters passed from the controller (query string).
@@ -164,6 +171,16 @@ class WorkflowBoard extends Component
 
     public string $advancePaymentReference = '';
 
+    public string $poRuleType = 'walk_in';
+
+    public bool $poRequiresPo = false;
+
+    public bool $poRequiresAdvanceReference = false;
+
+    public bool $poAllowsSkip = true;
+
+    public string $poRuleMessage = '';
+
 
     /**
      * @var array<int, array{id: string, label: string, customer: string}>
@@ -176,6 +193,12 @@ class WorkflowBoard extends Component
      * @var array<int, array{id: string, label: string, assignee_name: string}>
      */
     public array $pendingIntrayAssignments = [];
+
+    /** @var array<string, string> */
+    public array $subcontractingDispatchStatuses = [
+        SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING => 'Awaiting dispatch',
+        SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED => 'Dispatched',
+    ];
 
     public bool $showMyIntrayPanel = true;
 
@@ -239,6 +262,129 @@ class WorkflowBoard extends Component
         if ($this->status === 'Samples Receiving' && request()->boolean('open_receive_request')) {
             $this->workflowSubTab = 'submitted';
             $this->openReceiveRequestPending = true;
+        }
+
+        $this->backfillDispatchedSubcontractJobs();
+    }
+
+    protected function backfillDispatchedSubcontractJobs(): void
+    {
+        $dispatchedWithoutJob = SampleSubmissionRequest::query()
+            ->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+            ->where(function ($query): void {
+                $query->whereNull('sample_header_id');
+            })
+            ->orderByDesc('subcontracting_dispatch_date')
+            ->orderByDesc('updated_at')
+            ->limit(250)
+            ->get();
+
+        if ($dispatchedWithoutJob->isEmpty()) {
+            return;
+        }
+
+        foreach ($dispatchedWithoutJob as $enquiry) {
+            try {
+                $instance = $enquiry->resolveLinkedFormInstance();
+                if (! $instance) {
+                    continue;
+                }
+
+                $rawSubmissionFormInstanceId = (string) ($enquiry->submission_form_instance_id ?? '');
+                $rawTestRequestFormInstanceId = (string) ($enquiry->test_request_form_instance_id ?? '');
+                $normalizedSubmissionFormInstanceId = trim($rawSubmissionFormInstanceId);
+                $normalizedTestRequestFormInstanceId = trim($rawTestRequestFormInstanceId);
+
+                if (
+                    $rawSubmissionFormInstanceId !== $normalizedSubmissionFormInstanceId
+                    || $rawTestRequestFormInstanceId !== $normalizedTestRequestFormInstanceId
+                ) {
+                    $enquiry->submission_form_instance_id = $normalizedSubmissionFormInstanceId !== ''
+                        ? $normalizedSubmissionFormInstanceId
+                        : null;
+                    $enquiry->test_request_form_instance_id = $normalizedTestRequestFormInstanceId !== ''
+                        ? $normalizedTestRequestFormInstanceId
+                        : null;
+                    $enquiry->save();
+                }
+
+                $instance->loadMissing('batches');
+
+                $hasExistingJob = ! empty($enquiry->sample_header_id)
+                    || ! empty($instance->analysisAcceptanceForms()->value('sample_header_id'));
+
+                if ($hasExistingJob) {
+                    $linkedBatchId = (string) ($enquiry->sample_header_id
+                        ?: $instance->analysisAcceptanceForms()->value('sample_header_id')
+                        ?: optional($instance->batches->first())->id
+                    );
+
+                    if ($linkedBatchId !== '') {
+                        $batch = SampleHeader::query()->find($linkedBatchId);
+                        if ($batch) {
+                            $batch->status = 'Samples In Lab';
+                            $batch->prelim_batch_status = null;
+                            $batch->in_lab_date = $batch->in_lab_date ?: now()->format('Y-m-d');
+                            $batch->save();
+
+                            if (! $enquiry->sample_header_id) {
+                                $enquiry->sample_header_id = $batch->id;
+                                $enquiry->status = 'received_at_lab';
+                                $enquiry->save();
+                            }
+                        }
+                    }
+
+                    continue;
+                }
+
+                $existingBatch = $instance->batches->first();
+                if ($existingBatch) {
+                    $existingBatch->status = 'Samples In Lab';
+                    $existingBatch->prelim_batch_status = null;
+                    $existingBatch->in_lab_date = $existingBatch->in_lab_date ?: now()->format('Y-m-d');
+                    $existingBatch->save();
+
+                    $enquiry->sample_header_id = $existingBatch->id;
+                    $enquiry->status = 'received_at_lab';
+                    $enquiry->save();
+
+                    continue;
+                }
+
+                $prefill = app(AcceptanceFormPricingService::class)->buildPrefillFromSelection(
+                    (string) $enquiry->id,
+                    (string) $instance->id,
+                );
+
+                $lines = $prefill['lines'] ?? [];
+                if (! is_array($lines) || $lines === []) {
+                    continue;
+                }
+
+                $signerName = (string) (Auth::user()?->name ?? 'System Backfill');
+                $createdBy = Auth::id() ? (string) Auth::id() : null;
+
+                app(AcceptanceFormService::class)->acceptWithStaffSignature(
+                    (string) $instance->id,
+                    (string) $enquiry->id,
+                    [
+                        'crm_customer_id' => $prefill['customer_id'] ?? $enquiry->crm_customer_id,
+                        'customer_name' => $prefill['customer_name'] ?? ($instance->crmCustomer?->name ?? ''),
+                        'request_date' => $prefill['request_date'] ?? now()->format('Y-m-d'),
+                        'number_of_samples' => (int) ($prefill['number_of_samples'] ?? max(1, (int) ($enquiry->number_of_samples ?? 1))),
+                        'mode_of_work' => $prefill['mode_of_work'] ?? 'Normal',
+                        'date_of_sampling' => $prefill['date_of_sampling'] ?? null,
+                    ],
+                    $lines,
+                    $signerName,
+                    'subcontract-dispatch-backfill-signature',
+                    now()->toDateString(),
+                    $createdBy,
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
     }
 
@@ -480,7 +626,7 @@ class WorkflowBoard extends Component
     {
         return array_values(array_filter(
             array_keys(self::receivingRequestTabs()),
-            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception'], true)
+            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sub_contracting'], true)
         ));
     }
 
@@ -583,6 +729,309 @@ class WorkflowBoard extends Component
             });
     }
 
+    /**
+     * Sub-contracting queue: received requests where at least one selected
+     * analysis parameter is subcontracted either from:
+     * - analysis_elements.sub_contracted (master parameter setup), or
+     * - quotation_details.subcontracted_analytes (manual override in pricing tab).
+     */
+    protected function subcontractingSubmissionFormsQuery(?string $dispatchStatusOverride = null): \Illuminate\Database\Eloquent\Builder
+    {
+        $driver = DB::connection()->getDriverName();
+        $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+        $approvalGateStatuses = [
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+        ];
+        $dispatchStatus = in_array($dispatchStatusOverride, [
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING,
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED,
+        ], true)
+            ? $dispatchStatusOverride
+            : $this->normalizedSubcontractingDispatchStatus();
+        $isDispatchedFilter = $dispatchStatus === SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED;
+        $requiresApprovalGate = $dispatchStatus !== SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED;
+        $instanceStatuses = $isDispatchedFilter
+            ? ['submitted', 'Submitted', 'received', 'approved', 'in_review', 'In Review']
+            : ['submitted', 'Submitted', 'received', 'approved'];
+
+        $baseQuery = $isDispatchedFilter
+            ? SubmissionFormInstance::query()->whereHas('submissionForm', function ($formQuery): void {
+                $formQuery->where('form_type', 'template');
+            })
+            : $this->receivingSubmissionFormsBaseQuery();
+
+        return $baseQuery
+            ->whereIn('status', $instanceStatuses)
+            ->where(function ($instanceQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses, $requiresApprovalGate, $isDispatchedFilter): void {
+                if ($isDispatchedFilter) {
+                    $instanceQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                        $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
+                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                        $fallbackQuery->selectRaw('1')
+                            ->from('sample_submission_requests as ssr')
+                            ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                            ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $linkQuery
+                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                    })
+                                    ->orWhere(function ($portalLink) use ($driver): void {
+                                        $portalLink->when($driver === 'pgsql', function ($query): void {
+                                            $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                        }, function ($query): void {
+                                            $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                        });
+                                    })
+                                    ->orWhere(function ($targetLink) use ($driver): void {
+                                        $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                            ->when($driver === 'pgsql', function ($query): void {
+                                                $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                            }, function ($query): void {
+                                                $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                            });
+                                    });
+                            });
+                    });
+
+                    return;
+                }
+
+                $instanceQuery
+                    ->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($driver, $approvalGateStatuses, $requiresApprovalGate): void {
+                        $enquiryQuery->when($requiresApprovalGate, function ($statusQuery) use ($approvalGateStatuses): void {
+                            $statusQuery->whereIn('status', $approvalGateStatuses);
+                        });
+
+                        $enquiryQuery->where(function ($matchQuery) use ($driver): void {
+                            $matchQuery->whereHas('requestedAnalyses', function ($analysisQuery): void {
+                                $analysisQuery->whereHas('analysisElement', function ($elementQuery): void {
+                                    $elementQuery->where('sub_contracted', 1);
+                                });
+                            })->orWhereHas('currentQuotation.details', function ($detailQuery): void {
+                                $detailQuery->whereNotNull('subcontracted_analytes')
+                                    ->where('subcontracted_analytes', '!=', '');
+                            })->orWhereHas('acceptedQuotation.details', function ($detailQuery): void {
+                                $detailQuery->whereNotNull('subcontracted_analytes')
+                                    ->where('subcontracted_analytes', '!=', '');
+                            })->orWhere(function ($jsonSelectionQuery) use ($driver): void {
+                                if ($driver !== 'pgsql') {
+                                    $jsonSelectionQuery->whereRaw('1 = 0');
+
+                                    return;
+                                }
+
+                                $jsonSelectionQuery->whereExists(function ($jsonExists): void {
+                                    $jsonExists->selectRaw('1')
+                                        ->from('analysis_elements as ae')
+                                        ->where('ae.sub_contracted', 1)
+                                        ->where(function ($selectedIds): void {
+                                            $selectedIds
+                                                ->whereRaw("ae.id::text IN (SELECT jsonb_array_elements_text(COALESCE(sample_submission_requests.parameter_ids::jsonb, '[]'::jsonb)))")
+                                                ->orWhereRaw("ae.id::text IN (SELECT elem->>'analysis_element_id' FROM jsonb_array_elements(COALESCE(sample_submission_requests.sample_lines::jsonb, '[]'::jsonb)) AS elem WHERE COALESCE(elem->>'analysis_element_id', '') <> '')");
+                                        });
+                                });
+                            });
+                        });
+                    })
+                    ->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses, $requiresApprovalGate): void {
+                        $fallbackQuery->selectRaw('1')
+                            ->from('sample_submission_requests as ssr')
+                            ->when($requiresApprovalGate, function ($statusQuery) use ($approvalGateStatuses): void {
+                                $statusQuery->whereIn('ssr.status', $approvalGateStatuses);
+                            })
+                            ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $linkQuery
+                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                    })
+                                    ->orWhere(function ($portalLink) use ($driver): void {
+                                        $portalLink->when($driver === 'pgsql', function ($query): void {
+                                            $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                        }, function ($query): void {
+                                            $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                        });
+                                    })
+                                    ->orWhere(function ($targetLink) use ($driver): void {
+                                        $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                            ->when($driver === 'pgsql', function ($query): void {
+                                                $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                            }, function ($query): void {
+                                                $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                            });
+                                    });
+                            })
+                            ->where(function ($matchQuery) use ($driver): void {
+                                $matchQuery
+                                    ->whereExists(function ($analysisExists): void {
+                                        $analysisExists->selectRaw('1')
+                                            ->from('sample_submission_request_requested_analyses as ra')
+                                            ->join('analysis_elements as ae', 'ae.id', '=', 'ra.analysis_element_id')
+                                            ->whereColumn('ra.sample_submission_request_id', 'ssr.id')
+                                            ->where('ae.sub_contracted', 1);
+                                    })
+                                    ->orWhereExists(function ($quoteExists): void {
+                                        $quoteExists->selectRaw('1')
+                                            ->from('quotation_details as qd')
+                                            ->where(function ($quoteHeaderMatch): void {
+                                                $quoteHeaderMatch
+                                                    ->whereColumn('qd.quotation_header_id', 'ssr.current_quotation_header_id')
+                                                    ->orWhereColumn('qd.quotation_header_id', 'ssr.accepted_quotation_header_id');
+                                            })
+                                            ->whereNotNull('qd.subcontracted_analytes')
+                                            ->where('qd.subcontracted_analytes', '!=', '');
+                                    })
+                                    ->orWhere(function ($jsonSelectionQuery) use ($driver): void {
+                                        if ($driver !== 'pgsql') {
+                                            $jsonSelectionQuery->whereRaw('1 = 0');
+
+                                            return;
+                                        }
+
+                                        $jsonSelectionQuery->whereExists(function ($jsonExists): void {
+                                            $jsonExists->selectRaw('1')
+                                                ->from('analysis_elements as ae')
+                                                ->where('ae.sub_contracted', 1)
+                                                ->where(function ($selectedIds): void {
+                                                    $selectedIds
+                                                        ->whereRaw("ae.id::text IN (SELECT jsonb_array_elements_text(COALESCE(ssr.parameter_ids::jsonb, '[]'::jsonb)))")
+                                                        ->orWhereRaw("ae.id::text IN (SELECT elem->>'analysis_element_id' FROM jsonb_array_elements(COALESCE(ssr.sample_lines::jsonb, '[]'::jsonb)) AS elem WHERE COALESCE(elem->>'analysis_element_id', '') <> '')");
+                                                });
+                                        });
+                                    });
+                            });
+                    });
+            })
+            ->where(function ($dispatchQuery) use ($dispatchStatus, $driver, $hasTestRequestFormInstanceId): void {
+                if ($dispatchStatus === SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED) {
+                    $dispatchQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                        $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
+                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                        $fallbackQuery->selectRaw('1')
+                            ->from('sample_submission_requests as ssr')
+                            ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                            ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $linkQuery
+                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                    })
+                                    ->orWhere(function ($portalLink) use ($driver): void {
+                                        $portalLink->when($driver === 'pgsql', function ($query): void {
+                                            $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                        }, function ($query): void {
+                                            $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                        });
+                                    })
+                                    ->orWhere(function ($targetLink) use ($driver): void {
+                                        $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                            ->when($driver === 'pgsql', function ($query): void {
+                                                $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                            }, function ($query): void {
+                                                $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                            });
+                                    });
+                            });
+                    });
+
+                    return;
+                }
+
+                $dispatchQuery->where(function ($awaitingQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                    $awaitingQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                        $enquiryQuery->where(function ($statusQuery): void {
+                            $statusQuery
+                                ->whereNull('subcontracting_dispatch_status')
+                                ->orWhere('subcontracting_dispatch_status', '')
+                                ->orWhere('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING);
+                        });
+                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                        $fallbackQuery->selectRaw('1')
+                            ->from('sample_submission_requests as ssr')
+                            ->where(function ($statusQuery): void {
+                                $statusQuery
+                                    ->whereNull('ssr.subcontracting_dispatch_status')
+                                    ->orWhere('ssr.subcontracting_dispatch_status', '')
+                                    ->orWhere('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING);
+                            })
+                            ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $linkQuery
+                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                    })
+                                    ->orWhere(function ($portalLink) use ($driver): void {
+                                        $portalLink->when($driver === 'pgsql', function ($query): void {
+                                            $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                        }, function ($query): void {
+                                            $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                        });
+                                    })
+                                    ->orWhere(function ($targetLink) use ($driver): void {
+                                        $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                            ->when($driver === 'pgsql', function ($query): void {
+                                                $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                            }, function ($query): void {
+                                                $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                            });
+                                    });
+                            });
+                    });
+                });
+            });
+    }
+
+    /**
+     * Dispatch-state counts for the Sub-contracting tab.
+     *
+     * @return array<string, int>
+     */
+    public function getSubcontractingDispatchCountsProperty(): array
+    {
+        if (! $this->isSamplesReceiving()) {
+            return [
+                SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING => 0,
+                SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED => 0,
+            ];
+        }
+
+        $awaitingQuery = $this->subcontractingSubmissionFormsQuery(SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING);
+        $this->applyReceivingSubmissionFormFilters($awaitingQuery);
+
+        $dispatchedQuery = $this->subcontractingSubmissionFormsQuery(SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
+        $this->applyReceivingSubmissionFormFilters($dispatchedQuery);
+
+        return [
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING => (int) $awaitingQuery->count(),
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED => (int) $dispatchedQuery->count(),
+        ];
+    }
+
+    public function setSubcontractingDispatchStatus(string $status): void
+    {
+        $this->subcontractingDispatchStatus = in_array($status, [
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING,
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED,
+        ], true)
+            ? $status
+            : SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING;
+
+        $this->selectedFormInstanceIds = [];
+        $this->resetPage('forms_page');
+    }
+
+    protected function normalizedSubcontractingDispatchStatus(): string
+    {
+        return in_array($this->subcontractingDispatchStatus, [
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING,
+            SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED,
+        ], true)
+            ? $this->subcontractingDispatchStatus
+            : SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING;
+    }
+
     protected function applyReceivingSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void
     {
         if ($this->submissionFormsPriority) {
@@ -664,6 +1113,12 @@ class WorkflowBoard extends Component
                 $readyQuery = $this->readyForPhysicalReceptionSubmissionFormsQuery();
                 $this->applyReceivingSubmissionFormFilters($readyQuery);
                 $counts[$tabKey] = (int) $readyQuery->count();
+                continue;
+            }
+            if ($tabKey === 'sub_contracting') {
+                $subcontractingQuery = $this->subcontractingSubmissionFormsQuery();
+                $this->applyReceivingSubmissionFormFilters($subcontractingQuery);
+                $counts[$tabKey] = (int) $subcontractingQuery->count();
                 continue;
             }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
@@ -796,6 +1251,7 @@ class WorkflowBoard extends Component
             $query = match ($this->workflowSubTab) {
                 'ready_for_reception' => $this->readyForPhysicalReceptionSubmissionFormsQuery(),
                 'submitted' => $this->submittedCommercialPipelineSubmissionFormsQuery(),
+                'sub_contracting' => $this->subcontractingSubmissionFormsQuery(),
                 default => $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus),
             };
 
@@ -882,7 +1338,46 @@ class WorkflowBoard extends Component
         }
 
         if ($this->status === 'Samples In Lab') {
-            $query->where('status', 'approved');
+            $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+
+            $query->where(function ($samplesInLabQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                $samplesInLabQuery->where('status', 'approved')
+                    ->orWhere(function ($dispatchedQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                        $dispatchedQuery
+                            ->whereIn('status', ['submitted', 'Submitted', 'received', 'in_review', 'In Review', 'approved'])
+                            ->where(function ($dispatchLinkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $dispatchLinkQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                                    $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
+                                })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                    $fallbackQuery->selectRaw('1')
+                                        ->from('sample_submission_requests as ssr')
+                                        ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                                        ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                            $linkQuery
+                                                ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                                ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                                    $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                                })
+                                                ->orWhere(function ($portalLink) use ($driver): void {
+                                                    $portalLink->when($driver === 'pgsql', function ($query): void {
+                                                        $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                                    }, function ($query): void {
+                                                        $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                                    });
+                                                })
+                                                ->orWhere(function ($targetLink) use ($driver): void {
+                                                    $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                                        ->when($driver === 'pgsql', function ($query): void {
+                                                            $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                                        }, function ($query): void {
+                                                            $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                                        });
+                                                });
+                                        });
+                                });
+                            });
+                    });
+            });
         }
 
         if ($this->submissionFormsStatus) {
@@ -1370,13 +1865,13 @@ class WorkflowBoard extends Component
     /**
      * Dashboard KPIs for the Samples Receiving board.
      *
-     * @return array{my_intray: int, submitted: int, ready_for_reception: int, received: int, todays_check_ins: int}
+     * @return array{sub_contracting: int, submitted: int, ready_for_reception: int, received: int, todays_check_ins: int}
      */
     public function getReceivingDashboardStatsProperty(): array
     {
         if ($this->status !== 'Samples Receiving') {
             return [
-                'my_intray' => 0,
+                'sub_contracting' => 0,
                 'submitted' => 0,
                 'ready_for_reception' => 0,
                 'received' => 0,
@@ -1387,7 +1882,10 @@ class WorkflowBoard extends Component
         $tabCounts = $this->receivingRequestTabCounts;
 
         return [
-            'my_intray' => $this->myPendingIntrayCount,
+            'sub_contracting' => (int) (
+                ($this->subcontractingDispatchCounts[SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0)
+                + ($this->subcontractingDispatchCounts[SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0)
+            ),
             'submitted' => (int) ($tabCounts['submitted'] ?? 0),
             'ready_for_reception' => (int) ($tabCounts['ready_for_reception'] ?? 0),
             'received' => (int) ($tabCounts['received'] ?? 0),
@@ -1433,7 +1931,7 @@ class WorkflowBoard extends Component
         ));
 
         return SampleSubmissionRequest::query()
-            ->whereIn('status', $statuses)
+            ->whereIn('status', $statuses, 'and', false)
             ->whereNull('sample_header_id');
     }
 
@@ -1644,7 +2142,7 @@ class WorkflowBoard extends Component
         $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
 
         if ($this->selectedFormInstanceIds === []) {
-            $this->workflowNotify('error', 'Select a walk-in request with a sent quotation to record acceptance.');
+            $this->workflowNotify('error', 'Select a non-portal request with a sent quotation to record acceptance.');
 
             return;
         }
@@ -1652,7 +2150,7 @@ class WorkflowBoard extends Component
         $enquiryId = $this->resolveEnquiryIdFromSelection($this->selectedFormInstanceIds);
 
         if ($enquiryId === null) {
-            $this->workflowNotify('error', 'Select a walk-in request with a sent quotation to record acceptance.');
+            $this->workflowNotify('error', 'Select a non-portal request with a sent quotation to record acceptance.');
 
             return;
         }
@@ -1665,8 +2163,8 @@ class WorkflowBoard extends Component
             return;
         }
 
-        if (strtolower((string) ($enquiry->source_channel ?? '')) !== 'walk_in') {
-            $this->workflowNotify('error', 'Walk-in acceptance only applies to in-person enquiries.');
+        if (strtolower((string) ($enquiry->source_channel ?? '')) === 'portal') {
+            $this->workflowNotify('error', 'Portal requests are accepted by the customer in the portal. Use Request Review acceptance for non-portal sources only.');
 
             return;
         }
@@ -1768,9 +2266,15 @@ class WorkflowBoard extends Component
             return;
         }
 
+        $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
+        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
+        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
+        $this->poRequiresAdvanceReference = (bool) ($rules['requires_advance_reference'] ?? false);
+        $this->poAllowsSkip = (bool) ($rules['allows_po_skip'] ?? true);
+        $this->poRuleMessage = $this->resolvePoRuleMessage();
         $this->poCaptureEnquiryId = $enquiryId;
         $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
-        $this->poSkipped = (bool) $enquiry->po_skipped;
+        $this->poSkipped = (bool) ($enquiry->po_skipped && $this->poAllowsSkip);
         $this->advancePaymentReference = (string) ($enquiry->advance_payment_reference ?? '');
         $this->showPoCaptureModal = true;
     }
@@ -1782,6 +2286,11 @@ class WorkflowBoard extends Component
         $this->clientPoNumber = '';
         $this->poSkipped = false;
         $this->advancePaymentReference = '';
+        $this->poRuleType = 'walk_in';
+        $this->poRequiresPo = false;
+        $this->poRequiresAdvanceReference = false;
+        $this->poAllowsSkip = true;
+        $this->poRuleMessage = '';
     }
 
     public function submitPoAndReadyForReception(): void
@@ -1798,6 +2307,15 @@ class WorkflowBoard extends Component
         }
 
         try {
+            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
+                $enquiry->customer,
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                    'po_skipped' => $this->poSkipped,
+                    'advance_payment_reference' => $this->advancePaymentReference,
+                ],
+            );
+
             app(EnquiryReceptionReadinessService::class)->markReadyForReception(
                 $enquiry,
                 (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
@@ -1813,6 +2331,23 @@ class WorkflowBoard extends Component
         } catch (Throwable $exception) {
             $this->workflowNotify('error', $exception->getMessage());
         }
+    }
+
+    protected function resolvePoRuleMessage(): string
+    {
+        if ($this->poRequiresPo) {
+            return 'This customer account requires a purchase order number before the request can be marked ready.';
+        }
+
+        if ($this->poRequiresAdvanceReference) {
+            return 'This customer account requires an advance payment reference before the request can be marked ready.';
+        }
+
+        if ($this->poAllowsSkip) {
+            return 'This customer may proceed without a PO number.';
+        }
+
+        return '';
     }
 
     protected function workflowNotify(string $type, string $message): void
@@ -2066,6 +2601,37 @@ class WorkflowBoard extends Component
     {
         $this->selectedFormInstanceIds = [];
         $this->dispatch('hide-request-additional-info-modal');
+    }
+
+    /**
+     * @param  array<int, string>|string  $ids
+     */
+    public function openSubcontractDispatchModal(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if (count($this->selectedFormInstanceIds) !== 1) {
+            $this->workflowNotify('error', 'Select exactly one subcontracting request before dispatching.');
+
+            return;
+        }
+
+        $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
+
+        $this->dispatch('subcontract-dispatch-modal-open',
+            instanceIds: $this->selectedFormInstanceIds,
+            summaries: $summaries,
+        );
+    }
+
+    public function onSubcontractDispatchCompleted(): void
+    {
+        $this->selectedFormInstanceIds = [];
+        $this->dispatch('hide-subcontract-dispatch-modal');
     }
 
     public function openAcceptSampleWizardFromSelection(): void
@@ -2364,6 +2930,7 @@ class WorkflowBoard extends Component
             'intray-move-completed' => 'onIntrayMoveCompleted',
             'request-additional-info-completed' => 'onRequestAdditionalInfoCompleted',
             'analyst-review-completed' => 'onAnalystReviewCompleted',
+            'subcontract-dispatch-completed' => 'onSubcontractDispatchCompleted',
             'interzone-transfer-completed' => '$refresh',
             'process-enquiry-completed' => '$refresh',
         ];
@@ -2378,7 +2945,7 @@ class WorkflowBoard extends Component
         // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
         $tatTodayBatches = $this->tatTodayBatches;
 
-        $natureOfSampleOptions = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Nature of Sample')
+        $natureOfSampleOptions = \App\Models\System\SystemConfigurationsType::where('configuration_type', '=', 'Nature of Sample', 'and')
             ->with('configurations')
             ->first()
             ?->configurations
@@ -2408,6 +2975,7 @@ class WorkflowBoard extends Component
             'myPendingIntrayForms' => $this->myPendingIntrayForms,
             'myPendingIntrayCount' => $this->myPendingIntrayCount,
             'assignableUsersForIntray' => $this->assignableUsersForIntray,
+            'subcontractingDispatchStatuses' => $this->subcontractingDispatchStatuses,
             'tatTodayBatches' => $tatTodayBatches,
             'tatTodayCount' => $tatTodayBatches->count(),
         ]);

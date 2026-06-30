@@ -590,8 +590,14 @@
 		}
 	}
 
+	#receive-sample-modal .modal-content {
+		max-height: calc(100vh - 2rem);
+	}
+
 	#receive-sample-modal .modal-body {
 		padding: 0 1.5rem 1.25rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	.receive-sample-modal-body {
@@ -974,7 +980,7 @@
 											data-sf-trigger="workflow-walk-in-acceptance"
 											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Walk-in acceptance</button>
+											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Approve quotation (non-portal)</button>
 									</li>
 									<li>
 										<button type="button" class="dropdown-item"
@@ -992,6 +998,15 @@
 									</li>
 								@endif
 								@if($status === 'Samples Request Review')
+									@if($workflowSubTab === 'in_review')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-walk-in-acceptance"
+												:class="{ 'disabled': selectedInstanceIds().length === 0 }"
+												:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Approve quotation (non-portal)</button>
+										</li>
+									@endif
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-move-to-intray"
@@ -1358,17 +1373,31 @@
 									style="gap: 8px;"
 									x-show="selectedCount > 0"
 									x-cloak>
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
+										<span class="badge badge-light border text-dark">
+											<i class="mdi mdi-truck-delivery-outline mr-1"></i> Sub-contracting queue
+										</span>
+										<button type="button"
+											class="btn btn-sm btn-outline-warning"
+											@click.prevent="selectedCount > 0 && $wire.openSubcontractDispatchModal(selectedInstanceIds())">
+											<i class="mdi mdi-barcode-scan mr-1"></i> Dispatch request
+										</button>
+									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<button type="button"
 											class="btn btn-sm btn-outline-success"
 											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
 											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
 										</button>
+									@endif
+									@if(($status === 'Samples Receiving' && $workflowSubTab === 'submitted') || ($status === 'Samples Request Review' && $workflowSubTab === 'in_review'))
 										<button type="button"
 											class="btn btn-sm btn-outline-success"
 											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
-											<i class="mdi mdi-check-decagram mr-1"></i> Walk-in acceptance
+											<i class="mdi mdi-check-decagram mr-1"></i> Approve quotation (non-portal)
 										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())">
@@ -1383,7 +1412,7 @@
 											<i class="mdi mdi-package-variant-closed mr-1"></i> Receive
 										</button>
 									@endif
-									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
 											class="btn btn-sm btn-outline-warning"
 											data-sf-trigger="workflow-action-request-review"
@@ -1391,7 +1420,7 @@
 											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for Analyst review
 										</button>
 									@endif
-									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
 											class="btn btn-sm btn-outline-warning"
 											data-sf-trigger="workflow-action-request-additional-info"
@@ -1447,70 +1476,52 @@
 									</button>
 								@endforeach
 							</div>
-							@if($workflowSubTab !== 'interzone_transfers')
-							<div class="workflow-intray-panel mb-4">
-								<div class="workflow-intray-panel-header d-flex align-items-center justify-content-between">
-									<button type="button" class="btn btn-link btn-sm p-0 text-left workflow-intray-toggle" wire:click="toggleMyIntrayPanel">
-										<i class="mdi mdi-{{ $showMyIntrayPanel ? 'chevron-down' : 'chevron-right' }}"></i>
-										<strong>My intray</strong>
-										<span class="badge badge-primary ml-2">{{ $myPendingIntrayCount }}</span>
-									</button>
-									<span class="text-muted small">Pending tasks assigned to you</span>
-								</div>
-								@if($showMyIntrayPanel)
-									@if($myPendingIntrayCount > 0)
-										<div class="table-responsive mt-3">
-											<table class="table table-sm table-hover workflow-table mb-0">
-												<thead>
-													<tr>
-														<th>Form #</th>
-														<th>Customer</th>
-														<th>From</th>
-														<th>Comment</th>
-														<th>Moved</th>
-														<th></th>
-													</tr>
-												</thead>
-												<tbody>
-													@foreach($myPendingIntrayForms as $intray)
-														@php
-															$intrayInstance = $intray->submissionFormInstance;
-														@endphp
-														<tr wire:key="my-intray-{{ $intray->id }}">
-															<td>
-																@if($intrayInstance && $intrayInstance->submissionForm)
-																	<a href="{{ route('submission-forms.instances.show', [$intrayInstance->submissionForm, $intrayInstance]) }}">
-																		<strong>{{ $intrayInstance->getDocumentControlNumber() ?? $intrayInstance->form_number ?? '—' }}</strong>
-																	</a>
-																@else
-																	<span class="text-muted">—</span>
-																@endif
-															</td>
-															<td>{{ $intrayInstance?->crmCustomer?->name ?? $intrayInstance?->submittedBy?->name ?? '—' }}</td>
-															<td>{{ $intray->fromUser?->name ?? '—' }}</td>
-															<td class="text-muted small">{{ \Illuminate\Support\Str::limit($intray->comment ?? '—', 60) }}</td>
-															<td nowrap class="small">{{ $intray->created_at?->format('Y-m-d H:i') }}</td>
-															<td nowrap>
-																@if($intrayInstance)
-																	<button type="button"
-																		class="btn btn-sm rm-act-btn rm-act-btn--view"
-																		wire:click="completeIntray('{{ $intrayInstance->id }}')"
-																		wire:confirm="Mark this intray task as complete?"
-																		title="Complete">
-																		<i class="mdi mdi-check"></i>
-																	</button>
-																@endif
-															</td>
-														</tr>
-													@endforeach
-												</tbody>
-											</table>
+							@if($workflowSubTab === 'sub_contracting')
+								<div class="workflow-intray-panel mb-3">
+									<div class="workflow-intray-panel-header d-flex align-items-center justify-content-between">
+										<div>
+											<strong>Sub-contracting dispatch summary</strong>
+											<div class="text-muted small">Current queue split for this tab and active filters</div>
 										</div>
-									@else
-										<p class="text-muted small mb-0 mt-3">No pending intray tasks.</p>
-									@endif
-								@endif
-							</div>
+										<span class="badge badge-light border">Total {{ ($subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0) + ($subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0) }}</span>
+									</div>
+									<div class="row mt-3 mb-0">
+										<div class="col-md-6 mb-2 mb-md-0">
+											<div class="workflow-stat-card h-100">
+												<div class="workflow-stat-label">Awaiting dispatch</div>
+												<div class="workflow-stat-meta">
+													<div class="workflow-stat-value">{{ $subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0 }}</div>
+													<span class="workflow-stat-icon"><i class="mdi mdi-truck-fast-outline"></i></span>
+												</div>
+											</div>
+										</div>
+										<div class="col-md-6">
+											<div class="workflow-stat-card h-100">
+												<div class="workflow-stat-label">Dispatched</div>
+												<div class="workflow-stat-meta">
+													<div class="workflow-stat-value">{{ $subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0 }}</div>
+													<span class="workflow-stat-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="d-flex flex-wrap align-items-center mb-3" style="gap: 8px;">
+									@foreach($subcontractingDispatchStatuses as $dispatchKey => $dispatchLabel)
+										<button
+											type="button"
+											class="workflow-receiving-tab {{ $subcontractingDispatchStatus === $dispatchKey ? 'is-active' : '' }}"
+											wire:click="setSubcontractingDispatchStatus('{{ $dispatchKey }}')"
+										>
+											{{ $dispatchLabel }}
+										</button>
+									@endforeach
+								</div>
+								<p class="text-muted small mb-3">
+									After dispatch, requests move to <strong>Dispatched</strong> here and into <strong>Samples In Lab</strong> (Requests view).
+								</p>
+							@endif
+							@if($workflowSubTab !== 'interzone_transfers')
 							<div class="workflow-brand-filters-card">
 								<div class="workflow-brand-filters-card__title">
 									<i class="mdi mdi-filter-variant"></i> Filters
@@ -1750,69 +1761,6 @@
 										<span class="workflow-receiving-tab-badge">{{ $requestReviewTabCounts[$tabKey] ?? 0 }}</span>
 									</button>
 								@endforeach
-							</div>
-							<div class="workflow-intray-panel mb-4">
-								<div class="workflow-intray-panel-header d-flex align-items-center justify-content-between">
-									<button type="button" class="btn btn-link btn-sm p-0 text-left workflow-intray-toggle" wire:click="toggleMyIntrayPanel">
-										<i class="mdi mdi-{{ $showMyIntrayPanel ? 'chevron-down' : 'chevron-right' }}"></i>
-										<strong>My intray</strong>
-										<span class="badge badge-primary ml-2">{{ $myPendingIntrayCount }}</span>
-									</button>
-									<span class="text-muted small">Pending tasks assigned to you</span>
-								</div>
-								@if($showMyIntrayPanel)
-									@if($myPendingIntrayCount > 0)
-										<div class="table-responsive mt-3">
-											<table class="table table-sm table-hover workflow-table mb-0">
-												<thead>
-													<tr>
-														<th>Form #</th>
-														<th>Customer</th>
-														<th>From</th>
-														<th>Comment</th>
-														<th>Moved</th>
-														<th></th>
-													</tr>
-												</thead>
-												<tbody>
-													@foreach($myPendingIntrayForms as $intray)
-														@php
-															$intrayInstance = $intray->submissionFormInstance;
-														@endphp
-														<tr wire:key="request-review-intray-{{ $intray->id }}">
-															<td>
-																@if($intrayInstance && $intrayInstance->submissionForm)
-																	<a href="{{ route('submission-forms.instances.show', [$intrayInstance->submissionForm, $intrayInstance]) }}">
-																		<strong>{{ $intrayInstance->getDocumentControlNumber() ?? $intrayInstance->form_number ?? '—' }}</strong>
-																	</a>
-																@else
-																	<span class="text-muted">—</span>
-																@endif
-															</td>
-															<td>{{ $intrayInstance?->crmCustomer?->name ?? $intrayInstance?->submittedBy?->name ?? '—' }}</td>
-															<td>{{ $intray->fromUser?->name ?? '—' }}</td>
-															<td class="text-muted small">{{ \Illuminate\Support\Str::limit($intray->comment ?? '—', 60) }}</td>
-															<td nowrap class="small">{{ $intray->created_at?->format('Y-m-d H:i') }}</td>
-															<td nowrap>
-																@if($intrayInstance)
-																	<button type="button"
-																		class="btn btn-sm rm-act-btn rm-act-btn--view"
-																		wire:click="completeIntray('{{ $intrayInstance->id }}')"
-																		wire:confirm="Mark this intray task as complete?"
-																		title="Complete">
-																		<i class="mdi mdi-check"></i>
-																	</button>
-																@endif
-															</td>
-														</tr>
-													@endforeach
-												</tbody>
-											</table>
-										</div>
-									@else
-										<p class="text-muted small mb-0 mt-3">No pending intray tasks.</p>
-									@endif
-								@endif
 							</div>
 							<div class="workflow-brand-filters-card">
 								<div class="workflow-brand-filters-card__title">
@@ -2451,6 +2399,15 @@
 																	default => '#6c757d'
 																};
 																$statusText = ucfirst(str_replace('_', ' ', $instance->status));
+																$subcontractDispatchStatus = $linkedEnquiry?->subcontractingDispatchStatus();
+																if ($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting' && $linkedEnquiry) {
+																	$color = $subcontractDispatchStatus === \App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED
+																		? '#2563eb'
+																		: '#f59e0b';
+																	$statusText = $subcontractDispatchStatus === \App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED
+																		? 'Dispatched'
+																		: 'Awaiting dispatch';
+																}
 															@endphp
 															<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
 																{{ $statusText }}
@@ -3234,7 +3191,7 @@
 		@endif
 		@if ($status === 'Samples Receiving')
 			<div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-xl modal-dialog-centered">
+				<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -3293,6 +3250,27 @@
 						</div>
 						<div class="modal-body">
 							@livewire('sampleworkflow.send-for-analyst-review', key('send-for-analyst-review'))
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="subcontract-dispatch-modal" class="modal fade" tabindex="-1" role="dialog">
+				<div class="modal-dialog modal-lg modal-dialog-centered">
+					<div class="modal-content receive-sample-modal-content border-0 shadow">
+						<div class="modal-header receive-sample-modal-header border-0">
+							<div>
+								<h5 class="modal-title mb-1">
+									<i class="mdi mdi-truck-delivery-outline text-warning mr-2"></i>
+									Dispatch subcontracting request
+								</h5>
+								<p class="text-muted small mb-0">Scan the generated system label barcode before dispatching this subcontracting request.</p>
+							</div>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							@livewire('sampleworkflow.dispatch-subcontract-request', key('dispatch-subcontract-request'))
 						</div>
 					</div>
 				</div>
@@ -6296,6 +6274,20 @@
 				$('#send-for-analyst-review-modal').modal('hide');
 			});
 
+			Livewire.on('show-subcontract-dispatch-modal', function () {
+				$('#subcontract-dispatch-modal').modal('show');
+			});
+
+			Livewire.on('hide-subcontract-dispatch-modal', function () {
+				$('#subcontract-dispatch-modal').modal('hide');
+			});
+
+			Livewire.on('open-subcontract-label-tab', function ({ url }) {
+				if (url) {
+					window.open(url, '_blank');
+				}
+			});
+
 			Livewire.on('show-move-to-intray-modal', function () {
 				$('#move-to-intray-modal').modal('show');
 			});
@@ -6415,17 +6407,29 @@
 						<button type="button" class="close" wire:click="closePoCaptureModal"><span>&times;</span></button>
 					</div>
 					<div class="modal-body">
+							<div class="alert alert-info py-2 mb-3 small">
+							{{ $poRuleMessage }}
+							</div>
 						<div class="form-group">
 							<label>Client PO number</label>
 							<input type="text" class="form-control" wire:model.defer="clientPoNumber">
+								@error('client_po_number')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
 						</div>
 						<div class="form-group">
 							<label>Advance payment reference</label>
 							<input type="text" class="form-control" wire:model.defer="advancePaymentReference">
+								@error('advance_payment_reference')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
 						</div>
 						<div class="form-check">
-							<input type="checkbox" class="form-check-input" id="poSkippedCheck" wire:model="poSkipped">
+								<input type="checkbox" class="form-check-input" id="poSkippedCheck" wire:model="poSkipped" @disabled(! $poAllowsSkip)>
 							<label class="form-check-label" for="poSkippedCheck">PO not required / skipped</label>
+								@error('po_skipped')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
 						</div>
 					</div>
 					<div class="modal-footer">

@@ -12,6 +12,9 @@
                             </h2>
                             <p class="text-muted mb-0">View and manage customer quotations</p>
                         </div>
+                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#add-quotation">
+                            <i class="mdi mdi-plus"></i> Create Quotation
+                        </button>
                     </div>
                 </div>
             </div>

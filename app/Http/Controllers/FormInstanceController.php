@@ -1804,9 +1804,23 @@ class FormInstanceController extends Controller
     {
         $instance->load(['submissionForm', 'crmCustomer', 'values.element']);
         
-        // Get company logo from system settings
-        $company = \App\Models\System\SystemConfiguration::where('key', 'company_logo')->first();
-        $logoPath = $company ? $company->value : null;
+        // Prefer active company logo (main app pattern), then fallback to legacy system config key.
+        $activeCompany = \App\Company::query()
+            ->where('active', 1)
+            ->orderByDesc('updated_at')
+            ->first();
+
+        $logoPath = null;
+        if ($activeCompany) {
+            $logoPath = $activeCompany->report_logo ?: $activeCompany->logo;
+        }
+
+        if (empty($logoPath)) {
+            $companyLogoConfig = \App\Models\System\SystemConfiguration::query()
+                ->where('key', 'company_logo')
+                ->first();
+            $logoPath = $companyLogoConfig ? $companyLogoConfig->value : null;
+        }
         
         // Get form data
         $formData = [];

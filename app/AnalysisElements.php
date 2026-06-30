@@ -43,6 +43,7 @@ class AnalysisElements extends Model implements Auditable
     'active',
     'non_detectable',
     'non_accredited',
+    'sub_contracted',
     'show_on_report',
     'is_pesticide',
     'ltm_method_id',
@@ -72,6 +73,7 @@ class AnalysisElements extends Model implements Auditable
     'recommend_remedies' => 'boolean',
     'result_is_calculated' => 'boolean',
     'has_method_sequence' => 'boolean',
+    'sub_contracted' => 'boolean',
   ];
 
   public function getParameterNameAttribute(){

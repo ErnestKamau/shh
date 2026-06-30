@@ -565,7 +565,9 @@ class ReceiveSampleRequest extends Component
     {
         $user = Auth::user();
         if (! $user instanceof User) {
-            $this->addError('selection', 'You must be signed in to receive samples.');
+            $message = 'You must be signed in to receive samples.';
+            $this->addError('selection', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
 
             return;
         }
@@ -702,10 +704,12 @@ class ReceiveSampleRequest extends Component
         $crmCustomerId = null;
         foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
             if (! empty($this->formData[$key])) {
-                $custName = $this->formData[$key];
-                $crmCustomerId = CRMCustomer::query()
-                    ->whereRaw('name ILIKE ?', [trim((string) $custName)])
-                    ->value('id');
+                $customerName = trim((string) $this->formData[$key]);
+                if ($customerName !== '') {
+                    $crmCustomerId = CRMCustomer::query()
+                        ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
+                        ->value('id');
+                }
                 break;
             }
         }
@@ -721,7 +725,9 @@ class ReceiveSampleRequest extends Component
             );
         } catch (\Throwable $exception) {
             report($exception);
-            $this->addError('selection', 'Could not submit walk-in request. '.$exception->getMessage());
+            $message = 'Could not submit walk-in request. '.$exception->getMessage();
+            $this->addError('selection', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
 
             return;
         }
@@ -813,9 +819,8 @@ class ReceiveSampleRequest extends Component
                 $messages[$key.'.required'] = ($element->label ?? $name).' is required for row '.($index + 1).'.';
             }
 
-            if ($this->isFood) {
-                $rules['formData.test_category.'.$index] = 'required';
-                $messages['formData.test_category.'.$index.'.required'] = 'Test category is required for row '.($index + 1).'.';
+            if ($this->isFood && ! $this->rowHasFoodCategorySelection($index)) {
+                $this->addError('formData.test_category.'.$index, 'Test category is required for row '.($index + 1).'.');
             }
 
             if ($this->isWater) {
@@ -833,6 +838,28 @@ class ReceiveSampleRequest extends Component
         if ($rules !== []) {
             $this->validate($rules, $messages);
         }
+    }
+
+    private function rowHasFoodCategorySelection(int $index): bool
+    {
+        $testCategory = trim((string) ($this->formData['test_category'][$index] ?? ''));
+        if ($testCategory !== '') {
+            return true;
+        }
+
+        $analysisTypeId = trim((string) ($this->formData['analysis_type_id'][$index] ?? ''));
+        if ($analysisTypeId !== '' && app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeId)) {
+            return true;
+        }
+
+        foreach (['analysis_type', 'analysis_types'] as $key) {
+            $analysisTypeName = trim((string) ($this->formData[$key][$index] ?? ''));
+            if ($analysisTypeName !== '' && app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function schemaRowHasContent(int $index): bool

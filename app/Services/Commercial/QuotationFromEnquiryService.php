@@ -110,12 +110,14 @@ final class QuotationFromEnquiryService
             $analysisTypeId = (string) ($analysis->analysis_type_id ?? $enquiry->matrix_id ?? '');
             $elementId = (string) ($analysis->analysis_element_id ?? $analysis->analysis_key ?? '');
             $qty = max(1, (int) ($analysis->number_of_samples ?? $enquiry->number_of_samples ?? 1));
+            $isSubcontracted = false;
 
             $label = (string) ($analysis->analysis_label ?? 'Parameter');
             if ($elementId !== '') {
                 $element = AnalysisElements::query()->with('analyte')->find($elementId);
                 if ($element !== null) {
                     $label = (string) ($element->analyte->name ?? $element->name ?? $label);
+                    $isSubcontracted = (bool) ($element->sub_contracted ?? false);
                 }
             }
 
@@ -142,7 +144,7 @@ final class QuotationFromEnquiryService
                     $analysisTypeId,
                     $elementId !== '' ? $elementId : null,
                 ),
-                'subcontracted' => false,
+                'subcontracted' => $isSubcontracted,
             ];
         }
 
@@ -168,7 +170,7 @@ final class QuotationFromEnquiryService
                         $analysisTypeId,
                         $elementId,
                     ),
-                    'subcontracted' => false,
+                    'subcontracted' => $this->isElementSubcontracted($elementId),
                 ];
             }
         }
@@ -216,11 +218,26 @@ final class QuotationFromEnquiryService
                     $analysisTypeId,
                     $elementId !== '' ? $elementId : null,
                 ),
-                'subcontracted' => (bool) ($line['subcontracted'] ?? false),
+                'subcontracted' => (bool) (
+                    $line['subcontracted']
+                    ?? ($elementId !== '' ? $this->isElementSubcontracted($elementId) : false)
+                ),
             ];
         }
 
         return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+    }
+
+    private function isElementSubcontracted(?string $analysisElementId): bool
+    {
+        $elementId = trim((string) $analysisElementId);
+        if ($elementId === '') {
+            return false;
+        }
+
+        return (bool) AnalysisElements::query()
+            ->whereKey($elementId)
+            ->value('sub_contracted');
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Services\SampleCreationService;
 use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Services\Commercial\AmSpecTrfPdfService;
+use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
@@ -80,6 +81,16 @@ class RequestViewPage extends Component
     public bool $poSkipped = false;
 
     public string $advancePaymentReference = '';
+
+    public string $poRuleType = 'walk_in';
+
+    public bool $poRequiresPo = false;
+
+    public bool $poRequiresAdvanceReference = false;
+
+    public bool $poAllowsSkip = true;
+
+    public string $poRuleMessage = '';
 
     public function mount(
         string $submissionFormId,
@@ -155,8 +166,8 @@ class RequestViewPage extends Component
             return;
         }
 
-        if (strtolower((string) ($this->commercialEnquiry->source_channel ?? '')) !== 'walk_in') {
-            session()->flash('request_view_message', 'Walk-in acceptance only applies to in-person enquiries.');
+        if (strtolower((string) ($this->commercialEnquiry->source_channel ?? '')) === 'portal') {
+            session()->flash('request_view_message', 'Portal requests are accepted by the customer in the portal. Staff quotation approval applies to non-portal sources only.');
 
             return;
         }
@@ -177,8 +188,15 @@ class RequestViewPage extends Component
             return;
         }
 
+        $rules = app(EnquiryAccountSettingsService::class)
+            ->poRulesForCustomer($this->commercialEnquiry->customer);
+        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
+        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
+        $this->poRequiresAdvanceReference = (bool) ($rules['requires_advance_reference'] ?? false);
+        $this->poAllowsSkip = (bool) ($rules['allows_po_skip'] ?? true);
+        $this->poRuleMessage = $this->resolvePoRuleMessage();
         $this->clientPoNumber = (string) ($this->commercialEnquiry->client_po_number ?? '');
-        $this->poSkipped = (bool) $this->commercialEnquiry->po_skipped;
+        $this->poSkipped = (bool) ($this->commercialEnquiry->po_skipped && $this->poAllowsSkip);
         $this->advancePaymentReference = (string) ($this->commercialEnquiry->advance_payment_reference ?? '');
         $this->showPoCaptureModal = true;
     }
@@ -189,6 +207,11 @@ class RequestViewPage extends Component
         $this->clientPoNumber = '';
         $this->poSkipped = false;
         $this->advancePaymentReference = '';
+        $this->poRuleType = 'walk_in';
+        $this->poRequiresPo = false;
+        $this->poRequiresAdvanceReference = false;
+        $this->poAllowsSkip = true;
+        $this->poRuleMessage = '';
     }
 
     public function submitPoAndReadyForReception(): void
@@ -200,6 +223,15 @@ class RequestViewPage extends Component
         }
 
         try {
+            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
+                $this->commercialEnquiry->customer,
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                    'po_skipped' => $this->poSkipped,
+                    'advance_payment_reference' => $this->advancePaymentReference,
+                ],
+            );
+
             $this->commercialEnquiry = app(EnquiryReceptionReadinessService::class)->markReadyForReception(
                 $this->commercialEnquiry,
                 (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
@@ -212,9 +244,28 @@ class RequestViewPage extends Component
 
             $this->closePoCaptureModal();
             session()->flash('request_view_message', 'PO recorded. This request is ready for physical reception on the Samples Receiving board.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
         } catch (\Throwable $exception) {
             session()->flash('request_view_message', $exception->getMessage());
         }
+    }
+
+    protected function resolvePoRuleMessage(): string
+    {
+        if ($this->poRequiresPo) {
+            return 'This customer account requires a purchase order number before the request can be marked ready.';
+        }
+
+        if ($this->poRequiresAdvanceReference) {
+            return 'This customer account requires an advance payment reference before the request can be marked ready.';
+        }
+
+        if ($this->poAllowsSkip) {
+            return 'This customer may proceed without a PO number.';
+        }
+
+        return '';
     }
 
     public function openPhysicalReceiveModal(): void

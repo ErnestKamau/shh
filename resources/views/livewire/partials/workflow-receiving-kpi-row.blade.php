@@ -2,9 +2,9 @@
 	<div class="col-12">
 		<div class="workflow-kpi-grid">
 			<div class="workflow-kpi-card">
-				<div class="workflow-kpi-card__label">My intray</div>
-				<div class="workflow-kpi-card__value">{{ $receivingDashboardStats['my_intray'] ?? 0 }}</div>
-				<div class="workflow-kpi-card__subtitle">Assigned to you</div>
+				<div class="workflow-kpi-card__label">Sub-contracting</div>
+				<div class="workflow-kpi-card__value">{{ $receivingDashboardStats['sub_contracting'] ?? 0 }}</div>
+				<div class="workflow-kpi-card__subtitle">Awaiting + dispatched</div>
 			</div>
 			<div class="workflow-kpi-card">
 				<div class="workflow-kpi-card__label">Submitted</div>

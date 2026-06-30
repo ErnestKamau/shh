@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\AnalysisElements;
 use App\AnalysisType;
 use App\Livewire\Sampleworkflow\Concerns\ManagesSampleConfigurationWizard;
 use App\Models\SampleSubmissionRequest;
@@ -66,6 +67,9 @@ class ProcessEnquiryWizard extends Component
 
     /** @var list<array<string, mixed>> */
     public array $lines = [];
+
+    /** @var array<string, bool> */
+    public array $lineSubcontractOverrides = [];
 
     public ?string $quotationHeaderId = null;
 
@@ -132,7 +136,7 @@ class ProcessEnquiryWizard extends Component
             $unitPrice = (float) ($line['unit_price'] ?? 0);
             $taxRate = (float) ($line['tax'] ?? 0);
             $extended = $qty * $unitPrice;
-            $subTotal += $extended;
+
             if ($taxRate > 0) {
                 $taxTotal += ($taxRate / 100) * $extended;
             }
@@ -217,7 +221,7 @@ class ProcessEnquiryWizard extends Component
             $this->sendPortal = false;
             $this->sendEmail = true;
         } else {
-            $this->sendPortal = true;
+            $this->sendPortal = $channel === 'portal';
             $this->sendEmail = false;
         }
         $this->collectionDataRows = $display->collectionDataRows($enquiry);
@@ -407,7 +411,11 @@ class ProcessEnquiryWizard extends Component
 
         $existingLines = $this->lines;
         $this->lines = $quotationService->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
-        $this->lines = $this->mergePreservedQuotationLineValues($existingLines, $this->lines);
+        $this->lines = $this->mergePreservedQuotationLineValues(
+            $existingLines,
+            $this->lines,
+            $this->lineSubcontractOverrides
+        );
         $this->quotationManuallyEdited = false;
 
         try {
@@ -420,8 +428,18 @@ class ProcessEnquiryWizard extends Component
         }
     }
 
-    public function updatedLines(): void
+    public function updatedLines($value, string $name): void
     {
+        if (str_ends_with($name, '.subcontracted')) {
+            $lineIndex = $this->lineIndexFromBindingPath($name);
+            if ($lineIndex !== null && isset($this->lines[$lineIndex])) {
+                $lineKey = $this->quotationLineMergeKey($this->lines[$lineIndex]);
+                if ($lineKey !== '::::') {
+                    $this->lineSubcontractOverrides[$lineKey] = true;
+                }
+            }
+        }
+
         $this->quotationManuallyEdited = true;
         $this->refreshLineLabMetrics();
         $this->persistQuotationLines();
@@ -587,6 +605,10 @@ class ProcessEnquiryWizard extends Component
 
     public function sendQuotation(): void
     {
+        if (strtolower($this->sourceChannel) !== 'portal') {
+            $this->sendPortal = false;
+        }
+
         if (strtolower($this->sourceChannel) === 'walk_in') {
             $this->sendPortal = false;
             if (! $this->sendEmail) {
@@ -967,32 +989,53 @@ class ProcessEnquiryWizard extends Component
         $existingLines = $this->lines;
         $this->lines = app(QuotationFromEnquiryService::class)
             ->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
-        $this->lines = $this->mergePreservedQuotationLineValues($existingLines, $this->lines);
+        $this->lines = $this->mergePreservedQuotationLineValues(
+            $existingLines,
+            $this->lines,
+            $this->lineSubcontractOverrides
+        );
     }
 
     /**
      * @param  list<array<string, mixed>>  $previousLines
      * @param  list<array<string, mixed>>  $newLines
+     * @param  array<string, bool>  $subcontractOverrides
      * @return list<array<string, mixed>>
      */
-    private function mergePreservedQuotationLineValues(array $previousLines, array $newLines): array
+    private function mergePreservedQuotationLineValues(
+        array $previousLines,
+        array $newLines,
+        array $subcontractOverrides = []
+    ): array
     {
         $previousByKey = collect($previousLines)->keyBy(
             fn (array $line): string => $this->quotationLineMergeKey($line)
         );
 
-        return array_map(function (array $line) use ($previousByKey): array {
-            $previous = $previousByKey->get($this->quotationLineMergeKey($line));
+        return array_map(function (array $line) use ($previousByKey, $subcontractOverrides): array {
+            $lineKey = $this->quotationLineMergeKey($line);
+            $previous = $previousByKey->get($lineKey);
             if ($previous === null) {
                 return $line;
             }
 
             $line['unit_price'] = (float) ($previous['unit_price'] ?? $line['unit_price'] ?? 0);
             $line['tax'] = (float) ($previous['tax'] ?? $line['tax'] ?? 0);
-            $line['subcontracted'] = (bool) ($previous['subcontracted'] ?? $line['subcontracted'] ?? false);
+            if (! empty($subcontractOverrides[$lineKey])) {
+                $line['subcontracted'] = (bool) ($previous['subcontracted'] ?? $line['subcontracted'] ?? false);
+            }
 
             return $line;
         }, $newLines);
+    }
+
+    private function lineIndexFromBindingPath(string $bindingPath): ?int
+    {
+        if (! preg_match('/^lines\\.(\\d+)\\./', $bindingPath, $matches)) {
+            return null;
+        }
+
+        return isset($matches[1]) ? (int) $matches[1] : null;
     }
 
     /**
@@ -1130,6 +1173,15 @@ class ProcessEnquiryWizard extends Component
         $sampleTypeId = (string) ($parameter['sample_type_id'] ?? $this->addLineSampleTypeId ?? '');
         $analysisTypeId = (string) ($parameter['analysis_type_id'] ?? $this->addLineAnalysisTypeId ?? '');
         $elementId = $parameter['analysis_element_id'] ?? null;
+        $isSubcontracted = false;
+
+        if (! empty($parameter['subcontracted'])) {
+            $isSubcontracted = true;
+        } elseif ($elementId) {
+            $isSubcontracted = (bool) AnalysisElements::query()
+                ->whereKey((string) $elementId)
+                ->value('sub_contracted');
+        }
 
         $this->lines[] = [
             'line_no' => count($this->lines) + 1,
@@ -1142,7 +1194,7 @@ class ProcessEnquiryWizard extends Component
             'quantity' => 1,
             'unit_price' => (float) ($parameter['unit_amount'] ?? 0),
             'tax' => 0,
-            'subcontracted' => false,
+            'subcontracted' => $isSubcontracted,
         ];
 
         $this->reindexQuotationLines();

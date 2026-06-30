@@ -31,6 +31,10 @@ class SampleSubmissionRequest extends Model
 
     public const STATUS_READY_FOR_RECEPTION = 'Ready for Reception';
 
+    public const SUBCONTRACT_DISPATCH_AWAITING = 'awaiting_dispatch';
+
+    public const SUBCONTRACT_DISPATCH_DISPATCHED = 'dispatched';
+
     public const CUSTOMER_FEEDBACK_PREFIX = '[Customer feedback]';
 
     /** @var list<string> */
@@ -59,6 +63,8 @@ class SampleSubmissionRequest extends Model
         'enquiry_notes',
         'enquiry_sample_configuration',
         'quotation_accepted_at',
+        'subcontracting_dispatch_status',
+        'subcontracting_dispatch_date',
         'client_po_number',
         'po_skipped',
         'advance_payment_reference',
@@ -139,6 +145,7 @@ class SampleSubmissionRequest extends Model
             'date_expected' => 'date',
             'booking_date_reviewed_at' => 'datetime',
             'quotation_accepted_at' => 'datetime',
+            'subcontracting_dispatch_date' => 'datetime',
             'number_of_samples' => 'integer',
             'is_police_sample' => 'boolean',
             'request_for_sampling' => 'boolean',
@@ -188,6 +195,25 @@ class SampleSubmissionRequest extends Model
             || $this->quotation_accepted_at !== null;
     }
 
+    public function subcontractingDispatchStatus(): string
+    {
+        $status = trim((string) ($this->subcontracting_dispatch_status ?? ''));
+
+        return $status !== ''
+            ? $status
+            : self::SUBCONTRACT_DISPATCH_AWAITING;
+    }
+
+    public function isSubcontractDispatchAwaiting(): bool
+    {
+        return $this->subcontractingDispatchStatus() === self::SUBCONTRACT_DISPATCH_AWAITING;
+    }
+
+    public function isSubcontractDispatchCompleted(): bool
+    {
+        return $this->subcontractingDispatchStatus() === self::SUBCONTRACT_DISPATCH_DISPATCHED;
+    }
+
     public function batch(): BelongsTo
     {
         return $this->belongsTo(SampleHeader::class, 'sample_header_id');
@@ -205,10 +231,22 @@ class SampleSubmissionRequest extends Model
             return $this->submissionFormInstance;
         }
 
-        if ($this->submission_form_instance_id) {
+        $submissionFormInstanceId = trim((string) ($this->submission_form_instance_id ?? ''));
+        if ($submissionFormInstanceId !== '') {
             $instance = SubmissionFormInstance::query()
                 ->with('submissionForm')
-                ->find($this->submission_form_instance_id);
+                ->find($submissionFormInstanceId);
+
+            if ($instance !== null) {
+                return $instance;
+            }
+        }
+
+        $testRequestFormInstanceId = trim((string) ($this->test_request_form_instance_id ?? ''));
+        if ($testRequestFormInstanceId !== '') {
+            $instance = SubmissionFormInstance::query()
+                ->with('submissionForm')
+                ->find($testRequestFormInstanceId);
 
             if ($instance !== null) {
                 return $instance;
@@ -218,6 +256,22 @@ class SampleSubmissionRequest extends Model
         return SubmissionFormInstance::query()
             ->with('submissionForm')
             ->where('portal_request_id', (string) $this->id)
+            ->orWhere(function ($query): void {
+                $query
+                    ->whereRaw("LOWER(COALESCE(target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                    ->where('target_record_id', (string) $this->id);
+            })
+            ->orWhere(function ($query): void {
+                $identifier = trim((string) ($this->unique_identification ?? ''));
+
+                if ($identifier === '') {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $query->where('form_number', $identifier);
+            })
             ->first();
     }
 

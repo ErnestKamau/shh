@@ -243,7 +243,7 @@
             class="btn btn-sm btn-primary receive-sample-submit-btn"
             wire:click="confirmReceive"
             wire:loading.attr="disabled"
-            onclick="if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); }"
+            onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF signature sync failed before submit', error); }"
             @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
         >
             <span wire:loading.remove wire:target="confirmReceive">

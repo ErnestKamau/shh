@@ -242,7 +242,7 @@
                                 </div>
 
                                 <div class="row mb-2 acc-delivery-options">
-                                    @if(strtolower($sourceChannel) !== 'walk_in')
+                                    @if(strtolower($sourceChannel) === 'portal')
                                         <div class="col-md-4">
                                             <label class="acc-label acc-label--compact d-flex align-items-center mb-0">
                                                 <input type="checkbox" wire:model="sendPortal" class="mr-2"> Send to portal

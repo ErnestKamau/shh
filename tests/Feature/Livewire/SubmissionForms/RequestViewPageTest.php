@@ -8,6 +8,7 @@ use App\Models\CRM\CustomerNotification;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceNote;
+use App\Models\System\SystemConfiguration;
 use App\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -90,6 +91,36 @@ class RequestViewPageTest extends TestCase
             'entity_id' => $instance->id,
             'notification_type' => CustomerNotification::TYPE_REQUEST_NOTE,
         ]);
+    }
+
+    public function test_po_modal_requires_po_number_for_credit_customers(): void
+    {
+        [$form, $instance] = $this->createFormAndInstance(withCustomer: true);
+        $creditStatus = SystemConfiguration::query()->create([
+            'key' => 'Account holder - credit',
+            'value' => 'Account holder credit',
+            'status' => 1,
+        ]);
+
+        $customer = CRMCustomer::query()->findOrFail($instance->crm_customer_id);
+        $customer->account_status = $creditStatus->id;
+        $customer->save();
+
+        $instance->refresh();
+
+        Livewire::actingAs($this->user)
+            ->test(RequestViewPage::class, [
+                'submissionFormId' => $form->id,
+                'instanceId' => $instance->id,
+            ])
+            ->call('openPoCaptureModal')
+            ->assertSet('poRequiresPo', true)
+            ->set('clientPoNumber', '')
+            ->set('poSkipped', false)
+            ->call('submitPoAndReadyForReception')
+            ->assertHasErrors(['client_po_number']);
+
+        $this->assertSame('submitted', $instance->fresh()->status);
     }
 
     /**
