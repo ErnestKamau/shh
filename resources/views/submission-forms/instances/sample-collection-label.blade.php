@@ -3,229 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Collection Label</title>
+    <title>Sample Labels</title>
     <style>
-        @media print {
-            body {
-                margin: 0;
-                padding: 0;
-            }
-            .no-print {
-                display: none;
-            }
+        :root {
+            --ink: #111111;
+            --accent: #8f2222;
+            --paper: #ffffff;
+            --line: #1d1d1d;
+            --muted: #f4f4f4;
         }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 20px;
+            margin: 0;
+            padding: 18px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .toolbar {
+            margin-bottom: 14px;
+        }
+
+        .print-btn {
+            appearance: none;
+            border: 0;
+            border-radius: 6px;
+            background: #0f5bd2;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        .sheet {
+            max-width: 980px;
+            margin: 0 auto;
+            display: grid;
+            gap: 18px;
+        }
+
+        .label-card {
+            border: 2px solid var(--line);
+            background: var(--paper);
+            width: 100%;
+        }
+
+        .label-head {
+            border-bottom: 2px solid var(--line);
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            align-items: stretch;
+            min-height: 40px;
+        }
+
+        .label-head-logo {
+            background: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 2px solid var(--line);
+            padding: 4px;
+        }
+
+        .label-head-logo img {
+            max-width: 100%;
+            max-height: 28px;
+            object-fit: contain;
+        }
+
+        .label-head-title {
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 17px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        .label-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .label-table td,
+        .label-table th {
+            border: 1px solid var(--line);
+            padding: 4px 6px;
+            font-size: 14px;
+            line-height: 1.15;
+            vertical-align: middle;
+        }
+
+        .label-table td:first-child,
+        .label-table th:first-child {
+            width: 42%;
+            background: #efefef;
+        }
+
+        .label-table .wide-cell {
             background: #fff;
         }
-        .label-container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 2px solid #000;
-            padding: 20px;
-        }
-        .header {
+
+        .hint-title {
+            font-size: 22px;
+            font-weight: 700;
             text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-        .header h1 {
-            font-size: 18px;
-            font-weight: bold;
             margin: 0;
         }
-        .collection-section {
-            margin-bottom: 20px;
-        }
-        .field {
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-        }
-        .field-label {
-            font-weight: bold;
-            width: 200px;
-            flex-shrink: 0;
-        }
-        .field-value {
-            flex-grow: 1;
-            border-bottom: 1px solid #000;
-            padding: 2px 5px;
-        }
-        .checkbox-group {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .registration-section {
-            border: 2px solid #000;
-            padding: 15px;
-            margin-top: 20px;
-        }
-        .registration-header {
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 10px;
-        }
-        .registration-field {
-            margin-bottom: 15px;
-        }
-        .registration-label {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .registration-value {
-            border: 1px solid #000;
-            padding: 8px;
-            min-height: 30px;
-            font-weight: bold;
-            text-align: center;
-        }
-        .divider {
-            border-bottom: 1px solid #000;
-            margin: 10px 0;
-        }
-        .print-btn {
-            margin: 20px;
-            padding: 10px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
+
+        .registration-title {
             font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            margin: 0;
+            padding: 0 4px;
+        }
+
+        .registration-wrapper {
+            padding: 8px;
+        }
+
+        .barcode-wrap {
+            border: 1px solid var(--line);
+            border-top: 0;
+            text-align: center;
+            padding: 8px 8px 6px;
+            min-height: 62px;
+        }
+
+        .barcode-wrap svg {
+            max-width: 100%;
+            height: 42px;
+        }
+
+        .barcode-text {
+            margin-top: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+        }
+
+        @media print {
+            @page {
+                margin: 6mm;
+            }
+
+            body {
+                padding: 0;
+            }
+
+            .toolbar {
+                display: none;
+            }
+
+            .sheet {
+                gap: 10mm;
+            }
+
+            .label-card {
+                break-inside: avoid;
+            }
         }
     </style>
 </head>
 <body>
-    <button class="print-btn no-print" onclick="window.print()">Print Label</button>
-    
-    <div class="label-container">
-        <div class="header">
-            @if($logoPath)
-                <img src="{{ asset($logoPath) }}" alt="Company Logo" style="max-width: 100px; max-height: 50px; margin-bottom: 10px;">
-            @endif
-            <h1>SAMPLE COLLECTION LABEL</h1>
-        </div>
+    @php
+        $logoSrc = null;
+        $rawLogoPath = trim((string) ($logoPath ?? ''));
+        if ($rawLogoPath !== '') {
+            if (\Illuminate\Support\Str::startsWith($rawLogoPath, ['http://', 'https://', '//', 'data:'])) {
+                $logoSrc = $rawLogoPath;
+            } elseif (\Illuminate\Support\Str::startsWith($rawLogoPath, ['storage/', '/storage/'])) {
+                $logoSrc = url('/'.ltrim($rawLogoPath, '/'));
+            } elseif (\Illuminate\Support\Str::startsWith($rawLogoPath, ['public/', '/public/'])) {
+                $logoSrc = url('/storage/'.ltrim(preg_replace('#^/?public/#', '', $rawLogoPath), '/'));
+            } else {
+                $logoSrc = asset(ltrim($rawLogoPath, '/'));
+            }
+        }
 
-        <div class="collection-section">
-            <div class="field">
-                <div class="field-label">Sample Name / Description:</div>
-                <div class="field-value">{{ $sampleName }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Batch Number:</div>
-                <div class="field-value">{{ $batchNumber }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Client Name:</div>
-                <div class="field-value">{{ $clientName }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Site – Location:</div>
-                <div class="field-value">{{ $siteLocation }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Date & Time of Collection:</div>
-                <div class="field-value">{{ $dateTimeOfCollection }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Sample Temperature (°C):</div>
-                <div class="field-value">{{ $sampleTemperature }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Collected By (Name / Sign):</div>
-                <div class="field-value">{{ $collectedBy }}</div>
-            </div>
-            <div class="field">
-                <div class="field-label">Preservation Applied:</div>
-                <div class="field-value">
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $preservationApplied === 'Yes' ? 'checked' : '' }}> Yes
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $preservationApplied === 'No' ? 'checked' : '' }}> No
-                        </div>
-                        <div class="checkbox-item">
-                            (Specify: ____________)
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="field">
-                <div class="field-label">Container Type:</div>
-                <div class="field-value">
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $containerType === 'HDPE' ? 'checked' : '' }}> HDPE
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $containerType === 'Glass Bottle' ? 'checked' : '' }}> Glass Bottle
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $containerType === 'Zipper Bag' ? 'checked' : '' }}> Zipper Bag
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="field">
-                <div class="field-label">Sample Collection for:</div>
-                <div class="field-value">
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $sampleCollectionFor === 'Micro Lab' ? 'checked' : '' }}> Micro Lab
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" {{ $sampleCollectionFor === 'Chemistry Lab' ? 'checked' : '' }}> Chemistry Lab
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        if (!$logoSrc) {
+            $logoSrc = asset('images/logo.png');
+        }
 
-        <div class="registration-section">
-            <div class="registration-header">Registration Label with barcode</div>
-            
-            <div class="registration-field">
-                <div class="registration-label">Job ID</div>
-                <div class="divider"></div>
-                <div class="registration-value">{{ $jobNumber }}</div>
-            </div>
-            
-            <div class="registration-field">
-                <div class="registration-label">Sample ID</div>
-                <div class="divider"></div>
-                <div class="registration-value">{{ $sampleId }}</div>
-            </div>
-            
-            <div class="registration-field">
-                <div class="registration-label">Sample Description</div>
-                <div class="divider"></div>
-                <div class="registration-value">{{ $sampleDescription }}</div>
-            </div>
-            
-            <div class="registration-field">
-                <div class="registration-label">Date & Time of Collection:</div>
-                <div class="divider"></div>
-                <div class="registration-value">{{ $dateTimeOfCollection }}</div>
-            </div>
-            
-            <div class="registration-field">
-                <div class="registration-label">Test Requirement</div>
-                <div class="divider"></div>
-                <div class="registration-value">{{ $testRequirement }}</div>
-            </div>
-        </div>
+        $barcodeValue = trim((string) ($instance->form_number ?: $instance->id));
+        $barcodeValue = $barcodeValue !== '' ? $barcodeValue : trim((string) $sampleId);
+        $normalizedDateTime = (string) $dateTimeOfCollection;
+
+        try {
+            $normalizedDateTime = \Illuminate\Support\Carbon::parse($dateTimeOfCollection)->format('jS F, Y  h:iA');
+        } catch (\Throwable $e) {
+            // Keep provided value when date parsing fails.
+        }
+
+        $preservationText = trim((string) $preservationApplied);
+        $containerText = trim((string) $containerType);
+        $collectionForText = trim((string) $sampleCollectionFor);
+    @endphp
+
+    <div class="toolbar">
+        <button class="print-btn" onclick="window.print()">Print Labels</button>
     </div>
+
+    <main class="sheet">
+        <section class="label-card" aria-label="Sample Collection Label">
+            <header class="label-head">
+                <div class="label-head-logo">
+                    @if ($logoSrc)
+                        <img src="{{ $logoSrc }}" alt="Company logo">
+                    @endif
+                </div>
+                <div class="label-head-title">Sample Collection Label</div>
+            </header>
+
+            <table class="label-table" role="presentation">
+                <tr>
+                    <td>Sample Name / Description:</td>
+                    <td class="wide-cell">{{ $sampleName }}</td>
+                </tr>
+                <tr>
+                    <td>Batch Number:</td>
+                    <td class="wide-cell">{{ $batchNumber }}</td>
+                </tr>
+                <tr>
+                    <td>Client Name:</td>
+                    <td class="wide-cell">{{ $clientName }}</td>
+                </tr>
+                <tr>
+                    <td>Site - Location:</td>
+                    <td class="wide-cell">{{ $siteLocation }}</td>
+                </tr>
+                <tr>
+                    <td>Date &amp; Time of Collection:</td>
+                    <td class="wide-cell">{{ $normalizedDateTime }}</td>
+                </tr>
+                <tr>
+                    <td>Sample Temperature (&deg;C):</td>
+                    <td class="wide-cell">{{ $sampleTemperature }}</td>
+                </tr>
+                <tr>
+                    <td>Collected By (Name / Sign):</td>
+                    <td class="wide-cell">{{ $collectedBy }}</td>
+                </tr>
+                <tr>
+                    <td>Preservation Applied:</td>
+                    <td class="wide-cell">[{{ strcasecmp($preservationText, 'Yes') === 0 ? 'x' : ' ' }}] Yes [{{ strcasecmp($preservationText, 'No') === 0 ? 'x' : ' ' }}] No (Specify: {{ $preservationText }})</td>
+                </tr>
+                <tr>
+                    <td>Container Type:</td>
+                    <td class="wide-cell">[{{ stripos($containerText, 'HDPE') !== false ? 'x' : ' ' }}] HDPE [{{ stripos($containerText, 'Glass') !== false ? 'x' : ' ' }}] Glass Bottle [{{ stripos($containerText, 'Zipper') !== false ? 'x' : ' ' }}] Zipper Bag</td>
+                </tr>
+                <tr>
+                    <td>Sample Collection for:</td>
+                    <td class="wide-cell">[{{ stripos($collectionForText, 'Micro') !== false ? 'x' : ' ' }}] Micro Lab [{{ stripos($collectionForText, 'Chemistry') !== false ? 'x' : ' ' }}] Chemistry Lab</td>
+                </tr>
+            </table>
+        </section>
+
+        <section class="label-card" aria-label="Registration Label">
+            <header class="label-head">
+                <div class="label-head-logo">
+                    @if ($logoSrc)
+                        <img src="{{ $logoSrc }}" alt="Company logo">
+                    @endif
+                </div>
+                <div class="label-head-title">Registration Label with barcode</div>
+            </header>
+
+            <table class="label-table" role="presentation">
+                <tr>
+                    <td>Job ID</td>
+                    <td class="wide-cell">{{ $jobNumber }}</td>
+                </tr>
+                <tr>
+                    <td>Sample ID</td>
+                    <td class="wide-cell">{{ $sampleId }}</td>
+                </tr>
+                <tr>
+                    <td>Sample Description</td>
+                    <td class="wide-cell">{{ $sampleDescription }}</td>
+                </tr>
+                <tr>
+                    <td>Date &amp; Time of Collection:</td>
+                    <td class="wide-cell">{{ $normalizedDateTime }}</td>
+                </tr>
+                <tr>
+                    <td>Test Requirement</td>
+                    <td class="wide-cell">{{ $testRequirement }}</td>
+                </tr>
+            </table>
+
+            @if ($barcodeValue !== '')
+                <div class="barcode-wrap">
+                    {!! DNS1D::getBarcodeSVG($barcodeValue, 'C128') !!}
+                    <div class="barcode-text">{{ $barcodeValue }}</div>
+                </div>
+            @endif
+        </section>
+    </main>
 </body>
 </html>
