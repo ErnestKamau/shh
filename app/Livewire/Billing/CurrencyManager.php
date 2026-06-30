@@ -98,7 +98,7 @@ class CurrencyManager extends Component
         $this->showCurrencyModal = true;
     }
 
-    public function showEditCurrencyModal($currencyId): void
+    public function showEditCurrencyModal(string $currencyId): void
     {
         $currency = Currency::findOrFail($currencyId);
         
@@ -124,7 +124,7 @@ class CurrencyManager extends Component
         try {
             if ($this->editingCurrency) {
                 $currency = Currency::findOrFail($this->currencyForm['id']);
-                $currency->update($this->currencyForm);
+                $currency->update(collect($this->currencyForm)->except('id')->all());
                 $this->message = 'Currency updated successfully!';
             } else {
                 Currency::create($this->currencyForm);
@@ -141,7 +141,7 @@ class CurrencyManager extends Component
         }
     }
 
-    public function deleteCurrency($currencyId): void
+    public function deleteCurrency(string $currencyId): void
     {
         try {
             $currency = Currency::findOrFail($currencyId);
@@ -163,7 +163,7 @@ class CurrencyManager extends Component
         }
     }
 
-    public function toggleStatus($currencyId): void
+    public function toggleStatus(string $currencyId): void
     {
         try {
             $currency = Currency::findOrFail($currencyId);

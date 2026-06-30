@@ -9,6 +9,7 @@
  *     customer_details: list<array{name: string, label: string, type: string, required?: bool}>,
  *     collection_data_water: list<array{name: string, label: string, type: string, required?: bool, options?: list<string>}>,
  *     collection_data_food: list<array{name: string, label: string, type: string, required?: bool, options?: list<string>}>,
+ *     collection_extra_fields: list<array{name: string, label: string, type: string}>,
  * }
  */
 return [
@@ -79,5 +80,16 @@ return [
         ['name' => 'method_of_sampling', 'label' => 'Method of Sampling', 'type' => 'select', 'required' => false],
         ['name' => 'reason_of_collection', 'label' => 'Reason of Collection', 'type' => 'select', 'required' => false],
         ['name' => 'transport_condition', 'label' => 'Transport Condition', 'type' => 'select', 'required' => false],
+    ],
+
+    'collection_extra_fields' => [
+        ['name' => 'date_received', 'label' => 'Date received', 'type' => 'date'],
+        ['name' => 'packaging', 'label' => 'Packaging', 'type' => 'text'],
+        ['name' => 'sample_weight', 'label' => 'Sample weight', 'type' => 'text'],
+        ['name' => 'sample_information', 'label' => 'Sample information', 'type' => 'text'],
+        ['name' => 'ship_name', 'label' => 'Ship / vessel', 'type' => 'text'],
+        ['name' => 'port_of_loading', 'label' => 'Port of loading', 'type' => 'text'],
+        ['name' => 'port_of_discharge', 'label' => 'Port of discharge', 'type' => 'text'],
+        ['name' => 'seal_number', 'label' => 'Seal', 'type' => 'text'],
     ],
 ];

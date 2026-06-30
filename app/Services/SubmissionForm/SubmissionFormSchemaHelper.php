@@ -20,20 +20,31 @@ final class SubmissionFormSchemaHelper
     {
         $form->loadMissing(['sections.elementHolders.elements']);
 
-        $seen = [];
-        $unique = collect();
+        /** @var array<string, SubmissionFormSection> $bestByKey */
+        $bestByKey = [];
 
         foreach ($form->sections->sortBy('sort_order') as $section) {
             $key = ($section->sort_order ?? 0).'|'.mb_strtolower(trim((string) ($section->title ?? '')));
-            if (isset($seen[$key])) {
-                continue;
-            }
 
-            $seen[$key] = true;
-            $unique->push($section);
+            if (! isset($bestByKey[$key]) || $this->sectionScore($section) > $this->sectionScore($bestByKey[$key])) {
+                $bestByKey[$key] = $section;
+            }
         }
 
-        return $unique;
+        return collect($bestByKey)
+            ->sortBy(fn (SubmissionFormSection $section): int => (int) ($section->sort_order ?? 0))
+            ->values();
+    }
+
+    private function sectionScore(SubmissionFormSection $section): int
+    {
+        $elementCount = $section->elementHolders
+            ->flatMap(fn ($holder) => $holder->elements)
+            ->count();
+
+        $updatedAt = $section->updated_at?->getTimestamp() ?? 0;
+
+        return ($elementCount * 1_000_000) + $updatedAt;
     }
 
     /**

@@ -20,18 +20,12 @@ use Illuminate\Validation\ValidationException;
 class SubmissionFormSubmissionService
 {
     /**
-     * @var array<int, string>
+     * @return list<string>
      */
-    private const TRF_COLLECTION_EXTRA_FIELDS = [
-        'date_received',
-        'packaging',
-        'sample_weight',
-        'sample_information',
-        'ship_name',
-        'port_of_loading',
-        'port_of_discharge',
-        'seal_number',
-    ];
+    public static function collectionExtraFieldNames(): array
+    {
+        return array_column(config('test_request_form_fields.collection_extra_fields', []), 'name');
+    }
 
     private ?bool $hasSelectedSampleTypeColumn = null;
 
@@ -163,7 +157,7 @@ class SubmissionFormSubmissionService
     private function applyTrfCollectionExtrasCompletenessRules(array $rules, Request $request): array
     {
         $fieldsInSchema = array_values(array_filter(
-            self::TRF_COLLECTION_EXTRA_FIELDS,
+            self::collectionExtraFieldNames(),
             static fn (string $field): bool => array_key_exists($field, $rules)
         ));
 

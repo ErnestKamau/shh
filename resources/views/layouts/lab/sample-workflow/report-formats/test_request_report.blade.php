@@ -465,14 +465,7 @@
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
                                 <td>
-                                    @php
-                                        $specStd = $cr->main_standard_id ?? null;
-                                        $specPrefix = $specStd ? (getStandardLimitValue($cr->id, $specStd, 1) ?? '') : '';
-                                        $specSuffix = $specStd ? (getStandardLimitValue($cr->id, $specStd) ?? '') : '';
-                                        $specMain   = ($cr->main_value == 'NS') ? '--' : ($cr->main_value ?? '');
-                                        $specFull = trim($specPrefix . ' ' . $specMain . ' ' . $specSuffix);
-                                    @endphp
-                                    {{ $specFull ?: '-' }}
+                                    {{ app(\App\Services\StandardLimitDisplayService::class)->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
                                 <td>{{ $cr->measure_uncertanity ?? '-' }}</td>
                                 <td>{{ strtoupper($cr->method()->name ?? ($cr->ltmethod->name ?? '-')) }}</td>

@@ -144,13 +144,13 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <button wire:click="showEditCurrencyModal({{ $currency->id }})" class="btn btn-outline-primary" title="Edit">
+                                                    <button wire:click="showEditCurrencyModal('{{ $currency->id }}')" class="btn btn-outline-primary" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="toggleStatus({{ $currency->id }})" class="btn btn-outline-{{ $currency->active ? 'warning' : 'success' }}" title="{{ $currency->active ? 'Deactivate' : 'Activate' }}">
+                                                    <button wire:click="toggleStatus('{{ $currency->id }}')" class="btn btn-outline-{{ $currency->active ? 'warning' : 'success' }}" title="{{ $currency->active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $currency->active ? 'close-circle' : 'check-circle' }}"></i>
                                                     </button>
-                                                    <button wire:click="deleteCurrency({{ $currency->id }})" onclick="return confirm('Are you sure you want to delete this currency?')" class="btn btn-outline-danger" title="Delete">
+                                                    <button wire:click="deleteCurrency('{{ $currency->id }}')" onclick="return confirm('Are you sure you want to delete this currency?')" class="btn btn-outline-danger" title="Delete">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>

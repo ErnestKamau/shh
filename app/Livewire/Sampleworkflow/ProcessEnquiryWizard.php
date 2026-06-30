@@ -136,6 +136,7 @@ class ProcessEnquiryWizard extends Component
             $unitPrice = (float) ($line['unit_price'] ?? 0);
             $taxRate = (float) ($line['tax'] ?? 0);
             $extended = $qty * $unitPrice;
+            $subTotal += $extended;
 
             if ($taxRate > 0) {
                 $taxTotal += ($taxRate / 100) * $extended;
@@ -206,6 +207,10 @@ class ProcessEnquiryWizard extends Component
         $quotationService = app(QuotationFromEnquiryService::class);
         $enquiry = $quotationService->ensureEnquiryReflectsSentQuotation($enquiry);
         $header = $enquiry->currentQuotation;
+
+        if ($header !== null) {
+            $header = $quotationService->syncHeaderPricelistAndCurrency($header, $enquiry);
+        }
 
         $this->enquiryId = $enquiry->id;
         $display = app(EnquiryReviewDisplayService::class);

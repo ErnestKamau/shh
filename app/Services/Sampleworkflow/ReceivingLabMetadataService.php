@@ -5,6 +5,7 @@ namespace App\Services\Sampleworkflow;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Services\Commercial\CommercialEnquiryFieldMapper;
+use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 
 final class ReceivingLabMetadataService
@@ -19,13 +20,19 @@ final class ReceivingLabMetadataService
      */
     public function emptyFields(): array
     {
-        return [
+        $fields = [
             'statement_of_conformity' => '',
             'sampled_by' => '',
             'customer_rep_signature' => '',
             'customer_rep_contact' => '',
             'remarks' => '',
         ];
+
+        foreach (SubmissionFormSubmissionService::collectionExtraFieldNames() as $name) {
+            $fields[$name] = '';
+        }
+
+        return $fields;
     }
 
     /**

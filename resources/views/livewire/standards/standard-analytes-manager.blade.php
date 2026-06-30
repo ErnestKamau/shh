@@ -227,7 +227,7 @@
                                             @if($showAnalyteDropdown && count($filteredAnalytes) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($filteredAnalytes as $analyte)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAnalyte({{ $analyte->id }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAnalyte('{{ $analyte->id }}')">
                                                             {{ $analyte->name }} ({{ $analyte->code }})
                                                         </div>
                                                     @endforeach
@@ -259,7 +259,7 @@
                                             @if($showStandardValueDropdown && count($filteredStandardValues) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($filteredStandardValues as $value)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectStandardValue({{ $value->id }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectStandardValue('{{ $value->id }}')">
                                                             {{ $value->name }} ({{ $value->code }})
                                                         </div>
                                                     @endforeach
@@ -350,7 +350,7 @@
                                                         @if($showStandardValueDropdown && count($filteredStandardValues) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredStandardValues as $value)
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectStandardValue({{ $value->id }})">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectStandardValue('{{ $value->id }}')">
                                                                         {{ $value->name }} ({{ $value->code }})
                                                                     </div>
                                                                 @endforeach

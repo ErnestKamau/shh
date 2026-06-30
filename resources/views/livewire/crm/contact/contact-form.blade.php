@@ -74,13 +74,54 @@
         .tag-select-container.is-invalid .tag-select-input {
             border-color: #dc3545;
         }
+
+        .contact-modal-overlay {
+            z-index: 1060;
+            padding: 1rem 0;
+        }
+
+        .contact-modal-dialog {
+            margin: 1rem auto;
+        }
+
+        .contact-modal-content {
+            max-height: calc(100vh - 2rem);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .contact-modal-header {
+            flex-shrink: 0;
+        }
+
+        .contact-modal-form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .contact-modal-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .contact-modal-footer {
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+        }
     </style>
     <template x-teleport="body">
-        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" wire:click.self="close"
+        <div class="modal fade show contact-modal-overlay" style="display: block; background-color: rgba(0,0,0,0.5); overflow-y: auto;" wire:click.self="close"
             tabindex="-1" role="dialog" wire:ignore.self>
-            <div class="modal-dialog modal-xl" role="document"> <!-- Changed to modal-xl for better layout -->
-                <div class="modal-content">
-                    <div class="modal-header">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable contact-modal-dialog" role="document">
+                <div class="modal-content contact-modal-content">
+                    <div class="modal-header contact-modal-header">
                         <h4 class="modal-title">
                             <i class="mdi mdi-{{ $contactId ? 'pencil' : 'plus' }}"></i>
                             {{ $contactId ? __('crm.edit') : __('crm.add') }} {{ __('crm.company_contact') }}
@@ -89,8 +130,8 @@
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                    <form wire:submit.prevent="save">
-                        <div class="modal-body">
+                    <form wire:submit.prevent="save" class="contact-modal-form">
+                        <div class="modal-body contact-modal-body">
                             <!-- Personal Information -->
                             <div class="row">
                                 <div class="col-md-4">
@@ -324,7 +365,7 @@
                             @endif
 
                         </div>
-                        <div class="modal-footer bg-light">
+                        <div class="modal-footer bg-light contact-modal-footer">
                             <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
                                 <span wire:loading.remove wire:target="save"><i class="mdi mdi-content-save"></i> {{ __('crm.save') }}</span>
                                 <span wire:loading wire:target="save"><i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.saving') }}...</span>

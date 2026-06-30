@@ -338,28 +338,16 @@ trait BuildsSubmissionFormTrfSections
         array $extraApparatusOptions = [],
         array $extraFields = [],
     ): void {
-        $section = $form->sections()
+        $sections = $form->sections()
             ->where('section_type', 'regular')
             ->where('title', 'Sample collection data')
-            ->first();
+            ->get();
 
-        if ($section === null) {
+        if ($sections->isEmpty()) {
             $this->createCollectionDataSection($form, 2, $alwaysVisible, $extraApparatusOptions, $extraFields);
 
             return;
         }
-
-        $holder = $section->elementHolders()->where('holder_type', 'field')->first();
-        if ($holder === null) {
-            $holder = $section->elementHolders()->create([
-                'id' => (string) Str::uuid7(),
-                'holder_type' => 'field',
-                'max_elements' => 30,
-                'sort_order' => 1,
-            ]);
-        }
-
-        $holder->update(['max_elements' => max((int) $holder->max_elements, 30)]);
 
         $conditional = $alwaysVisible ? null : [
             ['field' => 'request_for_sampling', 'operator' => 'equals', 'value' => '1'],
@@ -403,8 +391,22 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Seal', 'seal_number', 15],
         ];
 
-        foreach (array_merge($baseFields, $extraFields) as $field) {
-            $this->upsertScalarElement($holder, $field, $conditional);
+        foreach ($sections as $section) {
+            $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+            if ($holder === null) {
+                $holder = $section->elementHolders()->create([
+                    'id' => (string) Str::uuid7(),
+                    'holder_type' => 'field',
+                    'max_elements' => 30,
+                    'sort_order' => 1,
+                ]);
+            }
+
+            $holder->update(['max_elements' => max((int) $holder->max_elements, 30)]);
+
+            foreach (array_merge($baseFields, $extraFields) as $field) {
+                $this->upsertScalarElement($holder, $field, $conditional);
+            }
         }
     }
 

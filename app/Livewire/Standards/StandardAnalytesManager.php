@@ -337,7 +337,7 @@ class StandardAnalytesManager extends Component
 
     public function selectAnalyte(int|string $id): void
     {
-        $analyte = collect($this->analytes)->firstWhere('id', (int) $id);
+        $analyte = collect($this->analytes)->firstWhere('id', (string) $id);
         if (!$analyte) {
             return;
         }
@@ -374,7 +374,7 @@ class StandardAnalytesManager extends Component
 
     public function selectStandardValue(int|string $id): void
     {
-        $standardValue = collect($this->standardValues)->firstWhere('id', (int) $id);
+        $standardValue = collect($this->standardValues)->firstWhere('id', (string) $id);
         if (!$standardValue) {
             return;
         }
@@ -397,14 +397,14 @@ class StandardAnalytesManager extends Component
     {
         $analyteId = $this->standardAnalyteForm['analyte_id'] ?? null;
         if ($analyteId) {
-            $analyte = collect($this->analytes)->firstWhere('id', (int) $analyteId);
+            $analyte = collect($this->analytes)->firstWhere('id', (string) $analyteId);
             $this->selectedAnalyteName = $analyte->name ?? '';
             $this->analyteSearch = $this->selectedAnalyteName;
         }
 
         $standardValueId = $this->standardAnalyteForm['standard_value_id'] ?? null;
         if ($standardValueId) {
-            $standardValue = collect($this->standardValues)->firstWhere('id', (int) $standardValueId);
+            $standardValue = collect($this->standardValues)->firstWhere('id', (string) $standardValueId);
             $this->selectedStandardValueName = $standardValue->name ?? '';
             $this->standardValueSearch = $this->selectedStandardValueName;
         }

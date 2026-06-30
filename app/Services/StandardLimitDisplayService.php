@@ -11,15 +11,36 @@ class StandardLimitDisplayService
     /**
      * Resolve the display string for a captured result's main standard limit.
      */
-    public function forCapturedResult(CapturedResult $captured): ?string
+    public function forCapturedResult(CapturedResult $captured, string|int|null $fallbackStandardId = null): ?string
     {
-        if ($captured->main_value) {
-            return (string) $captured->main_value;
+        $standardId = $captured->main_standard_id
+            ?: $fallbackStandardId
+            ?: $captured->sample?->main_standard;
+
+        $fromStandard = $this->format($standardId, $captured->analyte_id);
+
+        $mainValue = $captured->main_value;
+        if ($mainValue && $mainValue !== 'NS') {
+            if ($fromStandard !== null && $this->isLimitTypeOnly((string) $mainValue)) {
+                return $fromStandard;
+            }
+
+            return (string) $mainValue;
         }
 
-        $standardId = $captured->main_standard_id ?: $captured->sample?->main_standard;
+        return $fromStandard;
+    }
 
-        return $this->format($standardId, $captured->analyte_id);
+    /**
+     * True when stored main_value is only a limit qualifier (e.g. "max") without the numeric standard.
+     */
+    private function isLimitTypeOnly(string $mainValue): bool
+    {
+        $normalized = strtolower(trim($mainValue));
+
+        return in_array($normalized, [
+            'max', 'min', 'less_than', 'greater_than', '<', '>',
+        ], true);
     }
 
     /**

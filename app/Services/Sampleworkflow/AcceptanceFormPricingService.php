@@ -200,7 +200,11 @@ class AcceptanceFormPricingService
             }
         }
 
-        return Pricelist::where('active', 1)->orderBy('id')->first();
+        return Pricelist::query()
+            ->where('active', 1)
+            ->where('is_master', 1)
+            ->first()
+            ?? Pricelist::query()->where('active', 1)->orderBy('id')->first();
     }
 
     /**

@@ -39,6 +39,7 @@ final class QuotationFromEnquiryService
             $existing = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
             if ($existing !== null) {
                 $existing = $this->syncHeaderCustomerFromEnquiry($existing, $enquiry);
+                $existing = $this->syncHeaderPricelistAndCurrency($existing, $enquiry);
 
                 if ($enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
                     && $existing->sent_to_customer_at !== null) {
@@ -563,6 +564,35 @@ final class QuotationFromEnquiryService
             ->value('id');
 
         return $fallback !== null ? (string) $fallback : null;
+    }
+
+    public function syncHeaderPricelistAndCurrency(
+        QuotationHeader $header,
+        SampleSubmissionRequest $enquiry,
+    ): QuotationHeader {
+        $enquiry->loadMissing('customer');
+        $pricelist = $this->pricingService->resolvePricelist((string) $enquiry->crm_customer_id);
+        $currencyId = $pricelist?->currency_id ?? $enquiry->customer?->currency_id;
+
+        $dirty = false;
+
+        if ($pricelist !== null && (string) $header->pricelist_id !== (string) $pricelist->id) {
+            $header->pricelist_id = $pricelist->id;
+            $dirty = true;
+        }
+
+        if ($currencyId !== null && (string) $header->currency_id !== (string) $currencyId) {
+            $header->currency_id = $currencyId;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $header->save();
+
+            return $header->fresh(['currency']) ?? $header;
+        }
+
+        return $header;
     }
 
     private function syncHeaderCustomerFromEnquiry(
