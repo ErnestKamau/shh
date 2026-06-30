@@ -130,14 +130,6 @@ class CustomerForm extends BaseCrmComponent
     {
         $search = trim(strtolower($this->accountSearch));
 
-        \Log::info('CustomerForm: getFilteredAccountsProperty called', [
-            'accounts_count' => collect($this->accounts)->count(),
-            'showAccountDropdown' => $this->showAccountDropdown,
-            'accountSearch' => $this->accountSearch,
-            'account_status' => $this->account_status,
-            'accounts_raw' => $this->accounts
-        ]);
-
         return collect($this->accounts)
             ->filter(function ($account) use ($search) {
                 if ((string) data_get($account, 'id') === (string) $this->account_status) {
@@ -196,6 +188,20 @@ class CustomerForm extends BaseCrmComponent
 
     public function save()
     {
+        $this->account_settings = getConfigTypeByName('Account Settings');
+        if (isset($this->account_settings->id)) {
+            $this->accounts = collect(getconfigByID($this->account_settings->id))->values();
+        }
+
+        if (collect($this->accounts)->isEmpty()) {
+            $this->addError(
+                'account_status',
+                'Account settings are not configured. Ask an administrator to set up Account Settings under System Configuration.'
+            );
+
+            return;
+        }
+
         $this->validate();
 
         if ($this->customer) {

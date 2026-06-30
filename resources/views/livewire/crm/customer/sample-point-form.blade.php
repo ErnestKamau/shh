@@ -51,11 +51,11 @@
     }
 }" x-init="init()">
     <template x-teleport="body">
-        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1"
-            role="dialog" wire:click.self="close" wire:ignore.self>
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
+        <div class="modal fade show sample-point-modal-overlay" style="display: block; background-color: rgba(0,0,0,0.5); overflow-y: auto;"
+            tabindex="-1" role="dialog" wire:click.self="close" wire:ignore.self>
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable sample-point-modal-dialog" role="document">
+                <div class="modal-content sample-point-modal-content">
+                    <div class="modal-header sample-point-modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $pointId ? 'pencil' : 'plus' }}"></i>
                             {{ $pointId ? 'Edit' : 'Add' }} Sample Point
@@ -64,8 +64,8 @@
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                    <form wire:submit.prevent="save">
-                        <div class="modal-body">
+                    <form wire:submit.prevent="save" class="sample-point-modal-form">
+                        <div class="modal-body sample-point-modal-body">
                             <div class="form-group">
                                 <label class="control-label">Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('name') is-invalid @enderror"
@@ -115,10 +115,9 @@
                                 @error('unitId') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group mb-0">
                                 <label class="control-label">Location</label>
-                                <div id="sample-point-map" style="width: 100%; height: 300px; border: 1px solid #ddd;"
-                                    wire:ignore></div>
+                                <div id="sample-point-map" class="sample-point-map" wire:ignore></div>
                                 <small class="text-muted">Drag the marker or click on the map to set the
                                     location.</small>
                                 @error('latitude') <div class="text-danger small">{{ $message }}</div> @enderror
@@ -133,7 +132,7 @@
                                     Active?</label>
                             </div>
                         </div>
-                        <div class="modal-footer">
+                        <div class="modal-footer sample-point-modal-footer">
                             <button type="submit" class="btn btn-primary">
                                 <i class="mdi mdi-content-save"></i> Save
                             </button>
@@ -146,6 +145,57 @@
     </template>
 
     <style>
+        .sample-point-modal-overlay {
+            z-index: 1060;
+            padding: 1rem 0;
+        }
+
+        .sample-point-modal-dialog {
+            max-width: 720px;
+            margin: 1rem auto;
+        }
+
+        .sample-point-modal-content {
+            max-height: calc(100vh - 2rem);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sample-point-modal-header {
+            flex-shrink: 0;
+        }
+
+        .sample-point-modal-form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .sample-point-modal-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .sample-point-modal-footer {
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            border-top: 1px solid #dee2e6;
+            z-index: 2;
+        }
+
+        .sample-point-map {
+            width: 100%;
+            height: 220px;
+            border: 1px solid #ddd;
+            border-radius: 0.25rem;
+        }
+
         .tag-select-container {
             position: relative;
             width: 100%;
