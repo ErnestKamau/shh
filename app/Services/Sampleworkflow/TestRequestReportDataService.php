@@ -52,6 +52,38 @@ class TestRequestReportDataService
             ? $trfPayload['collection']
             : [];
 
+        $trfCollectionExtras = is_array($collection['collection_extras'] ?? null)
+            ? $collection['collection_extras']
+            : [
+                'date_received' => $this->formatReportDate($formData['date_received'] ?? null),
+                'packaging' => $this->scalarValue($formData['packaging'] ?? null),
+                'sample_weight' => $this->scalarValue($formData['sample_weight'] ?? null),
+                'sample_information' => $this->scalarValue($formData['sample_information'] ?? null),
+                'ship_name' => $this->scalarValue($formData['ship_name'] ?? null),
+                'port_of_loading' => $this->scalarValue($formData['port_of_loading'] ?? null),
+                'port_of_discharge' => $this->scalarValue($formData['port_of_discharge'] ?? null),
+                'seal_number' => $this->scalarValue($formData['seal_number'] ?? null),
+            ];
+
+        $trfCollectionExtras = [
+            'date_received' => $this->firstNonEmptyFromMixed(
+                $trfCollectionExtras['date_received'] ?? null,
+                $this->formatReportDate($formData['date_received'] ?? null),
+            ) ?? '-',
+            'packaging' => $this->firstNonEmptyFromMixed($trfCollectionExtras['packaging'] ?? null) ?? '-',
+            'sample_weight' => $this->firstNonEmptyFromMixed($trfCollectionExtras['sample_weight'] ?? null) ?? '-',
+            'sample_information' => $this->firstNonEmptyFromMixed($trfCollectionExtras['sample_information'] ?? null) ?? '-',
+            'ship_name' => $this->firstNonEmptyFromMixed($trfCollectionExtras['ship_name'] ?? null) ?? '-',
+            'port_of_loading' => $this->firstNonEmptyFromMixed($trfCollectionExtras['port_of_loading'] ?? null) ?? '-',
+            'port_of_discharge' => $this->firstNonEmptyFromMixed($trfCollectionExtras['port_of_discharge'] ?? null) ?? '-',
+            'seal_number' => $this->firstNonEmptyFromMixed($trfCollectionExtras['seal_number'] ?? null) ?? '-',
+        ];
+
+        $dateReceived = $this->firstNonEmptyFromMixed(
+            $trfCollectionExtras['date_received'] ?? null,
+            $batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : null,
+        ) ?? '-';
+
         $containerType = $this->firstNonEmptyFromMixed(
             $this->selectedCheckboxLabels($collection['sampling_apparatus'] ?? null),
             $formData['sampling_apparatus'] ?? null,
@@ -147,6 +179,8 @@ class TestRequestReportDataService
             'sampleTemperature' => $sampleTemperature,
             'samplePreservation' => $samplePreservation,
             'sampleDescription' => $sampleDescription,
+            'dateReceived' => $dateReceived,
+            'trfCollectionExtras' => $trfCollectionExtras,
             'attention' => $attention,
             'samplePointByIndex' => $samplePointByIndex,
             'totalPages' => $totalPages,

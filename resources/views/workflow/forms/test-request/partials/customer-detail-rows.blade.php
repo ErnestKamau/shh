@@ -1,10 +1,12 @@
 @php
     $customerCols = (int) ($customerCols ?? 14);
     $jobCols = (int) ($jobCols ?? 4);
+    $hasCustomerExtras = (bool) ($customer['has_customer_extras'] ?? false);
+    $jobRowspan = $hasCustomerExtras ? 5 : 4;
 @endphp
 <tr class="trf-banner-row">
     <td colspan="{{ $customerCols }}" class="trf-banner-cell">CUSTOMER DETAILS</td>
-    <td rowspan="4" colspan="{{ $jobCols }}" class="trf-job-cell">
+    <td rowspan="{{ $jobRowspan }}" colspan="{{ $jobCols }}" class="trf-job-cell">
         <span class="trf-job-number-label">JOB NUMBER:</span>
         <span class="trf-job-number-value">{{ $customer['job_number'] ?: '' }}</span>
     </td>
@@ -35,3 +37,15 @@
         <span class="trf-field-value">{{ $customer['mobile_number'] ?: '' }}</span>
     </td>
 </tr>
+@if($hasCustomerExtras)
+    <tr>
+        <td colspan="{{ (int) floor($customerCols / 2) }}" class="trf-customer-field">
+            <span class="trf-field-label">CNPJ / Tax ID:</span>
+            <span class="trf-field-value">{{ $customer['customer_tax_id'] ?: '' }}</span>
+        </td>
+        <td colspan="{{ $customerCols - (int) floor($customerCols / 2) }}" class="trf-customer-field">
+            <span class="trf-field-label">Email:</span>
+            <span class="trf-field-value">{{ $customer['customer_email'] ?: '' }}</span>
+        </td>
+    </tr>
+@endif
