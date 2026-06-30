@@ -379,13 +379,17 @@
                                                     autocomplete="off"
                                                 >
                                             </div>
-                                            @if($showAccountDropdown && count($this->filteredAccounts) > 0)
+                                            @if($showAccountDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($this->filteredAccounts as $account)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount('{{ data_get($account, 'id') }}')">
-                                                            {{ data_get($account, 'key') }}
-                                                        </div>
-                                                    @endforeach
+                                                    @if(count($this->filteredAccounts) > 0)
+                                                        @foreach($this->filteredAccounts as $account)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectAccount('{{ data_get($account, 'id') }}')">
+                                                                {{ data_get($account, 'key') }}
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="tag-dropdown-item text-muted">No account settings found</div>
+                                                    @endif
                                                 </div>
                                             @endif
                                         </div>

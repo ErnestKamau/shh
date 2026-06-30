@@ -111,6 +111,8 @@ class CustomerManager extends Component
         'customerForm.email.email' => 'Please enter a valid email address.',
         'customerForm.telephone1.required' => 'Primary phone number is required.',
         'customerForm.country_id.required' => 'Country selection is required.',
+        'customerForm.account_status.required' => 'Account settings selection is required.',
+        'customerForm.account_status.in' => 'Please select a valid account setting from the list.',
     ];
 
     public function mount()
@@ -378,6 +380,8 @@ class CustomerManager extends Component
         // Load data only when modal is opened to improve performance
         if (empty($this->countries)) {
             $this->loadInitialData();
+        } else {
+            $this->loadAccounts();
         }
         
         $this->showCustomerModal = true;
@@ -416,6 +420,8 @@ class CustomerManager extends Component
         // Load data only when modal is opened to improve performance
         if (empty($this->countries)) {
             $this->loadInitialData();
+        } else {
+            $this->loadAccounts();
         }
         
         $this->resetDropdownStates();
@@ -425,6 +431,17 @@ class CustomerManager extends Component
 
     public function saveCustomer()
     {
+        $this->loadAccounts();
+
+        if (empty($this->accounts)) {
+            $this->addError(
+                'customerForm.account_status',
+                'Account settings are not configured. Ask an administrator to set up Account Settings under System Configuration.'
+            );
+
+            return;
+        }
+
         $this->validate();
 
         try {
@@ -599,9 +616,10 @@ class CustomerManager extends Component
 
     public function selectAccount($accountId)
     {
-        $this->customerForm['account_status'] = $accountId;
+        $this->customerForm['account_status'] = $accountId ? (string) $accountId : null;
         $this->showAccountDropdown = false;
         $this->accountSearch = '';
+        $this->resetValidation('customerForm.account_status');
     }
 
     public function getFilteredCountriesProperty()
@@ -620,21 +638,21 @@ class CustomerManager extends Component
     public function getFilteredAccountsProperty()
     {
         $accounts = collect($this->accounts);
-        \Log::info('getFilteredAccountsProperty called', [
-            'accounts_count' => $accounts->count(),
-            'showAccountDropdown' => $this->showAccountDropdown,
-            'accountSearch' => $this->accountSearch,
-            'accounts_raw' => $this->accounts
-        ]);
+        $search = trim($this->accountSearch);
 
-        if (empty($this->accountSearch)) {
-            return $accounts;
-        }
+        return $accounts
+            ->filter(function ($account) use ($search) {
+                if ((string) data_get($account, 'id') === (string) ($this->customerForm['account_status'] ?? '')) {
+                    return false;
+                }
 
-        return $accounts->filter(function($account) {
-            $key = data_get($account, 'key', '');
-            return stripos($key, $this->accountSearch) !== false;
-        });
+                if ($search === '') {
+                    return true;
+                }
+
+                return stripos((string) data_get($account, 'key', ''), $search) !== false;
+            })
+            ->values();
     }
 
     public function getSelectedCountryNameProperty()
@@ -649,7 +667,9 @@ class CustomerManager extends Component
     public function getSelectedAccountNameProperty()
     {
         if ($this->customerForm['account_status']) {
-            $account = collect($this->accounts)->firstWhere('id', $this->customerForm['account_status']);
+            $account = collect($this->accounts)->first(function ($account) {
+                return (string) data_get($account, 'id') === (string) $this->customerForm['account_status'];
+            });
             if ($account) {
                 return data_get($account, 'key', '');
             }
