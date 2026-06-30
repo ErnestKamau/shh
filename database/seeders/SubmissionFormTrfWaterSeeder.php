@@ -28,6 +28,7 @@ class SubmissionFormTrfWaterSeeder extends Seeder
 
         if ($form->sections()->exists()) {
             $this->command?->info('Test Request Form - Water structure already exists; patching fields.');
+            $this->patchCustomerDetailsSection($form);
             $this->patchCollectionDataSection($form, true);
             $this->patchSampleRowsSection($form, $this->waterTrfRowFields());
         } else {

@@ -23,6 +23,7 @@ class SubmissionFormTrfWasteWaterSeeder extends Seeder
 
         if ($form->sections()->exists()) {
             $this->command?->info('Test Request Form - Waste Water structure already exists; patching fields.');
+            $this->patchCustomerDetailsSection($form);
             $this->patchCollectionDataSection($form, true, [], [
                 ['textarea', 'Sample & sampling point description', 'sample_sampling_point_description', 30],
                 ['select', 'Sampling technique', 'sampling_technique', 31, [

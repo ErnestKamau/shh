@@ -24,6 +24,7 @@ class SubmissionFormTrfFoodSeeder extends Seeder
 
         if ($form->sections()->exists()) {
             $this->command?->info('Test Request Form - Food structure already exists; patching fields.');
+            $this->patchCustomerDetailsSection($form);
             $this->patchCollectionDataSection($form, true, [
                 ['value' => 'air_sampler', 'label' => 'Air sampler'],
             ]);

@@ -518,6 +518,76 @@ trait BuildsSubmissionFormTrfSections
         }
     }
 
+    protected function patchCustomerDetailsSection(SubmissionForm $form): void
+    {
+        $section = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Customer details')
+            ->first();
+
+        if ($section === null) {
+            $this->createCustomerDetailsSection($form, 1);
+
+            return;
+        }
+
+        $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+        if ($holder === null) {
+            $holder = $section->elementHolders()->create([
+                'id' => (string) Str::uuid7(),
+                'holder_type' => 'field',
+                'max_elements' => 12,
+                'sort_order' => 1,
+            ]);
+        }
+
+        $holder->update(['max_elements' => max((int) $holder->max_elements, 12)]);
+
+        foreach ([
+            ['text', 'Name', 'customer_name', 1, true],
+            ['textarea', 'Address', 'customer_address', 2, true],
+            ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
+            ['text', 'Mobile number', 'mobile_number', 4, false],
+            ['client_contact_select', 'Contact person', 'contact_person', 5, false],
+            ['text', 'CNPJ / Tax ID', 'customer_tax_id', 6, false],
+            ['text', 'Email', 'customer_email', 7, false],
+            ['text', 'CRM contact ID', 'crm_contact_id', 8, false],
+        ] as [$type, $label, $name, $order, $readonly]) {
+            $element = $holder->elements()->where('name', $name)->first();
+
+            $payload = [
+                'element_type' => $type,
+                'label' => $label,
+                'name' => $name,
+                'is_readonly' => $readonly,
+                'is_required' => false,
+                'sort_order' => $order,
+            ];
+
+            if ($element === null) {
+                $holder->elements()->create(array_merge($payload, [
+                    'id' => (string) Str::uuid7(),
+                ]));
+
+                continue;
+            }
+
+            $hasValues = \App\Models\SubmissionFormInstanceValue::query()
+                ->where('submission_form_element_id', $element->id)
+                ->exists();
+
+            if ($hasValues) {
+                $element->update([
+                    'label' => $payload['label'],
+                    'sort_order' => $payload['sort_order'],
+                    'is_required' => $payload['is_required'],
+                ]);
+            } else {
+                $element->update($payload);
+            }
+        }
+    }
+
     /**
      * @param  list<array{value: string, label: string}>  $extraApparatusOptions
      * @param  list<array{0: string, 1: string, 2: string, 3: int, 4?: list<array{value: string, label: string}>}>  $extraFields
