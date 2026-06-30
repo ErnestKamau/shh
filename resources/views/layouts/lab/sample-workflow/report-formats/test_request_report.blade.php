@@ -364,7 +364,7 @@
             </tr>
             <tr>
                 <td class="dlbl">{{ $labels['date_received'] }}</td>
-                <td>{{ $batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : '-' }}</td>
+                <td>{{ $dateReceived ?? ($batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : '-') }}</td>
                 <td class="dlbl">{{ $labels['date_reported'] }}</td>
                 <td>{{ date('d/m/Y') }}</td>
             </tr>
@@ -410,6 +410,28 @@
                         -
                     @endif
                 </td>
+            </tr>
+            <tr>
+                <td class="dlbl">{{ $labels['packaging'] ?? 'Packaging' }}</td>
+                <td>{{ $trfCollectionExtras['packaging'] ?? '-' }}</td>
+                <td class="dlbl">{{ $labels['sample_information'] ?? 'Sample information' }}</td>
+                <td>{{ $trfCollectionExtras['sample_information'] ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td class="dlbl">{{ $labels['sample_weight'] ?? 'Sample weight' }}</td>
+                <td>{{ $trfCollectionExtras['sample_weight'] ?? '-' }}</td>
+                <td class="dlbl">{{ $labels['ship_name'] ?? 'Ship / vessel' }}</td>
+                <td>{{ $trfCollectionExtras['ship_name'] ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td class="dlbl">{{ $labels['port_of_loading'] ?? 'Port of loading' }}</td>
+                <td>{{ $trfCollectionExtras['port_of_loading'] ?? '-' }}</td>
+                <td class="dlbl">{{ $labels['port_of_discharge'] ?? 'Port of discharge' }}</td>
+                <td>{{ $trfCollectionExtras['port_of_discharge'] ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td class="dlbl">{{ $labels['seal_number'] ?? 'Seal number' }}</td>
+                <td colspan="3">{{ $trfCollectionExtras['seal_number'] ?? '-' }}</td>
             </tr>
         </table>
 

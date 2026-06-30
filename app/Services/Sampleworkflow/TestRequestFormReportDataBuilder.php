@@ -370,6 +370,9 @@ class TestRequestFormReportDataBuilder
         $crm = $trfi?->crmCustomer ?? $submission?->crmCustomer;
         $contact = $crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null;
 
+        $customerTaxId = (string) ($formData['customer_tax_id'] ?? '');
+        $customerEmail = (string) ($formData['customer_email'] ?? $crm?->email ?? '');
+
         return [
             'job_number' => $this->resolveJobNumber($formData, $submission, $trfi),
             'customer_name' => (string) ($formData['customer_name'] ?? $formData['client_name'] ?? $crm?->name ?? ''),
@@ -377,6 +380,9 @@ class TestRequestFormReportDataBuilder
             'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
             'contact_person' => (string) ($formData['contact_person'] ?? $contact?->name ?? ''),
             'mobile_number' => (string) ($formData['mobile_number'] ?? $contact?->phone ?? $crm?->cell_phone ?? ''),
+            'customer_tax_id' => $customerTaxId,
+            'customer_email' => $customerEmail,
+            'has_customer_extras' => $this->hasAnyFilledValues([$customerTaxId, $customerEmail]),
         ];
     }
 
@@ -423,6 +429,17 @@ class TestRequestFormReportDataBuilder
             default => self::WATER_OPTIONS,
         };
 
+        $collectionExtras = [
+            'date_received' => $this->formatDate($formData['date_received'] ?? ''),
+            'packaging' => (string) ($formData['packaging'] ?? ''),
+            'sample_weight' => (string) ($formData['sample_weight'] ?? ''),
+            'sample_information' => (string) ($formData['sample_information'] ?? ''),
+            'ship_name' => (string) ($formData['ship_name'] ?? ''),
+            'port_of_loading' => (string) ($formData['port_of_loading'] ?? ''),
+            'port_of_discharge' => (string) ($formData['port_of_discharge'] ?? ''),
+            'seal_number' => (string) ($formData['seal_number'] ?? ''),
+        ];
+
         return [
             'sampling_date' => $this->formatOrdinalDate($formData['sampling_date'] ?? ''),
             'sampling_date_raw' => $this->formatDate($formData['sampling_date'] ?? ''),
@@ -433,6 +450,8 @@ class TestRequestFormReportDataBuilder
             'method_of_sampling' => self::normalizeCheckboxGroup($formData['method_of_sampling'] ?? [], $options['method_of_sampling']),
             'reason_of_collection' => self::normalizeCheckboxGroup($formData['reason_of_collection'] ?? [], $options['reason_of_collection']),
             'transport_condition' => self::normalizeCheckboxGroup($formData['transport_condition'] ?? [], $options['transport_condition']),
+            'collection_extras' => $collectionExtras,
+            'has_collection_extras' => $this->hasAllFilledValues($collectionExtras),
         ];
     }
 
@@ -633,6 +652,9 @@ class TestRequestFormReportDataBuilder
             ],
         ];
 
+        $collectionExtras = $collection['collection_extras'] ?? [];
+        $hasCollectionExtras = (bool) ($collection['has_collection_extras'] ?? false);
+
         $methodOrderedKeys = ['APHA', 'US FDA', 'SASO', 'CCFRA', 'ASTM', 'DM', 'OTHERS', 'SOP'];
 
         if ($variant === 'food') {
@@ -647,6 +669,8 @@ class TestRequestFormReportDataBuilder
                 'reason_ordered_keys' => self::FOOD_OPTIONS['reason_of_collection'],
                 'transport' => $transport,
                 'transport_ordered_keys' => self::FOOD_OPTIONS['transport_condition'],
+                'collection_extras' => $collectionExtras,
+                'has_collection_extras' => $hasCollectionExtras,
             ];
         }
 
@@ -680,7 +704,37 @@ class TestRequestFormReportDataBuilder
             'reason_ordered_keys' => self::WATER_OPTIONS['reason_of_collection'],
             'transport' => $transport,
             'transport_ordered_keys' => self::WATER_OPTIONS['transport_condition'],
+            'collection_extras' => $collectionExtras,
+            'has_collection_extras' => $hasCollectionExtras,
         ];
+    }
+
+    /**
+     * @param  array<int, string>  $values
+     */
+    private function hasAnyFilledValues(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (trim($value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, string>  $values
+     */
+    private function hasAllFilledValues(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (trim($value) === '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
