@@ -149,6 +149,7 @@ class Approvals extends Component
         }
 
         $status = (int)$this->statusForm['status'];
+        $persistedStatus = ($status === 1);
 
         if ($status === 1 && $approver->approver_order == 2) {
             $pendingTechReviews = \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
@@ -205,7 +206,7 @@ class Approvals extends Component
             $this->batch->in_ammendment_proccess = 1;
             $this->batch->save();
 
-            $approver->status = $status;
+            $approver->status = $persistedStatus;
             $approver->remark = $this->statusForm['remark'];
             $approver->approval_date = now();
             $approver->save();
@@ -218,8 +219,8 @@ class Approvals extends Component
             return;
         }
 
-        $approver->status = $status;
-        $approver->remark = $this->statusForm['remark'] ?? '';
+        $approver->status = $persistedStatus;
+        $approver->remark = ($this->statusForm['remark'] ?? '') !== '' ? $this->statusForm['remark'] : null;
         $approver->approval_date = now();
         $approver->save();
 

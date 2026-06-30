@@ -6,6 +6,7 @@ use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormElement;
+use App\Models\SampleSubmissionRequest;
 use App\Directorate;
 use App\SampleHeader;
 use App\SampleDetails;
@@ -1802,7 +1803,7 @@ class FormInstanceController extends Controller
      */
     public function sampleCollectionLabel(SubmissionFormInstance $instance)
     {
-        $instance->load(['submissionForm', 'crmCustomer', 'values.element']);
+        $instance->load(['submissionForm', 'crmCustomer', 'values.element', 'sampleSubmissionRequest.batch']);
         
         // Prefer active company logo (main app pattern), then fallback to legacy system config key.
         $activeCompany = \App\Company::query()
@@ -1839,10 +1840,32 @@ class FormInstanceController extends Controller
             'form_data' => $formData,
         ]);
         
-        // Get job number - check multiple sources
-        $jobNumber = $formData['job_number'] ?? null;
-        if (! $jobNumber) {
-            $jobNumber = $instance->form_number ?? 'N/A';
+        // Get job number.
+        // For subcontracted requests awaiting dispatch, job number must remain empty
+        // and only be shown once a real batch/job has been created after dispatch.
+        $submissionRequest = $instance->sampleSubmissionRequest;
+        if (! $submissionRequest) {
+            $submissionRequest = SampleSubmissionRequest::query()
+                ->where('test_request_form_instance_id', (string) $instance->id)
+                ->orWhere('portal_request_id', (string) $instance->id)
+                ->first();
+        }
+
+        $isAwaitingSubcontractDispatch = $submissionRequest !== null
+            && $submissionRequest->subcontractingDispatchStatus() === SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING;
+
+        if ($isAwaitingSubcontractDispatch) {
+            $jobNumber = '';
+        } else {
+            $jobNumber = (string) ($formData['job_number'] ?? '');
+
+            if ($jobNumber === '' && $submissionRequest?->sample_header_id) {
+                $jobNumber = (string) (optional($submissionRequest->batch)->batch_code ?? '');
+            }
+
+            if ($jobNumber === '') {
+                $jobNumber = (string) ($instance->form_number ?? 'N/A');
+            }
         }
         
         // Get customer details

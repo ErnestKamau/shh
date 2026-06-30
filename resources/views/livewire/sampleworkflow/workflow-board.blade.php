@@ -1456,35 +1456,6 @@
 								@endforeach
 							</div>
 							@if($workflowSubTab === 'sub_contracting')
-								<div class="workflow-intray-panel mb-3">
-									<div class="workflow-intray-panel-header d-flex align-items-center justify-content-between">
-										<div>
-											<strong>Sub-contracting dispatch summary</strong>
-											<div class="text-muted small">Current queue split for this tab and active filters</div>
-										</div>
-										<span class="badge badge-light border">Total {{ ($subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0) + ($subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0) }}</span>
-									</div>
-									<div class="row mt-3 mb-0">
-										<div class="col-md-6 mb-2 mb-md-0">
-											<div class="workflow-stat-card h-100">
-												<div class="workflow-stat-label">Awaiting dispatch</div>
-												<div class="workflow-stat-meta">
-													<div class="workflow-stat-value">{{ $subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0 }}</div>
-													<span class="workflow-stat-icon"><i class="mdi mdi-truck-fast-outline"></i></span>
-												</div>
-											</div>
-										</div>
-										<div class="col-md-6">
-											<div class="workflow-stat-card h-100">
-												<div class="workflow-stat-label">Dispatched</div>
-												<div class="workflow-stat-meta">
-													<div class="workflow-stat-value">{{ $subcontractingDispatchCounts[\App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0 }}</div>
-													<span class="workflow-stat-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
 								<div class="d-flex flex-wrap align-items-center mb-3" style="gap: 8px;">
 									@foreach($subcontractingDispatchStatuses as $dispatchKey => $dispatchLabel)
 										<button

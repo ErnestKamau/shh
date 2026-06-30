@@ -2801,13 +2801,13 @@ class SampleWorkFlowController extends Controller
         }
 
         if (in_array($batch->status, ['Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment']) && in_array($status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification'])) {
-            $batch->approve_user_id = '';
-            $batch->verify_user_id = $status != 'Sample Verification' ? '' : $batch->verify_user_id;
-            $batch->report_verified_date = '';
-            $batch->approval_date = '';
+            $batch->approve_user_id = null;
+            $batch->verify_user_id = $status != 'Sample Verification' ? null : $batch->verify_user_id;
+            $batch->report_verified_date = null;
+            $batch->approval_date = null;
             $batch->save();
             $status != 'Sample Verification' ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : '';
-            $status == 'Sample Verification' ? BatchLabSectionApprover::where('batch_id', $batch->id)->update(['status' => 0, 'approval_date' => '']) : '';
+            $status == 'Sample Verification' ? BatchLabSectionApprover::where('batch_id', $batch->id)->update(['status' => 0, 'approval_date' => null]) : '';
             BatchLabSectionApprover::where('batch_id', $batch->id)->where('batch_status', 'Sample Approval')->delete();
         }
         if (in_array($batch->status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification']) && in_array($status, ['Sample Approval', 'Reports for Collection', 'Reports In Payment']) && !isset($request->is_approval)) {
@@ -4344,9 +4344,9 @@ class SampleWorkFlowController extends Controller
         // return response()->json($request->all(),200);
         if (isset($batch->id)) {
             $current = $batch->status;
-            $batch->verify_user_id = '';
-            $batch->approve_user_id = '';
-            $batch->approval_date = '';
+            $batch->verify_user_id = null;
+            $batch->approve_user_id = null;
+            $batch->approval_date = null;
             $batch->status = 'Sample Verification';
             if (isset($request->batch_comment)) {
                 $sample_detail = SampleDetails::where('sample_header_id', $batch->id)->first();
