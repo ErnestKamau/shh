@@ -1373,6 +1373,11 @@
 									style="gap: 8px;"
 									x-show="selectedCount > 0"
 									x-cloak>
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
+										<span class="badge badge-light border text-dark">
+											<i class="mdi mdi-truck-delivery-outline mr-1"></i> Sub-contracting queue
+										</span>
+									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<button type="button"
 											class="btn btn-sm btn-outline-success"
@@ -1402,7 +1407,7 @@
 											<i class="mdi mdi-package-variant-closed mr-1"></i> Receive
 										</button>
 									@endif
-									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
 											class="btn btn-sm btn-outline-warning"
 											data-sf-trigger="workflow-action-request-review"
@@ -1410,7 +1415,7 @@
 											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for Analyst review
 										</button>
 									@endif
-									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
 											class="btn btn-sm btn-outline-warning"
 											data-sf-trigger="workflow-action-request-additional-info"

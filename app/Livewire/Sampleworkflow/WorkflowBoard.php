@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -51,6 +52,7 @@ class WorkflowBoard extends Component
             'submitted' => 'Submitted Requests',
             'ready_for_reception' => 'Ready for Reception',
             'received' => 'Received Request',
+            'sub_contracting' => 'Sub-contracting',
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
@@ -491,7 +493,7 @@ class WorkflowBoard extends Component
     {
         return array_values(array_filter(
             array_keys(self::receivingRequestTabs()),
-            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception'], true)
+            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sub_contracting'], true)
         ));
     }
 
@@ -594,6 +596,128 @@ class WorkflowBoard extends Component
             });
     }
 
+    /**
+     * Sub-contracting queue: received requests where at least one selected
+     * analysis parameter is subcontracted either from:
+     * - analysis_elements.sub_contracted (master parameter setup), or
+     * - quotation_details.subcontracted_analytes (manual override in pricing tab).
+     */
+    protected function subcontractingSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $driver = DB::connection()->getDriverName();
+        $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+        $approvalGateStatuses = [
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+        ];
+
+        return $this->receivingSubmissionFormsBaseQuery()
+            ->whereIn('status', ['submitted', 'Submitted', 'received'])
+            ->where(function ($instanceQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses): void {
+                $instanceQuery
+                    ->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($driver, $approvalGateStatuses): void {
+                        $enquiryQuery->whereIn('status', $approvalGateStatuses);
+
+                        $enquiryQuery->where(function ($matchQuery) use ($driver): void {
+                            $matchQuery->whereHas('requestedAnalyses', function ($analysisQuery): void {
+                                $analysisQuery->whereHas('analysisElement', function ($elementQuery): void {
+                                    $elementQuery->where('sub_contracted', 1);
+                                });
+                            })->orWhereHas('currentQuotation.details', function ($detailQuery): void {
+                                $detailQuery->whereNotNull('subcontracted_analytes')
+                                    ->where('subcontracted_analytes', '!=', '');
+                            })->orWhereHas('acceptedQuotation.details', function ($detailQuery): void {
+                                $detailQuery->whereNotNull('subcontracted_analytes')
+                                    ->where('subcontracted_analytes', '!=', '');
+                            })->orWhere(function ($jsonSelectionQuery) use ($driver): void {
+                                if ($driver !== 'pgsql') {
+                                    $jsonSelectionQuery->whereRaw('1 = 0');
+
+                                    return;
+                                }
+
+                                $jsonSelectionQuery->whereExists(function ($jsonExists): void {
+                                    $jsonExists->selectRaw('1')
+                                        ->from('analysis_elements as ae')
+                                        ->where('ae.sub_contracted', 1)
+                                        ->where(function ($selectedIds): void {
+                                            $selectedIds
+                                                ->whereRaw("ae.id::text IN (SELECT jsonb_array_elements_text(COALESCE(sample_submission_requests.parameter_ids::jsonb, '[]'::jsonb)))")
+                                                ->orWhereRaw("ae.id::text IN (SELECT elem->>'analysis_element_id' FROM jsonb_array_elements(COALESCE(sample_submission_requests.sample_lines::jsonb, '[]'::jsonb)) AS elem WHERE COALESCE(elem->>'analysis_element_id', '') <> '')");
+                                        });
+                                });
+                            });
+                        });
+                    })
+                    ->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses): void {
+                        $fallbackQuery->selectRaw('1')
+                            ->from('sample_submission_requests as ssr')
+                            ->whereIn('ssr.status', $approvalGateStatuses)
+                            ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $linkQuery
+                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                    })
+                                    ->orWhere(function ($portalLink) use ($driver): void {
+                                        $portalLink->when($driver === 'pgsql', function ($query): void {
+                                            $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                        }, function ($query): void {
+                                            $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                        });
+                                    })
+                                    ->orWhere(function ($targetLink) use ($driver): void {
+                                        $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                            ->when($driver === 'pgsql', function ($query): void {
+                                                $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                            }, function ($query): void {
+                                                $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                            });
+                                    });
+                            })
+                            ->where(function ($matchQuery) use ($driver): void {
+                                $matchQuery
+                                    ->whereExists(function ($analysisExists): void {
+                                        $analysisExists->selectRaw('1')
+                                            ->from('sample_submission_request_requested_analyses as ra')
+                                            ->join('analysis_elements as ae', 'ae.id', '=', 'ra.analysis_element_id')
+                                            ->whereColumn('ra.sample_submission_request_id', 'ssr.id')
+                                            ->where('ae.sub_contracted', 1);
+                                    })
+                                    ->orWhereExists(function ($quoteExists): void {
+                                        $quoteExists->selectRaw('1')
+                                            ->from('quotation_details as qd')
+                                            ->where(function ($quoteHeaderMatch): void {
+                                                $quoteHeaderMatch
+                                                    ->whereColumn('qd.quotation_header_id', 'ssr.current_quotation_header_id')
+                                                    ->orWhereColumn('qd.quotation_header_id', 'ssr.accepted_quotation_header_id');
+                                            })
+                                            ->whereNotNull('qd.subcontracted_analytes')
+                                            ->where('qd.subcontracted_analytes', '!=', '');
+                                    })
+                                    ->orWhere(function ($jsonSelectionQuery) use ($driver): void {
+                                        if ($driver !== 'pgsql') {
+                                            $jsonSelectionQuery->whereRaw('1 = 0');
+
+                                            return;
+                                        }
+
+                                        $jsonSelectionQuery->whereExists(function ($jsonExists): void {
+                                            $jsonExists->selectRaw('1')
+                                                ->from('analysis_elements as ae')
+                                                ->where('ae.sub_contracted', 1)
+                                                ->where(function ($selectedIds): void {
+                                                    $selectedIds
+                                                        ->whereRaw("ae.id::text IN (SELECT jsonb_array_elements_text(COALESCE(ssr.parameter_ids::jsonb, '[]'::jsonb)))")
+                                                        ->orWhereRaw("ae.id::text IN (SELECT elem->>'analysis_element_id' FROM jsonb_array_elements(COALESCE(ssr.sample_lines::jsonb, '[]'::jsonb)) AS elem WHERE COALESCE(elem->>'analysis_element_id', '') <> '')");
+                                                });
+                                        });
+                                    });
+                            });
+                    });
+            });
+    }
+
     protected function applyReceivingSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void
     {
         if ($this->submissionFormsPriority) {
@@ -675,6 +799,12 @@ class WorkflowBoard extends Component
                 $readyQuery = $this->readyForPhysicalReceptionSubmissionFormsQuery();
                 $this->applyReceivingSubmissionFormFilters($readyQuery);
                 $counts[$tabKey] = (int) $readyQuery->count();
+                continue;
+            }
+            if ($tabKey === 'sub_contracting') {
+                $subcontractingQuery = $this->subcontractingSubmissionFormsQuery();
+                $this->applyReceivingSubmissionFormFilters($subcontractingQuery);
+                $counts[$tabKey] = (int) $subcontractingQuery->count();
                 continue;
             }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
@@ -807,6 +937,7 @@ class WorkflowBoard extends Component
             $query = match ($this->workflowSubTab) {
                 'ready_for_reception' => $this->readyForPhysicalReceptionSubmissionFormsQuery(),
                 'submitted' => $this->submittedCommercialPipelineSubmissionFormsQuery(),
+                'sub_contracting' => $this->subcontractingSubmissionFormsQuery(),
                 default => $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus),
             };
 

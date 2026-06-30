@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\AnalysisElements;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,5 +35,10 @@ class SampleSubmissionRequestRequestedAnalysis extends Model
     public function request(): BelongsTo
     {
         return $this->belongsTo(SampleSubmissionRequest::class, 'sample_submission_request_id');
+    }
+
+    public function analysisElement(): BelongsTo
+    {
+        return $this->belongsTo(AnalysisElements::class, 'analysis_element_id');
     }
 }
