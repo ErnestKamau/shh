@@ -248,6 +248,8 @@ final class SubmissionFormValueNormalizer
      */
     private function normalizeTestCategoryOnRow(array $row): array
     {
+        $category = strtolower(trim((string) ($row['test_category'] ?? '')));
+
         if (isset($row['test_requirements']) && is_string($row['test_requirements'])) {
             $decoded = json_decode($row['test_requirements'], true);
             if (is_array($decoded)) {
@@ -266,8 +268,6 @@ final class SubmissionFormValueNormalizer
                 }
             }
         }
-
-        $category = strtolower(trim((string) ($row['test_category'] ?? '')));
 
         if ($category === 'chemical_analysis' || $category === 'chemical') {
             $category = 'chemistry';

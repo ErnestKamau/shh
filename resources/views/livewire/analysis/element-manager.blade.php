@@ -241,7 +241,12 @@
                         <button type="button" class="btn-close" wire:click="closeElementModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                        <form wire:submit.prevent="saveElement">
+                        <form id="analysis-element-form" wire:submit.prevent="saveElement">
+                            @if($errors->any())
+                                <div class="alert alert-danger mb-3" role="alert">
+                                    {{ $errors->first() }}
+                                </div>
+                            @endif
                             @if($this->analysisType->procedureWorksheet)
                                 <div class="row mb-3">
                                     <div class="col-12">
@@ -484,6 +489,10 @@
                                             <label class="form-check-label" for="non_accredited">Non-accredited</label>
                                         </div>
                                         <div class="form-check form-check-inline">
+                                            <input type="checkbox" wire:model="elementForm.sub_contracted" class="form-check-input" id="sub_contracted">
+                                            <label class="form-check-label" for="sub_contracted">Sub-contracted</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
                                             <input type="checkbox" wire:model="elementForm.show_on_report" class="form-check-input" id="show_on_report">
                                             <label class="form-check-label" for="show_on_report">Show on Report</label>
                                         </div>
@@ -647,7 +656,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeElementModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveElement">
+                        <button type="submit" form="analysis-element-form" class="btn btn-primary" wire:loading.attr="disabled" wire:target="saveElement">
                             <i class="mdi mdi-content-save"></i> Save Parameter
                         </button>
                     </div>
@@ -945,6 +954,11 @@ function formatMessage(text) {
 // Close ElementManager tag-select dropdowns when clicking outside (this component only).
 document.addEventListener('click', function (e) {
     if (e.target.closest('.tag-select-container')) {
+        return;
+    }
+
+    // Do not interfere with Livewire action buttons (e.g. Save/Cancel).
+    if (e.target.closest('.modal-footer, .btn, [wire\\:click], [wire\\:submit]')) {
         return;
     }
 

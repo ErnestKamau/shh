@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Portal\Submissions\StoreSubmissionFormInstanceRequest;
 use App\Http\Requests\Api\Portal\Submissions\SubmitSubmissionFormInstanceRequest;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\User;
@@ -297,6 +298,8 @@ class SubmissionFormInstanceController extends Controller
                     ]);
                 }
 
+                $this->ensureSubmittedEnquiryState($instanceModel);
+
                 return response()->json([
                     'data' => $this->buildInstanceResponse($instanceModel, includeValues: true),
                     'message' => 'Form was already submitted.',
@@ -361,6 +364,8 @@ class SubmissionFormInstanceController extends Controller
                 'message' => $th->getMessage(),
             ]);
         }
+
+        $this->ensureSubmittedEnquiryState($instanceModel);
 
         return response()->json([
             'data' => $this->buildInstanceResponse($instanceModel, includeValues: true),
@@ -597,6 +602,37 @@ class SubmissionFormInstanceController extends Controller
                     'file_path' => null,
                 ]
             );
+        }
+    }
+
+    private function ensureSubmittedEnquiryState(SubmissionFormInstance $instance): void
+    {
+        $sourceChannel = (string) ($instance->source_channel
+            ?: ($instance->portal_account_id ? 'portal' : 'walk_in'));
+
+        $enquiry = SampleSubmissionRequest::query()->firstOrNew([
+            'submission_form_instance_id' => $instance->id,
+        ]);
+
+        if (! $enquiry->exists) {
+            $enquiry->crm_customer_id = $instance->crm_customer_id;
+            $enquiry->source_channel = $sourceChannel;
+        }
+
+        if ((string) $enquiry->status === '' || $enquiry->status === SampleSubmissionRequest::STATUS_DRAFT) {
+            $enquiry->status = SampleSubmissionRequest::STATUS_REQUESTED;
+        }
+
+        if ((string) ($enquiry->source_channel ?? '') === '') {
+            $enquiry->source_channel = $sourceChannel;
+        }
+
+        if ((string) ($enquiry->crm_customer_id ?? '') === '' && (string) ($instance->crm_customer_id ?? '') !== '') {
+            $enquiry->crm_customer_id = $instance->crm_customer_id;
+        }
+
+        if ($enquiry->isDirty() || ! $enquiry->exists) {
+            $enquiry->save();
         }
     }
 }
