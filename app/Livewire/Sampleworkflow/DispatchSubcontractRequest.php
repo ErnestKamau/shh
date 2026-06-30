@@ -4,6 +4,8 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -130,6 +132,37 @@ class DispatchSubcontractRequest extends Component
                 $instance->logAction('subcontract_dispatched', $user, [
                     'status' => ['from' => $instance->getOriginal('status') ?: $instance->status, 'to' => 'approved'],
                 ], 'Subcontracting dispatch confirmed from Samples Receiving queue.');
+            }
+
+            $hasExistingJob = ! empty($enquiry->sample_header_id)
+                || ! empty($instance->analysisAcceptanceForms()->value('sample_header_id'));
+
+            if (! $hasExistingJob) {
+                $prefill = app(AcceptanceFormPricingService::class)->buildPrefillFromSelection(
+                    (string) $enquiry->id,
+                    (string) $instance->id,
+                );
+
+                $lines = $prefill['lines'] ?? [];
+                if (is_array($lines) && $lines !== []) {
+                    app(AcceptanceFormService::class)->acceptWithStaffSignature(
+                        (string) $instance->id,
+                        (string) $enquiry->id,
+                        [
+                            'crm_customer_id' => $prefill['customer_id'] ?? $enquiry->crm_customer_id,
+                            'customer_name' => $prefill['customer_name'] ?? ($instance->crmCustomer?->name ?? ''),
+                            'request_date' => $prefill['request_date'] ?? now()->format('Y-m-d'),
+                            'number_of_samples' => (int) ($prefill['number_of_samples'] ?? max(1, (int) ($enquiry->number_of_samples ?? 1))),
+                            'mode_of_work' => $prefill['mode_of_work'] ?? 'Normal',
+                            'date_of_sampling' => $prefill['date_of_sampling'] ?? null,
+                        ],
+                        $lines,
+                        (string) ($user->name ?? 'System Dispatch'),
+                        'subcontract-dispatch-staff-signature',
+                        now()->toDateString(),
+                        (string) $user->id,
+                    );
+                }
             }
         });
 

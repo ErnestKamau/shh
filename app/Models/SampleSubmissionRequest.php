@@ -231,10 +231,22 @@ class SampleSubmissionRequest extends Model
             return $this->submissionFormInstance;
         }
 
-        if ($this->submission_form_instance_id) {
+        $submissionFormInstanceId = trim((string) ($this->submission_form_instance_id ?? ''));
+        if ($submissionFormInstanceId !== '') {
             $instance = SubmissionFormInstance::query()
                 ->with('submissionForm')
-                ->find($this->submission_form_instance_id);
+                ->find($submissionFormInstanceId);
+
+            if ($instance !== null) {
+                return $instance;
+            }
+        }
+
+        $testRequestFormInstanceId = trim((string) ($this->test_request_form_instance_id ?? ''));
+        if ($testRequestFormInstanceId !== '') {
+            $instance = SubmissionFormInstance::query()
+                ->with('submissionForm')
+                ->find($testRequestFormInstanceId);
 
             if ($instance !== null) {
                 return $instance;
@@ -244,6 +256,22 @@ class SampleSubmissionRequest extends Model
         return SubmissionFormInstance::query()
             ->with('submissionForm')
             ->where('portal_request_id', (string) $this->id)
+            ->orWhere(function ($query): void {
+                $query
+                    ->whereRaw("LOWER(COALESCE(target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                    ->where('target_record_id', (string) $this->id);
+            })
+            ->orWhere(function ($query): void {
+                $identifier = trim((string) ($this->unique_identification ?? ''));
+
+                if ($identifier === '') {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $query->where('form_number', $identifier);
+            })
             ->first();
     }
 

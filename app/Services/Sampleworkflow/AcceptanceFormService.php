@@ -16,6 +16,7 @@ use App\SampleAnalysisStage;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\AcceptanceFormPdfService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class AcceptanceFormService
@@ -169,7 +170,16 @@ class AcceptanceFormService
 
             $this->dispatchSampleCreationJob((string) $form->id);
 
-            return $form->fresh(['lines', 'sampleHeader']);
+            $completed = $this->ensureSampleBatchForManagerApproval(
+                $form->fresh(['lines', 'sampleHeader'])
+            )->fresh(['lines', 'sampleHeader']);
+
+            if ($completed->sample_header_id) {
+                $this->transitionBatchToSamplesInLab($completed);
+                $completed = $completed->fresh(['lines', 'sampleHeader']);
+            }
+
+            return $completed;
         });
     }
 
@@ -333,7 +343,7 @@ class AcceptanceFormService
                     $completed,
                     $completed->sampleHeader,
                     $payload,
-                    auth()->id() ? (string) auth()->id() : null
+                    Auth::id() ? (string) Auth::id() : null
                 );
             }
 
@@ -471,7 +481,7 @@ class AcceptanceFormService
         $custody->sample_header_id = $batch->id;
         $custody->workflow_stage = $targetStatus;
         $custody->tracking_stage_id = $batch->sample_tracking_stage;
-        $custody->moved_in_by = auth()->id();
+        $custody->moved_in_by = Auth::id();
         $custody->comments = sprintf(
             'Analysis acceptance form completed by manager (from %s).',
             $previousStatus ?: 'unknown'
@@ -498,7 +508,7 @@ class AcceptanceFormService
 
     private function closeOpenChainOfCustody(SampleHeader $batch, string $comments): void
     {
-        $movedOutBy = auth()->id();
+        $movedOutBy = Auth::id();
 
         ChainOfCustody::query()
             ->where('sample_header_id', $batch->id)

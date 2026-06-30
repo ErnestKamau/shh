@@ -18,6 +18,8 @@ use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use App\Lab;
@@ -260,6 +262,129 @@ class WorkflowBoard extends Component
         if ($this->status === 'Samples Receiving' && request()->boolean('open_receive_request')) {
             $this->workflowSubTab = 'submitted';
             $this->openReceiveRequestPending = true;
+        }
+
+        $this->backfillDispatchedSubcontractJobs();
+    }
+
+    protected function backfillDispatchedSubcontractJobs(): void
+    {
+        $dispatchedWithoutJob = SampleSubmissionRequest::query()
+            ->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+            ->where(function ($query): void {
+                $query->whereNull('sample_header_id');
+            })
+            ->orderByDesc('subcontracting_dispatch_date')
+            ->orderByDesc('updated_at')
+            ->limit(250)
+            ->get();
+
+        if ($dispatchedWithoutJob->isEmpty()) {
+            return;
+        }
+
+        foreach ($dispatchedWithoutJob as $enquiry) {
+            try {
+                $instance = $enquiry->resolveLinkedFormInstance();
+                if (! $instance) {
+                    continue;
+                }
+
+                $rawSubmissionFormInstanceId = (string) ($enquiry->submission_form_instance_id ?? '');
+                $rawTestRequestFormInstanceId = (string) ($enquiry->test_request_form_instance_id ?? '');
+                $normalizedSubmissionFormInstanceId = trim($rawSubmissionFormInstanceId);
+                $normalizedTestRequestFormInstanceId = trim($rawTestRequestFormInstanceId);
+
+                if (
+                    $rawSubmissionFormInstanceId !== $normalizedSubmissionFormInstanceId
+                    || $rawTestRequestFormInstanceId !== $normalizedTestRequestFormInstanceId
+                ) {
+                    $enquiry->submission_form_instance_id = $normalizedSubmissionFormInstanceId !== ''
+                        ? $normalizedSubmissionFormInstanceId
+                        : null;
+                    $enquiry->test_request_form_instance_id = $normalizedTestRequestFormInstanceId !== ''
+                        ? $normalizedTestRequestFormInstanceId
+                        : null;
+                    $enquiry->save();
+                }
+
+                $instance->loadMissing('batches');
+
+                $hasExistingJob = ! empty($enquiry->sample_header_id)
+                    || ! empty($instance->analysisAcceptanceForms()->value('sample_header_id'));
+
+                if ($hasExistingJob) {
+                    $linkedBatchId = (string) ($enquiry->sample_header_id
+                        ?: $instance->analysisAcceptanceForms()->value('sample_header_id')
+                        ?: optional($instance->batches->first())->id
+                    );
+
+                    if ($linkedBatchId !== '') {
+                        $batch = SampleHeader::query()->find($linkedBatchId);
+                        if ($batch) {
+                            $batch->status = 'Samples In Lab';
+                            $batch->prelim_batch_status = null;
+                            $batch->in_lab_date = $batch->in_lab_date ?: now()->format('Y-m-d');
+                            $batch->save();
+
+                            if (! $enquiry->sample_header_id) {
+                                $enquiry->sample_header_id = $batch->id;
+                                $enquiry->status = 'received_at_lab';
+                                $enquiry->save();
+                            }
+                        }
+                    }
+
+                    continue;
+                }
+
+                $existingBatch = $instance->batches->first();
+                if ($existingBatch) {
+                    $existingBatch->status = 'Samples In Lab';
+                    $existingBatch->prelim_batch_status = null;
+                    $existingBatch->in_lab_date = $existingBatch->in_lab_date ?: now()->format('Y-m-d');
+                    $existingBatch->save();
+
+                    $enquiry->sample_header_id = $existingBatch->id;
+                    $enquiry->status = 'received_at_lab';
+                    $enquiry->save();
+
+                    continue;
+                }
+
+                $prefill = app(AcceptanceFormPricingService::class)->buildPrefillFromSelection(
+                    (string) $enquiry->id,
+                    (string) $instance->id,
+                );
+
+                $lines = $prefill['lines'] ?? [];
+                if (! is_array($lines) || $lines === []) {
+                    continue;
+                }
+
+                $signerName = (string) (Auth::user()?->name ?? 'System Backfill');
+                $createdBy = Auth::id() ? (string) Auth::id() : null;
+
+                app(AcceptanceFormService::class)->acceptWithStaffSignature(
+                    (string) $instance->id,
+                    (string) $enquiry->id,
+                    [
+                        'crm_customer_id' => $prefill['customer_id'] ?? $enquiry->crm_customer_id,
+                        'customer_name' => $prefill['customer_name'] ?? ($instance->crmCustomer?->name ?? ''),
+                        'request_date' => $prefill['request_date'] ?? now()->format('Y-m-d'),
+                        'number_of_samples' => (int) ($prefill['number_of_samples'] ?? max(1, (int) ($enquiry->number_of_samples ?? 1))),
+                        'mode_of_work' => $prefill['mode_of_work'] ?? 'Normal',
+                        'date_of_sampling' => $prefill['date_of_sampling'] ?? null,
+                    ],
+                    $lines,
+                    $signerName,
+                    'subcontract-dispatch-backfill-signature',
+                    now()->toDateString(),
+                    $createdBy,
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
     }
 
@@ -1213,7 +1338,46 @@ class WorkflowBoard extends Component
         }
 
         if ($this->status === 'Samples In Lab') {
-            $query->where('status', 'approved');
+            $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+
+            $query->where(function ($samplesInLabQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                $samplesInLabQuery->where('status', 'approved')
+                    ->orWhere(function ($dispatchedQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                        $dispatchedQuery
+                            ->whereIn('status', ['submitted', 'Submitted', 'received', 'in_review', 'In Review', 'approved'])
+                            ->where(function ($dispatchLinkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                $dispatchLinkQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                                    $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
+                                })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                    $fallbackQuery->selectRaw('1')
+                                        ->from('sample_submission_requests as ssr')
+                                        ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                                        ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                                            $linkQuery
+                                                ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                                ->when($hasTestRequestFormInstanceId, function ($query): void {
+                                                    $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                                })
+                                                ->orWhere(function ($portalLink) use ($driver): void {
+                                                    $portalLink->when($driver === 'pgsql', function ($query): void {
+                                                        $query->whereRaw('ssr.id::text = submission_form_instances.portal_request_id');
+                                                    }, function ($query): void {
+                                                        $query->whereColumn('ssr.id', 'submission_form_instances.portal_request_id');
+                                                    });
+                                                })
+                                                ->orWhere(function ($targetLink) use ($driver): void {
+                                                    $targetLink->whereRaw("LOWER(COALESCE(submission_form_instances.target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                                                        ->when($driver === 'pgsql', function ($query): void {
+                                                            $query->whereRaw('ssr.id::text = submission_form_instances.target_record_id::text');
+                                                        }, function ($query): void {
+                                                            $query->whereColumn('ssr.id', 'submission_form_instances.target_record_id');
+                                                        });
+                                                });
+                                        });
+                                });
+                            });
+                    });
+            });
         }
 
         if ($this->submissionFormsStatus) {
