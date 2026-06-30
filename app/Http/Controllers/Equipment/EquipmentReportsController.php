@@ -79,7 +79,9 @@ class EquipmentReportsController extends Controller
                     $group_attr = $group_name == 'asset_location_id' ? getAssetLocationByid($ed->$group_name)->name : $group_attr;
                     $group_attr = $group_name == 'is_disposal' && $ed->$group_name == 0 ? 'Active' : $group_attr;
                     $group_attr = $group_name == 'is_disposal' && $ed->$group_name == 1 ? 'Disposed' : $group_attr;
-                    $group_attr = $group_name == 'assigned_department' ? getInventoryDepartmentByid($ed->$group_name)->name : $group_attr;
+                    $group_attr = $group_name == 'assigned_department'
+                        ? (getInventoryDepartmentByid($ed->$group_name)?->name ?? $ed->$group_name)
+                        : $group_attr;
                     $group_attr = $group_name == 'type' ? $ed->$group_name : $group_attr;
                     $group_attr = $group_name == 'maintainance_type' ? $ed->$group_name : $group_attr;
                     !isset($equipment_data[$group_attr]) ? $equipment_data[$group_attr] = [] : '';

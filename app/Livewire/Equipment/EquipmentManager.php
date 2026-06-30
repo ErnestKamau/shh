@@ -276,7 +276,7 @@ class EquipmentManager extends Component
 
         if ($equipment->assigned_department) {
             $department = getInventoryDepartmentByid($equipment->assigned_department);
-            $this->selectedDepartmentName = $department->name ?? '';
+            $this->selectedDepartmentName = $department?->name ?? (is_string($equipment->assigned_department) ? $equipment->assigned_department : '');
             $this->departmentSearch = $this->selectedDepartmentName;
         }
 
@@ -462,123 +462,6 @@ class EquipmentManager extends Component
     {
         $this->message = '';
         $this->messageType = 'success';
-    }
-
-    protected function parseValueTypes($equipment): array
-    {
-        // Check if equipment has the new daily_log_value_types field
-        if (isset($equipment->daily_log_value_types) && is_array($equipment->daily_log_value_types) && count($equipment->daily_log_value_types) > 0) {
-            return $equipment->daily_log_value_types;
-        }
-
-        // Backward compatibility: convert old single value type to array format
-        $valueTypes = [];
-        if (!empty($equipment->daily_log_value_type)) {
-            $valueTypes[] = [
-                'id' => uniqid(),
-                'value_type' => $equipment->daily_log_value_type,
-                'nature' => $equipment->daily_log_nature ?? '',
-                'expected_value' => $equipment->daily_log_expected_value ?? '',
-                'expected_min' => $equipment->daily_log_expected_min,
-                'expected_max' => $equipment->daily_log_expected_max,
-                'reporting_unit' => $equipment->daily_log_reporting_unit ?? '',
-                'tolerance' => $equipment->daily_log_tolerance,
-            ];
-        }
-        return $valueTypes;
-    }
-
-    public function addValueType(): void
-    {
-        $this->equipmentForm['daily_log_value_types'][] = [
-            'id' => uniqid(),
-            'value_type' => '',
-            'nature' => '',
-            'expected_value' => '',
-            'expected_min' => null,
-            'expected_max' => null,
-            'reporting_unit' => '',
-            'tolerance' => null,
-        ];
-    }
-
-    public function removeValueType(string $id): void
-    {
-        $this->equipmentForm['daily_log_value_types'] = array_filter(
-            $this->equipmentForm['daily_log_value_types'],
-            fn($item) => $item['id'] !== $id
-        );
-        $this->equipmentForm['daily_log_value_types'] = array_values($this->equipmentForm['daily_log_value_types']);
-    }
-
-    protected function processValueTypes(): void
-    {
-        // Process all value types to ensure consistency
-        foreach ($this->equipmentForm['daily_log_value_types'] as &$item) {
-            $valueType = $item['value_type'] ?? '';
-            $nature = $item['nature'] ?? '';
-
-            // Auto-set nature to quantitative when value type is range
-            if ($valueType === 'range' && $nature !== 'quantitative') {
-                $item['nature'] = 'quantitative';
-                $item['expected_value'] = '';
-            }
-
-            // Clear range fields when value type is constant
-            if ($valueType === 'constant') {
-                $item['expected_min'] = null;
-                $item['expected_max'] = null;
-            }
-
-            // Clear expected value when nature is qualitative
-            if ($nature === 'qualitative') {
-                $item['expected_min'] = null;
-                $item['expected_max'] = null;
-            }
-        }
-    }
-
-    public function updateValueType(string $id, string $field, $value): void
-    {
-        foreach ($this->equipmentForm['daily_log_value_types'] as &$item) {
-            if ($item['id'] === $id) {
-                $item[$field] = $value;
-
-                // Auto-set nature to quantitative when value type is range
-                if ($field === 'value_type' && $value === 'range') {
-                    $item['nature'] = 'quantitative';
-                    $item['expected_value'] = '';
-                }
-
-                // Clear range fields when value type is constant
-                if ($field === 'value_type' && $value === 'constant') {
-                    $item['expected_min'] = null;
-                    $item['expected_max'] = null;
-                }
-
-                // Clear expected value when nature is not quantitative
-                if ($field === 'nature' && $value !== 'quantitative') {
-                    $item['expected_min'] = null;
-                    $item['expected_max'] = null;
-                }
-
-                break;
-            }
-        }
-    }
-
-    // Magic method to handle nested property updates
-    public function updated($property, $value)
-    {
-        if (str_starts_with($property, 'equipmentForm.daily_log_value_types')) {
-            $this->processValueTypes();
-        }
-    }
-
-    // Updated method for nested array changes with value and key parameters
-    public function updatedEquipmentFormDailyLogValueTypes($value, $key)
-    {
-        $this->processValueTypes();
     }
 
     // Searchable Select Methods

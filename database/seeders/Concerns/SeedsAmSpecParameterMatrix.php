@@ -43,7 +43,15 @@ trait SeedsAmSpecParameterMatrix
     {
         $this->clearAmSpecTaxonomyData($company);
 
-        $rows = $this->readAmSpecParameterRows();
+        return $this->importAmSpecParameterRows($company, $this->readAmSpecParameterRows());
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $rows
+     * @return array{rows: int, sample_types: int, analysis_types: int, analytes: int, elements: int, methods: int}
+     */
+    protected function importAmSpecParameterRows(Company $company, $rows): array
+    {
         $stats = [
             'rows' => $rows->count(),
             'sample_types' => 0,
@@ -54,7 +62,19 @@ trait SeedsAmSpecParameterMatrix
         ];
 
         foreach ($rows as $row) {
-            $sampleType = SampleType::query()->updateOrCreate(
+            $this->importSingleAmSpecParameterRow($company, $row, $stats);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array{rows: int, sample_types: int, analysis_types: int, analytes: int, elements: int, methods: int}  $stats
+     */
+    protected function importSingleAmSpecParameterRow(Company $company, array $row, array &$stats): void
+    {
+        $sampleType = SampleType::query()->updateOrCreate(
                 ['code' => $row['sample_type_code'], 'company_id' => $company->id],
                 [
                     'name' => $row['sample_type_name'],
@@ -156,9 +176,6 @@ trait SeedsAmSpecParameterMatrix
             if ($element->wasRecentlyCreated) {
                 $stats['elements']++;
             }
-        }
-
-        return $stats;
     }
 
     protected function resolveAmSpecLabForSection(Company $company, ?string $section): Lab

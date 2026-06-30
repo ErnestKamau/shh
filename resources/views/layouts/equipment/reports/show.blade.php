@@ -109,7 +109,7 @@
                                     </td>
                                     <td>{{getAssetTypeById($data->asset_type_id)->descripton}}</td>
                                     <td>{{getAssetLocationByid($data->asset_location_id)->name}}</td>
-                                    <td>{{getInventoryDepartmentByid($data->assigned_department)->name ?? $data->assigned_department }}</td>
+                                    <td>{{getInventoryDepartmentByid($data->assigned_department)?->name ?? $data->assigned_department }}</td>
                                     <td>
                                         {{ $data->maintainance_date()['date']->toDateString() }}
                                         <small class="ml-2 badge {{ $data->maintainance_date()['status'] }}"><i class="mdi mdi-plus"></i>{{ number_format(intval($data->maintainance_date()['remaining_days'])) }} days</small>
@@ -152,7 +152,7 @@
                                     <td>{{$data->maintainance_type == 'in-house'  ? getUserById($data->employee_id)->name ?? '-' : getSupplierByID($data->supplier_id)->name ?? '-'}}</td>
                                     <td>{{getAssetTypeById($data->asset_type_id)->descripton}}</td>
                                     <td>{{getAssetLocationByid($data->asset_location_id)->name}}</td>
-                                    <td>{{getInventoryDepartmentByid($data->assigned_department)->name ?? $data->assigned_department }}</td>
+                                    <td>{{getInventoryDepartmentByid($data->assigned_department)?->name ?? $data->assigned_department }}</td>
                                     <td style="width: 30% !important;">{{isset($data->notes) ? $data->notes ?? '-' : $data->remark ?? '-'}}</td>
                                     @endif
         
@@ -170,7 +170,7 @@
                                     </td>
                                     <td>{{getAssetTypeById($value->asset_type_id)->descripton}}</td>
                                     <td>{{getAssetLocationByid($value->asset_location_id)->name}}</td>
-                                    <td>{{getInventoryDepartmentByid($value->assigned_department)->name ?? $value->assigned_department }}</td>
+                                    <td>{{getInventoryDepartmentByid($value->assigned_department)?->name ?? $value->assigned_department }}</td>
                                     <td>
                                         {{ $value->maintainance_date()['date']->toDateString() }}
                                         <small class="ml-2 badge {{ $value->maintainance_date()['status'] }}"><i class="mdi mdi-plus"></i>{{ number_format(intval($value->maintainance_date()['remaining_days'])) }} days</small>
@@ -213,7 +213,7 @@
                                     <td>{{$value->maintainance_type == 'in-house'  ? getUserById($value->employee_id)->name ?? '-' : getSupplierByID($value->supplier_id)->name ?? '-'}}</td>
                                     <td>{{getAssetTypeById($value->asset_type_id)->descripton}}</td>
                                     <td>{{getAssetLocationByid($value->asset_location_id)->name}}</td>
-                                    <td>{{getInventoryDepartmentByid($value->assigned_department)->name ?? $value->assigned_department }}</td>
+                                    <td>{{getInventoryDepartmentByid($value->assigned_department)?->name ?? $value->assigned_department }}</td>
                                     <td style="width: 25% !important;">{{isset($value->notes) ? $value->notes ?? '-' : $value->remark ?? '-'}}</td>
                                     @endif
         

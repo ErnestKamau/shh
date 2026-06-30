@@ -1406,7 +1406,17 @@ function getEquipmentLogs()
 }
 function getInventoryDepartmentByid($id)
 {
-	return App\InventoryDepartment::find($id);
+	if ($id === null || $id === '') {
+		return null;
+	}
+
+	$id = (string) $id;
+
+	if (\Illuminate\Support\Str::isUuid($id)) {
+		return App\InventoryDepartment::find($id);
+	}
+
+	return App\InventoryDepartment::where('name', $id)->first();
 }
 
 function getSampleTrackingStages()

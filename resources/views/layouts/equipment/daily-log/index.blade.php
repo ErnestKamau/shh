@@ -239,7 +239,7 @@
                                         <td>{{ $item->make }}</td>
                                         <td>{{ $item->model }}</td>
                                         <td>{{ $item->serial_number }}</td>
-                                        <td>{{ getInventoryDepartmentByid($item->assigned_department)->name ?? '-' }}</td>
+                                        <td>{{ getInventoryDepartmentByid($item->assigned_department)?->name ?? $item->assigned_department ?? '-' }}</td>
                                         <td>{{ optional(getUserById($item->assigned_employee_id))->name ?? '-' }}</td>
                                         <td>{{ $item->daily_log_nature ? ucfirst($item->daily_log_nature) : '-' }}</td>
                                         <td>{{ $item->daily_log_value_type ? ucfirst($item->daily_log_value_type) : '-' }}</td>

@@ -92,18 +92,21 @@
                                                        title="View Analysis Types">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
-                                                    <button wire:click="showEditSampleTypeModal({{ $sampleType->id }})" 
+                                                    <button type="button"
+                                                            wire:click="showEditSampleTypeModal(@js($sampleType->id))" 
                                                             class="rm-act-btn rm-act-btn--edit" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="cloneSampleType({{ $sampleType->id }})" 
+                                                    <button type="button"
+                                                            wire:click="cloneSampleType(@js($sampleType->id))" 
                                                             class="rm-act-btn rm-act-btn--clone" 
                                                             title="Clone"
                                                             onclick="return confirm('Are you sure you want to clone this sample type?')">
                                                         <i class="mdi mdi-content-duplicate"></i>
                                                     </button>
-                                                    <button wire:click="deleteSampleType({{ $sampleType->id }})" 
+                                                    <button type="button"
+                                                            wire:click="deleteSampleType(@js($sampleType->id))" 
                                                             class="rm-act-btn rm-act-btn--delete" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this sample type? This will also delete all associated analysis types and elements.')">
@@ -350,7 +353,7 @@
                                             @if($showLabDropdown && count($this->filteredLabs) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($this->filteredLabs as $lab)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab({{ $lab->id }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab(@js($lab->id))">
                                                             {{ $lab->name }}
                                                         </div>
                                                     @endforeach

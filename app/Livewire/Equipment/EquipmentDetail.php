@@ -413,13 +413,7 @@ class EquipmentDetail extends Component
             'active' => $e->active ?? true,
             'requires_daily_log' => $e->requires_daily_log ?? false,
             'has_logbook_tracking' => $e->has_logbook_tracking ?? false,
-            'daily_log_value_type' => $e->daily_log_value_type ?? '',
-            'daily_log_nature' => $e->daily_log_nature ?? '',
-            'daily_log_tolerance' => $e->daily_log_tolerance ?? null,
-            'daily_log_expected_value' => $e->daily_log_expected_value ?? '',
-            'daily_log_expected_min' => $e->daily_log_expected_min,
-            'daily_log_expected_max' => $e->daily_log_expected_max,
-            'daily_log_reporting_unit' => $e->daily_log_reporting_unit ?? '',
+            'daily_log_value_types' => $this->parseValueTypes($e),
             'daily_log_frequency' => $e->daily_log_frequency ?? 1,
             'daily_log_frequency_labels' => is_array($e->daily_log_frequency_labels ?? null) ? $e->daily_log_frequency_labels : [],
             'daily_log_monitored_by_another_equipment' => $e->daily_log_monitored_by_another_equipment ?? false,
@@ -440,7 +434,7 @@ class EquipmentDetail extends Component
         $this->departmentSearch = '';
         if ($e->assigned_department) {
             $department = getInventoryDepartmentByid($e->assigned_department);
-            $this->selectedDepartmentName = $department->name ?? '';
+            $this->selectedDepartmentName = $department?->name ?? (is_string($e->assigned_department) ? $e->assigned_department : '');
             $this->departmentSearch = $this->selectedDepartmentName;
         }
 
@@ -2088,7 +2082,7 @@ class EquipmentDetail extends Component
         $departmentName = '—';
         if ($equipment->assigned_department) {
             $department = getInventoryDepartmentByid($equipment->assigned_department);
-            $departmentName = $department->name ?? '—';
+            $departmentName = $department?->name ?? (is_string($equipment->assigned_department) ? $equipment->assigned_department : '—');
         }
 
         $assignedEmployeeName = '—';

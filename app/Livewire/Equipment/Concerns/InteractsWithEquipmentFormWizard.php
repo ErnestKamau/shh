@@ -518,4 +518,113 @@ trait InteractsWithEquipmentFormWizard
 
         return $rules;
     }
+
+    protected function parseValueTypes(Equipment $equipment): array
+    {
+        if (isset($equipment->daily_log_value_types) && is_array($equipment->daily_log_value_types) && count($equipment->daily_log_value_types) > 0) {
+            return $equipment->daily_log_value_types;
+        }
+
+        $valueTypes = [];
+        if (! empty($equipment->daily_log_value_type)) {
+            $valueTypes[] = [
+                'id' => uniqid(),
+                'value_type' => $equipment->daily_log_value_type,
+                'nature' => $equipment->daily_log_nature ?? '',
+                'expected_value' => $equipment->daily_log_expected_value ?? '',
+                'expected_min' => $equipment->daily_log_expected_min,
+                'expected_max' => $equipment->daily_log_expected_max,
+                'reporting_unit' => $equipment->daily_log_reporting_unit ?? '',
+                'tolerance' => $equipment->daily_log_tolerance,
+            ];
+        }
+
+        return $valueTypes;
+    }
+
+    public function addValueType(): void
+    {
+        $this->equipmentForm['daily_log_value_types'] ??= [];
+        $this->equipmentForm['daily_log_value_types'][] = [
+            'id' => uniqid(),
+            'value_type' => '',
+            'nature' => '',
+            'expected_value' => '',
+            'expected_min' => null,
+            'expected_max' => null,
+            'reporting_unit' => '',
+            'tolerance' => null,
+        ];
+    }
+
+    public function removeValueType(string $id): void
+    {
+        $this->equipmentForm['daily_log_value_types'] = array_values(array_filter(
+            $this->equipmentForm['daily_log_value_types'] ?? [],
+            fn ($item) => ($item['id'] ?? null) !== $id
+        ));
+    }
+
+    protected function processValueTypes(): void
+    {
+        foreach ($this->equipmentForm['daily_log_value_types'] ?? [] as &$item) {
+            $valueType = $item['value_type'] ?? '';
+            $nature = $item['nature'] ?? '';
+
+            if ($valueType === 'range' && $nature !== 'quantitative') {
+                $item['nature'] = 'quantitative';
+                $item['expected_value'] = '';
+            }
+
+            if ($valueType === 'constant') {
+                $item['expected_min'] = null;
+                $item['expected_max'] = null;
+            }
+
+            if ($nature === 'qualitative') {
+                $item['expected_min'] = null;
+                $item['expected_max'] = null;
+            }
+        }
+    }
+
+    public function updateValueType(string $id, string $field, $value): void
+    {
+        foreach ($this->equipmentForm['daily_log_value_types'] ?? [] as &$item) {
+            if (($item['id'] ?? null) !== $id) {
+                continue;
+            }
+
+            $item[$field] = $value;
+
+            if ($field === 'value_type' && $value === 'range') {
+                $item['nature'] = 'quantitative';
+                $item['expected_value'] = '';
+            }
+
+            if ($field === 'value_type' && $value === 'constant') {
+                $item['expected_min'] = null;
+                $item['expected_max'] = null;
+            }
+
+            if ($field === 'nature' && $value !== 'quantitative') {
+                $item['expected_min'] = null;
+                $item['expected_max'] = null;
+            }
+
+            break;
+        }
+    }
+
+    public function updated($property, $value): void
+    {
+        if (str_starts_with($property, 'equipmentForm.daily_log_value_types')) {
+            $this->processValueTypes();
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogValueTypes($value, $key): void
+    {
+        $this->processValueTypes();
+    }
 }

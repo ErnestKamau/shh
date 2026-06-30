@@ -1712,7 +1712,12 @@ Route::get('/billing/tax-regime', function () {
 
 //#################################LAB REPORTS#######################################
 Route::get('/lab/reports-home', 'Lab\Reports\SamplesReportsController@index')->name('lab-reports-home')->middleware('can:laboratory.components.lab-reports.view');
+// Dormant while KPI dashboard is active — legacy batch/sample/profit report POST handler kept for restoration.
 Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->name('lab-report-show')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/registration/summary', 'Lab\Reports\SamplesReportsController@exportRegistrationKpiSummary')->name('lab.kpi.registration.summary.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/registration/detail', 'Lab\Reports\SamplesReportsController@exportRegistrationKpiDetail')->name('lab.kpi.registration.detail.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/laboratory/summary', 'Lab\Reports\SamplesReportsController@exportLaboratoryKpiSummary')->name('lab.kpi.laboratory.summary.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/laboratory/detail', 'Lab\Reports\SamplesReportsController@exportLaboratoryKpiDetail')->name('lab.kpi.laboratory.detail.export')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/module-reports', 'Lab\Reports\ModuleReportsController@index')->name('module-reports.index')->middleware('auth');
 Route::post('/module-reports/view', 'Lab\Reports\ModuleReportsController@viewReport')->name('module-reports.view')->middleware('auth');
 Route::get('/module-reports/print', 'Lab\Reports\ModuleReportsController@printReport')->name('module-reports.print')->middleware('auth');

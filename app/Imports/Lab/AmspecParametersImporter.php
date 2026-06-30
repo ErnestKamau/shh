@@ -11,12 +11,14 @@ use App\Lab;
 use App\LabSection;
 use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
+use Illuminate\Support\Collection;
 
 class AmspecParametersImporter extends BaseImporter
 {
     protected $lastLabSection = null;
     protected $lastSampleType = null;
     protected $lastAnalysisType = null;
+    protected ?string $lastParameterCategory = null;
 
     /** @var array<string, string> */
     protected const SECTION_LAB_CODE_MAP = [
@@ -37,6 +39,164 @@ class AmspecParametersImporter extends BaseImporter
         'calibration' => 'LAB-TSU',
     ];
 
+    protected function shouldSkipRow(array $row): bool
+    {
+        if (parent::shouldSkipRow($row)) {
+            return true;
+        }
+
+        $row = $this->normalizeImporterRowKeys($row);
+
+        $hasSection = $this->resolveFieldFromRow($row, [
+            'section_department', 'sectiondepartment', 'lab_section',
+        ]);
+        $hasMatrix = $this->resolveFieldFromRow($row, [
+            'matrix_category', 'sample_type', 'matrixcategory',
+        ], 'matrix_category');
+        $hasParameter = $this->resolveFieldFromRow($row, [
+            'name_of_parameters_as_in_report_coa', 'internal_parameters_name',
+            'parameters', 'parameter_name', 'internalparametersname',
+        ], 'name_of_parameters');
+
+        return empty($hasSection) && empty($hasMatrix) && empty($hasParameter);
+    }
+
+    protected function onSheetLoaded(string $title): void
+    {
+        $this->lastLabSection = null;
+        $this->lastSampleType = null;
+        $this->lastAnalysisType = null;
+        $this->lastParameterCategory = null;
+    }
+
+    /**
+     * Map real AmSpec spreadsheet columns to stable keys (avoids collisions on "parameters"/"method").
+     *
+     * @param  array<int, string>  $headerMap
+     */
+    protected function afterHeaderRowDetected(array &$headerMap, Collection $rows): void
+    {
+        $headerRow = $rows->get($this->headerRowIndex);
+        $headerRow = $headerRow instanceof Collection ? $headerRow->toArray() : (array) $headerRow;
+
+        $canonicalMap = [];
+        foreach ($headerRow as $colIndex => $value) {
+            if ($value === null || trim((string) $value) === '') {
+                continue;
+            }
+
+            $canonical = $this->canonicalHeaderForAmspecColumn((string) $value);
+            if ($canonical !== null) {
+                $canonicalMap[$colIndex] = $canonical;
+            }
+        }
+
+        if ($canonicalMap !== []) {
+            foreach (array_keys($headerMap) as $existingIndex) {
+                unset($headerMap[$existingIndex]);
+            }
+
+            foreach ($canonicalMap as $colIndex => $canonical) {
+                $headerMap[$colIndex] = $canonical;
+            }
+        }
+    }
+
+    protected function canonicalHeaderForAmspecColumn(string $header): ?string
+    {
+        $normalized = strtolower(trim(str_replace("\xA0", ' ', $header)));
+
+        if (str_contains($normalized, 'section') && str_contains($normalized, 'department')) {
+            return 'section_department';
+        }
+
+        if (str_contains($normalized, 'matrix sub category') || str_contains($normalized, 'matrix sub')) {
+            return 'matrix_sub_category';
+        }
+
+        if (str_contains($normalized, 'matrix category') || str_contains($normalized, 'matrixcategory')) {
+            return 'matrix_category';
+        }
+
+        if (str_contains($normalized, 'parameter category')) {
+            return 'parameter_category';
+        }
+
+        if (str_contains($normalized, 'parameter code')) {
+            return 'parameter_code';
+        }
+
+        if (str_contains($normalized, 'internal parameters name')) {
+            return 'internal_parameters_name';
+        }
+
+        if (str_contains($normalized, 'name of parameters as in report')) {
+            return 'name_of_parameters_as_in_report_coa';
+        }
+
+        if (str_contains($normalized, 'reference method')) {
+            return 'reference_method';
+        }
+
+        if (str_contains($normalized, 'test method')) {
+            return 'test_method_sop';
+        }
+
+        if (str_contains($normalized, 'method version')) {
+            return 'method_version';
+        }
+
+        if ($normalized === 'unit' || str_starts_with($normalized, 'unit')) {
+            return 'unit';
+        }
+
+        if (str_contains($normalized, 'decimal place')) {
+            return 'decimal_places';
+        }
+
+        if (str_contains($normalized, 'accreditation')) {
+            return 'accreditation_scope';
+        }
+
+        if (str_contains($normalized, 'instrument')) {
+            return 'instrument';
+        }
+
+        if (preg_match('/^sl\.?\s*no/', $normalized)) {
+            return 'sl_no';
+        }
+
+        if (in_array($normalized, ['lab section', 'lab_section'], true)) {
+            return 'lab_section';
+        }
+
+        if (in_array($normalized, ['sample type', 'sample_type'], true)) {
+            return 'sample_type';
+        }
+
+        if (in_array($normalized, ['analysis type', 'analysis_type'], true)) {
+            return 'analysis_type';
+        }
+
+        if (in_array($normalized, ['parameters', 'parameter'], true)) {
+            return 'parameters';
+        }
+
+        if ($normalized === 'method') {
+            return 'method';
+        }
+
+        if (str_contains($normalized, 'reporting unit')) {
+            return 'reporting_unit';
+        }
+
+        if (str_contains($normalized, 'equipment')) {
+            return 'equipment';
+        }
+
+        return null;
+    }
+
     protected function validateRow(array $row): array
     {
         $errors = [];
@@ -44,14 +204,14 @@ class AmspecParametersImporter extends BaseImporter
 
         $matrixCategory = $this->resolveFieldFromRow($row, [
             'matrix_category', 'sample_type', 'matrixcategory',
-        ], 'matrixcategory');
+        ], 'matrix_category');
         $parameterName = $this->resolveFieldFromRow($row, [
             'name_of_parameters_as_in_report_coa', 'nameofparametersasinreportcoa',
-            'parameters', 'parameter_name', 'internalparametersname', 'internal_parameters_name',
-        ], 'nameofparameters');
+            'parameters', 'parameter_name', 'internal_parameters_name', 'internalparametersname',
+        ], 'name_of_parameters');
         $method = $this->resolveFieldFromRow($row, [
             'test_method_sop', 'testmethodsop', 'method',
-        ], 'testmethod');
+        ], 'test_method');
 
         if (empty($matrixCategory) && empty($this->lastSampleType)) {
             $errors[] = 'Sample Type is required';
@@ -77,25 +237,28 @@ class AmspecParametersImporter extends BaseImporter
         ]);
         $matrixCategory = $this->resolveFieldFromRow($row, [
             'matrix_category', 'sample_type', 'matrixcategory',
-        ], 'matrixcategory');
+        ], 'matrix_category');
         $subMatrix = $this->resolveFieldFromRow($row, [
             'sub_matrix', 'analysis_type', 'matrixsubcategory', 'matrix_sub_category',
-        ], 'matrixsubcategory');
+        ], 'matrix_sub_category');
+        $parameterCategory = $this->resolveFieldFromRow($row, [
+            'parameter_category',
+        ], 'parameter_category');
         $parameterName = $this->resolveFieldFromRow($row, [
             'name_of_parameters_as_in_report_coa', 'nameofparametersasinreportcoa',
-            'parameters', 'parameter_name', 'internalparametersname', 'internal_parameters_name',
-        ], 'nameofparameters');
+            'parameters', 'parameter_name', 'internal_parameters_name', 'internalparametersname',
+        ], 'name_of_parameters');
         $method = $this->resolveFieldFromRow($row, [
             'test_method_sop', 'testmethodsop', 'method',
-        ], 'testmethod');
+        ], 'test_method');
         $unit = $this->resolveFieldFromRow($row, ['unit', 'reporting_unit']);
         $decimalPlaces = $this->resolveFieldFromRow($row, ['decimal_places', 'decimalplaces']) ?? 2;
         $accreditationScope = $this->resolveFieldFromRow($row, [
             'accreditation_scope', 'accreditationscopeaccreditednonaccredited',
             'accreditation', 'accredited_nonaccredited',
-        ], 'accreditationscope') ?? 'Accredited';
+        ], 'accreditation') ?? 'Accredited';
         $instrument = $this->resolveFieldFromRow($row, [
-            'instrument', 'instrumentused', 'equipment',
+            'instrument', 'instrumentused', 'instrument_used', 'equipment',
         ], 'instrument');
 
         // Handle continuation pattern: empty cells mean "same as above"
@@ -112,8 +275,18 @@ class AmspecParametersImporter extends BaseImporter
             $this->lastSampleType = $matrixCategory;
         }
 
-        if (empty($subMatrix) || $subMatrix === '—' || $subMatrix === '-') {
-            if ($this->lastAnalysisType) {
+        if (! empty($parameterCategory)) {
+            $this->lastParameterCategory = $parameterCategory;
+        } elseif ($this->lastParameterCategory) {
+            $parameterCategory = $this->lastParameterCategory;
+        }
+
+        $subMatrix = $this->normalizeSubMatrixValue($subMatrix);
+
+        if ($subMatrix === null || $subMatrix === '') {
+            if (! empty($parameterCategory)) {
+                $subMatrix = $parameterCategory;
+            } elseif ($this->lastAnalysisType) {
                 $subMatrix = $this->lastAnalysisType;
             } else {
                 $subMatrix = 'Default Analysis Type';
@@ -289,19 +462,13 @@ class AmspecParametersImporter extends BaseImporter
                 $methodId = $analysisMethod->id;
             }
 
-            // 7. Process Equipment
+            // 7. Process Equipment (lookup only — instrument column is descriptive, not a registered asset code)
             $equipmentId = null;
             if (!empty($transformedData['equipment_code'])) {
                 $equipment = Equipment::where('equipment_number', $transformedData['equipment_code'])
+                    ->orWhere('name', $transformedData['equipment_code'])
                     ->first();
-                if (!$equipment) {
-                    $equipment = Equipment::create([
-                        'equipment_number' => $transformedData['equipment_code'],
-                        'name' => $transformedData['equipment_code'],
-                        'active' => 1
-                    ]);
-                }
-                $equipmentId = $equipment->id;
+                $equipmentId = $equipment?->id;
             }
 
             // 8. Process AnalysisElements
@@ -345,6 +512,8 @@ class AmspecParametersImporter extends BaseImporter
                         \Log::warning("Could not create analysis elements: " . $e2->getMessage());
                     }
                 }
+            } else {
+                $hasImportedAny = true;
             }
         }
 
@@ -434,14 +603,34 @@ class AmspecParametersImporter extends BaseImporter
         }
 
         if ($prefix !== null) {
+            $prefix = strtolower($prefix);
             foreach ($row as $key => $value) {
-                if (str_starts_with($key, $prefix) && $value !== null && $value !== '') {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                if (str_starts_with($key, $prefix)) {
                     return is_string($value) ? trim($value) : (string) $value;
                 }
             }
         }
 
         return null;
+    }
+
+    protected function normalizeSubMatrixValue(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($value === '' || $value === '—' || $value === '-') {
+            return null;
+        }
+
+        return $value;
     }
 
     /**
