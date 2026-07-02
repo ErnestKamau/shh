@@ -294,10 +294,12 @@
 <main>
 
     {{-- ── Screen toolbar ── --}}
+    @if(empty($isPdfMode))
     <div class="trr-toolbar">
         <button onclick="window.print()" style="background:#8B1A1A;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:6px;">&#128438; Print</button>
         <a href="/sample-workflow/batch/{{ $batch->id }}/details" style="background:#fff;color:#555;border:1px solid #aaa;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">&#8592; Back to Batch</a>
     </div>
+    @endif
 
     <div class="trr-page">
 

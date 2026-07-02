@@ -1,4 +1,4 @@
-<div class="qc-page">
+<div class="qc-page qc-config-page">
     @include('livewire.qc._shared-styles')
 
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -6,7 +6,7 @@
             <h5 class="mb-0"><i class="mdi mdi-file-certificate-outline mr-1"></i> QC Configurations</h5>
             <small class="text-muted">Manage standards, types, schemes, and approvers in one place.</small>
         </div>
-        <div style="min-width: 280px;">
+        <div class="qc-config-search-wrap">
             <input type="text" wire:model.live.debounce.300ms="search" class="form-control form-control-sm" placeholder="Search name or code...">
         </div>
     </div>
@@ -15,7 +15,7 @@
         <div class="alert alert-success py-2">{{ session('success') }}</div>
     @endif
 
-    <ul class="nav nav-pills mb-3" role="tablist">
+    <ul class="nav nav-pills mb-3 qc-config-tabs" role="tablist">
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'standards' ? 'active' : '' }}" wire:click="setTab('standards')" type="button">Standards</button></li>
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'types' ? 'active' : '' }}" wire:click="setTab('types')" type="button">QC Types</button></li>
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'schemes' ? 'active' : '' }}" wire:click="setTab('schemes')" type="button">QC Schemes</button></li>
@@ -25,7 +25,7 @@
     <div class="card qc-table-card">
         <div class="card-body">
             @if ($activeTab === 'standards')
-                <form wire:submit.prevent="saveStandard" class="mb-4 border rounded p-3">
+                <form wire:submit.prevent="saveStandard" class="mb-4 border rounded p-3 qc-inline-form">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong>{{ $editingStandardId ? 'Edit QC Standard' : 'Add QC Standard' }}</strong>
                         @if($editingStandardId)
@@ -105,7 +105,7 @@
             @endif
 
             @if ($activeTab === 'types')
-                <form wire:submit.prevent="saveQcType" class="mb-4 border rounded p-3">
+                <form wire:submit.prevent="saveQcType" class="mb-4 border rounded p-3 qc-inline-form">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong>{{ $editingQcTypeId ? 'Edit QC Type' : 'Add QC Type' }}</strong>
                         @if($editingQcTypeId)
@@ -159,7 +159,7 @@
             @endif
 
             @if ($activeTab === 'schemes')
-                <form wire:submit.prevent="saveScheme" class="mb-4 border rounded p-3">
+                <form wire:submit.prevent="saveScheme" class="mb-4 border rounded p-3 qc-inline-form">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong>{{ $editingSchemeId ? 'Edit QC Scheme' : 'Add QC Scheme' }}</strong>
                         @if($editingSchemeId)
@@ -207,7 +207,7 @@
             @endif
 
             @if ($activeTab === 'approvals')
-                <form wire:submit.prevent="saveApprover" class="mb-4 border rounded p-3">
+                <form wire:submit.prevent="saveApprover" class="mb-4 border rounded p-3 qc-inline-form">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong>{{ $editingApproverId ? 'Edit Approver' : 'Add Approver' }}</strong>
                         @if($editingApproverId)

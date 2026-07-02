@@ -16,5 +16,7 @@ final class ComplaintDTO
         public readonly ?string $status,
         public readonly ?string $createdAt,
         public readonly string $resolutionStatus,
+        public readonly ?string $priority = null,
+        public readonly ?string $stageLabel = null,
     ) {}
 }

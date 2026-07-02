@@ -83,6 +83,7 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\ProcedureWorksheetPdfService;
 use App\Http\Requests\StoreSampleSubmissionRequest;
 use App\Services\WorkflowService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
@@ -6130,6 +6131,7 @@ class SampleWorkFlowController extends Controller
             'batch_id' => $batch->id,
             'seq'      => $batch->test_request_report_sequence,
             'lang'     => $request->language,
+            'mode'     => 'pdf',
         ]);
     }
 
@@ -6534,11 +6536,48 @@ class SampleWorkFlowController extends Controller
             ->orderByDesc('revision_no')
             ->get();
 
+        $mode = strtolower((string) $request->query('mode', 'view'));
+        $isPdfMode = $mode === 'pdf';
+        if ($mode === 'pdf') {
+            $viewData = array_merge($reportData, compact(
+                'language',
+                'labels',
+                'revisions',
+                'isRTL',
+                'isPdfMode'
+            ));
+
+            $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
+            $pdf->setPaper('a4');
+
+            $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
+            $customerName = trim($customerName, '_') ?: 'customer';
+            $filename = 'TRR_' . $reportNumber . '.pdf';
+            $relativePath = '/reports/' . $customerName . '/' . $filename;
+            $absoluteDir = storage_path('app/reports/' . $customerName);
+
+            if (!is_dir($absoluteDir)) {
+                mkdir($absoluteDir, 0755, true);
+            }
+
+            $absolutePath = $absoluteDir . '/' . $filename;
+            $pdf->save($absolutePath);
+
+            $batch->batch_report_url = $relativePath;
+            $batch->batch_report_online_url = url('/storage' . $relativePath);
+            $batch->save();
+
+            return $pdf->stream($filename, [
+                'Attachment' => false,
+            ]);
+        }
+
         return view('layouts.lab.sample-workflow.report-formats.test_request_report', array_merge($reportData, compact(
             'language',
             'labels',
             'revisions',
-            'isRTL'
+            'isRTL',
+            'isPdfMode'
         )));
     }
 

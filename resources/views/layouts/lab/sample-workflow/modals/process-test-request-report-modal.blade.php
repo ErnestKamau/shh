@@ -20,7 +20,7 @@
             </div>
 
             {{-- Body --}}
-            <form method="POST" action="{{ route('processTestRequestReport') }}" id="process-trr-form"
+            <form method="POST" action="{{ route('processTestRequestReport') }}" id="process-trr-form" target="_blank"
                   style="display:flex;flex-direction:column;flex:1 1 auto;min-height:0;">
                 @csrf
                 <input type="hidden" name="batch_id" value="{{ $batch->id }}">
