@@ -62,12 +62,7 @@ class QualityControlController extends Controller
     }
 
     public function configuration_index(){
-        $qc_types = QcTypes::all();
-        $standards = Standards::where('is_qc_standard',1)->get();
-        $qc_schemes = QcSchemes::all();
-        $approvals = Approvers::all();
-        $staffs = User::where('active',1)->where('is_support_staff',0)->get();
-        return view('layouts.qcmodule.configurations.index',compact('qc_types','standards','qc_schemes','approvals','staffs'));
+        return view('layouts.qcmodule.configurations.index');
     }
     public function addQcStandard(Request $request){
         $standard = Standards::find($request->standard_id) ?? new Standards();
@@ -90,12 +85,8 @@ class QualityControlController extends Controller
     
     public function qcStandardShow($id){
         $standard = Standards::find($id);
-        $standardAnalytes = StandardAnalytes::where('standard_id',$id)->get();
-        $analytes = Analyte::where('active',1)->get();
-        
 
-        // return response()->json('done');
-        return view('layouts.qcmodule.configurations.show',compact('standard','standardAnalytes','analytes'));
+        return view('layouts.qcmodule.configurations.show',compact('standard'));
     }
 
     public function addQcStandardAnalyte(Request $request){
@@ -138,30 +129,7 @@ class QualityControlController extends Controller
         return redirect()->back()->with('success','Qc scheme deleted successfully!');
     }
     public function qcWorkflowIndex(){
-		// return response()->json('test');
-		$sample_types = SampleType::where('active',1)->get();
-        $qc_types = QcTypes::where('is_active',1)->get();
-        $qc_schemes = QcSchemes::where('is_active',1)->get();
-        $analytes = Analyte::where('active',1)->get();
-        $status = "Qc Approved";
-        $data = [];
-        $results = [];
-        $release_ids = implode(',',[]);
-        $filter_data = [
-            "start_date" => '',
-            "end_date" => '',
-            "analysis_type_id" =>  '',
-            'sample_type_id' =>  '',
-            'qc_type_id'=>  '',
-            'qc_scheme_id' =>  '',
-            'analyte_id' =>  '',
-            'group_by' =>  '',
-            'remark' =>  '',
-            'standard_id' =>  '',
-        ];
-        $selected_qc_type = [];
-
-		return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results','release_ids','filter_data','selected_qc_type'));
+		return view('layouts.qcmodule.qchistory.index');
     }
     public function getQcStandardsAjax($qc_type_id){
         $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
@@ -173,55 +141,7 @@ class QualityControlController extends Controller
     }
 
     public function generateQCReport(Request $request){
-        // return response()->json($request->all());
-
-        $sample_types = SampleType::where('active',1)->get();
-        $qc_types = QcTypes::where('is_active',1)->get();
-        $qc_schemes = QcSchemes::where('is_active',1)->get();
-        $status = "Qc Approved";
-
-        $results = QCResultsView::query();
-        $results = isset($request->start_date) && $request->start_date != '' ? $results->where('receipt_date','>=',$request->start_date) : $results;
-        $results = isset($request->end_date) && $request->end_date != '' ? $results->where('receipt_date','<=',$request->end_date) : $results;
-
-        $results = isset($request->sample_type_id) && $request->sample_type_id !='' ? $results->where('sample_type_id',$request->sample_type_id) : $results;
-        $results = isset($request->analysis_type_id) && $request->analysis_type_id !='' ? $results->where('analysis_type_id',$request->analysis_type_id) : $results;
-        $results = isset($request->qc_type_id) && $request->qc_type_id !=  '' ? $results->where('qc_type_id',$request->qc_type_id) : $results;
-        $results = isset($request->qc_scheme_id) && $request->qc_scheme_id != '' ? $results->where('qc_scheme_id',$request->qc_scheme_id) : $results;
-        $results = isset($request->analyte_id) && $request->analyte_id != '' ? $results->where('analyte_id',$request->analyte_id) : $results;
-        // $results = isset($request->)
-        // return response()->json($request->all());
-        // $data = $this->computeNumericResultsModule($results);
-        if(intval($request->group_by) == 2){
-            $results = $results->groupBy('sample_detail_id');
-            // return response()->json('here1');
-        }
-        if(intval($request->group_by) == 3){
-            $results = $results->groupBy('sample_header_id');
-        }
-        $results = $results->get();
-        $release_ids = implode(',',$results->pluck('id')->toArray());
-
-        $selected_qc_type = isset($request->qc_type_id) ? QcTypes::find($request->qc_type_id) : [];
-
-        $filter_data = [
-            "start_date" => $request->start_date ?? '',
-            "end_date" => $request->end_date ?? '',
-            "analysis_type_id" => $request->analysis_type_id ?? '',
-            'sample_type_id' => $request->sample_type_id ?? '',
-            'qc_type_id'=> $request->qc_type_id ?? '',
-            'qc_scheme_id' => $request->qc_scheme_id ?? '',
-            'analyte_id' => $request->analyte_id ?? '',
-            'group_by' => $request->group_by ?? '',
-            'remark' => $request->remark ?? '',
-            'standard_id' => $request->standard_id ?? '',
-        ];
-        
-
-        // return response()->json($request->all());
-
-        // $results =  QCResultsView::where('analysis_type_id',$request->analysis_type_id)->where('qc_type_id',$request->qc_type_id)->where('qc_scheme_id',$request->qc_scheme_id)->get();
-        return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','results','release_ids','filter_data','selected_qc_type'));
+        return redirect()->route('qcWorkflowIndex');
     }
 
     public function getQcTypeConfigAjax(Request $request, $id){
@@ -261,26 +181,16 @@ class QualityControlController extends Controller
     }
 
     public function showUnProcessed(){
-        $results = QcResults::where('is_qc_processed',0)->get();
-        return view('layouts.qcmodule.qchistory.processing', compact('results'));
+        return view('layouts.qcmodule.qchistory.processing');
     }
 
     public function showQcReport(){
-        $results = QCProcessedResults::with(['method','analyte','sampletype','analysistype','results'])->get();
-        return view('layouts.qcmodule.qchistory.reports', compact('results'));
+        return view('layouts.qcmodule.qchistory.reports');
     }
     public function showQcReportGraph($result_id){
-        $results = QCProcessedResults::with(['method','analyte','sampletype','analysistype','results'])->find($result_id);
-        $results['results_arr'] = $results->getresultsarr();
-        $labels = [];
-        $data = [];
+        $results = QCProcessedResults::find($result_id);
 
-        foreach ($results['results_arr'] as $sampleId => $result) {
-            $labels[] = $sampleId;
-            $data[] = number_format((float)$result, 4, '.', ''); // Convert to float, format to 4 dp
-        }
-        // return response()->json($results);
-        return view('layouts.qcmodule.qchistory.reportshow', compact('results','labels','data'));
+        return view('layouts.qcmodule.qchistory.reportshow', compact('results'));
     }
 
 

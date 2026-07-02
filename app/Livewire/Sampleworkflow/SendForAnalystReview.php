@@ -45,7 +45,7 @@ class SendForAnalystReview extends Component
             $counts = DB::table('submission_form_instances')
                 ->whereIn('id', $this->selectedFormInstanceIds)
                 ->selectRaw('COUNT(*) as total_count')
-                ->selectRaw('SUM(CASE WHEN is_qc_batch = 1 THEN 1 ELSE 0 END) as qc_count')
+                ->selectRaw('SUM(CASE WHEN is_qc_batch THEN 1 ELSE 0 END) as qc_count')
                 ->first();
 
             $totalCount = (int) ($counts->total_count ?? 0);
