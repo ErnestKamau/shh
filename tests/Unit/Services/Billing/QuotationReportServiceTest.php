@@ -22,6 +22,41 @@ class QuotationReportServiceTest extends TestCase
         $this->assertFalse($data['isPlaceholderTable']);
     }
 
+    public function test_plaintext_value_decrypts_laravel_ciphertext(): void
+    {
+        $service = app(QuotationReportService::class);
+        $plain = 'Report within 7 working days.';
+        $encrypted = \Illuminate\Support\Facades\Crypt::encryptString($plain);
+
+        $this->assertSame($plain, $service->plaintextValue($encrypted));
+        $this->assertSame($plain, $service->plaintextValue($plain));
+        $this->assertSame('', $service->plaintextValue(null));
+    }
+
+    public function test_resolve_terms_of_sale_decrypts_header_fields(): void
+    {
+        $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+        $header->service_delivery = \Illuminate\Support\Facades\Crypt::encryptString('7 days after sample submission');
+
+        $terms = $service->resolveTermsOfSale($header);
+
+        $this->assertSame('7 days after sample submission', $terms['service_delivery']);
+        $this->assertNotEmpty($terms['payment_info']);
+    }
+
+    public function test_resolve_terms_of_sale_falls_back_when_header_value_stays_encrypted(): void
+    {
+        $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+        $header->service_delivery = 'eyJpdiI6InVucmVhZGFibGUiLCJ2YWx1ZSI6ImJsb2IiLCJtYWMiOiJ0ZXN0In0=';
+
+        $terms = $service->resolveTermsOfSale($header);
+
+        $this->assertNotSame($header->service_delivery, $terms['service_delivery']);
+        $this->assertFalse(str_starts_with($terms['service_delivery'], 'eyJ'));
+    }
+
     public function test_resolve_terms_of_sale_falls_back_to_config_defaults(): void
     {
         $service = app(QuotationReportService::class);
@@ -32,6 +67,17 @@ class QuotationReportServiceTest extends TestCase
 
         $this->assertSame('7 days after sample submission', $terms['service_delivery']);
         $this->assertNotEmpty($terms['payment_info']);
+    }
+
+    public function test_plaintext_value_decrypts_nested_ciphertext(): void
+    {
+        $service = app(QuotationReportService::class);
+        $plain = 'Nested terms value';
+        $encrypted = \Illuminate\Support\Facades\Crypt::encryptString(
+            \Illuminate\Support\Facades\Crypt::encryptString($plain)
+        );
+
+        $this->assertSame($plain, $service->plaintextValue($encrypted));
     }
 
     public function test_resolve_terms_falls_back_to_defaults_when_config_missing(): void

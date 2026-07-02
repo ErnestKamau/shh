@@ -51,17 +51,20 @@ final class SampleReceivingCheckInService
             ? $this->receptionReadinessService->resolveAcceptedQuotation($enquiry)
             : null;
 
+        $sampleDescriptionRaw = (
+            $enquiry?->sample_description
+            ?? $enquiry?->description_of_samples
+            ?? $values['sample_description']
+            ?? $values['description_of_samples']
+            ?? ''
+        );
+
         return [
             'instance_id' => $instance->id,
             'form_number' => (string) $instance->canonicalFormNumber(),
             'customer_name' => (string) ($instance->crmCustomer?->name ?? ''),
-            'sample_description' => (string) (
-                $enquiry?->sample_description
-                ?? $enquiry?->description_of_samples
-                ?? $values['sample_description']
-                ?? $values['description_of_samples']
-                ?? ''
-            ),
+            'sample_description' => $this->formatRichTextPlain($sampleDescriptionRaw),
+            'sample_description_html' => $this->formatRichTextHtml($sampleDescriptionRaw),
             'number_of_samples' => (int) (
                 $enquiry?->number_of_samples
                 ?? $values['number_of_samples']
@@ -244,6 +247,47 @@ final class SampleReceivingCheckInService
         $number = trim((string) ($equipment->equipment_number ?? ''));
 
         return $number !== '' ? $number : (string) ($equipment->name ?? $thermometerId);
+    }
+
+    private function formatRichTextPlain(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string === '') {
+            return '';
+        }
+
+        if ($this->containsHtml($string)) {
+            $plain = html_entity_decode(strip_tags($string), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $plain = trim(preg_replace('/\s+/u', ' ', $plain) ?? '');
+
+            return $plain;
+        }
+
+        return $string;
+    }
+
+    private function formatRichTextHtml(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string === '') {
+            return '';
+        }
+
+        if ($this->containsHtml($string)) {
+            $clean = strip_tags($string, '<p><br><strong><b><em><i><u><ul><ol><li><span><div>');
+            $clean = trim($clean);
+
+            return $clean;
+        }
+
+        return nl2br(e($string), false);
+    }
+
+    private function containsHtml(string $value): bool
+    {
+        return $value !== strip_tags($value);
     }
 
 }

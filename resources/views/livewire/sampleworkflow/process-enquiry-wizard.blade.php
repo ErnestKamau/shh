@@ -80,7 +80,6 @@
                                                         <th>Qty</th>
                                                         <th>Sample type</th>
                                                         <th>Sample condition</th>
-                                                        <th>Test category</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -88,12 +87,11 @@
                                                         <tr wire:key="enquiry-sample-{{ $index }}">
                                                             <td>{{ $index + 1 }}</td>
                                                             <td class="acc-enquiry-rich-text-cell">
-                                                                <div class="acc-enquiry-rich-text">{!! $row['sample_description_html'] ?? e($row['sample_description'] ?? '—') !!}</div>
+                                                                <div class="acc-enquiry-rich-text">{!! $row['sample_description_html'] ?? '—' !!}</div>
                                                             </td>
                                                             <td>{{ $row['qty'] }}</td>
                                                             <td>{{ $row['sample_type'] }}</td>
                                                             <td>{{ $row['sample_condition'] }}</td>
-                                                            <td>{{ $row['tests'] }}</td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
@@ -115,6 +113,66 @@
                                     <div class="alert alert-warning py-2 mb-3">
                                         <strong class="d-block mb-1">Customer feedback (read-only)</strong>
                                         <div class="small mb-0" style="white-space: pre-wrap;">{{ $customerFeedbackNotes }}</div>
+                                    </div>
+                                @endif
+
+                                @if($this->showQuotationSourcePicker)
+                                    <div class="mb-4 border rounded p-3 bg-light">
+                                        <h6 class="acc-wizard-section-title">Quotation source</h6>
+                                        <p class="small text-muted mb-3">
+                                            Reuse a completed customer quotation or build pricing from the customer pricelist and sample configuration.
+                                        </p>
+
+                                        <div class="form-group mb-3">
+                                            <div class="custom-control custom-radio mb-2">
+                                                <input type="radio"
+                                                       id="quotation-source-pricelist"
+                                                       class="custom-control-input"
+                                                       wire:model.live="quotationSourceMode"
+                                                       value="{{ \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST }}">
+                                                <label class="custom-control-label" for="quotation-source-pricelist">
+                                                    Create from customer pricelist
+                                                </label>
+                                            </div>
+                                            <div class="custom-control custom-radio">
+                                                <input type="radio"
+                                                       id="quotation-source-existing"
+                                                       class="custom-control-input"
+                                                       wire:model.live="quotationSourceMode"
+                                                       value="{{ \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING }}">
+                                                <label class="custom-control-label" for="quotation-source-existing">
+                                                    Use existing customer quotation
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        @if($quotationSourceMode === \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING)
+                                            <div class="form-group mb-0">
+                                                <label for="selected-source-quotation">Completed quotation</label>
+                                                <select id="selected-source-quotation"
+                                                        class="form-control"
+                                                        wire:model.live="selectedSourceQuotationId">
+                                                    <option value="">Select a quotation…</option>
+                                                    @foreach($this->reusableCustomerQuotations as $quote)
+                                                        <option value="{{ $quote['id'] }}">
+                                                            {{ $quote['quote_number'] }}
+                                                            @if($quote['expiring_date'] !== '')
+                                                                · expires {{ $quote['expiring_date'] }}
+                                                            @endif
+                                                            · {{ number_format($quote['total_amount'], 2) }}
+                                                            @if($quote['revision_number'] > 1)
+                                                                · rev {{ $quote['revision_number'] }}
+                                                            @endif
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                @if($this->reusableCustomerQuotations === [])
+                                                    <small class="form-text text-muted">
+                                                        No completed, non-expired quotations were found for this customer.
+                                                    </small>
+                                                @endif
+                                            </div>
+                                        @endif
                                     </div>
                                 @endif
                             </section>
@@ -146,6 +204,26 @@
                             @include('livewire.partials.process-enquiry-status-alert')
 
                             <section class="acc-wizard-section acc-pricing-section">
+                                @if($this->showPristineReuseQuotation)
+                                    <div class="alert alert-light border mb-3 py-2 px-3 d-flex flex-wrap align-items-center justify-content-between" style="gap: 8px;">
+                                        <div class="mb-0">
+                                            <i class="mdi mdi-file-document-outline text-primary"></i>
+                                            Using quotation <strong>{{ $quoteNumber }}</strong>
+                                            @if($pdfGenerated)
+                                                <span class="badge badge-success ml-1">PDF ready</span>
+                                            @else
+                                                <span class="badge badge-warning ml-1">PDF not generated yet</span>
+                                            @endif
+                                        </div>
+                                        @if($pdfGenerated && $quotationHeaderId)
+                                            <a href="{{ route('quotation.preview', ['id' => $quotationHeaderId]) }}"
+                                               class="btn btn-sm btn-outline-secondary" target="_blank">
+                                                <i class="mdi mdi-eye"></i> Preview quotation
+                                            </a>
+                                        @endif
+                                    </div>
+                                @endif
+
                                 <div class="acc-pricing-toolbar mb-3 d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
                                     <h6 class="acc-wizard-section-title mb-0">Inline quotation</h6>
                                     <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
@@ -153,9 +231,11 @@
                                             <span class="small text-muted">Currency: <strong>{{ $this->currencyDisplay }}</strong></span>
                                         @endif
                                         <span class="small text-muted">VAT regime: <strong>{{ number_format($this->taxRate, 2) }}%</strong></span>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled">
-                                            <i class="mdi mdi-file-pdf-box"></i> Generate PDF
-                                        </button>
+                                        @unless($this->showPristineReuseQuotation && $pdfGenerated)
+                                            <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled">
+                                                <i class="mdi mdi-file-pdf-box"></i> Generate PDF
+                                            </button>
+                                        @endunless
                                         @if($pdfGenerated && $quotationHeaderId)
                                             <a href="{{ route('quotation.preview', ['id' => $quotationHeaderId]) }}"
                                                class="btn btn-sm btn-outline-secondary" target="_blank">
@@ -266,7 +346,13 @@
                                         <i class="mdi mdi-send"></i>
                                         {{ $quotationSent ? 'Send again' : 'Send to customer' }}
                                     </span>
-                                    <span wire:loading wire:target="sendQuotation">Generating & sending…</span>
+                                    <span wire:loading wire:target="sendQuotation">
+                                        @if($this->showPristineReuseQuotation && $pdfGenerated)
+                                            Sending…
+                                        @else
+                                            Generating &amp; sending…
+                                        @endif
+                                    </span>
                                 </button>
                             </div>
                         @endif

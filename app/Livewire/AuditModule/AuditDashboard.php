@@ -243,7 +243,7 @@ class AuditDashboard extends Component
         // Get NC trends for the selected date range
         $this->ncTrends = NonConformance::forCompany()
             ->whereBetween('date_identified', [$startDateTime, $endDateTime])
-            ->selectRaw(auditSqlMonthExpression('date_identified') . ' as month, count(*) as count')
+            ->selectRaw(\auditSqlMonthExpression('date_identified') . ' as month, count(*) as count')
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('count', 'month')

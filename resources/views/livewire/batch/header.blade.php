@@ -112,6 +112,51 @@
             gap: 5px;
             font-weight: 500;
         }
+
+        .batch-header-actions .batch-actions-dropdown {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .batch-header-actions .batch-actions-dropdown > .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            float: none;
+            margin-top: 0.35rem;
+            min-width: 15.5rem;
+            max-width: 20rem;
+            max-height: min(70vh, 520px);
+            overflow-y: auto;
+            padding: 0.35rem 0;
+            border: 1px solid #dbe5f0;
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+            z-index: 1050;
+        }
+
+        .batch-header-actions .batch-actions-dropdown .dropdown-menu > li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .batch-header-actions .batch-actions-dropdown .dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 0.5rem 0.95rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.35;
+            color: #334155;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+        }
     </style>
 
     <div class="batch-header-bar">
@@ -176,12 +221,21 @@
                         </div>
                     @endif
 
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
-                            id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <div class="btn-group batch-actions-dropdown"
+                         x-data="{ open: false }"
+                         @click.outside="open = false">
+                        <button type="button"
+                            class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
+                            id="batchActionsDropdownToggle"
+                            @click.stop="open = !open"
+                            :aria-expanded="open"
+                            aria-haspopup="true">
                             <i class="mdi mdi-dots-horizontal"></i> Actions
                         </button>
-                        <div class="dropdown-menu dropdown-menu-right">
+                        <ul class="dropdown-menu dropdown-menu-right"
+                            :class="{ 'show': open }"
+                            aria-labelledby="batchActionsDropdownToggle"
+                            @click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { open = false; }">
 
                             @if(isset($batch->id))
                                 @if($batch->status == 'Finished Sample')
@@ -375,7 +429,7 @@
                                     @endif
                                 @endif
                             @endif
-                        </div>
+                        </ul>
                     </div>
                 </div> {{-- end action buttons --}}
             @endif

@@ -341,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			</a>
 			@endif
 			@if($canQc)
-			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="hidden list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
 					<span class="menu-collapsed">Qc Workflow</span>
@@ -1291,14 +1291,23 @@ document.addEventListener('DOMContentLoaded', function() {
 @section('script')
 <script>
 	(function () {
-		function unlockStuckScroll() {
-			var hasOpenModal = document.querySelector('.modal.show');
+		var unlockTimer = null;
 
-			if (!hasOpenModal) {
-				document.body.classList.remove('modal-open');
-				document.body.style.removeProperty('overflow');
-				document.body.style.removeProperty('padding-right');
+		function unlockStuckScroll() {
+			if (unlockTimer !== null) {
+				clearTimeout(unlockTimer);
 			}
+
+			unlockTimer = setTimeout(function () {
+				unlockTimer = null;
+				var hasOpenModal = document.querySelector('.modal.show');
+
+				if (!hasOpenModal) {
+					document.body.classList.remove('modal-open');
+					document.body.style.removeProperty('overflow');
+					document.body.style.removeProperty('padding-right');
+				}
+			}, 100);
 		}
 
 		document.addEventListener('DOMContentLoaded', unlockStuckScroll);

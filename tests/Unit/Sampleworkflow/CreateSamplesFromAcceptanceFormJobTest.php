@@ -236,6 +236,8 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         $this->assertSame('2026-05-22', $header->receipt_date);
         $this->assertSame('Job Signer', $header->payment_done_by);
         $this->assertSame($sro->id, $header->receiving_officer);
+        $this->assertSame(1, (int) $header->lab_capable);
+        $this->assertSame(1, (int) $header->client_instruction_clear);
 
         $invoice = Invoice::query()->find($form->invoice_id);
         $this->assertNotNull($invoice);

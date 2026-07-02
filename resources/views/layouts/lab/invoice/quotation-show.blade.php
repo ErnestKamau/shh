@@ -70,6 +70,12 @@
     .select2-selection {
         min-width: 200px !important;
     }
+
+    .quotation-lines-toolbar {
+        min-height: 38px;
+        position: relative;
+        z-index: 2;
+    }
 </style>
 @endsection
 @section('content2')
@@ -196,8 +202,8 @@
 
                             <div class="form-group">
                                 <label class="control-label">Client *</label>
-                                <select name="client" class="form-control" id="select-client" data-contact="{{json_encode($header->crm_customer_contact_id)}}" data-zoho-customer-id="{{$header->customer->zoho_customer_id ?? ''}}" aria-readonly="true" aria-placeholder="Choose Client..." required>
-                                    <option value="" disabled selected>Choose Client...</option>
+                                <select name="client" class="form-control no-select2" id="select-client" data-contact="{{ $header->crm_customer_contact_id }}" data-zoho-customer-id="{{$header->customer->zoho_customer_id ?? ''}}" required>
+                                    <option value="" disabled {{ empty($header->crm_customer_id) ? 'selected' : '' }}>Choose Client...</option>
                                     @foreach($customers as $customer)
                                     <option value="{{$customer->id}}" data-zoho-customer-id="{{$customer->zoho_customer_id}}" {{$customer->id == $header->crm_customer_id ? 'selected':''}}>{{$customer->name}}</option>
                                     @endforeach
@@ -206,13 +212,21 @@
 
                             <div class="form-group contacts" id="choose-client">
                                 <label class="control-label">Client Contact *</label>
-                                <select name="client_contact" id="select-client-contact" class="form-control" aria-placeholder="Select Client Contact..." required>
-                                    <?php
-                                    $client_contacts = getCrmCustomerContacts($header->crm_customer_id);
-                                    ?>
-                                    @if(sizeof($client_contacts)>0)
+                                <select name="client_contact" id="select-client-contact" class="form-control no-select2" required>
+                                    @php
+                                    $client_contacts = getQuotationCustomerContacts(
+                                        (string) $header->crm_customer_id,
+                                        $header->crm_customer_contact_id ? (string) $header->crm_customer_contact_id : null
+                                    );
+                                    @endphp
+                                    @if($client_contacts->isEmpty())
+                                    <option value="" disabled selected>No contacts available</option>
+                                    @else
+                                    @if(empty($header->crm_customer_contact_id))
+                                    <option value="" disabled selected>Select Client Contact...</option>
+                                    @endif
                                     @foreach($client_contacts as $contact)
-                                    <option value="{{$contact->id}}" {{$contact->id == $header->crm_customer_contact_id ? 'selected':''}}>{{$contact->first_name}} {{$contact->middle_name}} {{$contact->last_name}}</option>
+                                    <option value="{{$contact->id}}" {{ (string) $contact->id === (string) $header->crm_customer_contact_id ? 'selected' : '' }}>{{ trim($contact->first_name . ' ' . ($contact->middle_name ?? '') . ' ' . $contact->last_name) }}</option>
                                     @endforeach
                                     @endif
                                 </select>
@@ -220,7 +234,7 @@
 
                             <div class="form-group">
                                 <label class="control-label">Dynamics Customer <small class="text-muted">(Optional)</small></label>
-                                <select name="zoho_customer_id" id="select-zoho-customer-edit" class="form-control">
+                                <select name="zoho_customer_id" id="select-zoho-customer-edit" class="form-control no-select2">
                                     <option value="">Select Dynamics Customer...</option>
                                     @foreach(\App\ZohoCustomers::where('status', 'Active')->orderBy('name')->get() as $zc)
                                     <option value="{{$zc->id}}" data-currency-code="{{$zc->currency_code}}" {{($header->customer->zoho_customer_id ?? '') == $zc->id ? 'selected' : ''}}>{{$zc->name}} ({{$zc->customer_no}})</option>
@@ -236,7 +250,7 @@
 
                             <div class="form-group">
                                 <label class="control-label">Quotation Type</label>
-                                <select name="quotation_type" required id="" class="form-control">
+                                <select name="quotation_type" required class="form-control no-select2">
                                     <option value="">Choose Quotation Type</option>
                                     <option value="General" {{$header->quotation_type == 'General' ? 'selected' : '' }}>General Quotation</option>
                                     <option value="Analysis" {{$header->quotation_type == 'Analysis' ? 'selected' : '' }}>Analysis Quotation</option>
@@ -264,7 +278,7 @@
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Sampling Location (Sample Point)</label>
-                                <select name="sample_point_id" class="form-control">
+                                <select name="sample_point_id" class="form-control no-select2">
                                     <option value="">Select sample point...</option>
                                     @foreach($samplePoints ?? [] as $point)
                                         <option value="{{ $point->id }}" {{ $header->sample_point_id == $point->id ? 'selected' : '' }}>{{ $point->display_name }}</option>
@@ -288,8 +302,14 @@
                     <form action="{{ route('add_quotation_detail',['id'=>$header->id]) }}" method="POST" enctype="multipart/form-data" class="bg-light p-1">
                         @csrf
                         @if($header->quotation_type == 'General')
-                        <button type="submit" class="btn btn-outline-success btn-sm float-left mr-2">Save <i class="mdi mdi-share-circle"></i></button>
-                        <span class="btn btn-outline-info float-right btn-sm mb-2" data-toggle="modal" onclick=" addrowgeneral()"><i class="mdi mdi-plus"></i></span>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 quotation-lines-toolbar" style="gap: 8px;">
+                            <button type="submit" class="btn btn-outline-success btn-sm">
+                                Save <i class="mdi mdi-share-circle"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="addrowgeneral()">
+                                <i class="mdi mdi-plus"></i> Add line
+                            </button>
+                        </div>
                         <div class="table-responsive">
 
                             <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" style="min-width: 180%;">
@@ -366,10 +386,16 @@
                             </table>
                         </div>
                         @else
-                        <button type="submit" class="btn btn-outline-success btn-sm float-left mr-2 mb-2 mt-2">Save <i class="mdi mdi-share-circle"></i></button>
-                        @if($header->status == 'Quote In Preparation')
-                        <span class="btn btn-outline-info float-right btn-sm mb-2 mt-2" id="add-row"><i class="mdi mdi-plus"></i></span>
-                        @endif
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 mt-2 quotation-lines-toolbar" style="gap: 8px;">
+                            <button type="submit" class="btn btn-outline-success btn-sm">
+                                Save <i class="mdi mdi-share-circle"></i>
+                            </button>
+                            @if($header->status == 'Quote In Preparation')
+                            <button type="button" class="btn btn-outline-info btn-sm" id="add-row">
+                                <i class="mdi mdi-plus"></i> Add line
+                            </button>
+                            @endif
+                        </div>
                         <div class="table-responsive ">
 
                             <table class="table table-condensed table-stripped table-hover table-bordered" style="width: 130%;">
@@ -380,8 +406,8 @@
                                     <th nowrap>Part No <span class="text-danger">*</span></th>
                                     <th nowrap>Description<span class="text-danger">*</span></th>
                                     <th nowrap>Quantiy<span class="text-danger">*</span></th>
-                                    <th nowrap>Unit Price <span class="text-danger">*</span></th>
-                                    <th nowrap>Tax%</th>
+                                    <th nowrap>Unit Price <small class="text-muted font-weight-normal">(0 = pricelist)</small></th>
+                                    <th nowrap>Tax% <small class="text-muted font-weight-normal">(0 = pricelist)</small></th>
 
 
 
@@ -470,15 +496,15 @@
 
                             <div class="form-group">
                                 <label class="control-label">Service Delivery <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="service_delivery" placeholder="Service Delivery..." required>{{$header->service_delivery == ''? $terms_array['service_delivery'] : $header->service_delivery}}</textarea>
+                                <textarea class="form-control" rows="2" name="service_delivery" placeholder="Service Delivery..." required>{{ $termsOfSale['service_delivery'] ?? '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Payments <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="payments" placeholder="Payment Information..." required>{{$header->payments == '' ? $terms_array['payments'] : $header->payments}}</textarea>
+                                <textarea class="form-control" rows="2" name="payments" placeholder="Payment Information..." required>{{ $termsOfSale['payments'] ?? '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Quote Specifications <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="quote_specification" placeholder="Quote Spcification..." required>{{$header->quote_specification == '' ?  $terms_array['quote_specification'] : $header->quote_specification}}</textarea>
+                                <textarea class="form-control" rows="2" name="quote_specification" placeholder="Quote Spcification..." required>{{ $termsOfSale['quote_specification'] ?? '' }}</textarea>
                             </div>
 
                         </div>
@@ -487,11 +513,11 @@
                         <div class="additional-info ml-4">
                             <div class="form-group">
                                 <label class="control-label">Additional Information <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="additional_info" placeholder="Additional Info..." required>{{$header->additional_info == '' ? $terms_array['additional_info'] : $header->additional_info}}</textarea>
+                                <textarea class="form-control" rows="2" name="additional_info" placeholder="Additional Info..." required>{{ $termsOfSale['additional_info'] ?? '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Payment Instructions <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="payment_info" placeholder="Payment Instructions..." required>{{$header->payment_info == '' ? 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE' : $header->payment_info}} </textarea>
+                                <textarea class="form-control" rows="2" name="payment_info" placeholder="Payment Instructions..." required>{{ $termsOfSale['payment_info'] ?? '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Quotation T&amp;C Override <small class="text-muted">(optional — one term per line)</small></label>
@@ -870,6 +896,87 @@
 <script>
     var analysis = [];
     $(function() {
+        var quotationPricingConfig = {
+            suggestUrl: @json(route('quotation.suggest_line_pricing', $header->id)),
+            csrf: @json(csrf_token()),
+        };
+
+        function applyPricelistSuggestionToRow($row, data) {
+            $row.data('pricelistSuggestion', data);
+            $row.find('.quotation-price-hint').text(data.hint || '');
+            if (data && parseFloat(data.unit_price) > 0) {
+                $row.find('.quotation-unit-price').val(data.unit_price);
+            }
+            if (data && parseFloat(data.tax) > 0) {
+                $row.find('.quotation-tax').val(data.tax);
+            }
+        }
+
+        function collectElementIdsFromRow($row) {
+            var ids = [];
+            $row.find('input[name="accreditted_analytes[]"], input[name="sub_analytes[]"], input[name="sub_acc[]"], input[name="default_analytes[]"]').each(function() {
+                var value = ($(this).val() || '').trim();
+                if (!value) {
+                    return;
+                }
+                value.split(',').forEach(function(id) {
+                    id = id.trim();
+                    if (id) {
+                        ids.push(id);
+                    }
+                });
+            });
+
+            return ids.filter(function(id, index) {
+                return ids.indexOf(id) === index;
+            });
+        }
+
+        function refreshQuotationRowPricingHint($row, applyValues) {
+            var sampleTypeId = $row.find('select[name="sample_type[]"]').val() || '';
+            var analysisTypeIds = $row.find('input#select-part-final, input[name="part_number_final[]"]').val() || '';
+            var elementIds = collectElementIdsFromRow($row);
+            var $hint = $row.find('.quotation-price-hint');
+
+            if (!sampleTypeId || !analysisTypeIds) {
+                $hint.text('Select sample type and analysis type.');
+                $row.removeData('pricelistSuggestion');
+                return;
+            }
+
+            if (elementIds.length === 0) {
+                $hint.text('Pick tests in Description to load pricelist total.');
+                $row.removeData('pricelistSuggestion');
+                return;
+            }
+
+            $.post(quotationPricingConfig.suggestUrl, {
+                _token: quotationPricingConfig.csrf,
+                sample_type_id: sampleTypeId,
+                analysis_type_ids: analysisTypeIds,
+                element_ids: elementIds.join(','),
+            }).done(function(data) {
+                if (applyValues) {
+                    applyPricelistSuggestionToRow($row, data);
+                } else {
+                    $row.data('pricelistSuggestion', data);
+                    $hint.text(data.hint || '');
+                }
+            }).fail(function() {
+                $hint.text('Could not load pricelist suggestion.');
+            });
+        }
+
+        $(document).on('click', '.quotation-apply-pricelist', function() {
+            var $row = $(this).closest('tr');
+            var data = $row.data('pricelistSuggestion');
+            if (data && parseFloat(data.unit_price) > 0) {
+                applyPricelistSuggestionToRow($row, data);
+                return;
+            }
+            refreshQuotationRowPricingHint($row, true);
+        });
+
         $('select[name="currency_id"]').on('change', function() {
             var selected = $(this).find('option:selected');
             var currencyId = $(this).val();
@@ -913,27 +1020,42 @@
             var contact = $(this).data('contact');
             var $selectedOption = $(this).find('option:selected');
             var zohoCustomerId = $selectedOption.data('zoho-customer-id');
-            
-            console.log();
+            var $contactSelect = $('#select-client-contact');
+
             $.ajax({
-                url: '/fetch-customer-contacts/' + client,
+                url: '/fetch-customer-contacts/' + client + (contact ? '?assigned=' + encodeURIComponent(contact) : ''),
                 beforeSend: function() {
-                    $('#select-client-contact').empty();
+                    $contactSelect.empty();
                 },
                 success: function(data) {
-                    // console.log(data);
+                    if (!data || data.length === 0) {
+                        $contactSelect.append('<option value="" disabled selected>No contacts available</option>');
+                        return;
+                    }
+
+                    var hasSelected = false;
                     $.each(data, function(j, s) {
-                        console.log(s);
-                        var $option = $(`
-                            <option value = "${s.id}" ${s.id === contact ? 'selected' :''}>${s.first_name} ${s.middle_name ?? ''} ${s.last_name ?? ''}</option>
-                        `);
-                        $('#select-client-contact').append($option);
-                    })
+                        var label = [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ').trim();
+                        var isSelected = contact && String(s.id) === String(contact);
+                        if (isSelected) {
+                            hasSelected = true;
+                        }
+                        $contactSelect.append(
+                            $('<option></option>')
+                                .val(s.id)
+                                .text(label || 'Contact')
+                                .prop('selected', isSelected)
+                        );
+                    });
+
+                    if (!hasSelected) {
+                        $contactSelect.prepend('<option value="" disabled selected>Select Client Contact...</option>');
+                    }
                 },
-                error: function(data) {
-                    console.log(data);
+                error: function() {
+                    $contactSelect.append('<option value="" disabled selected>Unable to load contacts</option>');
                 }
-            })
+            });
             
             // Pre-select Dynamics customer if linked
             if(zohoCustomerId) {
@@ -1013,26 +1135,26 @@
                                     <td class="text-center" id="quote-description" >
                                         <span>-</span>
                                     </td>
-                                    
                                     <td>
                                         <div class="form-group">
                                             <input type="number" name="quantity[]" id="" class="form-control" value="" required>
                                         </div>
                                     </td>
                                     <td>
-                                        
-                                        <div class="form-group">
-                                            <input type="float" name="unit_price[]" id="unit-price" class="form-control" value="" required>
+                                        <div class="form-group mb-1">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" name="unit_price[]" class="form-control quotation-unit-price" min="0" step="0.01" value="0" placeholder="0 = pricelist">
+                                                <div class="input-group-append">
+                                                    <button type="button" class="btn btn-outline-secondary quotation-apply-pricelist" title="Apply pricelist suggestion">$</button>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted quotation-price-hint d-block"></small>
                                         </div>
-                                        
                                     </td>
                                     <td >
-                                        
-                                        <div class="form-group">
-                                        <input type="text" name="tax[]" value="" class="form-control" required>
-                                        
+                                        <div class="form-group mb-0">
+                                            <input type="number" name="tax[]" class="form-control quotation-tax" min="0" step="0.01" value="0" placeholder="0 = pricelist">
                                         </div>
-                                        
                                     </td>
                                     </tr>
                 `).clone();
@@ -1071,8 +1193,9 @@
             });
             $row.find('select.select-part').on('change', function() {
                 var value = $(this).val();
-                $row.find('input#select-part-final').val(value.toString());
-            })
+                $row.find('input#select-part-final').val(value ? value.toString() : '');
+                refreshQuotationRowPricingHint($row);
+            });
 
             $('#create-detail').append($row);
 
@@ -1096,6 +1219,7 @@
             $('#create-detail').find('tr#detail-row-' + rowNo).find('#quote-description').empty();
             $('#create-detail').find('tr#detail-row-' + rowNo).find('#quote-description').append(text);
 
+            refreshQuotationRowPricingHint($('#create-detail').find('tr#detail-row-' + rowNo));
 
             console.log(data);
         }
@@ -1144,11 +1268,12 @@
             </div>
             <div class="form-group">
                 <label class="control-label">Unit Price</label>
-                <input type="text" name="unit_price" value="${data.unit_price}" class="form-control">
+                <input type="number" name="unit_price" value="${data.unit_price}" class="form-control" min="0" step="0.01" placeholder="0 = pricelist">
+                <small class="text-muted">Leave 0 to use pricelist on save.</small>
             </div>
             <div class="form-group">
                 <label class="control-label">Tax</label>
-                <input type="text" name="tax" value="${data.tax}" class="form-control">
+                <input type="number" name="tax" value="${data.tax}" class="form-control" min="0" step="0.01" placeholder="0 = pricelist">
             </div>
             <div class="form-group">
                 <label class="control-label">Description</label>
@@ -1348,6 +1473,7 @@
                 $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(sub_input);
                 $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(sub_acc_input);
                 $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(default_a);
+                refreshQuotationRowPricingHint($('#create-detail').find('tr#detail-row-' + row_no), true);
                 row_no = '';
                 $('#quote-description-analytes').modal('toggle');
             });
@@ -1580,14 +1706,14 @@
                                <td>
                                    
                                    <div class="form-group">
-                                    <input type="float" name="unit_price[]" class="form-control" value="" required>
+                                    <input type="number" name="unit_price[]" class="form-control" min="0" step="0.01" value="0" placeholder="0 = pricelist">
                                 </div>
                                    
                                </td>
                                <td >
                                   
                                   <div class="form-group">
-                                  <input type="text" name="tax[]" value="" class="form-control" required>
+                                  <input type="number" name="tax[]" class="form-control quotation-tax" min="0" step="0.01" value="0" placeholder="0 = pricelist">
                                  
                                   
                                 </div>

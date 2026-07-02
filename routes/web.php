@@ -652,6 +652,7 @@ Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\Quotation
 Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header')->middleware('can:laboratory.components.quotation.add');
 Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrencyByCode');
+Route::post('/billing/quotations/{id}/suggest-line-pricing', 'Invoice\QuotationController@suggestManualLinePricing')->name('quotation.suggest_line_pricing')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail')->middleware('can:laboratory.components.quotation.add');
 Route::get('/billing-quotation-view-final/{id}/{stage?}', 'Invoice\QuotationController@view_quotation_final')->name('view_quotation_final')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/edit_quotation_detail', 'Invoice\QuotationController@edit_quotation_detail')->name('edit_quotation_detail')->middleware('can:laboratory.components.quotation.edit');
@@ -1726,7 +1727,8 @@ Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowCont
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/lab/disposal/report', 'SampleWorkFlowController@disposalReportIndex')->name('lab-report-disposal')->middleware('can:laboratory.components.lab-reports.view');
-Route::get('/lab/tat/report', 'SampleWorkFlowController@tatReportIndex')->name('lab-report-tat')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/tat/report', '\\' . \App\Livewire\Lab\Reports\TatReport::class)->name('lab-report-tat')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/tat/report/export', \App\Http\Controllers\Lab\TatReportExportController::class)->name('lab-report-tat.export')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/get-analysis-type/{id}/Ajax', 'SampleWorkFlowController@getAnalysisTypeAjax')->name('getAnalysisTypeAjax')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/get-Analyte/{id}/Ajax', 'SampleWorkFlowController@getAnalyteAjax')->name('getAnalyteAjax')->middleware('can:laboratory.components.lab-reports.view');

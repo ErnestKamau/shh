@@ -141,7 +141,10 @@
                                 <label class="control-label">Client Contact *</label>
                                 <select name="client_contact" id="select-client-contact" class="form-control" aria-placeholder="Select Client Contact..." required>
                                     <?php
-                                    $client_contacts = getCrmCustomerContacts($header->crm_customer_id);
+                                    $client_contacts = getQuotationCustomerContacts(
+                                        (string) $header->crm_customer_id,
+                                        $header->crm_customer_contact_id ? (string) $header->crm_customer_contact_id : null
+                                    );
                                     ?>
                                     @if(sizeof($client_contacts)>0)
                                     @foreach($client_contacts as $contact)

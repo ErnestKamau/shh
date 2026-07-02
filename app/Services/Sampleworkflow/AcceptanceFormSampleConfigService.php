@@ -61,13 +61,15 @@ class AcceptanceFormSampleConfigService
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
             $key = $sampleTypeId . '::' . $analysisTypeId;
 
-            if (!isset($buckets[$key])) {
+            $lineSampleCount = $this->resolvePrefillLineNumberOfSamples($line);
+
+            if (! isset($buckets[$key])) {
                 $buckets[$key] = $this->emptyConfig();
                 $buckets[$key]['sample_type_id'] = $sampleTypeId !== '' ? $sampleTypeId : null;
                 $buckets[$key]['analysis_type_id'] = $analysisTypeId !== '' ? $analysisTypeId : null;
                 $buckets[$key]['zone_id'] = $defaultZoneId;
                 $buckets[$key]['lab_section_id'] = $this->resolveLabSectionIdForAnalysisType($analysisTypeId);
-                $buckets[$key]['number_of_samples'] = 1;
+                $buckets[$key]['number_of_samples'] = $lineSampleCount;
                 $buckets[$key]['sample_condition_id'] = $this->resolveSampleConditionId(
                     $line['sample_condition_id'] ?? null,
                     $line['sample_condition'] ?? null,
@@ -77,13 +79,14 @@ class AcceptanceFormSampleConfigService
                     $buckets[$key]['sample_code_prefix'] = $line['sample_code_prefix'];
                 }
             } else {
-                $buckets[$key]['number_of_samples'] = max(1, (int) $buckets[$key]['number_of_samples']) + 1;
+                $buckets[$key]['number_of_samples'] = max(
+                    (int) $buckets[$key]['number_of_samples'],
+                    $lineSampleCount,
+                );
             }
 
-            $elementId = $line['analysis_element_id'] ?? null;
-            if ($elementId) {
-                $paramKey = (string) $elementId;
-                if (!in_array($paramKey, $buckets[$key]['parameter_keys'], true)) {
+            foreach ($this->elementIdsFromPrefillLine($line) as $paramKey) {
+                if (! in_array($paramKey, $buckets[$key]['parameter_keys'], true)) {
                     $buckets[$key]['parameter_keys'][] = $paramKey;
                 }
             }
@@ -551,6 +554,16 @@ class AcceptanceFormSampleConfigService
             $config['analysis_type_id'] ?? null,
         );
 
+        $selectedKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+            ->map(fn (mixed $key): string => trim((string) $key))
+            ->filter(fn (string $key): bool => $key !== '');
+
+        if ($parameters === []) {
+            $config['parameter_keys'] = $selectedKeys->unique()->values()->all();
+
+            return $config;
+        }
+
         $validKeys = collect($parameters)
             ->flatMap(fn (array $parameter): array => array_values(array_filter([
                 (string) ($parameter['analysis_element_id'] ?? ''),
@@ -559,9 +572,14 @@ class AcceptanceFormSampleConfigService
             ->unique()
             ->values();
 
-        $selectedKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
-            ->map(fn (mixed $key): string => trim((string) $key))
-            ->filter(fn (string $key): bool => $key !== '');
+        $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+        if ($analysisTypeId !== '') {
+            $analysisElementIds = AnalysisElements::query()
+                ->where('analysis_type_id', $analysisTypeId)
+                ->pluck('id')
+                ->map(fn (mixed $id): string => (string) $id);
+            $validKeys = $validKeys->merge($analysisElementIds)->unique()->values();
+        }
 
         $config['parameter_keys'] = $selectedKeys
             ->filter(fn (string $key): bool => $validKeys->contains($key))
@@ -779,5 +797,53 @@ class AcceptanceFormSampleConfigService
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolvePrefillLineNumberOfSamples(array $line): int
+    {
+        if (isset($line['number_of_samples']) && is_numeric($line['number_of_samples'])) {
+            return max(1, (int) $line['number_of_samples']);
+        }
+
+        if (isset($line['quantity']) && is_numeric($line['quantity'])) {
+            return max(1, (int) $line['quantity']);
+        }
+
+        $sampleQuantity = trim((string) ($line['sample_quantity'] ?? ''));
+        if ($sampleQuantity !== '' && is_numeric($sampleQuantity)) {
+            return max(1, (int) $sampleQuantity);
+        }
+
+        return 1;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function elementIdsFromPrefillLine(array $line): array
+    {
+        $ids = [];
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $fromAttributes = $attributes['analysis_element_ids'] ?? [];
+
+        if (is_array($fromAttributes)) {
+            foreach ($fromAttributes as $elementId) {
+                $elementId = trim((string) $elementId);
+                if ($elementId !== '') {
+                    $ids[] = $elementId;
+                }
+            }
+        }
+
+        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+        if ($elementId !== '') {
+            array_unshift($ids, $elementId);
+        }
+
+        return array_values(array_unique($ids));
     }
 }

@@ -97,6 +97,15 @@
         .sample-gw-holder:last-child {
             margin-bottom: 0;
         }
+
+        .batch-samples-panel.workflow-board-panel {
+            overflow: visible;
+        }
+
+        .batch-samples-panel .workflow-board-panel-body {
+            overflow-x: auto;
+            overflow-y: visible;
+        }
         .sample-gw-status {
             font-size: 0.72rem;
             font-weight: 600;
@@ -189,7 +198,7 @@
     @endif
 
     {{-- Sample Configuration Form (Livewire-driven) --}}
-    <div class="workflow-board-panel">
+    <div class="workflow-board-panel batch-samples-panel">
         <div class="workflow-board-panel-header">
             <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
                 <h5><i class="mdi mdi-flask-outline"></i> Samples configuration</h5>
@@ -212,7 +221,7 @@
                 </button>
             </div>
         </div>
-        <div class="workflow-board-panel-body flush-top" style="overflow-x: auto;">
+        <div class="workflow-board-panel-body flush-top">
         <div class="table-responsive">
             <table class="table table-bordered table-sm workflow-table" style="font-size: 13px;">
                 <thead>
@@ -362,8 +371,7 @@
                             </div>
                             @else
                             <div class="tag-select-container" style="min-width: 200px;"
-                                wire:click="$set('showAnalysisTypeDropdown.{{ $index }}', true)"
-                                wire:click.outside="$set('showAnalysisTypeDropdown.{{ $index }}', false)">
+                                wire:click="$set('showAnalysisTypeDropdown.{{ $index }}', true)">
                                 <div class="tag-select-input">
                                     @if(is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0)
                                     @foreach($analysisTypes as $type)
@@ -383,7 +391,7 @@
                                 </div>
 
                                 @if(isset($showAnalysisTypeDropdown[$index]) && $showAnalysisTypeDropdown[$index])
-                                <div class="tag-dropdown">
+                                <div class="tag-dropdown" wire:click.outside="$set('showAnalysisTypeDropdown.{{ $index }}', false)">
                                     @php
                                     $filteredTypes = $this->getFilteredAnalysisTypes($index);
                                     @endphp
@@ -706,8 +714,7 @@
                         {{-- Company Sub Unit (Searchable) --}}
                         <div class="form-group mb-3">
                             <label class="form-label">Company Sub Unit <span class="text-danger">*</span></label>
-                            <div class="tag-select-container" wire:click="$set('showSubUnitDropdown', true)"
-                                wire:click.outside="$set('showSubUnitDropdown', false)">
+                            <div class="tag-select-container" wire:click="$set('showSubUnitDropdown', true)">
                                 <div class="tag-select-input">
                                     @if($stagingForm['company_sub_unit_name'])
                                     <span class="tag-badge">
@@ -723,7 +730,7 @@
                                 </div>
 
                                 @if($showSubUnitDropdown)
-                                <div class="tag-dropdown">
+                                <div class="tag-dropdown" wire:click.outside="$set('showSubUnitDropdown', false)">
                                     @php $filteredSubUnits = $this->getFilteredSubUnits(); @endphp
                                     @if(count($filteredSubUnits) > 0)
                                     @foreach($filteredSubUnits as $unit)
@@ -744,8 +751,7 @@
                         {{-- Specimen Type / Sample Type (Searchable) --}}
                         <div class="form-group mb-3">
                             <label class="form-label">Specimen Type <span class="text-danger">*</span></label>
-                            <div class="tag-select-container" wire:click="$set('showSampleTypeDropdown', true)"
-                                wire:click.outside="$set('showSampleTypeDropdown', false)">
+                            <div class="tag-select-container" wire:click="$set('showSampleTypeDropdown', true)">
                                 <div class="tag-select-input">
                                     @if($stagingForm['sample_type_name'])
                                     <span class="tag-badge">
@@ -761,7 +767,7 @@
                                 </div>
 
                                 @if($showSampleTypeDropdown)
-                                <div class="tag-dropdown">
+                                <div class="tag-dropdown" wire:click.outside="$set('showSampleTypeDropdown', false)">
                                     @php $filteredSampleTypes = $this->getFilteredSampleTypes(); @endphp
                                     @if(count($filteredSampleTypes) > 0)
                                     @foreach($filteredSampleTypes as $type)
@@ -783,8 +789,7 @@
                         {{-- Analysis Types (Searchable Multi-Select) --}}
                         <div class="form-group mb-3">
                             <label class="form-label">Analysis Types <span class="text-danger">*</span></label>
-                            <div class="tag-select-container" wire:click="$set('showStagingAnalysisTypeDropdown', true)"
-                                wire:click.outside="$set('showStagingAnalysisTypeDropdown', false)">
+                            <div class="tag-select-container" wire:click="$set('showStagingAnalysisTypeDropdown', true)">
                                 <div class="tag-select-input">
                                     @if(count($stagingForm['analysis_type_ids']) > 0)
                                     @foreach($analysisTypes as $type)
@@ -804,7 +809,7 @@
                                 </div>
 
                                 @if($showStagingAnalysisTypeDropdown)
-                                <div class="tag-dropdown">
+                                <div class="tag-dropdown" wire:click.outside="$set('showStagingAnalysisTypeDropdown', false)">
                                     @php $filteredStagingTypes = $this->getFilteredStagingAnalysisTypes(); @endphp
                                     @if(count($filteredStagingTypes) > 0)
                                     @foreach($filteredStagingTypes as $type)
@@ -2424,20 +2429,24 @@
             }
         }
 
-        document.addEventListener('livewire:init', function () {
-            document.addEventListener('change', function (event) {
-                const selectAllCheckbox = event.target.closest('#select-all-samples');
-                if (!selectAllCheckbox) {
-                    return;
-                }
+        if (!window.__batchSamplesSelectAllBound) {
+            window.__batchSamplesSelectAllBound = true;
 
-                const shouldSelect = selectAllCheckbox.checked;
-                document.querySelectorAll('.sample-row-checkbox').forEach(function (checkbox) {
-                    if (checkbox.checked !== shouldSelect) {
-                        checkbox.click();
+            document.addEventListener('livewire:init', function () {
+                document.addEventListener('change', function (event) {
+                    const selectAllCheckbox = event.target.closest('#select-all-samples');
+                    if (!selectAllCheckbox) {
+                        return;
                     }
+
+                    const shouldSelect = selectAllCheckbox.checked;
+                    document.querySelectorAll('.sample-row-checkbox').forEach(function (checkbox) {
+                        if (checkbox.checked !== shouldSelect) {
+                            checkbox.click();
+                        }
+                    });
                 });
             });
-        });
+        }
     </script>
 </div>

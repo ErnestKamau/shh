@@ -48,11 +48,18 @@
 					<button type="button" class="btn btn-primary btn-action-sm">
 						<i class="mdi mdi-format-list-bulleted"></i> Sample Submissions
 					</button>
-					<div class="dropdown">
-						<button class="btn btn-outline-primary btn-action-sm dropdown-toggle" type="button" data-toggle="dropdown">
+					<div class="dropdown"
+						x-data="{ actionsOpen: false }"
+						@click.outside="actionsOpen = false">
+						<button class="btn btn-outline-primary btn-action-sm dropdown-toggle" type="button"
+							@click.stop="actionsOpen = !actionsOpen"
+							:aria-expanded="actionsOpen"
+							aria-haspopup="true">
 							Actions
 						</button>
-						<div class="dropdown-menu dropdown-menu-right">
+						<div class="dropdown-menu dropdown-menu-right"
+							:class="{ 'show': actionsOpen }"
+							@click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], a')) { actionsOpen = false; }">
 							@php
 								$reviewableRequest = $requests->getCollection()->first(function ($request) {
 									return ($request->currentQuotation?->status ?? '') === 'Quotation Under Review';
@@ -209,11 +216,18 @@
 								<div class="d-flex justify-content-center gap-2 align-items-center flex-wrap">
 									<span class="badge badge-light px-2" title="Exhibits"><i class="mdi mdi-package-variant"></i> {{ (int) $req->exhibits_count }}</span>
 									<span class="badge badge-light px-2" title="Analyses"><i class="mdi mdi-flask-outline"></i> {{ (int) $req->requested_analyses_count }}</span>
-									<div class="dropdown">
-										<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+									<div class="dropdown"
+										x-data="{ actionsOpen: false }"
+										@click.outside="actionsOpen = false">
+										<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+											@click.stop="actionsOpen = !actionsOpen"
+											:aria-expanded="actionsOpen"
+											aria-haspopup="true">
 											Actions
 										</button>
-										<div class="dropdown-menu dropdown-menu-right">
+										<div class="dropdown-menu dropdown-menu-right"
+											:class="{ 'show': actionsOpen }"
+											@click="if ($event.target.closest('.dropdown-item, a')) { actionsOpen = false; }">
 											@if(($req->currentQuotation?->status ?? '') === 'Quotation Under Review')
 												<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $req->currentQuotation->id, 'stage' => $req->currentQuotation->status]) }}">
 													<i class="mdi mdi-file-document-edit-outline mr-2"></i> Review Quotation

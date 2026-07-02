@@ -24,27 +24,6 @@
             </p>
         </section>
 
-        <div class="form-group">
-            <label class="receive-sample-field-label" for="analyst-review-lab">
-                Lab <span class="text-danger">*</span>
-            </label>
-            <select
-                id="analyst-review-lab"
-                wire:model="receivingLabId"
-                class="form-control form-control-sm @error('receivingLabId') is-invalid @enderror"
-                required
-            >
-                <option value="">Select lab...</option>
-                @foreach ($labs as $lab)
-                    <option value="{{ $lab->id }}">{{ $lab->code }} - {{ $lab->name }}</option>
-                @endforeach
-            </select>
-            @error('receivingLabId')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-            @enderror
-            <p class="text-muted small mb-0 mt-1">This lab is applied to the batch when the customer signs the acceptance form.</p>
-        </div>
-
         <div class="form-group mb-0">
             <label class="receive-sample-field-label" for="analyst-review-comment">
                 Comment
@@ -78,7 +57,7 @@
             @if ($selectedFormInstanceIds === []) disabled @endif
         >
             <span wire:loading.remove wire:target="confirmSendForAnalystReview">
-                <i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for Analyst review
+                <i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for review
             </span>
             <span wire:loading wire:target="confirmSendForAnalystReview">
                 <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

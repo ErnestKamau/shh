@@ -80,6 +80,8 @@ class AcceptanceFormWizardTest extends TestCase
         Livewire::actingAs($this->user)
             ->test(AcceptanceFormWizard::class)
             ->dispatch('open-acceptance-wizard', submissionFormInstanceId: $instance->id)
+            ->set('modeOfWork', 'Express')
+            ->set('receivedAt', '2026-06-23T09:15')
             ->set('receivingPersonSignature', 'data:image/png;base64,receiving')
             ->set('customerSignature', 'data:image/png;base64,customer')
             ->call('submitDualAccept')

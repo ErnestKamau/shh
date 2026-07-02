@@ -149,7 +149,7 @@ class ManagerAcceptanceSignModal extends Component
                 'client' => 0,
                 'portal' => 0,
                 'status' => 'Samples In Lab',
-            ]) . '#laboratory-acceptance-part-5'
+            ]) . '#samples'
             : route('sample-workflow', ['status' => 'Samples In Lab']);
 
         session()->flash('success', 'Acceptance approved. Batch moved to Samples In Lab.');

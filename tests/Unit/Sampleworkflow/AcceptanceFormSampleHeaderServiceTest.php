@@ -135,5 +135,120 @@ class AcceptanceFormSampleHeaderServiceTest extends TestCase
         $this->assertSame('Portal Submitter', $attributes['submit_by']);
         $this->assertSame($sro->id, $attributes['receiving_officer']);
         $this->assertSame('Receiving SRO', $attributes['receiving_officer_name']);
+        $this->assertSame(1, $attributes['lab_capable']);
+        $this->assertSame(1, $attributes['client_instruction_clear']);
+    }
+
+    public function test_build_create_attributes_reads_acceptance_checkboxes_from_manager_assignment_payload(): void
+    {
+        SampleAnalysisStage::query()->create([
+            'name' => 'Request Review',
+            'code' => 'SRR-HDR2',
+            'active' => 1,
+            'sample_workflow' => 'Samples Request Review',
+            'level' => 1,
+        ]);
+
+        $customer = CRMCustomer::query()->create([
+            'name' => 'Checkbox Customer',
+            'code' => 'CHK001',
+        ]);
+
+        $contact = CustomerContact::query()->create([
+            'id' => (string) Str::uuid(),
+            'first_name' => 'Dual',
+            'last_name' => 'Sign',
+            'email' => 'dual-sign@example.test',
+            'telephone' => '123',
+            'receive_price_list' => false,
+            'receive_invoice' => false,
+            'receive_report' => false,
+            'company_id' => (string) Str::uuid(),
+            'crm_customer_id' => $customer->id,
+            'active' => true,
+        ]);
+
+        $acceptanceForm = AnalysisAcceptanceForm::query()->create([
+            'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+            'crm_customer_id' => $customer->id,
+            'customer_name' => 'Checkbox Customer',
+            'request_date' => '2026-05-18',
+            'number_of_samples' => 1,
+            'mode_of_work' => 'Normal',
+            'manager_assignment_payload' => [
+                'customer_contact_id' => $contact->id,
+                'lab_capable' => false,
+                'client_instruction_clear' => true,
+            ],
+        ]);
+
+        $attributes = app(AcceptanceFormSampleHeaderService::class)->buildCreateAttributes(
+            $acceptanceForm,
+            (string) Str::uuid(),
+            null,
+            null,
+        );
+
+        $this->assertSame($contact->id, $attributes['crm_contact_id']);
+        $this->assertSame('dual-sign@example.test', $attributes['schedule_customer_email']);
+        $this->assertSame(0, $attributes['lab_capable']);
+        $this->assertSame(1, $attributes['client_instruction_clear']);
+    }
+
+    public function test_build_create_attributes_prefers_manager_signed_at_for_receipt_date(): void
+    {
+        SampleAnalysisStage::query()->create([
+            'name' => 'Request Review',
+            'code' => 'SRR-HDR3',
+            'active' => 1,
+            'sample_workflow' => 'Samples Request Review',
+            'level' => 1,
+        ]);
+
+        $customer = CRMCustomer::query()->create([
+            'name' => 'Reception Customer',
+            'code' => 'REC001',
+        ]);
+
+        $formTemplate = SubmissionForm::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Reception Form',
+            'form_type' => 'template',
+            'active' => true,
+        ]);
+
+        $instance = SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid(),
+            'submission_form_id' => $formTemplate->id,
+            'crm_customer_id' => $customer->id,
+            'status' => 'received',
+            'reviewed_at' => '2026-05-20 10:00:00',
+        ]);
+
+        $acceptanceForm = AnalysisAcceptanceForm::query()->create([
+            'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+            'submission_form_instance_id' => $instance->id,
+            'crm_customer_id' => $customer->id,
+            'customer_name' => 'Reception Customer',
+            'request_date' => '2026-05-18',
+            'number_of_samples' => 1,
+            'mode_of_work' => 'Express',
+            'manager_signed_at' => '2026-05-23 14:30:00',
+            'receipt_notification_payload' => [
+                'sample_receiving_date' => '2026-05-23',
+                'sample_receiving_time' => '14:30',
+            ],
+        ]);
+
+        $attributes = app(AcceptanceFormSampleHeaderService::class)->buildCreateAttributes(
+            $acceptanceForm,
+            (string) Str::uuid(),
+            null,
+            null,
+        );
+
+        $this->assertSame('2026-05-23', $attributes['receipt_date']);
+        $this->assertSame('14:30', $attributes['radio_active_levels']);
+        $this->assertSame('Express', $attributes['priority']);
     }
 }

@@ -59,42 +59,5 @@
         </div>
     </div>
 
-    <div
-        class="check-in-trf-collection-extras mt-3"
-        x-data="{ openExtras: false }"
-        wire:key="checkin-trf-extras-{{ $instanceId }}"
-    >
-        <button
-            type="button"
-            class="btn btn-link btn-sm p-0 mb-2 font-weight-bold text-dark text-decoration-none d-flex align-items-center w-100 justify-content-between"
-            @click="openExtras = !openExtras"
-        >
-            <span><i class="mdi mdi-package-variant-closed mr-1"></i> Sample collection — shipment details</span>
-            <i class="mdi" :class="openExtras ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
-        </button>
-
-        <div x-show="openExtras" x-collapse>
-            <p class="text-muted small mb-2">Additional shipment details (applicable where relevant).</p>
-            <div class="row small">
-                @foreach (config('test_request_form_fields.collection_extra_fields', []) as $extraField)
-                    <div class="col-md-6 form-group">
-                        <label class="font-weight-bold">{{ $extraField['label'] }}</label>
-                        @if (($extraField['type'] ?? 'text') === 'date')
-                            <input
-                                type="date"
-                                class="form-control form-control-sm"
-                                wire:model="checkInTrfFields.{{ $instanceId }}.{{ $extraField['name'] }}"
-                            >
-                        @else
-                            <input
-                                type="text"
-                                class="form-control form-control-sm"
-                                wire:model="checkInTrfFields.{{ $instanceId }}.{{ $extraField['name'] }}"
-                            >
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
+    @include('livewire.partials.check-in-collection-info-fields', ['instanceId' => $instanceId])
 </div>

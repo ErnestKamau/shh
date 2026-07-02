@@ -57,11 +57,21 @@
                 </div>
             </div>
             <div class="batch-header-actions">
-                <div class="btn-group request-view-actions-dropdown">
-                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <div class="btn-group request-view-actions-dropdown"
+                     x-data="{ actionsOpen: false }"
+                     @click.outside="actionsOpen = false">
+                    <button type="button"
+                        class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                        id="requestViewActionsDropdownToggle"
+                        @click.stop="actionsOpen = !actionsOpen"
+                        :aria-expanded="actionsOpen"
+                        aria-haspopup="true">
                         Actions
                     </button>
-                    <div class="dropdown-menu dropdown-menu-right request-view-actions-menu">
+                    <div class="dropdown-menu dropdown-menu-right request-view-actions-menu"
+                        :class="{ 'show': actionsOpen }"
+                        aria-labelledby="requestViewActionsDropdownToggle"
+                        @click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { actionsOpen = false; }">
                         @unless($instance->isDraft())
                             <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
                                 <i class="mdi mdi-pencil" aria-hidden="true"></i>
@@ -202,11 +212,14 @@
         </div>
     @endif
 
-    <div class="workflow-board-panel mb-3">
-        <div class="workflow-board-panel-header">
-            <h5><i class="mdi mdi-file-document-outline"></i> Captured request details</h5>
+    <div class="workflow-board-panel captured-details-panel mb-3">
+        <div class="workflow-board-panel-header captured-details-panel-header">
+            <div>
+                <h5><i class="mdi mdi-file-document-outline"></i> Captured request details</h5>
+                <p class="captured-details-panel-subtitle">Submitted form data from this request</p>
+            </div>
         </div>
-        <div class="workflow-board-panel-body">
+        <div class="workflow-board-panel-body captured-details-panel-body">
             @include('submission-forms.partials.simple-form-display-clinical', ['instance' => $instance, 'formData' => $formData])
         </div>
     </div>

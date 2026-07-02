@@ -27,8 +27,12 @@
                                     <p class="mb-0 font-weight-bold">{{ $numberOfSamples }}</p>
                                 </div>
                                 <div class="col-md-3">
-                                    <p class="acc-wizard-hint mb-1">Mode</p>
-                                    <p class="mb-0 font-weight-bold">{{ $modeOfWork }}</p>
+                                    <label class="acc-wizard-hint mb-1 d-block" for="acceptance-mode-of-work">Mode of work</label>
+                                    <select id="acceptance-mode-of-work" class="form-control form-control-sm acc-input" wire:model="modeOfWork">
+                                        <option value="Normal">Normal</option>
+                                        <option value="Express">Express</option>
+                                    </select>
+                                    @error('modeOfWork') <small class="text-danger">{{ $message }}</small> @enderror
                                 </div>
                             </div>
                         </section>
@@ -45,9 +49,9 @@
                                         @error('receivingPersonName') <small class="text-danger">{{ $message }}</small> @enderror
                                     </div>
                                     <div class="form-group">
-                                        <label class="acc-label">Date</label>
-                                        <input type="date" class="form-control acc-input" wire:model="receivingPersonSignedAt">
-                                        @error('receivingPersonSignedAt') <small class="text-danger">{{ $message }}</small> @enderror
+                                        <label class="acc-label">Received date &amp; time</label>
+                                        <input type="datetime-local" class="form-control acc-input" wire:model="receivedAt">
+                                        @error('receivedAt') <small class="text-danger">{{ $message }}</small> @enderror
                                     </div>
                                     <label class="acc-label d-block">Signature</label>
                                     <div class="acc-signature-pad" wire:ignore>
@@ -98,6 +102,23 @@
                                 </section>
                             </div>
                         </div>
+
+                        <section class="acc-wizard-checkboxes mt-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="acc-checkbox-label d-flex align-items-start mb-2">
+                                        <input type="checkbox" class="mr-2 mt-1" wire:model="clientInstructionClear">
+                                        <span>Are client`s instructions clear?</span>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="acc-checkbox-label d-flex align-items-start mb-2">
+                                        <input type="checkbox" class="mr-2 mt-1" wire:model="labCapable">
+                                        <span>Is the laboratory capable of performing the requested tests?</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </section>
                     </div>
 
                     <div class="acc-wizard-footer">
@@ -264,6 +285,21 @@
         }
 
         .acc-btn-ghost { border-radius: 8px; }
+
+        .acc-wizard-checkboxes {
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid var(--acc-border);
+        }
+
+        .acc-checkbox-label {
+            font-size: 0.875rem;
+            color: var(--acc-text);
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 0;
+        }
     </style>
 </div>
 

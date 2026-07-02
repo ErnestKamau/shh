@@ -142,6 +142,11 @@
 
 <script>
 (function () {
+    if (window.__batchTabsHashScriptLoaded) {
+        return;
+    }
+    window.__batchTabsHashScriptLoaded = true;
+
     var tabActivationAttempts = 0;
     var hashNavigationDone = false;
     var batchDetailsHashes = [
@@ -175,7 +180,7 @@
         tabActivationAttempts = 0;
         hashNavigationDone = true;
         setTimeout(function () {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.scrollIntoView({ behavior: 'auto', block: 'start' });
         }, 150);
     }
 
@@ -213,7 +218,7 @@
         $tabLink.tab('show');
 
         setTimeout(function () {
-            $tabLink[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            $tabLink[0].scrollIntoView({ behavior: 'auto', block: 'nearest' });
         }, 300);
     }
 

@@ -41,7 +41,10 @@ class AcceptanceFormSampleHeaderService
             ->orderBy('level')
             ->first();
 
+        $trfHeader = $this->resolveTrfHeaderMappings($form, $context);
+
         $receiptDate = $this->resolveReceiptDate(
+            $form,
             $context['receiptPayload'],
             $context['portalRequest'],
             $context['instance'],
@@ -50,13 +53,17 @@ class AcceptanceFormSampleHeaderService
 
         $dateCollected = $this->resolveDateCollected($form, $context, $receiptDate);
 
-        $crmContactId = $this->resolveCrmContactId($context);
+        $crmContactId = $this->resolveCrmContactId($context, $trfHeader);
         [$crmUnitId, $crmUnitName] = $this->resolveCrmUnit($form, $context, $crmContactId);
 
         $labId = $this->resolveLabId($context, $configLabIdFallback);
         $labSectionIds = $this->resolveLabSectionIds($labId);
 
         $receivingOfficer = $this->resolveReceivingOfficer($context);
+
+        $managerAssignment = is_array($form->manager_assignment_payload)
+            ? $form->manager_assignment_payload
+            : [];
 
         $attributes = [
             'batch_code' => $batchCode,
@@ -65,7 +72,7 @@ class AcceptanceFormSampleHeaderService
             'crm_contact_id' => $crmContactId,
             'crm_unit_id' => $crmUnitId,
             'crm_unit_name' => $crmUnitName,
-            'schedule_customer_email' => $this->resolveCustomerEmail($context, $crmContactId),
+            'schedule_customer_email' => $this->resolveCustomerEmail($context, $crmContactId, $trfHeader),
             'sample_type_id' => $primarySampleTypeId !== '' ? $primarySampleTypeId : null,
             'zone_id' => $primaryZoneId,
             'processing_zone_id' => $primaryZoneId,
@@ -104,6 +111,12 @@ class AcceptanceFormSampleHeaderService
             'current_account_status' => $this->resolveCurrentAccountStatus($form->crm_customer_id),
             'is_routine' => false,
             'routine_frequency' => 0,
+            'lab_capable' => array_key_exists('lab_capable', $managerAssignment)
+                ? (int) (bool) $managerAssignment['lab_capable']
+                : 1,
+            'client_instruction_clear' => array_key_exists('client_instruction_clear', $managerAssignment)
+                ? (int) (bool) $managerAssignment['client_instruction_clear']
+                : 1,
             'submission_form_instance_id' => $form->submission_form_instance_id,
             'sample_tracking_stage' => $reviewStage?->id,
         ];
@@ -146,6 +159,12 @@ class AcceptanceFormSampleHeaderService
         unset($attributes['batch_code'], $attributes['status'], $attributes['submission_form_instance_id']);
 
         foreach ($attributes as $key => $value) {
+            if (in_array($key, ['lab_capable', 'client_instruction_clear'], true)) {
+                $batch->{$key} = (int) $value;
+
+                continue;
+            }
+
             if ($value === null || $value === '') {
                 continue;
             }
@@ -177,9 +196,11 @@ class AcceptanceFormSampleHeaderService
      *     instance: ?SubmissionFormInstance,
      *     portalRequest: ?SampleSubmissionRequest,
      *     receiptPayload: array<string, mixed>,
+     *     managerSignedAt: mixed,
      *     mappedHeader: array<string, string>,
      *     mappedRaw: array<string, string>,
-     *     elementValues: array<string, string>
+     *     elementValues: array<string, string>,
+     *     managerAssignment: array<string, mixed>
      * }
      */
     private function resolveContext(AnalysisAcceptanceForm $form): array
@@ -193,6 +214,10 @@ class AcceptanceFormSampleHeaderService
         $portalRequest = $instance
             ? $this->receiptNotificationService->findLinkedSubmissionRequest($instance)
             : null;
+
+        if ($portalRequest !== null) {
+            $portalRequest->loadMissing(['customer', 'contact']);
+        }
 
         if ($portalRequest === null && $form->sample_submission_request_id) {
             $portalRequest = SampleSubmissionRequest::query()
@@ -208,9 +233,13 @@ class AcceptanceFormSampleHeaderService
             'instance' => $instance,
             'portalRequest' => $portalRequest,
             'receiptPayload' => $receiptPayload,
+            'managerSignedAt' => $form->manager_signed_at,
             'mappedHeader' => $this->extractMappedHeaderFieldsFromInstance($instance),
             'mappedRaw' => $this->extractMappedRawFieldsFromInstance($instance),
             'elementValues' => $this->extractElementValuesByName($instance),
+            'managerAssignment' => is_array($form->manager_assignment_payload)
+                ? $form->manager_assignment_payload
+                : [],
         ];
     }
 
@@ -225,16 +254,85 @@ class AcceptanceFormSampleHeaderService
         return $id !== null && $id !== '' ? (string) $id : null;
     }
 
-    private function resolveCrmContactId(array $context): ?string
+    private function resolveCrmContactId(array $context, array $trfHeader = []): ?string
     {
+        $rawValues = $this->extractElementRawValuesByName($context['instance']);
+
         $raw = $this->firstNonEmptyString([
+            $context['managerAssignment']['customer_contact_id'] ?? null,
+            $trfHeader['crm_contact_id'] ?? null,
             $context['portalRequest']?->crm_contact_id,
             $context['mappedRaw']['crm_contact_id'] ?? null,
+            $rawValues['crm_contact_id'] ?? null,
+            $rawValues['contact_person'] ?? null,
             $context['instance']?->submittedBy?->crm_contact_id,
             $context['instance']?->submittedBy?->crmcontact_id,
         ]);
 
-        return $raw !== null && $raw !== '' ? (string) $raw : null;
+        if ($raw === null) {
+            return null;
+        }
+
+        if (preg_match('/^[0-9a-f-]{36}$/i', $raw)) {
+            return $raw;
+        }
+
+        $customerId = $this->firstNonEmptyString([
+            $context['instance']?->crm_customer_id,
+            $context['portalRequest']?->crm_customer_id,
+        ]);
+
+        return app(TrfSampleFieldMapper::class)->resolveContactId($customerId, $raw);
+    }
+
+    private function resolveCustomerEmail(array $context, ?string $crmContactId, array $trfHeader = []): ?string
+    {
+        if ($crmContactId !== null && $crmContactId !== '') {
+            $contact = CustomerContact::query()->find($crmContactId);
+            $email = trim((string) ($contact?->email ?? ''));
+            if ($email !== '') {
+                return $email;
+            }
+        }
+
+        $rawValues = $this->extractElementRawValuesByName($context['instance']);
+
+        return $this->firstNonEmptyString([
+            $trfHeader['schedule_customer_email'] ?? null,
+            $context['mappedHeader']['customer_email'] ?? null,
+            $context['mappedHeader']['schedule_customer_email'] ?? null,
+            $context['mappedRaw']['customer_email'] ?? null,
+            $context['mappedRaw']['schedule_customer_email'] ?? null,
+            $rawValues['customer_email'] ?? null,
+            $rawValues['email'] ?? null,
+            $rawValues['email_address'] ?? null,
+            $context['portalRequest']?->contact?->email,
+            $context['portalRequest']?->email,
+            $context['instance']?->crmCustomer?->email,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveTrfHeaderMappings(AnalysisAcceptanceForm $form, array $context): array
+    {
+        $instance = $context['instance'];
+        if ($instance === null) {
+            return [];
+        }
+
+        $instance->loadMissing('values.element');
+        $formData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+            ->valuesMapFromInstance($instance);
+
+        return app(TrfSampleFieldMapper::class)->mapToSampleHeader($formData, [
+            'crm_customer_id' => $this->resolveCrmCustomerId($form, $context),
+            'crm_contact_id' => $context['portalRequest']?->crm_contact_id,
+            'crm_unit_id' => $context['mappedRaw']['crm_unit_id'] ?? null,
+            'crm_unit_name' => $context['mappedHeader']['crm_unit_name'] ?? null,
+            'email' => $context['portalRequest']?->email ?? $context['portalRequest']?->contact?->email,
+        ]);
     }
 
     /**
@@ -285,23 +383,6 @@ class AcceptanceFormSampleHeaderService
         }
 
         return [null, 'N/A'];
-    }
-
-    private function resolveCustomerEmail(array $context, ?string $crmContactId): ?string
-    {
-        if ($crmContactId !== null && $crmContactId !== '') {
-            $contact = CustomerContact::query()->find($crmContactId);
-            $email = trim((string) ($contact?->email ?? ''));
-            if ($email !== '') {
-                return $email;
-            }
-        }
-
-        return $this->firstNonEmptyString([
-            $context['mappedHeader']['customer_email'] ?? null,
-            $context['mappedRaw']['customer_email'] ?? null,
-            $context['portalRequest']?->email,
-        ]);
     }
 
     private function resolveLabId(array $context, ?string $configLabIdFallback): ?string
@@ -407,14 +488,16 @@ class AcceptanceFormSampleHeaderService
      * @param  array<string, string>  $mappedHeader
      */
     private function resolveReceiptDate(
+        AnalysisAcceptanceForm $form,
         array $receiptPayload,
         ?SampleSubmissionRequest $portalRequest,
         ?SubmissionFormInstance $instance,
         array $mappedHeader,
     ): string {
         $candidates = [
-            $portalRequest?->received_by_date,
+            $form->manager_signed_at,
             $receiptPayload['sample_receiving_date'] ?? null,
+            $portalRequest?->received_by_date,
             $mappedHeader['receipt_date'] ?? null,
             $instance?->reviewed_at,
             $portalRequest?->submission_date,
@@ -433,6 +516,8 @@ class AcceptanceFormSampleHeaderService
     private function resolveTimeOfReceipt(array $context): ?string
     {
         $time = $this->firstNonEmptyString([
+            $context['receiptPayload']['sample_receiving_time'] ?? null,
+            $context['managerSignedAt'] ? Carbon::parse($context['managerSignedAt'])->format('H:i') : null,
             $context['portalRequest']?->received_by_time,
             $context['mappedRaw']['radio_active_levels'] ?? null,
         ]);
@@ -551,6 +636,34 @@ class AcceptanceFormSampleHeaderService
             if ($display !== '') {
                 $values[$name] = $display;
             }
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function extractElementRawValuesByName(?SubmissionFormInstance $instance): array
+    {
+        if ($instance === null) {
+            return [];
+        }
+
+        $values = [];
+
+        foreach ($instance->values as $instanceValue) {
+            $element = $instanceValue->element;
+            if ($element === null) {
+                continue;
+            }
+
+            $name = Str::snake((string) ($element->name ?? ''));
+            if ($name === '' || $instanceValue->value === null || $instanceValue->value === '') {
+                continue;
+            }
+
+            $values[$name] = trim((string) $instanceValue->value);
         }
 
         return $values;

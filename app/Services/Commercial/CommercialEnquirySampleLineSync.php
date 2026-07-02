@@ -5,6 +5,7 @@ namespace App\Services\Commercial;
 use App\AnalysisElements;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SampleSubmissionRequestRequestedAnalysis;
+use App\Models\SubmissionFormInstance;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Support\Str;
@@ -25,7 +26,7 @@ final class CommercialEnquirySampleLineSync
         $totalQty = 0;
 
         foreach ($lines as $line) {
-            $qty = 1;
+            $qty = $this->resolveLineNumberOfSamples($line);
             $totalQty += $qty;
 
             $row = [
@@ -129,6 +130,23 @@ final class CommercialEnquirySampleLineSync
         }
 
         return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolveLineNumberOfSamples(array $line): int
+    {
+        if (isset($line['number_of_samples']) && is_numeric($line['number_of_samples'])) {
+            return max(1, (int) $line['number_of_samples']);
+        }
+
+        $sampleQuantity = trim((string) ($line['sample_quantity'] ?? ''));
+        if ($sampleQuantity !== '' && is_numeric($sampleQuantity)) {
+            return max(1, (int) $sampleQuantity);
+        }
+
+        return 1;
     }
 
     /**

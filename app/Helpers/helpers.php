@@ -1067,6 +1067,34 @@ function getCrmCustomerContacts($id)
 {
 	return App\Models\CRM\CustomerContact::where('crm_customer_id', $id)->where('active', 1)->where('receive_invoice', 1)->get();
 }
+
+/**
+ * Contacts available when creating or editing quotations.
+ * Uses active contacts (not limited to receive_invoice) and always retains the assigned contact.
+ */
+function getQuotationCustomerContacts(string $id, ?string $assignedContactId = null)
+{
+	$contacts = App\Models\CRM\CustomerContact::query()
+		->where('crm_customer_id', $id)
+		->where('active', 1)
+		->orderBy('first_name')
+		->get();
+
+	if ($assignedContactId !== null && $assignedContactId !== '') {
+		$alreadyIncluded = $contacts->contains(
+			fn ($contact) => (string) $contact->id === (string) $assignedContactId
+		);
+
+		if (! $alreadyIncluded) {
+			$assigned = App\Models\CRM\CustomerContact::query()->find($assignedContactId);
+			if ($assigned && (string) $assigned->crm_customer_id === (string) $id) {
+				$contacts->prepend($assigned);
+			}
+		}
+	}
+
+	return $contacts;
+}
 function getCrmCustomerContactById($id)
 {
 	return App\Models\CRM\CustomerContact::find($id);
@@ -2904,3 +2932,5 @@ function resolveReportingUnitIdFromAnalyte(?string $analysisTypeId, ?string $ana
 
 	return resolveReportingUnitIdFromName($unitName);
 }
+
+require_once __DIR__.'/risk_helpers.php';

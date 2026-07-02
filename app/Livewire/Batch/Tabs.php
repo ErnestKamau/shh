@@ -14,7 +14,7 @@ class Tabs extends Component
     public $not_captured;
     public $status;
 
-    protected $listeners = ['batchUpdated' => '$refresh', 'samplesUpdated' => '$refresh'];
+    protected $listeners = ['batchUpdated' => '$refresh'];
 
     public function mount(SampleHeader $batch, $not_captured = null, $status = null)
     {

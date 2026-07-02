@@ -336,7 +336,7 @@ final class EnquiryReviewDisplayService
 
     private function formatRichTextPlain(mixed $value): string
     {
-        $string = trim((string) ($value ?? ''));
+        $string = $this->normalizeRichTextInput($value);
 
         if ($string === '' || strcasecmp($string, 'N/A') === 0) {
             return '—';
@@ -354,20 +354,33 @@ final class EnquiryReviewDisplayService
 
     private function formatRichTextHtml(mixed $value): string
     {
-        $string = trim((string) ($value ?? ''));
+        $string = $this->normalizeRichTextInput($value);
 
         if ($string === '' || strcasecmp($string, 'N/A') === 0) {
             return '—';
         }
 
         if ($this->containsHtml($string)) {
-            $clean = strip_tags($string, '<p><br><strong><b><em><i><ul><ol><li>');
+            $clean = strip_tags($string, '<p><br><strong><b><em><i><u><ul><ol><li><span><div>');
             $clean = trim($clean);
 
             return $clean !== '' ? $clean : '—';
         }
 
         return nl2br(e($string), false);
+    }
+
+    private function normalizeRichTextInput(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string === '') {
+            return '';
+        }
+
+        $decoded = html_entity_decode($string, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim($decoded);
     }
 
     private function containsHtml(string $value): bool

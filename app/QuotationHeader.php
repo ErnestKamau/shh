@@ -43,7 +43,12 @@ class QuotationHeader extends Model implements Auditable
 
     public function getCreatorAttribute(): string
     {
-        return User::find($this->prepared_by_id)->name ?? '-';
+        return $this->prepared_by_name;
+    }
+
+    public function getPreparedByNameAttribute(): string
+    {
+        return $this->preparedBy?->name ?? '-';
     }
 
     public function preparedBy(): BelongsTo
@@ -72,6 +77,16 @@ class QuotationHeader extends Model implements Auditable
     public function revisionOf(): BelongsTo
     {
         return $this->belongsTo(self::class, 'revision_of_quotation_header_id');
+    }
+
+    public function sourceQuotation(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_quotation_header_id');
+    }
+
+    public function enquiryClones()
+    {
+        return $this->hasMany(self::class, 'source_quotation_header_id');
     }
 
     public function revisions()

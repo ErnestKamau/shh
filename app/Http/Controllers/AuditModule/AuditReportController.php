@@ -111,7 +111,7 @@ class AuditReportController extends Controller
         // Monthly trend (last 12 months)
         $monthlyTrend = NonConformance::where('company_id', $companyId)
             ->where('date_identified', '>=', now()->subMonths(12))
-            ->selectRaw(auditSqlMonthExpression('date_identified') . ' as month, count(*) as count')
+            ->selectRaw(\auditSqlMonthExpression('date_identified') . ' as month, count(*) as count')
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('count', 'month')

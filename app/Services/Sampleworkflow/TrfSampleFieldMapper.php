@@ -45,7 +45,7 @@ class TrfSampleFieldMapper
 
         $contactId = $this->scalar($formData['crm_contact_id'] ?? $enquiryContext['crm_contact_id'] ?? null);
         if ($contactId === null) {
-            $contactId = $this->resolveContactIdFromName(
+            $contactId = $this->resolveContactReference(
                 $customerId,
                 $this->scalar($formData['contact_person'] ?? null),
             );
@@ -220,6 +220,11 @@ class TrfSampleFieldMapper
         return $legacy;
     }
 
+    public function resolveContactId(?string $customerId, ?string $contactReference): ?string
+    {
+        return $this->resolveContactReference($customerId, $contactReference);
+    }
+
     private function resolveContactIdFromName(?string $customerId, ?string $contactName): ?string
     {
         if ($customerId === null || $contactName === null || trim($contactName) === '') {
@@ -235,6 +240,21 @@ class TrfSampleFieldMapper
             ->first();
 
         return $contact?->id !== null ? (string) $contact->id : null;
+    }
+
+    private function resolveContactReference(?string $customerId, ?string $contactReference): ?string
+    {
+        if ($contactReference === null || trim($contactReference) === '') {
+            return null;
+        }
+
+        $contactReference = trim($contactReference);
+
+        if (preg_match('/^[0-9a-f-]{36}$/i', $contactReference)) {
+            return $contactReference;
+        }
+
+        return $this->resolveContactIdFromName($customerId, $contactReference);
     }
 
     private function parseDate(mixed $value): ?string

@@ -2,29 +2,6 @@
     $(function () {
         var $modal = $('#add-quotation');
 
-        function initQuotationModalSelect2() {
-            if (!$.fn.select2) {
-                return;
-            }
-
-            $modal.find('.quotation-modal-select').each(function () {
-                var $select = $(this);
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    try {
-                        $select.select2('destroy');
-                    } catch (e) {
-                        // ignore stale instances
-                    }
-                }
-
-                $select.select2({
-                    width: '100%',
-                    dropdownParent: $modal,
-                    placeholder: $select.find('option:first').text() || 'Select...',
-                });
-            });
-        }
-
         function setCurrencyFields(currencyId, code, description) {
             if (currencyId) {
                 var label = code || '';
@@ -47,39 +24,62 @@
             );
         }
 
-        function loadCustomerContacts(clientId) {
+        function loadCustomerContacts(clientId, selectedContactId) {
+            var $contactSelect = $('#select-client-contact');
+
             if (!clientId) {
-                $('#select-client-contact').empty().append('<option value="" disabled selected>Select Client Contact</option>');
-                $('#select-client-contact').trigger('change.select2');
+                $contactSelect.empty().append('<option value="" disabled selected>Select client first...</option>');
                 return;
             }
 
+            var url = '/fetch-customer-contacts/' + clientId;
+            if (selectedContactId) {
+                url += '?assigned=' + encodeURIComponent(selectedContactId);
+            }
+
             $.ajax({
-                url: '/fetch-customer-contacts/' + clientId,
+                url: url,
                 beforeSend: function () {
-                    $('#select-client-contact').empty().append('<option value="" disabled selected>Loading...</option>');
-                    $('#select-client-contact').trigger('change.select2');
+                    $contactSelect.empty().append('<option value="" disabled selected>Loading contacts...</option>');
                 },
                 success: function (data) {
-                    $('#select-client-contact').empty().append('<option value="" disabled selected>Select Client Contact</option>');
+                    $contactSelect.empty();
+                    if (!data || data.length === 0) {
+                        $contactSelect.append('<option value="" disabled selected>No active contacts found</option>');
+                        return;
+                    }
+
+                    var hasSelected = false;
                     $.each(data, function (j, s) {
                         var middle = s.middle_name ? s.middle_name + ' ' : '';
-                        var label = (s.first_name || '') + ' ' + middle + (s.last_name || '');
-                        $('#select-client-contact').append(
-                            $('<option></option>').val(s.id).text(label.trim())
+                        var label = ((s.first_name || '') + ' ' + middle + (s.last_name || '')).trim();
+                        var isSelected = selectedContactId && String(s.id) === String(selectedContactId);
+                        if (isSelected) {
+                            hasSelected = true;
+                        }
+                        $contactSelect.append(
+                            $('<option></option>')
+                                .val(s.id)
+                                .text(label || 'Contact')
+                                .prop('selected', isSelected)
                         );
                     });
-                    $('#select-client-contact').trigger('change.select2');
+
+                    if (!hasSelected) {
+                        $contactSelect.prepend('<option value="" disabled selected>Select Client Contact</option>');
+                    }
                 },
                 error: function () {
-                    $('#select-client-contact').empty().append('<option value="" disabled selected>Unable to load contacts</option>');
-                    $('#select-client-contact').trigger('change.select2');
+                    $contactSelect.empty().append('<option value="" disabled selected>Unable to load contacts</option>');
                 }
             });
         }
 
         $modal.on('shown.bs.modal', function () {
-            initQuotationModalSelect2();
+            $('#select-quotation-type').val('Analysis');
+            if (!$('#select-client').val()) {
+                $('#select-client-contact').empty().append('<option value="" disabled selected>Select client first...</option>');
+            }
         });
 
         $('#select-client').on('change', function () {
@@ -91,10 +91,10 @@
             setCurrencyFromClientOption($selectedOption);
 
             if (zohoCustomerId) {
-                $('#select-zoho-customer').val(String(zohoCustomerId)).trigger('change.select2').trigger('change');
+                $('#select-zoho-customer').val(String(zohoCustomerId)).trigger('change');
                 $('#zoho-customer-info').show();
             } else {
-                $('#select-zoho-customer').val('').trigger('change.select2');
+                $('#select-zoho-customer').val('');
                 $('#zoho-customer-info').hide();
             }
         });

@@ -146,7 +146,23 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $targetDate->date = $this->calculateTargetDate($header, $approvedLines, (string) $form->mode_of_work);
                 $targetDate->save();
 
-                $invoice = $this->createInvoiceFromForm($form, $header, $details, $pricingService, $invoiceNumberGenerator);
+                $header->date_expected = $targetDate->date;
+                $header->save();
+
+                $invoice = $this->createInvoiceFromForm(
+                    $form,
+                    $header,
+                    $details,
+                    $pricingService,
+                    $invoiceNumberGenerator,
+                    $candidateIds,
+                );
+
+                $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds);
+                if ($acceptedQuotationId !== null) {
+                    $header->quote_id = $acceptedQuotationId;
+                    $header->save();
+                }
 
                 $form->update([
                     'sample_header_id' => $header->id,
@@ -446,7 +462,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         SampleHeader $header,
         array $details,
         AcceptanceFormPricingService $pricingService,
-        InvoiceNumberGenerator $invoiceNumberGenerator
+        InvoiceNumberGenerator $invoiceNumberGenerator,
+        \Illuminate\Support\Collection $candidateIds,
     ): ?Invoice {
         $customer = CRMCustomer::query()->find($form->crm_customer_id);
         if (!$customer) {
@@ -462,6 +479,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         $invoice->pricelist_id = $pricelist->id;
         $invoice->currency_id = $pricelist->currency_id;
         $invoice->customer_id = $customer->id;
+        $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds);
+        if ($acceptedQuotationId !== null) {
+            $invoice->quotation_header_id = $acceptedQuotationId;
+        }
         $invoice->save();
 
         $creditDays = (int) ($customer->credit_days ?? 0);
@@ -582,6 +603,39 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         return [];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, string>  $candidateIds
+     */
+    private function resolveAcceptedQuotationId(
+        AnalysisAcceptanceForm $form,
+        \Illuminate\Support\Collection $candidateIds,
+    ): ?string {
+        $readinessService = app(\App\Services\Commercial\EnquiryReceptionReadinessService::class);
+
+        foreach ($candidateIds as $requestId) {
+            $submissionRequest = \App\Models\SampleSubmissionRequest::find($requestId);
+            if ($submissionRequest === null) {
+                continue;
+            }
+
+            $quotation = $readinessService->resolveAcceptedQuotation($submissionRequest);
+            if ($quotation !== null) {
+                return (string) $quotation->id;
+            }
+        }
+
+        if ($form->sample_submission_request_id) {
+            $submissionRequest = \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
+            if ($submissionRequest !== null) {
+                $quotation = $readinessService->resolveAcceptedQuotation($submissionRequest);
+
+                return $quotation !== null ? (string) $quotation->id : null;
+            }
+        }
+
+        return null;
     }
 
     /**

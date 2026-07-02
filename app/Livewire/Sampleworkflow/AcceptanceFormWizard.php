@@ -44,7 +44,7 @@ class AcceptanceFormWizard extends Component
 
     public string $receivingPersonSignature = '';
 
-    public ?string $receivingPersonSignedAt = null;
+    public ?string $receivedAt = null;
 
     public string $selectedCustomerContactId = '';
 
@@ -54,6 +54,10 @@ class AcceptanceFormWizard extends Component
 
     public ?string $customerSignedAt = null;
 
+    public bool $labCapable = true;
+
+    public bool $clientInstructionClear = true;
+
     /** @var list<array{id: string, label: string}> */
     public array $customerContactOptions = [];
 
@@ -61,7 +65,7 @@ class AcceptanceFormWizard extends Component
     {
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');
         $this->requestDate = now()->format('Y-m-d');
-        $this->receivingPersonSignedAt = now()->format('Y-m-d');
+        $this->receivedAt = now()->format('Y-m-d\TH:i');
         $this->customerSignedAt = now()->format('Y-m-d');
     }
 
@@ -206,7 +210,8 @@ class AcceptanceFormWizard extends Component
         $this->validate([
             'receivingPersonName' => ['required', 'string', 'max:255'],
             'receivingPersonSignature' => ['required', 'string'],
-            'receivingPersonSignedAt' => ['required', 'date'],
+            'receivedAt' => ['required', 'date'],
+            'modeOfWork' => ['required', 'in:Normal,Express'],
             'selectedCustomerContactId' => ['required', 'string'],
             'customerSignerName' => ['required', 'string', 'max:255'],
             'customerSignature' => ['required', 'string'],
@@ -231,6 +236,8 @@ class AcceptanceFormWizard extends Component
             'mode_of_work' => $this->modeOfWork,
             'date_of_sampling' => $this->dateOfSampling,
             'sample_configuration_payload' => $normalizedConfigs,
+            'lab_capable' => $this->labCapable,
+            'client_instruction_clear' => $this->clientInstructionClear,
         ];
 
         try {
@@ -241,7 +248,7 @@ class AcceptanceFormWizard extends Component
                 $this->lines,
                 $this->receivingPersonName,
                 $this->receivingPersonSignature,
-                $this->receivingPersonSignedAt,
+                $this->receivedAt,
                 $this->selectedCustomerContactId,
                 $this->customerSignerName,
                 $this->customerSignature,
@@ -255,9 +262,6 @@ class AcceptanceFormWizard extends Component
         }
 
         $batchId = (string) ($form->sample_header_id ?? '');
-        $batchCode = $batchId !== ''
-            ? (string) (\App\SampleHeader::query()->where('id', $batchId)->value('batch_code') ?? '')
-            : '';
 
         $this->closeWizard();
 
@@ -267,6 +271,8 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
+        $batchCode = (string) (\App\SampleHeader::query()->where('id', $batchId)->value('batch_code') ?? '');
+
         $redirectUrl = route('view-batch-details', [
             'batch' => $batchId,
             'client' => 0,
@@ -274,7 +280,7 @@ class AcceptanceFormWizard extends Component
             'status' => 'Samples In Lab',
         ]) . '#samples';
 
-        $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl, batchCode: $batchCode);
+        $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
         session()->flash('success', "Samples accepted. Job number {$batchCode} created and moved to Samples In Lab.");
     }
 
@@ -324,11 +330,13 @@ class AcceptanceFormWizard extends Component
         $this->requestDate = now()->format('Y-m-d');
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');
         $this->receivingPersonSignature = '';
-        $this->receivingPersonSignedAt = now()->format('Y-m-d');
+        $this->receivedAt = now()->format('Y-m-d\TH:i');
         $this->selectedCustomerContactId = '';
         $this->customerSignerName = '';
         $this->customerSignature = '';
         $this->customerSignedAt = now()->format('Y-m-d');
+        $this->labCapable = true;
+        $this->clientInstructionClear = true;
         $this->customerContactOptions = [];
     }
 

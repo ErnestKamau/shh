@@ -39,7 +39,7 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame('at-2', $configs[1]['analysis_type_id']);
     }
 
-    public function test_build_configs_increments_sample_count_per_prefill_line_in_same_bucket(): void
+    public function test_build_configs_keeps_trf_quantity_when_grouping_parameters_in_same_bucket(): void
     {
         $service = app(AcceptanceFormSampleConfigService::class);
 
@@ -48,25 +48,46 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
                 'sample_type_id' => 'st-1',
                 'analysis_type_id' => 'at-1',
                 'analysis_element_id' => 'el-1',
-                'number_of_samples' => 1,
+                'number_of_samples' => 5,
             ],
             [
                 'sample_type_id' => 'st-1',
                 'analysis_type_id' => 'at-1',
                 'analysis_element_id' => 'el-2',
-                'number_of_samples' => 1,
+                'number_of_samples' => 5,
             ],
             [
                 'sample_type_id' => 'st-1',
                 'analysis_type_id' => 'at-1',
                 'analysis_element_id' => 'el-3',
-                'number_of_samples' => 1,
+                'number_of_samples' => 5,
             ],
         ]);
 
         $this->assertCount(1, $configs);
-        $this->assertSame(3, $configs[0]['number_of_samples']);
-        $this->assertCount(3, $configs[0]['instances']);
+        $this->assertSame(5, $configs[0]['number_of_samples']);
+        $this->assertCount(5, $configs[0]['instances']);
+        $this->assertSame(['el-1', 'el-2', 'el-3'], $configs[0]['parameter_keys']);
+    }
+
+    public function test_build_configs_expands_analysis_element_ids_from_attributes(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $configs = $service->buildConfigsFromPrefill([
+            [
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'number_of_samples' => 2,
+                'attributes' => [
+                    'analysis_element_ids' => ['el-1', 'el-2'],
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $configs);
+        $this->assertSame(2, $configs[0]['number_of_samples']);
+        $this->assertSame(['el-1', 'el-2'], $configs[0]['parameter_keys']);
     }
 
     public function test_sync_instances_preserves_existing_values_when_count_increases(): void

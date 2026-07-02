@@ -37,6 +37,10 @@ class SampleSubmissionRequest extends Model
 
     public const CUSTOMER_FEEDBACK_PREFIX = '[Customer feedback]';
 
+    public const QUOTATION_SOURCE_FROM_PRICELIST = 'from_pricelist';
+
+    public const QUOTATION_SOURCE_FROM_EXISTING = 'from_existing';
+
     /** @var list<string> */
     public const COMMERCIAL_PIPELINE_STATUSES = [
         self::STATUS_REQUESTED,
@@ -60,6 +64,8 @@ class SampleSubmissionRequest extends Model
         'source_channel',
         'current_quotation_header_id',
         'accepted_quotation_header_id',
+        'selected_source_quotation_header_id',
+        'quotation_source_mode',
         'enquiry_notes',
         'enquiry_sample_configuration',
         'quotation_accepted_at',
@@ -296,6 +302,18 @@ class SampleSubmissionRequest extends Model
     public function acceptedQuotation(): BelongsTo
     {
         return $this->belongsTo(QuotationHeader::class, 'accepted_quotation_header_id');
+    }
+
+    public function selectedSourceQuotation(): BelongsTo
+    {
+        return $this->belongsTo(QuotationHeader::class, 'selected_source_quotation_header_id');
+    }
+
+    public function usesSharedSourceQuotation(): bool
+    {
+        return $this->quotation_source_mode === self::QUOTATION_SOURCE_FROM_EXISTING
+            && $this->selected_source_quotation_header_id !== null
+            && (string) $this->current_quotation_header_id === (string) $this->selected_source_quotation_header_id;
     }
 
     /**

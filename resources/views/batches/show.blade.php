@@ -651,14 +651,23 @@
 @section('script2')
   <script>
     (function () {
-        function unlockStuckScroll() {
-            var hasOpenModal = document.querySelector('.modal.show');
+        var unlockTimer = null;
 
-            if (!hasOpenModal) {
-                document.body.classList.remove('modal-open');
-                document.body.style.removeProperty('overflow');
-                document.body.style.removeProperty('padding-right');
+        function unlockStuckScroll() {
+            if (unlockTimer !== null) {
+                clearTimeout(unlockTimer);
             }
+
+            unlockTimer = setTimeout(function () {
+                unlockTimer = null;
+                var hasOpenModal = document.querySelector('.modal.show');
+
+                if (!hasOpenModal) {
+                    document.body.classList.remove('modal-open');
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('padding-right');
+                }
+            }, 100);
         }
 
         document.addEventListener('DOMContentLoaded', unlockStuckScroll);

@@ -45,6 +45,11 @@ class Invoice extends Model implements Auditable
         return $this->belongsTo(Pricelist::class, 'pricelist_id');
     }
 
+    public function quotationHeader(): BelongsTo
+    {
+        return $this->belongsTo(QuotationHeader::class, 'quotation_header_id');
+    }
+
     public function getDisplayCurrencyAttribute(): ?Currency
     {
         if ($this->hasValidPricelistId()) {

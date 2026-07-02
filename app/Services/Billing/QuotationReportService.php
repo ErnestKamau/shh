@@ -12,6 +12,7 @@ use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleHeader;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
@@ -189,23 +190,64 @@ class QuotationReportService
     public function seedDefaultTermsOfSale(QuotationHeader $header): void
     {
         $config = $this->resolveTermsOfSaleConfig();
-        $dirty = false;
+        $updates = [];
 
         foreach (['service_delivery', 'payments', 'quote_specification', 'additional_info'] as $field) {
-            if (empty($header->{$field}) && ! empty($config[$field])) {
-                $header->{$field} = $config[$field];
-                $dirty = true;
+            if (! $this->isUsableTermValue($header->{$field}) && ! empty($config[$field])) {
+                $updates[$field] = $this->plaintextValue((string) $config[$field]);
             }
         }
 
-        if (empty($header->payment_info)) {
-            $header->payment_info = 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE';
-            $dirty = true;
+        if (! $this->isUsableTermValue($header->payment_info)) {
+            $updates['payment_info'] = 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE';
         }
 
-        if ($dirty) {
-            $header->save();
+        $this->persistQuotationHeaderColumns($header, $updates);
+    }
+
+    /**
+     * Decrypt legacy ciphertext stored on quotation header term fields.
+     */
+    public function normalizeStoredTerms(QuotationHeader $header): void
+    {
+        $updates = [];
+
+        foreach (['service_delivery', 'payments', 'quote_specification', 'additional_info', 'payment_info'] as $field) {
+            $current = (string) ($header->{$field} ?? '');
+            if ($current === '') {
+                continue;
+            }
+
+            $plain = $this->plaintextValue($current);
+            if ($plain !== $current && ! $this->looksLikeEncryptedPayload($plain)) {
+                $updates[$field] = $plain;
+            }
         }
+
+        $this->persistQuotationHeaderColumns($header, $updates);
+    }
+
+    public function plaintextValue(?string $value): string
+    {
+        $value = trim((string) $value);
+        if ($value === '' || ! $this->looksLikeEncryptedPayload($value)) {
+            return $value;
+        }
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            if (! $this->looksLikeEncryptedPayload($value)) {
+                break;
+            }
+
+            $decrypted = $this->decryptPayload($value);
+            if ($decrypted === $value) {
+                break;
+            }
+
+            $value = $decrypted;
+        }
+
+        return $value;
     }
 
     public function seedDefaultStructuredTerms(QuotationHeader $header): void
@@ -222,9 +264,50 @@ class QuotationReportService
         }
 
         if ($dirty) {
-            $header->structured_terms = $stored;
-            $header->save();
+            $this->persistQuotationHeaderColumns($header, ['structured_terms' => $stored]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $updates
+     */
+    private function persistQuotationHeaderColumns(QuotationHeader $header, array $updates): void
+    {
+        if ($updates === []) {
+            return;
+        }
+
+        QuotationHeader::query()
+            ->whereKey($header->id)
+            ->update($updates);
+
+        $header->fill($updates);
+        $header->syncOriginal();
+    }
+
+    private function decryptPayload(string $value): string
+    {
+        try {
+            return trim(Crypt::decryptString($value));
+        } catch (\Throwable) {
+            try {
+                return trim(decrypt($value));
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+    }
+
+    private function looksLikeEncryptedPayload(string $value): bool
+    {
+        return str_starts_with($value, 'eyJ');
+    }
+
+    private function isUsableTermValue(mixed $value): bool
+    {
+        $plain = $this->plaintextValue(is_string($value) ? $value : (string) ($value ?? ''));
+
+        return $plain !== '' && ! $this->looksLikeEncryptedPayload($plain);
     }
 
     /**
@@ -238,7 +321,7 @@ class QuotationReportService
 
         foreach ($configs as $config) {
             if (array_key_exists((string) $config->key, self::STRUCTURED_TERM_DEFINITIONS)) {
-                $result[(string) $config->key] = (string) $config->value;
+                $result[(string) $config->key] = $this->plaintextValue((string) $config->value);
             }
         }
 
@@ -255,7 +338,7 @@ class QuotationReportService
         $items = [];
 
         foreach (self::STRUCTURED_TERM_DEFINITIONS as $key => $label) {
-            $value = trim((string) ($stored[$key] ?? $config[$key] ?? ''));
+            $value = trim($this->plaintextValue((string) ($stored[$key] ?? $config[$key] ?? '')));
             if ($value !== '') {
                 $items[] = [
                     'key' => $key,
@@ -278,7 +361,7 @@ class QuotationReportService
         $result = [];
 
         foreach ($configs as $config) {
-            $result[(string) $config->key] = (string) $config->value;
+            $result[(string) $config->key] = $this->plaintextValue((string) $config->value);
         }
 
         return $result;
@@ -292,13 +375,26 @@ class QuotationReportService
         $config = $this->resolveTermsOfSaleConfig();
 
         return [
-            'service_delivery' => (string) ($header->service_delivery ?: ($config['service_delivery'] ?? '')),
-            'payments' => (string) ($header->payments ?: ($config['payments'] ?? '')),
-            'quote_specification' => (string) ($header->quote_specification ?: ($config['quote_specification'] ?? '')),
-            'additional_info' => (string) ($header->additional_info ?: ($config['additional_info'] ?? '')),
-            'payment_info' => (string) ($header->payment_info ?: 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE'),
+            'service_delivery' => $this->resolveTermField($header->service_delivery, $config['service_delivery'] ?? ''),
+            'payments' => $this->resolveTermField($header->payments, $config['payments'] ?? ''),
+            'quote_specification' => $this->resolveTermField($header->quote_specification, $config['quote_specification'] ?? ''),
+            'additional_info' => $this->resolveTermField($header->additional_info, $config['additional_info'] ?? ''),
+            'payment_info' => $this->resolveTermField(
+                $header->payment_info,
+                'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE'
+            ),
             'prices' => (string) ($config['prices'] ?? ''),
         ];
+    }
+
+    private function resolveTermField(mixed $value, string $fallback): string
+    {
+        $plain = $this->plaintextValue(is_string($value) ? $value : (string) ($value ?? ''));
+        if ($plain === '' || $this->looksLikeEncryptedPayload($plain)) {
+            return $fallback;
+        }
+
+        return $plain;
     }
 
     /**
@@ -342,7 +438,6 @@ class QuotationReportService
 
             $sampleTypeName = getSampleTypeByID($detail->sample_type)?->name ?? 'Tests';
             $elementIds = $this->pricingResolver->collectElementIdsFromDetail($detail);
-            $singleElement = count($elementIds) === 1;
 
             if ($elementIds === []) {
                 $analysisTypeIds = array_filter(explode(',', (string) $detail->part_no));
@@ -352,43 +447,14 @@ class QuotationReportService
                         continue;
                     }
 
-                    $elements = $analysisType->active_analysis_elements();
-                    if ($elements->isEmpty()) {
-                        $resolved = $this->pricingResolver->resolveElementPrice(
-                            $header,
-                            (string) $detail->sample_type,
-                            (string) $analysisTypeId,
-                            null,
-                            (float) $detail->unit_price,
-                            count($analysisTypeIds) === 1
-                        );
-
-                        $grouped[$sampleTypeName][] = $this->makeLineRow(
-                            $analysisType->name ?? 'Test',
-                            '',
-                            '',
-                            '',
-                            $resolved['unit_price'],
-                            (int) $detail->quantity
-                        );
-
-                        continue;
-                    }
-
-                    foreach ($elements as $element) {
-                        $element = AnalysisElements::with(['ltmethod', 'mmethod'])->find($element->id);
-                        if (! $element) {
-                            continue;
-                        }
-
-                        $grouped[$sampleTypeName][] = $this->buildElementLineRow(
-                            $header,
-                            $detail,
-                            $element,
-                            (float) $detail->unit_price,
-                            $singleElement && count($analysisTypeIds) === 1 && $elements->count() === 1
-                        );
-                    }
+                    $grouped[$sampleTypeName][] = $this->makeLineRow(
+                        $analysisType->name ?? 'Test',
+                        '',
+                        '',
+                        '',
+                        (float) $detail->unit_price,
+                        (int) $detail->quantity
+                    );
                 }
 
                 continue;
@@ -405,7 +471,6 @@ class QuotationReportService
                     $detail,
                     $element,
                     (float) $detail->unit_price,
-                    $singleElement
                 );
             }
         }
@@ -668,17 +733,16 @@ class QuotationReportService
         QuotationHeader $header,
         QuotationDetails $detail,
         AnalysisElements $element,
-        float $manualLinePrice,
-        bool $singleElementOnLine
+        float $storedUnitPrice,
     ): array {
         $analyte = Analyte::find($element->analyte_id);
-        $resolved = $this->pricingResolver->resolveElementPrice(
+        $resolved = $this->pricingResolver->resolveLineUnitPrice(
             $header,
             (string) $detail->sample_type,
             (string) $element->analysis_type_id,
             (string) $element->id,
-            $manualLinePrice,
-            $singleElementOnLine
+            $storedUnitPrice,
+            true,
         );
         $sourceFlags = $this->elementSourceFlags($detail, (string) $element->id);
 

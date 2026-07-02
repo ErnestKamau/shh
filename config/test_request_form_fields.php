@@ -10,6 +10,7 @@
  *     collection_data_water: list<array{name: string, label: string, type: string, required?: bool, options?: list<string>}>,
  *     collection_data_food: list<array{name: string, label: string, type: string, required?: bool, options?: list<string>}>,
  *     collection_extra_fields: list<array{name: string, label: string, type: string}>,
+ *     receive_check_in_collection_fields: list<array{name: string, label: string, type: string, placeholder?: string, options?: list<array{value: string, label: string}>}>,
  * }
  */
 return [
@@ -91,5 +92,62 @@ return [
         ['name' => 'port_of_loading', 'label' => 'Port of loading', 'type' => 'text'],
         ['name' => 'port_of_discharge', 'label' => 'Port of discharge', 'type' => 'text'],
         ['name' => 'seal_number', 'label' => 'Seal', 'type' => 'text'],
+    ],
+
+    'receive_check_in_collection_fields' => [
+        ['name' => 'sampling_date', 'label' => 'Sampling date', 'type' => 'date'],
+        ['name' => 'sampling_time', 'label' => 'Sampling time', 'type' => 'text', 'placeholder' => 'Enter sampling time'],
+        ['name' => 'sampling_location', 'label' => 'Sampling location', 'type' => 'text', 'placeholder' => 'Enter sampling location'],
+        [
+            'name' => 'sampling_apparatus',
+            'label' => 'Sampling apparatus',
+            'type' => 'checkbox',
+            'options' => [
+                ['value' => 'sterile_bag', 'label' => 'Sterile bag'],
+                ['value' => 'sterile_bottle', 'label' => 'Sterile bottle'],
+                ['value' => 'sterile_swab', 'label' => 'Sterile swab'],
+                ['value' => 'grabber', 'label' => 'Grabber'],
+                ['value' => 'others', 'label' => 'Others'],
+                ['value' => 'thermometer_ams_c_ins_116', 'label' => 'Thermometer ID AMS/C/INS/116'],
+                ['value' => 'air_sampler', 'label' => 'Air sampler'],
+            ],
+        ],
+        [
+            'name' => 'method_of_sampling',
+            'label' => 'Method of sampling',
+            'type' => 'radio',
+            'options' => [
+                ['value' => 'apha', 'label' => 'APHA'],
+                ['value' => 'saso', 'label' => 'SASO'],
+                ['value' => 'astm', 'label' => 'ASTM'],
+                ['value' => 'others', 'label' => 'Others'],
+                ['value' => 'us_fda', 'label' => 'US FDA'],
+                ['value' => 'ccfra', 'label' => 'CCFRA'],
+                ['value' => 'dm', 'label' => 'DM'],
+                ['value' => 'sop', 'label' => 'SOP'],
+            ],
+        ],
+        [
+            'name' => 'reason_of_collection',
+            'label' => 'Reason of collection',
+            'type' => 'radio',
+            'options' => [
+                ['value' => 'contract', 'label' => 'Contract'],
+                ['value' => 'non_contract', 'label' => 'Non-contract'],
+                ['value' => 'haccp', 'label' => 'HACCP requirement'],
+                ['value' => 'disputed', 'label' => 'Disputed/Audit'],
+            ],
+        ],
+        [
+            'name' => 'transport_condition',
+            'label' => 'Transport condition',
+            'type' => 'checkbox',
+            'options' => [
+                ['value' => 'chiller', 'label' => 'Chiller vehicle'],
+                ['value' => 'frozen', 'label' => 'Frozen'],
+                ['value' => 'ambient', 'label' => 'Ambient'],
+            ],
+        ],
+        ['name' => 'date_received', 'label' => 'Date received', 'type' => 'date'],
     ],
 ];

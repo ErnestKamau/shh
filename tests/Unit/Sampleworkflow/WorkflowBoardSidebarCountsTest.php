@@ -3,6 +3,7 @@
 namespace Tests\Unit\Sampleworkflow;
 
 use App\Livewire\Sampleworkflow\WorkflowBoard;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -41,5 +42,27 @@ class WorkflowBoardSidebarCountsTest extends TestCase
             'received' => 0,
             'todays_check_ins' => 0,
         ], $stats);
+    }
+
+    #[Test]
+    public function status_days_until_target_uses_signed_whole_days_at_start_of_day(): void
+    {
+        Carbon::setTestNow('2026-07-02 15:45:00');
+
+        $this->assertSame(3, WorkflowBoard::statusDaysUntilTarget('2026-07-05'));
+        $this->assertSame(-2, WorkflowBoard::statusDaysUntilTarget('2026-06-30'));
+        $this->assertSame(0, WorkflowBoard::statusDaysUntilTarget('2026-07-02'));
+        $this->assertNull(WorkflowBoard::statusDaysUntilTarget(null));
+
+        Carbon::setTestNow();
+    }
+
+    #[Test]
+    public function format_status_days_label_never_contains_fractions(): void
+    {
+        $this->assertSame('3 days left', WorkflowBoard::formatStatusDaysLabel(3));
+        $this->assertSame('1 day overdue', WorkflowBoard::formatStatusDaysLabel(-1));
+        $this->assertSame('Due today', WorkflowBoard::formatStatusDaysLabel(0));
+        $this->assertSame('—', WorkflowBoard::formatStatusDaysLabel(null));
     }
 }

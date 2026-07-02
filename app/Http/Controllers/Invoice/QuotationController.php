@@ -28,6 +28,7 @@ use App\Models\CRM\SamplePoint;
 use App\QuotationDetailAnalysisSplit;
 use App\QuotationHeaderView;
 use App\SampleType;
+use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\QuotationReportService;
 use App\Services\Billing\QuotationRevisionService;
@@ -45,6 +46,7 @@ class QuotationController extends Controller
     public function __construct(
         private readonly QuotationReportService $quotationReportService,
         private readonly QuotationPricingResolver $quotationPricingResolver,
+        private readonly QuotationLineTaxResolver $quotationLineTaxResolver,
         private readonly QuotationStatisticsService $quotationStatisticsService,
         private readonly QuotationRevisionService $quotationRevisionService,
     ) {
@@ -185,11 +187,16 @@ class QuotationController extends Controller
         }
 
         $customer = CRMCustomer::where('id', $request->client)->first();
+        if (! $customer) {
+            return redirect()->back()->with('error', 'Selected client was not found.');
+        }
+
         $header->crm_customer_id = $customer->id;
-        if (!isset($request->client_contact)) {
+        if ($request->filled('client_contact')) {
+            $header->crm_customer_contact_id = $request->client_contact;
+        } elseif (! isset($request->quote_id)) {
             return redirect()->back()->with('error', 'Kindly add contacts to ' . $customer->name . ' customer.');
         }
-        $header->crm_customer_contact_id = $request->client_contact;
         $header->quote_date = $request->quotation_date;
         $header->expiring_date = $request->expire_date;
         $header->prepared_by_id = auth()->user()->id;
@@ -260,7 +267,7 @@ class QuotationController extends Controller
     {
         // return response()->json('test');
         $customers = CRMCustomer::all();
-        $header = QuotationHeader::find($id);
+        $header = QuotationHeader::with('preparedBy')->find($id);
         AmSpecQuotationNumberGenerator::assignIfMissing($header);
         $header = $header->fresh();
         $sample_types = SampleType::all();
@@ -277,10 +284,6 @@ class QuotationController extends Controller
         $header->save();
         // return response()->json($header,200);
 
-
-        $user = getUserById($header->prepared_by_id);
-
-        $header['prepared_by_name'] = $user->name;
 
         // Pricelist no longer used - using invoicable items instead
         $pricelist = null;
@@ -326,13 +329,9 @@ class QuotationController extends Controller
 
 
         // return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details','sample_types '));
-        $terms_config = getConfigTypeByName('Terms of Sale');
-        $banks_config = getConfigTypeByName('Bank Details');
-        $terms = getconfigByID($terms_config->id);
-        $terms_array = array();
-        foreach ($terms as $term) {
-            $terms_array[$term->key] = $term->value;
-        }
+        $this->quotationReportService->normalizeStoredTerms($header);
+        $header = $header->fresh();
+        $termsOfSale = $this->quotationReportService->resolveTermsOfSale($header);
         $users = getAllUsers();
         // return response()->json($sample_types);
 
@@ -347,7 +346,7 @@ class QuotationController extends Controller
         $structuredTerms = $this->quotationReportService->resolveStructuredTerms($header);
         $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($header);
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'terms_array', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -512,48 +511,59 @@ class QuotationController extends Controller
                 return redirect()->back()->with('success', 'Quotation configuration saved successfully.');
             }
             foreach ($request->sample_type as $id) {
-                $detail = new QuotationDetails();
-                $detail->sample_type = $request->sample_type[$count];
                 $unitPrice = (float) $request->unit_price[$count];
-                if ($unitPrice <= 0) {
-                    $elementIds = array_filter(explode(',', implode(',', [
-                        $request->default_analytes[$count] ?? '',
-                        $request->accreditted_analytes[$count] ?? '',
-                        $request->sub_analytes[$count] ?? '',
-                        $request->sub_acc[$count] ?? '',
-                    ])));
-                    $unitPrice = $this->quotationPricingResolver->suggestLineUnitPrice(
-                        $header,
-                        $request->sample_type[$count],
-                        $request->part_number_final[$count],
-                        array_values(array_unique($elementIds))
-                    );
-                }
-                $detail->unit_price = $unitPrice;
-                $detail->tax = $request->tax[$count];
-                $detail->part_no = $request->part_number_final[$count];
-                $detail->quantity = $request->quantity[$count];
-                $detail->accredited_analytes = $request->accreditted_analytes[$count];
-                $detail->subcontracted_analytes = $request->sub_analytes[$count];
-                $detail->sub_acc_analytes = $request->sub_acc[$count];
-                $detail->default_analytes = $request->default_analytes[$count];
-                $detail->quotation_header_id = $header->id;
+                $taxRate = (float) ($request->tax[$count] ?? 0);
+                $elementIds = array_values(array_unique(array_filter(explode(',', implode(',', [
+                    $request->default_analytes[$count] ?? '',
+                    $request->accreditted_analytes[$count] ?? '',
+                    $request->sub_analytes[$count] ?? '',
+                    $request->sub_acc[$count] ?? '',
+                ])))));
 
-                $analysisTypeIds = array_filter(explode(',', (string) $request->part_number_final[$count]));
-                $this->quotationPricingResolver->persistInvoicableItemOnDetail(
-                    $detail,
-                    $analysisTypeIds[0] ?? null
+                $normalizedRows = $this->quotationPricingResolver->normalizeManualDetailRows(
+                    $header,
+                    $request->sample_type[$count],
+                    (string) $request->part_number_final[$count],
+                    $elementIds,
+                    (int) $request->quantity[$count],
+                    $unitPrice,
+                    $taxRate,
+                    (string) ($request->accreditted_analytes[$count] ?? ''),
+                    (string) ($request->sub_analytes[$count] ?? ''),
+                    (string) ($request->default_analytes[$count] ?? ''),
+                    (string) ($request->sub_acc[$count] ?? ''),
                 );
-                $detail->save();
-                $analysis_types_ids = explode(',', $request->part_number_final[$count]);
-                $insertArr = [];
-                QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
 
-                foreach ($analysis_types_ids as $a_id) {
-                    $data = ["analysis_type_id" => $a_id, 'quotation_detail_id' => $detail->id];
-                    array_push($insertArr, $data);
+                foreach ($normalizedRows as $rowPayload) {
+                    $detail = new QuotationDetails();
+                    $detail->sample_type = $rowPayload['sample_type'];
+                    $detail->unit_price = $rowPayload['unit_price'];
+                    $detail->tax = $rowPayload['tax'];
+                    $detail->part_no = $rowPayload['part_no'];
+                    $detail->quantity = $rowPayload['quantity'];
+                    $detail->accredited_analytes = $rowPayload['accredited_analytes'];
+                    $detail->subcontracted_analytes = $rowPayload['subcontracted_analytes'];
+                    $detail->default_analytes = $rowPayload['default_analytes'];
+                    $detail->sub_acc_analytes = $rowPayload['sub_acc_analytes'];
+                    $detail->quotation_header_id = $header->id;
+
+                    $analysisTypeIds = array_filter(explode(',', (string) $rowPayload['part_no']));
+                    $this->quotationPricingResolver->persistInvoicableItemOnDetail(
+                        $detail,
+                        $analysisTypeIds[0] ?? null
+                    );
+                    $detail->save();
+
+                    QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
+                    $insertArr = [];
+                    foreach ($analysisTypeIds as $a_id) {
+                        $insertArr[] = ['analysis_type_id' => $a_id, 'quotation_detail_id' => $detail->id];
+                    }
+                    if ($insertArr !== []) {
+                        QuotationDetailAnalysisSplit::insert($insertArr);
+                    }
                 }
-                QuotationDetailAnalysisSplit::insert($insertArr);
+
                 ++$count;
             }
 
@@ -587,7 +597,9 @@ class QuotationController extends Controller
         $customer = CRMCustomer::where('name', $request->client)->first();
 
         $header->crm_customer_id = $customer->id;
-        $header->crm_customer_contact_id = $request->client_contact;
+        if ($request->filled('client_contact')) {
+            $header->crm_customer_contact_id = $request->client_contact;
+        }
         $header->quote_date = $request->quotation_date;
         $header->quotation_type = $request->quotation_type;
         $header->expiring_date = $request->expire_date;
@@ -723,17 +735,34 @@ class QuotationController extends Controller
             QuotationDetailAnalysisSplit::insert($insertArr);
         }
         $unitPrice = (float) $request->unit_price;
-        if ($unitPrice <= 0 && $header->quotation_type !== 'General') {
+        $taxRate = (float) ($request->tax ?? 0);
+
+        if ($header->quotation_type !== 'General') {
             $elementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
-            $unitPrice = $this->quotationPricingResolver->suggestLineUnitPrice(
-                $header,
-                (string) $detail->sample_type,
-                (string) $detail->part_no,
-                $elementIds
-            );
+            if ($unitPrice <= 0) {
+                $unitPrice = $this->quotationPricingResolver->suggestLineUnitPrice(
+                    $header,
+                    (string) $detail->sample_type,
+                    (string) $detail->part_no,
+                    $elementIds,
+                );
+            }
+            if ($taxRate <= 0) {
+                $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
+                $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', (string) $detail->part_no))));
+                $analysisTypeId = $analysisTypeIds[0] ?? '';
+                $elementId = $elementIds[0] ?? null;
+                $taxRate = $this->quotationLineTaxResolver->resolveLineTaxPercent(
+                    $pricelist,
+                    (string) $detail->sample_type,
+                    $analysisTypeId,
+                    $elementId,
+                );
+            }
         }
+
         $detail->unit_price = $unitPrice;
-        $detail->tax = $request->tax;
+        $detail->tax = $taxRate;
         $detail->quantity = $request->quantity;
         $detail->save();
 
@@ -879,6 +908,26 @@ class QuotationController extends Controller
 
         return redirect()->back()->with('success', 'Quotation uploaded and sent to client successfully');
     }
+
+    public function suggestManualLinePricing(Request $request, string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+
+        $elementIds = array_values(array_unique(array_filter(array_map(
+            'trim',
+            explode(',', (string) $request->input('element_ids', ''))
+        ))));
+
+        $suggestion = $this->quotationPricingResolver->suggestManualLinePricing(
+            $header,
+            $request->input('sample_type_id'),
+            (string) $request->input('analysis_type_ids', ''),
+            $elementIds,
+        );
+
+        return response()->json($suggestion);
+    }
+
     public function get_quotation_detail($id)
     {
         $detail = QuotationDetails::find($id);

@@ -12,6 +12,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
+use App\QuotationDetails;
 use App\SampleDetails;
 use App\SampleType;
 use Illuminate\Support\Collection;

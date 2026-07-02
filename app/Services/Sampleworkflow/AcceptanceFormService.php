@@ -18,6 +18,7 @@ use App\Services\Sampleworkflow\AcceptanceFormPdfService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 
 class AcceptanceFormService
 {
@@ -223,8 +224,10 @@ class AcceptanceFormService
             $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
             $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
 
-            $receivingSignedAt = $receivingPersonSignedAt ?? now();
-            $customerSignedAtValue = $customerSignedAt ?? now();
+            $receivingSignedAt = $receivingPersonSignedAt
+                ? Carbon::parse($receivingPersonSignedAt)
+                : now();
+            $customerSignedAtValue = $customerSignedAt ? Carbon::parse($customerSignedAt) : now();
 
             $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
@@ -245,11 +248,17 @@ class AcceptanceFormService
                 'manager_signer_name' => $receivingPersonName,
                 'manager_signature' => $receivingPersonSignature,
                 'manager_signed_at' => $receivingSignedAt,
+                'receipt_notification_payload' => [
+                    'sample_receiving_date' => $receivingSignedAt->format('Y-m-d'),
+                    'sample_receiving_time' => $receivingSignedAt->format('H:i'),
+                ],
                 'manager_assignment_payload' => [
                     'assigned_analyst_ids' => [],
                     'lead_analyst_id' => null,
                     'technical_signatory_id' => null,
                     'customer_contact_id' => $customerContactId,
+                    'lab_capable' => (bool) ($header['lab_capable'] ?? true),
+                    'client_instruction_clear' => (bool) ($header['client_instruction_clear'] ?? true),
                 ],
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']

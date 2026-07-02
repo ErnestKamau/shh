@@ -2923,6 +2923,43 @@ class WorkflowBoard extends Component
             ->all();
     }
 
+    /**
+     * Signed whole-day offset from today to the batch target date (start-of-day).
+     * Positive = days remaining, negative = days overdue, zero = due today.
+     */
+    public static function statusDaysUntilTarget(mixed $targetDate): ?int
+    {
+        if ($targetDate === null || trim((string) $targetDate) === '') {
+            return null;
+        }
+
+        try {
+            $target = Carbon::parse($targetDate)->startOfDay();
+            $today = Carbon::now()->startOfDay();
+
+            return (int) $today->diffInDays($target, false);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public static function formatStatusDaysLabel(?int $statusDays): string
+    {
+        if ($statusDays === null) {
+            return '—';
+        }
+
+        if ($statusDays < 0) {
+            return abs($statusDays).' day'.(abs($statusDays) === 1 ? '' : 's').' overdue';
+        }
+
+        if ($statusDays === 0) {
+            return 'Due today';
+        }
+
+        return $statusDays.' day'.($statusDays === 1 ? '' : 's').' left';
+    }
+
     protected function getListeners(): array
     {
         return [

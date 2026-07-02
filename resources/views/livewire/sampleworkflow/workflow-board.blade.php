@@ -2,27 +2,51 @@
 	wire:init="openPendingReceiveRequestIfNeeded"
 	x-data="{
 		selectedCount: 0,
+		selectedLabBatchCount: 0,
 		selectedInstanceIds() {
 			return Array.from(document.querySelectorAll('input[data-instance-select]:checked')).map((el) => el.value);
 		},
 		selectedEnquiryIds() {
 			return Array.from(document.querySelectorAll('input[data-enquiry-select]:checked')).map((el) => el.value);
 		},
+		refreshLabBatchSelectionCount() {
+			this.selectedLabBatchCount = document.querySelectorAll('input[data-lab-batch-select]:checked').length;
+		},
 		refreshSelectionCount() {
 			this.selectedCount = document.querySelectorAll('input[data-instance-select]:checked, input[data-enquiry-select]:checked').length;
+			this.refreshLabBatchSelectionCount();
 		},
 		onSelectionChange(event) {
-			if (event.target && event.target.matches && (event.target.matches('input[data-instance-select]') || event.target.matches('input[data-enquiry-select]'))) {
+			if (!event.target || !event.target.matches) {
+				return;
+			}
+
+			if (event.target.matches('input[data-instance-select]') || event.target.matches('input[data-enquiry-select]')) {
 				this.refreshSelectionCount();
 				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
 					window.rebuildWorkflowSelectionLists();
 				}
 			}
+
+			if (event.target.matches('input[data-lab-batch-select]')) {
+				this.refreshLabBatchSelectionCount();
+				if (typeof window.rebuildLabBatchPrintLabels === 'function') {
+					window.rebuildLabBatchPrintLabels();
+				}
+			}
 		},
 		init() {
 			this.refreshSelectionCount();
+			if (typeof window.rebuildLabBatchPrintLabels === 'function') {
+				window.rebuildLabBatchPrintLabels();
+			}
 			if (typeof Livewire !== 'undefined') {
-				Livewire.hook('morph.updated', () => this.refreshSelectionCount());
+				Livewire.hook('morph.updated', () => {
+					this.refreshSelectionCount();
+					if (typeof window.rebuildLabBatchPrintLabels === 'function') {
+						window.rebuildLabBatchPrintLabels();
+					}
+				});
 			}
 		},
 		openInterzoneTransfer(scope, options = {}) {
@@ -526,6 +550,22 @@
 		letter-spacing: 0.04em;
 	}
 
+	.receive-checkin-card__header-aside {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.35rem;
+		flex-shrink: 0;
+		text-align: right;
+	}
+
+	.receive-checkin-card__status {
+		font-size: 0.8125rem;
+		font-weight: 700;
+		color: #0f766e;
+		line-height: 1.2;
+	}
+
 	.receive-checkin-card__grid {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -565,6 +605,14 @@
 
 	.receive-checkin-stat__value--status {
 		color: #0f766e;
+	}
+
+	.receive-checkin-rich-text {
+		font-weight: 500;
+	}
+
+	.receive-checkin-rich-text p:last-child {
+		margin-bottom: 0;
 	}
 
 	.check-in-trf-metadata {
@@ -941,15 +989,20 @@
 							</div>
 						</div>
 						--}}
-						<div class="btn-group workflow-actions-dropdown">
+						<div class="btn-group workflow-actions-dropdown"
+							x-data="{ actionsOpen: false }"
+							@click.outside="actionsOpen = false">
 							<button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
-								id="dropdownMenuButton"
-								data-toggle="dropdown"
-								data-display="static"
-								aria-haspopup="true" aria-expanded="false">
+								id="workflowActionsDropdownToggle"
+								@click.stop="actionsOpen = !actionsOpen"
+								:aria-expanded="actionsOpen"
+								aria-haspopup="true">
 								<i class="mdi mdi-dots-horizontal"></i> Actions
 							</button>
-							<ul class="dropdown-menu dropdown-menu-right">
+							<ul class="dropdown-menu dropdown-menu-right"
+								:class="{ 'show': actionsOpen }"
+								aria-labelledby="workflowActionsDropdownToggle"
+								@click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { actionsOpen = false; }">
 								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Receiving", "Samples Request Review", "Samples Reception", "Samples In Lab")))
 									<li>
 										<button type="button" class="dropdown-item initiate-interlab" data-toggle="modal"
@@ -963,24 +1016,10 @@
 								@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 									<li>
 										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-process-enquiry"
-											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
-											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-chart-outline mr-2"></i> Process enquiry</button>
-									</li>
-									<li>
-										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-review-quotation"
 											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
 											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
 											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Review quotation</button>
-									</li>
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-walk-in-acceptance"
-											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
-											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Accept quotation</button>
 									</li>
 									<li>
 										<button type="button" class="dropdown-item"
@@ -998,15 +1037,6 @@
 									</li>
 								@endif
 								@if($status === 'Samples Request Review')
-									@if($workflowSubTab === 'in_review')
-										<li>
-											<button type="button" class="dropdown-item"
-												data-sf-trigger="workflow-walk-in-acceptance"
-												:class="{ 'disabled': selectedInstanceIds().length === 0 }"
-												:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-												@click.prevent="$wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())"><i class="mdi mdi-check-decagram mr-2"></i> Accept quotation</button>
-										</li>
-									@endif
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-move-to-intray"
@@ -1044,7 +1074,7 @@
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
 											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
-											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for Analyst review
+											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for review
 										</button>
 									</li>
 								@endif
@@ -1180,7 +1210,10 @@
 								@if($status == "Samples In Lab")
 									<li>
 
-										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i
+										<button type="button" class="dropdown-item"
+											:class="{ 'disabled': selectedLabBatchCount === 0 }"
+											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i
 												class="mdi mdi-printer mr-2"></i>Print Labels</button>
 									</li>
 									<li>
@@ -1383,6 +1416,20 @@
 											<i class="mdi mdi-barcode-scan mr-1"></i> Dispatch request
 										</button>
 									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-process-enquiry"
+											@click.prevent="selectedCount > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-walk-in-acceptance"
+											@click.prevent="selectedCount > 0 && $wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-check-decagram mr-1"></i> Accept quotation
+										</button>
+									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
@@ -1396,7 +1443,7 @@
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-review"
 											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
-											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for Analyst review
+											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for review
 										</button>
 									@endif
 									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
@@ -1549,6 +1596,7 @@
 												<div class="position-relative">
 													<div class="tag-select-container form-control-sm py-0"
 														 wire:click="$set('showCustomerDropdown', true)"
+														 wire:click.outside="$set('showCustomerDropdown', false)"
 														 wire:key="receiving-customer-dropdown-{{ $customerFilter }}">
 														<div class="tag-select-input" style="min-height: 29px;">
 															@if($this->selectedCustomer)
@@ -1799,8 +1847,9 @@
 												<div class="form-group mb-3 mb-md-0">
 													<label class="form-label small fw-bold">Customer</label>
 													<div class="position-relative">
-														<div class="tag-select-container form-control-sm py-0"
+															<div class="tag-select-container form-control-sm py-0"
 															 wire:click="$set('showCustomerDropdown', true)"
+															 wire:click.outside="$set('showCustomerDropdown', false)"
 															 wire:key="request-review-customer-dropdown-{{ $customerFilter }}">
 															<div class="tag-select-input" style="min-height: 29px;">
 																@if($this->selectedCustomer)
@@ -1953,8 +2002,9 @@
 									<div class="form-group mb-0">
 										<label class="form-label small fw-bold">Customer</label>
 										<div class="position-relative">
-											<div class="tag-select-container form-control-sm py-0" 
+												<div class="tag-select-container form-control-sm py-0"
 												 wire:click="$set('showCustomerDropdown', true)"
+												 wire:click.outside="$set('showCustomerDropdown', false)"
 												 wire:key="customer-dropdown-{{ $customerFilter }}">
 												<div class="tag-select-input" style="min-height: 29px;">
 													@if($this->selectedCustomer)
@@ -2624,22 +2674,15 @@
 										</thead>
 										<tbody>
 											@foreach ($batches as $item)
-												<?php
-												$now = \Carbon\Carbon::now();
-												if (isset($item->get_target_date->id)) {
-													$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
-													$target_date = Carbon\Carbon::parse($target_date);
-													$diff = $now->diffInDays($target_date);
-												} else {
-													$target_date = "1970-01-01";
-													$diff = 0;
-												}
+												@php
+												$targetDateRaw = optional($item->get_target_date)->date;
+												$statusDays = \App\Livewire\Sampleworkflow\WorkflowBoard::statusDaysUntilTarget($targetDateRaw);
 												$sample_codes = $item->samples->pluck('sample_code')->toArray();
 												$sample_count = count($sample_codes);
-												?>
+												@endphp
 												<tr>
 													<td>
-														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-batch-code="{{$item->batch_code}}">
+														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-lab-batch-select data-batch-code="{{$item->batch_code}}">
 													</td>
 													<td nowrap>
 														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
@@ -2664,8 +2707,8 @@
 													<td nowrap>{{ $item->receipt_date }}</td>
 													@if($status !== 'Samples En-Route')
 														<td nowrap>{{ $item->date_collected }}</td>
-														<td nowrap>{{ isset($item->get_target_date->date) ? $item->get_target_date->date : 'N/A' }}</td>
-														<td nowrap>{{ $diff }} days</td>
+														<td nowrap>{{ $targetDateRaw ? \Illuminate\Support\Carbon::parse($targetDateRaw)->format('Y-m-d') : 'N/A' }}</td>
+														<td nowrap @class(['text-danger font-weight-bold' => $statusDays !== null && $statusDays < 0])>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatStatusDaysLabel($statusDays) }}</td>
 														<td>{{ $sample_count }}</td>
 														@if($status != 'Samples In Lab')
 															<td>{{ $item->client_unit ?? 'N/A' }}</td>
@@ -3190,7 +3233,7 @@
 							<div>
 								<h5 class="modal-title mb-1">
 									<i class="mdi mdi-clipboard-arrow-right text-primary mr-2"></i>
-									Send for Analyst review
+									Send for review
 								</h5>
 								<p class="text-muted small mb-0">Send selected requests to the analyst review queue.</p>
 							</div>
@@ -5061,6 +5104,35 @@
 				});
 			};
 
+			const rebuildLabBatchPrintLabels = function () {
+				const $selected = $('input[data-lab-batch-select]:checked').filter(function () {
+					return $(this).closest('.modal').length === 0;
+				});
+				const $container = $('#print-labels-modal .selected-samples');
+
+				$container.empty();
+
+				if ($selected.length === 0) {
+					if ($container.length > 0) {
+						$container.html('<div class="alert alert-callout alert-danger"><i class="fas fa-exclamation-triangle"></i> No batch selected.</div>');
+					}
+
+					return;
+				}
+
+				$selected.each(function () {
+					const batchCode = $(this).attr('data-batch-code') || '';
+
+					if (batchCode === '') {
+						return;
+					}
+
+					$container.append(`<span class="p-2 mr-2 d-inline-block"><input type="hidden" name="sample_code[]" value="${batchCode}"> ${batchCode}</span>`);
+				});
+			};
+
+			window.rebuildLabBatchPrintLabels = rebuildLabBatchPrintLabels;
+
 			const rebuildSelectionLists = function () {
 				const selections = getSourceSelections();
 				const selectedBatchCheckboxes = selections.selectedBatchCheckboxes;
@@ -5294,6 +5366,14 @@
 					rebuildSelectionLists();
 				});
 
+			$(document)
+				.off('change.workflowLabBatch', 'input[data-lab-batch-select]')
+				.on('change.workflowLabBatch', 'input[data-lab-batch-select]', function () {
+					rebuildLabBatchPrintLabels();
+				});
+
+			rebuildLabBatchPrintLabels();
+
 			// Bind directly on the modal elements — delegated $(document).on() with a custom namespace
 			// suffix (e.g. show.bs.modal.workflowSelection) never fires because Bootstrap triggers
 			// $.Event('show.bs.modal') with namespace ['bs','modal'] and jQuery's namespace matching
@@ -5312,11 +5392,30 @@
 			// Primary prefill trigger: fire rebuildSelectionLists the moment the user clicks a
 			// modal-trigger button, BEFORE Bootstrap opens the modal. This is the most reliable
 			// mechanism and handles Livewire re-render edge cases (delegated — survives DOM morphing).
+			$('#print-labels-modal').off('show.bs.modal.workflowLabBatch').on('show.bs.modal', function () {
+				rebuildLabBatchPrintLabels();
+			});
+
+			$('#print-labels-modal').off('click.workflowLabBatch', '.print-label-btn').on('click', '.print-label-btn', function () {
+				const $form = $(this).closest('form');
+
+				if ($form.find('input[name="sample_code[]"]').length === 0) {
+					alert('Please select at least one batch before printing labels.');
+
+					return;
+				}
+
+				$form.trigger('submit');
+			});
+
 			$(document)
-				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"]')
-				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"]', function (event) {
+				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"]')
+				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"]', function (event) {
 					const target = $(this).data('target');
 					rebuildSelectionLists();
+					if (target === '#print-labels-modal') {
+						rebuildLabBatchPrintLabels();
+					}
 					if (target === '#dispatch-to-labs-modal') {
 						renderRequestReviewSelectionSummary();
 					}
@@ -5740,15 +5839,6 @@
 				
 			// Redirect to wizard
 			window.location.href = wizardUrl;
-		});
-	
-		// Close customer dropdown when clicking outside or on blur
-		document.addEventListener('click', function(e) {
-			if (!e.target.closest('.tag-select-container') && !e.target.closest('.modal')) {
-				if (window.Livewire) {
-					@this.set('showCustomerDropdown', false);
-				}
-			}
 		});
 	
 		// Handle blur on customer search input with delay to allow dropdown clicks
@@ -6416,30 +6506,6 @@
 			});
 			Livewire.on('acceptance-form-completed', function (event) {
 				const redirectUrl = event?.redirectUrl ?? event?.detail?.redirectUrl;
-				const batchCode = event?.batchCode ?? event?.detail?.batchCode ?? '';
-
-				if (batchCode && confirm('Acceptance complete. Print sample labels now?')) {
-					const form = document.createElement('form');
-					form.method = 'POST';
-					form.action = @json(route('print-labels'));
-					form.target = '_blank';
-
-					const csrf = document.createElement('input');
-					csrf.type = 'hidden';
-					csrf.name = '_token';
-					csrf.value = @json(csrf_token());
-					form.appendChild(csrf);
-
-					const codeInput = document.createElement('input');
-					codeInput.type = 'hidden';
-					codeInput.name = 'sample_code[]';
-					codeInput.value = batchCode;
-					form.appendChild(codeInput);
-
-					document.body.appendChild(form);
-					form.submit();
-					form.remove();
-				}
 
 				if (redirectUrl) {
 					window.location.href = redirectUrl;

@@ -56,7 +56,6 @@ class SendForAnalystReviewTest extends TestCase
                     ['id' => $instance->id, 'label' => 'CR001', 'customer' => 'Acme'],
                 ],
             ])
-            ->set('receivingLabId', $this->lab->id)
             ->set('comment', 'Ready for analyst review.')
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');
@@ -66,7 +65,7 @@ class SendForAnalystReviewTest extends TestCase
         $this->assertSame('in_review', $instance->status);
         $this->assertSame($this->user->id, $instance->reviewed_by);
         $this->assertSame('Ready for analyst review.', $instance->review_notes);
-        $this->assertSame($this->lab->id, $instance->receiving_lab_id);
+        $this->assertNull($instance->receiving_lab_id);
 
         $this->assertDatabaseHas('submission_form_audit_logs', [
             'submission_form_instance_id' => $instance->id,
@@ -93,14 +92,13 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$instance->id],
             ])
-            ->set('receivingLabId', $this->lab->id)
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');
 
         $this->assertSame('in_review', $instance->fresh()->status);
     }
 
-    public function test_confirm_requires_lab_selection(): void
+    public function test_confirm_does_not_require_lab_selection(): void
     {
         $form = $this->createTemplateForm();
         $instance = $this->createInstance($form, ['status' => 'received']);
@@ -109,11 +107,11 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$instance->id],
             ])
-            ->set('receivingLabId', '')
             ->call('confirmSendForAnalystReview')
-            ->assertHasErrors(['receivingLabId']);
+            ->assertHasNoErrors()
+            ->assertDispatched('analyst-review-completed');
 
-        $this->assertSame('received', $instance->fresh()->status);
+        $this->assertSame('in_review', $instance->fresh()->status);
     }
 
     public function test_confirm_skips_non_eligible_instances(): void
@@ -126,7 +124,6 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$received->id, $inReview->id],
             ])
-            ->set('receivingLabId', $this->lab->id)
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');
 
@@ -152,7 +149,6 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$instance->id],
             ])
-            ->set('receivingLabId', $this->lab->id)
             ->set('comment', '')
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');

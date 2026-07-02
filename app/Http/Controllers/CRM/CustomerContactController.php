@@ -145,10 +145,13 @@ class CustomerContactController extends Controller
 
 		return $contact->orderBy('first_name', 'asc')->get();
 	}
-	public function get_customer_client($name){
+	public function get_customer_client($name, Request $request){
 		$customer = CRMCustomer::find($name);
 		if(isset($customer->id)){
-			$contacts = CustomerContact::where('crm_customer_id',$customer->id)->get();
+			$contacts = getQuotationCustomerContacts(
+				(string) $customer->id,
+				$request->query('assigned')
+			);
 		}else{
 			$contacts = [];
 		}

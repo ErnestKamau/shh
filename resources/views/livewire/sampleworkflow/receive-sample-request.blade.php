@@ -105,9 +105,14 @@
                                     <span class="receive-checkin-card__customer">{{ $context['customer_name'] }}</span>
                                 @endif
                             </div>
-                            @if (!empty($context['source_channel']))
-                                <span class="receive-checkin-card__channel badge badge-light border text-uppercase">{{ str_replace('_', ' ', $context['source_channel']) }}</span>
-                            @endif
+                            <div class="receive-checkin-card__header-aside">
+                                @if (!empty($context['enquiry_status']))
+                                    <span class="receive-checkin-card__status">{{ $context['enquiry_status'] }}</span>
+                                @endif
+                                @if (!empty($context['source_channel']))
+                                    <span class="receive-checkin-card__channel badge badge-light border text-uppercase">{{ str_replace('_', ' ', $context['source_channel']) }}</span>
+                                @endif
+                            </div>
                         </header>
 
                         @if (! ($context['can_receive'] ?? true))
@@ -153,16 +158,12 @@
                                     <span class="receive-checkin-stat__value">{{ $context['advance_payment_reference'] }}</span>
                                 </div>
                             @endif
-                            @if (!empty($context['enquiry_status']))
-                                <div class="receive-checkin-stat receive-checkin-stat--wide">
-                                    <span class="receive-checkin-stat__label">Enquiry status</span>
-                                    <span class="receive-checkin-stat__value receive-checkin-stat__value--status">{{ $context['enquiry_status'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['sample_description']))
+                            @if (!empty($context['sample_description']) || !empty($context['sample_description_html']))
                                 <div class="receive-checkin-stat receive-checkin-stat--full">
                                     <span class="receive-checkin-stat__label">Sample description</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['sample_description'] }}</span>
+                                    <div class="receive-checkin-stat__value receive-checkin-rich-text">
+                                        {!! $context['sample_description_html'] ?? e($context['sample_description'] ?? '') !!}
+                                    </div>
                                 </div>
                             @endif
                         </div>

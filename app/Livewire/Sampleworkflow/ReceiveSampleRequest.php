@@ -1114,7 +1114,7 @@ class ReceiveSampleRequest extends Component
                 ? $normalizer->valuesMapFromInstance($instance)
                 : [];
 
-            $this->checkInTrfFields[$instanceId] = $metadataService->hydrateFromFormData($formData);
+            $this->checkInTrfFields[$instanceId] = $metadataService->hydrateFromFormData($formData, $instance);
         }
     }
 
