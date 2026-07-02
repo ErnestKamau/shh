@@ -56,6 +56,8 @@ class PortalFeedbackService
                 'contact_id' => $contact->id,
                 'feedback' => $initialFeedbackText,
                 'specific_feedback' => $initialFeedbackText,
+                'user_type' => 'customer',
+                'date' => now(),
                 'status' => CustomerFeedback::STATUS_SUBMITTED,
                 'is_submitted' => false,
                 'received_from' => (string) ($data['submitter_name'] ?? $contact->customer?->name ?? 'Portal'),

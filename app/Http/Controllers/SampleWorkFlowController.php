@@ -6531,6 +6531,24 @@ class SampleWorkFlowController extends Controller
             ],
         };
 
+        $verificationUrl = route('generateTestRequestReport', [
+            'batch_id' => $batch->id,
+            'seq' => $sequence,
+            'lang' => $language,
+            'mode' => 'pdf',
+        ]);
+
+        $footerQrCode = '';
+        if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
+            $footerQrCode = 'data:image/svg+xml;base64,' . base64_encode(
+                \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
+                    ->size(110)
+                    ->margin(1)
+                    ->errorCorrection('H')
+                    ->generate($verificationUrl)
+            );
+        }
+
         // Revision history for this batch
         $revisions = \App\Models\TestRequestReportRevision::where('batch_id', $batch->id)
             ->orderByDesc('revision_no')
@@ -6544,7 +6562,9 @@ class SampleWorkFlowController extends Controller
                 'labels',
                 'revisions',
                 'isRTL',
-                'isPdfMode'
+                'isPdfMode',
+                'footerQrCode',
+                'verificationUrl'
             ));
 
             $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
@@ -6577,7 +6597,9 @@ class SampleWorkFlowController extends Controller
             'labels',
             'revisions',
             'isRTL',
-            'isPdfMode'
+            'isPdfMode',
+            'footerQrCode',
+            'verificationUrl'
         )));
     }
 
