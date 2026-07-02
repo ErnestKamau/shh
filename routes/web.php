@@ -546,6 +546,9 @@ Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name
 Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
     ->name('sample-workflow.assign-user')
     ->middleware('can:laboratory.components.sample-workflow.assign-user');
+Route::get('/sample-workflow/assign-user/users', [SampleAssignmentController::class, 'users'])
+    ->name('sample-workflow.assign-user.users')
+    ->middleware('can:laboratory.components.sample-workflow.assign-user');
 Route::get('/sample-submission-requests', 'SampleWorkFlowController@submissionRequestsIndex')
     ->name('sample-submission-requests.index')
     ->middleware('can:laboratory.components.all samples.view');

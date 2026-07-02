@@ -3725,7 +3725,7 @@
 			@if(auth()->user()->can('laboratory.components.sample-workflow.assign-user'))
 			<div id="assign-user-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
-					<form class="modal-content" method="POST" action="{{ route('sample-workflow.assign-user') }}" id="assign-user-form">
+					<form class="modal-content" method="POST" action="{{ route('sample-workflow.assign-user') }}" id="assign-user-form" data-users-url="{{ route('sample-workflow.assign-user.users') }}">
 						@csrf
 						<div class="modal-header">
 							<h5 class="modal-title"><i class="mdi mdi-account-arrow-right-outline"></i> Assign User</h5>
@@ -3734,12 +3734,28 @@
 						<div class="modal-body">
 							<div class="form-group">
 								<label class="control-label">Assign to</label>
-								<select name="assignee_user_id" class="form-control form-control-sm" required>
+								<select name="assignee_user_id" id="assign-user-select" class="form-control form-control-sm" required>
 									<option value="">Select user</option>
-									@foreach($assignableUsersForIntray as $assignableUser)
-										<option value="{{ $assignableUser['id'] }}">{{ $assignableUser['name'] }}</option>
+									@foreach(($users ?? collect()) as $assignableUser)
+										@php
+											$assignableName = trim((string) ($assignableUser->name ?? ''));
+											if ($assignableName === '') {
+												$nameParts = array_filter([
+													trim((string) ($assignableUser->first_name ?? '')),
+													trim((string) ($assignableUser->middle_name ?? '')),
+													trim((string) ($assignableUser->last_name ?? '')),
+												]);
+												$assignableName = trim(implode(' ', $nameParts));
+											}
+											if ($assignableName === '') {
+												$assignableName = 'Personnel ' . \Illuminate\Support\Str::limit((string) $assignableUser->id, 8, '');
+											}
+										@endphp
+										<option value="{{ (string) $assignableUser->id }}">{{ $assignableName }}</option>
 									@endforeach
 								</select>
+								<small id="assign-user-empty-state" class="text-danger d-none mt-1">No active users available for assignment.</small>
+								<small id="assign-user-debug-state" class="text-muted d-none mt-1"></small>
 							</div>
 							<div class="form-group">
 								<label class="control-label">Comment</label>
@@ -6435,7 +6451,155 @@
 			});
 		}
 
+		function setAssignUserOptions(optionsPayload) {
+			const form = $('#assign-user-form');
+			if (!form.length) {
+				return;
+			}
+
+			const select = form.find('select[name="assignee_user_id"]');
+			if (!select.length) {
+				return;
+			}
+
+			const normalizedOptions = Array.isArray(optionsPayload) ? optionsPayload : [];
+			let insertedCount = 0;
+
+			select.find('option').not(':first').remove();
+			normalizedOptions.forEach(function (entry) {
+				if (!entry || !entry.id) {
+					return;
+				}
+
+				const entryLabel = String(entry.name || '').trim() || ('Personnel ' + String(entry.id).slice(0, 8));
+
+				$('<option>')
+					.attr('value', entry.id)
+					.text(entryLabel)
+					.appendTo(select);
+				insertedCount++;
+			});
+
+			ensureAssignUserSelectWidget();
+
+			const hasUsers = Math.max(select.find('option').length - 1, 0) > 0;
+			$('#assign-user-empty-state').toggleClass('d-none', hasUsers);
+			setAssignUserDebugState(insertedCount > 0
+				? ('Loaded ' + insertedCount + ' personnel options.')
+				: 'No visible personnel options were inserted into the dropdown.');
+
+			if (select.hasClass('select2-hidden-accessible')) {
+				select.trigger('change.select2');
+			}
+		}
+
+		function ensureAssignUserSelectWidget() {
+			const form = $('#assign-user-form');
+			if (!form.length) {
+				return;
+			}
+
+			const select = form.find('select[name="assignee_user_id"]');
+			if (!select.length) {
+				return;
+			}
+
+			if (typeof $.fn.select2 !== 'function') {
+				return;
+			}
+
+			if (select.hasClass('select2-hidden-accessible')) {
+				select.select2('destroy');
+			}
+
+			select.select2({
+				width: '100%',
+				placeholder: 'Select user',
+				dropdownParent: $('#assign-user-modal'),
+				minimumResultsForSearch: 0,
+			});
+		}
+
+		function setAssignUserDebugState(message, isError = false) {
+			const debugState = $('#assign-user-debug-state');
+			if (!debugState.length) {
+				return;
+			}
+
+			const normalizedMessage = String(message || '').trim();
+			debugState.toggleClass('d-none', normalizedMessage === '');
+			debugState.toggleClass('text-danger', isError === true);
+			debugState.toggleClass('text-muted', isError !== true);
+			debugState.text(normalizedMessage);
+		}
+
+		function refreshAssignUserEmptyState() {
+			const select = $('#assign-user-form').find('select[name="assignee_user_id"]');
+			if (!select.length) {
+				return;
+			}
+
+			const hasUsers = Math.max(select.find('option').length - 1, 0) > 0;
+			$('#assign-user-empty-state').toggleClass('d-none', hasUsers);
+		}
+
+		function ensureAssignUserOptionsLoaded() {
+			const form = $('#assign-user-form');
+			if (!form.length) {
+				return;
+			}
+
+			const usersUrl = form.data('users-url');
+			if (!usersUrl) {
+				setAssignUserOptions([]);
+				setAssignUserDebugState('Users endpoint URL is missing on the form.', true);
+				return;
+			}
+
+			$.ajax({
+				url: usersUrl,
+				type: 'GET',
+				dataType: 'json',
+				headers: {
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				success: function (response) {
+					const incomingUsers = response && Array.isArray(response.users) ? response.users : [];
+					if (incomingUsers.length > 0) {
+						setAssignUserOptions(incomingUsers);
+						setAssignUserDebugState('Loaded ' + incomingUsers.length + ' personnel records.');
+						console.info('Assign-user personnel loaded', {
+							count: incomingUsers.length,
+						});
+						return;
+					}
+
+					console.warn('Assign-user personnel endpoint returned no users', response);
+					setAssignUserDebugState(
+						(response && response.debug_message) ? response.debug_message : 'No personnel returned by the users endpoint.',
+						false
+					);
+					refreshAssignUserEmptyState();
+				},
+				error: function (xhr, textStatus) {
+					console.error('Assign-user personnel endpoint request failed', {
+						status: xhr ? xhr.status : null,
+						textStatus: textStatus,
+						responseText: xhr ? xhr.responseText : null,
+					});
+					setAssignUserDebugState(
+						'Failed to load personnel list (HTTP ' + (xhr && xhr.status ? xhr.status : 'unknown') + '). Check browser console and Laravel logs.',
+						true
+					);
+					refreshAssignUserEmptyState();
+				}
+			});
+		}
+
 		$(document).on('show.bs.modal', '#assign-user-modal', function () {
+			ensureAssignUserSelectWidget();
+			refreshAssignUserEmptyState();
+			ensureAssignUserOptionsLoaded();
 			syncAssignUserModalSelection();
 		});
 

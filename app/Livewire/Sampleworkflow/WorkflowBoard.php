@@ -478,9 +478,11 @@ class WorkflowBoard extends Component
         }
 
         $this->users = User::query()
-            ->where('is_client', 0)
             ->where('active', 1)
-            ->whereNull('supplier_id')
+            ->where(function ($query): void {
+                $query->where('is_client', 0)
+                    ->orWhereNull('is_client');
+            })
             ->orderBy('name')
             ->get();
 
@@ -2924,6 +2926,22 @@ class WorkflowBoard extends Component
             ->all();
     }
 
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
+    public function getAssignableUsersForBatchAssignmentProperty(): array
+    {
+        $this->ensureReferenceDataLoaded();
+
+        return $this->users
+            ->map(fn ($user) => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->values()
+            ->all();
+    }
+
     protected function getListeners(): array
     {
         return [
@@ -3007,6 +3025,7 @@ class WorkflowBoard extends Component
             'myPendingIntrayForms' => $this->myPendingIntrayForms,
             'myPendingIntrayCount' => $this->myPendingIntrayCount,
             'assignableUsersForIntray' => $this->assignableUsersForIntray,
+            'assignableUsersForBatchAssignment' => $this->assignableUsersForBatchAssignment,
             'subcontractingDispatchStatuses' => $this->subcontractingDispatchStatuses,
             'tatTodayBatches' => $tatTodayBatches,
             'tatTodayCount' => $tatTodayBatches->count(),

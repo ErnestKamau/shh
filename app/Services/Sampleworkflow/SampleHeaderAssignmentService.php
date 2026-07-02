@@ -104,8 +104,10 @@ class SampleHeaderAssignmentService
         $user = User::query()
             ->where('id', $userId)
             ->where('active', 1)
-            ->where('is_client', 0)
-            ->whereNull('supplier_id')
+            ->where(function ($query): void {
+                $query->where('is_client', 0)
+                    ->orWhereNull('is_client');
+            })
             ->first();
 
         if ($user === null) {
