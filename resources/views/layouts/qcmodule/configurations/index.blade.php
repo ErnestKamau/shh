@@ -105,8 +105,8 @@
                                 <td>
                                 <a href="{{route('qc_StandardShow',['id'=>$standard->id])}}" class="">{{$standard->code}}</a></td>
                                 <td>{{$standard->name}}</td>
-                                <td>{{$standard->creator()->name ?? '-'}}</td>
-                                <td>{{$standard->getQcType()->name}}</td>
+                                <td>{{ optional($standard->creator())->name ?? '-' }}</td>
+                                <td>{{ optional($standard->getQcType())->name ?? '-' }}</td>
                                 <td>{{$standard->qcschemenames}}</td>
                                 <td>{!! $standard->status == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
                             </tr>
@@ -147,7 +147,7 @@
                                 </td>
                                 <td>{{$type->name}}</td>
                                 <td>{{$type->code}}</td>
-                                <td style="width:15% !important">{{$type->creator()->name}}</td>
+                                <td style="width:15% !important">{{ optional($type->creator())->name ?? '-' }}</td>
                                 <td style="width:5% !important" class="text-center">{!! $type->has_standards == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!} </td>
                                 <td class="text-center" style="width:5% !important">{!! $type->has_configured_samples == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!}</td>
                                 <td class="text-center" style="width:5% !important">{!! $type->use_existing_sample == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!}</td>

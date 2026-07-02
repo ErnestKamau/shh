@@ -6124,25 +6124,42 @@ class SampleWorkFlowController extends Controller
             $portalError  = null;
 
             try {
-                // 1. Set the public report URL on the batch so the portal Reports query finds it
-                $batch->batch_report_online_url = $downloadUrl;
+                DB::transaction(function () use ($batch, $customerId, $downloadUrl, $reportNumber): void {
+                    // Keep the newer online URL and the legacy storage path in sync so
+                    // either portal implementation can surface the report.
+                    $batch->batch_report_online_url = $downloadUrl;
 
-                // 2. Mark status as Completed so it passes the portal Reports filter
-                $reportStatusValue = config('dashboard.report_status', 'Completed');
-                $batch->status = $reportStatusValue;
+                    if (empty($batch->batch_report_url) && is_string($downloadUrl)) {
+                        $downloadPath = parse_url($downloadUrl, PHP_URL_PATH);
 
-                $batch->save();
+                        if (is_string($downloadPath) && str_contains($downloadPath, '/storage/')) {
+                            $legacyReportPath = str_replace('/storage', '', $downloadPath);
+                            $batch->batch_report_url = $legacyReportPath;
+                        }
+                    }
 
-                // 3. Push a CustomerNotification (surfaces in portal Notifications bell)
-                \App\Models\CRM\CustomerNotification::create([
-                    'customer_id'              => $customerId,
-                    'entity_type'              => \App\SampleHeader::class,
-                    'entity_id'                => $batch->id,
-                    'notification_type'        => 'Laboratory Test Report Ready',
-                    'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
-                ]);
+                    // If the legacy path exists but online URL is empty/route-based,
+                    // persist a direct storage URL so portal clients can download reliably.
+                    if (!empty($batch->batch_report_url)) {
+                        $normalizedStoragePath = '/storage/' . ltrim((string) $batch->batch_report_url, '/');
+                        $batch->batch_report_online_url = url($normalizedStoragePath);
+                    }
 
-                // 4. Bust dashboard cache so portal reflects the new report immediately
+                    // Mark status as Completed so it passes the portal reports filter.
+                    $batch->status = config('dashboard.report_status', 'Completed');
+                    $batch->save();
+
+                    // Push a CustomerNotification (surfaces in portal notifications bell).
+                    \App\Models\CRM\CustomerNotification::create([
+                        'customer_id'              => $customerId,
+                        'entity_type'              => \App\SampleHeader::class,
+                        'entity_id'                => $batch->id,
+                        'notification_type'        => 'Laboratory Test Report Ready',
+                        'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
+                    ]);
+                });
+
+                // Bust dashboard cache so the portal reflects the new report immediately.
                 $cacheService = app(\App\Services\Dashboard\DashboardCacheService::class);
                 $cacheService->forgetCustomer($customerId);
                 $cacheService->forgetList('reports', $customerId);
@@ -6281,10 +6298,14 @@ class SampleWorkFlowController extends Controller
 
         $failCount = count(array_filter($results, fn($r) => $r['status'] === 'failed'));
         $sentCount = count($results) - $failCount;
+        $isSuccess = $failCount === 0;
 
         return response()->json([
-            'success' => true,
-            'message' => "{$sentCount} delivery(ies) queued successfully." . ($failCount ? " {$failCount} failed." : ''),
+            'success' => $isSuccess,
+            'message' => $isSuccess
+                ? "{$sentCount} delivery(ies) queued successfully."
+                : "{$sentCount} delivery(ies) queued successfully. {$failCount} failed.",
+            'download_url' => $downloadUrl,
             'results' => $results,
         ]);
     }

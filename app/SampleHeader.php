@@ -4,6 +4,7 @@ namespace App;
 
 use App\Concerns\HasVarcharUuidRelationships;
 use App\Models\CRM\CRMCustomer;
+use App\Models\Sampleworkflow\SampleHeaderUserAssignment;
 use App\Models\QcModule\Configurations\QcTypes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -412,6 +413,18 @@ class SampleHeader extends Model implements Auditable
 	public function sampleSubmissionRequest()
 	{
 		return $this->hasOne('App\Models\SampleSubmissionRequest', 'sample_header_id');
+	}
+
+	public function userAssignments()
+	{
+		return $this->hasMany(SampleHeaderUserAssignment::class, 'sample_header_id')->orderBy('created_at', 'desc');
+	}
+
+	public function activePendingUserAssignment()
+	{
+		return $this->hasOne(SampleHeaderUserAssignment::class, 'sample_header_id')
+			->where('status', SampleHeaderUserAssignment::STATUS_PENDING)
+			->orderBy('created_at', 'desc');
 	}
 
 	public function hasSubmissionForm(): bool

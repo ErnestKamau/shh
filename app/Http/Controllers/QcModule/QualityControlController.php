@@ -20,7 +20,6 @@ use App\User;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Modules\QualityControl\Entities\QCResultsView;
 use App\Models\QcModule\QCProcessedResults;
 
 
@@ -262,7 +261,7 @@ class QualityControlController extends Controller
     }
 
     public function showUnProcessed(){
-        $results = QCResultsView::where('is_qc_processed',0)->get();
+        $results = QcResults::where('is_qc_processed',0)->get();
         return view('layouts.qcmodule.qchistory.processing', compact('results'));
     }
 

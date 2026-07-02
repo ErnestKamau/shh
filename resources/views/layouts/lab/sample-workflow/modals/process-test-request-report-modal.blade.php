@@ -287,8 +287,12 @@
                             fetch('{{ route("deliverTestRequestReport") }}', { method: 'POST', body: body })
                                 .then(function(r) { return r.json(); })
                                 .then(function(data) {
+                                    var failedResults = (data.results || []).filter(function(item) {
+                                        return item && item.status === 'failed';
+                                    });
+                                    var isSuccess = Boolean(data.success) && failedResults.length === 0;
                                     var resultEl = document.getElementById('ptrr-delivery-result');
-                                    var html = '<div class="alert ' + (data.success ? 'alert-success' : 'alert-danger') + ' py-2 px-3 mt-2" style="font-size:12px;border-radius:6px;">';
+                                    var html = '<div class="alert ' + (isSuccess ? 'alert-success' : 'alert-danger') + ' py-2 px-3 mt-2" style="font-size:12px;border-radius:6px;">';
                                     html += '<strong>' + (data.message || '') + '</strong>';
                                     if (data.results && data.results.length) {
                                         html += '<ul class="mb-0 mt-1" style="padding-left:16px;">';

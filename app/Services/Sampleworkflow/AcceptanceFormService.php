@@ -262,7 +262,9 @@ class AcceptanceFormService
 
             $this->dispatchSampleCreationJob((string) $form->id);
 
-            $completed = $form->fresh(['lines', 'sampleHeader']);
+            $completed = $this->ensureSampleBatchForManagerApproval(
+                $form->fresh(['lines', 'sampleHeader'])
+            )->fresh(['lines', 'sampleHeader']);
 
             if ($completed->sample_header_id) {
                 $this->transitionBatchToSamplesInLab($completed);

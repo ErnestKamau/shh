@@ -41,7 +41,7 @@ class Header extends Component
     public $checklistRequiredMessage = '';
     public $checklistStageName = '';
     
-    public $verificationActiveTab = 'case_file_review';
+    public $verificationActiveTab = 'assign_approvers';
 
     // Form Data
     public $selectedContact;
@@ -90,7 +90,7 @@ class Header extends Component
         // Load specific data needed for actions
         $this->loadActionData();
 
-        $this->verificationActiveTab = $this->batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
+        $this->verificationActiveTab = 'assign_approvers';
     }
 
     public function loadActionData()
@@ -412,13 +412,6 @@ class Header extends Component
             return;
         }
 
-        // Save Case File Review Form if DNA lab
-        if ($batch->hasDnaLab()) {
-            $caseFormModel = \App\Models\CaseFileReviewForm::firstOrNew(['batch_id' => $batch->id]);
-            $caseFormModel->fill($this->caseFormData);
-            $caseFormModel->save();
-        }
-
         // We check if at least one laboratory has a manager or we have a manager assigned
         $hasManagers = false;
         foreach ($labs as $lab) {
@@ -590,7 +583,7 @@ class Header extends Component
 
         session()->flash('success', 'Batch move was successful');
         $this->showVerificationModal = false;
-        $this->verificationActiveTab = $batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
+        $this->verificationActiveTab = 'assign_approvers';
         $this->dispatch('batchUpdated');
 
         // Redirect back to the workflow column we initiated from (legacy style)
@@ -599,7 +592,7 @@ class Header extends Component
 
     public function openVerificationModal()
     {
-        $this->verificationActiveTab = $this->batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
+        $this->verificationActiveTab = 'assign_approvers';
         $this->showVerificationModal = true;
     }
 

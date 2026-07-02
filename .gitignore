@@ -83,3 +83,4 @@ fivet_dump.sql
 # Database dumps and log files
 *.dump
 *.log
+AGENTS.md

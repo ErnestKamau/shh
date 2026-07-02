@@ -22,8 +22,11 @@ use App\Http\Controllers\LivewireControllers\StandardsController;
 use App\Http\Controllers\LivewireControllers\CRMAppController;
 use App\Http\Controllers\LivewireControllers\EquipmentAppController;
 use App\Http\Controllers\System\PushSubscriptionController;
+use App\Http\Controllers\System\SystemBackupController;
 use App\Http\Controllers\System\SystemDatabaseExportController;
 use App\Http\Controllers\Auth\ChangePasswordController;
+use App\Http\Controllers\Lab\PersonalDashboardController;
+use App\Http\Controllers\Lab\SampleAssignmentController;
 
 Route::get('/', function () {
     return redirect()->route('home');
@@ -161,6 +164,12 @@ Route::post('/set-default-company', 'HomeController@default_company')->name('set
 
 //#############CONFIGURATIONS###############################################################################
 Route::get('/system-settings', 'ConfigurationController@index')->name('system-settings')->middleware('can:settings.module.access');
+Route::get('/system-settings/backups', [SystemBackupController::class, 'index'])
+    ->name('system-settings.backups')
+    ->middleware(['auth', 'can:settings.module.access']);
+Route::post('/system-settings/backups/export', [SystemBackupController::class, 'export'])
+    ->name('system-settings.backups.export')
+    ->middleware(['auth', 'can:system.dashboard.export']);
 Route::get('/system-settings/database-export/{format}', SystemDatabaseExportController::class)
     ->name('system-settings.database-export')
     ->middleware(['auth', 'can:system.dashboard.export']);
@@ -215,6 +224,9 @@ Route::get('/getCustomerSampleTypes', 'Lab\LabDashboardController@getCustomerSam
 //#####################LABS######################################################################################
 Route::get('/lab-home', 'LabController@index')->name('lab-home')->middleware('can:laboratory.components.dashboard.view');
 Route::get('/lab-dashboard', 'Lab\LabDashboardController@index')->name('dashboard-lab')->middleware('can:laboratory.module.access');
+Route::get('/lab-dashboard/personal', [PersonalDashboardController::class, 'index'])
+    ->name('dashboard-lab-personal')
+    ->middleware(['can:laboratory.module.access', 'can:laboratory.components.all samples.view']);
 
 Route::get('/lab/equipment-requests', function () {
     return view('layouts.lab.equipment-requests.index');
@@ -531,6 +543,9 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}', 'SampleWorkFlowContro
 
 Route::post('/process-raw-results/lab', 'SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab')->middleware('can:laboratory.components.all samples.edit');
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.all samples.view');
+Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
+    ->name('sample-workflow.assign-user')
+    ->middleware('can:laboratory.components.sample-workflow.assign-user');
 Route::get('/sample-submission-requests', 'SampleWorkFlowController@submissionRequestsIndex')
     ->name('sample-submission-requests.index')
     ->middleware('can:laboratory.components.all samples.view');

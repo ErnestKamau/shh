@@ -1178,6 +1178,13 @@
 									</li>
 								@endif
 								@if($status == "Samples In Lab")
+									@if(auth()->user()->can('laboratory.components.sample-workflow.assign-user'))
+									<li>
+										<button type="button" class="dropdown-item" data-target="#assign-user-modal" data-toggle="modal">
+											<i class="mdi mdi-account-arrow-right-outline mr-2"></i> Assign user
+										</button>
+									</li>
+									@endif
 									<li>
 
 										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i
@@ -2619,6 +2626,9 @@
 													<th nowrap>Sample Type</th>
 													<th>Routine</th>
 												@endif
+												@if($status == 'Samples In Lab')
+													<th>Assigned User</th>
+												@endif
 												<th>Actions</th>
 											</tr>
 										</thead>
@@ -2673,6 +2683,18 @@
 														<td>{{ $item->lab->name ?? 'N/A' }}</td>
 														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
 														<td>{{ $item->is_routine ? 'Yes' : 'No' }}</td>
+													@endif
+													@if($status == 'Samples In Lab')
+														@php
+															$batchAssignee = $batchAssignmentMap[(string) $item->id] ?? null;
+														@endphp
+														<td>
+															@if($batchAssignee && ($batchAssignee['name'] ?? '') !== '')
+																<span class="badge badge-light border">{{ $batchAssignee['name'] }}</span>
+															@else
+																<span class="text-muted">Unassigned</span>
+															@endif
+														</td>
 													@endif
 													<td nowrap>
 														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}" class="btn btn-sm btn-outline-info">
@@ -3699,6 +3721,43 @@
 					</form>
 				</div>
 			</div>
+
+			@if(auth()->user()->can('laboratory.components.sample-workflow.assign-user'))
+			<div id="assign-user-modal" class="modal fade" role="dialog">
+				<div class="modal-dialog">
+					<form class="modal-content" method="POST" action="{{ route('sample-workflow.assign-user') }}" id="assign-user-form">
+						@csrf
+						<div class="modal-header">
+							<h5 class="modal-title"><i class="mdi mdi-account-arrow-right-outline"></i> Assign User</h5>
+							<button type="button" class="close" data-dismiss="modal">&times;</button>
+						</div>
+						<div class="modal-body">
+							<div class="form-group">
+								<label class="control-label">Assign to</label>
+								<select name="assignee_user_id" class="form-control form-control-sm" required>
+									<option value="">Select user</option>
+									@foreach($assignableUsersForIntray as $assignableUser)
+										<option value="{{ $assignableUser['id'] }}">{{ $assignableUser['name'] }}</option>
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group">
+								<label class="control-label">Comment</label>
+								<textarea name="comment" class="form-control form-control-sm" rows="3" placeholder="Optional note for this assignment"></textarea>
+							</div>
+							<div class="form-group mb-0">
+								<label class="control-label">Selected Batches</label>
+								<div id="assign-user-selected-batches" class="small text-muted">No batch selected.</div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+							<button type="submit" class="btn btn-primary btn-sm">Assign</button>
+						</div>
+					</form>
+				</div>
+			</div>
+			@endif
 		@endif
 		@if($status == "Samples Request Review" || $status == "Samples Reception" || $status === 'Samples Receiving' || (in_array($status, ['Samples En-Route'], true) && $workflowSubTab === 'requests'))
 			<div id="portal-request-reject-form-modal" class="modal fade" role="dialog">
@@ -6341,6 +6400,52 @@
 			$('#lab_acceptance_total_amount').text(total.toFixed(2));
 			$('#lab_acceptance_amount_usd_hidden').val(total.toFixed(2));
 		}
+
+		function syncAssignUserModalSelection() {
+			const selected = $("input[name='batch_id[]']:checked");
+			const container = $('#assign-user-selected-batches');
+			const form = $('#assign-user-form');
+
+			if (!container.length || !form.length) {
+				return;
+			}
+
+			container.empty();
+			form.find('input.js-assignment-batch').remove();
+
+			if (selected.length === 0) {
+				container.text('No batch selected.');
+				return;
+			}
+
+			selected.each(function () {
+				const batchId = $(this).val();
+				const batchCode = $(this).data('batch-code') || batchId;
+
+				$('<span class="badge badge-light border mr-1 mb-1 d-inline-block"></span>')
+					.text(batchCode)
+					.appendTo(container);
+
+				$('<input>')
+					.attr('type', 'hidden')
+					.attr('name', 'batch_ids[]')
+					.attr('value', batchId)
+					.addClass('js-assignment-batch')
+					.appendTo(form);
+			});
+		}
+
+		$(document).on('show.bs.modal', '#assign-user-modal', function () {
+			syncAssignUserModalSelection();
+		});
+
+		$(document).on('submit', '#assign-user-form', function (event) {
+			syncAssignUserModalSelection();
+			if ($('#assign-user-form').find('input.js-assignment-batch').length === 0) {
+				event.preventDefault();
+				alert('Please select at least one batch before assigning a user.');
+			}
+		});
 	
 	</script>
 	@endpush

@@ -4,16 +4,23 @@ namespace App\Auth;
 
 use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 
 class SafeEloquentUserProvider extends EloquentUserProvider
 {
     public function retrieveById($identifier)
     {
+        $table = $this->createModel()->getTable();
+
+        if (! Schema::hasTable($table)) {
+            return null;
+        }
+
         try {
             return parent::retrieveById($identifier);
         } catch (QueryException $exception) {
             // Guard against stale/non-UUID identifiers in session storage.
-            if (($exception->errorInfo[0] ?? null) === '22P02') {
+            if (in_array(($exception->errorInfo[0] ?? null), ['22P02', '42P01'], true)) {
                 return null;
             }
 

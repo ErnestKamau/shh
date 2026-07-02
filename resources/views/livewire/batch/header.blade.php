@@ -205,26 +205,12 @@
                                     </li>
                                 @endif
                                 @if(!in_array($batch->status, array("Completed")))
-                                    @if($batch->hasSubmissionForm() && $batch->samples()->exists())
-                                        @if($batch->hasSubmissionFormAttachment())
-                                            <li>
-                                                <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}"
-                                                    method="POST" class="d-inline">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-sm dropdown-item"><i
-                                                            class="mdi mdi-refresh mr-2"></i> Regenerate Submission Form</button>
-                                                </form>
-                                            </li>
-                                        @else
-                                            <li>
-                                                <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}"
-                                                    method="POST" class="d-inline">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-sm dropdown-item"><i
-                                                            class="mdi mdi-file-pdf-box mr-2"></i> Generate Submission Form</button>
-                                                </form>
-                                            </li>
-                                        @endif
+                                    @if($batch->hasSubmissionForm() && $batch->samples()->exists() && $batch->status === 'Sample Approval')
+                                        <li>
+                                            <span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal">
+                                                <i class="mdi mdi-file-pdf-box mr-2"></i> Generate Submission Form
+                                            </span>
+                                        </li>
                                     @endif
                                     @if($batch->schedule_analysis_sent == '')
                                         <li>
@@ -240,12 +226,6 @@
                                             <i class="mdi mdi-email-send mr-2"></i> Send Payment Reminder
                                         </span>
                                     </li>
-                                @endif
-
-                                @if(isset($batch->status) && in_array($batch->status, ["Samples In Lab", "Sample Verification", "Sample Approval"]) && Auth::user()->is_client == 0 && $batch->hasDnaLab())
-                                    <li><span class="btn btn-sm dropdown-item" wire:click="$set('showCaseFileModal', true)"
-                                            style="cursor: pointer;"><i class="mdi mdi-folder-account mr-2 text-primary"></i> Case
-                                            File Review Form</span></li>
                                 @endif
 
                                 @if(isset($batch->status) && $batch->status == "Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
@@ -337,7 +317,7 @@
                                             <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i
                                                         class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
                                         @endif
-                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span></li>
+                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" data-next-modal="#process-test-request-report-modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span></li>
                                         @if(in_array($batch->status, ["Sample Approval", "Reports for Collection", "Reports In Payment"]))
                                             {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                                     data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
@@ -726,72 +706,14 @@
                             <div>
                                 <h5 class="vw-title">Move Batch to Verification</h5>
                                 <p class="vw-subtitle">
-                                    @if($batch->hasDnaLab())
-                                        Complete the case file review, then assign approvers for <strong>{{ $batch->batch_code }}</strong>.
-                                    @else
-                                        Assign approvers for <strong>{{ $batch->batch_code }}</strong>.
-                                    @endif
+                                    Assign approvers for <strong>{{ $batch->batch_code }}</strong>.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    @if($batch->hasDnaLab())
-                        <div class="vw-steps">
-                            <button type="button"
-                                class="vw-step @if($verificationActiveTab === 'case_file_review') is-active @elseif($verificationActiveTab === 'assign_approvers') is-complete @endif"
-                                wire:click="$set('verificationActiveTab', 'case_file_review')">
-                                <span class="vw-step-indicator">
-                                    @if($verificationActiveTab === 'assign_approvers')
-                                        <i class="mdi mdi-check" style="font-size: 16px;"></i>
-                                    @else
-                                        1
-                                    @endif
-                                </span>
-                                <span class="vw-step-label">
-                                    <strong>Case File Review</strong>
-                                    DNA/F/12 form
-                                </span>
-                            </button>
-                            <div class="vw-step-connector @if($verificationActiveTab === 'assign_approvers') is-complete @endif"></div>
-                            <button type="button"
-                                class="vw-step @if($verificationActiveTab === 'assign_approvers') is-active @endif"
-                                wire:click="$set('verificationActiveTab', 'assign_approvers')">
-                                <span class="vw-step-indicator">2</span>
-                                <span class="vw-step-label">
-                                    <strong>Assign Approvers</strong>
-                                    Select signatories
-                                </span>
-                            </button>
-                        </div>
-                    @endif
-
                     <div class="vw-modal-body">
-                        @if($batch->hasDnaLab() && $verificationActiveTab === 'case_file_review')
-                            <div class="text-center mb-3">
-                                <span class="badge badge-light border px-3 py-2" style="font-size: 0.72rem; letter-spacing: 0.06em; color: #475569;">
-                                    FORENSIC BIOLOGY AND DNA LABORATORY &bull; CASE FILE REVIEW (DNA/F/12)
-                                </span>
-                            </div>
-
-                            <div class="cf-worksheet-bar">
-                                <p><i class="mdi mdi-information-outline mr-1"></i> Empty fields can be filled from saved grouped worksheet stages.</p>
-                                <button type="button" class="btn btn-cf-outline"
-                                    wire:click="refreshCaseFileFromWorksheets"
-                                    wire:loading.attr="disabled"
-                                    wire:target="refreshCaseFileFromWorksheets">
-                                    <span wire:loading.remove wire:target="refreshCaseFileFromWorksheets">
-                                        <i class="mdi mdi-file-import-outline"></i> Fill from worksheets
-                                    </span>
-                                    <span wire:loading wire:target="refreshCaseFileFromWorksheets">Loading…</span>
-                                </button>
-                            </div>
-
-                            @include('livewire.batch.partials.case-file-review-form', [
-                                'wireModel' => 'caseFormData',
-                                'idSuffix' => 'ver',
-                            ])
-                        @elseif($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
+                        @if($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
                             <div class="vw-info-banner">
                                 <i class="mdi mdi-account-multiple-check-outline"></i>
                                 <span>Select the technical reviewer and laboratory approvers for this batch before submitting to verification.</span>
@@ -905,22 +827,10 @@
                     </div>
 
                     <div class="vw-modal-footer">
-                        @if($verificationActiveTab === 'assign_approvers' && $batch->hasDnaLab())
-                            <button type="button" class="btn btn-outline-secondary btn-sm mr-auto"
-                                wire:click="$set('verificationActiveTab', 'case_file_review')">
-                                <i class="mdi mdi-arrow-left mr-1"></i> Back
-                            </button>
-                        @endif
-
                         <button type="button" class="btn btn-outline-secondary btn-sm"
                             wire:click="$set('showVerificationModal', false)">Close</button>
 
-                        @if($batch->hasDnaLab() && $verificationActiveTab === 'case_file_review')
-                            <button type="button" class="btn btn-vw-next btn-sm"
-                                wire:click="$set('verificationActiveTab', 'assign_approvers')">
-                                Next: Assign Approvers <i class="mdi mdi-arrow-right ml-1"></i>
-                            </button>
-                        @elseif($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
+                        @if($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
                             <button type="button" class="btn btn-vw-primary btn-sm"
                                 wire:click="moveToVerification">
                                 <i class="mdi mdi-send-check-outline mr-1"></i> Submit to Verification
