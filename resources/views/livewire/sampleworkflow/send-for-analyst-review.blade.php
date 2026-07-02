@@ -46,6 +46,19 @@
         </div>
 
         <div class="form-group mb-0">
+            <div class="form-check mb-3">
+                <input
+                    id="analyst-review-is-qc-batch"
+                    type="checkbox"
+                    wire:model="isQcBatch"
+                    class="form-check-input"
+                >
+                <label class="form-check-label" for="analyst-review-is-qc-batch">
+                    Is QC batch
+                </label>
+                <p class="text-muted small mb-0 mt-1">When selected, the generated batch follows QC workflow handling instead of normal workflow.</p>
+            </div>
+
             <label class="receive-sample-field-label" for="analyst-review-comment">
                 Comment
             </label>

@@ -55,6 +55,7 @@ class AcceptanceFormSampleHeaderService
 
         $labId = $this->resolveLabId($context, $configLabIdFallback);
         $labSectionIds = $this->resolveLabSectionIds($labId);
+        $isQcBatch = $this->resolveIsQcBatch($context['instance'], $context['mappedRaw'], $context['mappedHeader']);
 
         $receivingOfficer = $this->resolveReceivingOfficer($context);
 
@@ -106,6 +107,8 @@ class AcceptanceFormSampleHeaderService
             'routine_frequency' => 0,
             'submission_form_instance_id' => $form->submission_form_instance_id,
             'sample_tracking_stage' => $reviewStage?->id,
+            'is_qc_batch' => $isQcBatch,
+            'begin_proccess' => $isQcBatch ? 1 : 0,
         ];
 
         if (Schema::hasColumn('sample_headers', 'is_client_order')) {
@@ -616,6 +619,53 @@ class AcceptanceFormSampleHeaderService
     private function normalizePriority(string $modeOfWork): string
     {
         return strtolower($modeOfWork) === 'express' ? 'Express' : 'Normal';
+    }
+
+    /**
+     * @param  array<string, string>  $mappedRaw
+     * @param  array<string, string>  $mappedHeader
+     */
+    private function resolveIsQcBatch(?SubmissionFormInstance $instance, array $mappedRaw, array $mappedHeader): bool
+    {
+        if ($instance !== null && isset($instance->is_qc_batch)) {
+            return (bool) $instance->is_qc_batch;
+        }
+
+        foreach ([$mappedRaw['is_qc_batch'] ?? null, $mappedHeader['is_qc_batch'] ?? null] as $candidate) {
+            $resolved = $this->toBoolean($candidate);
+            if ($resolved !== null) {
+                return $resolved;
+            }
+        }
+
+        return false;
+    }
+
+    private function toBoolean(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+
+        if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+            return true;
+        }
+
+        if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+            return false;
+        }
+
+        return null;
     }
 
     private function formatDateOnly(mixed $value): ?string

@@ -6037,9 +6037,67 @@ class SampleWorkFlowController extends Controller
         $company = getActiveCompany();
         $exclude_pesticides = isset($request->add_pesticide) ? 0 : 1;
         $standard_report = $request->template_id;
-        $analysis_date = SampleAnalysisDates::where('sample_header_id', $batch->id)->orderBy('start_analysis_date', 'ASC')->first();
+        $analysis_date = $this->resolveBatchAnalysisDateRange($batch->id);
         // return response()->json('here');
         return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides', 'result_presentation'));
+    }
+
+    private function resolveBatchAnalysisDateRange(string $batchId): ?object
+    {
+        $records = SampleAnalysisDates::where('sample_header_id', $batchId)
+            ->get(['start_analysis_date', 'analysis_dates']);
+
+        $startDates = [];
+        $endDates = [];
+
+        foreach ($records as $record) {
+            if (! empty($record->start_analysis_date)) {
+                $startDates[] = $record->start_analysis_date;
+                $endDates[] = $record->start_analysis_date;
+            }
+
+            $decoded = json_decode((string) $record->analysis_dates, true);
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            foreach ($decoded as $sectionRange) {
+                if (is_array($sectionRange)) {
+                    $startDate = $sectionRange['start_date'] ?? $sectionRange['start'] ?? null;
+                    $endDate = $sectionRange['end_date'] ?? $sectionRange['end'] ?? null;
+
+                    if (! empty($startDate)) {
+                        $startDates[] = $startDate;
+                        $endDates[] = $startDate;
+                    }
+                    if (! empty($endDate)) {
+                        $endDates[] = $endDate;
+                    }
+
+                    continue;
+                }
+
+                if (! empty($sectionRange)) {
+                    $startDates[] = $sectionRange;
+                    $endDates[] = $sectionRange;
+                }
+            }
+        }
+
+        sort($startDates);
+        rsort($endDates);
+
+        $startDate = $startDates[0] ?? '';
+        $endDate = $endDates[0] ?? $startDate;
+
+        if ($startDate === '' && $endDate === '') {
+            return null;
+        }
+
+        return (object) [
+            'start_analysis_date' => $startDate,
+            'end_analysis_date' => $endDate,
+        ];
     }
 
     public function processTestRequestReport(Request $request)
@@ -7511,32 +7569,47 @@ class SampleWorkFlowController extends Controller
     {
         $sample = SampleDetails::where('sample_code', $request->sample_id)->first();
         $analysis_date = SampleAnalysisDates::where('sample_header_id', $request->batch_id)->where('sample_detail_id', $sample->id)->first() ?? new SampleAnalysisDates();
-        if (isset($analysis_date->id)) {
-            $prev_dates = $analysis_date->analysis_dates != '' ? json_decode($analysis_date->analysis_dates, true) : [];
-            // foreach($prev_dates as $key=>$value){
-            // 	if($key == )
-            // }
-            if (isset($prev_dates[$request->lab_section_id])) {
-                $prev_dates[$request->lab_section_id] = $request->start_analysis_date;
-            } else {
-                $prev_dates[$request->lab_section_id] = $request->start_analysis_date;
-                // array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
-            }
-            $start_date = '';
-            foreach ($prev_dates as $key => $val) {
-                if ($start_date == '') {
-                    $start_date = $val;
-                } else {
-                    $start_date = $val > $start_date ? $start_date : $val;
+        $decoded = $analysis_date->analysis_dates != '' ? json_decode($analysis_date->analysis_dates, true) : [];
+        $prev_dates = [];
+
+        if (is_array($decoded)) {
+            foreach ($decoded as $sectionId => $sectionValue) {
+                if (is_array($sectionValue)) {
+                    $prev_dates[$sectionId] = [
+                        'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
+                        'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
+                    ];
+                    continue;
                 }
+
+                $prev_dates[$sectionId] = [
+                    'start_date' => $sectionValue,
+                    'end_date' => null,
+                ];
             }
-            $analysis_date->start_analysis_date = $start_date;
-        } else {
-            $prev_dates = [];
-            // array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
-            $prev_dates[$request->lab_section_id] = $request->start_analysis_date;
-            $analysis_date->start_analysis_date = $request->start_analysis_date;
         }
+
+        $sectionId = (string) $request->lab_section_id;
+        $prev_dates[$sectionId] = [
+            'start_date' => $request->start_analysis_date,
+            'end_date' => $prev_dates[$sectionId]['end_date'] ?? null,
+        ];
+
+        $start_date = '';
+        foreach ($prev_dates as $val) {
+            $sectionStartDate = is_array($val) ? ($val['start_date'] ?? '') : $val;
+            if ($sectionStartDate == '') {
+                continue;
+            }
+
+            if ($start_date == '') {
+                $start_date = $sectionStartDate;
+            } else {
+                $start_date = $sectionStartDate > $start_date ? $start_date : $sectionStartDate;
+            }
+        }
+
+        $analysis_date->start_analysis_date = $start_date == '' ? $request->start_analysis_date : $start_date;
         $analysis_date->sample_header_id = $request->batch_id;
         $analysis_date->sample_detail_id = $sample->id;
         // return response()->json($prev_dates);

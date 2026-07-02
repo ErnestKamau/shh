@@ -216,7 +216,19 @@ $printed_pos = [];
                 <tr>
                     <td style="border:solid 0 transparent !important;"><b>Date of analysis : </b></td>
                     <td style="border:solid 0 transparent !important;">
-                        {{  $analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date, 'normal') : '-' }}
+                        @php
+                            $analysisStart = $analysis_date?->start_analysis_date;
+                            $analysisEnd = $analysis_date?->end_analysis_date;
+                        @endphp
+                        @if($analysisStart && $analysisEnd)
+                            {{ convertDateFormatReports($analysisStart, 'normal') }} - {{ convertDateFormatReports($analysisEnd, 'normal') }}
+                        @elseif($analysisStart)
+                            {{ convertDateFormatReports($analysisStart, 'normal') }}
+                        @elseif($analysisEnd)
+                            {{ convertDateFormatReports($analysisEnd, 'normal') }}
+                        @else
+                            -
+                        @endif
                     </td>
                     <td style="border:solid 0 transparent !important;width:9%"></td>
                     

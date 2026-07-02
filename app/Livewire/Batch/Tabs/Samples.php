@@ -2114,6 +2114,11 @@ class Samples extends Component
             }
 
             // Enrich each result with additional data
+            $analysisDateRecord = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
+                ->where('sample_detail_id', $sample->id)
+                ->first();
+            $analysisDatesBySection = $this->decodeAnalysisDatesBySection($analysisDateRecord?->analysis_dates);
+
             $parameters = [];
             foreach ($capturedResults as $result) {
                 // Get analysis type
@@ -2216,6 +2221,12 @@ class Samples extends Component
                     'equipment_id' => $result->equipment_id,
                     'lab_section_id' => $result->lab_section_id,
                     'lab_section_name' => $labSection ? ($labSection->name . ' - ' . $labSection->code) : '-',
+                    'start_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['start_date']
+                        ?? $analysisDatesBySection[$result->lab_section_id]['start_date']
+                        ?? '',
+                    'end_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['end_date']
+                        ?? $analysisDatesBySection[$result->lab_section_id]['end_date']
+                        ?? '',
                     'subcontracted' => $result->analyte_status_contracted,
                     'accredited' => $result->analyte_accredited,
                     'result_confirmation' => $result->result, // Initialize with same value
@@ -2252,16 +2263,12 @@ class Samples extends Component
 
             // Load analysis dates for this sample (start_analysis_date per section)
             $this->dateOfAnalysisBySection = [];
-            $analysisDateRecord = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
-                ->where('sample_detail_id', $sample->id)
-                ->first();
-            if ($analysisDateRecord && $analysisDateRecord->analysis_dates) {
-                $decoded = json_decode($analysisDateRecord->analysis_dates, true);
-                if (is_array($decoded)) {
-                    foreach ($decoded as $secId => $dateVal) {
-                        $this->dateOfAnalysisBySection[$secId] = $dateVal ? \Carbon\Carbon::parse($dateVal)->format('Y-m-d') : '';
-                    }
+            foreach ($analysisDatesBySection as $secId => $range) {
+                if (str_starts_with((string) $secId, 'captured_result:')) {
+                    continue;
                 }
+
+                $this->dateOfAnalysisBySection[$secId] = $range['start_date'] ?? '';
             }
             // Ensure every parameter section has an entry
             foreach (array_keys($this->parameterLabSections) as $sid) {
@@ -2539,6 +2546,19 @@ class Samples extends Component
                 $this->evaluateResult($id);
             }
 
+            foreach ($this->parametersForm as $data) {
+                $startDate = $this->normalizeDateOnly($data['start_analysis_date'] ?? null);
+                $endDate = $this->normalizeDateOnly($data['end_analysis_date'] ?? null);
+
+                if (! $startDate && $endDate) {
+                    throw new \InvalidArgumentException('Start date of analysis is required when end date is provided.');
+                }
+
+                if ($startDate && $endDate && $endDate < $startDate) {
+                    throw new \InvalidArgumentException('End date of analysis cannot be earlier than start date of analysis.');
+                }
+            }
+
             foreach ($this->parametersForm as $id => $data) {
                 $captured = CapturedResult::query()->find($id);
                 if (! $captured) {
@@ -2558,6 +2578,8 @@ class Samples extends Component
                     'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
                 ]);
             }
+
+            $this->persistSampleAnalysisDateRange();
 
             session()->flash('message', 'Parameters saved successfully.');
             $this->loadIncompleteCapturedResults();
@@ -2591,6 +2613,176 @@ class Samples extends Component
         }
 
         return ReportingUnit::query()->where('name', $normalized)->value('id');
+    }
+
+    /**
+     * @return array<string, array{start_date: ?string, end_date: ?string}>
+     */
+    private function decodeAnalysisDatesBySection(?string $analysisDatesJson): array
+    {
+        if (! $analysisDatesJson) {
+            return [];
+        }
+
+        $decoded = json_decode($analysisDatesJson, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($decoded as $sectionId => $value) {
+            if (is_array($value)) {
+                $normalized[(string) $sectionId] = [
+                    'start_date' => $this->normalizeDateOnly($value['start_date'] ?? $value['start'] ?? null),
+                    'end_date' => $this->normalizeDateOnly($value['end_date'] ?? $value['end'] ?? null),
+                ];
+                continue;
+            }
+
+            $normalized[(string) $sectionId] = [
+                'start_date' => $this->normalizeDateOnly($value),
+                'end_date' => null,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeDateOnly(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse((string) $value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    private function findEarliestDate(array $dates): ?string
+    {
+        $dates = array_values(array_filter($dates));
+        if ($dates === []) {
+            return null;
+        }
+
+        sort($dates);
+
+        return $dates[0] ?? null;
+    }
+
+    private function findLatestDate(array $dates): ?string
+    {
+        $dates = array_values(array_filter($dates));
+        if ($dates === []) {
+            return null;
+        }
+
+        rsort($dates);
+
+        return $dates[0] ?? null;
+    }
+
+    private function persistSampleAnalysisDateRange(): void
+    {
+        if (! $this->selectedSampleCode) {
+            return;
+        }
+
+        $sample = SampleDetails::where('sample_code', $this->selectedSampleCode)
+            ->where('sample_header_id', $this->batch->id)
+            ->first();
+
+        if (! $sample) {
+            return;
+        }
+
+        $analysisDate = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
+            ->where('sample_detail_id', $sample->id)
+            ->first();
+
+        if (! $analysisDate) {
+            $analysisDate = new SampleAnalysisDates();
+        }
+
+        $sectionRanges = $this->decodeAnalysisDatesBySection($analysisDate->analysis_dates);
+
+        foreach ($this->parametersForm as $capturedResultId => $data) {
+            $sectionId = $this->normalizeNullableForeignKey($data['lab_section_id'] ?? null);
+            $rowKey = 'captured_result:' . (string) $capturedResultId;
+
+            $rowStartDate = $this->normalizeDateOnly($data['start_analysis_date'] ?? null);
+            $rowEndDate = $this->normalizeDateOnly($data['end_analysis_date'] ?? null);
+
+            if (! $rowStartDate && ! $rowEndDate) {
+                continue;
+            }
+
+            // Persist per-parameter row values so refresh restores exactly what user entered.
+            $sectionRanges[$rowKey] = [
+                'start_date' => $rowStartDate,
+                'end_date' => $rowEndDate,
+            ];
+
+            if (! $sectionId) {
+                continue;
+            }
+
+            $sectionStartDate = $sectionRanges[$sectionId]['start_date'] ?? null;
+            $sectionEndDate = $sectionRanges[$sectionId]['end_date'] ?? null;
+
+            if ($rowStartDate) {
+                $sectionStartDate = $sectionStartDate === null
+                    ? $rowStartDate
+                    : min($sectionStartDate, $rowStartDate);
+            }
+
+            if (! $rowStartDate && $rowEndDate && $sectionStartDate === null) {
+                // Keep schema-compatible range when only an end date is supplied.
+                $sectionStartDate = $rowEndDate;
+            }
+
+            if ($rowEndDate) {
+                $sectionEndDate = $sectionEndDate === null
+                    ? $rowEndDate
+                    : max($sectionEndDate, $rowEndDate);
+            }
+
+            $sectionRanges[$sectionId] = [
+                'start_date' => $sectionStartDate,
+                'end_date' => $sectionEndDate,
+            ];
+        }
+
+        $allStartDates = [];
+        $allEndDates = [];
+        foreach ($sectionRanges as $range) {
+            if (! empty($range['start_date'])) {
+                $allStartDates[] = $range['start_date'];
+            }
+            if (! empty($range['end_date'])) {
+                $allEndDates[] = $range['end_date'];
+            }
+        }
+
+        $earliestStartDate = $this->findEarliestDate($allStartDates);
+
+        if ($earliestStartDate === null) {
+            if ($analysisDate->exists && ! empty($analysisDate->start_analysis_date)) {
+                $earliestStartDate = $this->normalizeDateOnly($analysisDate->start_analysis_date);
+            } else {
+                // Do not create an invalid row when no analysis start date was provided.
+                return;
+            }
+        }
+
+        $analysisDate->sample_header_id = $this->batch->id;
+        $analysisDate->sample_detail_id = $sample->id;
+        $analysisDate->start_analysis_date = $earliestStartDate;
+        $analysisDate->analysis_dates = json_encode($sectionRanges);
+        $analysisDate->save();
     }
 
     /**
@@ -2692,27 +2884,23 @@ class Samples extends Component
                 $analysis_date = new SampleAnalysisDates();
             }
 
-            $prev_dates = [];
-            if ($analysis_date->analysis_dates) {
-                $decoded = json_decode($analysis_date->analysis_dates, true);
-                $prev_dates = is_array($decoded) ? $decoded : [];
-            }
+            $prevDates = $this->decodeAnalysisDatesBySection($analysis_date->analysis_dates);
+            $prevDates[(string) $sectionId] = [
+                'start_date' => $this->normalizeDateOnly($date),
+                'end_date' => $prevDates[(string) $sectionId]['end_date'] ?? null,
+            ];
 
-            $prev_dates[$sectionId] = $date;
-
-            $start_date = '';
-            foreach ($prev_dates as $val) {
-                if ($start_date === '') {
-                    $start_date = $val;
-                } else {
-                    $start_date = $val > $start_date ? $start_date : $val;
+            $allStartDates = [];
+            foreach ($prevDates as $range) {
+                if (! empty($range['start_date'])) {
+                    $allStartDates[] = $range['start_date'];
                 }
             }
 
             $analysis_date->sample_header_id = $this->batch->id;
             $analysis_date->sample_detail_id = $sample->id;
-            $analysis_date->start_analysis_date = $start_date;
-            $analysis_date->analysis_dates = json_encode($prev_dates);
+            $analysis_date->start_analysis_date = $this->findEarliestDate($allStartDates);
+            $analysis_date->analysis_dates = json_encode($prevDates);
             $analysis_date->save();
 
             session()->flash('message', 'Date of analysis saved successfully.');

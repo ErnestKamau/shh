@@ -38,7 +38,19 @@
     <div class="info-row">
         <div class="info-label" style="width: 15%;">Date Tested:</div>
         <div class="info-value">
-            {{ isset($analysis_date) ? date('d', strtotime($analysis_date->start_analysis_date)) . ' – ' . date('d F Y', strtotime($analysis_date->start_analysis_date)) : 'N/A' }}
+            @php
+                $analysisStart = $analysis_date?->start_analysis_date;
+                $analysisEnd = $analysis_date?->end_analysis_date;
+            @endphp
+            @if($analysisStart && $analysisEnd)
+                {{ date('d', strtotime($analysisStart)) . ' – ' . date('d F Y', strtotime($analysisEnd)) }}
+            @elseif($analysisStart)
+                {{ date('d', strtotime($analysisStart)) . ' – ' . date('d F Y', strtotime($analysisStart)) }}
+            @elseif($analysisEnd)
+                {{ date('d', strtotime($analysisEnd)) . ' – ' . date('d F Y', strtotime($analysisEnd)) }}
+            @else
+                N/A
+            @endif
         </div>
     </div>
 

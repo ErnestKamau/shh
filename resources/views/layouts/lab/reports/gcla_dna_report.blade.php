@@ -173,7 +173,17 @@
         $isHq = stripos($batch->batch_code, 'HQ') !== false;
         
         // Dynamic dates
-        $analysisDateFormatted = $analysis_date ? date('d/m/Y', strtotime($analysis_date->start_analysis_date)) : date('d/m/Y');
+        $analysisStart = $analysis_date?->start_analysis_date;
+        $analysisEnd = $analysis_date?->end_analysis_date;
+        if ($analysisStart && $analysisEnd) {
+            $analysisDateFormatted = date('d/m/Y', strtotime($analysisStart)) . ' - ' . date('d/m/Y', strtotime($analysisEnd));
+        } elseif ($analysisStart) {
+            $analysisDateFormatted = date('d/m/Y', strtotime($analysisStart));
+        } elseif ($analysisEnd) {
+            $analysisDateFormatted = date('d/m/Y', strtotime($analysisEnd));
+        } else {
+            $analysisDateFormatted = date('d/m/Y');
+        }
         $letterDateFormatted = date('d/m/Y', strtotime($batch->created_at));
         $todayFormatted = date('d/m/Y', strtotime($date ?? getTodayDate()));
         

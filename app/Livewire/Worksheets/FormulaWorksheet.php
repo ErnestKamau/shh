@@ -608,18 +608,45 @@ class FormulaWorksheet extends Component
 
                 if (isset($analysis_date->id)) {
                     // Update existing - merge lab section dates
-                    $prev_dates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
+                    $decodedDates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
+                    $prev_dates = [];
+                    if (is_array($decodedDates)) {
+                        foreach ($decodedDates as $sectionId => $sectionValue) {
+                            if (is_array($sectionValue)) {
+                                $prev_dates[$sectionId] = [
+                                    'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
+                                    'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
+                                ];
+                                continue;
+                            }
+
+                            $prev_dates[$sectionId] = [
+                                'start_date' => $sectionValue,
+                                'end_date' => null,
+                            ];
+                        }
+                    }
+
                     if ($captured->lab_section_id) {
-                        $prev_dates[$captured->lab_section_id] = $currentDate;
+                        $sectionId = (string) $captured->lab_section_id;
+                        $prev_dates[$sectionId] = [
+                            'start_date' => $currentDate,
+                            'end_date' => $prev_dates[$sectionId]['end_date'] ?? null,
+                        ];
                     }
 
                     // Calculate earliest date across all lab sections
                     $start_date = '';
                     foreach ($prev_dates as $key => $val) {
+                        $sectionStartDate = is_array($val) ? ($val['start_date'] ?? '') : (string) $val;
+                        if ($sectionStartDate === '') {
+                            continue;
+                        }
+
                         if ($start_date == '') {
-                            $start_date = $val;
+                            $start_date = $sectionStartDate;
                         } else {
-                            $start_date = $val < $start_date ? $val : $start_date;
+                            $start_date = $sectionStartDate < $start_date ? $sectionStartDate : $start_date;
                         }
                     }
                     $analysis_date->start_analysis_date = $start_date;
@@ -628,7 +655,10 @@ class FormulaWorksheet extends Component
                     // Create new
                     $prev_dates = [];
                     if ($captured->lab_section_id) {
-                        $prev_dates[$captured->lab_section_id] = $currentDate;
+                        $prev_dates[(string) $captured->lab_section_id] = [
+                            'start_date' => $currentDate,
+                            'end_date' => null,
+                        ];
                     }
                     $analysis_date->sample_header_id = $captured->sample_header_id;
                     $analysis_date->sample_detail_id = $captured->sample_detail_id;
@@ -1827,9 +1857,31 @@ class FormulaWorksheet extends Component
 
                 if (isset($analysis_date->id)) {
                     // Update existing - merge lab section dates
-                    $prev_dates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
+                    $decodedDates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
+                    $prev_dates = [];
+                    if (is_array($decodedDates)) {
+                        foreach ($decodedDates as $sectionId => $sectionValue) {
+                            if (is_array($sectionValue)) {
+                                $prev_dates[$sectionId] = [
+                                    'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
+                                    'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
+                                ];
+                                continue;
+                            }
+
+                            $prev_dates[$sectionId] = [
+                                'start_date' => $sectionValue,
+                                'end_date' => null,
+                            ];
+                        }
+                    }
+
                     if ($captured->lab_section_id) {
-                        $prev_dates[$captured->lab_section_id] = $currentDate;
+                        $sectionId = (string) $captured->lab_section_id;
+                        $prev_dates[$sectionId] = [
+                            'start_date' => $currentDate,
+                            'end_date' => $prev_dates[$sectionId]['end_date'] ?? null,
+                        ];
                     }
 
                     $analysis_date->start_analysis_date = $startDate;
@@ -1839,7 +1891,10 @@ class FormulaWorksheet extends Component
                     // Create new
                     $prev_dates = [];
                     if ($captured->lab_section_id) {
-                        $prev_dates[$captured->lab_section_id] = $currentDate;
+                        $prev_dates[(string) $captured->lab_section_id] = [
+                            'start_date' => $currentDate,
+                            'end_date' => null,
+                        ];
                     }
                     $analysis_date->sample_header_id = $captured->sample_header_id;
                     $analysis_date->sample_detail_id = $captured->sample_detail_id;

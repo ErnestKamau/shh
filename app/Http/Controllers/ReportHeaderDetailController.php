@@ -289,7 +289,7 @@ class ReportHeaderDetailController extends Controller
 
 		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->get();
 		$is_stamp = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->where('batch_status', 'Sample Approval')->first();
-		$analysis_date = SampleAnalysisDates::where('sample_header_id', $batch->id)->orderBy('start_analysis_date', 'DESC')->first();
+		$analysis_date = $this->resolveBatchAnalysisDateRange($batch->id);
 
 		$disclaimer = 'The report shall not be reproduced except in full without approval of the laboratory. The information supplied by the customer can affect the validity of results. The results relate only to the items tested. The results apply to the sample as received. Opinions, interpretations and comments herein are not covered within the scope of accreditation.';
 		$status = $batch->status;
@@ -1195,6 +1195,63 @@ class ReportHeaderDetailController extends Controller
 		}
 
 		return $pdf->stream($filename);
+	}
+
+	private function resolveBatchAnalysisDateRange(string $batchId): ?object
+	{
+		$records = SampleAnalysisDates::where('sample_header_id', $batchId)
+			->get(['start_analysis_date', 'analysis_dates']);
+
+		$startDates = [];
+		$endDates = [];
+
+		foreach ($records as $record) {
+			if (! empty($record->start_analysis_date)) {
+				$startDates[] = $record->start_analysis_date;
+				$endDates[] = $record->start_analysis_date;
+			}
+
+			$decoded = json_decode((string) $record->analysis_dates, true);
+			if (! is_array($decoded)) {
+				continue;
+			}
+
+			foreach ($decoded as $sectionRange) {
+				if (is_array($sectionRange)) {
+					$startDate = $sectionRange['start_date'] ?? $sectionRange['start'] ?? null;
+					$endDate = $sectionRange['end_date'] ?? $sectionRange['end'] ?? null;
+
+					if (! empty($startDate)) {
+						$startDates[] = $startDate;
+						$endDates[] = $startDate;
+					}
+					if (! empty($endDate)) {
+						$endDates[] = $endDate;
+					}
+					continue;
+				}
+
+				if (! empty($sectionRange)) {
+					$startDates[] = $sectionRange;
+					$endDates[] = $sectionRange;
+				}
+			}
+		}
+
+		sort($startDates);
+		rsort($endDates);
+
+		$startDate = $startDates[0] ?? '';
+		$endDate = $endDates[0] ?? $startDate;
+
+		if ($startDate === '' && $endDate === '') {
+			return null;
+		}
+
+		return (object) [
+			'start_analysis_date' => $startDate,
+			'end_analysis_date' => $endDate,
+		];
 	}
 
 	private function processGCLA02Report($batch, $customer, $company, $report_logo, $stamp, $is_stamp, $filename, $customer_name, $mergeWithAttachments, $attachmentIds, $batch_approvers, $analysis_date, $report_type, $ammendment, $disclaimer, $date)
