@@ -23,6 +23,7 @@ class LabModulePermissionsSeeder extends Seeder
             'laboratory.components.all samples.add',
             'laboratory.components.all samples.edit',
             'laboratory.components.all samples.delete',
+            'laboratory.components.sample-workflow.assign-user',
             'laboratory.components.inter-lab-logs.view',
             'laboratory.components.inter-lab-logs.add',
             'laboratory.components.inter-lab-logs.edit',

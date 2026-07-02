@@ -357,7 +357,7 @@ class DashboardRepository
             complaintNumber: $complaint->complaint_id,
             title: $complaint->description,
             complaintType: $complaint->type,
-            status: $this->publicStatusLabel((string) ($complaint->complaint_workflow ?? 'open')),
+            status: $complaint->is_closed ? 'closed' : 'open',
             createdAt: $complaint->date?->toIso8601String(),
             resolutionStatus: $complaint->is_closed ? 'resolved' : 'open',
         );
@@ -607,6 +607,12 @@ class DashboardRepository
 
     private function publicStatusLabel(string $status): string
     {
+        if (is_numeric($status)) {
+            $workflow = getComplaintWorkflow();
+
+            return $workflow[(int) $status] ?? 'Open Complaints';
+        }
+
         return str($status)->replace('_', ' ')->title()->toString();
     }
 

@@ -24,7 +24,41 @@
             </p>
         </section>
 
+        <div class="form-group">
+            <label class="receive-sample-field-label" for="analyst-review-lab">
+                Lab <span class="text-danger">*</span>
+            </label>
+            <select
+                id="analyst-review-lab"
+                wire:model="receivingLabId"
+                class="form-control form-control-sm @error('receivingLabId') is-invalid @enderror"
+                required
+            >
+                <option value="">Select lab...</option>
+                @foreach ($labs as $lab)
+                    <option value="{{ $lab->id }}">{{ $lab->code }} - {{ $lab->name }}</option>
+                @endforeach
+            </select>
+            @error('receivingLabId')
+                <div class="invalid-feedback d-block">{{ $message }}</div>
+            @enderror
+            <p class="text-muted small mb-0 mt-1">This lab is applied to the batch when the customer signs the acceptance form.</p>
+        </div>
+
         <div class="form-group mb-0">
+            <div class="form-check mb-3">
+                <input
+                    id="analyst-review-is-qc-batch"
+                    type="checkbox"
+                    wire:model="isQcBatch"
+                    class="form-check-input"
+                >
+                <label class="form-check-label" for="analyst-review-is-qc-batch">
+                    Is QC batch
+                </label>
+                <p class="text-muted small mb-0 mt-1">When selected, the generated batch follows QC workflow handling instead of normal workflow.</p>
+            </div>
+
             <label class="receive-sample-field-label" for="analyst-review-comment">
                 Comment
             </label>

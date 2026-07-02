@@ -83,6 +83,7 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\ProcedureWorksheetPdfService;
 use App\Http\Requests\StoreSampleSubmissionRequest;
 use App\Services\WorkflowService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
@@ -6037,9 +6038,67 @@ class SampleWorkFlowController extends Controller
         $company = getActiveCompany();
         $exclude_pesticides = isset($request->add_pesticide) ? 0 : 1;
         $standard_report = $request->template_id;
-        $analysis_date = SampleAnalysisDates::where('sample_header_id', $batch->id)->orderBy('start_analysis_date', 'ASC')->first();
+        $analysis_date = $this->resolveBatchAnalysisDateRange($batch->id);
         // return response()->json('here');
         return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides', 'result_presentation'));
+    }
+
+    private function resolveBatchAnalysisDateRange(string $batchId): ?object
+    {
+        $records = SampleAnalysisDates::where('sample_header_id', $batchId)
+            ->get(['start_analysis_date', 'analysis_dates']);
+
+        $startDates = [];
+        $endDates = [];
+
+        foreach ($records as $record) {
+            if (! empty($record->start_analysis_date)) {
+                $startDates[] = $record->start_analysis_date;
+                $endDates[] = $record->start_analysis_date;
+            }
+
+            $decoded = json_decode((string) $record->analysis_dates, true);
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            foreach ($decoded as $sectionRange) {
+                if (is_array($sectionRange)) {
+                    $startDate = $sectionRange['start_date'] ?? $sectionRange['start'] ?? null;
+                    $endDate = $sectionRange['end_date'] ?? $sectionRange['end'] ?? null;
+
+                    if (! empty($startDate)) {
+                        $startDates[] = $startDate;
+                        $endDates[] = $startDate;
+                    }
+                    if (! empty($endDate)) {
+                        $endDates[] = $endDate;
+                    }
+
+                    continue;
+                }
+
+                if (! empty($sectionRange)) {
+                    $startDates[] = $sectionRange;
+                    $endDates[] = $sectionRange;
+                }
+            }
+        }
+
+        sort($startDates);
+        rsort($endDates);
+
+        $startDate = $startDates[0] ?? '';
+        $endDate = $endDates[0] ?? $startDate;
+
+        if ($startDate === '' && $endDate === '') {
+            return null;
+        }
+
+        return (object) [
+            'start_analysis_date' => $startDate,
+            'end_analysis_date' => $endDate,
+        ];
     }
 
     public function processTestRequestReport(Request $request)
@@ -6072,6 +6131,7 @@ class SampleWorkFlowController extends Controller
             'batch_id' => $batch->id,
             'seq'      => $batch->test_request_report_sequence,
             'lang'     => $request->language,
+            'mode'     => 'pdf',
         ]);
     }
 
@@ -6124,25 +6184,42 @@ class SampleWorkFlowController extends Controller
             $portalError  = null;
 
             try {
-                // 1. Set the public report URL on the batch so the portal Reports query finds it
-                $batch->batch_report_online_url = $downloadUrl;
+                DB::transaction(function () use ($batch, $customerId, $downloadUrl, $reportNumber): void {
+                    // Keep the newer online URL and the legacy storage path in sync so
+                    // either portal implementation can surface the report.
+                    $batch->batch_report_online_url = $downloadUrl;
 
-                // 2. Mark status as Completed so it passes the portal Reports filter
-                $reportStatusValue = config('dashboard.report_status', 'Completed');
-                $batch->status = $reportStatusValue;
+                    if (empty($batch->batch_report_url) && is_string($downloadUrl)) {
+                        $downloadPath = parse_url($downloadUrl, PHP_URL_PATH);
 
-                $batch->save();
+                        if (is_string($downloadPath) && str_contains($downloadPath, '/storage/')) {
+                            $legacyReportPath = str_replace('/storage', '', $downloadPath);
+                            $batch->batch_report_url = $legacyReportPath;
+                        }
+                    }
 
-                // 3. Push a CustomerNotification (surfaces in portal Notifications bell)
-                \App\Models\CRM\CustomerNotification::create([
-                    'customer_id'              => $customerId,
-                    'entity_type'              => \App\SampleHeader::class,
-                    'entity_id'                => $batch->id,
-                    'notification_type'        => 'Laboratory Test Report Ready',
-                    'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
-                ]);
+                    // If the legacy path exists but online URL is empty/route-based,
+                    // persist a direct storage URL so portal clients can download reliably.
+                    if (!empty($batch->batch_report_url)) {
+                        $normalizedStoragePath = '/storage/' . ltrim((string) $batch->batch_report_url, '/');
+                        $batch->batch_report_online_url = url($normalizedStoragePath);
+                    }
 
-                // 4. Bust dashboard cache so portal reflects the new report immediately
+                    // Mark status as Completed so it passes the portal reports filter.
+                    $batch->status = config('dashboard.report_status', 'Completed');
+                    $batch->save();
+
+                    // Push a CustomerNotification (surfaces in portal notifications bell).
+                    \App\Models\CRM\CustomerNotification::create([
+                        'customer_id'              => $customerId,
+                        'entity_type'              => \App\SampleHeader::class,
+                        'entity_id'                => $batch->id,
+                        'notification_type'        => 'Laboratory Test Report Ready',
+                        'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
+                    ]);
+                });
+
+                // Bust dashboard cache so the portal reflects the new report immediately.
                 $cacheService = app(\App\Services\Dashboard\DashboardCacheService::class);
                 $cacheService->forgetCustomer($customerId);
                 $cacheService->forgetList('reports', $customerId);
@@ -6281,10 +6358,14 @@ class SampleWorkFlowController extends Controller
 
         $failCount = count(array_filter($results, fn($r) => $r['status'] === 'failed'));
         $sentCount = count($results) - $failCount;
+        $isSuccess = $failCount === 0;
 
         return response()->json([
-            'success' => true,
-            'message' => "{$sentCount} delivery(ies) queued successfully." . ($failCount ? " {$failCount} failed." : ''),
+            'success' => $isSuccess,
+            'message' => $isSuccess
+                ? "{$sentCount} delivery(ies) queued successfully."
+                : "{$sentCount} delivery(ies) queued successfully. {$failCount} failed.",
+            'download_url' => $downloadUrl,
             'results' => $results,
         ]);
     }
@@ -6450,16 +6531,75 @@ class SampleWorkFlowController extends Controller
             ],
         };
 
+        $verificationUrl = route('generateTestRequestReport', [
+            'batch_id' => $batch->id,
+            'seq' => $sequence,
+            'lang' => $language,
+            'mode' => 'pdf',
+        ]);
+
+        $footerQrCode = '';
+        if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
+            $footerQrCode = 'data:image/svg+xml;base64,' . base64_encode(
+                \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
+                    ->size(110)
+                    ->margin(1)
+                    ->errorCorrection('H')
+                    ->generate($verificationUrl)
+            );
+        }
+
         // Revision history for this batch
         $revisions = \App\Models\TestRequestReportRevision::where('batch_id', $batch->id)
             ->orderByDesc('revision_no')
             ->get();
 
+        $mode = strtolower((string) $request->query('mode', 'view'));
+        $isPdfMode = $mode === 'pdf';
+        if ($mode === 'pdf') {
+            $viewData = array_merge($reportData, compact(
+                'language',
+                'labels',
+                'revisions',
+                'isRTL',
+                'isPdfMode',
+                'footerQrCode',
+                'verificationUrl'
+            ));
+
+            $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
+            $pdf->setPaper('a4');
+
+            $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
+            $customerName = trim($customerName, '_') ?: 'customer';
+            $filename = 'TRR_' . $reportNumber . '.pdf';
+            $relativePath = '/reports/' . $customerName . '/' . $filename;
+            $absoluteDir = storage_path('app/reports/' . $customerName);
+
+            if (!is_dir($absoluteDir)) {
+                mkdir($absoluteDir, 0755, true);
+            }
+
+            $absolutePath = $absoluteDir . '/' . $filename;
+            $pdf->save($absolutePath);
+
+            $batch->batch_report_url = $relativePath;
+            $batch->batch_report_online_url = url('/storage' . $relativePath);
+            $batch->save();
+
+            return $pdf->stream($filename, [
+                'Attachment' => false,
+            ]);
+        }
+
         return view('layouts.lab.sample-workflow.report-formats.test_request_report', array_merge($reportData, compact(
             'language',
             'labels',
             'revisions',
-            'isRTL'
+            'isRTL',
+            'isPdfMode',
+            'footerQrCode',
+            'verificationUrl'
         )));
     }
 
@@ -7490,32 +7630,47 @@ class SampleWorkFlowController extends Controller
     {
         $sample = SampleDetails::where('sample_code', $request->sample_id)->first();
         $analysis_date = SampleAnalysisDates::where('sample_header_id', $request->batch_id)->where('sample_detail_id', $sample->id)->first() ?? new SampleAnalysisDates();
-        if (isset($analysis_date->id)) {
-            $prev_dates = $analysis_date->analysis_dates != '' ? json_decode($analysis_date->analysis_dates, true) : [];
-            // foreach($prev_dates as $key=>$value){
-            // 	if($key == )
-            // }
-            if (isset($prev_dates[$request->lab_section_id])) {
-                $prev_dates[$request->lab_section_id] = $request->start_analysis_date;
-            } else {
-                $prev_dates[$request->lab_section_id] = $request->start_analysis_date;
-                // array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
-            }
-            $start_date = '';
-            foreach ($prev_dates as $key => $val) {
-                if ($start_date == '') {
-                    $start_date = $val;
-                } else {
-                    $start_date = $val > $start_date ? $start_date : $val;
+        $decoded = $analysis_date->analysis_dates != '' ? json_decode($analysis_date->analysis_dates, true) : [];
+        $prev_dates = [];
+
+        if (is_array($decoded)) {
+            foreach ($decoded as $sectionId => $sectionValue) {
+                if (is_array($sectionValue)) {
+                    $prev_dates[$sectionId] = [
+                        'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
+                        'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
+                    ];
+                    continue;
                 }
+
+                $prev_dates[$sectionId] = [
+                    'start_date' => $sectionValue,
+                    'end_date' => null,
+                ];
             }
-            $analysis_date->start_analysis_date = $start_date;
-        } else {
-            $prev_dates = [];
-            // array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
-            $prev_dates[$request->lab_section_id] = $request->start_analysis_date;
-            $analysis_date->start_analysis_date = $request->start_analysis_date;
         }
+
+        $sectionId = (string) $request->lab_section_id;
+        $prev_dates[$sectionId] = [
+            'start_date' => $request->start_analysis_date,
+            'end_date' => $prev_dates[$sectionId]['end_date'] ?? null,
+        ];
+
+        $start_date = '';
+        foreach ($prev_dates as $val) {
+            $sectionStartDate = is_array($val) ? ($val['start_date'] ?? '') : $val;
+            if ($sectionStartDate == '') {
+                continue;
+            }
+
+            if ($start_date == '') {
+                $start_date = $sectionStartDate;
+            } else {
+                $start_date = $sectionStartDate > $start_date ? $start_date : $sectionStartDate;
+            }
+        }
+
+        $analysis_date->start_analysis_date = $start_date == '' ? $request->start_analysis_date : $start_date;
         $analysis_date->sample_header_id = $request->batch_id;
         $analysis_date->sample_detail_id = $sample->id;
         // return response()->json($prev_dates);

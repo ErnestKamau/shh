@@ -20,7 +20,7 @@ class SubmissionFormPdfService
     public function attachSubmissionFormPdfToBatch(
         SubmissionFormInstance $instance,
         SampleHeader $sampleHeader,
-        int $attachmentTypeId
+        string $attachmentTypeId
     ): void {
         try {
             $submissionForm = $instance->submissionForm;

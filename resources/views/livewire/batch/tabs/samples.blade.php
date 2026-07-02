@@ -923,6 +923,8 @@
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
                                     <th style="min-width: 100px;">Result</th>
+                                    <th style="min-width: 145px;">Start date</th>
+                                    <th style="min-width: 145px;">End date</th>
                                     @if($uncertaintyRequired)
                                     <th style="min-width: 80px;">M.U.</th>
                                     @endif
@@ -980,6 +982,16 @@
                                             </div>
                                             @endif
                                         </div>
+                                    </td>
+                                    <td style="min-width: 145px;">
+                                        <input type="date"
+                                            class="form-control form-control-sm"
+                                            wire:model.defer="parametersForm.{{ $id }}.start_analysis_date">
+                                    </td>
+                                    <td style="min-width: 145px;">
+                                        <input type="date"
+                                            class="form-control form-control-sm"
+                                            wire:model.defer="parametersForm.{{ $id }}.end_analysis_date">
                                     </td>
                                     @if($uncertaintyRequired)
                                     <td style="min-width: 80px;">

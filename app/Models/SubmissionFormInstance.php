@@ -52,6 +52,7 @@ class SubmissionFormInstance extends Model implements Auditable
         'reviewed_by',
         'review_notes',
         'receiving_lab_id',
+        'is_qc_batch',
         'source_channel',
         'sampling_schedule_id',
     ];
@@ -59,7 +60,8 @@ class SubmissionFormInstance extends Model implements Auditable
     protected $casts = [
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
-        'due_date' => 'date'
+        'due_date' => 'date',
+        'is_qc_batch' => 'boolean',
     ];
 
     /**

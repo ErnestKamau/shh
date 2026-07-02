@@ -105,7 +105,19 @@
                                 {{ is_numeric($sample->kra_office_ref) ? '°C' : '' }}</span></div>
                         <div class="col-md-3"><span class="text-bold">Date of analysis : </span></div>
                         <div class="col-md-3">
-                            <span>{{  $analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date, 'normal') : '-' }}</span>
+                            @php
+                                $analysisStart = $analysis_date?->start_analysis_date;
+                                $analysisEnd = $analysis_date?->end_analysis_date;
+                            @endphp
+                            @if($analysisStart && $analysisEnd)
+                                <span>{{ convertDateFormatReports($analysisStart, 'normal') }} - {{ convertDateFormatReports($analysisEnd, 'normal') }}</span>
+                            @elseif($analysisStart)
+                                <span>{{ convertDateFormatReports($analysisStart, 'normal') }}</span>
+                            @elseif($analysisEnd)
+                                <span>{{ convertDateFormatReports($analysisEnd, 'normal') }}</span>
+                            @else
+                                <span>-</span>
+                            @endif
                         </div>
                         <div class="col-md-3"><span class="text-bold">Condition of test item & Environment</span></div>
                         <div class="col-md-3"><span>{{ $sample->sample_condition_name }}</span></div>

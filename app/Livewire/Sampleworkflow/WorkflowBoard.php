@@ -4,6 +4,7 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\InventorySubCategories;
 use App\Models\CRM\CRMCustomer;
+use App\Models\Sampleworkflow\SampleHeaderUserAssignment;
 use App\SampleAnalysisStage;
 use App\SampleDate;
 use App\SampleDetails;
@@ -477,9 +478,11 @@ class WorkflowBoard extends Component
         }
 
         $this->users = User::query()
-            ->where('is_client', 0)
             ->where('active', 1)
-            ->whereNull('supplier_id')
+            ->where(function ($query): void {
+                $query->where('is_client', 0)
+                    ->orWhereNull('is_client');
+            })
             ->orderBy('name')
             ->get();
 
@@ -2960,6 +2963,22 @@ class WorkflowBoard extends Component
         return $statusDays.' day'.($statusDays === 1 ? '' : 's').' left';
     }
 
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
+    public function getAssignableUsersForBatchAssignmentProperty(): array
+    {
+        $this->ensureReferenceDataLoaded();
+
+        return $this->users
+            ->map(fn ($user) => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->values()
+            ->all();
+    }
+
     protected function getListeners(): array
     {
         return [
@@ -2979,6 +2998,36 @@ class WorkflowBoard extends Component
         // the Livewire encrypted snapshot, which would bloat every request/response.
         $this->loadReferenceData();
 
+        $batches = $this->batches;
+
+        $batchAssignmentMap = collect();
+        if ($batches instanceof LengthAwarePaginator) {
+            $batchIds = collect($batches->items())
+                ->pluck('id')
+                ->filter()
+                ->values();
+
+            if ($batchIds->isNotEmpty()) {
+                $batchAssignmentMap = SampleHeaderUserAssignment::query()
+                    ->pending()
+                    ->where(function ($query) use ($batchIds): void {
+                        foreach ($batchIds as $batchId) {
+                            $query->orWhere('sample_header_id', $batchId);
+                        }
+                    })
+                    ->with('toUser')
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->unique('sample_header_id')
+                    ->mapWithKeys(fn (SampleHeaderUserAssignment $assignment) => [
+                        (string) $assignment->sample_header_id => [
+                            'user_id' => (string) $assignment->to_user_id,
+                            'name' => (string) ($assignment->toUser?->name ?? ''),
+                        ],
+                    ]);
+            }
+        }
+
         // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
         $tatTodayBatches = $this->tatTodayBatches;
 
@@ -2991,7 +3040,8 @@ class WorkflowBoard extends Component
             ?? collect();
 
         return view('livewire.sampleworkflow.workflow-board', [
-            'batches' => $this->batches,
+            'batches' => $batches,
+            'batchAssignmentMap' => $batchAssignmentMap,
             'natureOfSampleOptions' => $natureOfSampleOptions,
             'labsections' => $this->labsections,
             'analysts' => $this->analysts,
@@ -3012,6 +3062,7 @@ class WorkflowBoard extends Component
             'myPendingIntrayForms' => $this->myPendingIntrayForms,
             'myPendingIntrayCount' => $this->myPendingIntrayCount,
             'assignableUsersForIntray' => $this->assignableUsersForIntray,
+            'assignableUsersForBatchAssignment' => $this->assignableUsersForBatchAssignment,
             'subcontractingDispatchStatuses' => $this->subcontractingDispatchStatuses,
             'tatTodayBatches' => $tatTodayBatches,
             'tatTodayCount' => $tatTodayBatches->count(),

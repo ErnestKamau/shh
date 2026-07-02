@@ -49,7 +49,7 @@ class PortalComplaintService
             $chain = new Chain_of_Custody_Complaint();
             $chain->complaint_id = $complaint->id;
             $chain->action = 'Create complaint';
-            $chain->action_taker_id = 0;
+            $chain->action_taker_id = null;
             $chain->comments = $portalAccountId !== null
                 ? 'Submitted via customer portal (account: '.$portalAccountId.')'
                 : 'Submitted via customer portal';

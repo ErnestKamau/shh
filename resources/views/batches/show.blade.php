@@ -406,8 +406,8 @@
                             <option value="dcea_009">DCEA 009 Form (Government Laboratory Analyst Report)</option>
                             @endif
                             @if(isset($report_formats) && $report_formats->isNotEmpty())
-                                @foreach($report_formats as $format)
-                                <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
+								@foreach($report_formats as $format)
+								<option value="{{ $format->id }}" data-report-code="{{ $format->report_code ?? '' }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
                                     {{ $format->report_name }}@if($format->report_code) ({{ $format->report_code }})@endif
                                 </option>
                                 @endforeach
@@ -762,10 +762,81 @@
 			}
 		});
 
+		var lastProcessedReportOptions = null;
+
+		// Capture which action opened Process Results so we can apply context-specific options.
+		$(document).on('click', '[data-target="#process-results-modal"]', function () {
+			var nextModalTarget = $(this).attr('data-next-modal') || '#view-coa-report';
+			$('#process-results-modal').data('next-modal-target', nextModalTarget);
+		});
+
 		// Process Results Modal Handler
-		$('#process-results-modal').on('show.bs.modal', function(){
+		$('#process-results-modal').on('show.bs.modal', function(event){
 			var $modal = $('#process-results-modal');
 			var batch = $modal.data('batch');
+			var trigger = event && event.relatedTarget ? $(event.relatedTarget) : $();
+			var nextModalTarget = trigger.attr('data-next-modal')
+				|| $modal.data('next-modal-target')
+				|| '#view-coa-report';
+
+			$modal.data('next-modal-target', nextModalTarget);
+
+			var isTestRequestFlow = nextModalTarget === '#process-test-request-report-modal';
+			var $formatSelect = $modal.find('#report_format');
+
+			if (!Array.isArray($modal.data('all-report-format-options'))) {
+				var allOptions = [];
+				$formatSelect.find('option').each(function () {
+					allOptions.push({
+						value: $(this).attr('value') || '',
+						text: $(this).text(),
+						disabled: $(this).prop('disabled'),
+						reportCode: ($(this).attr('data-report-code') || '').toUpperCase()
+					});
+				});
+				$modal.data('all-report-format-options', allOptions);
+			}
+
+			var allReportOptions = $modal.data('all-report-format-options') || [];
+			$formatSelect.empty();
+
+			if (isTestRequestFlow) {
+				var finalOption = allReportOptions.find(function (opt) {
+					var text = (opt.text || '').toUpperCase();
+					return opt.reportCode === 'FINAL_RESULTS' || text.indexOf('FINAL RESULTS') !== -1 || text.indexOf('FINAL REPORT') !== -1;
+				});
+
+				if (finalOption) {
+					$formatSelect.append(
+						$('<option>', {
+							value: finalOption.value,
+							text: finalOption.text,
+							'aria-label': finalOption.text
+						})
+					);
+					$formatSelect.val(finalOption.value);
+				} else {
+					$formatSelect.append(
+						$('<option>', {
+							value: '',
+							text: 'Final Report format is not configured for this batch.',
+							disabled: true,
+							selected: true
+						})
+					);
+				}
+			} else {
+				allReportOptions.forEach(function (opt) {
+					$formatSelect.append(
+						$('<option>', {
+							value: opt.value,
+							text: opt.text,
+							disabled: !!opt.disabled
+						})
+					);
+				});
+				$formatSelect.val('');
+			}
 
 			$modal.find('.proccesing-point').addClass('hidden');
 			$modal.find('#initiate-process').prop('disabled', false).removeClass('disabled').html('<i class="mdi mdi-cogs"></i> Generate Report');
@@ -777,7 +848,7 @@
 					dropdownParent: $modal
 				});
 			}
-			$modal.find('#report_format').val('').trigger('change');
+			$formatSelect.trigger('change');
 
 			// Show/hide language choice group based on format selection
 			$modal.find('#report_format').off('change').on('change', function () {
@@ -808,6 +879,8 @@
 				}
 			});
 
+			lastProcessedReportOptions = null;
+
 			$modal.find('#initiate-process').off('click').on('click', function(){
 				var selectedFormat = $modal.find('#report_format').val();
 				
@@ -824,6 +897,10 @@
 					attachment_ids = $modal.find('#attachment_ids').val() || [];
 				}
 				var gcla_language = $modal.find('#gcla_language').val() || 'sw';
+				lastProcessedReportOptions = {
+					report_format: selectedFormat,
+					gcla_language: gcla_language
+				};
 				
 				// Disable the button to prevent double-clicks
 				$(this).prop('disabled', true).addClass('disabled').html('<i class="mdi mdi-loading mdi-spin"></i> Generating...');
@@ -855,6 +932,12 @@
 						if (typeof Livewire !== 'undefined') {
 							Livewire.dispatch('attachmentsUpdated');
 						}
+
+						setTimeout(function () {
+							$modal.modal('hide');
+							var postProcessModal = $modal.data('next-modal-target') || '#view-coa-report';
+							$(postProcessModal).modal('show');
+						}, 500);
 					},
 					error: function(data){
 						console.log(data);
@@ -877,7 +960,14 @@
 					dropdownParent: $modal
 				});
 			}
-			$modal.find('#report_format_select_again').val('').trigger('change');
+			if (lastProcessedReportOptions && lastProcessedReportOptions.report_format) {
+				$modal.find('#report_format_select_again').val(lastProcessedReportOptions.report_format).trigger('change');
+				if (lastProcessedReportOptions.report_format === 'gcla_02' || lastProcessedReportOptions.report_format === 'dcea_009') {
+					$modal.find('#gcla_language_again').val(lastProcessedReportOptions.gcla_language || 'sw');
+				}
+			} else {
+				$modal.find('#report_format_select_again').val('').trigger('change');
+			}
 
 			$modal.find('#report_format_select_again').off('change').on('change', function () {
 				if ($(this).val() === 'gcla_02' || $(this).val() === 'dcea_009') {

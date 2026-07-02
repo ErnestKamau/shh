@@ -244,13 +244,21 @@
                 </tr>
                 <tr>
                     <td><b>START DATE OF ANALYSIS</b></td>
-                    <td>{{$analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date,'dateShortMonth') : '-' }}</td>
+                    <td>{{ !empty($analysis_date?->start_analysis_date) ? convertDateFormatReports($analysis_date?->start_analysis_date,'dateShortMonth') : '-' }}</td>
                     <td><b>SAMPLED BY</b></td>
                     <td>{{ $batch->sampling_officer_name ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td><b>FINISH DATE OF ANALYSIS</b></td>
-                    <td>{{$batch->approval_date != '' && $batch->prelim_report_status != 2 ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</td>
+                    <td>
+                        @if(!empty($analysis_date?->end_analysis_date))
+                            {{ convertDateFormatReports($analysis_date?->end_analysis_date,'dateShortMonth') }}
+                        @elseif($batch->approval_date != '' && $batch->prelim_report_status != 2)
+                            {{ convertDateFormatReports($batch->approval_date,'dateShortMonth') }}
+                        @else
+                            -
+                        @endif
+                    </td>
                     <td><b>SAMPLING METHOD</b></td>
                     <td>{{ $sample->sample_method_name ?? 'N/A' }}</td>
                 </tr>

@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Dashboard;
 use App\Models\CRM\CustomerNotification;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\SampleHeader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -110,6 +111,27 @@ class DashboardApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.pagination.total', 1)
             ->assertJsonPath('data.notifications.0.title', 'Test alert');
+    }
+
+    public function test_reports_are_visible_when_legacy_storage_path_is_present(): void
+    {
+        SampleHeader::query()->create([
+            'batch_code' => 'BA-PORTAL-0001',
+            'receipt_date' => now()->toDateString(),
+            'date_collected' => now()->toDateString(),
+            'date_expected' => now()->addDay()->toDateString(),
+            'crm_customer_id' => self::CUSTOMER_ID,
+            'crm_unit_name' => 'Unit A',
+            'sample_type_id' => 1,
+            'status' => config('dashboard.report_status', 'Completed'),
+            'batch_report_url' => '/reports/acme/BA-PORTAL-0001.pdf',
+        ]);
+
+        $this->dashboardRequest('GET', '/api/v1/dashboard/'.self::CUSTOMER_ID.'/reports')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.reports.0.report_number', 'BA-PORTAL-0001')
+            ->assertJsonPath('data.reports.0.download_url', url('/storage/reports/acme/BA-PORTAL-0001.pdf'));
     }
 
     /**

@@ -195,7 +195,9 @@ document.addEventListener('DOMContentLoaded', function() {
 			$labRouteStatus = request()->route('status');
 			$labWorkflowStatus = is_string($labRouteStatus) ? trim(urldecode($labRouteStatus)) : '';
 			$isLabDashboardActive = request()->routeIs('dashboard-lab');
+			$isLabPersonalDashboardActive = request()->routeIs('dashboard-lab-personal');
 			$isInSampleWorkflow = request()->routeIs(
+				'dashboard-lab-personal',
 				'sample-workflow',
 				'sample-workflow-stage',
 				'view-batch-details',
@@ -243,6 +245,13 @@ document.addEventListener('DOMContentLoaded', function() {
 				<?php
                 $menuTotals = getSampleWorkFLowTotals();
                 ?>
+				@if($canAllSamples)
+				<a href="{{ route('dashboard-lab-personal') }}" class="list-group-item list-group-item-action {{ $isLabPersonalDashboardActive ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Personal Dashboard</span>
+					</div>
+				</a>
+				@endif
 				@foreach (getSampleWorflowStages() as $item)
 				@if($item == 'Samples Reception')
 					@continue
@@ -341,14 +350,14 @@ document.addEventListener('DOMContentLoaded', function() {
 			</a>
 			@endif
 			@if($canQc)
-			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="{{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
 					<span class="menu-collapsed">Qc Workflow</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="qc-workflow-menu" class="collapse sidebar-submenu">
+			<div id="qc-workflow-menu" class="collapse sidebar-submenu {{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'show' : '' }}">
 				<!-- <a href="" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dashboard
 						<small class="float-right badge badge-pill"></small></span>

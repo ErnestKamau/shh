@@ -43,9 +43,21 @@ class PortalFeedbackService
         $contact = $this->resolveContact($customerId, (string) $data['contact_id']);
 
         return DB::transaction(function () use ($customerId, $data, $contact, $portalAccountId): FeedbackDTO {
+            $initialFeedbackText = trim((string) ($data['specific_feedback'] ?? ''));
+            if ($initialFeedbackText === '') {
+                $initialFeedbackText = trim((string) ($data['suggestions'] ?? ''));
+            }
+            if ($initialFeedbackText === '') {
+                $initialFeedbackText = 'Feedback submitted via portal';
+            }
+
             $feedback = CustomerFeedback::query()->create([
                 'customer_id' => $customerId,
                 'contact_id' => $contact->id,
+                'feedback' => $initialFeedbackText,
+                'specific_feedback' => $initialFeedbackText,
+                'user_type' => 'customer',
+                'date' => now(),
                 'status' => CustomerFeedback::STATUS_SUBMITTED,
                 'is_submitted' => false,
                 'received_from' => (string) ($data['submitter_name'] ?? $contact->customer?->name ?? 'Portal'),
@@ -153,14 +165,18 @@ class PortalFeedbackService
             return ($value === '' || $value === null) ? null : strip_tags((string) $value);
         };
 
+        $specificFeedback = $sanitize($data['specific_feedback'] ?? null);
+        $suggestions = $sanitize($data['suggestions'] ?? null);
+
         $feedback->update([
             'service_type' => (string) $data['service_type'],
             'service_type_other' => $sanitize($data['service_type_other'] ?? null),
             'service_reference_no' => (string) $data['service_reference_no'],
             'equipment_sample_id' => $sanitize($data['equipment_sample_id'] ?? null),
             'results_issued_date' => $data['results_issued_date'] ?? null,
-            'specific_feedback' => $sanitize($data['specific_feedback'] ?? null),
-            'suggestions' => $sanitize($data['suggestions'] ?? null),
+            'specific_feedback' => $specificFeedback,
+            'feedback' => $specificFeedback ?? $suggestions ?? 'Feedback submitted via portal',
+            'suggestions' => $suggestions,
             'will_recommend' => $data['will_recommend'] ?? null,
             'consent_contact' => (bool) ($data['consent_contact'] ?? false),
             'preferred_contact_method' => $sanitize($data['preferred_contact_method'] ?? null),

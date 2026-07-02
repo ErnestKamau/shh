@@ -86,15 +86,18 @@
 
     /* ── INFO TABLE (Attention / Client / Address) ── */
     .info-table {
-        width: 100%;
+        width: 98%;
         border-collapse: collapse;
         margin-bottom: 10px;
+        margin-left: auto;
+        margin-right: auto;
         font-size: 11px;
         border: 1px solid #aaa;
     }
     .info-table td {
         padding: 4px 8px;
         vertical-align: top;
+        text-align: center;
     }
     .info-table .lbl {
         font-weight: bold;
@@ -105,15 +108,18 @@
 
     /* ── DETAILS GRID (2-column, bordered) ──────── */
     .detail-grid {
-        width: 100%;
+        width: 98%;
         border-collapse: collapse;
         margin-bottom: 10px;
+        margin-left: auto;
+        margin-right: auto;
         font-size: 11px;
     }
     .detail-grid td {
         border: 1px solid #888;
         padding: 3px 6px;
         vertical-align: top;
+        text-align: center;
     }
     .detail-grid .dlbl {
         font-weight: bold;
@@ -124,10 +130,12 @@
 
     /* ── RESULTS TABLE ──────────────────────────── */
     .results-table {
-        width: 100%;
+        width: 98%;
         border-collapse: collapse;
         font-size: 11px;
         margin-bottom: 8px;
+        margin-left: auto;
+        margin-right: auto;
     }
     .results-table th {
         background: #8B1A1A;
@@ -135,7 +143,7 @@
         padding: 4px 6px;
         font-weight: bold;
         border: 1px solid #6B1212;
-        text-align: left;
+        text-align: center;
     }
     .results-table td {
         border: 1px solid #ccc;
@@ -258,6 +266,7 @@
         display: flex;
         align-items: flex-start;
         gap: 10px;
+        page-break-inside: avoid;
     }
     .page-disclaimer .disclaimer-text {
         flex: 1;
@@ -271,11 +280,97 @@
         flex-shrink: 0;
         margin-left: 10px;
     }
-    .page-disclaimer .disclaimer-qr canvas {
-        width: 64px !important;
-        height: 64px !important;
+    .page-disclaimer .disclaimer-qr img {
+        width: 70px;
+        height: 70px;
         display: block;
     }
+
+    @if(!empty($isPdfMode))
+    @page {
+        margin: 12mm 10mm 44mm 10mm;
+    }
+    html, body {
+        width: 190mm;
+    }
+    body {
+        background: #fff;
+    }
+    .trr-page {
+        max-width: 190mm;
+        width: 190mm;
+        margin: 0;
+        border: none;
+        padding: 4mm 8mm 44mm 4mm;
+        overflow: hidden;
+    }
+    .pdf-fixed-footer {
+        position: fixed;
+        left: 10mm;
+        width: 190mm;
+        right: auto;
+        bottom: 2mm;
+        height: 38mm;
+        padding: 1.5mm 8mm 0 4mm;
+        border-top: 1px solid #cfcfcf;
+        background: #fff;
+        z-index: 20;
+    }
+    .pdf-fixed-footer .meta-top {
+        font-size: 8px;
+        line-height: 1.25;
+        color: #222;
+        margin-bottom: 1mm;
+    }
+    .pdf-fixed-footer .meta-end {
+        text-align: center;
+        font-size: 8px;
+        font-style: italic;
+        color: #444;
+        margin: .8mm 0;
+    }
+    .pdf-fixed-footer .meta-issued {
+        text-align: center;
+        font-size: 7.8px;
+        color: #333;
+        margin-bottom: .8mm;
+    }
+    .pdf-fixed-footer .meta-company {
+        text-align: center;
+        font-size: 8.6px;
+        font-weight: bold;
+        letter-spacing: .3px;
+        margin-bottom: .8mm;
+        text-transform: uppercase;
+    }
+    .pdf-fixed-footer .meta-disclaimer {
+        text-align: center;
+        font-size: 7.2px;
+        font-style: italic;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: .2px;
+        margin-bottom: .8mm;
+    }
+    .pdf-fixed-footer .meta-legal-wrap {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    .pdf-fixed-footer .meta-legal {
+        flex: 1;
+        font-size: 5.9px;
+        line-height: 1.35;
+        color: #000;
+        font-weight: bold;
+        word-break: break-word;
+    }
+    .pdf-fixed-footer .meta-qr img {
+        width: 50px;
+        height: 50px;
+        display: block;
+    }
+    @endif
 
     /* ── PRINT ──────────────────────────────────── */
     @media print {
@@ -291,13 +386,43 @@
 </style>
 </head>
 <body>
+@if(!empty($isPdfMode))
+    <div class="pdf-fixed-footer">
+        <div class="meta-top">
+            {{ $labels['results_relate'] }}<br>
+            {{ $labels['no_reproduce'] }}
+        </div>
+        <div class="meta-end">{{ $labels['end_of_text'] }}</div>
+        <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
+        <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
+        <div class="meta-disclaimer">{{ $labels['disclaimer'] }}</div>
+        <div class="meta-legal-wrap">
+            <div class="meta-legal">
+                This document is issued by the Company subject to the Terms and Conditions at
+                https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
+                information contained herein reflects the Company&#8217;s findings at the time and place of its
+                intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
+                responsibility is to its Client and the Company disclaims any liability to third parties.
+                Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
+            </div>
+            <div class="meta-qr">
+                @if(!empty($footerQrCode))
+                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                @endif
+            </div>
+        </div>
+    </div>
+@endif
+
 <main>
 
     {{-- ── Screen toolbar ── --}}
+    @if(empty($isPdfMode))
     <div class="trr-toolbar">
         <button onclick="window.print()" style="background:#8B1A1A;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:6px;">&#128438; Print</button>
         <a href="/sample-workflow/batch/{{ $batch->id }}/details" style="background:#fff;color:#555;border:1px solid #aaa;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">&#8592; Back to Batch</a>
     </div>
+    @endif
 
     <div class="trr-page">
 
@@ -580,6 +705,7 @@
         </div>
         @endif
 
+        @if(empty($isPdfMode))
         {{-- ══════════════ FOOTER TEXT ══════════════ --}}
         <div class="report-footer-text">
             {{ $labels['results_relate'] }}<br>
@@ -605,13 +731,20 @@
                 Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
             </div>
             <div class="disclaimer-qr">
-                <canvas id="report-qr-code"></canvas>
+                @if(!empty($footerQrCode))
+                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                @else
+                    <div style="width:70px;height:70px;border:1px solid #bbb;font-size:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#888;">
+                        QR unavailable
+                    </div>
+                @endif
             </div>
         </div>
+        @endif
 
     </div>{{-- end .trr-page --}}
+
 </main>
-<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.results-table td').forEach(function (td) {
@@ -619,19 +752,6 @@
             if (t === 'FAIL') td.classList.add('fail');
             if (t === 'PASS') td.classList.add('pass');
         });
-
-        // Render QR code
-        var qrCanvas = document.getElementById('report-qr-code');
-        if (qrCanvas && typeof QRious !== 'undefined') {
-            new QRious({
-                element: qrCanvas,
-                value: '{{ addslashes("Certificate: $reportNumber | " . ($company->name ?? "AmSpec") . " | " . date("d.m.Y")) }}',
-                size: 128,
-                background: '#ffffff',
-                foreground: '#000000',
-                level: 'M'
-            });
-        }
     });
 </script>
 </body>

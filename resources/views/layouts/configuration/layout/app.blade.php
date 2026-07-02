@@ -113,6 +113,15 @@
 					<span class="menu-collapsed">Bulk Data Import</span>
 				</div>
 			</a>
+
+			@can('system.dashboard.export')
+			<a href="{{ route('system-settings.backups') }}" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-backup-restore fa-fw mr-1"></span>
+					<span class="menu-collapsed">System Backups</span>
+				</div>
+			</a>
+			@endcan
 			
 			<a href="#system-defaults" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
