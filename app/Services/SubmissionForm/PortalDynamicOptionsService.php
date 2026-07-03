@@ -300,6 +300,9 @@ class PortalDynamicOptionsService
 
         return AnalysisType::query()
             ->where('sample_type_id', $sampleTypeId)
+            ->where(function ($query): void {
+                $query->where('active', true)->orWhere('active', 1);
+            })
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($type): array => ['value' => $type->id, 'label' => $type->name])

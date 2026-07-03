@@ -62,10 +62,21 @@ class SubmissionFormController extends Controller
     {
         $customerId = $this->access->customerIdFromRequest($request);
         $form = $this->access->findPortalForm($submissionForm, $customerId);
+        $form->loadMissing(['sampleTypes']);
 
-        return response()->json([
+        $response = [
             'data' => $this->schemaBuilder->buildTemplateWithAttachments($form),
-        ]);
+        ];
+
+        if ($form->isTestRequestTemplate()) {
+            $response['meta'] = [
+                'crm_customer_id' => $customerId,
+                'sample_type_id' => $form->sampleTypes->first()?->id,
+                'sample_types' => $this->sampleTypeResolver->mapForApi($form),
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function customerRequest(Request $request): JsonResponse
