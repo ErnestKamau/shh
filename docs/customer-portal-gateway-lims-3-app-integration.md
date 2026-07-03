@@ -1,254 +1,168 @@
-# Customer Portal -> Gateway API -> LIMS Integration (3-App Architecture)
+# Customer Portal, Gateway, and LIMS: Plain Language Guide
 
-This document describes how the three applications connect in practice:
+This guide explains, in simple terms, how the 3 systems work together:
 
-1. gcla-portal (Nuxt customer portal)
-2. gcla-api-s (gateway/customer API)
-3. polucon (LIMS backend)
+1. kenya-dairy-portal (the customer website)
+2. kenya-dairy-api-s (the middle service, also called gateway)
+3. kenya-dairy (the main LIMS system)
 
-It is based on inspected route/controller/service code from all three repositories.
+If you are not technical, this is the important idea:
+
+- Customers use the portal.
+- The portal sends requests to the gateway.
+- The gateway sends requests to LIMS.
+- LIMS is the final source of truth for most business data.
 
 ---
 
-## 1. High-level Architecture
+## 1. Simple Picture
 
 ```mermaid
 flowchart LR
-    U[Portal Browser UI] --> P[gcla-portal Nuxt server/api]
-    P --> G[gcla-api-s Gateway API]
-    G --> L[polucon LIMS API]
-
-    P --> S[Sample Submission API<br/>separate upstream]
-
-    G --> D[(LIMS DB via lims connection)]
+    A[Customer using portal] --> B[Portal app]
+    B --> C[Gateway API]
+    C --> D[LIMS system]
 ```
 
-Key points:
+There is one special path:
 
-- Most portal business traffic is: portal -> gateway -> lims.
-- One special relay path bypasses normal gateway portal routes: `/api/sample-submission-report`.
-- Gateway uses both:
-  - HTTP passthrough to LIMS internal API routes
-  - direct LIMS DB-backed models on configured `lims` connection
+- Some sample-submission traffic goes from the portal to a separate sample-submission service.
+- That path does not use the normal gateway business flow.
 
 ---
 
-## 2. App Responsibilities
+## 2. What Each System Does
 
-### 2.1 gcla-portal (Nuxt)
+## 2.1 Portal (kenya-dairy-portal)
 
-Role:
+What users see and interact with.
 
-- Browser-facing app and BFF-style server proxy (`server/api/*`).
-- Stores/uses session token.
-- Forwards bearer-authenticated requests to gateway APIs.
-- Builds special relay payload for sample submission report endpoint.
+Main jobs:
 
-Primary downstream targets:
+- Shows pages and forms to customers.
+- Keeps customer login session.
+- Sends customer actions to the gateway.
 
-- `/api/v1/auth/*`
-- `/api/v1/portal/*`
-- special relay upstream `/api/sample-submission-report`
+In plain words:
 
-Relevant implementation references:
+- The portal is the front desk.
 
-- `server/utils/backend.ts`
-- `server/api/auth/*.ts`
-- `server/api/portal/**/*.ts`
-- `server/api/sample-submission-report.post.ts`
+## 2.2 Gateway (kenya-dairy-api-s)
 
-### 2.2 gcla-api-s (Gateway)
+The middle layer between portal and LIMS.
 
-Role:
+Main jobs:
 
-- Portal auth API surface (`/api/v1/auth/*`).
-- Customer-scoped portal API surface (`/api/v1/portal/*`).
-- Proxies many domains to LIMS via `LimsPortalHttpClient`.
-- Handles selected domain logic directly against LIMS DB models.
+- Handles login-related APIs.
+- Checks if a customer is allowed to do an action.
+- Passes many requests to LIMS.
+- For a few areas, reads LIMS data directly through its LIMS database connection.
 
-Security model:
+In plain words:
 
-- Public routes: selected auth/public-reference endpoints.
-- Protected routes: Sanctum + session touch middleware.
+- The gateway is the security guard and traffic controller.
 
-Relevant implementation references:
+## 2.3 LIMS (kenya-dairy)
 
-- `routes/api.php`
-- `config/lims_portal.php`
-- `app/Services/Lims/PortalSubmissions/LimsPortalHttpClient.php`
-- `app/Services/Lims/PortalSubmissions/PortalSubmissionContext.php`
+The main backend system.
 
-### 2.3 polucon (LIMS)
+Main jobs:
 
-Role:
+- Stores and processes core laboratory/business records.
+- Provides internal APIs used by the gateway.
+- Enforces strict service-to-service security and customer scope rules.
 
-- Hosts internal gateway-facing routes:
-  - `/api/v1/portal/submissions/*`
-  - `/api/v1/dashboard/*`
-  - `/api/v1/portal/{customer_id}/*` for CRM/billing domains
-- Enforces service-key auth and customer scoping.
+In plain words:
 
-Relevant implementation references:
-
-- `routes/api/portal_submissions.php`
-- `routes/api/dashboard.php`
-- `routes/api/portal_crm.php`
-- `app/Http/Middleware/AuthenticatePortalGateway.php`
+- LIMS is the main office where official records live.
 
 ---
 
-## 3. End-to-End Flows
+## 3. What Happens During Common User Actions
 
-### 3.1 Authentication
+## 3.1 Login
 
-```mermaid
-sequenceDiagram
-    participant B as Browser
-    participant P as gcla-portal
-    participant G as gcla-api-s
-    participant DB as LIMS user store
+1. Customer enters email/password in portal.
+2. Portal sends login request to gateway.
+3. Gateway validates user and sends verification code (2FA).
+4. Customer enters code.
+5. Portal sends code to gateway.
+6. Gateway returns access token/session info.
+7. Portal stores session and user is logged in.
 
-    B->>P: POST /api/auth/login
-    P->>G: POST /api/v1/auth/login
-    G->>DB: validate credentials and portal eligibility
-    G-->>P: 2fa_required
+## 3.2 Viewing Lists (dashboard, complaints, forms, invoices)
 
-    B->>P: POST /api/auth/verify
-    P->>G: POST /api/v1/auth/verify-2fa
-    G-->>P: token + account context
-    P-->>B: session established
-```
+1. Customer opens a page in portal.
+2. Portal calls gateway endpoint.
+3. Gateway checks customer identity and permissions.
+4. Gateway fetches data from LIMS (or LIMS-connected models).
+5. Data returns to portal and is shown to customer.
 
-Notes:
+## 3.3 Submitting Forms
 
-- Gateway validates active client user and linked CRM contact policy before session issuance.
-- Portal stores token in server session and uses it for proxied calls.
-
-### 3.2 Portal Business APIs
-
-Standard path:
-
-1. Browser calls portal app route (`/api/portal/...`)
-2. Portal server reads session token
-3. Portal forwards to gateway (`/api/v1/portal/...`)
-4. Gateway authorizes request
-5. Gateway serves directly or proxies to LIMS
-6. Response returns back to browser via portal
-
-### 3.3 Gateway -> LIMS HTTP Contract
-
-Gateway HTTP client sends:
-
-- `Authorization: Bearer {LIMS_PORTAL_API_KEY}`
-- `X-Portal-Gateway-Key: {LIMS_PORTAL_API_KEY}`
-- `X-CRM-Customer-Id: {portal_account.crm_customer_id}`
-- `X-Portal-Account-Id: {portal_account.id}`
-
-Configured by:
-
-- `config/lims_portal.php`
-- env vars `LIMS_PORTAL_API_BASE_URL`, `LIMS_PORTAL_API_KEY`, etc.
-
-LIMS verifies via middleware:
-
-- `portal.gateway` (`AuthenticatePortalGateway`)
-
-### 3.4 Submission Forms / Instances
-
-- Gateway form controllers call LIMS submission endpoints through `SubmissionFormInstanceService` + `LimsPortalSubmissionsClient`.
-- Draft/submit support both JSON and multipart.
-- Gateway maps fields/files to LIMS schema before forwarding.
-
-Key references:
-
-- `app/Domains/CustomerPortal/Forms/Http/Controllers/PortalFormInstancesController.php`
-- `app/Services/Lims/PortalSubmissions/SubmissionFormInstanceService.php`
-
-### 3.5 Dashboard / CRM / Invoices / Feedback / Complaints
-
-- Gateway uses scoped proxy services to call LIMS dashboard and CRM prefixes.
-- Route customer IDs are checked against authenticated portal customer scope.
-- Some response shaping is done in gateway (example: notification merge behavior in dashboard service).
-
-Key references:
-
-- `app/Services/Lims/PortalDashboard/CustomerDashboardService.php`
-- `app/Services/Lims/PortalCrm/PortalComplaintProxyService.php`
-- `app/Domains/CustomerPortal/Http/Concerns/ResolvesPortalCustomerScope.php`
-
-### 3.6 Submission Requests Domain
-
-- Gateway exposes `/api/v1/portal/submission-requests/*`.
-- Create endpoint is explicitly deprecated (HTTP 410) in favor of TRF form instances.
-- List/show/update/submit/quotation routes are customer-scoped and operate through LIMS-domain models.
-
-Key reference:
-
-- `app/Domains/CustomerPortal/SubmissionRequests/Http/Controllers/SubmissionRequestsController.php`
-
-### 3.7 Special Sample Submission Relay
-
-```mermaid
-sequenceDiagram
-    participant B as Browser
-    participant P as gcla-portal
-    participant S as Sample Submission API (separate upstream)
-
-    B->>P: POST /api/sample-submission-report
-    P->>S: POST /api/sample-submission-report + X-Relay-Key
-    S-->>P: create/validate response
-    P-->>B: normalized response
-```
-
-Important distinction:
-
-- This is implemented in portal server code (`server/api/sample-submission-report.post.ts`).
-- It is separate from regular gateway business flow under `/api/v1/portal/*`.
+1. Customer fills and saves a form in portal.
+2. Portal sends the request to gateway.
+3. Gateway maps and validates data.
+4. Gateway forwards to LIMS submission endpoints.
+5. LIMS stores/updates the submission.
+6. Final status returns back to customer in portal.
 
 ---
 
-## 4. Endpoint Ownership Matrix
+## 4. The One Special Flow (Important)
 
-| Public route family | Owned by | Typical downstream |
+Most business requests follow this route:
+
+- Portal -> Gateway -> LIMS
+
+But one route is different:
+
+- `/api/sample-submission-report`
+
+That one is relayed by the portal to a separate sample-submission upstream service.
+
+Why this matters:
+
+- If this flow fails, troubleshooting may be different from normal portal pages.
+
+---
+
+## 5. Who Owns Which Endpoints
+
+Use this to know where to investigate when something breaks.
+
+| API family | Owner | Usually forwards to |
 |---|---|---|
-| `/api/auth/*` (portal app routes) | gcla-portal | gcla-api-s `/api/v1/auth/*` |
-| `/api/portal/*` (portal app routes) | gcla-portal | gcla-api-s `/api/v1/portal/*` |
-| `/api/v1/auth/*` | gcla-api-s | auth services + LIMS-backed user policy |
-| `/api/v1/portal/*` | gcla-api-s | mixed: direct handling + LIMS proxy |
-| `/api/v1/public/reference/*` | gcla-api-s | gateway reference endpoints |
-| `/api/v1/portal/submissions/*` | polucon | native LIMS submission APIs |
-| `/api/v1/dashboard/*` | polucon | native LIMS dashboard APIs |
-| `/api/v1/portal/{customer_id}/*` | polucon | native LIMS CRM/billing APIs |
-| `/api/sample-submission-report` (portal app route) | gcla-portal | separate sample-submission upstream |
+| `/api/auth/*` (portal side) | Portal | Gateway auth endpoints |
+| `/api/portal/*` (portal side) | Portal | Gateway portal endpoints |
+| `/api/v1/auth/*` | Gateway | Gateway auth services |
+| `/api/v1/portal/*` | Gateway | LIMS and/or LIMS-connected logic |
+| `/api/v1/portal/submissions/*` | LIMS | Native LIMS submission processing |
+| `/api/v1/dashboard/*` | LIMS | Native LIMS dashboard processing |
+| `/api/sample-submission-report` | Portal relay | Separate sample-submission service |
 
 ---
 
-## 5. Security and Scope Boundaries
+## 6. Security Rules in Plain Language
 
-### 5.1 Browser -> Portal
+1. Customers only talk to the portal.
+2. Portal calls gateway using customer session/token.
+3. Gateway calls LIMS using system-to-system keys.
+4. Gateway tells LIMS which customer the request belongs to.
+5. LIMS rejects requests with wrong or missing service keys/scope.
 
-- Browser does not own customer scope headers.
-- Browser uses portal session-backed access.
+Practical meaning:
 
-### 5.2 Portal -> Gateway
-
-- Bearer token from portal session is forwarded.
-
-### 5.3 Gateway -> LIMS
-
-- Service-key trust (`LIMS_PORTAL_API_KEY` <-> `PORTAL_GATEWAY_API_KEY`).
-- Gateway injects customer/account scope headers.
-
-### 5.4 LIMS enforcement
-
-- Rejects invalid service keys.
-- Enforces customer scoping from headers + route constraints.
+- Customers cannot choose another customer's data by changing URLs.
+- Internal keys between gateway and LIMS must match exactly.
 
 ---
 
-## 6. Required Cross-App Configuration
+## 7. Configuration Checklist (Operations)
 
-### 6.1 gcla-portal
+For the systems to communicate, these settings must be correct.
+
+Portal needs:
 
 - `NUXT_BACKEND_URL`
 - `NUXT_PUBLIC_BACKEND_URL`
@@ -257,36 +171,57 @@ Important distinction:
 - `NUXT_PORTAL_RELAY_KEY`
 - `NUXT_SESSION_PASSWORD`
 
-### 6.2 gcla-api-s
+Gateway needs:
 
 - `LIMS_PORTAL_API_BASE_URL`
 - `LIMS_PORTAL_API_KEY`
 - `LIMS_PORTAL_API_PREFIX`
 - `LIMS_PORTAL_DASHBOARD_PREFIX`
 - `LIMS_PORTAL_CRM_PREFIX`
-- `LIMS_DB_*` (for direct LIMS model access)
+- `LIMS_DB_*`
 - `PORTAL_RELAY_SHARED_KEY`
 
-### 6.3 polucon
+LIMS needs:
 
-- `PORTAL_GATEWAY_API_KEY` (must match gateway key)
-
----
-
-## 7. Practical Integration Rules
-
-1. Frontend should call only portal app APIs, not LIMS URLs directly.
-2. Keep sample-submission relay contract separate from normal submission-requests contract.
-3. Use TRF submission forms for new submission creation flows.
-4. Never trust client-provided customer scope values; derive from authenticated session.
-5. Rotate and align gateway<->lims service keys together.
+- `PORTAL_GATEWAY_API_KEY` (must be the same value as gateway `LIMS_PORTAL_API_KEY`)
 
 ---
 
-## 8. Known Architectural Characteristics
+## 8. Fast Troubleshooting Guide
 
-- Hybrid gateway pattern is intentional:
-  - passthrough for many modules
-  - direct LIMS DB model access for selected modules
-- Submission request create endpoint is decommissioned in gateway path.
-- Route maintenance should watch for duplicate route block definitions in gateway `routes/api.php`.
+If login fails:
+
+- Check gateway auth endpoints and 2FA flow.
+- Check portal auth API URL settings.
+
+If portal page loads but shows no data:
+
+- Check gateway token/session validation.
+- Check customer scope checks.
+- Check gateway-to-LIMS key match.
+
+If submission form fails:
+
+- Check whether it is normal form flow (Portal -> Gateway -> LIMS)
+- Or special relay flow (`/api/sample-submission-report`)
+- Then troubleshoot the correct downstream service.
+
+If some customers see access denied unexpectedly:
+
+- Check customer/contact linkage and scope enforcement in gateway/LIMS.
+
+---
+
+## 9. Business-Safe Rules to Keep
+
+1. Do not call LIMS directly from browser apps.
+2. Keep the special sample-submission relay separate from normal submission flows.
+3. Use submission forms (TRF path) for new creation flows.
+4. Never trust customer ID coming from user input alone.
+5. Rotate gateway-LIMS keys together and verify both sides after changes.
+
+---
+
+## 10. One-Line Summary
+
+The portal is the customer-facing front door, the gateway is the controlled middle layer, and LIMS is the main backend that owns core records.

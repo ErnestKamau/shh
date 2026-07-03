@@ -1007,6 +1007,22 @@ function getSystemModuleVisibilityMap()
 		->where('key', 'system_module_visibility')
 		->get();
 
+	// Preferred shape: a single JSON map in value, e.g. {"laboratory":true,"inventory":false}
+	if ($configurations->count() === 1) {
+		$single = $configurations->first();
+		$decoded = json_decode((string) $single->value, true);
+
+		if (is_array($decoded)) {
+			foreach ($decoded as $moduleKey => $isVisible) {
+				if (isset($visibility[$moduleKey])) {
+					$visibility[$moduleKey] = (bool) $isVisible;
+				}
+			}
+
+			return $visibility;
+		}
+	}
+
 	foreach ($configurations as $configuration) {
 		if (isset($visibility[$configuration->value])) {
 			$visibility[$configuration->value] = (bool) $configuration->status;

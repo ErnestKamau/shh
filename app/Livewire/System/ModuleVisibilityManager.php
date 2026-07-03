@@ -50,26 +50,28 @@ class ModuleVisibilityManager extends Component
 
             $errors = [];
             $packageChanges = [];
+            $normalizedVisibility = [];
 
             foreach (array_keys($this->modules) as $moduleKey) {
-                $isVisible = !empty($this->visibility[$moduleKey]);
+                $normalizedVisibility[$moduleKey] = !empty($this->visibility[$moduleKey]);
+            }
 
-                $configuration = SystemConfiguration::where('configuration_type_id', $configType->id)
-                    ->where('key', 'system_module_visibility')
-                    ->get()
-                    ->first(function (SystemConfiguration $item) use ($moduleKey): bool {
-                        return $item->value === $moduleKey;
-                    });
+            $configuration = SystemConfiguration::where('configuration_type_id', $configType->id)
+                ->where('key', 'system_module_visibility')
+                ->first();
 
-                if (!$configuration) {
-                    $configuration = new SystemConfiguration();
-                    $configuration->configuration_type_id = $configType->id;
-                    $configuration->key = 'system_module_visibility';
-                    $configuration->value = $moduleKey;
-                }
+            if (!$configuration) {
+                $configuration = new SystemConfiguration();
+                $configuration->configuration_type_id = $configType->id;
+                $configuration->key = 'system_module_visibility';
+            }
 
-                $configuration->status = $isVisible ? 1 : 0;
-                $configuration->save();
+            $configuration->value = json_encode($normalizedVisibility, JSON_UNESCAPED_UNICODE);
+            $configuration->status = 1;
+            $configuration->save();
+
+            foreach (array_keys($this->modules) as $moduleKey) {
+                $isVisible = $normalizedVisibility[$moduleKey] ?? false;
 
                 $packageResult = $this->syncPackageModuleStatus($moduleKey, $isVisible);
 
@@ -84,7 +86,9 @@ class ModuleVisibilityManager extends Component
             }
 
             if (!empty($errors)) {
-                session()->flash('error', 'Module settings saved with package activation errors: '.implode(' | ', $errors));
+                $message = 'Module settings saved with package activation errors: '.implode(' | ', $errors);
+                session()->flash('error', $message);
+                $this->dispatch('module-visibility-save-failed', message: $message);
                 return;
             }
 
@@ -97,7 +101,9 @@ class ModuleVisibilityManager extends Component
             session()->flash('success', $message);
         } catch (Throwable $e) {
             report($e);
-            session()->flash('error', 'Failed to save module settings. Please try again.');
+            $message = 'Failed to save module settings. Please try again. Error: '.$e->getMessage();
+            session()->flash('error', $message);
+            $this->dispatch('module-visibility-save-failed', message: $message);
         }
     }
 
@@ -126,13 +132,15 @@ class ModuleVisibilityManager extends Component
      */
     private function syncPackageModuleStatus(string $moduleKey, bool $shouldEnable): array
     {
-        $packageModuleName = $this->resolvePackageModuleName($moduleKey);
-
-        if ($packageModuleName === null) {
-            return ['changed' => false, 'module' => null, 'error' => null];
-        }
+        $packageModuleName = null;
 
         try {
+            $packageModuleName = $this->resolvePackageModuleName($moduleKey);
+
+            if ($packageModuleName === null) {
+                return ['changed' => false, 'module' => null, 'error' => null];
+            }
+
             $modules = app('modules');
             $module = $modules->find($packageModuleName);
 
@@ -165,6 +173,10 @@ class ModuleVisibilityManager extends Component
 
     private function resolvePackageModuleName(string $moduleKey): ?string
     {
+        if (!app()->bound('modules')) {
+            return null;
+        }
+
         $modules = app('modules');
 
         $candidates = array_values(array_unique(array_filter([

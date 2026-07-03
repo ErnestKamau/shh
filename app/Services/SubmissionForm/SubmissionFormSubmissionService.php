@@ -6,30 +6,16 @@ use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
-use App\Services\Commercial\CommercialEnquirySyncService;
-use App\Services\Sampleworkflow\TestRequestFormPdfService;
-use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SubmissionFormSubmissionService
 {
-    /**
-     * @return list<string>
-     */
-    public static function collectionExtraFieldNames(): array
-    {
-        return array_column(config('test_request_form_fields.collection_extra_fields', []), 'name');
-    }
-
-    private ?bool $hasSelectedSampleTypeColumn = null;
-
     public function mergeSubmissionFieldsIntoRequest(Request $request): void
     {
         $fields = $request->input('fields');
@@ -137,7 +123,7 @@ class SubmissionFormSubmissionService
             if ($request->has($fieldName) && is_array($request->input($fieldName))) {
                 if ($this->isMultipleSelectField($element, $request)) {
                     $rules[$fieldName] = $elementRules;
-                    $rules[$fieldName.'.*'] = ['nullable', 'string'];
+                    $rules[$fieldName.'.*'] = ['array'];
                 } else {
                     $rules[$fieldName.'.*'] = $elementRules;
                 }
@@ -146,76 +132,7 @@ class SubmissionFormSubmissionService
             }
         }
 
-        $rules = $this->applyTrfCollectionExtrasCompletenessRules($rules, $request);
-
         return $rules;
-    }
-
-    /**
-     * @param  array<string, array<int, mixed>|string>  $rules
-     * @return array<string, array<int, mixed>|string>
-     */
-    private function applyTrfCollectionExtrasCompletenessRules(array $rules, Request $request): array
-    {
-        $fieldsInSchema = array_values(array_filter(
-            self::collectionExtraFieldNames(),
-            static fn (string $field): bool => array_key_exists($field, $rules)
-        ));
-
-        if ($fieldsInSchema === []) {
-            return $rules;
-        }
-
-        $hasAnyValue = false;
-        foreach ($fieldsInSchema as $field) {
-            if ($this->isFilledValue($request->input($field))) {
-                $hasAnyValue = true;
-                break;
-            }
-        }
-
-        if (! $hasAnyValue) {
-            return $rules;
-        }
-
-        foreach ($fieldsInSchema as $field) {
-            $fieldRules = $rules[$field] ?? [];
-            if (! is_array($fieldRules)) {
-                continue;
-            }
-
-            $fieldRules = array_values(array_filter(
-                $fieldRules,
-                static fn (mixed $rule): bool => $rule !== 'nullable'
-            ));
-
-            if (! in_array('required', $fieldRules, true)) {
-                array_unshift($fieldRules, 'required');
-            }
-
-            $rules[$field] = $fieldRules;
-        }
-
-        return $rules;
-    }
-
-    private function isFilledValue(mixed $value): bool
-    {
-        if (is_array($value)) {
-            foreach ($value as $item) {
-                if ($this->isFilledValue($item)) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        if ($value === null) {
-            return false;
-        }
-
-        return trim((string) $value) !== '';
     }
 
     public function processFormData(
@@ -225,13 +142,11 @@ class SubmissionFormSubmissionService
     ): void {
         foreach ($elements as $element) {
             $fieldName = $element->name;
+            // Check if this is a multiple select field (has [] in form name but not from rows)
+            $isMultipleSelect = $this->isMultipleSelectField($element, $request);
+            
             $inputValue = $request->input($fieldName);
             $fileValue = $request->file($fieldName);
-
-            // Check if this is a multiple select field (has [] in form name but not from rows)
-            $isMultipleSelect = $this->isMultipleSelectField($element, $request)
-                && ! $this->isIndexedRowFieldValues(is_array($inputValue) ? $inputValue : []);
-
             $isArray = is_array($inputValue) || is_array($fileValue);
 
             if ($isArray) {
@@ -267,8 +182,6 @@ class SubmissionFormSubmissionService
             'submitted_at' => now(),
         ]);
 
-        $this->syncCommercialPipelineIfApplicable($instance, $submissionForm);
-
         $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
 
         if (class_exists($labIntakeCaseServiceClass)) {
@@ -284,120 +197,6 @@ class SubmissionFormSubmissionService
 
         return $instance->fresh(['submissionForm', 'values.element']);
     }
-
-    /**
-     * Walk-in capture from Samples Receiving modal.
-     *
-     * @param  array<string, mixed>  $fieldValues
-     */
-    public function submitWalkInInstance(
-        SubmissionForm $submissionForm,
-        array $fieldValues,
-        ?string $crmCustomerId = null,
-        ?string $sampleTypeId = null,
-        string $sourceChannel = CommercialEnquirySyncService::SOURCE_WALK_IN,
-        ?string $samplingScheduleId = null,
-    ): SubmissionFormInstance {
-        return DB::transaction(function () use ($submissionForm, $fieldValues, $crmCustomerId, $sampleTypeId, $sourceChannel, $samplingScheduleId): SubmissionFormInstance {
-            $userId = Auth::id();
-
-            $instanceData = [
-                'submission_form_id' => $submissionForm->id,
-                'title' => 'Test Request Form - '.now()->format('Y-m-d H:i'),
-                'submitted_by' => $userId,
-                'status' => 'submitted',
-                'submitted_at' => now(),
-                'priority' => 'normal',
-                'crm_customer_id' => $crmCustomerId,
-                'source_channel' => $sourceChannel,
-                'sampling_schedule_id' => $samplingScheduleId,
-            ];
-
-            if ($this->supportsSelectedSampleTypeColumn()) {
-                $instanceData['selected_sample_type_id'] = $sampleTypeId !== null && $sampleTypeId !== ''
-                    ? $sampleTypeId
-                    : null;
-            }
-
-            $instance = SubmissionFormInstance::query()->create($instanceData);
-
-            $elements = $this->elementsForForm($submissionForm);
-            $request = new Request();
-            $request->merge($fieldValues);
-            $this->processFormData($instance, $request, $elements);
-
-            $this->assignFormNumberWithRetry($instance, $submissionForm);
-            $instance->refresh();
-
-            $this->syncCommercialPipelineIfApplicable($instance->fresh(['values.element']), $submissionForm);
-
-            return $instance->fresh(['submissionForm', 'values.element']);
-        });
-    }
-
-    private function supportsSelectedSampleTypeColumn(): bool
-    {
-        if ($this->hasSelectedSampleTypeColumn === null) {
-            $this->hasSelectedSampleTypeColumn = Schema::hasColumn('submission_form_instances', 'selected_sample_type_id');
-        }
-
-        return $this->hasSelectedSampleTypeColumn;
-    }
-
-    private function syncCommercialPipelineIfApplicable(
-        SubmissionFormInstance $instance,
-        SubmissionForm $submissionForm,
-    ): void {
-        unset($submissionForm);
-
-        $syncService = app(CommercialEnquirySyncService::class);
-        if (! $syncService->isCommercialTestRequestForm($instance)) {
-            return;
-        }
-
-        try {
-            $syncService->syncFromSubmittedInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
-        } catch (\Throwable $exception) {
-            Log::warning('Commercial enquiry sync failed after submission form submit.', [
-                'instance_id' => $instance->id,
-                'message' => $exception->getMessage(),
-            ]);
-        }
-
-        try {
-            app(TestRequestFormPdfService::class)->generateAndStore($instance->fresh(['values.element', 'submissionForm']));
-        } catch (\Throwable $exception) {
-            Log::warning('Test Request Form PDF generation failed after submission.', [
-                'instance_id' => $instance->id,
-                'message' => $exception->getMessage(),
-            ]);
-        }
-
-        try {
-            app(SubmissionFormInstanceDocumentAttachmentService::class)->attachTestRequestForm(
-                $instance->fresh(['values.element', 'submissionForm']),
-                auth()->id(),
-                regenerate: false,
-            );
-        } catch (\Throwable $exception) {
-            Log::warning('Test Request Form attachment sync failed after submission.', [
-                'instance_id' => $instance->id,
-                'message' => $exception->getMessage(),
-            ]);
-        }
-    }
-
-    /*
-     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 1
-     * Replaced by syncCommercialPipelineIfApplicable — retained for reference.
-     *
-    private function createTestRequestFormInstanceIfApplicable(
-        SubmissionFormInstance $instance,
-        SubmissionForm $submissionForm
-    ): void {
-        ...
-    }
-    */
 
     public function assignFormNumberWithRetry(
         SubmissionFormInstance $instance,
@@ -454,9 +253,11 @@ class SubmissionFormSubmissionService
      */
     public function elementsForForm(SubmissionForm $submissionForm): Collection
     {
-        $elements = app(SubmissionFormSchemaHelper::class)->uniqueElements($submissionForm);
-
-        return new Collection($elements->all());
+        return SubmissionFormElement::query()
+            ->whereHas('holder.section', function ($query) use ($submissionForm): void {
+                $query->where('submission_form_id', $submissionForm->id);
+            })
+            ->get();
     }
 
     private function processSingleField(
@@ -488,17 +289,6 @@ class SubmissionFormSubmissionService
         string $fieldName = null
     ): void {
         $inputs = $values;
-
-        // Some checkbox/select controls post associative maps like
-        // ['option_a' => true, 'option_b' => false]. Convert those into
-        // a sequential list of selected option keys so array_index remains numeric.
-        if ($this->isAssociativeSelectionMap($inputs)) {
-            $inputs = array_values(array_map(
-                static fn ($key): string => (string) $key,
-                array_keys(array_filter($inputs, static fn ($selected): bool => (bool) $selected))
-            ));
-        }
-
         $files = [];
 
         if ($request && $fieldName) {
@@ -546,34 +336,9 @@ class SubmissionFormSubmissionService
             }
 
             if (($saveValue !== null && $saveValue !== '') || $filePath !== null) {
-                $this->saveFieldValue($instance, $element, $saveValue, $filePath, is_numeric($index) ? (int) $index : null);
+                $this->saveFieldValue($instance, $element, $saveValue, $filePath, $index);
             }
         }
-    }
-
-    /**
-     * @param  array<int|string, mixed>  $values
-     */
-    private function isAssociativeSelectionMap(array $values): bool
-    {
-        if ($values === []) {
-            return false;
-        }
-
-        $hasStringKey = false;
-        foreach ($values as $key => $value) {
-            if (! is_string($key)) {
-                continue;
-            }
-
-            $hasStringKey = true;
-
-            if (is_array($value)) {
-                return false;
-            }
-        }
-
-        return $hasStringKey;
     }
 
     private function isMultipleSelectField(SubmissionFormElement $element, Request $request): bool
@@ -589,18 +354,6 @@ class SubmissionFormSubmissionService
         }
 
         return false;
-    }
-
-    /**
-     * @param  array<int|string, mixed>  $values
-     */
-    private function isIndexedRowFieldValues(array $values): bool
-    {
-        if ($values === []) {
-            return false;
-        }
-
-        return array_keys($values) === array_keys(array_values($values));
     }
 
     private function processMultipleSelectField(
@@ -625,9 +378,7 @@ class SubmissionFormSubmissionService
         ?string $filePath = null,
         ?int $arrayIndex = null
     ): void {
-        $storedValue = $this->serializeValueForStorage($value);
-
-        SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $storedValue, $filePath, $arrayIndex): void {
+        SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $value, $filePath, $arrayIndex): void {
             SubmissionFormInstanceValue::updateOrCreate(
                 [
                     'submission_form_instance_id' => $instance->id,
@@ -635,49 +386,11 @@ class SubmissionFormSubmissionService
                     'array_index' => $arrayIndex,
                 ],
                 [
-                    'value' => $storedValue,
+                    'value' => $value,
                     'file_path' => $filePath,
                 ]
             );
         });
-    }
-
-    private function serializeValueForStorage(mixed $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        if (is_array($value)) {
-            $flat = [];
-            foreach ($value as $item) {
-                if (is_array($item)) {
-                    foreach ($item as $nested) {
-                        if ($nested !== null && $nested !== '') {
-                            $flat[] = (string) $nested;
-                        }
-                    }
-
-                    continue;
-                }
-
-                if ($item !== null && $item !== '') {
-                    $flat[] = (string) $item;
-                }
-            }
-
-            $flat = array_values(array_filter(array_map('trim', $flat), fn (string $token): bool => $token !== ''));
-
-            return $flat === [] ? null : implode(',', $flat);
-        }
-
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-
-        $string = trim((string) $value);
-
-        return $string === '' ? null : $string;
     }
 
     private function isElementVisibleInRequest(
