@@ -65,7 +65,7 @@ class QcWorkflowSeeder extends Seeder
             $standards = $this->seedQcStandards($company, $qcTypes, $qcSchemes, $activeUser);
             $this->seedQcStandardAnalytes($standards);
             $this->seedQcApprovers($activeUser);
-            $this->seedQcBatches($company, $qcTypes, $qcSchemes, $activeUser);
+            $this->seedQcBatches($qcTypes, $qcSchemes, $activeUser);
             $this->seedUnprocessedQcResults($qcTypes, $qcSchemes);
 
             $this->command?->info('====================================================');
@@ -115,22 +115,27 @@ class QcWorkflowSeeder extends Seeder
         $standards = [];
         foreach ($definitions as $code => $definition) {
             $qcType = $qcTypes->get($definition['qc_type']) ?? $qcTypes->first();
-            $standardId = (string) Str::uuid();
+            $existing = DB::connection('pgsql')->table('standards')->where('code', $code)->first();
 
-            DB::connection('pgsql')->table('standards')->updateOrInsert(
-                ['code' => $code],
-                [
-                    'id' => $standardId,
-                    'name' => $definition['name'],
-                    'status' => true,
-                    'is_qc_standard' => true,
-                    'qc_type_id' => $qcType->id,
-                    'qc_scheme_ids' => $definition['scheme']->code,
-                    'edited_by' => $activeUser->id,
+            $attributes = [
+                'name' => $definition['name'],
+                'status' => true,
+                'is_qc_standard' => true,
+                'qc_type_id' => $qcType->id,
+                'qc_scheme_ids' => $definition['scheme']->code,
+                'edited_by' => $activeUser->id,
+                'updated_at' => now(),
+            ];
+
+            if ($existing) {
+                DB::connection('pgsql')->table('standards')->where('code', $code)->update($attributes);
+            } else {
+                DB::connection('pgsql')->table('standards')->insert(array_merge($attributes, [
+                    'id' => (string) Str::uuid(),
+                    'code' => $code,
                     'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+                ]));
+            }
 
             $standards[$code] = DB::connection('pgsql')->table('standards')->where('code', $code)->first();
             $this->command?->info("Seeded QC standard: {$definition['name']} ({$code})");
@@ -242,7 +247,7 @@ class QcWorkflowSeeder extends Seeder
      * @param  \Illuminate\Support\Collection<string, object>  $qcTypes
      * @param  \Illuminate\Support\Collection<string, object>  $qcSchemes
      */
-    private function seedQcBatches(Company $company, $qcTypes, $qcSchemes, User $activeUser): void
+    private function seedQcBatches($qcTypes, $qcSchemes, User $activeUser): void
     {
         $templateHeader = SampleHeader::query()
             ->with(['samples'])
@@ -279,7 +284,6 @@ class QcWorkflowSeeder extends Seeder
             $qcHeader->qc_type_id = $qcType->id;
             $qcHeader->qc_scheme_id = $isoScheme->id;
             $qcHeader->status = $scenario['status'];
-            $qcHeader->company_id = $company->id;
             $qcHeader->begin_process = true;
             $qcHeader->isactive = true;
             $qcHeader->receipt_date = $now->toDateString();
@@ -338,11 +342,11 @@ class QcWorkflowSeeder extends Seeder
                     'guide_low' => $guideLow,
                     'guide_high' => $guideHigh,
                     'guide' => $guideLow.' - '.$guideHigh,
-                    'status_code' => 'PASSED',
+                    'status_code' => 1,
                     'analysis_type_id' => $templateDetail->analysis_type_id,
                     'correct_target' => $numeric,
                     'standard_target' => $numeric,
-                    'remark' => 'QC batch result',
+                    'comments' => 'QC batch result',
                 ]);
 
                 $processed = DB::connection('pgsql')->table('qc_processed_result')
@@ -350,7 +354,7 @@ class QcWorkflowSeeder extends Seeder
                     ->where('analysis_type_id', $templateDetail->analysis_type_id)
                     ->first();
 
-                DB::connection('pgsql')->table('qc_results')->insert([
+                $qcResultRow = [
                     'id' => (string) Str::uuid(),
                     'captured_result_id' => $captured->id,
                     'sample_detail_code' => $qcDetail->sample_code,
@@ -364,7 +368,6 @@ class QcWorkflowSeeder extends Seeder
                     'guide_high' => $guideHigh,
                     'status_code' => 'PASSED',
                     'is_qc_processed' => true,
-                    'analyte_processed_id' => $processed?->id,
                     'qc' => true,
                     'correct_target' => $numeric,
                     'standard_target' => $numeric,
@@ -375,7 +378,13 @@ class QcWorkflowSeeder extends Seeder
                     'result_id' => $result->id,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ]);
+                ];
+
+                if ($this->qcResultProcessedColumnSupportsUuid() && $processed?->id) {
+                    $qcResultRow['analyte_processed_id'] = $processed->id;
+                }
+
+                DB::connection('pgsql')->table('qc_results')->insert($qcResultRow);
             }
 
             $this->command?->info("Seeded QC batch {$scenario['code']} ({$scenario['qc_type']}, {$scenario['status']})");
@@ -414,7 +423,7 @@ class QcWorkflowSeeder extends Seeder
 
         for ($i = 1; $i <= 5; $i++) {
             $numeric = round($mean + (($i - 3) * 0.5), 4);
-            DB::connection('pgsql')->table('qc_results')->insert([
+            $qcResultRow = [
                 'id' => (string) Str::uuid(),
                 'captured_result_id' => $templateResult->captured_result_id,
                 'sample_detail_code' => $templateResult->sample_detail_code,
@@ -428,7 +437,6 @@ class QcWorkflowSeeder extends Seeder
                 'guide_high' => $templateResult->guide_high,
                 'status_code' => 'PASSED',
                 'is_qc_processed' => false,
-                'analyte_processed_id' => $processed->id,
                 'qc' => true,
                 'correct_target' => $mean,
                 'standard_target' => $mean,
@@ -438,7 +446,13 @@ class QcWorkflowSeeder extends Seeder
                 'qc_type_id' => $crmType->id,
                 'created_at' => now()->subHours($i),
                 'updated_at' => now()->subHours($i),
-            ]);
+            ];
+
+            if ($this->qcResultProcessedColumnSupportsUuid()) {
+                $qcResultRow['analyte_processed_id'] = $processed->id;
+            }
+
+            DB::connection('pgsql')->table('qc_results')->insert($qcResultRow);
         }
 
         $this->command?->info('Seeded 5 unprocessed QC results for the processing workflow queue.');

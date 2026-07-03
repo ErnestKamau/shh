@@ -27,8 +27,32 @@ trait ClearsAmSpecPersonnelData
             }
         }
 
+        $protectedUserIds = collect();
+        if (Schema::connection('pgsql')->hasTable('submission_forms')) {
+            $protectedUserIds = $protectedUserIds->merge(
+                DB::connection('pgsql')->table('submission_forms')
+                    ->whereNotNull('created_by')
+                    ->distinct()
+                    ->pluck('created_by')
+            );
+        }
+
+        $deletableUserIds = $userIds->diff($protectedUserIds->filter()->unique())->values();
+        if ($deletableUserIds->isEmpty()) {
+            $this->command?->info('No deletable AmSpec personnel users (all are referenced by forms).');
+
+            return;
+        }
+
+        if ($protectedUserIds->isNotEmpty()) {
+            $skipped = $userIds->diff($deletableUserIds)->count();
+            if ($skipped > 0) {
+                $this->command?->info("Skipped {$skipped} AmSpec personnel user(s) referenced by submission forms.");
+            }
+        }
+
         $deletedUsers = User::query()
-            ->whereIn('id', $userIds)
+            ->whereIn('id', $deletableUserIds)
             ->delete();
 
         $this->command?->info("Cleared {$deletedUsers} AmSpec personnel user(s).");

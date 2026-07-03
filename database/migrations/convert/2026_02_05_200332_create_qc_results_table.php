@@ -31,7 +31,7 @@ return new class extends Migration
             $table->string('unit_code')->nullable();
             $table->string('status_code', 50)->nullable();
             $table->boolean('is_qc_processed')->default(false);
-            $table->unsignedBigInteger('analyte_processed_id')->nullable();
+            $table->uuid('analyte_processed_id')->nullable();
             $table->string('reporting_symbol')->nullable();
             $table->boolean('qc')->nullable();
             $table->decimal('correct_target', 8, 6)->nullable();

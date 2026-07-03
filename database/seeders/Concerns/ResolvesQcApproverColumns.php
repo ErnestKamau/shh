@@ -31,4 +31,22 @@ trait ResolvesQcApproverColumns
 
         return $row?->data_type;
     }
+
+    protected function qcResultProcessedColumnSupportsUuid(): bool
+    {
+        if (! Schema::connection('pgsql')->hasTable('qc_results')) {
+            return false;
+        }
+
+        $type = DB::connection('pgsql')->selectOne(
+            'SELECT data_type
+             FROM information_schema.columns
+             WHERE table_schema = current_schema()
+               AND table_name = ?
+               AND column_name = ?',
+            ['qc_results', 'analyte_processed_id']
+        )?->data_type;
+
+        return in_array($type, ['uuid', 'character varying'], true);
+    }
 }

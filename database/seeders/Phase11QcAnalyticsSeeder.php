@@ -14,6 +14,7 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
 use Database\Seeders\Concerns\ClearsAmSpecQcData;
+use Database\Seeders\Concerns\ResolvesQcApproverColumns;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
 class Phase11QcAnalyticsSeeder extends Seeder
 {
     use ClearsAmSpecQcData;
+    use ResolvesQcApproverColumns;
 
     public function run(): void
     {
@@ -462,7 +464,7 @@ class Phase11QcAnalyticsSeeder extends Seeder
 
                     $qcResultId = (string) Str::uuid();
 
-                    DB::connection('pgsql')->table('qc_results')->insert([
+                    $qcResultRow = [
                         'id' => $qcResultId,
                         'captured_result_id' => $dbCaptured ? $dbCaptured->id : (string) Str::uuid(),
                         'sample_detail_code' => $sdLine->sample_code,
@@ -471,7 +473,7 @@ class Phase11QcAnalyticsSeeder extends Seeder
                         'analyte_id' => $analyte->id,
                         'analyte_code' => $analyte->code,
                         'result' => (string) round($numericVal, 4),
-                        'guide' => $benchmark['low'] . ' - ' . $benchmark['high'],
+                        'guide' => $benchmark['low'].' - '.$benchmark['high'],
                         'comments' => $comment,
                         'recheck' => false,
                         'guide_low' => $benchmark['low'],
@@ -498,9 +500,14 @@ class Phase11QcAnalyticsSeeder extends Seeder
                         'parameters_order' => 0,
                         'qc_scheme_id' => $isoScheme->id,
                         'qc_type_id' => $crmType->id,
-                        'analyte_processed_id' => $info['id'],
                         'result_id' => $dbResult ? $dbResult->id : null,
-                    ]);
+                    ];
+
+                    if ($this->qcResultProcessedColumnSupportsUuid()) {
+                        $qcResultRow['analyte_processed_id'] = $info['id'];
+                    }
+
+                    DB::connection('pgsql')->table('qc_results')->insert($qcResultRow);
 
                     $totalQcResults++;
                 }
