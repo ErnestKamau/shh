@@ -1,38 +1,20 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
+/**
+ * NOTE: Superseded by 2026_05_22_100000_create_solution_preparation_module_tables.php.
+ * Kept as a tracked no-op to preserve migration history integrity.
+ */
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('preparation_steps', function (Blueprint $table) {
-            $table->uuid('id');
-            $table->bigInteger('preparation_id');
-            $table->integer('step_number');
-            $table->string('step_name');
-            $table->text('description');
-            $table->bigInteger('ingredient_id')->nullable();
-            $table->decimal('quantity_used', 10)->nullable();
-            $table->bigInteger('uom_id')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->bigInteger('completed_by')->nullable();
-            $table->text('notes')->nullable();
-            $table->timestamps();
-            $table->primary(['id']);
-        });
+        // No-op: canonical preparation_steps schema is in the solution preparation module migration.
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('preparation_steps');
+        // No-op: rollback is handled by 2026_05_22_100000_create_solution_preparation_module_tables.
     }
 };

@@ -1,45 +1,22 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+/**
+ * NOTE: Superseded by 2026_05_02_120000_create_user_zone_lab_directorate_relation_tables.php,
+ * which already creates the same UUID relation tables with hasTable guards.
+ * Kept as a tracked no-op to preserve migration history integrity.
+ */
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::dropIfExists('user_lab_relation');
-        Schema::dropIfExists('user_directorate_relation');
-        Schema::dropIfExists('user_zone_relation');
-
-        Schema::create('user_zone_relation', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignUuid('zone_id')->constrained('zones')->cascadeOnDelete();
-            $table->timestamps();
-            $table->unique(['user_id', 'zone_id']);
-        });
-
-        Schema::create('user_directorate_relation', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignUuid('directorate_id')->constrained('directorates')->cascadeOnDelete();
-            $table->timestamps();
-            $table->unique(['user_id', 'directorate_id']);
-        });
-
-        Schema::create('user_lab_relation', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignUuid('lab_id')->constrained('labs')->cascadeOnDelete();
-            $table->timestamps();
-            $table->unique(['user_id', 'lab_id']);
-        });
+        // No-op: user_zone_relation, user_directorate_relation, and user_lab_relation
+        // are created in 2026_05_02_120000_create_user_zone_lab_directorate_relation_tables.
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('user_lab_relation');
-        Schema::dropIfExists('user_directorate_relation');
-        Schema::dropIfExists('user_zone_relation');
+        // No-op: rollback is handled by 2026_05_02_120000_create_user_zone_lab_directorate_relation_tables.
     }
 };
