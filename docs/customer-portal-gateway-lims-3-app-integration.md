@@ -2,9 +2,9 @@
 
 This document describes how the three applications connect in practice:
 
-1. gcla-portal (Nuxt customer portal)
-2. gcla-api-s (gateway/customer API)
-3. polucon (LIMS backend)
+1. kenyadairy-portal (Nuxt customer portal)
+2. kenyadairy-api-s (gateway/customer API)
+3. kenyadairy (LIMS backend)
 
 It is based on inspected route/controller/service code from all three repositories.
 
@@ -35,7 +35,7 @@ Key points:
 
 ## 2. App Responsibilities
 
-### 2.1 gcla-portal (Nuxt)
+### 2.1 kenya-dairy-portal (Nuxt)
 
 Role:
 
@@ -57,7 +57,7 @@ Relevant implementation references:
 - `server/api/portal/**/*.ts`
 - `server/api/sample-submission-report.post.ts`
 
-### 2.2 gcla-api-s (Gateway)
+### 2.2 kenya-dairy-api-s (Gateway)
 
 Role:
 
@@ -78,7 +78,7 @@ Relevant implementation references:
 - `app/Services/Lims/PortalSubmissions/LimsPortalHttpClient.php`
 - `app/Services/Lims/PortalSubmissions/PortalSubmissionContext.php`
 
-### 2.3 polucon (LIMS)
+### 2.3 kenya-dairy (LIMS)
 
 Role:
 
@@ -248,7 +248,7 @@ Important distinction:
 
 ## 6. Required Cross-App Configuration
 
-### 6.1 gcla-portal
+### 6.1 kenya-dairy-portal
 
 - `NUXT_BACKEND_URL`
 - `NUXT_PUBLIC_BACKEND_URL`
@@ -257,7 +257,7 @@ Important distinction:
 - `NUXT_PORTAL_RELAY_KEY`
 - `NUXT_SESSION_PASSWORD`
 
-### 6.2 gcla-api-s
+### 6.2 kenya-dairy-api-s
 
 - `LIMS_PORTAL_API_BASE_URL`
 - `LIMS_PORTAL_API_KEY`
@@ -267,7 +267,7 @@ Important distinction:
 - `LIMS_DB_*` (for direct LIMS model access)
 - `PORTAL_RELAY_SHARED_KEY`
 
-### 6.3 polucon
+### 6.3 kenya-dairy
 
 - `PORTAL_GATEWAY_API_KEY` (must match gateway key)
 
