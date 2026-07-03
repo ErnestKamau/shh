@@ -14,10 +14,10 @@ class PermissionManager
      *
      * @param Model $permissionable
      * @param array $permissionsData
-     * @param int $grantedBy
+     * @param string $grantedBy
      * @return void
      */
-    public function syncPermissions(Model $permissionable, array $permissionsData, int $grantedBy): void
+    public function syncPermissions(Model $permissionable, array $permissionsData, string $grantedBy): void
     {
         // Delete existing permissions for this permissionable
         $this->deletePermissions($permissionable);
@@ -41,12 +41,12 @@ class PermissionManager
      * Sync role permissions
      *
      * @param Model $permissionable
-     * @param int $roleId
+     * @param string $roleId
      * @param array $permissions
-     * @param int $grantedBy
+     * @param string $grantedBy
      * @return void
      */
-    protected function syncRolePermissions(Model $permissionable, int $roleId, array $permissions, int $grantedBy): void
+    protected function syncRolePermissions(Model $permissionable, string $roleId, array $permissions, string $grantedBy): void
     {
         $permissionTypes = ['view', 'add', 'edit', 'delete', 'amend', 'authorize_amendment', 'approve_amendment'];
 
@@ -68,12 +68,12 @@ class PermissionManager
      * Sync user permissions
      *
      * @param Model $permissionable
-     * @param int $userId
+     * @param string $userId
      * @param array $permissions
-     * @param int $grantedBy
+     * @param string $grantedBy
      * @return void
      */
-    protected function syncUserPermissions(Model $permissionable, int $userId, array $permissions, int $grantedBy): void
+    protected function syncUserPermissions(Model $permissionable, string $userId, array $permissions, string $grantedBy): void
     {
         $permissionTypes = ['view', 'add', 'edit', 'delete', 'amend', 'authorize_amendment', 'approve_amendment'];
 
