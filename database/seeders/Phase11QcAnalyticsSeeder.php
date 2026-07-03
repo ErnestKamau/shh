@@ -342,10 +342,10 @@ class Phase11QcAnalyticsSeeder extends Seeder
             $this->command?->info('Using IsValue standard lookup for QC processed results.');
 
             // ----------------------------------------------------------------
-            // 3. Define Scientific Robust Means & SD for each seeded analyte
+            // 3. Build robust means & SD for analytes that already have results
             // ----------------------------------------------------------------
             $analytes = Analyte::all();
-            $qcBenchmarks = [
+            $knownBenchmarks = [
                 'ALY-TVC' => ['mean' => 1200.00, 'sd' => 45.00, 'low' => 0.10, 'high' => 5000.00],
                 'ALY-PH' => ['mean' => 6.80, 'sd' => 0.15, 'low' => 4.00, 'high' => 9.00],
                 'ALY-EC' => ['mean' => 10.00, 'sd' => 1.20, 'low' => 0.10, 'high' => 100.00],
@@ -363,15 +363,20 @@ class Phase11QcAnalyticsSeeder extends Seeder
             // ----------------------------------------------------------------
             $processedMap = [];
             foreach ($analytes as $analyte) {
-                if (!isset($qcBenchmarks[$analyte->code])) continue;
-                $benchmark = $qcBenchmarks[$analyte->code];
-
-                // Find a result that maps this analyte to a sample
                 $dbResult = Result::where('analyte_id', $analyte->id)->first();
-                if (!$dbResult) continue;
+                if (! $dbResult) {
+                    continue;
+                }
+
+                $benchmark = $knownBenchmarks[$analyte->code] ?? $this->deriveQcBenchmarkFromResult($dbResult);
+                if ($benchmark === null) {
+                    continue;
+                }
 
                 $sdLine = SampleDetails::find($dbResult->sample_detail_id);
-                if (!$sdLine) continue;
+                if (! $sdLine) {
+                    continue;
+                }
 
                 $qcProcessedId = (string) Str::uuid();
                 
@@ -509,5 +514,32 @@ class Phase11QcAnalyticsSeeder extends Seeder
         });
 
         Model::reguard();
+    }
+
+    /**
+     * @return array{mean: float, sd: float, low: float, high: float}|null
+     */
+    private function deriveQcBenchmarkFromResult(Result $result): ?array
+    {
+        $low = is_numeric($result->guide_low) ? (float) $result->guide_low : 0.1;
+        $high = is_numeric($result->guide_high) ? (float) $result->guide_high : min(99.0, $low + 10);
+        $mean = is_numeric($result->correct_target)
+            ? (float) $result->correct_target
+            : (is_numeric($result->standard_target)
+                ? (float) $result->standard_target
+                : ($low + $high) / 2);
+
+        if ($mean <= 0) {
+            $mean = max($low, 1.0);
+        }
+
+        $sd = max($mean * 0.05, 0.01);
+
+        return [
+            'mean' => $mean,
+            'sd' => $sd,
+            'low' => $low,
+            'high' => $high,
+        ];
     }
 }

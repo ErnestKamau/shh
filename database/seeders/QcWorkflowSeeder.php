@@ -7,7 +7,6 @@ use App\AnalysisType;
 use App\Analyte;
 use App\CapturedResult;
 use App\Company;
-use App\Models\QcModule\Configurations\Approvers;
 use App\Result;
 use App\SampleDetails;
 use App\SampleHeader;
@@ -15,6 +14,7 @@ use App\StandardAnalytes;
 use App\User;
 use Database\Seeders\Concerns\ClearsAmSpecQcWorkflowData;
 use Database\Seeders\Concerns\ResolvesAmSpecCompany;
+use Database\Seeders\Concerns\ResolvesQcApproverColumns;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +25,7 @@ class QcWorkflowSeeder extends Seeder
 {
     use ClearsAmSpecQcWorkflowData;
     use ResolvesAmSpecCompany;
+    use ResolvesQcApproverColumns;
 
     public function run(): void
     {
@@ -196,6 +197,16 @@ class QcWorkflowSeeder extends Seeder
             return;
         }
 
+        if (! $this->qcApproverPersonnelColumnSupportsUuid()) {
+            $this->command?->warn(
+                'Skipping QC approvers: qc_approvers_config.personnel_id is '
+                .($this->qcApproverColumnDataType('personnel_id') ?? 'unknown')
+                .' but users.id is UUID. Run: php artisan migrate'
+            );
+
+            return;
+        }
+
         $approverUsers = User::query()
             ->where('active', 1)
             ->where('id', '!=', $activeUser->id)
@@ -208,10 +219,21 @@ class QcWorkflowSeeder extends Seeder
         }
 
         foreach ($approverUsers as $user) {
-            Approvers::query()->updateOrCreate(
-                ['personnel_id' => $user->id],
-                ['created_by' => $activeUser->id]
-            );
+            $exists = DB::connection('pgsql')->table('qc_approvers_config')
+                ->where('personnel_id', (string) $user->id)
+                ->exists();
+
+            if ($exists) {
+                continue;
+            }
+
+            DB::connection('pgsql')->table('qc_approvers_config')->insert([
+                'personnel_id' => (string) $user->id,
+                'created_by' => (string) $activeUser->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             $this->command?->info("Seeded QC approver: {$user->name}");
         }
     }
