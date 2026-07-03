@@ -85,6 +85,8 @@ class SystemSetupSeeder extends Seeder
                     'audit.module.access',
                     'tickets.module.access',
                     'settings.module.access',
+                    'system.module-switching.view',
+                    'system.module-switching.edit',
                 ];
 
                 $permissions = [];
