@@ -44,7 +44,6 @@ class DatabaseSeeder extends Seeder
             AuditModulePermissionsSeeder::class,
             RiskModulePermissionsSeeder::class,
             DmsModulePermissionsSeeder::class,
-            // Optional: php artisan db:seed --class=Database\\Seeders\\DmsModuleWorkflowSeeder
             EquipmentPermissionsSeeder::class,
             ReportingUnitsSeeder::class,
             SystemConfigPermissionsSeeder::class,
@@ -57,9 +56,6 @@ class DatabaseSeeder extends Seeder
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,
             LaboratoryServiceRequestFormSeeder::class,
-            // GCLA01FormSeeder::class,
-            // PF180FormSeeder::class,
-            // DCEA001FormSeeder::class,
             ClearsSampleWorkflowDataSeeder::class,
             Phase1FoundationSeeder::class,
             Phase2LocationSeeder::class,
@@ -75,16 +71,24 @@ class DatabaseSeeder extends Seeder
             SubmissionFormTrfWasteWaterSeeder::class,
             LabAnalysisAcceptanceFormSeeder::class,
             Phase13FoodStandardsAndPricelistSeeder::class,
+            Phase14CommercialDemoSeeder::class,
             Phase9SampleWorkflowSeeder::class,
             Phase10AnalyticalResultsSeeder::class,
             Phase11QcAnalyticsSeeder::class,
             Phase12EquipmentManagementSeeder::class,
+            Phase15EquipmentMonitoringSeeder::class,
+            Lws011TemplateSeeder::class,
+            Phase16CalendarPlannerSeeder::class,
             SkillsMatrixSeeder::class,
+            AuditModuleWorkflowSeeder::class,
+            RiskModuleWorkflowSeeder::class,
+            DmsModuleWorkflowSeeder::class,
         ]);
 
         // Auto-assign admin role to imported dump users if they exist in the database
         $dumpEmails = [
             AmSpecSeedData::SEED_USER_EMAIL,
+            AmSpecSeedData::COLEMAN_SEED_EMAIL,
             AmSpecSeedData::seedUserEmail('customer1'),
             AmSpecSeedData::seedUserEmail('staff2'),
         ];

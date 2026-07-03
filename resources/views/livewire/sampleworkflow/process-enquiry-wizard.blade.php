@@ -1,4 +1,8 @@
-<div class="acc-wizard-root acc-wizard-root--enquiry">
+<div
+    class="acc-wizard-root acc-wizard-root--enquiry"
+    x-data
+    x-effect="document.body.classList.toggle('modal-open', $wire.showModal)"
+>
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog" wire:click.self="closeWizard">
             <div class="modal-dialog modal-xl acc-wizard-dialog" role="document">
@@ -468,13 +472,3 @@
     </style>
 </div>
 
-@script
-<script>
-    $wire.on('show-process-enquiry-modal', () => {
-        document.body.classList.add('modal-open');
-    });
-    $wire.on('hide-process-enquiry-modal', () => {
-        document.body.classList.remove('modal-open');
-    });
-</script>
-@endscript

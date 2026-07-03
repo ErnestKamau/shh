@@ -128,11 +128,11 @@ class Phase11QcAnalyticsSeeder extends Seeder
             // 2. Seed 5 QC Schemes
             // ----------------------------------------------------------------
             $qcSchemes = [
-                ['name' => 'UNODC Narcotics Identification Protocol', 'code' => 'UNODC-QA'],
+                ['name' => 'ASTM Petroleum Products Testing Protocol', 'code' => 'ASTM-PET'],
                 ['name' => 'ISO 17025 Core Calibration Guidelines', 'code' => 'ISO-17025'],
-                ['name' => 'SWGDAM Human DNA Interpretation Guidelines', 'code' => 'SWGDAM-QA'],
-                ['name' => 'ENFSI Forensic Science Quality Assurance Protocol', 'code' => 'ENFSI-QA'],
-                ['name' => 'SOFT Forensic Toxicology Standard Calibration', 'code' => 'SOFT-CAL'],
+                ['name' => 'API MPMS Crude Oil Measurement Standard', 'code' => 'API-MPMS'],
+                ['name' => 'IP Test Methods for Petroleum', 'code' => 'IP-PET'],
+                ['name' => 'EN 14214 Biodiesel Quality Standard', 'code' => 'EN-14214'],
             ];
 
             foreach ($qcSchemes as $qs) {
@@ -342,20 +342,20 @@ class Phase11QcAnalyticsSeeder extends Seeder
             $this->command?->info('Using IsValue standard lookup for QC processed results.');
 
             // ----------------------------------------------------------------
-            // 3. Define Scientific Robust Means & SD for each Forensic Analyte
+            // 3. Define Scientific Robust Means & SD for each seeded analyte
             // ----------------------------------------------------------------
             $analytes = Analyte::all();
             $qcBenchmarks = [
-                'ALY-THC'  => ['mean' => 15.00, 'sd' => 0.50, 'low' => 0.10, 'high' => 25.00],
-                'ALY-CTH'  => ['mean' => 2.50,  'sd' => 0.10, 'low' => 0.10, 'high' => 5.00],
-                'ALY-COC'  => ['mean' => 75.00, 'sd' => 2.00, 'low' => 0.10, 'high' => 90.00],
-                'ALY-MAM'  => ['mean' => 60.00, 'sd' => 1.50, 'low' => 0.10, 'high' => 75.00],
-                'ALY-AMP'  => ['mean' => 50.00, 'sd' => 1.20, 'low' => 0.10, 'high' => 80.00],
-                'ALY-METH' => ['mean' => 80.00, 'sd' => 1.80, 'low' => 0.10, 'high' => 95.00],
-                'ALY-FEN'  => ['mean' => 4.00,  'sd' => 0.15, 'low' => 0.05, 'high' => 10.00],
-                'ALY-STR'  => ['mean' => 99.99, 'sd' => 0.01, 'low' => 50.00, 'high' => 99.99],
-                'ALY-WDNA' => ['mean' => 99.50, 'sd' => 0.10, 'low' => 95.00, 'high' => 99.99],
-                'ALY-CN'   => ['mean' => 5.00,  'sd' => 0.20, 'low' => 0.10, 'high' => 10.00],
+                'ALY-TVC' => ['mean' => 1200.00, 'sd' => 45.00, 'low' => 0.10, 'high' => 5000.00],
+                'ALY-PH' => ['mean' => 6.80, 'sd' => 0.15, 'low' => 4.00, 'high' => 9.00],
+                'ALY-EC' => ['mean' => 10.00, 'sd' => 1.20, 'low' => 0.10, 'high' => 100.00],
+                'ALY-TCC' => ['mean' => 5.00, 'sd' => 0.50, 'low' => 0.10, 'high' => 50.00],
+                'ALY-TURB' => ['mean' => 2.50, 'sd' => 0.20, 'low' => 0.10, 'high' => 10.00],
+                'ALY-DO' => ['mean' => 8.00, 'sd' => 0.30, 'low' => 2.00, 'high' => 12.00],
+                'ALY-COD-ENV' => ['mean' => 25.00, 'sd' => 2.00, 'low' => 1.00, 'high' => 100.00],
+                'ALY-TDS' => ['mean' => 350.00, 'sd' => 15.00, 'low' => 50.00, 'high' => 1000.00],
+                'ALY-CD' => ['mean' => 0.05, 'sd' => 0.01, 'low' => 0.01, 'high' => 0.50],
+                'ALY-HG' => ['mean' => 0.02, 'sd' => 0.005, 'low' => 0.001, 'high' => 0.10],
             ];
 
             // ----------------------------------------------------------------

@@ -57,7 +57,7 @@ class Phase6PersonnelLabInsightsSeeder extends Seeder
             ];
 
             $designations = [
-                'Senior Analytical Chemist', 'Lead DNA Analyst', 'Quality Control Analyst',
+                'Senior Analytical Chemist', 'Lead Instrumentation Analyst', 'Quality Control Analyst',
                 'Organic Residues Specialist', 'Lead Microbiologist', 'Biosafety Officer',
                 'Lead Instrumentation Engineer'
             ];

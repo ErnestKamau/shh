@@ -15,6 +15,35 @@ use Illuminate\Support\Facades\DB;
 
 class AmSpecRebrandService
 {
+    /** @var list<string> */
+    private const LEGACY_CRM_CUSTOMER_NAMES = [
+        'Tanzania Police Force',
+        'Directorate of Criminal Investigations',
+        'High Court of Tanzania',
+        'Drug Control and Enforcement Authority',
+        'Civilian Evidence Submission Desk',
+        'Tanzania Private Industries Consortium',
+        'Dar es Salaam Port Health Authority',
+        'Tanzania Advocates Forensic Liaison Group',
+        'National Research Institutions Forum',
+        'Ministry of Health Tanzania',
+    ];
+
+    /** @var list<string> */
+    private const LEGACY_CRM_CUSTOMER_CODES = [
+        'INT-POL-001',
+        'INT-DCI-002',
+        'INT-CRT-003',
+        'INT-DCEA-004',
+        'EXT-CIV-001',
+        'EXT-IND-002',
+        'EXT-PRT-003',
+        'EXT-ADV-004',
+        'EXT-RES-005',
+        'CUST-TPF',
+        'CUST-MOH',
+    ];
+
     public function rebrandCompanies(?Command $command = null): void
     {
         $uae = $this->resolveOrCreateUaeCountry();
@@ -66,8 +95,8 @@ class AmSpecRebrandService
         $legacyCustomerIds = CRMCustomer::query()
             ->where('company_id', $companyId)
             ->where(function ($query): void {
-                $query->whereIn('name', AmSpecSeedData::legacyCrmCustomerNames())
-                    ->orWhereIn('code', AmSpecSeedData::legacyCrmCustomerCodes());
+                $query->whereIn('name', self::LEGACY_CRM_CUSTOMER_NAMES)
+                    ->orWhereIn('code', self::LEGACY_CRM_CUSTOMER_CODES);
             })
             ->pluck('id');
 

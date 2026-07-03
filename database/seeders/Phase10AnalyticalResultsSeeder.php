@@ -286,8 +286,6 @@ class Phase10AnalyticalResultsSeeder extends Seeder
         $value = round($lod + (mt_rand(100, 8500) / 10000) * ($safeHigh - $lod), 4);
 
         return match ($analyteCode) {
-            'ALY-STR' => [99.99, 'STR DNA Profile Match: 99.99% Probability'],
-            'ALY-WDNA' => [99.5, 'Positive wildlife species DNA match'],
             'ALY-TVC' => [$value, "{$value} CFU/g detected"],
             'ALY-PH' => [$value, "pH {$value}"],
             'ALY-CAL' => [$value, "{$value}% calibration deviation"],

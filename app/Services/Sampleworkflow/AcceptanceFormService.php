@@ -354,7 +354,7 @@ class AcceptanceFormService
                     $completed,
                     $completed->sampleHeader,
                     $payload,
-                    Auth::id() ? (string) Auth::id() : null
+                    $this->resolveActingUserId($completed, $completed->sampleHeader),
                 );
             }
 
@@ -482,17 +482,19 @@ class AcceptanceFormService
 
         $batch->save();
 
+        $actingUserId = $this->resolveActingUserId($form, $batch, $leadAnalystId);
+
         $this->closeOpenChainOfCustody($batch, sprintf(
             'Moved to %s after laboratory manager approval (from %s).',
             $targetStatus,
             $previousStatus ?: 'unknown'
-        ));
+        ), $actingUserId);
 
         $custody = new ChainOfCustody();
         $custody->sample_header_id = $batch->id;
         $custody->workflow_stage = $targetStatus;
         $custody->tracking_stage_id = $batch->sample_tracking_stage;
-        $custody->moved_in_by = Auth::id();
+        $custody->moved_in_by = $actingUserId;
         $custody->comments = sprintf(
             'Analysis acceptance form completed by manager (from %s).',
             $previousStatus ?: 'unknown'
@@ -517,12 +519,12 @@ class AcceptanceFormService
         }
 
         app(BatchWorkflowDocumentAttachmentService::class)
-            ->attachForAcceptedBatch($batch->fresh(), Auth::id() ? (string) Auth::id() : null);
+            ->attachForAcceptedBatch($batch->fresh(), $actingUserId);
     }
 
-    private function closeOpenChainOfCustody(SampleHeader $batch, string $comments): void
+    private function closeOpenChainOfCustody(SampleHeader $batch, string $comments, ?string $movedOutBy = null): void
     {
-        $movedOutBy = Auth::id();
+        $movedOutBy ??= $this->resolveActingUserId(null, $batch);
 
         ChainOfCustody::query()
             ->where('sample_header_id', $batch->id)
@@ -532,6 +534,37 @@ class AcceptanceFormService
                 'moved_out_by' => $movedOutBy,
                 'comments' => $comments,
             ]);
+    }
+
+    private function resolveActingUserId(
+        ?AnalysisAcceptanceForm $form = null,
+        ?SampleHeader $batch = null,
+        ?string $leadAnalystId = null,
+    ): string {
+        $candidates = [
+            Auth::id(),
+            $leadAnalystId,
+            $form?->created_by,
+            $batch?->receiving_officer,
+            $batch?->specialist_analyst_id,
+        ];
+
+        if ($form !== null && is_array($form->manager_assignment_payload)) {
+            $payload = $form->manager_assignment_payload;
+            $candidates[] = $payload['lead_analyst_id'] ?? null;
+
+            foreach ($payload['assigned_analyst_ids'] ?? [] as $analystId) {
+                $candidates[] = $analystId;
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== null && $candidate !== '' && Str::isUuid((string) $candidate)) {
+                return (string) $candidate;
+            }
+        }
+
+        throw new \RuntimeException('No acting user available to record chain of custody.');
     }
 
     /**

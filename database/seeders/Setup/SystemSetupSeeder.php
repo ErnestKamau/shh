@@ -410,6 +410,37 @@ class SystemSetupSeeder extends Seeder
                 $user->assignRole('admin');
 
                 $this->command?->info("  Role 'admin' assigned to '{$user->email}'.");
+
+                // ----------------------------------------------------------------
+                // STEP 12 — Coleman LIMS staff user
+                // ----------------------------------------------------------------
+                $this->command?->info('Step 12: Creating Coleman LIMS user...');
+
+                $coleman = User::updateOrCreate(
+                    ['email' => AmSpecSeedData::COLEMAN_SEED_EMAIL],
+                    [
+                        'name'          => 'Coleman',
+                        'password'      => Hash::make('test1234'),
+                        'company_id'    => $company->id,
+                        'department_id' => $adminDeptUuid,
+                        'location_id'   => $adminLocationUuid,
+                        'active'        => 1,
+                        'first_name'    => 'Coleman',
+                        'last_name'     => '',
+                        'is_client'     => 0,
+                    ]
+                );
+
+                InventoryLocationUser::firstOrCreate(
+                    [
+                        'user_id'               => $coleman->id,
+                        'inventory_location_id' => $adminLocation->id,
+                    ]
+                );
+
+                $coleman->assignRole('admin');
+
+                $this->command?->info("  LIMS user '{$coleman->email}' ready with admin role.");
             });
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();

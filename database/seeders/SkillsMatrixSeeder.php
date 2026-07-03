@@ -220,9 +220,9 @@ class SkillsMatrixSeeder extends Seeder
             $location = InventoryLocation::first();
             if (!$location) {
                 $location = InventoryLocation::create([
-                    'name' => 'Nairobi Head Office Lab',
+                    'name' => 'Dubai Head Office Lab',
                     'company_id' => $companyId,
-                    'address' => 'Nairobi HQ Building',
+                    'address' => 'Dubai HQ Building',
                 ]);
             }
             $locationId = $location->id;
@@ -232,10 +232,10 @@ class SkillsMatrixSeeder extends Seeder
             }
 
             // Fetch or create organizational department
-            $department = InventoryDepartment::where('name', 'Forensic Laboratory Section')->first();
+            $department = InventoryDepartment::where('name', 'Laboratory Analysis Section')->first();
             if (!$department) {
                 $department = InventoryDepartment::create([
-                    'name' => 'Forensic Laboratory Section',
+                    'name' => 'Laboratory Analysis Section',
                     'company_id' => $companyId,
                     'location_id' => $locationId,
                     'module' => 'organizational'
@@ -277,8 +277,8 @@ class SkillsMatrixSeeder extends Seeder
 
             // Seed Job Descriptions
             $jobDescriptionsData = [
-                ['name' => 'Senior Forensic Scientist', 'description' => 'Responsible for complex evidence analysis, court testimony, and quality leadership.'],
-                ['name' => 'Forensic Analyst', 'description' => 'Performs analytical chemical and biological testings on physical evidence materials.'],
+                ['name' => 'Senior Analytical Chemist', 'description' => 'Responsible for complex sample analysis, method validation, and quality leadership.'],
+                ['name' => 'Laboratory Analyst', 'description' => 'Performs routine and advanced analytical testing on client samples.'],
                 ['name' => 'Quality Assurance Officer', 'description' => 'Maintains ISO 17025 compliance, audits procedures, and manages SOP documentation.']
             ];
             $jobDescriptions = [];
@@ -300,7 +300,7 @@ class SkillsMatrixSeeder extends Seeder
 
             // Seed Competency Categories (Competence Areas)
             $competenceAreasData = [
-                ['name' => 'Analytical Testing', 'level' => 1, 'description' => 'Physical evidence chemical and elemental analysis competency.'],
+                ['name' => 'Analytical Testing', 'level' => 1, 'description' => 'Sample chemical and elemental analysis competency.'],
                 ['name' => 'Instrument Operation', 'level' => 2, 'description' => 'Operation and daily maintenance of sophisticated scientific instruments.'],
                 ['name' => 'Quality & Compliance', 'level' => 3, 'description' => 'SOP protocols, laboratory safety, and general compliance standards.']
             ];
@@ -537,21 +537,21 @@ class SkillsMatrixSeeder extends Seeder
 
             // Assign position/job description to these users so relationships resolve beautifully
             $userSarah = $users->first();
-            $userSarah->update(['position' => $jobDescriptions['Senior Forensic Scientist']->id, 'department_id' => $departmentId]);
+            $userSarah->update(['position' => $jobDescriptions['Senior Analytical Chemist']->id, 'department_id' => $departmentId]);
 
             $userJohn = $users->skip(1)->first() ?? $users->first();
-            $userJohn->update(['position' => $jobDescriptions['Forensic Analyst']->id, 'department_id' => $departmentId]);
+            $userJohn->update(['position' => $jobDescriptions['Laboratory Analyst']->id, 'department_id' => $departmentId]);
 
             $userAlice = $users->skip(2)->first() ?? $userJohn;
             $userAlice->update(['position' => $jobDescriptions['Quality Assurance Officer']->id, 'department_id' => $departmentId]);
 
-            $this->command?->info('Seeded and linked 3 active forensic laboratory section users.');
+            $this->command?->info('Seeded and linked 3 active laboratory section users.');
 
             // ----------------------------------------------------------------
             // 4. Create Skills Matrix Instance (`skillsmatrices` & `skills_matrix_role`)
             // ----------------------------------------------------------------
             $skillsMatrix = SkillsMatrix::create([
-                'name' => 'Forensic Analytical Chemistry & Genetics Skills Matrix',
+                'name' => 'Analytical Chemistry Skills Matrix',
                 'department_id' => $departmentId,
                 'matrix_role_ids' => json_encode(array_values(collect($jobDescriptions)->pluck('id')->toArray())),
                 'status' => true,
@@ -579,8 +579,8 @@ class SkillsMatrixSeeder extends Seeder
                     'desc' => 'Ability to operate GC-MS system',
                     // Role required proficiencies:
                     'roles_req' => [
-                        'Senior Forensic Scientist' => 'Advanced',
-                        'Forensic Analyst' => 'Advanced',
+                        'Senior Analytical Chemist' => 'Advanced',
+                        'Laboratory Analyst' => 'Advanced',
                         'Quality Assurance Officer' => 'Intermediate'
                     ]
                 ],
@@ -589,8 +589,8 @@ class SkillsMatrixSeeder extends Seeder
                     'type' => 'Spectroscopy',
                     'desc' => 'Ability to operate ICP-MS spectrometer',
                     'roles_req' => [
-                        'Senior Forensic Scientist' => 'Expert',
-                        'Forensic Analyst' => 'Advanced',
+                        'Senior Analytical Chemist' => 'Expert',
+                        'Laboratory Analyst' => 'Advanced',
                         'Quality Assurance Officer' => 'Basic'
                     ]
                 ],
@@ -599,8 +599,8 @@ class SkillsMatrixSeeder extends Seeder
                     'type' => 'SOP Compliance',
                     'desc' => 'Ability to maintain ISO 17025 compliance',
                     'roles_req' => [
-                        'Senior Forensic Scientist' => 'Advanced',
-                        'Forensic Analyst' => 'Intermediate',
+                        'Senior Analytical Chemist' => 'Advanced',
+                        'Laboratory Analyst' => 'Intermediate',
                         'Quality Assurance Officer' => 'Expert'
                     ]
                 ]
@@ -680,7 +680,7 @@ class SkillsMatrixSeeder extends Seeder
             // 6. Capability Assessment Matrix (`skills_capability_matrix` & child user linkages)
             // ----------------------------------------------------------------
             $capabilityMatrix = CapabilityMatrix::create([
-                'name' => 'Q2 2026 Forensic Lab Staff Capability Assessment',
+                'name' => 'Q2 2026 Lab Staff Capability Assessment',
                 'matrix_id' => $skillsMatrix->id,
                 'created_by' => $userSarah->id,
                 'status' => true,
@@ -689,16 +689,16 @@ class SkillsMatrixSeeder extends Seeder
             // Assign users as capability roles
             $capSarah = CapabilityMatrixRoles::create([
                 'capability_id' => $capabilityMatrix->id,
-                'skill_matrix_role_id' => $smRoles['Senior Forensic Scientist']->id,
-                'role_id' => $jobDescriptions['Senior Forensic Scientist']->id,
+                'skill_matrix_role_id' => $smRoles['Senior Analytical Chemist']->id,
+                'role_id' => $jobDescriptions['Senior Analytical Chemist']->id,
                 'user_id' => $userSarah->id,
                 'code' => 'SJ',
             ]);
 
             $capJohn = CapabilityMatrixRoles::create([
                 'capability_id' => $capabilityMatrix->id,
-                'skill_matrix_role_id' => $smRoles['Forensic Analyst']->id,
-                'role_id' => $jobDescriptions['Forensic Analyst']->id,
+                'skill_matrix_role_id' => $smRoles['Laboratory Analyst']->id,
+                'role_id' => $jobDescriptions['Laboratory Analyst']->id,
                 'user_id' => $userJohn->id,
                 'code' => 'JD',
             ]);
@@ -715,11 +715,11 @@ class SkillsMatrixSeeder extends Seeder
             // ----------------------------------------------------------------
             // 7. Seed User Actual Proficiencies (`skill_capability_detail`)
             // ----------------------------------------------------------------
-            // For John Doe (Forensic Analyst):
+            // For John Doe (Laboratory Analyst):
             // - GC-MS target: Advanced (code 3). We set John's actual: Intermediate (code 2) -> REQUIRES TRAINING!
             // - ICP-MS target: Advanced (code 3). We set John's actual: Intermediate (code 2) -> REQUIRES TRAINING!
             // - ISO 17025 target: Intermediate (code 2). We set John's actual: Intermediate (code 2) -> COMPETENT!
-            // For Sarah Jenkins (Senior Forensic Scientist):
+            // For Sarah Jenkins (Senior Analytical Chemist):
             // - All targets: Expert/Advanced. We set actuals: Expert/Advanced -> COMPETENT!
             // For Alice Smith (Quality Assurance Officer):
             // - ISO 17025 target: Expert (code 4). We set Alice's actual: Advanced (code 3) -> REQUIRES TRAINING!
@@ -753,7 +753,7 @@ class SkillsMatrixSeeder extends Seeder
                     'competency_id' => $detail->id,
                     'user_id' => $userSarah->id,
                     'proficiency_id' => $proficiencies[$sarahActuals[$compDescName]]->id,
-                    'skill_matrix_role_id' => $smRoles['Senior Forensic Scientist']->id,
+                    'skill_matrix_role_id' => $smRoles['Senior Analytical Chemist']->id,
                 ]);
 
                 // John
@@ -762,7 +762,7 @@ class SkillsMatrixSeeder extends Seeder
                     'competency_id' => $detail->id,
                     'user_id' => $userJohn->id,
                     'proficiency_id' => $proficiencies[$johnActuals[$compDescName]]->id,
-                    'skill_matrix_role_id' => $smRoles['Forensic Analyst']->id,
+                    'skill_matrix_role_id' => $smRoles['Laboratory Analyst']->id,
                 ]);
 
                 // Alice
@@ -780,7 +780,7 @@ class SkillsMatrixSeeder extends Seeder
             // 8. Seed Training Needs (`skill_training_header` & `skills_training_detail`)
             // ----------------------------------------------------------------
             $trainingHeader = TrainingHeader::create([
-                'name' => 'Forensic Spectroscopy & QA Protocols Training Need',
+                'name' => 'Spectroscopy & QA Protocols Training Need',
                 'capability_id' => $capabilityMatrix->id,
                 'created_by' => $userSarah->id,
             ]);
@@ -803,7 +803,7 @@ class SkillsMatrixSeeder extends Seeder
             $gcMsCapDetailJohn = collect($capDetails)->first(function($d) use ($userJohn, $gcMsDetail) {
                 return $d->user_id === $userJohn->id && $d->competency_id === $gcMsDetail->id;
             });
-            $gcMsDetailRoleJohn = $detailRoles[$gcMsDetail->id]['Forensic Analyst'];
+            $gcMsDetailRoleJohn = $detailRoles[$gcMsDetail->id]['Laboratory Analyst'];
 
             TrainingDetail::create([
                 'training_header_id' => $trainingHeader->id,
@@ -819,7 +819,7 @@ class SkillsMatrixSeeder extends Seeder
             $icpMsCapDetailJohn = collect($capDetails)->first(function($d) use ($userJohn, $icpMsDetail) {
                 return $d->user_id === $userJohn->id && $d->competency_id === $icpMsDetail->id;
             });
-            $icpMsDetailRoleJohn = $detailRoles[$icpMsDetail->id]['Forensic Analyst'];
+            $icpMsDetailRoleJohn = $detailRoles[$icpMsDetail->id]['Laboratory Analyst'];
 
             TrainingDetail::create([
                 'training_header_id' => $trainingHeader->id,
@@ -850,7 +850,7 @@ class SkillsMatrixSeeder extends Seeder
             // 9. Seed Training Planner (`skills_training_planner_header` & `detail`)
             // ----------------------------------------------------------------
             $plannerHeader = TrainingPlannerHeader::create([
-                'name' => 'Q3 Forensic Analytical Training Plan',
+                'name' => 'Q3 Analytical Training Plan',
                 'training_need_header_id' => $trainingHeader->id,
                 'is_complete' => false,
                 'created_by' => $userSarah->id,
@@ -884,7 +884,7 @@ class SkillsMatrixSeeder extends Seeder
                     'training_end_date' => '2026-07-08 17:00:00',
                     'week_no' => 'Week 28',
                     'organizer_trainer' => 'International Quality Systems Inc.',
-                    'remark' => 'Intensive audit readiness and forensic laboratory ISO 17025 documentation protocols training.',
+                    'remark' => 'Intensive audit readiness and laboratory ISO 17025 documentation protocols training.',
                     'status' => 0, // Scheduled
                 ]
             ];

@@ -20,6 +20,8 @@ class AmSpecSeedData
 
     public const SEED_USER_EMAIL = '1.kamauernest@gmail.com';
 
+    public const COLEMAN_SEED_EMAIL = 'colman@nuvemite.com';
+
     public static function seedUserEmail(?string $suffix = null): string
     {
         if ($suffix === null || $suffix === '') {
@@ -29,56 +31,6 @@ class AmSpecSeedData
         [$local, $domain] = explode('@', self::SEED_USER_EMAIL, 2);
 
         return "{$local}+{$suffix}@{$domain}";
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public static function legacyCompanyNames(): array
-    {
-        return [
-            'Government Chemist Laboratory Authority',
-            'GCLA Authority HQ',
-        ];
-    }
-
-    /**
-     * @return list<string>
-     */
-    public static function legacyCrmCustomerNames(): array
-    {
-        return [
-            'Tanzania Police Force',
-            'Directorate of Criminal Investigations',
-            'High Court of Tanzania',
-            'Drug Control and Enforcement Authority',
-            'Civilian Evidence Submission Desk',
-            'Tanzania Private Industries Consortium',
-            'Dar es Salaam Port Health Authority',
-            'Tanzania Advocates Forensic Liaison Group',
-            'National Research Institutions Forum',
-            'Ministry of Health Tanzania',
-        ];
-    }
-
-    /**
-     * @return list<string>
-     */
-    public static function legacyCrmCustomerCodes(): array
-    {
-        return [
-            'INT-POL-001',
-            'INT-DCI-002',
-            'INT-CRT-003',
-            'INT-DCEA-004',
-            'EXT-CIV-001',
-            'EXT-IND-002',
-            'EXT-PRT-003',
-            'EXT-ADV-004',
-            'EXT-RES-005',
-            'CUST-TPF',
-            'CUST-MOH',
-        ];
     }
 
     public static function resolveUaeCountry(): ?Country

@@ -33,12 +33,12 @@ class Phase12EquipmentManagementSeeder extends Seeder
             $this->clearAmSpecEquipmentData($company);
 
             $equipmentSpecs = [
-                'LAB-FCH' => ['name' => 'Agilent 8890 Gas Chromatograph', 'make' => 'Agilent Technologies', 'model' => '8890 / 5977B', 'prefix' => 'EQ-GCMS'],
-                'LAB-FDNA' => ['name' => 'ABI 3500xl DNA Genetic Analyzer', 'make' => 'Applied Biosystems', 'model' => '3500xl', 'prefix' => 'EQ-SEQ'],
-                'LAB-FTOX' => ['name' => 'LC-MS/MS Toxicology System', 'make' => 'Waters', 'model' => 'Xevo TQ-S', 'prefix' => 'EQ-LCMS'],
-                'LAB-FD' => ['name' => 'Shimadzu HPLC Food and Drug System', 'make' => 'Shimadzu', 'model' => 'LC-20AD', 'prefix' => 'EQ-HPLC'],
-                'LAB-MIC' => ['name' => 'CO2 Microbiology Incubator', 'make' => 'Thermo Fisher', 'model' => 'Heracell VIOS', 'prefix' => 'EQ-INC'],
+                'LAB-FUEL' => ['name' => 'Anton Paar Fuel Analysis System', 'make' => 'Anton Paar', 'model' => 'SVM 3001', 'prefix' => 'EQ-FUEL'],
+                'LAB-CRD' => ['name' => 'Crude Oil Distillation Unit', 'make' => 'Grabner', 'model' => 'MINIDIS ADXpert', 'prefix' => 'EQ-CRD'],
+                'LAB-BNK' => ['name' => 'Marine Bunker Fuel Analyzer', 'make' => 'XOS', 'model' => 'Sindie 7039', 'prefix' => 'EQ-BNK'],
+                'LAB-AGF' => ['name' => 'CO2 Microbiology Incubator', 'make' => 'Thermo Fisher', 'model' => 'Heracell VIOS', 'prefix' => 'EQ-INC'],
                 'LAB-ENV' => ['name' => 'ICP-MS Environmental Metals Analyzer', 'make' => 'PerkinElmer', 'model' => 'NexION 2000', 'prefix' => 'EQ-ICP'],
+                'LAB-CHM' => ['name' => 'Agilent 8890 Gas Chromatograph', 'make' => 'Agilent Technologies', 'model' => '8890 / 5977B', 'prefix' => 'EQ-GCMS'],
                 'LAB-TSU' => ['name' => 'Reference Calibration Workstation', 'make' => 'Fluke', 'model' => '5522A', 'prefix' => 'EQ-CAL'],
             ];
 

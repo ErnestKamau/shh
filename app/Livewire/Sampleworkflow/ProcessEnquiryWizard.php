@@ -355,13 +355,11 @@ class ProcessEnquiryWizard extends Component
             : '';
         $this->statusLevel = $this->quotationSent ? 'info' : 'info';
         $this->showModal = true;
-        $this->dispatch('show-process-enquiry-modal');
     }
 
     public function closeWizard(): void
     {
         $this->showModal = false;
-        $this->dispatch('hide-process-enquiry-modal');
     }
 
     public function goToStep(string $step): void
@@ -790,14 +788,12 @@ class ProcessEnquiryWizard extends Component
 
             $this->dispatch('process-enquiry-completed');
 
-            if (strtolower($this->sourceChannel) === 'walk_in') {
-                $this->setStatus('success', 'Quotation sent by email. Open the request view page to record walk-in acceptance, then capture the PO.');
-
-                return;
-            }
+            $flashMessage = strtolower($this->sourceChannel) === 'walk_in'
+                ? 'Quotation sent by email. Record walk-in acceptance on the request view page, then capture the PO.'
+                : 'Quotation sent to customer.';
 
             $this->closeWizard();
-            session()->flash('message', 'Quotation sent to customer.');
+            session()->flash('message', $flashMessage);
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
         }
