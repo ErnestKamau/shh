@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('currencies')) {
+            return;
+        }
         Schema::create('currencies', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('code')->unique()->comment('Currency code (BWP, EUR, USD, etc.)');

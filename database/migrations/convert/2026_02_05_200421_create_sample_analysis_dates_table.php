@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_analysis_dates')) {
+            return;
+        }
         Schema::create('sample_analysis_dates', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

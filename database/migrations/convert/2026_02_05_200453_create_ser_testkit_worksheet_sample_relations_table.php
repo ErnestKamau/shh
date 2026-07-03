@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ser_testkit_worksheet_sample_relations')) {
+            return;
+        }
         Schema::create('ser_testkit_worksheet_sample_relations', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('ser_header_id')->index('idx_ser_testkit_worksheet_sample_relations_ser_header_c1814f8c');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('user_alerts')) {
+            return;
+        }
         Schema::create('user_alerts', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('type');

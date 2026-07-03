@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('captured_view')) {
+            return;
+        }
         Schema::create('captured_view', function (Blueprint $table) {
             $table->bigInteger('id')->default(0);
             $table->string('sample_detail_code');

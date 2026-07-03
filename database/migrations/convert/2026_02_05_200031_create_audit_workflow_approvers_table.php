@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('audit_workflow_approvers')) {
+            return;
+        }
         Schema::create('audit_workflow_approvers', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('module')->default('audit')->index('idx_audit_workflow_approvers_audit_43ad5272');

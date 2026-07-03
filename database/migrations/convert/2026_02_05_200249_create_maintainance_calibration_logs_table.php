@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('maintainance_calibration_logs')) {
+            return;
+        }
         Schema::create('maintainance_calibration_logs', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('equipment_id')->index('idx_maintainance_calibration_logs_equipment_id_8c03140a');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_approval_workflows')) {
+            return;
+        }
         Schema::create('document_approval_workflows', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('document_type_id')->index('idx_document_approval_workflows_document_type_id_6baec126');

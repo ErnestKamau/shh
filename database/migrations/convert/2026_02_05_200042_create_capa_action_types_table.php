@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('capa_action_types')) {
+            return;
+        }
         Schema::create('capa_action_types', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('equipment_disposal_approval_workflows')) {
+            return;
+        }
         Schema::create('equipment_disposal_approval_workflows', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('workflow_name');

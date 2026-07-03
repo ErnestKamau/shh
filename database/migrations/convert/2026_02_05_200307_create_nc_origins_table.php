@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('nc_origins')) {
+            return;
+        }
         Schema::create('nc_origins', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

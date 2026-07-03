@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_points')) {
+            return;
+        }
         Schema::create('sample_points', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('crm_company_unit_id')->index('idx_sample_points_crm_company_unit_id_c2640df9');

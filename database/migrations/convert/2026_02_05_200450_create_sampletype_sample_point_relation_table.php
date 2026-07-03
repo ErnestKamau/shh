@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sampletype_sample_point_relation')) {
+            return;
+        }
         Schema::create('sampletype_sample_point_relation', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('sample_type_id');

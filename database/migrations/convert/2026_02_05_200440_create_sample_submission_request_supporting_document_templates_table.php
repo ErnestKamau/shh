@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_submission_request_supporting_document_templates')) {
+            return;
+        }
         Schema::create('sample_submission_request_supporting_document_templates', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('sample_submission_request_id');

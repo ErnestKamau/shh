@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('tax_regime')) {
+            return;
+        }
         Schema::create('tax_regime', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

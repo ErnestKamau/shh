@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('rating_headers')) {
+            return;
+        }
         Schema::create('rating_headers', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

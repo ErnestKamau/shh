@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('likelihood_scales')) {
+            return;
+        }
         Schema::create('likelihood_scales', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

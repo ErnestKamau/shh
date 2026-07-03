@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('complaint_type')) {
+            return;
+        }
         Schema::create('complaint_type', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

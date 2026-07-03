@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('spatie_role_has_permissions')) {
+            return;
+        }
         Schema::create('spatie_role_has_permissions', function (Blueprint $table) {
             $table->uuid('permission_id');
             $table->uuid('role_id')->index('idx_spatie_role_has_permissions_role_id_7b2f412a');

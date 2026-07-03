@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('parameters_import')) {
+            return;
+        }
         Schema::create('parameters_import', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('parameter', 150)->index('idx_parameters_import_parameter_302e8171');

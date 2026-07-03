@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('attachment_types')) {
+            return;
+        }
         Schema::create('attachment_types', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

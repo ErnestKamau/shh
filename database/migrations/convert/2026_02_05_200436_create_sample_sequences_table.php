@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_sequences')) {
+            return;
+        }
         Schema::create('sample_sequences', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('batch_code')->index('idx_sample_sequences_batch_code_259270b7');

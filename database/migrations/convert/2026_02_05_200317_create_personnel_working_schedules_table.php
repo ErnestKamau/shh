@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('personnel_working_schedules')) {
+            return;
+        }
         Schema::create('personnel_working_schedules', function (Blueprint $table) {
             $table->time('start_timeslot');
             $table->time('end_timeslot');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('stock_transfer_items')) {
+            return;
+        }
         Schema::create('stock_transfer_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

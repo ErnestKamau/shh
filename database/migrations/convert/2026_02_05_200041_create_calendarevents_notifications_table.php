@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('calendarevents_notifications')) {
+            return;
+        }
         Schema::create('calendarevents_notifications', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

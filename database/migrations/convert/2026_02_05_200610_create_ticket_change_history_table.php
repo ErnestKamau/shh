@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ticket_change_history')) {
+            return;
+        }
         Schema::create('ticket_change_history', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('ticket_id')->index('idx_ticket_change_history_ticket_id_c097a7f6');

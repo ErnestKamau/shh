@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('supporting_document_templates')) {
+            return;
+        }
         Schema::create('supporting_document_templates', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('document_code', 100)->nullable();

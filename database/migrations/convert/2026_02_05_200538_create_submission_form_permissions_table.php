@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('submission_form_permissions')) {
+            return;
+        }
         Schema::create('submission_form_permissions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('submission_form_id');

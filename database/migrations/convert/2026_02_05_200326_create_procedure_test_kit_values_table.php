@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('procedure_test_kit_values')) {
+            return;
+        }
         Schema::create('procedure_test_kit_values', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('procedure_test_kit_row_id')->index('idx_procedure_test_kit_values_procedure_test_kit_row_i_472682fa');

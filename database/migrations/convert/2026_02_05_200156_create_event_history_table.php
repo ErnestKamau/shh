@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('event_history')) {
+            return;
+        }
         Schema::create('event_history', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

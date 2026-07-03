@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('audit_module_findings')) {
+            return;
+        }
         Schema::create('audit_module_findings', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('finding_number')->index('idx_audit_module_findings_finding_number_c08639b0');

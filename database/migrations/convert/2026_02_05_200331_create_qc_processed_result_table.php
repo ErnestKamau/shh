@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('qc_processed_result')) {
+            return;
+        }
         Schema::create('qc_processed_result', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

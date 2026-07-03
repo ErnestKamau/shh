@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ai.ai_chat_attachments')) {
+            return;
+        }
         Schema::create('ai.ai_chat_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('ai_conversation_id')->index('idx_ai_chat_attachments_ai_conversation_id_03156ace');

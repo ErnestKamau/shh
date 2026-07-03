@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('customer_submission_form_columns')) {
+            return;
+        }
         Schema::create('customer_submission_form_columns', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('crm_customer_id')->index('idx_customer_submission_form_columns_crm_customer_id_3af6e149');

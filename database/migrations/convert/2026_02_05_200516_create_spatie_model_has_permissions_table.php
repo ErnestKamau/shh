@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('spatie_model_has_permissions')) {
+            return;
+        }
         Schema::create('spatie_model_has_permissions', function (Blueprint $table) {
             $table->uuid('permission_id');
             $table->string('model_type');

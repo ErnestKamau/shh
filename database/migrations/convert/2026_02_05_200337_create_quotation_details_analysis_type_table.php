@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('quotation_details_analysis_type')) {
+            return;
+        }
         Schema::create('quotation_details_analysis_type', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

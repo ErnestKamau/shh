@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('lookup_table_entries')) {
+            return;
+        }
         Schema::create('lookup_table_entries', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('lookup_table_id')->index('idx_lookup_table_entries_lookup_table_id_081ee37e');

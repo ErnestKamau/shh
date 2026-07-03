@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ser_worksheet_steps')) {
+            return;
+        }
         Schema::create('ser_worksheet_steps', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('step');

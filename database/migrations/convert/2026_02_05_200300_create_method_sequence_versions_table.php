@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('method_sequence_versions')) {
+            return;
+        }
         Schema::create('method_sequence_versions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('method_sequence_id')->index('idx_method_sequence_versions_method_sequence_id_9c0992c2');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('samaco_sheet')) {
+            return;
+        }
         Schema::create('samaco_sheet', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

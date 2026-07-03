@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('zoho_api_tokens')) {
+            return;
+        }
         Schema::create('zoho_api_tokens', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('token');

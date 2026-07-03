@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('supplier_brands')) {
+            return;
+        }
         Schema::create('supplier_brands', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('supplier_id')->index('idx_supplier_brands_supplier_id_f5cecc96');

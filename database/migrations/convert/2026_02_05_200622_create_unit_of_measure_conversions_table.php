@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('unit_of_measure_conversions')) {
+            return;
+        }
         Schema::create('unit_of_measure_conversions', function (Blueprint $table) {
             $table->uuid('id');
             $table->integer('uom1');

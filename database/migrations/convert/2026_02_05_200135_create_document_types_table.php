@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_types')) {
+            return;
+        }
         Schema::create('document_types', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

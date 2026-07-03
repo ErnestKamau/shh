@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('entity_approvals')) {
+            return;
+        }
         Schema::create('entity_approvals', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('approval_id')->index('idx_entity_approvals_approval_id_ca707ec1');

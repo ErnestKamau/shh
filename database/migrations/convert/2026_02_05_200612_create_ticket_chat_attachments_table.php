@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ticket_chat_attachments')) {
+            return;
+        }
         Schema::create('ticket_chat_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('chat_message_id')->index('idx_ticket_chat_attachments_chat_message_id_d517663a');

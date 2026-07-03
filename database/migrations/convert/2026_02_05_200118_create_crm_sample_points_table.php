@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('crm_sample_points')) {
+            return;
+        }
         Schema::create('crm_sample_points', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('code')->unique();

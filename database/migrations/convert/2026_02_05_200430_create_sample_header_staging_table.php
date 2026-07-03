@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_header_staging')) {
+            return;
+        }
         Schema::create('sample_header_staging', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

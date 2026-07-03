@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('stage_headers')) {
+            return;
+        }
         Schema::create('stage_headers', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

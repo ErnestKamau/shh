@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('report_format_sections')) {
+            return;
+        }
         Schema::create('report_format_sections', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('report_format_id')->index('idx_report_format_sections_report_format_id_d7e41383');

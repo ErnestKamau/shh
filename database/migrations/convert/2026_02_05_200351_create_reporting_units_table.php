@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('reporting_units')) {
+            return;
+        }
         Schema::create('reporting_units', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name')->unique('uq_reporting_units_name_3498556e');

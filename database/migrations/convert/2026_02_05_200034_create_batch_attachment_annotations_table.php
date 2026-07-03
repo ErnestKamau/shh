@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('batch_attachment_annotations')) {
+            return;
+        }
         Schema::create('batch_attachment_annotations', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('batch_attachment_id');

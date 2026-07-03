@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_detail_staging')) {
+            return;
+        }
         Schema::create('sample_detail_staging', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('sample_header_id');

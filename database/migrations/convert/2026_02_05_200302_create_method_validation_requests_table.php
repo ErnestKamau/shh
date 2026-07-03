@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('method_validation_requests')) {
+            return;
+        }
         Schema::create('method_validation_requests', function (Blueprint $table) {
             $table->uuid('id');
             $table->unsignedBigInteger('method_id');

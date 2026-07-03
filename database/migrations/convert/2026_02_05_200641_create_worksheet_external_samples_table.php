@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('worksheet_external_samples')) {
+            return;
+        }
         Schema::create('worksheet_external_samples', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ai.ai_action_logs')) {
+            return;
+        }
         Schema::create('ai.ai_action_logs', function (Blueprint $table) {
             $table->uuid('id');
             $table->char('action_id', 36)->index('idx_ai_action_logs_action_id_2405034f');

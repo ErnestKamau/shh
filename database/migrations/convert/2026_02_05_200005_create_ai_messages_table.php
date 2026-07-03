@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ai.ai_messages')) {
+            return;
+        }
         Schema::create('ai.ai_messages', function (Blueprint $table) {
             $table->uuid('id');
             $table->char('generation_session_id', 36)->nullable()->index()->comment('Links to AiGenerationSession for tracking active generations and stop control');

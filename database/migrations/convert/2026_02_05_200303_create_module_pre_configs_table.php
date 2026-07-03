@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('module_pre_configs')) {
+            return;
+        }
         Schema::create('module_pre_configs', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

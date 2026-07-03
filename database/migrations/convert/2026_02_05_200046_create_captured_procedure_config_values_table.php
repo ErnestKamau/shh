@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('captured_procedure_config_values')) {
+            return;
+        }
         Schema::create('captured_procedure_config_values', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('captured_result_id')->index('idx_captured_procedure_config_values_captured_result_i_0a846c1b');

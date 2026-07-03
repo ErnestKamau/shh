@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('report_table_configurations')) {
+            return;
+        }
         Schema::create('report_table_configurations', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name', 64);

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ai.ai_conversations')) {
+            return;
+        }
         Schema::create('ai.ai_conversations', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');

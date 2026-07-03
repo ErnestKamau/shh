@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('zoho_customers')) {
+            return;
+        }
         Schema::create('zoho_customers', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('customer_no')->nullable()->index()->comment('Dynamics Customer No');

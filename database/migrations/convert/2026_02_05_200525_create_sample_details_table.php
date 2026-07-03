@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_details')) {
+            return;
+        }
         Schema::create('sample_details', function (Blueprint $table) {
             $table->uuid('id');
             $table->boolean('has_no_result_capture')->default(false);

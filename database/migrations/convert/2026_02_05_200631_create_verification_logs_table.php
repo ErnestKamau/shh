@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('verification_logs')) {
+            return;
+        }
         Schema::create('verification_logs', function (Blueprint $table) {
             $table->uuid('id');
             $table->date('verification_date');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('batch_ammendments')) {
+            return;
+        }
         Schema::create('batch_ammendments', function (Blueprint $table) {
             $table->uuid('id')->index('idx_batch_ammendments_id_c5047fc3');
             $table->timestamps();

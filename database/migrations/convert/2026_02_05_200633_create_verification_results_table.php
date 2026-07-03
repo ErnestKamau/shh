@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('verification_results')) {
+            return;
+        }
         Schema::create('verification_results', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

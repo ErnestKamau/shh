@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('worksheet_executions')) {
+            return;
+        }
         Schema::create('worksheet_executions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('formula_version_id')->index('idx_worksheet_executions_formula_version_id_46a547d2');

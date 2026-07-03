@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('compliance_statuses')) {
+            return;
+        }
         Schema::create('compliance_statuses', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

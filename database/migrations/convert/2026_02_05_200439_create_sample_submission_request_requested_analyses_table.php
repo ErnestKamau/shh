@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_submission_request_requested_analyses')) {
+            return;
+        }
         Schema::create('sample_submission_request_requested_analyses', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('sample_submission_request_id')->index('idx_sample_submission_request_requested_analyses_sampl_8bf1bfeb');

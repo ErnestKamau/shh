@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('entity_attachments')) {
+            return;
+        }
         Schema::create('entity_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('title');

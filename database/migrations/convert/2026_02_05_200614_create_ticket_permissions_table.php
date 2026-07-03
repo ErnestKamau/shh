@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('ticket_permissions')) {
+            return;
+        }
         Schema::create('ticket_permissions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id')->unique();

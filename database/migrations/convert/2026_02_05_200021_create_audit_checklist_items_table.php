@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('audit_checklist_items')) {
+            return;
+        }
         Schema::create('audit_checklist_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('audit_checklist_id')->index('idx_audit_checklist_items_audit_checklist_id_7ab38f1b');

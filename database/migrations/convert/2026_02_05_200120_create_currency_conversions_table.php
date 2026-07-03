@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('currency_conversions')) {
+            return;
+        }
         Schema::create('currency_conversions', function (Blueprint $table) {
             $table->uuid('id');
             $table->integer('currency_1');

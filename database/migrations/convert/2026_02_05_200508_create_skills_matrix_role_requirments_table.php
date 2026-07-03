@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('skills_matrix_role_requirments')) {
+            return;
+        }
         Schema::create('skills_matrix_role_requirments', function (Blueprint $table) {
             $table->uuid('id');
             $table->integer('skills_matrix_config_id')->nullable();

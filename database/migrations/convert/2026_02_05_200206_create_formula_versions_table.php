@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('formula_versions')) {
+            return;
+        }
         Schema::create('formula_versions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('formula_id');

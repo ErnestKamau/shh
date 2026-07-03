@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_approval_checklist')) {
+            return;
+        }
         Schema::create('sample_approval_checklist', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_headers')) {
+            return;
+        }
         Schema::create('sample_headers', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('submission_form_instance_id')->nullable()->index()->comment('ID of the submission form instance that created this sample');

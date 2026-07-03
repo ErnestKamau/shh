@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_staging_rejection_log')) {
+            return;
+        }
         Schema::create('sample_staging_rejection_log', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('chat_message')) {
+            return;
+        }
         Schema::create('chat_message', function (Blueprint $table) {
             $table->uuid('id');
             $table->text('message');

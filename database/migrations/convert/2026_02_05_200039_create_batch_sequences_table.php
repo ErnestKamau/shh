@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('batch_sequences')) {
+            return;
+        }
         Schema::create('batch_sequences', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('submission_form_instance_id')->index('idx_batch_sequences_submission_form_instance_id_1f4bdd79');

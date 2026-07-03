@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('skill_training_header_staff')) {
+            return;
+        }
         Schema::create('skill_training_header_staff', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

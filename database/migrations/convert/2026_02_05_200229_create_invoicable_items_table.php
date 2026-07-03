@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('invoicable_items')) {
+            return;
+        }
         Schema::create('invoicable_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('item_code')->unique();

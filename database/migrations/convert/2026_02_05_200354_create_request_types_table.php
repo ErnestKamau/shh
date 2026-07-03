@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('request_types')) {
+            return;
+        }
         Schema::create('request_types', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

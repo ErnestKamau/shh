@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('lab_section_approver_configuration')) {
+            return;
+        }
         Schema::create('lab_section_approver_configuration', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

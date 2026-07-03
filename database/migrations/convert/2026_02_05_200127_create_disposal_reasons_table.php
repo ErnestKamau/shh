@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('disposal_reasons')) {
+            return;
+        }
         Schema::create('disposal_reasons', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('description');

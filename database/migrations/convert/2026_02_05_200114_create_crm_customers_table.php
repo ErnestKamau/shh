@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('crm_customers')) {
+            return;
+        }
         Schema::create('crm_customers', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('code')->index('idx_crm_customers_code_976b39dd');

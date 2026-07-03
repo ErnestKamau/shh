@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_versions')) {
+            return;
+        }
         Schema::create('document_versions', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('document_id')->index('idx_document_versions_document_id_9b3d6129');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('general_requistion_requests')) {
+            return;
+        }
         Schema::create('general_requistion_requests', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('code');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('chart_of_accounts')) {
+            return;
+        }
         Schema::create('chart_of_accounts', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

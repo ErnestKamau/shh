@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_point_area')) {
+            return;
+        }
         Schema::create('sample_point_area', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_worksheet_formular_step_data')) {
+            return;
+        }
         Schema::create('sample_worksheet_formular_step_data', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('worksheet_formular_id')->index('idx_sample_worksheet_formular_step_data_worksheet_form_9d8b28dd');

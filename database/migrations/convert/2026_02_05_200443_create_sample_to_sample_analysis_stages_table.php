@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_to_sample_analysis_stages')) {
+            return;
+        }
         Schema::create('sample_to_sample_analysis_stages', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('sample_type_id')->index('idx_sample_to_sample_analysis_stages_sample_type_id_cf99ad41');

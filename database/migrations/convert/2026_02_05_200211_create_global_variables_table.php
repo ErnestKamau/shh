@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('global_variables')) {
+            return;
+        }
         Schema::create('global_variables', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name')->unique();

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('naming_convension_consensuses')) {
+            return;
+        }
         Schema::create('naming_convension_consensuses', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('string_part');

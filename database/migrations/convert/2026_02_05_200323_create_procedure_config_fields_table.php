@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('procedure_config_fields')) {
+            return;
+        }
         Schema::create('procedure_config_fields', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('procedure_worksheet_id')->index('idx_procedure_config_fields_procedure_worksheet_id_6c21b894');

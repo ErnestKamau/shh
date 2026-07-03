@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('custom_field_category_customers')) {
+            return;
+        }
         Schema::create('custom_field_category_customers', function (Blueprint $table) {
             $table->uuid('id');
             $table->unsignedBigInteger('custom_field_category_id')->index('idx_custom_field_category_customers_custom_field_categ_b97c4318');

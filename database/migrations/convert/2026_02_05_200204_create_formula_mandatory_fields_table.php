@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('formula_mandatory_fields')) {
+            return;
+        }
         Schema::create('formula_mandatory_fields', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('formula_version_id')->index('idx_formula_mandatory_fields_formula_version_id_3a2f4169');

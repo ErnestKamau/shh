@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_permissions')) {
+            return;
+        }
         Schema::create('document_permissions', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('permissionable_type');

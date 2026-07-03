@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_expiry_notification_settings')) {
+            return;
+        }
         Schema::create('document_expiry_notification_settings', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id')->index('idx_document_expiry_notification_settings_user_id_10abc666');

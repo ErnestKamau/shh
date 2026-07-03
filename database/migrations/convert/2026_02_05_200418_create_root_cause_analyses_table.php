@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('root_cause_analyses')) {
+            return;
+        }
         Schema::create('root_cause_analyses', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('non_conformance_id')->index('idx_root_cause_analyses_non_conformance_id_f0277637');

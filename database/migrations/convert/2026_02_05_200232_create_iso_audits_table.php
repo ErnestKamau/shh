@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('iso_audits')) {
+            return;
+        }
         Schema::create('iso_audits', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('audit_number')->index('idx_iso_audits_audit_number_bdc4f96a');

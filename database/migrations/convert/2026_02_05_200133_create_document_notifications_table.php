@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_notifications')) {
+            return;
+        }
         Schema::create('document_notifications', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id')->index('idx_document_notifications_user_id_dcc582af');

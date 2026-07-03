@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('risk_attachments')) {
+            return;
+        }
         Schema::create('risk_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('attachable_type');

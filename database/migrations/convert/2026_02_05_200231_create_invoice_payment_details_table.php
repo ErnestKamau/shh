@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('invoice_payment_details')) {
+            return;
+        }
         Schema::create('invoice_payment_details', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

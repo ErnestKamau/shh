@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('certificate_template_elements')) {
+            return;
+        }
         Schema::create('certificate_template_elements', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('certificate_template_section_id')->index('idx_certificate_template_elements_certificate_template_f9c41ee2');

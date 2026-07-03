@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('request_entities')) {
+            return;
+        }
         Schema::create('request_entities', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('priority')->default('Normal');

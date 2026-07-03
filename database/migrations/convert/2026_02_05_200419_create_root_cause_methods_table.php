@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('root_cause_methods')) {
+            return;
+        }
         Schema::create('root_cause_methods', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('name');

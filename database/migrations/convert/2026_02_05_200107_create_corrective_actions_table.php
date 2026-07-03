@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('corrective_actions')) {
+            return;
+        }
         Schema::create('corrective_actions', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('capa_number')->index('idx_corrective_actions_capa_number_2f9f8b6e');

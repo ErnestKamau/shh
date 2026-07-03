@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('uncertainty_budgets')) {
+            return;
+        }
         Schema::create('uncertainty_budgets', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('analyte_id')->index('idx_uncertainty_budgets_analyte_id_865b53d8');

@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('customerfeedbacks')) {
+            return;
+        }
         Schema::create('customerfeedbacks', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('customer_id')->nullable()->index('idx_customerfeedbacks_customer_id_b832bc14');

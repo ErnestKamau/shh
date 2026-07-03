@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('batch_labsection_approval')) {
+            return;
+        }
         Schema::create('batch_labsection_approval', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();

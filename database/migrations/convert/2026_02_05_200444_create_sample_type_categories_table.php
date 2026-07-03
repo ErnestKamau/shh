@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_type_categories')) {
+            return;
+        }
         Schema::create('sample_type_categories', function (Blueprint $table) {
             $table->integer('id');
             $table->string('sample_type_category', 100);

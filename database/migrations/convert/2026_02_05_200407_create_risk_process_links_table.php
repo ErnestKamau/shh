@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('risk_process_links')) {
+            return;
+        }
         Schema::create('risk_process_links', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('risk_id')->index('idx_risk_process_links_risk_id_5d760a01');

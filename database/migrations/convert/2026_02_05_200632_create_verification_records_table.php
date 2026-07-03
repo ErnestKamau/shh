@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('verification_records')) {
+            return;
+        }
         Schema::create('verification_records', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('verification_number')->index('idx_verification_records_verification_number_3777ee42');
