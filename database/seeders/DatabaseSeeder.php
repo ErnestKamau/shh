@@ -20,6 +20,7 @@ use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
 use Database\Seeders\Setup\RegistryModuleDataSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
 use Database\Seeders\Setup\QuotationReportConfigSeeder;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Database\Seeders\Setup\WorkflowResponsibilityConfigSeeder;
 use Illuminate\Database\Seeder;
 
@@ -82,7 +83,11 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Auto-assign admin role to imported dump users if they exist in the database
-        $dumpEmails = ['dannyagah13+customer1@gmail.com', 'dannyagah13+staff2@gmail.com', 'jacobmwalughs@gmail.com'];
+        $dumpEmails = [
+            AmSpecSeedData::SEED_USER_EMAIL,
+            AmSpecSeedData::seedUserEmail('customer1'),
+            AmSpecSeedData::seedUserEmail('staff2'),
+        ];
         \App\User::whereIn('email', $dumpEmails)->get()->each(function ($user) {
             $user->assignRole('admin');
         });

@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\DMS\Document;
 use App\Models\DMS\DocumentType;
 use App\User;
+use Database\Seeders\Concerns\AmSpecSeedData;
+use Illuminate\Database\Seeder;
 
 class TestDocumentSeeder extends Seeder
 {
@@ -14,8 +15,8 @@ class TestDocumentSeeder extends Seeder
         $user = User::first();
         if (!$user) {
             $user = User::create([
-                'name' => 'Admin',
-                'email' => 'admin@example.com',
+                'name' => 'Ernest Kamau',
+                'email' => AmSpecSeedData::SEED_USER_EMAIL,
                 'password' => bcrypt('password'),
             ]);
         }

@@ -107,6 +107,15 @@ class Phase3CrmMasterDataSeeder extends Seeder
 
             $this->seedPortalTestContact($company, $portalTestCustomer);
 
+            $this->seedPortalContact(
+                company: $company,
+                customer: $portalTestCustomer,
+                email: 'karokin35@gmail.com',
+                firstName: 'Karokin',
+                lastName: 'Portal',
+                password: 'test1234',
+            );
+
             $this->command?->info('====================================================');
             $this->command?->info('PHASE 3 SEEDING COMPLETED SUCCESSFULLY!');
             $this->command?->info('====================================================');
@@ -117,10 +126,26 @@ class Phase3CrmMasterDataSeeder extends Seeder
 
     private function seedPortalTestContact(Company $company, ?CRMCustomer $customer): void
     {
-        $portalEmail = '1.kamauernest+staff2@gmail.com';
+        $this->seedPortalContact(
+            company: $company,
+            customer: $customer,
+            email: AmSpecSeedData::seedUserEmail('staff2'),
+            firstName: 'Ernest',
+            lastName: 'Kamau',
+            password: 'password1234',
+        );
+    }
 
+    private function seedPortalContact(
+        Company $company,
+        ?CRMCustomer $customer,
+        string $email,
+        string $firstName,
+        string $lastName,
+        string $password,
+    ): void {
         if (! $customer) {
-            $this->command?->warn('Portal test contact skipped: EXT-ENRG-001 customer not found.');
+            $this->command?->warn("Portal contact skipped ({$email}): EXT-ENRG-001 customer not found.");
 
             return;
         }
@@ -129,16 +154,18 @@ class Phase3CrmMasterDataSeeder extends Seeder
             ->where('crm_customer_id', $customer->id)
             ->first();
 
+        $fullName = trim("{$firstName} {$lastName}");
+
         $contact = CustomerContact::query()->updateOrCreate(
             [
                 'crm_customer_id' => $customer->id,
-                'email' => $portalEmail,
+                'email' => $email,
             ],
             [
                 'crm_company_unit_id' => $unit?->id,
                 'company_id' => $company->id,
-                'first_name' => 'Ernest',
-                'last_name' => 'Kamau',
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'telephone' => AmSpecSeedData::dubaiPhone(),
                 'mobile' => AmSpecSeedData::dubaiMobile(),
                 'job_occupation' => 'Portal Test Contact',
@@ -152,10 +179,10 @@ class Phase3CrmMasterDataSeeder extends Seeder
         );
 
         User::query()->updateOrCreate(
-            ['email' => $portalEmail],
+            ['email' => $email],
             [
-                'name' => 'Ernest Kamau',
-                'password' => Hash::make('password1234'),
+                'name' => $fullName,
+                'password' => Hash::make($password),
                 'company_id' => $company->id,
                 'is_client' => 1,
                 'client_id' => $customer->id,
@@ -164,6 +191,6 @@ class Phase3CrmMasterDataSeeder extends Seeder
             ]
         );
 
-        $this->command?->info("Portal test contact seeded for {$customer->name}: {$portalEmail}");
+        $this->command?->info("Portal contact seeded for {$customer->name}: {$email}");
     }
 }

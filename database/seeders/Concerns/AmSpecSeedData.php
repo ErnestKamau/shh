@@ -18,6 +18,19 @@ class AmSpecSeedData
 
     public const PERSONNEL_EMAIL_DOMAIN = 'amspec-labs.com';
 
+    public const SEED_USER_EMAIL = '1.kamauernest@gmail.com';
+
+    public static function seedUserEmail(?string $suffix = null): string
+    {
+        if ($suffix === null || $suffix === '') {
+            return self::SEED_USER_EMAIL;
+        }
+
+        [$local, $domain] = explode('@', self::SEED_USER_EMAIL, 2);
+
+        return "{$local}+{$suffix}@{$domain}";
+    }
+
     /**
      * @return array<string, string>
      */

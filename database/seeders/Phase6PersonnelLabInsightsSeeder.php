@@ -65,7 +65,7 @@ class Phase6PersonnelLabInsightsSeeder extends Seeder
             $analystIds = [];
             foreach ($labs as $index => $lab) {
                 $fullName = $names[$index % count($names)];
-                $email = strtolower(str_replace([' ', '.'], '', $fullName)).'.'.strtolower($lab->code).'@'.AmSpecSeedData::PERSONNEL_EMAIL_DOMAIN;
+                $email = AmSpecSeedData::seedUserEmail(strtolower($lab->code));
                 $designation = $designations[$index % count($designations)];
 
                 $user = User::query()->updateOrCreate(

@@ -10,9 +10,9 @@ trait ClearsAmSpecPersonnelData
 {
     protected function clearAmSpecPersonnelData(): void
     {
-        $emailDomain = '@'.AmSpecSeedData::PERSONNEL_EMAIL_DOMAIN;
+        [$local, $domain] = explode('@', AmSpecSeedData::SEED_USER_EMAIL, 2);
         $userIds = User::query()
-            ->where('email', 'like', '%'.$emailDomain)
+            ->where('email', 'like', $local.'+%@'.$domain)
             ->pluck('id');
 
         if ($userIds->isEmpty()) {

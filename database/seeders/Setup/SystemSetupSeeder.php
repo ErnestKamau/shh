@@ -373,16 +373,16 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Using location UUID : {$adminLocationUuid}");
 
                 $user = User::updateOrCreate(
-                    ['email' => 'kinyuadenno1@gmail.com'],
+                    ['email' => AmSpecSeedData::SEED_USER_EMAIL],
                     [
-                        'name'          => 'Danny Agah',
+                        'name'          => 'Ernest Kamau',
                         'password'      => Hash::make('Admin@2026!'),
                         'company_id'    => $company->id,
                         'department_id' => $adminDeptUuid,
                         'location_id'   => $adminLocationUuid,
                         'active'        => 1,
-                        'first_name'    => 'Danny',
-                        'last_name'     => 'Agah',
+                        'first_name'    => 'Ernest',
+                        'last_name'     => 'Kamau',
                     ]
                 );
 

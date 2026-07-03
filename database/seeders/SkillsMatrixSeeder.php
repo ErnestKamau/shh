@@ -3,9 +3,10 @@
 namespace Database\Seeders;
 
 use App\Company;
-use App\InventoryLocation;
 use App\InventoryDepartment;
+use App\InventoryLocation;
 use App\User;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use App\ModulePreConfigs;
 use App\Models\SkillsMatrix\SkillsMatrix;
 use App\Models\SkillsMatrix\SkillsMatrixConfiguration;
@@ -505,7 +506,7 @@ class SkillsMatrixSeeder extends Seeder
                 $seedUsers = [
                     [
                         'name' => 'Sarah Jenkins',
-                        'email' => 'sarah.jenkins@imara.co.ke',
+                        'email' => AmSpecSeedData::seedUserEmail('sarah'),
                         'password' => bcrypt('password'),
                         'active' => 1,
                         'company_id' => $companyId,
@@ -513,7 +514,7 @@ class SkillsMatrixSeeder extends Seeder
                     ],
                     [
                         'name' => 'John Doe',
-                        'email' => 'john.doe@imara.co.ke',
+                        'email' => AmSpecSeedData::seedUserEmail('john'),
                         'password' => bcrypt('password'),
                         'active' => 1,
                         'company_id' => $companyId,
@@ -521,12 +522,12 @@ class SkillsMatrixSeeder extends Seeder
                     ],
                     [
                         'name' => 'Alice Smith',
-                        'email' => 'alice.smith@imara.co.ke',
+                        'email' => AmSpecSeedData::seedUserEmail('alice'),
                         'password' => bcrypt('password'),
                         'active' => 1,
                         'company_id' => $companyId,
                         'location_id' => $locationId,
-                    ]
+                    ],
                 ];
                 foreach ($seedUsers as $su) {
                     User::create($su);
