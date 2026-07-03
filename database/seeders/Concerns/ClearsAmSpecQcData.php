@@ -10,7 +10,7 @@ trait ClearsAmSpecQcData
     private const QC_TYPE_CODES = ['BLK', 'SPK', 'DUP', 'CRM', 'CAL'];
 
     /** @var list<string> */
-    private const QC_SCHEME_CODES = ['UNODC-QA', 'ISO-17025', 'SWGDAM-QA', 'ENFSI-QA', 'SOFT-CAL'];
+    private const QC_SCHEME_CODES = ['ASTM-PET', 'ISO-17025', 'API-MPMS', 'IP-PET', 'EN-14214'];
 
     protected function clearAmSpecQcData(): void
     {

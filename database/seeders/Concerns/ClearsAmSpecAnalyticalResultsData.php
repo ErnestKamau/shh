@@ -3,7 +3,7 @@
 namespace Database\Seeders\Concerns;
 
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
-use App\Models\TestRequestFormInstance;
+use App\Models\SubmissionFormInstance;
 use App\SampleDetails;
 use App\SampleHeader;
 use Illuminate\Support\Collection;
@@ -65,17 +65,17 @@ trait ClearsAmSpecAnalyticalResultsData
      */
     protected function seededSampleHeaderIds(): Collection
     {
-        $trfiIds = TestRequestFormInstance::query()
+        $seedSfiIds = SubmissionFormInstance::query()
             ->where('form_number', 'like', 'SEED-TRF-%')
             ->pluck('id');
 
-        if ($trfiIds->isEmpty()) {
+        if ($seedSfiIds->isEmpty()) {
             return collect();
         }
 
         return SampleHeader::query()
             ->whereIn('id', AnalysisAcceptanceForm::query()
-                ->whereIn('test_request_form_instance_id', $trfiIds)
+                ->whereIn('submission_form_instance_id', $seedSfiIds)
                 ->whereNotNull('sample_header_id')
                 ->pluck('sample_header_id'))
             ->pluck('id');

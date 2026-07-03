@@ -306,7 +306,7 @@ class Phase11QcAnalyticsSeeder extends Seeder
             $spkType = $qcTypes->where('code', 'SPK')->first() ?? $qcTypes->first();
             $crmType = $qcTypes->where('code', 'CRM')->first() ?? $qcTypes->first();
 
-            $unodcScheme = $qcSchemes->where('code', 'UNODC-QA')->first() ?? $qcSchemes->first();
+            $astmScheme = $qcSchemes->where('code', 'ASTM-PET')->first() ?? $qcSchemes->first();
             $isoScheme = $qcSchemes->where('code', 'ISO-17025')->first() ?? $qcSchemes->first();
 
             // ----------------------------------------------------------------
@@ -493,6 +493,7 @@ class Phase11QcAnalyticsSeeder extends Seeder
                         'parameters_order' => 0,
                         'qc_scheme_id' => $isoScheme->id,
                         'qc_type_id' => $crmType->id,
+                        'analyte_processed_id' => $info['id'],
                         'result_id' => $dbResult ? $dbResult->id : null,
                     ]);
 

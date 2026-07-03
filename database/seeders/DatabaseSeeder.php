@@ -75,6 +75,7 @@ class DatabaseSeeder extends Seeder
             Phase9SampleWorkflowSeeder::class,
             Phase10AnalyticalResultsSeeder::class,
             Phase11QcAnalyticsSeeder::class,
+            QcWorkflowSeeder::class,
             Phase12EquipmentManagementSeeder::class,
             Phase15EquipmentMonitoringSeeder::class,
             Lws011TemplateSeeder::class,
