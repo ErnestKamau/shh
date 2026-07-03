@@ -1074,17 +1074,22 @@ class AcceptanceFormPricingService
             $sampleTypeId = (string) ($detail->sample_type ?? $enquiry->sample_type_id ?? '');
             $analysisTypeId = (string) ($detail->part_no ?? '');
             $elementId = trim((string) ($detail->accredited_analytes ?? ''));
+            $resolvedElementId = $elementId !== ''
+                ? app(AcceptanceFormSampleConfigService::class)->resolveSingleElementId($elementId, $analysisTypeId)
+                : null;
             $subcontractedIds = array_filter(array_map(
                 'trim',
                 explode(',', (string) ($detail->subcontracted_analytes ?? ''))
             ));
 
             $label = 'Parameter';
-            if ($elementId !== '') {
-                $element = AnalysisElements::query()->with('analyte')->find($elementId);
+            if ($resolvedElementId !== null) {
+                $element = AnalysisElements::query()->with('analyte')->find($resolvedElementId);
                 if ($element !== null) {
                     $label = (string) ($element->analyte->name ?? $element->name ?? $label);
                 }
+            } elseif ($elementId !== '' && ! Str::isUuid($elementId)) {
+                $label = $elementId;
             } elseif ($analysisTypeId !== '') {
                 $label = (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis');
             }
@@ -1095,14 +1100,14 @@ class AcceptanceFormPricingService
                 'sample_type_name' => $sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '',
                 'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
                 'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
-                'analysis_element_id' => $elementId !== '' ? $elementId : null,
+                'analysis_element_id' => $resolvedElementId,
                 'parameter_label' => $label,
                 'unit_amount' => (float) ($detail->unit_price ?? 0),
                 'number_of_samples' => max(1, (int) ($detail->quantity ?? 1)),
                 'is_approved' => true,
                 'sort_order' => $index,
-                'subcontracted' => $elementId !== '' && in_array($elementId, $subcontractedIds, true),
-                'accredited' => $elementId !== '' && ! in_array($elementId, $subcontractedIds, true),
+                'subcontracted' => $resolvedElementId !== null && in_array($resolvedElementId, $subcontractedIds, true),
+                'accredited' => $resolvedElementId !== null && ! in_array($resolvedElementId, $subcontractedIds, true),
             ];
         }
 

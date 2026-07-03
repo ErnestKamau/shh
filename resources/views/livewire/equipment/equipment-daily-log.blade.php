@@ -40,15 +40,15 @@
             color: #6c757d;
         }
         .text-primary {
-            color: #6D0A0E !important;
+            color: var(--color-primary) !important;
         }
         .btn-outline-primary {
-            color: #6D0A0E !important;
-            border-color: #6D0A0E !important;
+            color: var(--color-primary) !important;
+            border-color: var(--color-primary) !important;
         }
         .btn-outline-primary:hover {
-            background-color: #6D0A0E !important;
-            border-color: #6D0A0E !important;
+            background-color: var(--color-primary) !important;
+            border-color: var(--color-primary) !important;
             color: #fff !important;
         }
     </style>
@@ -237,9 +237,9 @@
                     datasets: [{
                         label: 'Usage Duration (minutes)',
                         data: parsed.durations || [],
-                        borderColor: '#6D0A0E',
-                        backgroundColor: 'rgba(109, 10, 14, 0.12)',
-                        pointBackgroundColor: '#6D0A0E',
+                        borderColor: '{{ \App\Services\System\ThemeService::primaryColor() }}',
+                        backgroundColor: '{{ \App\Services\System\ThemeService::rgbaFromHex(\App\Services\System\ThemeService::primaryColor(), 0.12) }}',
+                        pointBackgroundColor: '{{ \App\Services\System\ThemeService::primaryColor() }}',
                         pointRadius: 3,
                         borderWidth: 2,
                         tension: 0.2,

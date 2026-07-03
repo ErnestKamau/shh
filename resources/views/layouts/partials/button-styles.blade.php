@@ -27,7 +27,7 @@
 		background-color: var(--color-primary-hover) !important;
 		border-color: var(--color-primary-hover) !important;
 		color: #ffffff !important;
-		box-shadow: 0 4px 8px rgba(109, 10, 14, 0.3) !important;
+		box-shadow: 0 4px 8px var(--color-primary-border-soft) !important;
 	}
 
 	.btn-primary i,

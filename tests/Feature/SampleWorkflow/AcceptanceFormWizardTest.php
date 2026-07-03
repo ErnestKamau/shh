@@ -54,8 +54,24 @@ class AcceptanceFormWizardTest extends TestCase
             ->test(AcceptanceFormWizard::class)
             ->dispatch('open-acceptance-wizard', submissionFormInstanceId: $instance->id)
             ->assertSet('showModal', true)
+            ->assertSet('activeStep', 'sample_config')
             ->assertSet('selectedCustomerContactId', (string) $contact->id)
             ->assertCount('customerContactOptions', 1);
+    }
+
+    public function test_save_sample_config_and_continue_moves_to_signatures_step(): void
+    {
+        [$instance] = $this->createInReviewInstance();
+
+        $this->mockAcceptancePrefill($instance);
+
+        Livewire::actingAs($this->user)
+            ->test(AcceptanceFormWizard::class)
+            ->dispatch('open-acceptance-wizard', submissionFormInstanceId: $instance->id)
+            ->set('sampleConfigs.0.main_standard_id', (string) Str::uuid())
+            ->set('sampleConfigs.0.lab_id', (string) Str::uuid())
+            ->call('saveSampleConfigAndContinue')
+            ->assertSet('activeStep', 'signatures');
     }
 
     public function test_submit_dual_accept_calls_service_and_dispatches_completion(): void
@@ -80,6 +96,7 @@ class AcceptanceFormWizardTest extends TestCase
         Livewire::actingAs($this->user)
             ->test(AcceptanceFormWizard::class)
             ->dispatch('open-acceptance-wizard', submissionFormInstanceId: $instance->id)
+            ->set('activeStep', 'signatures')
             ->set('modeOfWork', 'Express')
             ->set('receivedAt', '2026-06-23T09:15')
             ->set('receivingPersonSignature', 'data:image/png;base64,receiving')
@@ -154,13 +171,15 @@ class AcceptanceFormWizardTest extends TestCase
                 'quotation_locked' => false,
                 'lines' => [[
                     'line_no' => 1,
-                    'sample_type_id' => null,
-                    'analysis_type_id' => null,
+                    'row_index' => 0,
+                    'sample_type_id' => (string) Str::uuid(),
+                    'analysis_type_id' => (string) Str::uuid(),
                     'parameter_label' => 'Test',
                     'unit_amount' => 50,
                     'number_of_samples' => 1,
                     'is_approved' => true,
                     'sort_order' => 0,
+                    'analysis_element_id' => (string) Str::uuid(),
                 ]],
             ]);
             $mock->shouldReceive('deduplicateRedundantAnalysisTypeLines')

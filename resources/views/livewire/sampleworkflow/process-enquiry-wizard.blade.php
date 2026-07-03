@@ -8,7 +8,7 @@
                             <span class="acc-wizard-eyebrow">Commercial / Phase 1</span>
                             <h4 class="acc-wizard-title">
                                 <i class="mdi mdi-file-chart-outline"></i>
-                                Process Enquiry
+                                Process Request
                             </h4>
                             <p class="mb-0 text-muted small">{{ $requestReference }} · {{ $customerName }}</p>
                         </div>
@@ -49,12 +49,12 @@
                             <section class="acc-wizard-section">
                                 @include('livewire.partials.process-enquiry-status-alert')
 
-                                <h6 class="acc-wizard-section-title">Enquiry summary</h6>
+                                <h6 class="acc-wizard-section-title">Request summary</h6>
                                 <div class="row acc-wizard-fields mb-3">
                                     <div class="col-md-3"><strong>Status</strong><br>{{ $enquiryStatus }}</div>
                                     <div class="col-md-3"><strong>Origin</strong><br>{{ ucwords(str_replace('_', ' ', $sourceChannel ?: '—')) }}</div>
                                     <div class="col-md-3"><strong>Customer</strong><br>{{ $customerName }}</div>
-                                    <div class="col-md-3"><strong>Reference</strong><br>{{ $requestReference }}</div>
+                                    <div class="col-md-3"><strong>Sample type</strong><br>{{ $headerSampleType }}</div>
                                 </div>
 
                                 <div class="mb-4">
@@ -78,8 +78,8 @@
                                                         <th>#</th>
                                                         <th>Sample description</th>
                                                         <th>Qty</th>
-                                                        <th>Sample type</th>
-                                                        <th>Sample condition</th>
+                                                        <th>Analysis types</th>
+                                                        <th>Tests requested</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -90,8 +90,8 @@
                                                                 <div class="acc-enquiry-rich-text">{!! $row['sample_description_html'] ?? '—' !!}</div>
                                                             </td>
                                                             <td>{{ $row['qty'] }}</td>
-                                                            <td>{{ $row['sample_type'] }}</td>
-                                                            <td>{{ $row['sample_condition'] }}</td>
+                                                            <td>{{ $row['analysis_types'] ?? '—' }}</td>
+                                                            <td class="{{ ($row['tests_requested_count'] ?? 0) > 5 ? 'small' : '' }}">{{ $row['tests_requested'] ?? '—' }}</td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
@@ -100,8 +100,8 @@
                                     </div>
                                 @elseif(count($requestedTests) > 0)
                                     <div class="mb-4">
-                                        <h6 class="acc-wizard-section-title">Test category</h6>
-                                        <ul class="mb-0 pl-3 small">
+                                        <h6 class="acc-wizard-section-title">Tests requested</h6>
+                                        <ul class="mb-0 pl-3 {{ count($requestedTests) > 5 ? 'small' : '' }}">
                                             @foreach($requestedTests as $test)
                                                 <li>{{ $test['label'] }}</li>
                                             @endforeach
@@ -119,9 +119,6 @@
                                 @if($this->showQuotationSourcePicker)
                                     <div class="mb-4 border rounded p-3 bg-light">
                                         <h6 class="acc-wizard-section-title">Quotation source</h6>
-                                        <p class="small text-muted mb-3">
-                                            Reuse a completed customer quotation or build pricing from the customer pricelist and sample configuration.
-                                        </p>
 
                                         <div class="form-group mb-3">
                                             <div class="custom-control custom-radio mb-2">
@@ -130,7 +127,7 @@
                                                        class="custom-control-input"
                                                        wire:model.live="quotationSourceMode"
                                                        value="{{ \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST }}">
-                                                <label class="custom-control-label" for="quotation-source-pricelist">
+                                                <label class="custom-control-label font-weight-normal" for="quotation-source-pricelist">
                                                     Create from customer pricelist
                                                 </label>
                                             </div>
@@ -140,29 +137,22 @@
                                                        class="custom-control-input"
                                                        wire:model.live="quotationSourceMode"
                                                        value="{{ \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING }}">
-                                                <label class="custom-control-label" for="quotation-source-existing">
+                                                <label class="custom-control-label font-weight-normal" for="quotation-source-existing">
                                                     Use existing customer quotation
                                                 </label>
                                             </div>
                                         </div>
 
                                         @if($quotationSourceMode === \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING)
-                                            <div class="form-group mb-0">
-                                                <label for="selected-source-quotation">Completed quotation</label>
+                                            <div class="form-group mb-0" style="max-width: 28rem;">
                                                 <select id="selected-source-quotation"
                                                         class="form-control"
-                                                        wire:model.live="selectedSourceQuotationId">
+                                                        wire:model.live="selectedSourceQuotationId"
+                                                        aria-label="Select a completed quotation">
                                                     <option value="">Select a quotation…</option>
                                                     @foreach($this->reusableCustomerQuotations as $quote)
                                                         <option value="{{ $quote['id'] }}">
-                                                            {{ $quote['quote_number'] }}
-                                                            @if($quote['expiring_date'] !== '')
-                                                                · expires {{ $quote['expiring_date'] }}
-                                                            @endif
-                                                            · {{ number_format($quote['total_amount'], 2) }}
-                                                            @if($quote['revision_number'] > 1)
-                                                                · rev {{ $quote['revision_number'] }}
-                                                            @endif
+                                                            {{ $quote['quote_number'] }}@if($quote['analysis_types'] !== '') ({{ $quote['analysis_types'] }})@endif
                                                         </option>
                                                     @endforeach
                                                 </select>
@@ -422,9 +412,9 @@
 
     <style>
         .acc-wizard-root--enquiry {
-            --acc-accent: var(--color-primary, #6D0A0E);
-            --acc-accent-dark: var(--color-primary-hover, #8B1E22);
-            --acc-accent-soft: var(--color-primary-soft, rgba(109, 10, 14, 0.08));
+            --acc-accent: var(--color-primary, var(--color-primary));
+            --acc-accent-dark: var(--color-primary-hover, var(--color-primary-hover));
+            --acc-accent-soft: var(--color-primary-soft, var(--color-primary-soft));
             --acc-text: #111827;
             --acc-muted: #6b7280;
         }

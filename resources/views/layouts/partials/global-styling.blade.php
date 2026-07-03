@@ -4,24 +4,33 @@
 		--color-primary-hover: {{ $themeVars['secondary'] }};
 		--color-accent: {{ $themeVars['accent'] }};
 		--color-sidebar-bg: {{ $themeVars['sidebar_bg'] }};
-		--color-sidebar-hover: #313846;
+		--color-sidebar-hover: #1a1a1a;
 		--color-sidebar-link-bg: {{ $themeVars['sidebar_link_bg'] }};
 		--color-sidebar-text: {{ $themeVars['sidebar_text'] ?? 'rgba(255, 255, 255, 0.95)' }};
 		--color-sidebar-text-muted: {{ $themeVars['sidebar_text_muted'] ?? 'rgba(255, 255, 255, 0.6)' }};
 		--color-surface: #ffffff;
-		--color-border: #e5e7eb;
-		--color-muted: #6b7280;
+		--color-border: #e2e8f0;
+		--color-muted: #64748b;
 		--color-text: #111827;
-		--color-text-secondary: #6b7280;
+		--color-text-secondary: #64748b;
 		--color-bg: #f8fafc;
-		--color-bg-app: #f7f8fa;
+		--color-bg-app: #f8fafc;
 		--color-light-gray: #f3f4f6;
-		--color-primary-soft: rgba(109, 10, 14, 0.08);
+		--color-primary-soft: {{ $themeVars['primary_soft'] }};
+		--color-primary-soft-10: {{ $themeVars['primary_soft_10'] }};
+		--color-primary-tint: {{ $themeVars['primary_tint'] }};
+		--color-primary-focus: {{ $themeVars['primary_focus'] }};
+		--color-primary-border-soft: {{ $themeVars['primary_border_soft'] }};
+		--color-primary-shadow: {{ $themeVars['primary_shadow'] }};
+		--color-primary-soft-light: {{ $themeVars['primary_soft_light'] }};
+		--color-primary-soft-medium: {{ $themeVars['primary_soft_medium'] }};
+		--color-primary-highlight: {{ $themeVars['primary_highlight'] }};
+		--color-primary-glow: {{ $themeVars['primary_glow'] }};
 		--color-success: #22c55e;
 		--color-success-strong: #16a34a;
 		--color-warning: #f59e0b;
 		--color-error: #dc2626;
-		--color-info: #2563eb;
+		--color-info: #00a7df;
 		--color-btn-secondary: #596273;
 		--workflow-accent: var(--color-primary);
 		--workflow-accent-soft: var(--color-primary-soft);
@@ -74,7 +83,7 @@
 
 	.tag-select-input:focus-within {
 		border-color: var(--color-primary);
-		box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+		box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
 		outline: none;
 	}
 
@@ -100,6 +109,19 @@
 		color: #ffffff !important;
 	}
 
+	.btn-primary {
+		background-color: var(--color-primary) !important;
+		border-color: var(--color-primary) !important;
+		color: #ffffff !important;
+	}
+
+	.btn-primary:hover,
+	.btn-primary:focus {
+		background-color: var(--color-primary-hover) !important;
+		border-color: var(--color-primary-hover) !important;
+		color: #ffffff !important;
+	}
+
 	.nav-tabs .nav-link.active,
 	.nav-pills .nav-link.active {
 		color: var(--color-primary) !important;
@@ -109,11 +131,11 @@
 
 	.nav-tabs .nav-link:hover {
 		color: var(--color-primary-hover) !important;
-		border-bottom-color: rgba(109, 10, 14, 0.3) !important;
+		border-bottom-color: var(--color-primary-border-soft) !important;
 	}
 
 	.search-btn:hover {
-		background: rgba(109, 10, 14, 0.1) !important;
+		background: var(--color-primary-soft) !important;
 		color: var(--color-primary) !important;
 	}
 

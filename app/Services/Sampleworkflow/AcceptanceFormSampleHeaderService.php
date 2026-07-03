@@ -175,6 +175,13 @@ class AcceptanceFormSampleHeaderService
         }
 
         $batch->save();
+
+        if ($form->manager_signed_at !== null) {
+            $received = Carbon::parse($form->manager_signed_at);
+            $batch->receipt_date = $received->format('Y-m-d');
+            $batch->radio_active_levels = $received->format('H:i');
+            $batch->save();
+        }
     }
 
     /**
@@ -519,8 +526,8 @@ class AcceptanceFormSampleHeaderService
     private function resolveTimeOfReceipt(array $context): ?string
     {
         $time = $this->firstNonEmptyString([
-            $context['receiptPayload']['sample_receiving_time'] ?? null,
             $context['managerSignedAt'] ? Carbon::parse($context['managerSignedAt'])->format('H:i') : null,
+            $context['receiptPayload']['sample_receiving_time'] ?? null,
             $context['portalRequest']?->received_by_time,
             $context['mappedRaw']['radio_active_levels'] ?? null,
         ]);

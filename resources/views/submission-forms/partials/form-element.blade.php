@@ -832,17 +832,17 @@
                     position: relative;
                     overflow: hidden;
                     transition: all 0.3s ease;
-                    box-shadow: 0 0 10px rgba(109, 10, 14, 0.4);
-                    border: 1px solid #6D0A0E;
+                    box-shadow: 0 0 10px var(--color-primary-glow);
+                    border: 1px solid var(--color-primary);
                     font-weight: 600;
                     padding: 8px 24px;
                     border-radius: 30px;
-                    background: linear-gradient(145deg, #ffffff, rgba(109, 10, 14, 0.05));
+                    background: linear-gradient(145deg, #ffffff, var(--color-primary-soft-medium));
                 }
                 .glowing-button:hover {
-                    box-shadow: 0 0 20px rgba(109, 10, 14, 0.8), 0 0 40px rgba(109, 10, 14, 0.3);
+                    box-shadow: 0 0 20px rgba(0, 167, 223, 0.8), 0 0 40px var(--color-primary-border-soft);
                     transform: translateY(-2px);
-                    background: linear-gradient(145deg, rgba(109, 10, 14, 0.1), #ffffff);
+                    background: linear-gradient(145deg, var(--color-primary-soft-10), #ffffff);
                 }
                 .glowing-button::after {
                     content: '';
@@ -1327,8 +1327,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Hover effects
     canvas.addEventListener('mouseenter', function() {
         if (!hasSignature) {
-            canvas.style.borderColor = '#6D0A0E';
-            canvas.style.boxShadow = '0 0 0 2px rgba(109, 10, 14, 0.25)';
+            canvas.style.borderColor = 'var(--color-primary)';
+            canvas.style.boxShadow = '0 0 0 2px var(--color-primary-focus)';
         }
     });
     
@@ -1442,8 +1442,8 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .signature-pad-wrapper:hover {
-    border-color: #6D0A0E;
-    box-shadow: 0 4px 8px rgba(109, 10, 14, 0.15);
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 8px var(--color-primary-highlight);
 }
 
 .signature-canvas {

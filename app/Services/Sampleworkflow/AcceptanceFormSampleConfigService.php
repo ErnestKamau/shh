@@ -4,6 +4,8 @@ namespace App\Services\Sampleworkflow;
 
 use App\AnalysisElements;
 use App\AnalysisType;
+use App\Lab;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\SampleCondition;
 use App\SampleType;
@@ -22,7 +24,7 @@ class AcceptanceFormSampleConfigService
     ) {}
 
     /**
-     * @return array{id: string, sample_type_id: string|null, analysis_type_id: string|null, sample_condition_id: string|null, main_standard_id: string|null, zone_id: string|null, lab_section_id: string|null, number_of_samples: int, parameter_keys: list<string>, parameter_search: string, instances: list<array{customer_sample_id: string, sample_marking: string}>}
+     * @return array<string, mixed>
      */
     public function emptyConfig(): array
     {
@@ -32,15 +34,19 @@ class AcceptanceFormSampleConfigService
             'analysis_type_id' => null,
             'sample_condition_id' => null,
             'main_standard_id' => null,
+            'secondary_standard_id' => null,
             'zone_id' => null,
             'lab_section_id' => null,
+            'lab_id' => null,
+            'row_index' => null,
             'number_of_samples' => 1,
             'parameter_keys' => [],
             'parameter_search' => '',
             'sample_code_prefix' => null,
-            'instances' => [
-                ['customer_sample_id' => '', 'sample_marking' => ''],
-            ],
+            'customer_sample_id' => '',
+            'sample_marking' => '',
+            'disposal_date' => '',
+            'photo_path' => '',
         ];
     }
 
@@ -56,10 +62,10 @@ class AcceptanceFormSampleConfigService
         $defaultZoneId = $defaultZoneId ?? $this->resolveZoneIdFromInstance($instance);
         $buckets = [];
 
-        foreach ($prefillLines as $line) {
+        foreach ($prefillLines as $lineIndex => $line) {
             $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
-            $key = $sampleTypeId . '::' . $analysisTypeId;
+            $key = $this->resolvePhysicalSampleKey($line, $lineIndex);
 
             $lineSampleCount = $this->resolvePrefillLineNumberOfSamples($line);
 
@@ -70,6 +76,7 @@ class AcceptanceFormSampleConfigService
                 $buckets[$key]['zone_id'] = $defaultZoneId;
                 $buckets[$key]['lab_section_id'] = $this->resolveLabSectionIdForAnalysisType($analysisTypeId);
                 $buckets[$key]['number_of_samples'] = $lineSampleCount;
+                $buckets[$key]['row_index'] = isset($line['row_index']) ? (int) $line['row_index'] : null;
                 $buckets[$key]['sample_condition_id'] = $this->resolveSampleConditionId(
                     $line['sample_condition_id'] ?? null,
                     $line['sample_condition'] ?? null,
@@ -92,33 +99,12 @@ class AcceptanceFormSampleConfigService
             }
 
             $customerSampleId = trim((string) ($line['customer_sample_id'] ?? ''));
-            if ($customerSampleId !== '') {
-                $instances = $buckets[$key]['instances'];
-                $emptyIndex = null;
-                foreach ($instances as $idx => $inst) {
-                    if (trim((string) ($inst['customer_sample_id'] ?? '')) === '') {
-                        $emptyIndex = $idx;
-                        break;
-                    }
-                }
-                if ($emptyIndex !== null) {
-                    $instances[$emptyIndex]['customer_sample_id'] = $customerSampleId;
-                } else {
-                    $instances[] = ['customer_sample_id' => $customerSampleId, 'sample_marking' => ''];
-                }
-                $buckets[$key]['instances'] = $instances;
+            if ($customerSampleId !== '' && trim((string) ($buckets[$key]['customer_sample_id'] ?? '')) === '') {
+                $buckets[$key]['customer_sample_id'] = $customerSampleId;
             }
         }
 
-        $configs = array_values($buckets);
-
-        foreach ($configs as &$config) {
-            $config['instances'] = $this->syncInstances(
-                $config['instances'],
-                max(1, (int) $config['number_of_samples'])
-            );
-        }
-        unset($config);
+        $configs = $this->explodeBucketedConfigsToPerSample(array_values($buckets));
 
         if ($configs === []) {
             $empty = $this->emptyConfig();
@@ -128,6 +114,312 @@ class AcceptanceFormSampleConfigService
         }
 
         return $configs;
+    }
+
+    /**
+     * Build acceptance sample configs from accepted quotation lines, merging reception fields
+     * saved during Process Enquiry onto each per-sample row.
+     *
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    public function prepareAcceptanceConfigsFromQuotation(
+        SampleSubmissionRequest $enquiry,
+        array $quotationLines,
+        ?SubmissionFormInstance $instance = null,
+    ): array {
+        $defaultZoneId = $this->resolveZoneIdFromInstance($instance);
+
+        $stored = is_array($enquiry->enquiry_sample_configuration)
+            ? $this->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration)
+            : [];
+
+        if ($stored !== []) {
+            $configs = $stored;
+        } else {
+            $prefillLines = $this->quotationLinesToPrefillLines($quotationLines);
+            $configs = $this->buildConfigsFromPrefill($prefillLines, $instance, $defaultZoneId);
+        }
+
+        $configs = $this->syncParameterKeysFromQuotationLines($configs, $quotationLines);
+
+        foreach ($configs as $index => $config) {
+            $configs[$index]['parameter_keys'] = $this->resolveElementIdsForAnalysisType(
+                is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [],
+                (string) ($config['analysis_type_id'] ?? ''),
+            );
+            $configs[$index]['number_of_samples'] = 1;
+
+            if (empty($config['zone_id']) && $defaultZoneId !== null) {
+                $configs[$index]['zone_id'] = $defaultZoneId;
+            }
+        }
+
+        if ($configs === []) {
+            $empty = $this->emptyConfig();
+            $empty['zone_id'] = $defaultZoneId;
+
+            return [$empty];
+        }
+
+        return $configs;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    public function syncParameterKeysFromQuotationLines(array $configs, array $quotationLines): array
+    {
+        if ($configs === [] || $quotationLines === []) {
+            return $configs;
+        }
+
+        $linesByKey = collect($quotationLines)->groupBy(
+            fn (array $line): string => $this->configGroupingKey(
+                $line['sample_type_id'] ?? null,
+                $line['analysis_type_id'] ?? null,
+            )
+        );
+
+        $sampleSlotByKey = [];
+
+        foreach ($configs as $index => $config) {
+            $key = $this->configGroupingKey(
+                $config['sample_type_id'] ?? null,
+                $config['analysis_type_id'] ?? null,
+            );
+            $group = $linesByKey->get($key, collect())->values();
+
+            if ($group->isEmpty()) {
+                continue;
+            }
+
+            $configsWithSameKey = collect($configs)->filter(
+                fn (array $candidate): bool => $this->configGroupingKey(
+                    $candidate['sample_type_id'] ?? null,
+                    $candidate['analysis_type_id'] ?? null,
+                ) === $key
+            )->count();
+
+            $paramsPerSample = (int) max(1, (int) floor($group->count() / max(1, $configsWithSameKey)));
+            $sampleSlot = $sampleSlotByKey[$key] ?? 0;
+            $sampleSlotByKey[$key] = $sampleSlot + 1;
+
+            $keys = $group
+                ->slice($sampleSlot * $paramsPerSample, $paramsPerSample)
+                ->map(fn (array $line): ?string => $this->resolveQuotationLineElementId($line))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($keys !== []) {
+                $configs[$index]['parameter_keys'] = $keys;
+            }
+        }
+
+        return $configs;
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    public function resolveElementIdsForAnalysisType(array $keys, string $analysisTypeId): array
+    {
+        return collect($keys)
+            ->map(fn (mixed $key): ?string => $this->resolveSingleElementId(trim((string) $key), $analysisTypeId))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    public function resolveQuotationLineElementId(array $line): ?string
+    {
+        $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+        $candidate = trim((string) ($line['analysis_element_id'] ?? ''));
+
+        if ($candidate === '') {
+            return null;
+        }
+
+        return $this->resolveSingleElementId($candidate, $analysisTypeId);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    private function quotationLinesToPrefillLines(array $quotationLines): array
+    {
+        $paramsPerSampleByKey = [];
+        $linesByKey = collect($quotationLines)->groupBy(
+            fn (array $line): string => $this->configGroupingKey(
+                $line['sample_type_id'] ?? null,
+                $line['analysis_type_id'] ?? null,
+            )
+        );
+
+        foreach ($linesByKey as $key => $group) {
+            $uniqueElements = $group
+                ->map(fn (array $line): ?string => $this->resolveQuotationLineElementId($line))
+                ->filter()
+                ->unique()
+                ->count();
+            $paramsPerSampleByKey[$key] = max(1, $uniqueElements);
+        }
+
+        $slotByKey = [];
+        $prefillLines = [];
+
+        foreach ($quotationLines as $index => $line) {
+            $key = $this->configGroupingKey(
+                $line['sample_type_id'] ?? null,
+                $line['analysis_type_id'] ?? null,
+            );
+            $paramsPerSample = $paramsPerSampleByKey[$key] ?? 1;
+            $slot = $slotByKey[$key] ?? 0;
+            $slotByKey[$key] = $slot + 1;
+
+            $prefillLines[] = [
+                'line_no' => $index + 1,
+                'row_index' => (int) floor($slot / $paramsPerSample),
+                'sample_type_id' => $line['sample_type_id'] ?? null,
+                'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                'analysis_element_id' => $this->resolveQuotationLineElementId($line),
+                'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
+                'number_of_samples' => 1,
+                'customer_sample_id' => $line['customer_sample_id'] ?? null,
+            ];
+        }
+
+        return $prefillLines;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @param  list<array<string, mixed>>  $receptionConfigs
+     * @return list<array<string, mixed>>
+     */
+    private function mergeReceptionFieldsOntoConfigs(array $configs, array $receptionConfigs): array
+    {
+        foreach ($configs as $index => &$config) {
+            $reception = $receptionConfigs[$index] ?? null;
+            if ($reception === null) {
+                continue;
+            }
+
+            $receptionDetails = $this->sampleDetailsFromConfig($reception);
+
+            foreach ([
+                'main_standard_id',
+                'secondary_standard_id',
+                'lab_id',
+                'sample_condition_id',
+                'zone_id',
+                'lab_section_id',
+                'sample_code_prefix',
+            ] as $field) {
+                if (! empty($reception[$field])) {
+                    $config[$field] = $reception[$field];
+                }
+            }
+
+            foreach (['customer_sample_id', 'sample_marking', 'disposal_date', 'photo_path'] as $field) {
+                if ($receptionDetails[$field] !== '') {
+                    $config[$field] = $receptionDetails[$field];
+                }
+            }
+        }
+        unset($config);
+
+        return $configs;
+    }
+
+    private function configGroupingKey(?string $sampleTypeId, ?string $analysisTypeId): string
+    {
+        return (string) ($sampleTypeId ?? '').'::'.(string) ($analysisTypeId ?? '');
+    }
+
+    public function resolveSingleElementId(string $candidate, string $analysisTypeId): ?string
+    {
+        if ($candidate === '') {
+            return null;
+        }
+
+        if (Str::isUuid($candidate)) {
+            $exists = AnalysisElements::query()->whereKey($candidate)->exists();
+            if ($exists) {
+                return $candidate;
+            }
+        }
+
+        $query = AnalysisElements::query()->where('active', 1);
+        if ($analysisTypeId !== '') {
+            $query->where('analysis_type_id', $analysisTypeId);
+        }
+
+        $element = $query
+            ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->whereRaw('LOWER(name) = ?', [strtolower($candidate)]))
+            ->first();
+
+        if ($element !== null) {
+            return (string) $element->id;
+        }
+
+        if (Str::isUuid($candidate)) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array<string, mixed>>
+     */
+    public function flattenToPerSampleConfigs(array $configs): array
+    {
+        $flat = [];
+
+        foreach ($configs as $config) {
+            $instances = is_array($config['instances'] ?? null) ? $config['instances'] : [];
+            $count = max(
+                max(1, (int) ($config['number_of_samples'] ?? 1)),
+                count($instances),
+            );
+            $normalizedInstances = $this->syncInstances($instances, $count);
+            $rootDetails = $this->sampleDetailsFromConfig($config);
+
+            if ($count <= 1) {
+                $flat[] = $this->mergeSampleDetailsIntoConfig($config, $rootDetails);
+                $flat[array_key_last($flat)]['number_of_samples'] = 1;
+
+                continue;
+            }
+
+            for ($i = 0; $i < $count; $i++) {
+                $split = $config;
+                $split['id'] = (string) Str::uuid();
+                $split['number_of_samples'] = 1;
+                $split = $this->mergeSampleDetailsIntoConfig($split, [
+                    'customer_sample_id' => $normalizedInstances[$i]['customer_sample_id'] ?? '',
+                    'sample_marking' => $normalizedInstances[$i]['sample_marking'] ?? '',
+                    'disposal_date' => $normalizedInstances[$i]['disposal_date'] ?? '',
+                    'photo_path' => $normalizedInstances[$i]['photo_path'] ?? '',
+                ]);
+                unset($split['instances']);
+                $flat[] = $split;
+            }
+        }
+
+        return $flat;
     }
 
     public function resolveZoneIdFromInstance(?SubmissionFormInstance $instance): ?string
@@ -410,8 +702,23 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function labsForPicker(): array
+    {
+        return Lab::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'code'])
+            ->map(fn (Lab $lab) => [
+                'id' => (string) $lab->id,
+                'name' => trim((string) ($lab->code ?? '').' - '.($lab->name ?? ''), ' -'),
+            ])
+            ->all();
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $instances
-     * @return list<array{customer_sample_id: string, sample_marking: string}>
+     * @return list<array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}>
      */
     public function syncInstances(array $instances, int $numberOfSamples): array
     {
@@ -422,6 +729,8 @@ class AcceptanceFormSampleConfigService
             $normalized[] = [
                 'customer_sample_id' => trim((string) ($instances[$i]['customer_sample_id'] ?? '')),
                 'sample_marking' => trim((string) ($instances[$i]['sample_marking'] ?? '')),
+                'disposal_date' => trim((string) ($instances[$i]['disposal_date'] ?? '')),
+                'photo_path' => trim((string) ($instances[$i]['photo_path'] ?? '')),
             ];
         }
 
@@ -457,10 +766,37 @@ class AcceptanceFormSampleConfigService
             if ($requireLabSection && empty($config['lab_section_id'])) {
                 $errors["sampleConfigs.{$index}.lab_section_id"] = "Row {$row}: lab section is required.";
             }
-            $count = max(1, (int) ($config['number_of_samples'] ?? 1));
-            $instances = $config['instances'] ?? [];
-            if (count($instances) !== $count) {
-                $errors["sampleConfigs.{$index}.instances"] = "Row {$row}: sample instance count must match number of samples.";
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Validate reception-specific fields for Analysis Acceptance step 1.
+     *
+     * @param  list<array<string, mixed>>  $configs
+     *
+     * @throws ValidationException
+     */
+    public function validateReceptionConfigs(array $configs): void
+    {
+        if ($configs === []) {
+            throw ValidationException::withMessages([
+                'sampleConfigs' => 'Add at least one sample configuration.',
+            ]);
+        }
+
+        $errors = [];
+
+        foreach ($configs as $index => $config) {
+            $row = $index + 1;
+            if (empty($config['main_standard_id'])) {
+                $errors["sampleConfigs.{$index}.main_standard_id"] = "Row {$row}: main standard is required.";
+            }
+            if (empty($config['lab_id'])) {
+                $errors["sampleConfigs.{$index}.lab_id"] = "Row {$row}: lab is required.";
             }
         }
 
@@ -481,9 +817,9 @@ class AcceptanceFormSampleConfigService
         foreach ($configs as $config) {
             $sampleTypeId = $config['sample_type_id'] ?? null;
             $analysisTypeId = (string) ($config['analysis_type_id'] ?? '');
-            $numberOfSamples = max(1, (int) ($config['number_of_samples'] ?? 1));
             $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
             $configKey = (string) ($config['id'] ?? Str::uuid());
+            $sampleDetails = $this->sampleDetailsFromConfig($config);
 
             $parameters = $this->parametersForConfig($customerId, $sampleTypeId, $analysisTypeId);
             $parameterMap = collect($parameters)->keyBy(
@@ -513,7 +849,7 @@ class AcceptanceFormSampleConfigService
                     'analysis_element_id' => $parameter['analysis_element_id'] ?? $paramKey,
                     'parameter_label' => (string) ($parameter['label'] ?? 'Parameter'),
                     'unit_amount' => (float) ($parameter['unit_amount'] ?? 0),
-                    'number_of_samples' => $numberOfSamples,
+                    'number_of_samples' => 1,
                     'is_approved' => true,
                     'sort_order' => $sortOrder++,
                     'acceptance_config_key' => $configKey,
@@ -521,7 +857,9 @@ class AcceptanceFormSampleConfigService
                     'main_standard_id' => $config['main_standard_id'] ?? null,
                     'zone_id' => $this->resolveZoneIdFromConfig($config),
                     'lab_section_id' => $config['lab_section_id'] ?? null,
-                    'instances' => $config['instances'] ?? [],
+                    'customer_sample_id' => $sampleDetails['customer_sample_id'] !== ''
+                        ? $sampleDetails['customer_sample_id']
+                        : null,
                 ];
             }
         }
@@ -530,13 +868,13 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
-     * Total sample count across all configs (sum of instances).
+     * Total physical sample count (one config row = one sample).
      *
      * @param  list<array<string, mixed>>  $configs
      */
     public function totalSampleCount(array $configs): int
     {
-        return (int) collect($configs)->sum(fn (array $c) => max(1, (int) ($c['number_of_samples'] ?? 1)));
+        return count($this->flattenToPerSampleConfigs($configs));
     }
 
     /**
@@ -559,7 +897,10 @@ class AcceptanceFormSampleConfigService
             ->filter(fn (string $key): bool => $key !== '');
 
         if ($parameters === []) {
-            $config['parameter_keys'] = $selectedKeys->unique()->values()->all();
+            $config['parameter_keys'] = $this->resolveElementIdsForAnalysisType(
+                $selectedKeys->all(),
+                (string) ($config['analysis_type_id'] ?? ''),
+            );
 
             return $config;
         }
@@ -690,12 +1031,14 @@ class AcceptanceFormSampleConfigService
      */
     public function normalizeConfigsForStorage(array $configs, ?string $customerId = null): array
     {
+        $configs = $this->flattenToPerSampleConfigs($configs);
+
         return collect($configs)->map(function (array $config) use ($customerId) {
             if ($customerId !== null && trim($customerId) !== '') {
                 $config = $this->reconcileParameterKeysForConfig($config, $customerId);
             }
 
-            $count = max(1, (int) ($config['number_of_samples'] ?? 1));
+            $details = $this->sampleDetailsFromConfig($config);
 
             return [
                 'id' => (string) ($config['id'] ?? Str::uuid()),
@@ -703,11 +1046,18 @@ class AcceptanceFormSampleConfigService
                 'analysis_type_id' => $config['analysis_type_id'] ?? null,
                 'sample_condition_id' => $config['sample_condition_id'] ?? null,
                 'main_standard_id' => $config['main_standard_id'] ?? null,
+                'secondary_standard_id' => $config['secondary_standard_id'] ?? null,
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
                 'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
-                'number_of_samples' => $count,
+                'lab_id' => ! empty($config['lab_id']) ? (string) $config['lab_id'] : null,
+                'row_index' => isset($config['row_index']) ? (int) $config['row_index'] : null,
+                'number_of_samples' => 1,
                 'parameter_keys' => array_values(array_map('strval', $config['parameter_keys'] ?? [])),
-                'instances' => $this->syncInstances($config['instances'] ?? [], $count),
+                'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
+                'customer_sample_id' => $details['customer_sample_id'],
+                'sample_marking' => $details['sample_marking'],
+                'disposal_date' => $details['disposal_date'],
+                'photo_path' => $details['photo_path'],
             ];
         })->values()->all();
     }
@@ -722,15 +1072,20 @@ class AcceptanceFormSampleConfigService
      *     analysis_element_ids: list<string>,
      *     sample_condition_id: ?string,
      *     main_standard_id: ?string,
+     *     secondary_standard_id: ?string,
+     *     lab_id: ?string,
      *     zone_id: ?string,
      *     lab_section_id: ?string,
      *     customer_sample_id: ?string,
-     *     sample_marking: ?string
+     *     sample_marking: ?string,
+     *     disposal_date: ?string,
+     *     photo_path: ?string
      * }>
      */
     public function buildDetailPlansFromConfigs(array $configs): array
     {
         $plans = [];
+        $configs = $this->flattenToPerSampleConfigs($configs);
 
         foreach ($configs as $config) {
             $analysisTypeId = (string) ($config['analysis_type_id'] ?? '');
@@ -739,29 +1094,33 @@ class AcceptanceFormSampleConfigService
             }
 
             $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
-            $instances = $this->syncInstances(
-                $config['instances'] ?? [],
-                max(1, (int) ($config['number_of_samples'] ?? 1))
-            );
+            $details = $this->sampleDetailsFromConfig($config);
+            $elementIds = $this->resolveElementIdsForAnalysisType($parameterKeys, $analysisTypeId);
 
-            foreach ($instances as $instance) {
-                $plans[] = [
-                    'sample_type_id' => $config['sample_type_id'] ?? null,
-                    'analysis_type_ids' => [$analysisTypeId],
-                    'analysis_element_ids' => array_map('strval', $parameterKeys),
-                    'sample_condition_id' => $config['sample_condition_id'] ?? null,
-                    'main_standard_id' => $config['main_standard_id'] ?? null,
-                    'zone_id' => $this->resolveZoneIdFromConfig($config),
-                    'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
-                    'customer_sample_id' => $instance['customer_sample_id'] !== ''
-                        ? $instance['customer_sample_id']
-                        : null,
-                    'sample_marking' => $instance['sample_marking'] !== ''
-                        ? $instance['sample_marking']
-                        : null,
-                    'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
-                ];
-            }
+            $plans[] = [
+                'sample_type_id' => $config['sample_type_id'] ?? null,
+                'analysis_type_ids' => [$analysisTypeId],
+                'analysis_element_ids' => $elementIds,
+                'sample_condition_id' => $config['sample_condition_id'] ?? null,
+                'main_standard_id' => $config['main_standard_id'] ?? null,
+                'secondary_standard_id' => $config['secondary_standard_id'] ?? null,
+                'lab_id' => ! empty($config['lab_id']) ? (string) $config['lab_id'] : null,
+                'zone_id' => $this->resolveZoneIdFromConfig($config),
+                'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
+                'customer_sample_id' => $details['customer_sample_id'] !== ''
+                    ? $details['customer_sample_id']
+                    : null,
+                'sample_marking' => $details['sample_marking'] !== ''
+                    ? $details['sample_marking']
+                    : null,
+                'disposal_date' => $details['disposal_date'] !== ''
+                    ? $details['disposal_date']
+                    : null,
+                'photo_path' => $details['photo_path'] !== ''
+                    ? $details['photo_path']
+                    : null,
+                'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
+            ];
         }
 
         return $plans;
@@ -845,5 +1204,118 @@ class AcceptanceFormSampleConfigService
         }
 
         return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $bucketedConfigs
+     * @return list<array<string, mixed>>
+     */
+    private function explodeBucketedConfigsToPerSample(array $bucketedConfigs): array
+    {
+        $configs = [];
+
+        foreach ($bucketedConfigs as $config) {
+            $instances = is_array($config['instances'] ?? null) ? $config['instances'] : [];
+            $count = max(
+                max(1, (int) ($config['number_of_samples'] ?? 1)),
+                count($instances),
+            );
+            $normalizedInstances = $this->syncInstances($instances, $count);
+            $rootDetails = $this->sampleDetailsFromConfig($config);
+
+            if ($count <= 1) {
+                $merged = $this->mergeSampleDetailsIntoConfig($config, $rootDetails);
+                $merged['number_of_samples'] = 1;
+                unset($merged['instances']);
+                $configs[] = $merged;
+
+                continue;
+            }
+
+            for ($i = 0; $i < $count; $i++) {
+                $split = $config;
+                $split['id'] = (string) Str::uuid();
+                $split['number_of_samples'] = 1;
+                $split = $this->mergeSampleDetailsIntoConfig($split, [
+                    'customer_sample_id' => $normalizedInstances[$i]['customer_sample_id'] ?? '',
+                    'sample_marking' => $normalizedInstances[$i]['sample_marking'] ?? '',
+                    'disposal_date' => $normalizedInstances[$i]['disposal_date'] ?? '',
+                    'photo_path' => $normalizedInstances[$i]['photo_path'] ?? '',
+                ]);
+                unset($split['instances']);
+                $configs[] = $split;
+            }
+        }
+
+        return $configs;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolvePhysicalSampleKey(array $line, int $sequentialIndex): string
+    {
+        if (array_key_exists('row_index', $line) && $line['row_index'] !== null && $line['row_index'] !== '') {
+            return 'row:'.(int) $line['row_index'];
+        }
+
+        if (isset($line['line_no']) && $line['line_no'] !== null && $line['line_no'] !== '') {
+            return 'line:'.(int) $line['line_no'];
+        }
+
+        $customerSampleId = trim((string) ($line['customer_sample_id'] ?? ''));
+        if ($customerSampleId !== '') {
+            return 'cust:'.$customerSampleId;
+        }
+
+        return 'seq:'.$sequentialIndex;
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}
+     */
+    public function sampleDetailsFromConfig(array $config): array
+    {
+        $details = [
+            'customer_sample_id' => trim((string) ($config['customer_sample_id'] ?? '')),
+            'sample_marking' => trim((string) ($config['sample_marking'] ?? '')),
+            'disposal_date' => trim((string) ($config['disposal_date'] ?? '')),
+            'photo_path' => trim((string) ($config['photo_path'] ?? '')),
+        ];
+
+        $instances = is_array($config['instances'] ?? null) ? $config['instances'] : [];
+        if ($instances === []) {
+            return $details;
+        }
+
+        foreach (['customer_sample_id', 'sample_marking', 'disposal_date', 'photo_path'] as $field) {
+            if ($details[$field] !== '') {
+                continue;
+            }
+
+            $legacyValue = trim((string) ($instances[0][$field] ?? ''));
+            if ($legacyValue !== '') {
+                $details[$field] = $legacyValue;
+            }
+        }
+
+        return $details;
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @param  array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}  $details
+     * @return array<string, mixed>
+     */
+    private function mergeSampleDetailsIntoConfig(array $config, array $details): array
+    {
+        $config['customer_sample_id'] = $details['customer_sample_id'];
+        $config['sample_marking'] = $details['sample_marking'];
+        $config['disposal_date'] = $details['disposal_date'];
+        $config['photo_path'] = $details['photo_path'];
+        unset($config['instances']);
+
+        return $config;
     }
 }

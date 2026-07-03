@@ -1571,12 +1571,16 @@ class FormInstanceController extends Controller
 
         $testsRequiredTableGroups = app(\App\Services\SubmissionFormPdfService::class)->buildTestsRequiredTableGroups($instance);
 
+        $displaySections = app(\App\Services\SubmissionForm\SubmissionFormSchemaHelper::class)
+            ->uniqueSections($instance->submissionForm);
+
         return view('submission-forms.instances.batch-view', compact(
             'instance',
             'company',
             'batches',
             'processedSampleData',
-            'testsRequiredTableGroups'
+            'testsRequiredTableGroups',
+            'displaySections'
         ));
     }
 
@@ -1746,12 +1750,16 @@ class FormInstanceController extends Controller
 
         $testsRequiredTableGroups = app(\App\Services\SubmissionFormPdfService::class)->buildTestsRequiredTableGroups($instance);
 
+        $displaySections = app(\App\Services\SubmissionForm\SubmissionFormSchemaHelper::class)
+            ->uniqueSections($instance->submissionForm);
+
         return view('submission-forms.instances.batch-view-print', compact(
             'instance',
             'company',
             'batches',
             'processedSampleData',
-            'testsRequiredTableGroups'
+            'testsRequiredTableGroups',
+            'displaySections'
         ));
     }
 

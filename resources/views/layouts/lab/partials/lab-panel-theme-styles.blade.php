@@ -1,7 +1,7 @@
 <style>
 	.lab-panel-theme {
-		--workflow-accent: var(--color-primary, #6D0A0E);
-		--workflow-accent-soft: var(--color-primary-soft, rgba(109, 10, 14, 0.08));
+		--workflow-accent: var(--color-primary, var(--color-primary));
+		--workflow-accent-soft: var(--color-primary-soft, var(--color-primary-soft));
 		--workflow-border: #e2e8f0;
 		--workflow-muted: #64748b;
 		--workflow-surface: #ffffff;

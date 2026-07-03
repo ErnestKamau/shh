@@ -173,6 +173,11 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $form->refresh();
                 $sampleHeaderService->applyToBatch($header->fresh(), $form, $primaryZoneId);
                 $sampleHeaderService->syncLinkedSubmissionForm($form);
+
+                $actingUserId = $form->created_by ? (string) $form->created_by : null;
+                $attachmentService = app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class);
+                $attachmentService->attachSamplePhotos($header->fresh(), collect($details), $actingUserId);
+                $attachmentService->attachForAcceptedBatch($header->fresh(), $actingUserId);
             });
         } catch (\Throwable $e) {
             Log::error('CreateSamplesFromAcceptanceFormJob failed', [
@@ -326,6 +331,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             : collect();
 
         $trfRows = [];
+        $formSamplingLocation = null;
         $crmCustomerId = (string) ($header->crm_customer_id ?? '');
         if ($header->submission_form_instance_id) {
             $sfi = SubmissionFormInstance::query()
@@ -335,6 +341,9 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $formData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
                     ->valuesMapFromInstance($sfi);
                 $trfRows = app(TrfSampleFieldMapper::class)->sampleRowsFromFormData($formData);
+                $formSamplingLocation = isset($formData['sampling_location'])
+                    ? (string) $formData['sampling_location']
+                    : null;
             }
         }
         $trfMapper = app(TrfSampleFieldMapper::class);
@@ -364,11 +373,24 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     if (! empty($plan['main_standard_id'])) {
                         $detailAttributes['main_standard'] = $plan['main_standard_id'];
                     }
+                    if (! empty($plan['secondary_standard_id'])) {
+                        $detailAttributes['secondary_standard'] = $plan['secondary_standard_id'];
+                    }
+                    if (! empty($plan['lab_id'])) {
+                        $detailAttributes['lab_id'] = $plan['lab_id'];
+                    }
+                    if (! empty($plan['disposal_date'])) {
+                        $detailAttributes['disposal_date'] = $plan['disposal_date'];
+                    }
+                    if (! empty($plan['photo_path'])) {
+                        $detailAttributes['photo_url'] = $plan['photo_path'];
+                    }
                     if (! empty($plan['sample_marking'])) {
                         $detailAttributes['comments'] = $plan['sample_marking'];
                     }
                     if (! empty($plan['customer_sample_id'])) {
                         $detailAttributes['barcode'] = $plan['customer_sample_id'];
+                        $detailAttributes['customer_sample_id'] = $plan['customer_sample_id'];
                     }
                     if (! empty($plan['zone_id'])) {
                         $detailAttributes['processing_zone_id'] = $plan['zone_id'];
@@ -379,8 +401,24 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 if (isset($trfRows[$trfRowIndex])) {
                     $detailAttributes = $trfMapper->mergeFillGaps(
                         $detailAttributes,
-                        $trfMapper->mapToSampleDetail($trfRows[$trfRowIndex], $trfRowIndex, $crmCustomerId !== '' ? $crmCustomerId : null),
+                        $trfMapper->mapToSampleDetail(
+                            $trfRows[$trfRowIndex],
+                            $trfRowIndex,
+                            $crmCustomerId !== '' ? $crmCustomerId : null,
+                            $formSamplingLocation,
+                        ),
                     );
+                } elseif ($formSamplingLocation !== null && $formSamplingLocation !== '') {
+                    $pointId = $trfMapper->resolveSamplePointId(
+                        $crmCustomerId !== '' ? $crmCustomerId : null,
+                        $formSamplingLocation,
+                    );
+                    if ($pointId !== null) {
+                        $detailAttributes = $trfMapper->mergeFillGaps(
+                            $detailAttributes,
+                            ['sample_point_id' => $pointId],
+                        );
+                    }
                 }
 
                 $detail = $sampleDetailCreationService->create(
@@ -550,10 +588,12 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             $invoiceDetail->save();
         }
 
+        $invoice->syncTotalsFromDetails();
+
         $header->invoice_id = $invoice->id;
         $header->save();
 
-        return $invoice;
+        return $invoice->fresh();
     }
 
     /**

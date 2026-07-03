@@ -842,12 +842,12 @@ $(document).ready(function() {
 
 <style>
 .form-section {
-    border-left: 3px solid #6D0A0E;
+    border-left: 3px solid var(--color-primary);
     padding-left: 20px;
 }
 
 .section-header h5 {
-    color: #6D0A0E;
+    color: var(--color-primary);
 }
 
 .element-holder {

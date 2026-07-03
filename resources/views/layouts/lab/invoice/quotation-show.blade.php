@@ -79,7 +79,8 @@
 </style>
 @endsection
 @section('content2')
-<main>
+<main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
+    @include('layouts.lab.partials.lab-panel-theme-styles')
     <?php
     $items = array(
         array(

@@ -33,6 +33,9 @@
 				if (typeof window.rebuildLabBatchPrintLabels === 'function') {
 					window.rebuildLabBatchPrintLabels();
 				}
+				if (typeof window.rebuildEmailReportsSelection === 'function') {
+					window.rebuildEmailReportsSelection();
+				}
 			}
 		},
 		init() {
@@ -40,11 +43,17 @@
 			if (typeof window.rebuildLabBatchPrintLabels === 'function') {
 				window.rebuildLabBatchPrintLabels();
 			}
+			if (typeof window.rebuildEmailReportsSelection === 'function') {
+				window.rebuildEmailReportsSelection();
+			}
 			if (typeof Livewire !== 'undefined') {
 				Livewire.hook('morph.updated', () => {
 					this.refreshSelectionCount();
 					if (typeof window.rebuildLabBatchPrintLabels === 'function') {
 						window.rebuildLabBatchPrintLabels();
+					}
+					if (typeof window.rebuildEmailReportsSelection === 'function') {
+						window.rebuildEmailReportsSelection();
 					}
 				});
 			}
@@ -198,8 +207,8 @@
 		align-items: center;
 		padding: 3px 10px;
 		border-radius: 999px;
-		background: rgba(109, 10, 14, 0.08);
-		color: #6D0A0E;
+		background: var(--color-primary-soft);
+		color: var(--color-primary);
 		font-size: 11px;
 		font-weight: 600;
 		width: fit-content;
@@ -228,9 +237,9 @@
 		text-decoration: none;
 	}
 	.form-chip-link:hover {
-		background: rgba(109, 10, 14, 0.08);
-		border-color: rgba(109, 10, 14, 0.25);
-		color: #6D0A0E;
+		background: var(--color-primary-soft);
+		border-color: var(--color-primary-focus);
+		color: var(--color-primary);
 	}
 	.form-actions {
 		display: flex;
@@ -260,14 +269,14 @@
 		color: #15803d;
 	}
 	.workflow-table .rm-act-btn--edit {
-		border: 1px solid rgba(109, 10, 14, 0.2);
-		color: #6D0A0E;
-		background: rgba(109, 10, 14, 0.05);
+		border: 1px solid var(--color-primary-shadow);
+		color: var(--color-primary);
+		background: var(--color-primary-soft-medium);
 	}
 	.workflow-table .rm-act-btn--edit:hover {
-		background: rgba(109, 10, 14, 0.1);
-		border-color: rgba(109, 10, 14, 0.35);
-		color: #6D0A0E;
+		background: var(--color-primary-soft-10);
+		border-color: var(--color-primary-border-soft);
+		color: var(--color-primary);
 	}
 	.workflow-table .rm-act-btn--delete {
 		border: 1px solid #fecdd3;
@@ -296,7 +305,7 @@
 	}
 	.form-attachment-group {
 		padding: 8px 10px;
-		border: 1px solid rgba(109, 10, 14, 0.15);
+		border: 1px solid var(--color-primary-highlight);
 		border-radius: 8px;
 		background: #FAF9F9;
 	}
@@ -306,7 +315,7 @@
 		gap: 5px;
 		font-size: 11px;
 		font-weight: 600;
-		color: #6D0A0E;
+		color: var(--color-primary);
 		margin-bottom: 6px;
 	}
 	.form-attachment-list {
@@ -389,14 +398,14 @@
 	}
 	.workflow-board-page .workflow-receiving-tab:hover {
 		background: #fff;
-		border-color: rgba(109, 10, 14, 0.3);
-		color: #6D0A0E;
+		border-color: var(--color-primary-border-soft);
+		color: var(--color-primary);
 	}
 	.workflow-board-page .workflow-receiving-tab.is-active {
 		background: #fff;
-		border-color: #6D0A0E;
-		color: #6D0A0E;
-		box-shadow: 0 1px 4px rgba(109, 10, 14, 0.15);
+		border-color: var(--color-primary);
+		color: var(--color-primary);
+		box-shadow: 0 1px 4px var(--color-primary-highlight);
 	}
 	.workflow-board-page .workflow-receiving-tab-badge {
 		display: inline-flex;
@@ -411,8 +420,8 @@
 		color: #475569;
 	}
 	.workflow-board-page .workflow-receiving-tab.is-active .workflow-receiving-tab-badge {
-		background: rgba(109, 10, 14, 0.1);
-		color: #6D0A0E;
+		background: var(--color-primary-soft-10);
+		color: var(--color-primary);
 	}
 
 	.workflow-review-status-legend {
@@ -678,15 +687,15 @@
 		gap: 0.35rem;
 		padding: 0.4rem 0.75rem;
 		border-radius: 999px;
-		background: linear-gradient(135deg, rgba(109, 10, 14, 0.05) 0%, #f8fafc 100%);
-		border: 1px solid rgba(109, 10, 14, 0.2);
+		background: linear-gradient(135deg, var(--color-primary-soft-medium) 0%, #f8fafc 100%);
+		border: 1px solid var(--color-primary-shadow);
 		font-size: 0.8125rem;
 		line-height: 1.2;
 	}
 
 	.receive-sample-chip-code {
 		font-weight: 600;
-		color: #6D0A0E;
+		color: var(--color-primary);
 	}
 
 	.receive-sample-chip-meta {
@@ -805,7 +814,7 @@
 		height: 1.125rem;
 		margin: 0.15rem 0 0;
 		flex-shrink: 0;
-		accent-color: #6D0A0E;
+		accent-color: var(--color-primary);
 		cursor: pointer;
 	}
 
@@ -873,8 +882,8 @@
 	}
 
 	.receive-checklist-control:focus {
-		border-color: #6D0A0E;
-		box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.15);
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px var(--color-primary-highlight);
 	}
 
 	.receive-checklist-error {
@@ -919,10 +928,10 @@
 	}
 
 	.move-to-intray-info-card {
-		border: 1px solid rgba(109, 10, 14, 0.2);
+		border: 1px solid var(--color-primary-shadow);
 		border-radius: 10px;
 		padding: 1rem;
-		background: rgba(109, 10, 14, 0.05);
+		background: var(--color-primary-soft-medium);
 	}
 
 	.move-to-intray-info-icon {
@@ -932,7 +941,7 @@
 		width: 2.25rem;
 		height: 2.25rem;
 		border-radius: 8px;
-		background: #6D0A0E;
+		background: var(--color-primary);
 		color: #fff;
 		font-size: 1.25rem;
 		flex-shrink: 0;
@@ -1165,8 +1174,10 @@
 
 								@if ($status == "Reports for Collection")
 									<li>
-										<button type="button" class="dropdown-item" disabled data-target="#send-email-reports-modal"
-											data-toggle="modal" data-sf-trigger="workflow-action-email-reports" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email
+										<button type="button" class="dropdown-item" data-target="#send-email-reports-modal"
+											data-toggle="modal" data-sf-trigger="workflow-action-email-reports" title="Email Report(s)"
+											:class="{ 'disabled': selectedLabBatchCount === 0 }"
+											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"><i class="mdi mdi-email mr-2"></i> Email
 											Report(s)</button>
 
 									</li>
@@ -2690,9 +2701,9 @@
 												$sample_codes = $item->samples->pluck('sample_code')->toArray();
 												$sample_count = count($sample_codes);
 												@endphp
-												<tr>
+												<tr class="batch-row crm-customer-{{ $item->crm_customer_id }}" data-class="{{ $item->crm_customer_id }}">
 													<td>
-														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-lab-batch-select data-batch-code="{{$item->batch_code}}">
+														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-lab-batch-select data-batch-code="{{$item->batch_code}}" data-customer-id="{{ $item->crm_customer_id }}">
 													</td>
 													<td nowrap>
 														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
@@ -4434,12 +4445,12 @@
 		}
 	
 		.workflow-board-page .tag-select-input:hover {
-			border-color: rgba(109, 10, 14, 0.3);
+			border-color: var(--color-primary-border-soft);
 		}
 	
 		.workflow-board-page .tag-select-input:focus-within {
-			border-color: #6D0A0E;
-			box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.12);
+			border-color: var(--color-primary);
+			box-shadow: 0 0 0 0.2rem var(--color-primary-highlight);
 			outline: none;
 		}
 	
@@ -4448,7 +4459,7 @@
 			align-items: center;
 			gap: 4px;
 			padding: 4px 10px;
-			background-color: #6D0A0E;
+			background-color: var(--color-primary);
 			color: white;
 			border-radius: 16px;
 			font-size: 0.875rem;
@@ -4482,7 +4493,7 @@
 			left: 0;
 			right: 0;
 			background: white;
-			border: 1px solid rgba(109, 10, 14, 0.3);
+			border: 1px solid var(--color-primary-border-soft);
 			border-top: none;
 			border-radius: 0 0 6px 6px;
 			max-height: 250px;
@@ -5208,6 +5219,50 @@
 
 			window.rebuildLabBatchPrintLabels = rebuildLabBatchPrintLabels;
 
+			const rebuildEmailReportsSelection = function () {
+				if ($('#send-email-reports-modal').length === 0) {
+					return;
+				}
+
+				const $selected = $('input[data-lab-batch-select]:checked').filter(function () {
+					return $(this).closest('.modal').length === 0;
+				});
+				const $container = $('.selected-batches');
+
+				$container.empty();
+
+				if ($selected.length === 0) {
+					defaultClass = '';
+					$('tr.batch-row').find('input[data-lab-batch-select]').removeAttr('disabled');
+
+					return;
+				}
+
+				const $first = $selected.first();
+				const custID = $first.closest('tr').data('class') || $first.data('customer-id');
+				const customerClass = custID ? '.crm-customer-' + custID : '';
+
+				if (customerClass !== '') {
+					$('tr.batch-row').not(customerClass).find('input[data-lab-batch-select]').attr('disabled', true);
+					defaultClass = customerClass;
+				} else {
+					$('tr.batch-row').find('input[data-lab-batch-select]').removeAttr('disabled');
+					defaultClass = '';
+				}
+
+				$selected.each(function () {
+					const batchId = $(this).val();
+					const batchCode = $(this).data('batch-code') || batchId;
+					$container.append(`<span class="p-2 mr-2"><input type="checkbox" name="sample_code[]" value="${batchId}" checked> ${batchCode}</span>`);
+				});
+
+				selectedSampleIDs = $selected.map(function () {
+					return $(this).data('batch-code') || $(this).val();
+				}).get();
+			};
+
+			window.rebuildEmailReportsSelection = rebuildEmailReportsSelection;
+
 			const rebuildSelectionLists = function () {
 				const selections = getSourceSelections();
 				const selectedBatchCheckboxes = selections.selectedBatchCheckboxes;
@@ -5445,9 +5500,11 @@
 				.off('change.workflowLabBatch', 'input[data-lab-batch-select]')
 				.on('change.workflowLabBatch', 'input[data-lab-batch-select]', function () {
 					rebuildLabBatchPrintLabels();
+					rebuildEmailReportsSelection();
 				});
 
 			rebuildLabBatchPrintLabels();
+			rebuildEmailReportsSelection();
 
 			// Bind directly on the modal elements — delegated $(document).on() with a custom namespace
 			// suffix (e.g. show.bs.modal.workflowSelection) never fires because Bootstrap triggers
@@ -5484,12 +5541,26 @@
 			});
 
 			$(document)
-				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"]')
-				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"]', function (event) {
+				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"], [data-target="#send-email-reports-modal"]')
+				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"], [data-target="#send-email-reports-modal"]', function (event) {
 					const target = $(this).data('target');
 					rebuildSelectionLists();
 					if (target === '#print-labels-modal') {
 						rebuildLabBatchPrintLabels();
+					}
+					if (target === '#send-email-reports-modal') {
+						const selectedCount = $('input[data-lab-batch-select]:checked').filter(function () {
+							return $(this).closest('.modal').length === 0;
+						}).length;
+
+						if (selectedCount === 0) {
+							event.preventDefault();
+							event.stopImmediatePropagation();
+
+							return;
+						}
+
+						rebuildEmailReportsSelection();
 					}
 					if (target === '#dispatch-to-labs-modal') {
 						renderRequestReviewSelectionSummary();
@@ -5595,6 +5666,28 @@
 			rebuildSelectionLists();
 
 			$('#send-email-reports-modal').on('show.bs.modal', function () {
+				rebuildEmailReportsSelection();
+
+				const $selected = $('input[data-lab-batch-select]:checked').filter(function () {
+					return $(this).closest('.modal').length === 0;
+				});
+				const custID = $selected.first().closest('tr').data('class') || $selected.first().data('customer-id');
+
+				if (custID) {
+					$.ajax({
+						url: '/get-customer-contacts/receive_report/' + custID,
+						dataType: 'json',
+						beforeSend: function () {
+							$('select[name="contacts[]"]').empty();
+						},
+						success: function (js) {
+							$.each(js, function (j, s) {
+								$('select[name="contacts[]"]').append(`<option value="${s.id}">${s.first_name + ' ' + s.middle_name + ' ' + s.last_name} [${s.email}]</option>`);
+							});
+						}
+					});
+				}
+
 				$('#send-email-reports-modal').find('.add-contact-fields').removeClass('hidden');
 				$('#send-email-reports-modal').find('.save-add-contact').off('click').on('click', function () {
 						var body = {
@@ -5624,46 +5717,6 @@
 				});
 			});
 
-				$("input[name='table_sample_id[]']").on('change', function () {
-					if ($("input[name='table_sample_id[]']:checked").length > 0) {
-						$('[data-target="#send-email-reports-modal"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
-						var custID = $(this).parents('tr').data('class');
-
-						if (defaultClass == '') {
-							$.ajax({
-								url: '/get-customer-contacts/receive_report/' + custID,
-								dataType: 'json',
-								beforeSend: function () {
-									$('select[name="contacts[]"]').empty();
-								},
-								success: function (js) {
-									$.each(js, function (j, s) {
-										$('select[name="contacts[]"]').append(`<option value="${s.id}">${s.first_name + ' ' + s.middle_name + ' ' + s.last_name} [${s.email}]</option>`);
-									});
-								}
-							});
-						}
-
-						defaultClass = defaultClass == '' ? ".crm-customer-" + custID : defaultClass;
-					} else {
-						$('[data-target="#send-email-reports-modal"]').attr('disabled', true).removeClass('btn-primary').addClass('btn-outline-primary');
-						defaultClass = '';
-					}
-
-					if (defaultClass == '') {
-						$('tr.batch-row').find("input[name='table_sample_id[]']").removeAttr('disabled');
-					} else {
-						$('tr.batch-row').not(defaultClass).find("input[name='table_sample_id[]']").attr('disabled', true);
-					}
-
-					$('.selected-batches').empty();
-					selectedSampleIDs = $("input[name='table_sample_id[]']:checked").map(function () {
-						var $val = $(this).val();
-						var recordBatch = $(this).data('batch');
-						$('.selected-batches').append(`<span class="p-2 mr-2"><input type="checkbox" name="sample_code[]" value="${recordBatch.id}" checked> ${$val}</span>`);
-						return $val;
-					}).get();
-				});
 		
 			var detectChange = function (ts) {
 				var op = $(ts).children('option:selected');
@@ -6103,6 +6156,13 @@
 				}, 150);
 			});
 
+			Livewire.on('walk-in-trf-step-changed', function () {
+				const modalBody = document.querySelector('#receive-sample-modal .modal-body');
+				if (modalBody) {
+					modalBody.scrollTop = 0;
+				}
+			});
+
 			$('#receive-sample-modal').on('hidden.bs.modal', function () {
 				window.dispatchEvent(new CustomEvent('trf-destroy-editors'));
 				document.querySelectorAll('.walk-in-trf-parameters-select').forEach(function (select) {
@@ -6122,6 +6182,31 @@
 					});
 				}
 			});
+
+			window.syncWalkInParametersBeforeSubmit = function () {
+				const modal = document.getElementById('receive-sample-modal');
+				if (!modal || typeof $ === 'undefined') {
+					return;
+				}
+
+				modal.querySelectorAll('.walk-in-trf-parameters-wrap').forEach(function (wrap) {
+					const $select = $(wrap).find('.walk-in-trf-parameters-select');
+					if ($select.length === 0) {
+						return;
+					}
+
+					const livewireModel = $(wrap).data('livewire-model') || $select.data('livewire-model');
+					const componentEl = wrap.closest('[wire\\:id]');
+					const selected = $select.val() || [];
+
+					if (livewireModel && componentEl && window.Livewire) {
+						const component = Livewire.find(componentEl.getAttribute('wire:id'));
+						if (component) {
+							component.set(livewireModel, selected, false);
+						}
+					}
+				});
+			};
 
 			window.syncTrfSignaturesBeforeSubmit = function () {
 				if (typeof SignaturePad === 'undefined') {

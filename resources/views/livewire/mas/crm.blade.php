@@ -126,11 +126,11 @@
         </div>
     </div>
     <style>
-        .btn-primary { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+        .btn-primary { background-color: var(--color-primary) !important; border-color: var(--color-primary) !important; color: white !important; }
         .btn-primary:hover { background-color: #55080b !important; border-color: #55080b !important; color: white !important; }
-        .btn-outline-primary { color: #6D0A0E !important; border-color: #6D0A0E !important; }
-        .btn-outline-primary:hover { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
-        .bg-primary { background-color: #6D0A0E !important; }
+        .btn-outline-primary { color: var(--color-primary) !important; border-color: var(--color-primary) !important; }
+        .btn-outline-primary:hover { background-color: var(--color-primary) !important; border-color: var(--color-primary) !important; color: white !important; }
+        .bg-primary { background-color: var(--color-primary) !important; }
     </style>
 </div>
 

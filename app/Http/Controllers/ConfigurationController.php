@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\System\ThemeService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -82,7 +83,7 @@ class ConfigurationController extends Controller
       }
     }
 
-    \Illuminate\Support\Facades\Cache::forget('global_theme_variables');
+    ThemeService::forgetCache();
 
     return redirect()
       ->back()

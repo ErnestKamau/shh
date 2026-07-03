@@ -614,7 +614,7 @@
                                 <td>
                                     {{ app(\App\Services\StandardLimitDisplayService::class)->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
-                                <td>{{ $cr->measure_uncertanity ?? '-' }}</td>
+                                <td>{{ $measureUncertaintyByCapturedResultId[$cr->id] ?? '-' }}</td>
                                 <td>{{ strtoupper($cr->method()->name ?? ($cr->ltmethod->name ?? '-')) }}</td>
                             </tr>
                         @endforeach

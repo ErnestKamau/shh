@@ -88,7 +88,7 @@ class ConfigManager extends Component
         $this->description = $item->description;
         $this->is_active = $item->is_active;
         
-        if ($this->type === 'audit_types' || $this->type === 'finding_categories' || $this->type === 'compliance_statuses' || $this->type === 'audit_statuses' || $this->type === 'severity_scales' || $this->type === 'likelihood_scales' || $this->type === 'verification_results') {
+        if ($this->type === 'audit_types' || $this->type === 'finding_categories' || $this->type === 'compliance_statuses' || $this->type === 'audit_statuses' || $this->type === 'severity_scales' || $this->type === 'likelihood_scales' || $this->type === 'verification_results' || $this->type === 'risk_levels' || $this->type === 'rca_methods' || $this->type === 'capa_categories') {
             $this->code = $item->code;
         }
         
@@ -96,9 +96,9 @@ class ConfigManager extends Component
             $this->severity = $item->severity;
             $this->requires_capa = $item->requires_capa;
         } elseif ($this->type === 'risk_levels') {
-            $this->color = $item->color;
-            $this->score = $item->score;
-            $this->criteria = $item->criteria;
+            $this->color = $item->color_code ?? '#6c757d';
+            $this->color_code = $item->color_code ?? '#6c757d';
+            $this->score = $item->severity_score ?? 0;
         } elseif ($this->type === 'rca_methods') {
             $this->template = is_array($item->template) ? json_encode($item->template, JSON_PRETTY_PRINT) : $item->template;
         } elseif ($this->type === 'compliance_statuses') {
@@ -174,9 +174,27 @@ class ConfigManager extends Component
             $rules['severity'] = 'nullable|string|max:50';
             $rules['requires_capa'] = 'boolean';
         } elseif ($this->type === 'risk_levels') {
+            $this->ensureCodeFromName('RISK', 20);
+            $uniqueRule = $this->isEdit
+                ? 'unique:risk_levels,code,' . $this->editId . ',id'
+                : 'unique:risk_levels,code';
+            $rules['code'] = 'required|string|max:20|' . $uniqueRule;
             $rules['color'] = 'nullable|string|max:20';
             $rules['score'] = 'required|integer|min:0|max:100';
             $rules['criteria'] = 'nullable|string';
+        } elseif ($this->type === 'rca_methods') {
+            $this->ensureCodeFromName('RCA', 20);
+            $uniqueRule = $this->isEdit
+                ? 'unique:root_cause_methods,code,' . $this->editId . ',id'
+                : 'unique:root_cause_methods,code';
+            $rules['code'] = 'required|string|max:20|' . $uniqueRule;
+            $rules['template'] = 'nullable|string';
+        } elseif ($this->type === 'capa_categories') {
+            $this->ensureCodeFromName('CAPA', 20);
+            $uniqueRule = $this->isEdit
+                ? 'unique:capa_categories,code,' . $this->editId . ',id'
+                : 'unique:capa_categories,code';
+            $rules['code'] = 'required|string|max:20|' . $uniqueRule;
         } elseif ($this->type === 'compliance_statuses') {
             // Generate code from name if not provided
             if (empty(trim($this->code))) {
@@ -307,16 +325,22 @@ class ConfigManager extends Component
             $data['min_remarks_length'] = $this->min_remarks_length ?? 10;
             $data['requires_target_status'] = $this->requires_target_status;
             $data['order_index'] = $this->order_index ?? 0;
+        } elseif ($this->type === 'risk_levels') {
+            $data['code'] = strtoupper(trim($this->code));
+            $data['color_code'] = $this->color ?: $this->color_code;
+            $data['severity_score'] = (int) $this->score;
+            if (! empty(trim($this->criteria)) && empty(trim($this->description))) {
+                $data['description'] = $this->criteria;
+            }
+        } elseif ($this->type === 'rca_methods') {
+            $data['code'] = strtoupper(trim($this->code));
+            $data['template'] = $this->template ? json_decode($this->template, true) : null;
+        } elseif ($this->type === 'capa_categories') {
+            $data['code'] = strtoupper(trim($this->code));
         } elseif ($this->type === 'finding_categories') {
             $data['code'] = $this->code;
             $data['severity'] = $this->severity;
             $data['requires_capa'] = $this->requires_capa;
-        } elseif ($this->type === 'risk_levels') {
-            $data['color'] = $this->color;
-            $data['score'] = $this->score;
-            $data['criteria'] = $this->criteria;
-        } elseif ($this->type === 'rca_methods') {
-            $data['template'] = $this->template ? json_decode($this->template, true) : null;
         } elseif ($this->type === 'compliance_statuses') {
             $data['code'] = strtolower(trim($this->code));
             $data['color_code'] = $this->color_code;
@@ -419,6 +443,34 @@ class ConfigManager extends Component
         return $this->isEdit
             ? 'unique:' . $table . ',' . $codeColumn . ',' . $this->editId . ',id' . $companyClause . $additionalUniqueSuffix
             : 'unique:' . $table . ',' . $codeColumn . ',NULL,id' . $companyClause . $additionalUniqueSuffix;
+    }
+
+    protected function ensureCodeFromName(string $fallbackPrefix = 'CFG', int $maxLength = 10): void
+    {
+        if (! empty(trim($this->code))) {
+            $this->code = strtoupper(trim($this->code));
+
+            return;
+        }
+
+        $cleanName = preg_replace('/[^A-Za-z0-9]/', '', $this->name);
+        if (! empty($cleanName)) {
+            $this->code = strtoupper(substr($cleanName, 0, $maxLength));
+
+            return;
+        }
+
+        $words = explode(' ', $this->name);
+        $initials = '';
+        foreach ($words as $word) {
+            if (! empty($word)) {
+                $initials .= strtoupper(substr($word, 0, 1));
+            }
+        }
+
+        $this->code = ! empty($initials)
+            ? substr($initials, 0, $maxLength)
+            : $fallbackPrefix . str_pad((string) (time() % 10000), 4, '0', STR_PAD_LEFT);
     }
 
     public function render()

@@ -1,5 +1,5 @@
 @php
-    $primaryColor = $branding['primary'] ?? '#6D0A0E';
+    $primaryColor = $branding['primary'] ?? 'var(--color-primary)';
     $greyColor = '#8a8a8a';
 @endphp
 <svg class="amspec-hex-cluster" viewBox="0 0 118 88" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

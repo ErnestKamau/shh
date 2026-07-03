@@ -125,17 +125,20 @@ final class CommercialEnquiryConfigSyncService
 
         foreach ($configs as $config) {
             $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
-            $numberOfSamples = max(1, (int) ($config['number_of_samples'] ?? 1));
+            $rowIndex = $config['row_index'] ?? null;
+            $details = $this->configService->sampleDetailsFromConfig($config);
 
             if ($parameterKeys === []) {
                 $lines[] = [
                     'line_no' => $lineNo++,
+                    'row_index' => $rowIndex,
                     'sample_type_id' => $config['sample_type_id'] ?? null,
                     'analysis_type_id' => $config['analysis_type_id'] ?? null,
                     'analysis_element_id' => null,
                     'parameter_label' => 'Parameter',
-                    'number_of_samples' => $numberOfSamples,
+                    'number_of_samples' => 1,
                     'sample_condition_id' => $config['sample_condition_id'] ?? null,
+                    'customer_sample_id' => $details['customer_sample_id'] !== '' ? $details['customer_sample_id'] : null,
                 ];
 
                 continue;
@@ -144,12 +147,14 @@ final class CommercialEnquiryConfigSyncService
             foreach ($parameterKeys as $paramKey) {
                 $lines[] = [
                     'line_no' => $lineNo++,
+                    'row_index' => $rowIndex,
                     'sample_type_id' => $config['sample_type_id'] ?? null,
                     'analysis_type_id' => $config['analysis_type_id'] ?? null,
                     'analysis_element_id' => (string) $paramKey,
                     'parameter_label' => 'Parameter',
-                    'number_of_samples' => $numberOfSamples,
+                    'number_of_samples' => 1,
                     'sample_condition_id' => $config['sample_condition_id'] ?? null,
+                    'customer_sample_id' => $details['customer_sample_id'] !== '' ? $details['customer_sample_id'] : null,
                 ];
             }
         }

@@ -616,15 +616,15 @@
     }
 
     .modern-select:focus {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
         background: #ffffff;
         outline: none;
     }
 
     .modern-select:hover {
-        border-color: #6D0A0E;
-        box-shadow: 0 4px 8px rgba(109, 10, 14, 0.15);
+        border-color: var(--color-primary);
+        box-shadow: 0 4px 8px var(--color-primary-highlight);
     }
 
     .modern-select option {
@@ -710,12 +710,12 @@
     }
 
     .tag-select-input:hover {
-        border-color: #6D0A0E;
+        border-color: var(--color-primary);
     }
 
     .tag-select-input:focus-within {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
         outline: none;
     }
 
@@ -724,7 +724,7 @@
         align-items: center;
         gap: 4px;
         padding: 4px 10px;
-        background-color: #6D0A0E;
+        background-color: var(--color-primary);
         color: white;
         border-radius: 16px;
         font-size: 0.875rem;
@@ -758,7 +758,7 @@
         left: 0;
         right: 0;
         background: white;
-        border: 2px solid #6D0A0E;
+        border: 2px solid var(--color-primary);
         border-top: none;
         border-radius: 0 0 8px 8px;
         max-height: 250px;

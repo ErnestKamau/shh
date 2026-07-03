@@ -1,64 +1,8 @@
 @section('title2')
     <title>TAT Reports | Lab Reports</title>
     <style>
-        .tat-report-page .workflow-stat-card {
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 14px;
-            height: 100%;
-        }
-        .tat-report-page .workflow-stat-label {
-            font-size: var(--text-caption);
-            color: var(--color-muted);
-            font-weight: var(--font-semibold);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .tat-report-page .workflow-stat-value {
-            font-size: var(--text-metric);
-            font-weight: var(--font-bold);
-            line-height: var(--leading-tight);
-            color: var(--color-text);
-        }
-        .tat-report-page .workflow-stat-meta {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 8px;
-        }
-        .tat-report-page .workflow-stat-icon {
-            font-size: 1.1rem;
-            width: 30px;
-            height: 30px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-        .tat-report-page .workflow-board-panel {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-        }
-        .tat-report-page .workflow-board-panel-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        .tat-report-page .workflow-board-panel-header h6 {
-            margin: 0;
-            font-weight: 600;
-            color: #1e293b;
-        }
-        .tat-report-page .workflow-board-panel-body {
-            padding: 16px;
+        .tat-report-page .stat-cards-row {
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         }
         .tat-report-page .tat-report-tabs {
             display: flex;
@@ -126,7 +70,9 @@
     </style>
 @endsection
 
-<main class="tat-report-page">
+<main class="container-fluid workflow-board-page lab-panel-theme tat-report-page">
+    @include('layouts.lab.partials.lab-panel-theme-styles')
+
     @php
         $breadcrumbItems = [
             ['link' => route('dashboard-lab'), 'name' => 'Dashboard', 'icon' => null],
@@ -136,7 +82,7 @@
 
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
 
-    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 px-2">
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
         <div>
             <h4 class="mb-1"><i class="mdi mdi-timer-sand"></i> TAT Reports</h4>
             <p class="text-muted mb-0 small">Batch deadline tracking and per-parameter turnaround analysis.</p>
@@ -149,97 +95,77 @@
         </div>
     </div>
 
-    <div class="row mb-3 px-1">
+    <div class="stat-cards-row mb-3">
         @if($activeTab === 'batch')
-            <div class="col-lg-2 col-md-4 col-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">Active Batches</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value">{{ $batchKpis['active_batches'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-flask-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Active Batches</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ $batchKpis['active_batches'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-flask-outline"></i></div>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 col-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">Overdue</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value text-danger">{{ $batchKpis['overdue_batches'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-alert-circle-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Overdue</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value text-danger">{{ $batchKpis['overdue_batches'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-alert-circle-outline"></i></div>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 col-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">Due Today</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value text-warning">{{ $batchKpis['due_today_batches'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-calendar-today"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Due Today</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value text-warning">{{ $batchKpis['due_today_batches'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-calendar-today"></i></div>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 col-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">SLA Compliance</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value">{{ $batchKpis['sla_compliance_rate'] ?? 0 }}%</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-shield-check-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">SLA Compliance</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ $batchKpis['sla_compliance_rate'] ?? 0 }}%</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-shield-check-outline"></i></div>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 col-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">On Time</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value text-success">{{ $batchKpis['on_time_batches'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-check-circle-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">On Time</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value text-success">{{ $batchKpis['on_time_batches'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-check-circle-outline"></i></div>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 col-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">No Target</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value">{{ $batchKpis['no_target_batches'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-calendar-remove-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">No Target</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ $batchKpis['no_target_batches'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-calendar-remove-outline"></i></div>
                 </div>
             </div>
         @else
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">Completed Parameters</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value">{{ $parameterKpis['total_parameters'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-test-tube"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Completed Parameters</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ $parameterKpis['total_parameters'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-test-tube"></i></div>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">Within TAT</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value text-success">{{ $parameterKpis['on_time_count'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-check-circle-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Within TAT</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value text-success">{{ $parameterKpis['on_time_count'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-check-circle-outline"></i></div>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">Delayed</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value text-danger">{{ $parameterKpis['delayed_count'] ?? 0 }}</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-timer-off-outline"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Delayed</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value text-danger">{{ $parameterKpis['delayed_count'] ?? 0 }}</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-timer-off-outline"></i></div>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="workflow-stat-card">
-                    <div class="workflow-stat-label">On-Time Rate</div>
-                    <div class="workflow-stat-meta">
-                        <div class="workflow-stat-value">{{ $parameterKpis['on_time_rate'] ?? 0 }}%</div>
-                        <span class="workflow-stat-icon"><i class="mdi mdi-chart-line"></i></span>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-card-label">On-Time Rate</div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ $parameterKpis['on_time_rate'] ?? 0 }}%</div>
+                    <div class="stat-card-icon"><i class="mdi mdi-chart-line"></i></div>
                 </div>
             </div>
         @endif
@@ -355,7 +281,7 @@
         </div>
     </div>
 
-    <div class="tat-report-tabs px-1">
+    <div class="tat-report-tabs">
         <button type="button"
             wire:click="setTab('batch')"
             @class(['tat-report-tab', 'active' => $activeTab === 'batch'])>
@@ -388,7 +314,7 @@
         <div class="workflow-board-panel-body p-0">
             @if($activeTab === 'batch')
                 <div class="tat-table-wrap">
-                    <table class="table tat-table table-hover mb-0">
+                    <table class="table tat-table workflow-table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Batch Code</th>
@@ -446,7 +372,7 @@
                 @endif
             @else
                 <div class="tat-table-wrap">
-                    <table class="table tat-table table-hover mb-0">
+                    <table class="table tat-table workflow-table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Analyte</th>

@@ -211,7 +211,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,#6D0A0E,#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-clock-outline mr-2"></i>{{ $editingSchedule ? 'Edit' : 'Schedule' }} Sampling Run</h5>
                     <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
                 </div>
@@ -404,7 +404,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,#6D0A0E,#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-eye mr-2"></i> Schedule Details</h5>
                     <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
                 </div>
@@ -413,7 +413,7 @@
                     <div class="px-4 pt-4 pb-3" style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
                         <h4 class="mb-1 font-weight-bold"><i class="mdi mdi-calendar-check text-primary mr-1"></i> {{ $viewingSchedule->title }}</h4>
                         <span class="badge badge-pill" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-clock-outline mr-1"></i>{{ $viewingSchedule->sampling_datetime ? $viewingSchedule->sampling_datetime->format('D, d M Y \a\t H:i') : 'N/A' }}</span>
-                        <span class="badge badge-pill ml-1" style="background:rgba(109, 10, 14, 0.08);color:#6D0A0E;padding:6px 14px;font-size:12px;"><i class="mdi mdi-refresh mr-1"></i>{{ $viewingSchedule->frequency }}</span>
+                        <span class="badge badge-pill ml-1" style="background:var(--color-primary-soft);color:var(--color-primary);padding:6px 14px;font-size:12px;"><i class="mdi mdi-refresh mr-1"></i>{{ $viewingSchedule->frequency }}</span>
                         @if($viewingSchedule->notify_client)
                         <span class="badge badge-pill ml-1" style="background:#fff3e0;color:#e65100;padding:6px 14px;font-size:12px;"><i class="mdi mdi-bell-ring mr-1"></i>Client Notified</span>
                         @endif
@@ -429,7 +429,7 @@
                                 <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
                                     <div class="card-body p-3">
                                         <div class="d-flex align-items-center mb-2">
-                                            <div style="width:36px;height:36px;border-radius:8px;background:rgba(109, 10, 14, 0.08);display:flex;align-items:center;justify-content:center;" class="mr-2"><i class="mdi mdi-domain text-primary"></i></div>
+                                            <div style="width:36px;height:36px;border-radius:8px;background:var(--color-primary-soft);display:flex;align-items:center;justify-content:center;" class="mr-2"><i class="mdi mdi-domain text-primary"></i></div>
                                             <small class="text-muted text-uppercase font-weight-bold" style="letter-spacing:0.5px;">Client</small>
                                         </div>
                                         <h6 class="font-weight-bold mb-0">{{ $viewingSchedule->client->name ?? 'N/A' }}</h6>
@@ -489,7 +489,7 @@
                             </h6>
                             @foreach($vDetails as $i => $d)
                             <div class="card border-0 shadow-sm mb-3" style="border-radius:10px;overflow:hidden;">
-                                <div class="card-header py-2 px-3" style="background:linear-gradient(135deg,rgba(109,10,14,0.08),rgba(109,10,14,0.04));border-bottom:1px solid rgba(109,10,14,0.15);">
+                                <div class="card-header py-2 px-3" style="background:linear-gradient(135deg,var(--color-primary-soft),var(--color-primary-soft-light));border-bottom:1px solid var(--color-primary-highlight);">
                                     <div class="d-flex align-items-center">
                                         <span class="badge badge-primary mr-2" style="border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;">{{ $i+1 }}</span>
                                         <span class="font-weight-bold text-primary" style="font-size:14px;">{{ $d['type'] }}</span>
@@ -603,7 +603,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,#6D0A0E,#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-file-document-edit mr-2"></i> Fill Test Request Form</h5>
                     <button type="button" class="close text-white" wire:click="$set('showFormModal', false)"><span>&times;</span></button>
                 </div>
@@ -652,7 +652,7 @@
     @endif
 
     <style>
-    .form-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6D0A0E;border-left:4px solid #6D0A0E;padding-left:8px;margin-top:1.5rem;margin-bottom:1rem;}
+    .form-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--color-primary);border-left:4px solid var(--color-primary);padding-left:8px;margin-top:1.5rem;margin-bottom:1rem;}
     .rm-act-btn{border-radius:7px;padding:4px 8px;margin-right:3px;font-size:12px;}
     .rm-act-btn:last-child{margin-right:0;}
     .rm-act-btn--form{border:1px solid #ffeeba;color:#856404;background:#fff3cd;}

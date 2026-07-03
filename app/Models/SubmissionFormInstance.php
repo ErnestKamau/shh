@@ -10,7 +10,10 @@ use App\AnalysisType;
 use App\Concerns\HasVarcharUuidRelationships;
 use App\User;
 use App\Models\CRM\CRMCustomer;
+use App\Models\SubmissionFormElement;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -1389,11 +1392,11 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function getFormDataForDisplay()
     {
-        // Load the form with all relationships
-        $this->load([
+        $this->loadMissing([
+            'values.element',
             'submissionForm.sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
-            }
+            },
         ]);
 
         $formData = [
@@ -1402,22 +1405,9 @@ class SubmissionFormInstance extends Model implements Auditable
             'dependency_chain' => []
         ];
 
-        $seenSectionIds = [];
-        $seenSectionTitles = [];
+        $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($this->submissionForm);
 
-        // Process each section
-        foreach ($this->submissionForm->sections as $section) {
-            $sectionKey = strtolower(trim((string) $section->title));
-            if (in_array($section->id, $seenSectionIds, true)
-                || ($sectionKey !== '' && in_array($sectionKey, $seenSectionTitles, true))) {
-                continue;
-            }
-
-            $seenSectionIds[] = $section->id;
-            if ($sectionKey !== '') {
-                $seenSectionTitles[] = $sectionKey;
-            }
-
+        foreach ($sections as $section) {
             $sectionData = [
                 'id' => $section->id,
                 'title' => $section->title,
@@ -1444,8 +1434,15 @@ class SubmissionFormInstance extends Model implements Auditable
                     'rows_data' => []
                 ];
 
+                $visibleHolderElements = $holder->elements->filter(
+                    fn (SubmissionFormElement $element): bool => ! SubmissionFormSchemaHelper::isMiscellaneousFieldInCollectionSection($section, $element)
+                        && ! SubmissionFormSchemaHelper::shouldHideFromTrfDisplay($element)
+                        && ! SubmissionFormSchemaHelper::shouldHideSupersededRowField($element, $holder->elements),
+                )->values();
+
                 // Process elements within the holder
-                foreach ($holder->elements as $element) {
+                foreach ($visibleHolderElements as $element) {
+
                     $elementData = [
                         'id' => $element->id,
                         'name' => $element->name,
@@ -1463,11 +1460,7 @@ class SubmissionFormInstance extends Model implements Auditable
                         'saved_values' => []
                     ];
 
-                    // Get saved values for this element
-                    $elementValues = $this->values()
-                        ->where('submission_form_element_id', $element->id)
-                        ->orderBy('array_index')
-                        ->get();
+                    $elementValues = $this->storedValuesForElement($element);
 
                     foreach ($elementValues as $value) {
                         $elementData['saved_values'][] = [
@@ -1496,7 +1489,7 @@ class SubmissionFormInstance extends Model implements Auditable
 
                 if ($isRowsSection) {
                     $holderData['holder_type'] = 'rows'; // Override to ensure proper display
-                    $holderData['rows_data'] = $this->groupRowsDataByIndex($holder->elements);
+                    $holderData['rows_data'] = $this->groupRowsDataByIndex($visibleHolderElements);
                 }
 
                 $sectionData['element_holders'][] = $holderData;
@@ -1695,11 +1688,43 @@ class SubmissionFormInstance extends Model implements Auditable
         if ($this->isUnresolvedReference($rawValue, $resolved)) {
             $fallback = $this->resolveEnquirySampleLineLabel($element, $rawValue, $arrayIndex ?? 0);
             if ($fallback !== null && $fallback !== '') {
-                return $fallback;
+                return $this->formatPlainTextDisplayValue($element, $fallback);
             }
         }
 
-        return $resolved;
+        return $this->formatPlainTextDisplayValue($element, $resolved);
+    }
+
+    private function formatPlainTextDisplayValue($element, string $displayValue): string
+    {
+        if ($displayValue === 'N/A' || ! $this->shouldDisplayAsPlainText($element)) {
+            return $displayValue;
+        }
+
+        $plain = $this->plainTextFromRichHtml($displayValue);
+
+        return $plain !== '' ? $plain : 'N/A';
+    }
+
+    private function shouldDisplayAsPlainText($element): bool
+    {
+        $type = (string) ($element->element_type ?? '');
+        $name = Str::lower(trim((string) ($element->name ?? '')));
+
+        return $type === 'textarea' || $name === 'sample_description';
+    }
+
+    private function plainTextFromRichHtml(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($decoded)) ?? '');
+
+        return $plain;
     }
 
     private function isUnresolvedReference(string $rawValue, string $resolved): bool
@@ -1937,6 +1962,14 @@ class SubmissionFormInstance extends Model implements Auditable
 
                     return $customer ? (string) $customer->name : $id;
 
+                case 'customer_sample_point_select':
+                    if (! $this->isResolvableReferenceId($id)) {
+                        return $id;
+                    }
+                    $point = DB::table('sample_points')->where('id', $id)->first();
+
+                    return $point && ! empty($point->name) ? (string) $point->name : $id;
+
                 case 'zone_select':
                     return $this->resolveZoneDisplayValue((string) $id);
 
@@ -2044,6 +2077,10 @@ class SubmissionFormInstance extends Model implements Auditable
             return $id;
         }
 
+        if (! Str::isUuid($id)) {
+            return $id;
+        }
+
         $analyte = DB::table('analytes')->where('id', $id)->first();
         if ($analyte && !empty($analyte->name)) {
             return (string) $analyte->name;
@@ -2122,15 +2159,39 @@ class SubmissionFormInstance extends Model implements Auditable
     /**
      * Group rows data by array index for proper display
      */
+    /**
+     * @return Collection<int, \App\Models\SubmissionFormInstanceValue>
+     */
+    public function storedValuesForElement($element): Collection
+    {
+        $this->loadMissing('values.element');
+
+        $byElementId = $this->values
+            ->where('submission_form_element_id', $element->id)
+            ->sortBy('array_index')
+            ->values();
+
+        if ($byElementId->isNotEmpty()) {
+            return $byElementId;
+        }
+
+        $name = trim((string) ($element->name ?? ''));
+        if ($name === '') {
+            return collect();
+        }
+
+        return $this->values
+            ->filter(fn ($value) => ($value->element?->name ?? '') === $name)
+            ->sortBy('array_index')
+            ->values();
+    }
+
     private function groupRowsDataByIndex($elements)
     {
         $rowsData = [];
 
         foreach ($elements as $element) {
-            $elementValues = $this->values()
-                ->where('submission_form_element_id', $element->id)
-                ->orderBy('array_index')
-                ->get();
+            $elementValues = $this->storedValuesForElement($element);
 
             foreach ($elementValues as $value) {
                 $arrayIndex = $value->array_index ?? 0;

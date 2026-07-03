@@ -45,6 +45,8 @@ use App\Services\Billing\InvoiceNumberGenerator;
 use App\Services\SupportingDocumentInstanceFormService;
 use App\Services\SampleCreationService;
 use App\Models\System\SystemConfiguration;
+use App\Services\ResultRemarkService;
+use App\Services\StandardLimitDisplayService;
 use App\Services\SubmissionFormPdfService;
 use App\ModulePreConfigs;
 use App\Pricelist;
@@ -52,6 +54,7 @@ use App\PricelistCustomer;
 use App\PricelistItem;
 use App\QuotationDetails;
 use App\Result;
+use App\ReportingUnit;
 use App\SampleAnalysisDates;
 use App\SampleAnalysisStage;
 use App\SampleAnalysisTypeRelation;
@@ -4449,7 +4452,7 @@ class SampleWorkFlowController extends Controller
     public function add_batch_attachment(Request $request)
     {
         $request->validate([
-            'batch_id' => 'required|integer|exists:sample_headers,id',
+            'batch_id' => 'required|string|exists:sample_headers,id',
             'title' => 'required|string|max:255',
             'attachment_type' => 'required',
             'attachment' => 'required|file',
@@ -8565,10 +8568,16 @@ class SampleWorkFlowController extends Controller
             }
 
             // Update the captured result with new settings
-            $capturedResult->reporting_unit_id = $request->input('reporting_unit', $capturedResult->reporting_unit_id);
-            $capturedResult->method_id = $request->input('method_id', $capturedResult->method_id);
+            $capturedResult->reporting_unit_id = $this->resolveReportingUnitIdForParameterSettings(
+                $request->input('reporting_unit')
+            );
+            $capturedResult->method_id = $this->resolveMethodIdForParameterSettings(
+                $request->input('method_id')
+            );
             $capturedResult->result_reporting_symbol = $request->input('reporting_symbol', $capturedResult->result_reporting_symbol);
-            $capturedResult->operator_id = $request->input('analyst_id', $capturedResult->operator_id);
+            $capturedResult->operator_id = $this->normalizeNullableForeignKeyForParameterSettings(
+                $request->input('analyst_id')
+            );
             $capturedResult->analyte_accredited = $request->input('accredited', 0);
             $capturedResult->analyte_status_contracted = $request->input('subcontracted', 0);
 
@@ -8585,6 +8594,46 @@ class SampleWorkFlowController extends Controller
                 'message' => 'Error updating parameter settings: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function normalizeNullableForeignKeyForParameterSettings(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            return null;
+        }
+
+        return (string) $value;
+    }
+
+    private function resolveMethodIdForParameterSettings(mixed $value): ?string
+    {
+        $normalized = $this->normalizeNullableForeignKeyForParameterSettings($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (Str::isUuid($normalized)) {
+            return $normalized;
+        }
+
+        return AnalysisMethod::query()
+            ->where('name', $normalized)
+            ->orWhere('code', $normalized)
+            ->value('id');
+    }
+
+    private function resolveReportingUnitIdForParameterSettings(mixed $value): ?string
+    {
+        $normalized = $this->normalizeNullableForeignKeyForParameterSettings($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (Str::isUuid($normalized)) {
+            return $normalized;
+        }
+
+        return ReportingUnit::query()->where('name', $normalized)->value('id');
     }
 
     /**
@@ -8624,9 +8673,27 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_code = $analyte;
             }
 
-            // Update standard values
-            $capturedResult->main_value = $standardValue;
-            $capturedResult->standard_limit_value = $limitType;
+            $limitDisplay = app(StandardLimitDisplayService::class);
+            $mainValue = $limitDisplay->formatMainValueFromEditForm(
+                (string) $standardValue,
+                (string) $limitType,
+            );
+
+            $capturedResult->main_value = $mainValue;
+
+            if ($capturedResult->result !== null && trim((string) $capturedResult->result) !== '') {
+                $remark = app(ResultRemarkService::class)->calculateRemark(
+                    $capturedResult,
+                    (string) $capturedResult->result,
+                    null,
+                    $mainValue,
+                    $capturedResult->result_reporting_symbol,
+                );
+
+                if (in_array($remark, ['PASS', 'FAIL'], true)) {
+                    $capturedResult->remark = $remark;
+                }
+            }
 
             $capturedResult->save();
 
@@ -8634,7 +8701,8 @@ class SampleWorkFlowController extends Controller
                 'success' => true,
                 'message' => 'Standard limit updated successfully',
                 'result_id' => $capturedResult->id,
-                'standard_limit' => $standardValue . ' ' . strtolower($limitType)
+                'standard_limit' => $mainValue,
+                'validation_result' => $capturedResult->remark,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -8683,11 +8751,19 @@ class SampleWorkFlowController extends Controller
             // Update result
             $capturedResult->result = $result;
 
-            // Perform validation against standards if result exists
             $validationResult = null;
-            if ($result && $capturedResult->main_value) {
-                $validationResult = $this->validateResultAgainstStandard($result, $capturedResult->main_value, $capturedResult->analyte_id);
-                $capturedResult->remark = $validationResult;
+            if ($result !== null && trim((string) $result) !== '' && $capturedResult->main_value) {
+                $validationResult = app(ResultRemarkService::class)->calculateRemark(
+                    $capturedResult,
+                    (string) $result,
+                    null,
+                    (string) $capturedResult->main_value,
+                    $capturedResult->result_reporting_symbol,
+                );
+
+                if (in_array($validationResult, ['PASS', 'FAIL'], true)) {
+                    $capturedResult->remark = $validationResult;
+                }
             }
 
             $capturedResult->save();
@@ -8697,7 +8773,7 @@ class SampleWorkFlowController extends Controller
                 'message' => 'Result updated successfully',
                 'result_id' => $capturedResult->id,
                 'validation_result' => $validationResult,
-                'standard_limit' => $capturedResult->main_value ? $capturedResult->main_value . ' ' . strtolower($capturedResult->standard_limit_value) : null
+                'standard_limit' => $capturedResult->main_value ?: null,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -8750,12 +8826,15 @@ class SampleWorkFlowController extends Controller
                 return response()->json(['success' => false, 'message' => 'Result not found'], 404);
             }
 
+            $parsed = app(StandardLimitDisplayService::class)
+                ->parseEditFormFromMainValue($capturedResult->main_value);
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'standard_value' => $capturedResult->main_value,
-                    'limit_type' => $capturedResult->standard_limit_value
-                ]
+                    'standard_value' => $parsed['standard_value'],
+                    'limit_type' => $parsed['limit_type'],
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -9304,6 +9383,12 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('success', 'Staging detail deleted successfully.');
         }
         return redirect()->back()->with('error', 'Staging record not found.');
+    }
+
+    public function viewBatchQuotationPdf(\App\SampleHeader $batch)
+    {
+        return app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
+            ->streamQuotationForBatch($batch);
     }
 
     public function viewAcceptancePdf($id)

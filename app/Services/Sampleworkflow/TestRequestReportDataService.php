@@ -3,11 +3,13 @@
 namespace App\Services\Sampleworkflow;
 
 use App\BatchLabSectionApprover;
+use App\CapturedResult;
 use App\Models\SubmissionFormInstance;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SamplesCategory;
+use App\Services\Lab\UncertaintyBudgetResolver;
 use App\User;
 
 class TestRequestReportDataService
@@ -157,6 +159,13 @@ class TestRequestReportDataService
 
         [$approver, $approverUser, $approverRole, $approvalDate, $signatureSrc, $signatureWarning] = $this->resolveApproverSignature($batch);
 
+        $measureUncertaintyByCapturedResultId = app(UncertaintyBudgetResolver::class)
+            ->buildMuPercentIndexForCapturedResults(
+                CapturedResult::query()
+                    ->where('sample_header_id', $batch->id)
+                    ->get()
+            );
+
         return [
             'batch' => $batch,
             'samples' => $samples,
@@ -186,6 +195,7 @@ class TestRequestReportDataService
             'totalPages' => $totalPages,
             'signatureSrc' => $signatureSrc,
             'signatureWarning' => $signatureWarning,
+            'measureUncertaintyByCapturedResultId' => $measureUncertaintyByCapturedResultId,
         ];
     }
 

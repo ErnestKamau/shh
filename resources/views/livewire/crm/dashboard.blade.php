@@ -3,7 +3,7 @@
     <style type="text/css">
         :root {
             --primary-glass: #ffffff;
-            --accent-blue: #6D0A0E;
+            --accent-blue: var(--color-primary);
             --accent-green: #10b981;
             --accent-red: #ef4444;
             --accent-orange: #f59e0b;

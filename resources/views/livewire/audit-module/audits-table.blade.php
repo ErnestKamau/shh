@@ -27,8 +27,8 @@
 
         .modern-search-input:focus {
             outline: none;
-            border-color: #6D0A0E;
-            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-soft-10);
         }
 
         .modern-search-icon {
@@ -59,8 +59,8 @@
 
         .modern-filter-btn:hover {
             background: #f1f3f4;
-            border-color: #6D0A0E;
-            color: #6D0A0E;
+            border-color: var(--color-primary);
+            color: var(--color-primary);
         }
 
         .modern-table {
@@ -98,7 +98,7 @@
 
         .modern-table thead th.sortable .sort-icon {
             margin-left: 8px;
-            color: #6D0A0E;
+            color: var(--color-primary);
             font-size: 14px;
         }
 
@@ -116,7 +116,7 @@
         }
 
         .modern-table tbody tr:hover {
-            background: rgba(109, 10, 14, 0.05) !important;
+            background: var(--color-primary-soft-medium) !important;
         }
 
         .modern-table tbody tr:last-child {
@@ -132,7 +132,7 @@
 
         .modern-table tbody td:first-child {
             font-weight: 500;
-            color: #6D0A0E;
+            color: var(--color-primary);
         }
 
         .modern-badge {
@@ -150,8 +150,8 @@
         }
 
         .modern-badge-info {
-            background: rgba(109, 10, 14, 0.08);
-            color: #6D0A0E;
+            background: var(--color-primary-soft);
+            color: var(--color-primary);
         }
 
         .modern-badge-warning {
@@ -190,15 +190,15 @@
 
         .modern-action-btn:hover {
             background: #f1f3f4;
-            border-color: #6D0A0E;
-            color: #6D0A0E;
+            border-color: var(--color-primary);
+            color: var(--color-primary);
             transform: scale(1.05);
         }
 
         .modern-action-btn.info:hover {
-            background: rgba(109, 10, 14, 0.08);
-            border-color: #6D0A0E;
-            color: #6D0A0E;
+            background: var(--color-primary-soft);
+            border-color: var(--color-primary);
+            color: var(--color-primary);
         }
 
         .modern-action-btn.warning:hover {
@@ -256,8 +256,8 @@
 
         .modern-select:focus {
             outline: none;
-            border-color: #6D0A0E;
-            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-soft-10);
         }
 
         .modern-modal {
@@ -328,7 +328,7 @@
             </div>
             <div class="col-md-2">
                 @if($this->selectedCount > 0)
-                <button wire:click="openWorkflowActionModal()" class="modern-filter-btn btn-block" style="background: #6D0A0E; color: white; border-color: #6D0A0E;">
+                <button wire:click="openWorkflowActionModal()" class="modern-filter-btn btn-block" style="background: var(--color-primary); color: white; border-color: var(--color-primary);">
                     <i class="mdi mdi-check-decagram"></i> Workflow Action ({{ $this->selectedCount }})
                 </button>
                 @endif
@@ -430,7 +430,7 @@
                                style="cursor: pointer;">
                     </td>
                     <td>
-                        <a href="{{ route('audit.audits.show', $audit->id) }}" style="color: #6D0A0E; text-decoration: none; font-weight: 500;">
+                        <a href="{{ route('audit.audits.show', $audit->id) }}" style="color: var(--color-primary); text-decoration: none; font-weight: 500;">
                             {{ $audit->audit_number }}
                         </a>
                     </td>
@@ -564,7 +564,7 @@
                                         style="color: #28a745;" 
                                         title="Previous step - can go back"
                                     @elseif($stepNum == $currentWorkflowStep)
-                                        style="color: #6D0A0E; font-weight: 600;"
+                                        style="color: var(--color-primary); font-weight: 600;"
                                         title="Current step"
                                     @else
                                         style="color: #17a2b8;"

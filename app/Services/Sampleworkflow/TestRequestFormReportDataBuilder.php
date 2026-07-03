@@ -849,7 +849,7 @@ class TestRequestFormReportDataBuilder
             ?: SystemConfiguration::query()
                 ->where('key', 'sys_theme_primary_color')
                 ->value('value')
-            ?: '#6D0A0E';
+            ?: \App\Services\System\ThemeService::PRIMARY;
 
         $logoSrc = $this->resolveLogoAsDataUri();
 

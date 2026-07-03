@@ -9,7 +9,7 @@
 		border-radius: var(--radius-md);
 		padding: var(--space-lg) var(--space-xl);
 		margin-bottom: 1.5rem;
-		box-shadow: 0 4px 14px rgba(109, 10, 14, 0.18);
+		box-shadow: 0 4px 14px var(--color-primary-highlight);
 		color: #fff;
 	}
 

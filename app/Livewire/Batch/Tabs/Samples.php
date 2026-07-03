@@ -40,6 +40,7 @@ class Samples extends Component
     public $not_captured = [];
     public $missingWorksheetParameters = [];
     public $incompleteCapturedResults = [];
+    public bool $showIncompleteResultsModal = false;
 
     // Staging edit form
     public $editingStagingId = null;
@@ -334,9 +335,36 @@ class Samples extends Component
     }
 
     /**
-     * Detect parameters in this batch that have a procedure worksheet configured
-     * but no worksheet values captured yet (missing worksheet results).
+     * @return array<string, list<array{analysis_type: string, parameter: string, status: string}>>
      */
+    public function getIncompleteCapturedResultsGroupedProperty(): array
+    {
+        $grouped = [];
+
+        foreach ($this->incompleteCapturedResults as $item) {
+            $sampleCode = (string) ($item['sample_code'] ?? 'N/A');
+            $grouped[$sampleCode][] = [
+                'analysis_type' => (string) ($item['analysis_type'] ?? 'N/A'),
+                'parameter' => (string) ($item['parameter'] ?? 'N/A'),
+                'status' => (string) ($item['status'] ?? 'incomplete'),
+            ];
+        }
+
+        ksort($grouped);
+
+        return $grouped;
+    }
+
+    public function openIncompleteResultsModal(): void
+    {
+        $this->showIncompleteResultsModal = true;
+    }
+
+    public function closeIncompleteResultsModal(): void
+    {
+        $this->showIncompleteResultsModal = false;
+    }
+
     protected function loadMissingWorksheetParameters(): void
     {
         try {

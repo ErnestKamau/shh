@@ -3,6 +3,7 @@
 namespace App\Services\Sampleworkflow;
 
 use App\Models\Equipments\Equipment;
+use App\Models\CRM\SamplePoint;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
@@ -76,11 +77,11 @@ final class SampleReceivingCheckInService
                 ?? $collectionData['sampling_date']
                 ?? ''
             ),
-            'sampling_location' => (string) (
+            'sampling_location' => $this->resolveSamplingLocationLabel(
                 $formData['sampling_location']
                 ?? $values['sampling_location']
                 ?? $collectionData['sampling_location']
-                ?? ''
+                ?? null
             ),
             'sampling_apparatus' => (string) $samplingApparatus,
             'thermometer_id' => $thermometerLabel,
@@ -288,6 +289,22 @@ final class SampleReceivingCheckInService
     private function containsHtml(string $value): bool
     {
         return $value !== strip_tags($value);
+    }
+
+    private function resolveSamplingLocationLabel(mixed $value): string
+    {
+        $reference = trim((string) ($value ?? ''));
+        if ($reference === '') {
+            return '';
+        }
+
+        if (preg_match('/^[0-9a-f-]{36}$/i', $reference)) {
+            $name = SamplePoint::query()->where('id', $reference)->value('name');
+
+            return $name !== null && $name !== '' ? (string) $name : $reference;
+        }
+
+        return $reference;
     }
 
 }

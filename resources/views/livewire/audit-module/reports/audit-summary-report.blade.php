@@ -1,7 +1,7 @@
 <div>
     <!-- Main Card -->
     <div class="card mb-4" style="border: none; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);">
-        <div class="card-header" style="background: #f8f9fa; border: none; border-left: 6px solid #6D0A0E; padding: 18px 24px;">
+        <div class="card-header" style="background: #f8f9fa; border: none; border-left: 6px solid var(--color-primary); padding: 18px 24px;">
             <div class="d-flex justify-content-between align-items-center">
                 <h4 class="mb-0" style="font-size: 1.35rem; font-weight: 600; color: #222;">
                     <i class="mdi mdi-file-document"></i> Audit Summary Report
@@ -22,7 +22,7 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="mdi mdi-magnify"></i> Search & Basic Filters</h5>
-                        <button type="button" class="btn btn-sm" style="border-color: #6D0A0E; color: #6D0A0E; font-weight: 600;" wire:click="$toggle('showAdvancedFilters')">
+                        <button type="button" class="btn btn-sm" style="border-color: var(--color-primary); color: var(--color-primary); font-weight: 600;" wire:click="$toggle('showAdvancedFilters')">
                             <i class="mdi {{ $showAdvancedFilters ? 'mdi-filter-variant-minus' : 'mdi-filter-variant-plus' }}"></i> 
                             Advanced Filters
                         </button>

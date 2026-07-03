@@ -8,6 +8,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Sampleworkflow\TestRequestFormPdfService;
+use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -224,11 +225,13 @@ class SubmissionFormSubmissionService
     ): void {
         foreach ($elements as $element) {
             $fieldName = $element->name;
-            // Check if this is a multiple select field (has [] in form name but not from rows)
-            $isMultipleSelect = $this->isMultipleSelectField($element, $request);
-            
             $inputValue = $request->input($fieldName);
             $fileValue = $request->file($fieldName);
+
+            // Check if this is a multiple select field (has [] in form name but not from rows)
+            $isMultipleSelect = $this->isMultipleSelectField($element, $request)
+                && ! $this->isIndexedRowFieldValues(is_array($inputValue) ? $inputValue : []);
+
             $isArray = is_array($inputValue) || is_array($fileValue);
 
             if ($isArray) {
@@ -365,6 +368,19 @@ class SubmissionFormSubmissionService
             app(TestRequestFormPdfService::class)->generateAndStore($instance->fresh(['values.element', 'submissionForm']));
         } catch (\Throwable $exception) {
             Log::warning('Test Request Form PDF generation failed after submission.', [
+                'instance_id' => $instance->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        try {
+            app(SubmissionFormInstanceDocumentAttachmentService::class)->attachTestRequestForm(
+                $instance->fresh(['values.element', 'submissionForm']),
+                auth()->id(),
+                regenerate: false,
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Test Request Form attachment sync failed after submission.', [
                 'instance_id' => $instance->id,
                 'message' => $exception->getMessage(),
             ]);
@@ -575,6 +591,18 @@ class SubmissionFormSubmissionService
         return false;
     }
 
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function isIndexedRowFieldValues(array $values): bool
+    {
+        if ($values === []) {
+            return false;
+        }
+
+        return array_keys($values) === array_keys(array_values($values));
+    }
+
     private function processMultipleSelectField(
         SubmissionFormInstance $instance,
         SubmissionFormElement $element,
@@ -597,7 +625,9 @@ class SubmissionFormSubmissionService
         ?string $filePath = null,
         ?int $arrayIndex = null
     ): void {
-        SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $value, $filePath, $arrayIndex): void {
+        $storedValue = $this->serializeValueForStorage($value);
+
+        SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $storedValue, $filePath, $arrayIndex): void {
             SubmissionFormInstanceValue::updateOrCreate(
                 [
                     'submission_form_instance_id' => $instance->id,
@@ -605,11 +635,49 @@ class SubmissionFormSubmissionService
                     'array_index' => $arrayIndex,
                 ],
                 [
-                    'value' => $value,
+                    'value' => $storedValue,
                     'file_path' => $filePath,
                 ]
             );
         });
+    }
+
+    private function serializeValueForStorage(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_array($value)) {
+            $flat = [];
+            foreach ($value as $item) {
+                if (is_array($item)) {
+                    foreach ($item as $nested) {
+                        if ($nested !== null && $nested !== '') {
+                            $flat[] = (string) $nested;
+                        }
+                    }
+
+                    continue;
+                }
+
+                if ($item !== null && $item !== '') {
+                    $flat[] = (string) $item;
+                }
+            }
+
+            $flat = array_values(array_filter(array_map('trim', $flat), fn (string $token): bool => $token !== ''));
+
+            return $flat === [] ? null : implode(',', $flat);
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        $string = trim((string) $value);
+
+        return $string === '' ? null : $string;
     }
 
     private function isElementVisibleInRequest(

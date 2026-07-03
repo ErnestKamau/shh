@@ -395,7 +395,7 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertNotDispatched('receive-completed');
     }
 
-    public function test_physical_check_in_persists_trf_metadata_on_linked_trfi(): void
+    public function test_physical_check_in_completes_without_signature_metadata_fields(): void
     {
         $form = $this->createCommercialTrfForm();
         $instance = $this->createSubmittedInstance($form);
@@ -406,44 +406,15 @@ class ReceiveSampleRequestTest extends TestCase
             'sent_to_customer_at' => now(),
             'status' => 'Quote Complete',
         ]);
-        $enquiry = $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION, $quotation->id);
-
-        $trfi = \App\Models\TestRequestFormInstance::query()->create([
-            'id' => (string) Str::uuid7(),
-            'test_request_form_id' => TestRequestForm::query()->create([
-                'id' => (string) Str::uuid7(),
-                'name' => 'TRF',
-                'code' => 'TRF-TEST',
-                'sample_type_id' => $this->createSampleType('Water', 'WTR-2')->id,
-                'form_fields' => ['sections' => []],
-                'is_active' => true,
-            ])->id,
-            'submission_form_instance_id' => $instance->id,
-            'sample_submission_request_id' => $enquiry->id,
-            'status' => TestRequestFormInstance::STATUS_SUBMITTED,
-            'form_data' => [],
-        ]);
-
-        $instance->update(['test_request_form_instance_id' => $trfi->id]);
+        $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION, $quotation->id);
 
         Livewire::actingAs($this->user)
             ->test(ReceiveSampleRequest::class, [
                 'selectedFormInstanceIds' => [$instance->id],
             ])
-            ->set('checkInTrfFields.'.$instance->id.'.statement_of_conformity', 'YES')
-            ->set('checkInTrfFields.'.$instance->id.'.sampled_by', 'John Doe / E123')
-            ->set('checkInTrfFields.'.$instance->id.'.customer_rep_contact', '+971 4 000 0000')
-            ->set('checkInTrfFields.'.$instance->id.'.remarks', 'Checked at reception')
+            ->set('checkInTrfFields.'.$instance->id.'.sampling_location', 'Site A')
             ->call('confirmReceive')
             ->assertDispatched('receive-completed');
-
-        $trfi->refresh();
-        $enquiry->refresh();
-
-        $this->assertSame('YES', $trfi->form_data['statement_of_conformity']);
-        $this->assertSame('John Doe / E123', $trfi->form_data['sampled_by']);
-        $this->assertSame('Checked at reception', $trfi->form_data['remarks']);
-        $this->assertSame('YES', $enquiry->statement_of_conformity);
     }
 
     public function test_confirm_receive_applies_same_checklist_to_multiple_instances(): void

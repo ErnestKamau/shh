@@ -8,6 +8,8 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\SampleDetailStaging;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\TrfSampleFieldMapper;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -55,6 +57,7 @@ class SubmissionFormBatchSyncService
 
             $headerData = $slice['sample_header'] ?? [];
             $proposed = $this->collectProposedHeaderAttributeMap($header, $headerData);
+            $proposed = $this->mergeTrfMappedHeaderFields($header, $proposed);
 
             if ($this->headerAttributeMapDiffersFromModel($header, $proposed)) {
                 return true;
@@ -202,6 +205,7 @@ class SubmissionFormBatchSyncService
     private function applyHeaderFieldsFromSlice(SampleHeader $header, array $headerData): void
     {
         $proposed = $this->collectProposedHeaderAttributeMap($header, $headerData);
+        $proposed = $this->mergeTrfMappedHeaderFields($header, $proposed);
 
         $crmUnitId = $proposed['crm_unit_id'] ?? null;
         $crmUnitName = $proposed['crm_unit_name'] ?? '';
@@ -303,6 +307,8 @@ class SubmissionFormBatchSyncService
             if (array_key_exists($key, $headerData)) {
                 if (in_array($key, ['receipt_date', 'date_collected', 'date_expected'], true)) {
                     $attributes[$key] = $formatDate($headerData[$key] ?? null, $headerDateDefault($key));
+                } elseif (in_array($key, ['crm_customer_id', 'crm_contact_id'], true)) {
+                    $attributes[$key] = $getSingleValue($headerData[$key] ?? null);
                 } elseif (str_ends_with($key, '_id') && $key !== 'quote_id') {
                     $attributes[$key] = $getIntegerValue($headerData[$key] ?? null);
                 } elseif ($key === 'quote_id' || $key === 'require_mu' || $key === 'is_routine' || $key === 'routine_frequency' || $key === 'is_client_order') {
@@ -343,6 +349,45 @@ class SubmissionFormBatchSyncService
         }
 
         return $attributes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $proposed
+     * @return array<string, mixed>
+     */
+    private function mergeTrfMappedHeaderFields(SampleHeader $header, array $proposed): array
+    {
+        if ($header->submission_form_instance_id === null || $header->submission_form_instance_id === '') {
+            return $proposed;
+        }
+
+        $instance = SubmissionFormInstance::query()
+            ->with(['values.element', 'crmCustomer'])
+            ->find($header->submission_form_instance_id);
+
+        if ($instance === null) {
+            return $proposed;
+        }
+
+        $formData = app(SubmissionFormValueNormalizer::class)->valuesMapFromInstance($instance);
+        $trfMapped = app(TrfSampleFieldMapper::class)->mapToSampleHeader($formData, [
+            'crm_customer_id' => $proposed['crm_customer_id'] ?? $header->crm_customer_id,
+            'crm_contact_id' => $proposed['crm_contact_id'] ?? $header->crm_contact_id,
+            'email' => $proposed['schedule_customer_email'] ?? $header->schedule_customer_email,
+        ]);
+
+        foreach ($trfMapped as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $current = $proposed[$key] ?? $header->{$key} ?? null;
+            if ($current === null || $current === '') {
+                $proposed[$key] = $value;
+            }
+        }
+
+        return $proposed;
     }
 
     /**

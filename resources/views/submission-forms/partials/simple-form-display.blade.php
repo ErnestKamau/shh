@@ -8,7 +8,7 @@
             {{-- Section Title (Sticky) --}}
             <div class="clinical-section-header">
                 <h3 class="clinical-section-title">
-                    <i class="mdi mdi-folder-outline mr-2" style="color: #6D0A0E;"></i>
+                    <i class="mdi mdi-folder-outline mr-2" style="color: var(--color-primary);"></i>
                     {{ $section['title'] }}
                 </h3>
                 @if($section['description'])
@@ -221,7 +221,7 @@
 }
 
 .text-primary {
-    color: #6D0A0E !important;
+    color: var(--color-primary) !important;
 }
 
 /* Responsive table with vertical scrolling */
@@ -300,7 +300,7 @@
 }
 
 .badge-primary {
-    background-color: #6D0A0E;
+    background-color: var(--color-primary);
     color: white;
 }
 

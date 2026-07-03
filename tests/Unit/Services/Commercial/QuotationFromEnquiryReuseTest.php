@@ -111,6 +111,55 @@ class QuotationFromEnquiryReuseTest extends TestCase
         $this->assertSame(15.0, (float) $lines[0]['tax']);
     }
 
+    public function test_summarize_quotation_analysis_types_lists_unique_names(): void
+    {
+        $customerId = (string) Str::uuid();
+        $sampleTypeId = (string) Str::uuid();
+        $analysisTypeA = (string) Str::uuid();
+        $analysisTypeB = (string) Str::uuid();
+
+        $header = $this->createQuotation($customerId, [
+            'status' => 'Quote Complete',
+            'quotation_type' => 'Analysis',
+        ]);
+
+        QuotationDetails::query()->create([
+            'id' => (string) Str::uuid(),
+            'quotation_header_id' => $header->id,
+            'sample_type' => $sampleTypeId,
+            'quantity' => 1,
+            'unit_price' => 100,
+            'tax' => 0,
+            'part_no' => $analysisTypeA.','.$analysisTypeB,
+            'description' => 'Bundle',
+        ]);
+
+        AnalysisType::query()->create([
+            'id' => $analysisTypeA,
+            'name' => 'Cooked',
+            'code' => 'CKD',
+            'sample_type_id' => $sampleTypeId,
+            'lab_id' => (string) Str::uuid(),
+            'company_id' => (string) Str::uuid(),
+            'active' => 1,
+        ]);
+
+        AnalysisType::query()->create([
+            'id' => $analysisTypeB,
+            'name' => 'Ready to Eat',
+            'code' => 'RTE',
+            'sample_type_id' => $sampleTypeId,
+            'lab_id' => (string) Str::uuid(),
+            'company_id' => (string) Str::uuid(),
+            'active' => 1,
+        ]);
+
+        $summary = app(QuotationFromEnquiryService::class)
+            ->summarizeQuotationAnalysisTypes($header->fresh('details'));
+
+        $this->assertSame('Cooked, Ready to Eat', $summary);
+    }
+
     public function test_link_existing_quotation_reuses_shared_quote_without_cloning(): void
     {
         $customerId = (string) Str::uuid();

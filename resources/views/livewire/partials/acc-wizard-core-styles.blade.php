@@ -1,8 +1,8 @@
 <style>
     .acc-wizard-root {
-        --acc-accent: var(--color-primary, #6D0A0E);
-        --acc-accent-dark: var(--color-primary-hover, #8B1E22);
-        --acc-accent-soft: var(--color-primary-soft, rgba(109, 10, 14, 0.08));
+        --acc-accent: var(--color-primary, var(--color-primary));
+        --acc-accent-dark: var(--color-primary-hover, var(--color-primary-hover));
+        --acc-accent-soft: var(--color-primary-soft, var(--color-primary-soft));
         --acc-border: #e5e7eb;
         --acc-muted: #6b7280;
         --acc-text: #111827;
@@ -209,7 +209,7 @@
 
     .acc-input:focus {
         border-color: var(--acc-accent);
-        box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.15);
+        box-shadow: 0 0 0 3px var(--color-primary-highlight);
     }
 
     .acc-wizard-footer {
@@ -433,6 +433,61 @@
         width: 110px;
     }
 
+    .acc-sample-config-table--acceptance {
+        table-layout: fixed;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-sample-type {
+        width: 18%;
+        min-width: 100px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-analysis-type {
+        width: 20%;
+        min-width: 110px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-condition {
+        width: 11%;
+        min-width: 96px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-main-standard {
+        width: 22%;
+        min-width: 110px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-lab {
+        width: 12%;
+        min-width: 80px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-qty {
+        width: 56px;
+    }
+
+    .acc-sample-config-table--acceptance thead th {
+        white-space: normal;
+        line-height: 1.25;
+        padding: 0.5rem 0.45rem;
+        font-size: 0.62rem;
+    }
+
+    .acc-sample-config-table--acceptance tbody td {
+        padding: 0.55rem 0.45rem;
+    }
+
+    .acc-sample-config-table--acceptance .acc-config-readonly {
+        font-size: 0.8rem;
+        padding: 0.25rem 0;
+        word-break: break-word;
+    }
+
+    .acc-sample-config-table--acceptance .form-control-sm {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.4rem;
+    }
+
     .acc-sample-config-main-row td {
         background: #fff;
         border-bottom: 1px solid #f1f5f9;
@@ -523,7 +578,7 @@
         letter-spacing: 0.02em;
         color: var(--acc-accent);
         background: var(--acc-accent-soft);
-        border: 1px solid rgba(109, 10, 14, 0.2);
+        border: 1px solid var(--color-primary-shadow);
         white-space: nowrap;
     }
 
@@ -537,7 +592,7 @@
         font-weight: 600;
         padding: 0.2rem 0.65rem;
         color: var(--acc-accent);
-        border-color: rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary-focus);
         background: #fff;
     }
 
@@ -586,14 +641,14 @@
     }
 
     .acc-sample-config-param-chip:hover {
-        border-color: rgba(109, 10, 14, 0.28);
+        border-color: var(--color-primary-border-soft);
         background: var(--acc-accent-soft);
     }
 
     .acc-sample-config-param-chip.is-selected {
         border-color: var(--acc-accent);
         background: var(--acc-accent-soft);
-        box-shadow: inset 0 0 0 1px rgba(109, 10, 14, 0.12);
+        box-shadow: inset 0 0 0 1px var(--color-primary-highlight);
     }
 
     .acc-sample-config-param-chip input {

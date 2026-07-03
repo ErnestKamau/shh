@@ -27,9 +27,9 @@
   --crm-space-8: 48px;
 
   /* Primary */
-  --crm-primary: #6D0A0E;
-  --crm-primary-hover: #8B1E22;
-  --crm-primary-light: rgba(109, 10, 14, 0.1);
+  --crm-primary: var(--color-primary);
+  --crm-primary-hover: var(--color-primary-hover);
+  --crm-primary-light: var(--color-primary-soft-10);
 
   /* Neutrals */
   --crm-neutral-50: #f8fafc;
@@ -762,7 +762,7 @@
   align-items: center;
   gap: 6px;
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
-  box-shadow: 0 1px 3px rgba(109, 10, 14, 0.35);
+  box-shadow: 0 1px 3px var(--color-primary-border-soft);
   cursor: pointer;
   white-space: nowrap;
   line-height: 1.4;
@@ -784,7 +784,7 @@
 .btn-add:focus {
   background-color: var(--crm-primary-hover) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 8px rgba(109, 10, 14, 0.4);
+  box-shadow: 0 4px 8px var(--color-primary-glow);
   transform: translateY(-1px);
   text-decoration: none;
 }
@@ -792,7 +792,7 @@
 .btn-add:active {
   background-color: #56080b !important;
   transform: translateY(0);
-  box-shadow: 0 1px 3px rgba(109, 10, 14, 0.3);
+  box-shadow: 0 1px 3px var(--color-primary-border-soft);
   color: #ffffff !important;
 }
 
@@ -1469,7 +1469,7 @@
 
 /* Variant styles for activities */
 .crm-activity-item.ev-created .crm-activity-avatar { background: var(--crm-success-light); color: var(--crm-success); border-color: rgba(16, 185, 129, 0.1); }
-.crm-activity-item.ev-updated .crm-activity-avatar { background: var(--crm-primary-light); color: var(--crm-primary); border-color: rgba(109, 10, 14, 0.1); }
+.crm-activity-item.ev-updated .crm-activity-avatar { background: var(--crm-primary-light); color: var(--crm-primary); border-color: var(--color-primary-soft-10); }
 .crm-activity-item.ev-deleted .crm-activity-avatar { background: var(--crm-danger-light); color: var(--crm-danger); border-color: rgba(239, 68, 68, 0.1); }
 
 /* KPI / Chart Header refine */
@@ -1577,9 +1577,9 @@
 .crm-tab-link.active {
   color: var(--crm-primary);
   background: var(--crm-primary-light);
-  border-color: rgba(109, 10, 14, 0.15);
+  border-color: var(--color-primary-highlight);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(109, 10, 14, 0.05);
+  box-shadow: 0 1px 2px var(--color-primary-soft-medium);
 }
 
 .crm-tab-link.active i {

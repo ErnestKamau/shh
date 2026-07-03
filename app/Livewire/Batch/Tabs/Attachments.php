@@ -9,6 +9,8 @@ use App\CapturedResult;
 use App\BatchAttachment;
 use App\Models\System\SystemConfiguration;
 use App\Models\RequestWorkflowForm;
+use App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService;
+use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -39,6 +41,32 @@ class Attachments extends Component
     public function mount(SampleHeader $batch): void
     {
         $this->batch = $batch;
+        $this->syncMissingWorkflowDocuments();
+    }
+
+    private function syncMissingWorkflowDocuments(): void
+    {
+        $requiredTitles = [
+            BatchWorkflowDocumentAttachmentService::QUOTATION_TITLE,
+            TestRequestFormPdfService::ATTACHMENT_TITLE,
+        ];
+
+        $existingTitles = BatchAttachment::query()
+            ->where('batch_id', $this->batch->id)
+            ->whereIn('title', $requiredTitles)
+            ->pluck('title')
+            ->all();
+
+        if (count(array_intersect($requiredTitles, $existingTitles)) === count($requiredTitles)) {
+            return;
+        }
+
+        if (empty($this->batch->quote_id) && empty($this->batch->submission_form_instance_id)) {
+            return;
+        }
+
+        app(BatchWorkflowDocumentAttachmentService::class)
+            ->attachForAcceptedBatch($this->batch, Auth::id() ? (string) Auth::id() : null);
     }
 
     public function updatingSearch(): void
@@ -218,6 +246,15 @@ class Attachments extends Component
         $this->dispatch('attachmentTypeSaved');
     }
 
+    public function syncWorkflowDocuments(): void
+    {
+        app(BatchWorkflowDocumentAttachmentService::class)
+            ->attachForAcceptedBatch($this->batch, Auth::id() ? (string) Auth::id() : null);
+
+        $this->dispatch('attachmentsUpdated');
+        session()->flash('success', 'Workflow documents synced to this batch.');
+    }
+
     public function deleteAttachment($attachmentId)
     {
         $attachment = BatchAttachment::find($attachmentId);
@@ -394,6 +431,95 @@ class Attachments extends Component
         return $this->batch->submissionFormInstance ? $this->batch->submissionFormInstance->customAttachments : collect();
     }
 
+    public function getQuotationDocumentProperty()
+    {
+        $documentService = app(BatchWorkflowDocumentAttachmentService::class);
+
+        $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+            ->where('title', BatchWorkflowDocumentAttachmentService::QUOTATION_TITLE)
+            ->orderByDesc('created_at')
+            ->first();
+
+        $quotation = $documentService->resolveQuotationForBatch($this->batch);
+
+        if ($attachment) {
+            $attachmentUrl = $attachment->attachment_url;
+            if ($quotation !== null && $this->isLegacyQuotationStorageUrl($attachmentUrl)) {
+                $attachmentUrl = $documentService->resolveQuotationPublicUrl($quotation, $this->batch);
+            }
+
+            return (object) [
+                'id' => $attachment->id,
+                'title' => $attachment->title,
+                'submitted_at' => $attachment->created_at,
+                'attachment_url' => $attachmentUrl,
+            ];
+        }
+
+        if ($quotation === null) {
+            return null;
+        }
+
+        return (object) [
+            'id' => $quotation->id,
+            'title' => BatchWorkflowDocumentAttachmentService::QUOTATION_TITLE,
+            'submitted_at' => $quotation->updated_at ?? $quotation->created_at,
+            'attachment_url' => $documentService->resolveQuotationPublicUrl($quotation, $this->batch),
+            'quote_number' => $quotation->quote_number,
+        ];
+    }
+
+    private function isLegacyQuotationStorageUrl(?string $url): bool
+    {
+        $url = trim((string) $url);
+
+        return $url !== '' && str_starts_with($url, '/quotations/');
+    }
+
+    public function getTestRequestFormDocumentProperty()
+    {
+        $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+            ->where('title', TestRequestFormPdfService::ATTACHMENT_TITLE)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($attachment) {
+            return (object) [
+                'id' => $attachment->id,
+                'title' => $attachment->title,
+                'submitted_at' => $attachment->created_at,
+                'attachment_url' => $attachment->attachment_url,
+            ];
+        }
+
+        $instance = app(BatchWorkflowDocumentAttachmentService::class)->resolveSubmissionFormInstanceForBatch($this->batch);
+        if ($instance === null) {
+            return null;
+        }
+
+        $storagePath = app(TestRequestFormPdfService::class)->resolveStoragePath($instance);
+        if (! \Illuminate\Support\Facades\Storage::disk('public')->exists($storagePath)) {
+            return (object) [
+                'id' => $instance->id,
+                'title' => TestRequestFormPdfService::ATTACHMENT_TITLE,
+                'submitted_at' => $instance->updated_at ?? $instance->created_at,
+                'attachment_url' => route('submission-forms.trf-pdf', [
+                    'submissionForm' => $instance->submission_form_id,
+                    'instance' => $instance->id,
+                ]),
+                'form_number' => $instance->form_number,
+            ];
+        }
+
+        return (object) [
+            'id' => $instance->id,
+            'title' => TestRequestFormPdfService::ATTACHMENT_TITLE,
+            'submitted_at' => $instance->updated_at ?? $instance->created_at,
+            'attachment_url' => app(TestRequestFormPdfService::class)->resolvePublicUrl($instance),
+            'form_number' => $instance->form_number,
+        ];
+    }
+
     public function getReportAttachmentsProperty()
     {
         $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02', 'DCEA 009'];
@@ -443,7 +569,9 @@ class Attachments extends Component
             'GCLA 02',
             'DCEA 009',
             'SRO',
-            'Disclaimer'
+            'Disclaimer',
+            'Quotation',
+            'Test Request Form',
         ];
         return $this->attachments->filter(function($a) use ($excludedTitles) {
             $name = str_replace('_', ' ', strtolower($a->title));
@@ -466,6 +594,8 @@ class Attachments extends Component
             'acceptanceForm'                => $this->acceptanceForm,
             'rejectionForm'                 => $this->rejectionForm,
             'receiptNotification'           => $this->receiptNotification,
+            'quotationDocument'             => $this->quotationDocument,
+            'testRequestFormDocument'       => $this->testRequestFormDocument,
             'customerAttachments'           => $this->customerAttachments,
             'reportAttachments'             => $this->reportAttachments,
             'sampleAttachments'             => $this->sampleAttachments,

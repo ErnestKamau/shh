@@ -28,4 +28,16 @@ class SystemConfiguration extends Model implements Auditable
     ];
 
     protected $table = 'system_configurations';
+
+    /**
+     * Decrypt legacy/plaintext values that predate the encrypted cast.
+     */
+    public function fromEncryptedString($value)
+    {
+        try {
+            return parent::fromEncryptedString($value);
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
 }

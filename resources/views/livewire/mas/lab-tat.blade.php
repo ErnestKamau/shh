@@ -1,7 +1,7 @@
 <div>
 <style>
     .testing-dashboard { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; }
-    .kebs-title-bar { background: linear-gradient(135deg, #6D0A0E 0%, #a8141b 100%); color: white; padding: 18px 20px 14px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 12px 24px -14px rgba(109,10,14,0.6); }
+    .kebs-title-bar { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%); color: white; padding: 18px 20px 14px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 12px 24px -14px rgba(0, 167, 223, 0.6); }
     .tat-header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
     .tat-header-title h5 { letter-spacing: 0.04em; }
     .tat-header-title small { display: inline-block; margin-top: 4px; }
@@ -24,25 +24,25 @@
     .tat-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff; font-size: 12px; line-height: 1; }
     .tat-filter-chip strong { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.88); }
     .tat-filter-chip-muted { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.82); }
-    .metric-card { background-color: #6D0A0E; color: white; border-radius: 4px; text-align: center; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; height: 90px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .metric-card { background-color: var(--color-primary); color: white; border-radius: 4px; text-align: center; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; height: 90px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .metric-card:hover { transform: translateY(-2px); }
     .metric-card.dark { background-color: #4a0709; }
     .metric-label { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; opacity: 0.9; }
     .metric-value { font-size: 20px; font-weight: bold; }
     .pivot-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 100%; display: flex; flex-direction: column; width: 100%; margin-bottom: 0 !important; }
     .pivot-card .table-responsive { flex-grow: 1; }
-    .pivot-header { background-color: #6D0A0E; color: white; padding: 8px 15px; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .pivot-header { background-color: var(--color-primary); color: white; padding: 8px 15px; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; }
     .pivot-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .pivot-table th { background-color: rgba(109, 10, 14, 0.08); padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: #6D0A0E; }
+    .pivot-table th { background-color: var(--color-primary-soft); padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: var(--color-primary); }
     .pivot-table td { padding: 8px 10px; border: 1px solid #e2e8f0; color: #475569; vertical-align: middle; }
     .pivot-table tr:hover { background-color: #f8fafc; }
-    .pivot-table tr.table-active td { background-color: rgba(109, 10, 14, 0.08); }
+    .pivot-table tr.table-active td { background-color: var(--color-primary-soft); }
     .compliance-bar-container { height: 16px; background-color: #f1f5f9; border-radius: 2px; overflow: hidden; position: relative; }
     .compliance-bar { height: 100%; }
     .compliance-text { position: absolute; top:0; left:0; width:100%; height:100%; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#1e293b; }
-    .scc-box { background-color: rgba(109, 10, 14, 0.08); border: 1px solid rgba(109, 10, 14, 0.2); padding: 15px; border-radius: 4px; text-align: center; margin-bottom: 10px; }
-    .scc-label { font-size: 12px; font-weight: bold; color: #6D0A0E; margin-bottom: 5px; }
-    .scc-value { font-size: 18px; font-weight: bold; color: #6D0A0E; }
+    .scc-box { background-color: var(--color-primary-soft); border: 1px solid var(--color-primary-shadow); padding: 15px; border-radius: 4px; text-align: center; margin-bottom: 10px; }
+    .scc-label { font-size: 12px; font-weight: bold; color: var(--color-primary); margin-bottom: 5px; }
+    .scc-value { font-size: 18px; font-weight: bold; color: var(--color-primary); }
     .opacity-75 { opacity: 0.75; }
     @media (max-width: 991.98px) {
         .tat-filter-field,

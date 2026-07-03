@@ -450,13 +450,13 @@
     }
     
     .single-select-container:hover {
-        border-color: #6D0A0E;
-        box-shadow: 0 2px 8px rgba(109, 10, 14, 0.1);
+        border-color: var(--color-primary);
+        box-shadow: 0 2px 8px var(--color-primary-soft-10);
     }
     
     .single-select-container:has(.searchable-input-single:focus) {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
     }
     
     .options-list {
@@ -490,7 +490,7 @@
     }
     
     .option-item.selected {
-        background: rgba(109, 10, 14, 0.08);
+        background: var(--color-primary-soft);
         font-weight: 500;
     }
     

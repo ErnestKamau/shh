@@ -339,8 +339,8 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="control-label">User To Notify</label>
-                        <select class="form-control" name="user_id" required placeholder="Select User...">
-                            <option></option>
+                        <select class="form-control no-select2" name="user_id" required>
+                            <option value="">Select user...</option>
                             @foreach ($notifiable_users as $item)
                                 <option value="{{ $item->id }}">{{ $item->name }}</option>
                             @endforeach
@@ -350,8 +350,7 @@
                         <label class="control-label">
                             Also Notify <small class="text-muted">*Optional</small>
                         </label>
-                        <select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
-                            <option></option>
+                        <select class="form-control no-select2" name="followers[]" multiple>
                             @foreach ($notifiable_users as $item)
                                 <option value="{{ $item->id }}">{{ $item->name }}</option>
                             @endforeach
@@ -360,8 +359,8 @@
 					<input name="batch_id" type="hidden" value="{{ $batch->id ?? '' }}" />
                     <div class="form-group">
                         <label class="control-label">Type</label>
-                        <select class="form-control" name="type" required placeholder="Message Type...">
-                            <option></option>
+                        <select class="form-control no-select2" name="type" required>
+                            <option value="">Select type...</option>
 							@if(($batch->status ?? null) == 'Sample Verification' || ($batch->status ?? null) == 'Samples In Lab')
                                 <option value="Recheck">Recheck</option>
                             @endif
@@ -547,18 +546,16 @@
                     
                     <div class="form-group">
                         <label class="control-label">Method</label>
-                        <select class="form-control" name="method_id" id="settings_method_id">
+                        <select class="form-control no-select2" name="method_id" id="settings_method_id">
                             <option value="">Select Method...</option>
-                            @foreach ($methods as $item)
-                                <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
-                                    {{ is_array($item) ? ($item['name'] ?? $item['id'] ?? '') : (is_object($item) ? ($item->name ?? $item->id ?? '') : (string) $item) }}
-                                </option>
+                            @foreach ($methods as $methodId => $methodName)
+                                <option value="{{ $methodId }}">{{ $methodName }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="control-label">Reporting Unit</label>
-                        <select class="form-control" name="reporting_unit" id="settings_reporting_unit">
+                        <select class="form-control no-select2" name="reporting_unit" id="settings_reporting_unit">
                             <option value="">Select Reporting Unit...</option>
                             @foreach ($reportingUnits as $item)
                                 <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
@@ -569,7 +566,7 @@
                     </div>
                     <div class="form-group">
                         <label class="control-label">Analyst/Operator</label>
-                        <select class="form-control" name="analyst_id" id="settings_analyst_id">
+                        <select class="form-control no-select2" name="analyst_id" id="settings_analyst_id">
                             <option value="">Select Analyst...</option>
                             @foreach ($analysts as $item)
                                 <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
@@ -606,6 +603,12 @@
     </div>
 
     {{-- Edit Standard Modal --}}
+    <style>
+        #edit-standard-modal .modal-content,
+        #edit-standard-modal .modal-body {
+            overflow: visible;
+        }
+    </style>
     <div id="edit-standard-modal" class="modal fade" role="dialog">
         <div class="modal-dialog">
             <form class="modal-content" id="edit-standard-form">
@@ -628,7 +631,7 @@
                     </div>
                     <div class="form-group">
                         <label class="control-label">Limit Type</label>
-                        <select class="form-control" name="limit_type" id="standard_limit_type" required>
+                        <select class="form-control no-select2" name="limit_type" id="standard_limit_type" required>
                             <option value="MAX">MAX</option>
                             <option value="MIN">MIN</option>
                             <option value="RANGE">RANGE</option>
@@ -660,14 +663,14 @@
 
             unlockTimer = setTimeout(function () {
                 unlockTimer = null;
-                var hasOpenModal = document.querySelector('.modal.show');
+                var hasOpenModal = document.querySelector('.modal.show, .modal.in');
 
                 if (!hasOpenModal) {
                     document.body.classList.remove('modal-open');
                     document.body.style.removeProperty('overflow');
                     document.body.style.removeProperty('padding-right');
                 }
-            }, 100);
+            }, 250);
         }
 
         document.addEventListener('DOMContentLoaded', unlockStuckScroll);
@@ -675,9 +678,45 @@
 
         document.addEventListener('livewire:initialized', function () {
             unlockStuckScroll();
-            Livewire.hook('morph.updated', unlockStuckScroll);
         });
     })();
+
+    $(document).on('click', '[data-target="#add-attachment-batch"]', function (event) {
+        event.preventDefault();
+        var $modal = $('#add-attachment-batch');
+        if ($modal.length) {
+            $modal.appendTo('body').modal('show');
+        }
+    });
+
+    $(document).on('click', '[data-target="#add-sample-notes"]', function (event) {
+        event.preventDefault();
+        var $modal = $('#add-sample-notes');
+        if ($modal.length) {
+            $modal.appendTo('body').modal('show');
+        }
+    });
+
+    $(document).on('click', '[data-target="#edit-standard-modal"], .edit-standard-btn', function (event) {
+        var $modal = $('#edit-standard-modal');
+        if ($modal.length) {
+            $modal.appendTo('body');
+        }
+    });
+
+    $('#add-sample-notes').on('shown.bs.modal', function () {
+        var $modal = $(this);
+        $modal.find('select.no-select2').each(function () {
+            var $select = $(this);
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
+            $select.select2({
+                width: '100%',
+                dropdownParent: $modal
+            });
+        });
+    });
 
 	// Setup CSRF token for all AJAX requests
 	$.ajaxSetup({
@@ -691,13 +730,14 @@
 		$('#client-unit-select').html('<option value="" selected>Select Site Location...</option>');
 		$('#client-unit-select').trigger('change');
 
-		if(op.val() > 0){
+		if(op.val() && String(op.val()).trim() !== ''){
 			$.ajax({
 				url:`/get/Client-Details/Ajax/${op.val()}`,
 				method:'GET',
 				success:(data)=>{
 					// Update contacts
 					$('#crm_contact_id').empty();
+					$('#crm_contact_id').append('<option value="">Choose contact...</option>');
 					$.each(data['contacts'],(i,obj)=>{
 						var name = `${obj.first_name} ${obj.middle_name || ''} ${obj.last_name || ''}`
 						var option = `<option value="${obj.id}">${name}</option>`
@@ -716,9 +756,19 @@
 						$('#client-unit-select').append('<option value="'+e.id+'">'+e.name+'</option>');
 					});
 
-					// Default customer email from CRM
-					if (data['customer'] && data['customer'].email) {
+					// Default customer email from CRM only when batch has no saved email
+					if (data['customer'] && data['customer'].email && !$('#customer_email').val()) {
 						$('#customer_email').val(data['customer'].email);
+					}
+
+					var selectedContactId = $('#crm_contact_id').data('selected');
+					if (selectedContactId && data['contacts']) {
+						var matchedContact = data['contacts'].find(function (contact) {
+							return String(contact.id) === String(selectedContactId);
+						});
+						if (matchedContact && matchedContact.email && !$('#customer_email').val()) {
+							$('#customer_email').val(matchedContact.email);
+						}
 					}
 
 					if (data['mode_of_payment']) {
@@ -1116,6 +1166,20 @@
 			}
 		});
 
+		$('#parameter-settings-modal').on('shown.bs.modal', function () {
+			var $modal = $(this);
+			$modal.find('select.no-select2').each(function () {
+				var $select = $(this);
+				if ($select.hasClass('select2-hidden-accessible')) {
+					$select.select2('destroy');
+				}
+				$select.select2({
+					width: '100%',
+					dropdownParent: $modal,
+				});
+			});
+		});
+
 		// Save parameter settings form submission
 		$('#parameter-settings-form').on('submit', function(e) {
 			e.preventDefault();
@@ -1159,6 +1223,38 @@
 			});
 		});
 
+		function populateEditStandardForm(existingText) {
+			$('#standard_value').val('');
+			$('#standard_limit_type').val('MAX');
+
+			if (!existingText || existingText === 'No limit set') {
+				return;
+			}
+
+			var typedMatch = existingText.match(/^(min|max)\s+(\d+(?:\.\d+)?)$/i);
+			if (typedMatch) {
+				$('#standard_limit_type').val(typedMatch[1].toUpperCase());
+				$('#standard_value').val(typedMatch[2]);
+				return;
+			}
+
+			var reversedMatch = existingText.match(/^(\d+(?:\.\d+)?)\s+(min|max)$/i);
+			if (reversedMatch) {
+				$('#standard_limit_type').val(reversedMatch[2].toUpperCase());
+				$('#standard_value').val(reversedMatch[1]);
+				return;
+			}
+
+			if (/^\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?$/i.test(existingText)) {
+				$('#standard_limit_type').val('RANGE');
+				$('#standard_value').val(existingText);
+				return;
+			}
+
+			$('#standard_value').val(existingText);
+			$('#standard_limit_type').val('MAX');
+		}
+
 		// Edit standard modal show handler
 		$(document).on('click', '.edit-standard-btn', function() {
 			var $btn = $(this);
@@ -1172,12 +1268,36 @@
 			$('#standard_analyte').val(analyte || '');
 
 			var existingText = $btn.siblings('.standard-limit-text').text().trim();
-			if (existingText && existingText !== 'No limit set') {
-				var parts = existingText.split(' ');
-				var val = parts[0];
-				var type = parts.length > 1 ? parts[1].toUpperCase() : 'MAX';
-				$('#standard_value').val(val);
-				$('#standard_limit_type').val(type);
+			populateEditStandardForm(existingText);
+
+			if (resultId) {
+				$.ajax({
+					url: `/captured-results/get-standard-settings/${resultId}`,
+					method: 'GET',
+					success: function(response) {
+						if (response.success && response.data) {
+							$('#standard_value').val(response.data.standard_value || '');
+							$('#standard_limit_type')
+								.val(response.data.limit_type || 'MAX')
+								.trigger('change');
+						}
+					}
+				});
+			}
+		});
+
+		$('#edit-standard-modal').on('shown.bs.modal', function () {
+			var $modal = $(this);
+			var $select = $modal.find('#standard_limit_type');
+			if ($.fn.select2) {
+				if ($select.hasClass('select2-hidden-accessible')) {
+					$select.select2('destroy');
+				}
+				$select.select2({
+					width: '100%',
+					dropdownParent: $modal,
+					minimumResultsForSearch: Infinity,
+				});
 			}
 		});
 
@@ -1215,6 +1335,15 @@
 
 						if (response.standard_limit) {
 							$editBtn.siblings('.standard-limit-text').text(response.standard_limit);
+						}
+
+						$input.removeClass('border-success border-danger border-secondary');
+						if (response.validation_result === 'PASS') {
+							$input.addClass('border-success');
+						} else if (response.validation_result === 'FAIL') {
+							$input.addClass('border-danger');
+						} else {
+							$input.addClass('border-secondary');
 						}
 						
 						// Trigger change on result input to re-validate styling with new limit

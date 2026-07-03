@@ -11,7 +11,9 @@ use App\Models\System\SystemConfiguration;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleHeader;
+use App\Services\Lab\UncertaintyBudgetResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -71,7 +73,8 @@ class QuotationReportService
     ];
 
     public function __construct(
-        private readonly QuotationPricingResolver $pricingResolver
+        private readonly QuotationPricingResolver $pricingResolver,
+        private readonly UncertaintyBudgetResolver $uncertaintyBudgetResolver,
     ) {}
 
     /**
@@ -421,6 +424,27 @@ class QuotationReportService
         $details = QuotationDetails::where('quotation_header_id', $header->id)->get();
         $grouped = [];
 
+        $elementIds = [];
+        foreach ($details as $detail) {
+            if ($header->quotation_type !== 'General') {
+                $elementIds = array_merge(
+                    $elementIds,
+                    $this->pricingResolver->collectElementIdsFromDetail($detail),
+                );
+            }
+        }
+        $elementIds = array_values(array_unique(array_filter($elementIds)));
+
+        /** @var Collection<string, AnalysisElements> $elementsById */
+        $elementsById = $elementIds === []
+            ? collect()
+            : AnalysisElements::with(['ltmethod', 'mmethod'])
+                ->whereIn('id', $elementIds)
+                ->get()
+                ->keyBy('id');
+
+        $budgets = $this->uncertaintyBudgetResolver->preloadForElements($elementsById->values());
+
         foreach ($details as $detail) {
             if ($header->quotation_type === 'General') {
                 $sampleTypeName = $detail->item_name ?: 'General Items';
@@ -461,8 +485,8 @@ class QuotationReportService
             }
 
             foreach ($elementIds as $elementId) {
-                $element = AnalysisElements::with(['ltmethod', 'mmethod'])->find($elementId);
-                if (! $element) {
+                $element = $elementsById->get($elementId);
+                if ($element === null) {
                     continue;
                 }
 
@@ -471,6 +495,7 @@ class QuotationReportService
                     $detail,
                     $element,
                     (float) $detail->unit_price,
+                    $budgets,
                 );
             }
         }
@@ -562,7 +587,7 @@ class QuotationReportService
     public function resolveCompanyBranding(bool $forPdf = false): array
     {
         $primary = $this->configValue('sys_quotation_primary_color')
-            ?: $this->configValue('sys_theme_primary_color', '#6D0A0E');
+            ?: $this->configValue('sys_theme_primary_color', \App\Services\System\ThemeService::PRIMARY);
         $accent = $this->configValue('sys_quotation_accent_color', '#4CAF50');
         $logoDataUri = $this->resolveCompanyLogoDataUri();
         $logoUrl = $this->resolveCompanyLogoUrl();
@@ -734,6 +759,7 @@ class QuotationReportService
         QuotationDetails $detail,
         AnalysisElements $element,
         float $storedUnitPrice,
+        Collection $budgets,
     ): array {
         $analyte = Analyte::find($element->analyte_id);
         $resolved = $this->pricingResolver->resolveLineUnitPrice(
@@ -745,12 +771,13 @@ class QuotationReportService
             true,
         );
         $sourceFlags = $this->elementSourceFlags($detail, (string) $element->id);
+        $budget = $this->uncertaintyBudgetResolver->resolveForElement($element, null, $budgets);
 
         return $this->makeLineRow(
             $analyte?->name ?? $element->parametername,
             $this->resolveTestMethodName($element),
-            $element->lod !== null ? (string) $element->lod : '',
-            $element->measurement_uncertainty !== null ? (string) $element->measurement_uncertainty : '',
+            $this->uncertaintyBudgetResolver->formatLoq($element),
+            $this->uncertaintyBudgetResolver->formatMuPercent($element, $budget),
             $resolved['unit_price'],
             (int) $detail->quantity,
             $sourceFlags['is_accredited'],

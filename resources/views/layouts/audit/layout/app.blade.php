@@ -34,12 +34,12 @@
 	}
 
 	.tab-card-header>.nav-tabs>li>a.show {
-		border-bottom: 2px solid #007bff;
-		color: #007bff;
+		border-bottom: 2px solid var(--sys-primary-color);
+		color: var(--sys-primary-color);
 	}
 
 	.tab-card-header>.nav-tabs>li>a:hover {
-		color: #007bff;
+		color: var(--sys-primary-color);
 	}
 
 	.tab-card .nav-link.active {
@@ -96,7 +96,7 @@
 	}
 
 	.report-header {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
 		color: white;
 		padding: 20px 24px;
 		border: none;
@@ -130,7 +130,7 @@
 	}
 
 	.modern-table thead {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
 	}
 
 	.modern-table thead th {

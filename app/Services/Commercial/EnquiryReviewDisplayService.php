@@ -2,12 +2,14 @@
 
 namespace App\Services\Commercial;
 
+use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
+use Illuminate\Support\Str;
 
 final class EnquiryReviewDisplayService
 {
@@ -96,20 +98,61 @@ final class EnquiryReviewDisplayService
         );
     }
 
+    public function headerSampleTypeLabel(SampleSubmissionRequest $enquiry): string
+    {
+        $enquiry->loadMissing([
+            'submissionFormInstance.submissionForm.sampleTypes',
+        ]);
+
+        if ($enquiry->submissionFormInstance !== null) {
+            $sampleTypeId = $enquiry->submissionFormInstance->resolveSelectedSampleTypeId();
+            if ($sampleTypeId !== null) {
+                $name = SampleType::query()->find($sampleTypeId)?->name;
+                if (is_string($name) && $name !== '') {
+                    return $name;
+                }
+            }
+
+            foreach ($enquiry->submissionFormInstance->submissionForm?->sampleTypes ?? [] as $sampleType) {
+                $name = trim((string) ($sampleType->name ?? ''));
+                if ($name !== '') {
+                    return $name;
+                }
+            }
+        }
+
+        $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        if ($lines !== []) {
+            $label = $this->resolveTrfSampleTypeLabel($lines[0]);
+
+            return $label !== '—' ? $label : '—';
+        }
+
+        if ($enquiry->sample_type_id) {
+            $name = SampleType::query()->find($enquiry->sample_type_id)?->name;
+            if (is_string($name) && $name !== '') {
+                return $name;
+            }
+        }
+
+        return '—';
+    }
+
     /**
      * @return list<array{
      *     sample_description: string,
      *     sample_description_html: string,
      *     qty: string,
-     *     sample_type: string,
-     *     sample_condition: string,
-     *     tests: string
+     *     analysis_types: string,
+     *     tests_requested: string,
+     *     tests_requested_count: int
      * }>
      */
     public function sampleRows(SampleSubmissionRequest $enquiry): array
     {
         $enquiry->loadMissing([
             'submissionFormInstance.submissionForm.sampleTypes',
+            'requestedAnalyses',
         ]);
 
         $lines = [];
@@ -124,16 +167,21 @@ final class EnquiryReviewDisplayService
 
         $rows = [];
 
-        foreach ($lines as $line) {
-            $description = $line['sample_description'] ?? null;
+        foreach ($this->groupLinesByTrfRow($lines) as $group) {
+            $primary = $group[0];
+            $description = $primary['sample_description'] ?? null;
+            $testsRequested = $this->resolveTestsRequestedParameters($group);
+            if ($testsRequested['label'] === '—') {
+                $testsRequested = $this->resolveTestsRequestedFromEnquiryAnalyses($enquiry);
+            }
 
             $rows[] = [
                 'sample_description' => $this->formatRichTextPlain($description),
                 'sample_description_html' => $this->formatRichTextHtml($description),
-                'qty' => $this->formatLineQuantity($line),
-                'sample_type' => $this->resolveSampleTypeLabel($line),
-                'sample_condition' => $this->formatLabel($line['sample_condition'] ?? null) ?: '—',
-                'tests' => $this->resolveTestsLabel($line),
+                'qty' => $this->formatLineQuantity($primary),
+                'analysis_types' => $this->resolveAnalysisTypesLabel($group),
+                'tests_requested' => $testsRequested['label'],
+                'tests_requested_count' => $testsRequested['count'],
             ];
         }
 
@@ -145,52 +193,104 @@ final class EnquiryReviewDisplayService
      */
     public function requestedTests(SampleSubmissionRequest $enquiry): array
     {
+        $enquiry->loadMissing('requestedAnalyses');
+
         $tests = [];
 
         foreach ($enquiry->requestedAnalyses as $analysis) {
+            $elementId = trim((string) ($analysis->analysis_element_id ?? ''));
+            if ($elementId === '') {
+                $elementId = trim((string) ($analysis->analysis_key ?? ''));
+            }
+
+            if ($elementId !== '' && Str::isUuid($elementId)) {
+                $code = $this->resolveElementParameterCode($elementId);
+                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                    $tests[] = ['label' => $code];
+
+                    continue;
+                }
+            }
+
             $label = trim((string) ($analysis->analysis_label ?? ''));
             if ($label === '') {
                 continue;
             }
 
-            $resolved = $this->referenceLabelResolver->resolveMixed($label);
-            $tests[] = ['label' => $resolved !== '' ? $resolved : $label];
+            foreach ($this->referenceLabelResolver->extractTokens($label) as $token) {
+                $code = Str::isUuid($token)
+                    ? $this->resolveElementParameterCode($token)
+                    : $this->resolveParameterCodeFromToken(
+                        $token,
+                        (string) ($analysis->analysis_type_id ?? ''),
+                    );
+
+                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                    $tests[] = ['label' => $code];
+                }
+            }
         }
 
-        return $tests;
+        $seen = [];
+        $unique = [];
+        foreach ($tests as $test) {
+            if (isset($seen[$test['label']])) {
+                continue;
+            }
+
+            $seen[$test['label']] = true;
+            $unique[] = $test;
+        }
+
+        return $unique;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<list<array<string, mixed>>>
+     */
+    private function groupLinesByTrfRow(array $lines): array
+    {
+        if ($lines === []) {
+            return [];
+        }
+
+        $groups = [];
+
+        foreach ($lines as $line) {
+            $rowIndex = (int) ($line['row_index'] ?? $line['sort_order'] ?? count($groups));
+            $groups[$rowIndex][] = $line;
+        }
+
+        ksort($groups);
+
+        return array_values($groups);
     }
 
     /**
      * @param  array<string, mixed>  $line
      */
-    private function resolveSampleTypeLabel(array $line): string
+    private function resolveTrfSampleTypeLabel(array $line): string
     {
-        $name = trim((string) ($line['sample_type_name'] ?? ''));
-        if ($name !== '') {
-            return $name;
-        }
-
-        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
-        $foodSampleType = trim((string) ($attributes['food_sample_type'] ?? ''));
-        if ($foodSampleType !== '') {
-            return $foodSampleType;
-        }
-
-        $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
-        if ($analysisName !== '') {
-            return $analysisName;
-        }
-
         $sampleTypeId = $line['sample_type_id'] ?? null;
-        if (is_string($sampleTypeId) && $sampleTypeId !== '') {
+        if (is_string($sampleTypeId) && $sampleTypeId !== '' && Str::isUuid($sampleTypeId)) {
             $resolved = SampleType::query()->find($sampleTypeId)?->name;
             if (is_string($resolved) && $resolved !== '') {
                 return $resolved;
             }
         }
 
+        $name = trim((string) ($line['sample_type_name'] ?? ''));
+        if ($name !== '') {
+            if (str_contains($name, ' — ')) {
+                return trim((string) Str::before($name, ' — '));
+            }
+
+            return $name;
+        }
+
         $analysisTypeId = $line['analysis_type_id'] ?? null;
-        if (is_string($analysisTypeId) && $analysisTypeId !== '') {
+        if (is_string($analysisTypeId) && $analysisTypeId !== '' && Str::isUuid($analysisTypeId)) {
             $analysisType = AnalysisType::query()->find($analysisTypeId);
             if ($analysisType?->sample_type_id) {
                 $resolved = SampleType::query()->find($analysisType->sample_type_id)?->name;
@@ -198,51 +298,269 @@ final class EnquiryReviewDisplayService
                     return $resolved;
                 }
             }
-
-            if (is_string($analysisType?->name) && $analysisType->name !== '') {
-                return $analysisType->name;
-            }
         }
 
         return '—';
     }
 
     /**
+     * @param  list<array<string, mixed>>  $group
+     */
+    private function resolveAnalysisTypesLabel(array $group): string
+    {
+        $labels = [];
+
+        foreach ($group as $line) {
+            $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $foodSampleType = trim((string) ($attributes['food_sample_type'] ?? ''));
+            if ($foodSampleType !== '') {
+                $labels[] = $foodSampleType;
+            }
+
+            $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
+            if ($analysisName !== '' && $analysisName !== $foodSampleType) {
+                $labels[] = $analysisName;
+            }
+
+            $analysisTypeId = $line['analysis_type_id'] ?? null;
+            if (is_string($analysisTypeId) && $analysisTypeId !== '' && Str::isUuid($analysisTypeId)) {
+                $resolved = AnalysisType::query()->find($analysisTypeId)?->name;
+                if (is_string($resolved) && $resolved !== '' && ! in_array($resolved, $labels, true)) {
+                    $labels[] = $resolved;
+                }
+            }
+        }
+
+        $labels = array_values(array_unique(array_filter($labels)));
+
+        return $labels !== [] ? implode(', ', $labels) : '—';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $group
+     * @return array{label: string, count: int}
+     */
+    private function resolveTestsRequestedParameters(array $group): array
+    {
+        $codes = [];
+
+        foreach ($group as $line) {
+            $scopedAnalysisTypeId = $this->scopedAnalysisTypeIdForLine($line);
+
+            foreach ($this->extractElementIdsFromLine($line) as $elementId) {
+                $code = $this->resolveElementParameterCode($elementId);
+                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                    $codes[] = $code;
+                }
+            }
+
+            foreach ($this->extractParameterTokensFromLine($line, $this->extractElementIdsFromLine($line) === []) as $token) {
+                $code = Str::isUuid($token)
+                    ? $this->resolveElementParameterCode($token)
+                    : $this->resolveParameterCodeFromToken($token, $scopedAnalysisTypeId);
+
+                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                    $codes[] = $code;
+                }
+            }
+        }
+
+        $codes = array_values(array_unique(array_filter($codes)));
+
+        return [
+            'label' => $codes !== [] ? implode(', ', $codes) : '—',
+            'count' => count($codes),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function extractParameterTokensFromLine(array $line, bool $includeParameterLabel = true): array
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $sources = [
+            $line['parameters'] ?? null,
+            $attributes['parameters'] ?? null,
+        ];
+
+        if ($includeParameterLabel) {
+            $sources[] = $line['parameter_label'] ?? null;
+        }
+
+        $tokens = [];
+        foreach ($sources as $raw) {
+            if ($raw === null || $raw === '') {
+                continue;
+            }
+
+            $tokens = array_merge($tokens, $this->referenceLabelResolver->extractTokens($raw));
+        }
+
+        return array_values(array_unique(array_filter(array_map('trim', $tokens))));
+    }
+
+    /**
      * @param  array<string, mixed>  $line
      */
-    private function resolveTestsLabel(array $line): string
+    private function scopedAnalysisTypeIdForLine(array $line): string
     {
-        $parameter = trim((string) ($line['parameter_label'] ?? ''));
-        if ($parameter !== '') {
-            $resolved = $this->referenceLabelResolver->resolveMixed($parameter);
-            if ($resolved !== '') {
-                return $resolved;
+        $analysisTypeId = trim((string) ($line['analysis_type_id'] ?? ''));
+        if ($analysisTypeId !== '' && Str::isUuid($analysisTypeId)) {
+            return $analysisTypeId;
+        }
+
+        $foodLabel = trim((string) ($line['attributes']['food_sample_type'] ?? ''));
+        $sampleTypeId = trim((string) ($line['sample_type_id'] ?? ''));
+        if ($foodLabel === '' || $sampleTypeId === '' || ! Str::isUuid($sampleTypeId)) {
+            return '';
+        }
+
+        $resolved = AnalysisType::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->where('name', $foodLabel)
+            ->value('id');
+
+        return $resolved ? (string) $resolved : '';
+    }
+
+    private function resolveElementParameterCode(string $elementId): string
+    {
+        $element = AnalysisElements::query()->with('analyte')->find($elementId);
+        if ($element === null) {
+            return '';
+        }
+
+        $analyteCode = trim((string) ($element->analyte?->code ?? ''));
+        if ($analyteCode !== '') {
+            return $analyteCode;
+        }
+
+        $method = trim((string) ($element->method ?? ''));
+
+        return $method;
+    }
+
+    private function resolveParameterCodeFromToken(string $token, string $scopedAnalysisTypeId = ''): string
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return '';
+        }
+
+        if (Str::isUuid($token)) {
+            return $this->resolveElementParameterCode($token);
+        }
+
+        $element = $this->findAnalysisElementForParameterToken($token, $scopedAnalysisTypeId)
+            ?? ($scopedAnalysisTypeId !== '' ? $this->findAnalysisElementForParameterToken($token, '') : null);
+
+        if ($element !== null) {
+            return $this->resolveElementParameterCode((string) $element->id);
+        }
+
+        return '';
+    }
+
+    private function findAnalysisElementForParameterToken(string $token, string $scopedAnalysisTypeId): ?AnalysisElements
+    {
+        $normalized = mb_strtolower(trim($token));
+
+        $query = AnalysisElements::query()->with('analyte')
+            ->whereHas('analyte', function ($analyteQuery) use ($normalized): void {
+                $analyteQuery
+                    ->whereRaw('LOWER(name) = ?', [$normalized])
+                    ->orWhereRaw('LOWER(code) = ?', [$normalized]);
+            });
+
+        if ($scopedAnalysisTypeId !== '') {
+            $query->where('analysis_type_id', $scopedAnalysisTypeId);
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * @return array{label: string, count: int}
+     */
+    private function resolveTestsRequestedFromEnquiryAnalyses(SampleSubmissionRequest $enquiry): array
+    {
+        $codes = [];
+
+        foreach ($enquiry->requestedAnalyses as $analysis) {
+            $elementId = trim((string) ($analysis->analysis_element_id ?? ''));
+            if ($elementId === '') {
+                $elementId = trim((string) ($analysis->analysis_key ?? ''));
+            }
+
+            if ($elementId !== '' && Str::isUuid($elementId)) {
+                $code = $this->resolveElementParameterCode($elementId);
+                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                    $codes[] = $code;
+                }
+
+                continue;
+            }
+
+            $label = trim((string) ($analysis->analysis_label ?? ''));
+            foreach ($this->referenceLabelResolver->extractTokens($label) as $token) {
+                $code = $this->resolveParameterCodeFromToken(
+                    $token,
+                    (string) ($analysis->analysis_type_id ?? ''),
+                );
+                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                    $codes[] = $code;
+                }
             }
         }
 
+        $codes = array_values(array_unique(array_filter($codes)));
+
+        return [
+            'label' => $codes !== [] ? implode(', ', $codes) : '—',
+            'count' => count($codes),
+        ];
+    }
+
+    private function isTestCategoryLabel(string $label): bool
+    {
+        return in_array(strtolower(trim($label)), [
+            'microbiology',
+            'chemistry',
+            'chemical',
+            'chemical analysis',
+            'legionella',
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function extractElementIdsFromLine(array $line): array
+    {
         $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
-        $testsRequested = trim((string) ($attributes['tests_requested'] ?? $attributes['parameters'] ?? ''));
-        if ($testsRequested !== '') {
-            $resolved = $this->referenceLabelResolver->resolveMixed($testsRequested);
-            if ($resolved !== '') {
-                return $resolved;
-            }
+        $fromAttributes = $attributes['analysis_element_ids'] ?? [];
+
+        if (is_array($fromAttributes) && $fromAttributes !== []) {
+            return array_values(array_filter(array_map('strval', $fromAttributes)));
         }
 
-        $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
-        if ($analysisName !== '') {
-            return $analysisName;
+        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+        if ($elementId !== '') {
+            return [$elementId];
         }
 
-        $analysisTypeId = $line['analysis_type_id'] ?? null;
-        if (is_string($analysisTypeId) && $analysisTypeId !== '') {
-            $resolved = $this->referenceLabelResolver->resolveToken($analysisTypeId);
-            if ($resolved !== '') {
-                return $resolved;
-            }
+        $parameter = trim((string) ($line['parameter_label'] ?? ''));
+        if ($parameter === '') {
+            return [];
         }
 
-        return '—';
+        return array_values(array_filter(
+            $this->referenceLabelResolver->extractTokens($parameter),
+            fn (string $token): bool => Str::isUuid($token),
+        ));
     }
 
     /**

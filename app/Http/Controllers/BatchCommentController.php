@@ -3,76 +3,97 @@
 namespace App\Http\Controllers;
 
 use App\BatchComment;
+use App\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class BatchCommentController extends Controller
 {
-  public function __construct()
-  {
-    $this->middleware('auth');
-	}
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
 
-	public function add(Request $request){
+    public function add(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|string|exists:users,id',
+            'batch_id' => 'required|string|exists:sample_headers,id',
+            'type' => 'required|string|max:255',
+            'message' => 'required|string',
+            'followers' => 'nullable|array',
+            'followers.*' => 'string|exists:users,id',
+        ]);
 
-		$comment = new BatchComment;
-		$comment->created_by = \Auth::user()->id;
-		$comment->reminder_for = $request->user_id;
-		$comment->personnel_to_cc = $request->has('followers') ? implode(",", $request->followers) : 0;
-		$comment->comments = $request->message;
-		$comment->comment_type = $request->type;
-		$comment->sample_header_id = $request->batch_id;
+        $comment = new BatchComment();
+        $comment->created_by = (string) $request->user()->id;
+        $comment->reminder_for = $validated['user_id'];
+        $comment->personnel_to_cc = ! empty($validated['followers'])
+            ? implode(',', $validated['followers'])
+            : '';
+        $comment->comments = $validated['message'];
+        $comment->comment_type = $validated['type'];
+        $comment->sample_header_id = $validated['batch_id'];
 
-		$comment->save();
-		$companyDetails = getCompanyDetails();
-		$batch = getSampleHeaderByID($request->batch_id);
-		if($comment->personnel_to_cc !=0){
-			$contacts = explode(',',$comment->personnel_to_cc);
-			array_push($contacts,$comment->reminder_for);
-			foreach($contacts as $contact){
-				$user = getUserById((int)$contact);
-				
-				$message = 'There is a new note for batch '.$batch->batch_code.'.';
-				$body = 'Hi '.$user->name.',<br><br>'
-						.$message.'<br>
-						Regards, <br><br>'
-						.\Auth::user()->name.' ';
-				$subject = '['.$companyDetails['name'].'] Batch Notes Notification';
-				$notify = notify_user($body,$user->email,$subject);
+        $comment->save();
 
-			}
-		}else{
-			$user = getUserById($comment->reminder_for);
-			$message = 'There is a new note for batch '.$batch->batch_code.'. Kindly review the notes.';
-			$body = 'Hi '.$user->name.',<br><br>'
-					.$message.'<br>
-					Regards, <br><br>'
-					.$companyDetails['name'].' ';
-			$subject = '['.$companyDetails['name'].'] Batch Notes Notification';
-			$notify = notify_user($body,$user->email,$subject);
-		}
+        $companyDetails = getCompanyDetails();
+        $batch = getSampleHeaderByID($validated['batch_id']);
 
-		//TODO: Send emails
+        $recipientIds = array_values(array_unique(array_filter(array_merge(
+            [$comment->reminder_for],
+            $comment->personnel_to_cc !== '' ? explode(',', $comment->personnel_to_cc) : []
+        ))));
 
-    return redirect()->back()->with('success', 'Batch Comment Added.');
-	}
+        foreach ($recipientIds as $recipientId) {
+            $user = User::query()->find($recipientId);
+            if ($user === null || empty($user->email)) {
+                continue;
+            }
 
-	public function edit(Request $request, $id){
-		$comment = BatchComment::find($id);
-		$comment->created_by = \Auth::user()->id;
-		$comment->reminder_for = $request->user_id;
-		$comment->personnel_to_cc =  $request->has('followers') ? implode(",", $request->followers) : 0;
-		$comment->comments = $request->message;
-		$comment->comment_type = $request->type;
-		$comment->sample_header_id = $request->batch_id;
+            $message = 'There is a new note for batch '.$batch->batch_code.'.';
+            if ($comment->personnel_to_cc === '') {
+                $message .= ' Kindly review the notes.';
+            }
 
-		if($request->has('complete')){
-			$comment->completed_at = date('Y-m-d H:i:s');
-		}
+            $body = 'Hi '.$user->name.',<br><br>'
+                .$message.'<br>
+                Regards, <br><br>'
+                .$request->user()->name.' ';
+            $subject = '['.$companyDetails['name'].'] Batch Notes Notification';
+            notify_user($body, $user->email, $subject);
+        }
 
-		$comment->save();
+        return redirect()->back()->with('success', 'Batch Comment Added.');
+    }
 
-		//TODO: Send emails
+    public function edit(Request $request, string $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|string|exists:users,id',
+            'batch_id' => 'required|string|exists:sample_headers,id',
+            'type' => 'required|string|max:255',
+            'message' => 'required|string',
+            'followers' => 'nullable|array',
+            'followers.*' => 'string|exists:users,id',
+        ]);
 
-    return redirect()->back()->with('success', 'Batch Comment Edited.');
-	}
+        $comment = BatchComment::findOrFail($id);
+        $comment->created_by = (string) $request->user()->id;
+        $comment->reminder_for = $validated['user_id'];
+        $comment->personnel_to_cc = ! empty($validated['followers'])
+            ? implode(',', $validated['followers'])
+            : '';
+        $comment->comments = $validated['message'];
+        $comment->comment_type = $validated['type'];
+        $comment->sample_header_id = $validated['batch_id'];
+
+        if ($request->has('complete')) {
+            $comment->completed_at = date('Y-m-d H:i:s');
+        }
+
+        $comment->save();
+
+        return redirect()->back()->with('success', 'Batch Comment Edited.');
+    }
 }

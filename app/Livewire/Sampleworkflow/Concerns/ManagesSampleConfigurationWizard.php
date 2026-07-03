@@ -27,7 +27,11 @@ trait ManagesSampleConfigurationWizard
     public function removeSampleConfig(string $configId): void
     {
         if (count($this->sampleConfigs) <= 1) {
-            $this->setStatus('error', 'At least one sample configuration is required.');
+            if (method_exists($this, 'setStatus')) {
+                $this->setStatus('error', 'At least one sample configuration is required.');
+            } else {
+                $this->dispatch('notify', type: 'error', message: 'At least one sample configuration is required.');
+            }
 
             return;
         }
@@ -36,35 +40,6 @@ trait ManagesSampleConfigurationWizard
             $this->sampleConfigs,
             fn (array $config) => (string) ($config['id'] ?? '') !== $configId
         ));
-    }
-
-    public function updatedSampleConfigs(mixed $value, string $key): void
-    {
-        if (! preg_match('/^(\d+)\.number_of_samples$/', (string) $key, $matches)) {
-            return;
-        }
-
-        $this->syncSampleConfigInstances((int) $matches[1]);
-    }
-
-    public function onConfigNumberOfSamplesChanged(int $index): void
-    {
-        $this->syncSampleConfigInstances($index);
-    }
-
-    private function syncSampleConfigInstances(int $index): void
-    {
-        if (! isset($this->sampleConfigs[$index])) {
-            return;
-        }
-
-        $configService = app(AcceptanceFormSampleConfigService::class);
-        $count = max(1, (int) ($this->sampleConfigs[$index]['number_of_samples'] ?? 1));
-        $this->sampleConfigs[$index]['number_of_samples'] = $count;
-        $this->sampleConfigs[$index]['instances'] = $configService->syncInstances(
-            $this->sampleConfigs[$index]['instances'] ?? [],
-            $count
-        );
     }
 
     public function onConfigSampleTypeChanged(int $index): void
@@ -201,6 +176,30 @@ trait ManagesSampleConfigurationWizard
     public function getConfigStandardsProperty(): array
     {
         return app(AcceptanceFormSampleConfigService::class)->standardsForPicker();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function getConfigLabsProperty(): array
+    {
+        return app(AcceptanceFormSampleConfigService::class)->labsForPicker();
+    }
+
+    public function instancePhotoUploadKey(string $configId): string
+    {
+        return $configId;
+    }
+
+    public function labelForConfigSampleType(?string $sampleTypeId): string
+    {
+        if ($sampleTypeId === null || $sampleTypeId === '') {
+            return '—';
+        }
+
+        $match = collect($this->configSampleTypes)->firstWhere('id', $sampleTypeId);
+
+        return (string) ($match['name'] ?? '—');
     }
 
     public function analysisTypesForConfigIndex(int $index): array

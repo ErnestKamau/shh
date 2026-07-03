@@ -620,13 +620,13 @@
         margin: 10px !important;
     }
     .preference-card:hover {
-        border-color: #6D0A0E;
-        box-shadow: 0 4px 12px rgba(109, 10, 14, 0.1);
+        border-color: var(--color-primary);
+        box-shadow: 0 4px 12px var(--color-primary-soft-10);
         transform: translateY(-2px);
     }
     .preference-card.active {
-        border-color: #6D0A0E;
-        background: rgba(109, 10, 14, 0.02);
+        border-color: var(--color-primary);
+        background: var(--color-primary-soft-light);
     }
     .preference-icon {
         width: 42px;
@@ -673,15 +673,15 @@
     }
 
     .modern-select:focus {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
         background: #ffffff;
         outline: none;
     }
 
     .modern-select:hover {
-        border-color: #6D0A0E;
-        box-shadow: 0 4px 8px rgba(109, 10, 14, 0.15);
+        border-color: var(--color-primary);
+        box-shadow: 0 4px 8px var(--color-primary-highlight);
     }
 
     .modern-select option {
@@ -855,13 +855,13 @@
     
     /* Form switch styling */
     .form-check-input:checked {
-        background-color: #6D0A0E;
-        border-color: #6D0A0E;
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
     }
     
     .form-check-input:focus {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
     }
     
     /* Modal animations */
@@ -882,8 +882,8 @@
     
     /* Input field styling improvements */
     .form-control:focus {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
     }
     
     /* Label icon spacing */
@@ -918,7 +918,7 @@
 
     .modal-contact-units-select .tag-dropdown {
         margin-top: 4px;
-        border-top: 1px solid #6D0A0E;
+        border-top: 1px solid var(--color-primary);
         border-radius: 8px;
     }
 

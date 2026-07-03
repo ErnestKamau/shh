@@ -3,7 +3,7 @@
 		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
 		border: none;
 		border-radius: 12px;
-		box-shadow: 0 4px 14px rgba(109, 10, 14, 0.2);
+		box-shadow: 0 4px 14px var(--color-primary-shadow);
 		overflow: visible;
 	}
 

@@ -275,10 +275,10 @@
                         </td>
                         <td>
                             <div class="btn-group">
-                                <button wire:click="openModal({{ $rule->id }})" class="modern-action-btn" title="Edit" style="color: #d97706;">
+                                <button wire:click="openModal('{{ $rule->id }}')" class="modern-action-btn" title="Edit" style="color: #d97706;">
                                     <i class="mdi mdi-pencil"></i>
                                 </button>
-                                <button wire:click="delete({{ $rule->id }})" wire:confirm="Are you sure you want to delete this rule?" class="modern-action-btn" title="Delete" style="color: #c33;">
+                                <button wire:click="delete('{{ $rule->id }}')" wire:confirm="Are you sure you want to delete this rule?" class="modern-action-btn" title="Delete" style="color: #c33;">
                                     <i class="mdi mdi-delete"></i>
                                 </button>
                             </div>

@@ -66,9 +66,9 @@
     }
 
     .qc-config-page .qc-config-tabs .nav-link.active {
-        background: #e9f2ff;
-        border-color: #c5d9ff;
-        color: #0f4aa1;
+        background: var(--color-primary-soft);
+        border-color: var(--color-primary-border-soft);
+        color: var(--color-primary);
     }
 
     .qc-config-page .qc-table-card > .card-body {

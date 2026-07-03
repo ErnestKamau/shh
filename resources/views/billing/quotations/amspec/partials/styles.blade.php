@@ -1,6 +1,6 @@
 <style>
     :root {
-        --quotation-primary: {{ $branding['primary'] ?? '#6D0A0E' }};
+        --quotation-primary: {{ $branding['primary'] ?? 'var(--color-primary)' }};
         --quotation-accent: {{ $branding['accent'] ?? '#4CAF50' }};
         --quotation-category-bg: #E0E0E0;
         --amspec-text: #000000;
@@ -219,8 +219,8 @@
         text-align: center !important;
         font-size: 9pt !important;
         vertical-align: middle !important;
-        background-color: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
-        background: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
+        background-color: {{ $branding['primary'] ?? 'var(--color-primary)' }} !important;
+        background: {{ $branding['primary'] ?? 'var(--color-primary)' }} !important;
         color: #ffffff !important;
     }
 
@@ -329,7 +329,7 @@
     }
 
     .amspec-footer-disclaimer a {
-        color: {{ $branding['primary'] ?? '#6D0A0E' }};
+        color: {{ $branding['primary'] ?? 'var(--color-primary)' }};
         text-decoration: none;
         font-weight: 400;
     }
@@ -440,8 +440,8 @@
 
         .amspec-th-primary,
         .amspec-test-table .amspec-th-primary {
-            background-color: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
-            background: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
+            background-color: {{ $branding['primary'] ?? 'var(--color-primary)' }} !important;
+            background: {{ $branding['primary'] ?? 'var(--color-primary)' }} !important;
             color: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -463,7 +463,7 @@
         }
 
         .amspec-footer-disclaimer a {
-            color: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
+            color: {{ $branding['primary'] ?? 'var(--color-primary)' }} !important;
         }
     }
     @endif

@@ -264,7 +264,7 @@
 
     .crm-btn-add-rounded:hover {
         transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(109, 10, 14, 0.18);
+        box-shadow: 0 8px 18px var(--color-primary-highlight);
     }
 </style>
 

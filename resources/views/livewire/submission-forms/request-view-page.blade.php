@@ -278,13 +278,6 @@
                         <span class="badge">{{ count($this->sampleLines) }}</span>
                     </button>
                 </li>
-                @if($this->isTrfForm())
-                    <li class="nav-item">
-                        <button type="button" class="nav-link {{ $activeTab === 'attached' ? 'active' : '' }}" wire:click="setTab('attached')">
-                            <i class="mdi mdi-paperclip"></i> Attached
-                        </button>
-                    </li>
-                @endif
                 <li class="nav-item">
                     <button type="button" class="nav-link {{ $activeTab === 'notes' ? 'active' : '' }}" wire:click="setTab('notes')">
                         <i class="mdi mdi-comment-text-outline"></i> Notes
@@ -311,10 +304,6 @@
                         'acceptanceForm' => $acceptanceForm,
                         'boardStatus' => $boardStatus,
                     ])
-                @elseif($activeTab === 'attached')
-                    @include('livewire.submission-forms.request-view.tabs.attached', [
-                        'instance' => $instance,
-                    ])
                 @elseif($activeTab === 'notes')
                     @include('livewire.submission-forms.request-view.tabs.notes')
                 @elseif($activeTab === 'attachments')
@@ -327,6 +316,7 @@
                 @elseif($activeTab === 'custody')
                     @include('livewire.submission-forms.request-view.tabs.chain-of-custody', [
                         'custodyTimeline' => $this->custodyTimeline,
+                        'custodyEnteredLab' => $this->custodyEnteredLab,
                     ])
                 @endif
             </div>

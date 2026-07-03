@@ -36,7 +36,7 @@ class AuditForm extends Component
 
     protected $rules = [
         'title' => 'required|string|max:255',
-        'audit_type_id' => 'required|integer|exists:audit_types,id',
+        'audit_type_id' => 'required|uuid|exists:audit_types,id',
         'scheduled_date' => 'required|date',
         'start_date' => 'nullable|date',
         'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -44,11 +44,11 @@ class AuditForm extends Component
         'criteria' => 'nullable|string',
         'objectives' => 'nullable|string',
         'department' => 'nullable|string|max:255',
-        'lead_auditor_id' => 'nullable|integer|exists:users,id',
+        'lead_auditor_id' => 'nullable|uuid|exists:users,id',
         'lead_auditor_name' => 'nullable|string|max:255',
         'auditee_name' => 'nullable|string|max:255',
-        'auditee_department_id' => 'nullable|integer|exists:inventory_departments,id',
-        'audit_checklist_id' => 'nullable|integer|exists:audit_checklists,id',
+        'auditee_department_id' => 'nullable|uuid|exists:inventory_departments,id',
+        'audit_checklist_id' => 'nullable|uuid|exists:audit_checklists,id',
     ];
 
     public function mount($auditId = null)
@@ -68,7 +68,7 @@ class AuditForm extends Component
         
         $this->title = $audit->title;
         $this->audit_type_id = $audit->audit_type_id;
-        $this->audit_checklist_id = $audit->audit_checklist_id;
+        $this->audit_checklist_id = $audit->checklist_id ?? '';
         $this->scheduled_date = $audit->scheduled_date?->format('Y-m-d');
         $this->start_date = $audit->start_date?->format('Y-m-d');
         $this->end_date = $audit->end_date?->format('Y-m-d');
@@ -88,24 +88,11 @@ class AuditForm extends Component
 
     public function updatedAuditTypeId($value): void
     {
-        // Cast to integer and reset checklist when audit type changes
-        $this->audit_type_id = $value ? (int) $value : '';
         $this->audit_checklist_id = '';
     }
 
     public function save()
     {
-        // Cast integer values before validation (only if not empty)
-        if (!empty($this->audit_type_id)) {
-            $this->audit_type_id = (int) $this->audit_type_id;
-        }
-        if (!empty($this->audit_checklist_id)) {
-            $this->audit_checklist_id = (int) $this->audit_checklist_id;
-        }
-        if (!empty($this->lead_auditor_id)) {
-            $this->lead_auditor_id = (int) $this->lead_auditor_id;
-        }
-        
         $this->validate();
 
         // Check status for edit mode to determine if summary fields can be saved
@@ -120,8 +107,8 @@ class AuditForm extends Component
 
         $data = [
             'title' => $this->title,
-            'audit_type_id' => (int) $this->audit_type_id,
-            'audit_checklist_id' => !empty($this->audit_checklist_id) ? (int) $this->audit_checklist_id : null,
+            'audit_type_id' => $this->audit_type_id,
+            'checklist_id' => !empty($this->audit_checklist_id) ? $this->audit_checklist_id : null,
             'scheduled_date' => $this->scheduled_date,
             'start_date' => $this->start_date ?: null,
             'end_date' => $this->end_date ?: null,
@@ -129,11 +116,10 @@ class AuditForm extends Component
             'criteria' => $this->criteria,
             'objective' => $this->objectives,
             'department' => $this->department,
-            'lead_auditor_id' => !empty($this->lead_auditor_id) ? (int) $this->lead_auditor_id : null,
+            'lead_auditor_id' => !empty($this->lead_auditor_id) ? $this->lead_auditor_id : null,
             'lead_auditor_name' => $this->lead_auditor_name,
             'auditee_name' => $this->auditee_name,
-            'auditee_id' => $this->auditee_id ?: null,
-            'auditee_department_id' => !empty($this->auditee_department_id) ? (int) $this->auditee_department_id : null,
+            'auditee_department_id' => !empty($this->auditee_department_id) ? $this->auditee_department_id : null,
         ];
 
         // Only allow Summary, Conclusion, and Recommendations to be saved when status is "Verify" or later
@@ -156,7 +142,7 @@ class AuditForm extends Component
             $data['audit_number'] = Audit::generateAuditNumber();
             $data['status_name'] = 'Scheduled';
             $data['created_by'] = auth()->id();
-            $data['company_id'] = getUserCompany() ?? 0;
+            $data['company_id'] = getUserCompany();
             
             $audit = Audit::create($data);
             AuditActivityLog::logCreation($audit, 'Audit scheduled');
@@ -189,7 +175,7 @@ class AuditForm extends Component
             ->active()
             ->orderBy('name', 'asc');
         if (!empty($this->audit_type_id)) {
-            $checklistsQuery->where('audit_type_id', (int) $this->audit_type_id);
+            $checklistsQuery->where('audit_type_id', $this->audit_type_id);
         }
         $checklists = $checklistsQuery->get();
 

@@ -750,6 +750,9 @@ Route::post('/test-request-form/{instance}/regenerate', [\App\Http\Controllers\T
 
 Route::get('/batch/acceptance-pdf/{id}', 'SampleWorkFlowController@viewAcceptancePdf')->name('view-acceptance-pdf');
 Route::get('/batch/receipt-notification-pdf/{id}', 'SampleWorkFlowController@viewReceiptNotificationPdf')->name('view-receipt-notification-pdf');
+Route::get('/sample-workflow/batch/{batch}/workflow-documents/quotation.pdf', 'SampleWorkFlowController@viewBatchQuotationPdf')
+    ->name('batch.workflow-quotation.pdf')
+    ->middleware('can:laboratory.components.all samples.view');
 Route::get('/batch/case-file-pdf/{id}', 'SampleWorkFlowController@viewCaseFilePdf')->name('view-case-file-pdf');
 
 Route::get('/batch/attachments/{id}/annotate', 'SampleWorkFlowController@showAnnotationPage')->name('show-pdf-annotation-page')->middleware('can:laboratory.components.all samples.edit');

@@ -56,10 +56,10 @@
     }
     .preview-module-div i {
         font-size: 3.5rem;
-        color: var(--preview-primary, #4a90e2);
+        color: var(--preview-primary, #00A7DF);
         display: block;
         margin-bottom: 8px;
-        text-shadow: 0 0 20px var(--preview-primary, #4a90e2);
+        text-shadow: 0 0 20px var(--preview-primary, #00A7DF);
         transition: all 0.3s ease;
     }
     .preview-link {
@@ -78,14 +78,14 @@
     .preview-link:hover {
         background: var(--preview-link-bg, rgba(255, 255, 255, 0.05));
         transform: translateX(5px) scale(1.02);
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 6px 20px var(--preview-primary, #4a90e2);
-        border: 1px solid var(--preview-primary, #4a90e2);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 6px 20px var(--preview-primary, #00A7DF);
+        border: 1px solid var(--preview-primary, #00A7DF);
         padding: 9px 11px; /* compensate for 1px border */
         color: var(--preview-sidebar-text, rgba(255, 255, 255, 0.95)) !important;
     }
     .preview-link.active {
         background: var(--preview-link-bg, rgba(255, 255, 255, 0.05));
-        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15), 0 4px 15px var(--preview-primary, #4a90e2);
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15), 0 4px 15px var(--preview-primary, #00A7DF);
         border: 2px solid transparent;
         background-clip: padding-box;
         padding: 8px 10px; /* compensate for 2px border */
@@ -100,7 +100,7 @@
         bottom: 0;
         border-radius: 8px;
         padding: 2px;
-        background: linear-gradient(135deg, var(--preview-primary, #4a90e2), var(--preview-secondary, #50e3c2), var(--preview-accent, #f5a623), var(--preview-primary, #4a90e2));
+        background: linear-gradient(135deg, var(--preview-primary, #00A7DF), var(--preview-secondary, #0090C0), var(--preview-accent, #FFFFFF), var(--preview-primary, #00A7DF));
         background-size: 300% 300%;
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: exclude;
@@ -121,8 +121,8 @@
         margin-right: 8px;
     }
     .preview-button {
-        background-color: var(--preview-primary, #4a90e2);
-        border-color: var(--preview-primary, #4a90e2);
+        background-color: var(--preview-primary, #00A7DF);
+        border-color: var(--preview-primary, #00A7DF);
         color: white;
         padding: 6px 16px;
         border-radius: 6px;
@@ -170,11 +170,13 @@
 
 @section('content2')
 @php
-    $sysThemePrimary = optional(getConfigByName('sys_theme_primary_color')->first())->value ?? '#4a90e2';
-    $sysThemeSecondary = optional(getConfigByName('sys_theme_secondary_color')->first())->value ?? '#50e3c2';
-    $sysThemeAccent = optional(getConfigByName('sys_theme_accent_color')->first())->value ?? '#f5a623';
-    $sysSidebarBg = optional(getConfigByName('sys_sidebar_bg_color')->first())->value ?? '#2a2a2a';
-    $sysSidebarLinkBg = optional(getConfigByName('sys_sidebar_link_bg')->first())->value ?? 'rgba(255, 255, 255, 0.05)';
+    use App\Services\System\ThemeService;
+
+    $sysThemePrimary = optional(getConfigByName('sys_theme_primary_color')->first())->value ?? ThemeService::PRIMARY;
+    $sysThemeSecondary = optional(getConfigByName('sys_theme_secondary_color')->first())->value ?? ThemeService::PRIMARY_HOVER;
+    $sysThemeAccent = optional(getConfigByName('sys_theme_accent_color')->first())->value ?? ThemeService::ACCENT;
+    $sysSidebarBg = optional(getConfigByName('sys_sidebar_bg_color')->first())->value ?? ThemeService::SIDEBAR_BG;
+    $sysSidebarLinkBg = optional(getConfigByName('sys_sidebar_link_bg')->first())->value ?? ThemeService::SIDEBAR_LINK_BG;
 @endphp
 <main>
     <?php 
@@ -273,6 +275,16 @@
                     
                     <div class="row">
                         <div class="col-md-6">
+                            <button type="button" class="preset-theme-btn" data-bg="#000000" data-primary="#00A7DF" data-secondary="#0090C0" data-accent="#FFFFFF">
+                                <span class="text-bold">Kenya Dairy Board</span>
+                                <div class="color-swatch-group">
+                                    <div class="color-swatch" style="background: #000000;"></div>
+                                    <div class="color-swatch" style="background: #00A7DF;"></div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="col-md-6">
                             <button type="button" class="preset-theme-btn" data-bg="#2a2a2a" data-primary="#4a90e2" data-secondary="#50e3c2" data-accent="#f5a623">
                                 <span class="text-bold">Classic Imara Blue</span>
                                 <div class="color-swatch-group">
@@ -360,7 +372,7 @@
                                 <span class="text-xs text-bold">Module Overview</span>
                                 <button type="button" class="preview-button">Analyze</button>
                             </div>
-                            <div style="height: 4px; background: var(--preview-primary, #4a90e2); border-radius: 2px;"></div>
+                            <div style="height: 4px; background: var(--preview-primary, #00A7DF); border-radius: 2px;"></div>
                         </div>
                     </div>
                 </div>
@@ -474,15 +486,15 @@
         });
 
         document.getElementById('resetDefaultBtn').addEventListener('click', function() {
-            sidebarBgInput.value = '#2a2a2a';
-            sidebarBgText.value = '#2a2a2a';
-            primaryInput.value = '#4a90e2';
-            primaryText.value = '#4a90e2';
-            secondaryInput.value = '#50e3c2';
-            secondaryText.value = '#50e3c2';
-            accentInput.value = '#f5a623';
-            accentText.value = '#f5a623';
-            sidebarLinkBgInput.value = 'rgba(255, 255, 255, 0.05)';
+            sidebarBgInput.value = '#000000';
+            sidebarBgText.value = '#000000';
+            primaryInput.value = '#00A7DF';
+            primaryText.value = '#00A7DF';
+            secondaryInput.value = '#0090C0';
+            secondaryText.value = '#0090C0';
+            accentInput.value = '#FFFFFF';
+            accentText.value = '#FFFFFF';
+            sidebarLinkBgInput.value = 'rgba(255, 255, 255, 0.08)';
             updatePreview();
         });
 

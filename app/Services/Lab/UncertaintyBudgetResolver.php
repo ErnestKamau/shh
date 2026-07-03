@@ -3,6 +3,7 @@
 namespace App\Services\Lab;
 
 use App\AnalysisElements;
+use App\CapturedResult;
 use App\UncertaintyBudget;
 use Illuminate\Support\Collection;
 
@@ -109,6 +110,166 @@ final class UncertaintyBudgetResolver
         }
 
         return '';
+    }
+
+    public function formatMuPercentForCapturedResult(
+        CapturedResult $captured,
+        ?Collection $elementsById = null,
+        ?Collection $elementsByAnalyteType = null,
+        ?Collection $preloadedBudgets = null,
+    ): string {
+        $manual = trim((string) ($captured->measure_uncertanity ?? ''));
+        if ($manual !== '' && $manual !== '0' && (float) $manual > 0) {
+            return rtrim(rtrim(number_format((float) $manual, 4, '.', ''), '0'), '.');
+        }
+
+        $element = $this->resolveAnalysisElementForCapturedResult(
+            $captured,
+            $elementsById,
+            $elementsByAnalyteType,
+        );
+
+        if ($element === null) {
+            return '';
+        }
+
+        $budget = $this->resolveForElement($element, null, $preloadedBudgets);
+
+        return $this->formatMuPercent($element, $budget);
+    }
+
+    /**
+     * @param  iterable<int, CapturedResult>  $capturedResults
+     * @return array<string, string>
+     */
+    public function buildMuPercentIndexForCapturedResults(iterable $capturedResults): array
+    {
+        $results = collect($capturedResults)->filter(fn ($captured): bool => $captured instanceof CapturedResult);
+        if ($results->isEmpty()) {
+            return [];
+        }
+
+        $lookups = $this->preloadElementLookupsForCapturedResults($results);
+        $budgets = $this->preloadForElements($lookups['elements']->values());
+
+        $index = [];
+        foreach ($results as $captured) {
+            $mu = $this->formatMuPercentForCapturedResult(
+                $captured,
+                $lookups['by_id'],
+                $lookups['by_analyte_type'],
+                $budgets,
+            );
+
+            if ($mu !== '') {
+                $index[(string) $captured->id] = $mu;
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * @param  Collection<int, CapturedResult>  $capturedResults
+     * @return array{by_id: Collection<string, AnalysisElements>, by_analyte_type: Collection<string, AnalysisElements>, elements: Collection<string, AnalysisElements>}
+     */
+    private function preloadElementLookupsForCapturedResults(Collection $capturedResults): array
+    {
+        $elementIds = [];
+        $fallbackPairs = [];
+
+        foreach ($capturedResults as $captured) {
+            $elementId = (string) ($captured->analysis_element_id ?? '');
+            if ($elementId !== '') {
+                $elementIds[] = $elementId;
+
+                continue;
+            }
+
+            $analyteId = (string) ($captured->analyte_id ?? '');
+            $analysisTypeId = (string) ($captured->analysis_type_id ?? '');
+            if ($analyteId !== '' && $analysisTypeId !== '') {
+                $fallbackPairs[$analyteId.'|'.$analysisTypeId] = [
+                    'analyte_id' => $analyteId,
+                    'analysis_type_id' => $analysisTypeId,
+                ];
+            }
+        }
+
+        $elements = collect();
+
+        if ($elementIds !== []) {
+            $elements = AnalysisElements::query()
+                ->whereIn('id', array_values(array_unique($elementIds)))
+                ->get()
+                ->keyBy('id');
+        }
+
+        $byAnalyteType = collect();
+        if ($fallbackPairs !== []) {
+            $fallbackElements = AnalysisElements::query()
+                ->where('active', 1)
+                ->where(function ($query) use ($fallbackPairs): void {
+                    foreach ($fallbackPairs as $pair) {
+                        $query->orWhere(function ($subQuery) use ($pair): void {
+                            $subQuery
+                                ->where('analyte_id', $pair['analyte_id'])
+                                ->where('analysis_type_id', $pair['analysis_type_id']);
+                        });
+                    }
+                })
+                ->get();
+
+            foreach ($fallbackElements as $element) {
+                $pairKey = (string) $element->analyte_id.'|'.(string) $element->analysis_type_id;
+                $byAnalyteType->put($pairKey, $element);
+                if (! $elements->has((string) $element->id)) {
+                    $elements->put((string) $element->id, $element);
+                }
+            }
+        }
+
+        return [
+            'by_id' => $elements,
+            'by_analyte_type' => $byAnalyteType,
+            'elements' => $elements,
+        ];
+    }
+
+    private function resolveAnalysisElementForCapturedResult(
+        CapturedResult $captured,
+        ?Collection $elementsById = null,
+        ?Collection $elementsByAnalyteType = null,
+    ): ?AnalysisElements {
+        $elementId = (string) ($captured->analysis_element_id ?? '');
+        if ($elementId !== '') {
+            if ($elementsById !== null) {
+                return $elementsById->get($elementId);
+            }
+
+            return AnalysisElements::query()->find($elementId);
+        }
+
+        if ($captured->relationLoaded('analysisElement') && $captured->analysisElement !== null) {
+            return $captured->analysisElement;
+        }
+
+        $analyteId = (string) ($captured->analyte_id ?? '');
+        $analysisTypeId = (string) ($captured->analysis_type_id ?? '');
+        if ($analyteId === '' || $analysisTypeId === '') {
+            return null;
+        }
+
+        $pairKey = $analyteId.'|'.$analysisTypeId;
+        if ($elementsByAnalyteType !== null) {
+            return $elementsByAnalyteType->get($pairKey);
+        }
+
+        return AnalysisElements::query()
+            ->where('analyte_id', $analyteId)
+            ->where('analysis_type_id', $analysisTypeId)
+            ->where('active', 1)
+            ->first();
     }
 
     /**

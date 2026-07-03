@@ -3,6 +3,9 @@
 namespace App\Livewire\Sampleworkflow;
 
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\CustomerContact;
+use App\Models\CRM\SamplePoint;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
@@ -45,6 +48,22 @@ class ReceiveSampleRequest extends Component
 
     /** @var array<int, string> */
     public array $lastGeneratedSfiIds = [];
+
+    public bool $showWalkInAddContactModal = false;
+
+    public bool $showWalkInAddPointModal = false;
+
+    public string $walkInNewContactName = '';
+
+    public string $walkInNewContactEmail = '';
+
+    public string $walkInNewContactPhone = '';
+
+    public string $walkInNewPointName = '';
+
+    public string $walkInNewPointUnitId = '';
+
+    public int $walkInActiveStepIndex = 0;
 
     public function mount(array $selectedFormInstanceIds = [], array $selectedFormSummaries = []): void
     {
@@ -163,6 +182,125 @@ class ReceiveSampleRequest extends Component
 
         return app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
             ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage');
+    }
+
+    /** @return list<array{index: int, key: string, label: string, title: string, is_rows: bool}> */
+    public function getWalkInWizardStepsProperty(): array
+    {
+        return $this->walkInSections
+            ->values()
+            ->map(fn (SubmissionFormSection $section, int $index): array => [
+                'index' => $index,
+                'key' => (string) $section->id,
+                'label' => $this->walkInStepShortLabel((string) ($section->title ?? 'Step')),
+                'title' => (string) ($section->title ?? ''),
+                'is_rows' => ($section->section_type ?? '') === 'rows_section',
+            ])
+            ->all();
+    }
+
+    public function getWalkInWizardProgressProperty(): int
+    {
+        $total = $this->walkInSections->count();
+
+        if ($total <= 1) {
+            return 100;
+        }
+
+        return (int) round(($this->walkInActiveStepIndex / ($total - 1)) * 100);
+    }
+
+    public function getWalkInIsFirstStepProperty(): bool
+    {
+        return $this->walkInActiveStepIndex <= 0;
+    }
+
+    public function getWalkInIsLastStepProperty(): bool
+    {
+        $maxIndex = max(0, $this->walkInSections->count() - 1);
+
+        return $this->walkInActiveStepIndex >= $maxIndex;
+    }
+
+    public function getWalkInTotalStepsProperty(): int
+    {
+        return $this->walkInSections->count();
+    }
+
+    public function goToWalkInStep(int $index): void
+    {
+        $maxIndex = max(0, $this->walkInSections->count() - 1);
+        if ($index < 0 || $index > $maxIndex) {
+            return;
+        }
+
+        if ($index <= $this->walkInActiveStepIndex) {
+            $this->walkInActiveStepIndex = $index;
+            $this->dispatchWalkInTrfStepHooks();
+
+            return;
+        }
+
+        for ($step = $this->walkInActiveStepIndex; $step < $index; $step++) {
+            try {
+                $this->validateWalkInStep($step);
+            } catch (ValidationException $exception) {
+                $this->walkInActiveStepIndex = $step;
+                $this->dispatchWalkInTrfStepHooks();
+                $this->notifyWalkInValidationFailure($exception->validator->errors()->all());
+                throw $exception;
+            }
+        }
+
+        $this->walkInActiveStepIndex = $index;
+        $this->dispatchWalkInTrfStepHooks();
+    }
+
+    public function nextWalkInStep(): void
+    {
+        $maxIndex = max(0, $this->walkInSections->count() - 1);
+        if ($this->walkInActiveStepIndex >= $maxIndex) {
+            return;
+        }
+
+        try {
+            $this->validateWalkInStep($this->walkInActiveStepIndex);
+        } catch (ValidationException $exception) {
+            $this->notifyWalkInValidationFailure($exception->validator->errors()->all());
+            throw $exception;
+        }
+
+        $this->walkInActiveStepIndex++;
+        $this->dispatchWalkInTrfStepHooks();
+    }
+
+    public function prevWalkInStep(): void
+    {
+        if ($this->walkInActiveStepIndex <= 0) {
+            return;
+        }
+
+        $this->walkInActiveStepIndex--;
+        $this->dispatchWalkInTrfStepHooks();
+    }
+
+    private function walkInStepShortLabel(string $title): string
+    {
+        return match ($title) {
+            'Customer details' => 'Customer',
+            'Sample collection data' => 'Collection',
+            'Test & sample information' => 'Samples',
+            'Miscellaneous' => 'Misc',
+            'Submit & sign', 'Submit and sign' => 'Sign',
+            default => \Illuminate\Support\Str::limit($title, 14),
+        };
+    }
+
+    private function dispatchWalkInTrfStepHooks(): void
+    {
+        $this->dispatch('trf-reinit-signatures');
+        $this->dispatch('trf-reinit-parameter-selects');
+        $this->dispatch('walk-in-trf-step-changed');
     }
 
     private function defaultValueForElement(SubmissionFormElement $element): mixed
@@ -392,6 +530,7 @@ class ReceiveSampleRequest extends Component
     public function updatedSelectedSampleTypeId($value): void
     {
         $this->formData = [];
+        $this->walkInActiveStepIndex = 0;
         if ($value) {
             $this->initializeFormDataForSampleType((string) $value);
 
@@ -416,6 +555,225 @@ class ReceiveSampleRequest extends Component
     public function updatedFormDataClientName(?string $value): void
     {
         $this->prefillCustomerDetailsFromSelection($value);
+    }
+
+    public function updatedFormDataContactPerson(?string $value): void
+    {
+        if ($value === null || trim($value) === '') {
+            return;
+        }
+
+        $contact = CustomerContact::query()->find($value);
+        if ($contact === null) {
+            return;
+        }
+
+        if (array_key_exists('customer_email', $this->formData)) {
+            $this->formData['customer_email'] = (string) ($contact->email ?? '');
+        }
+    }
+
+    public function openWalkInAddContactModal(): void
+    {
+        if ($this->resolveSelectedCustomerId() === null) {
+            $this->addError('formData.customer_name', 'Select a customer before adding a contact.');
+
+            return;
+        }
+
+        $this->resetWalkInContactModal();
+        $this->showWalkInAddContactModal = true;
+    }
+
+    public function openWalkInAddPointModal(): void
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            $this->addError('formData.customer_name', 'Select a customer before adding a sample point.');
+
+            return;
+        }
+
+        $this->resetWalkInPointModal();
+        $this->walkInNewPointUnitId = (string) (CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->value('id') ?? '');
+        $this->showWalkInAddPointModal = true;
+    }
+
+    public function saveWalkInContact(): void
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            $this->addError('walkInNewContactName', 'Select a customer first.');
+
+            return;
+        }
+
+        $this->validate([
+            'walkInNewContactName' => 'required|string|max:255',
+            'walkInNewContactEmail' => 'nullable|email|max:255',
+            'walkInNewContactPhone' => 'nullable|string|max:50',
+        ]);
+
+        $nameParts = preg_split('/\s+/', trim($this->walkInNewContactName)) ?: [];
+        $firstName = $nameParts[0] ?? '';
+        $lastName = count($nameParts) > 1 ? (string) array_pop($nameParts) : '';
+        $middleName = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : '';
+
+        $contact = new CustomerContact();
+        $contact->crm_customer_id = $customerId;
+        $contact->company_id = getUserCompany();
+        $contact->first_name = $firstName;
+        $contact->middle_name = $middleName !== '' ? $middleName : null;
+        $contact->last_name = $lastName !== '' ? $lastName : null;
+        $contact->email = $this->walkInNewContactEmail !== '' ? $this->walkInNewContactEmail : '';
+        $contact->telephone = $this->walkInNewContactPhone !== '' ? $this->walkInNewContactPhone : '-';
+        $contact->mobile = $this->walkInNewContactPhone !== '' ? $this->walkInNewContactPhone : null;
+        $contact->receive_price_list = 0;
+        $contact->receive_invoice = 0;
+        $contact->receive_report = 0;
+        $contact->active = 1;
+        $contact->save();
+
+        if (array_key_exists('contact_person', $this->formData)) {
+            $this->formData['contact_person'] = (string) $contact->id;
+        }
+
+        if (array_key_exists('customer_email', $this->formData) && $contact->email) {
+            $this->formData['customer_email'] = (string) $contact->email;
+        }
+
+        $this->showWalkInAddContactModal = false;
+        $this->resetWalkInContactModal();
+    }
+
+    public function saveWalkInSamplePoint(): void
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            $this->addError('walkInNewPointName', 'Select a customer first.');
+
+            return;
+        }
+
+        $this->validate([
+            'walkInNewPointName' => 'required|string|max:255',
+            'walkInNewPointUnitId' => 'required|exists:crm_company_units,id',
+        ]);
+
+        $point = SamplePoint::query()->create([
+            'crm_customer_id' => $customerId,
+            'crm_company_unit_id' => $this->walkInNewPointUnitId,
+            'name' => trim($this->walkInNewPointName),
+            'active' => 1,
+        ]);
+
+        if (array_key_exists('sampling_location', $this->formData)) {
+            $this->formData['sampling_location'] = (string) $point->id;
+        }
+
+        $this->showWalkInAddPointModal = false;
+        $this->resetWalkInPointModal();
+    }
+
+    public function closeWalkInAddContactModal(): void
+    {
+        $this->showWalkInAddContactModal = false;
+        $this->resetWalkInContactModal();
+    }
+
+    public function closeWalkInAddPointModal(): void
+    {
+        $this->showWalkInAddPointModal = false;
+        $this->resetWalkInPointModal();
+    }
+
+    private function resetWalkInContactModal(): void
+    {
+        $this->walkInNewContactName = '';
+        $this->walkInNewContactEmail = '';
+        $this->walkInNewContactPhone = '';
+        $this->resetValidation([
+            'walkInNewContactName',
+            'walkInNewContactEmail',
+            'walkInNewContactPhone',
+        ]);
+    }
+
+    private function resetWalkInPointModal(): void
+    {
+        $this->walkInNewPointName = '';
+        $this->walkInNewPointUnitId = '';
+        $this->resetValidation([
+            'walkInNewPointName',
+            'walkInNewPointUnitId',
+        ]);
+    }
+
+    public function resolveSelectedCustomerId(): ?string
+    {
+        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
+            $customerName = trim((string) ($this->formData[$key] ?? ''));
+            if ($customerName === '') {
+                continue;
+            }
+
+            $customerId = CRMCustomer::query()
+                ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
+                ->value('id');
+
+            if ($customerId !== null) {
+                return (string) $customerId;
+            }
+        }
+
+        return null;
+    }
+
+    public function getCustomerContactsProperty(): Collection
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            return collect();
+        }
+
+        return CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+    }
+
+    public function getCustomerSamplePointsProperty(): Collection
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            return collect();
+        }
+
+        return SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getCustomerCompanyUnitsProperty(): Collection
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            return collect();
+        }
+
+        return CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
     }
 
     public function updated($propertyName, $value): void
@@ -528,6 +886,7 @@ class ReceiveSampleRequest extends Component
         $this->checkInTrfFields = [];
         $this->selectedSampleTypeId = null;
         $this->formData = [];
+        $this->walkInActiveStepIndex = 0;
         $this->resetValidation();
         $this->refreshCheckInContexts();
 
@@ -642,6 +1001,7 @@ class ReceiveSampleRequest extends Component
         try {
             $this->runWalkInCaptureValidations();
         } catch (ValidationException $exception) {
+            $this->dispatchWalkInTrfStepHooks();
             $this->notifyWalkInValidationFailure($exception->validator->errors()->all());
             throw $exception;
         }
@@ -721,45 +1081,80 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $this->validateWalkInCustomerInfo();
+        foreach ($this->walkInSections->values() as $stepIndex => $section) {
+            try {
+                $this->validateWalkInStep($stepIndex);
+            } catch (ValidationException $exception) {
+                $this->walkInActiveStepIndex = $stepIndex;
+                $this->dispatchWalkInTrfStepHooks();
+                throw $exception;
+            }
+        }
+    }
+
+    private function validateWalkInStep(int $stepIndex): void
+    {
+        $section = $this->walkInSections->values()->get($stepIndex);
+        if ($section === null) {
+            return;
+        }
+
+        if (($section->title ?? '') === 'Customer details') {
+            $this->validateWalkInCustomerInfo();
+            if ($this->getErrorBag()->isNotEmpty()) {
+                throw ValidationException::withMessages($this->getErrorBag()->toArray());
+            }
+        }
+
+        if (($section->section_type ?? '') === 'rows_section') {
+            $this->validateWalkInSchemaRows($section);
+
+            return;
+        }
 
         $rules = [];
         $messages = [];
-
-        $hiddenWalkInFields = ['job_number', 'crm_contact_id'];
+        $hiddenWalkInFields = ['job_number', 'crm_contact_id', 'customer_tax_id'];
+        $miscellaneousOnlyTrfFieldNames = [
+            'packaging',
+            'sample_weight',
+            'sample_information',
+            'ship_name',
+            'port_of_loading',
+            'port_of_discharge',
+            'seal_number',
+        ];
         $seenElements = [];
-        foreach ($this->walkInSections as $section) {
-            if (($section->section_type ?? '') === 'rows_section') {
+
+        foreach ($section->elementHolders->flatMap->elements as $element) {
+            $elementName = (string) ($element->name ?? '');
+            if ($elementName === '' || isset($seenElements[$elementName])) {
                 continue;
             }
 
-            foreach ($section->elementHolders->flatMap->elements as $element) {
-                $elementName = (string) ($element->name ?? '');
-                if ($elementName === '' || isset($seenElements[$elementName])) {
-                    continue;
-                }
-
-                if (in_array($elementName, $hiddenWalkInFields, true)) {
-                    continue;
-                }
-
-                $seenElements[$elementName] = true;
-
-                if (! $element->is_required) {
-                    continue;
-                }
-
-                $key = 'formData.'.$elementName;
-                $rules[$key] = 'required';
-                $messages[$key.'.required'] = ($element->label ?? $elementName).' is required.';
+            if (in_array($elementName, $hiddenWalkInFields, true)) {
+                continue;
             }
+
+            if (($section->title ?? '') === 'Sample collection data'
+                && in_array($elementName, $miscellaneousOnlyTrfFieldNames, true)) {
+                continue;
+            }
+
+            $seenElements[$elementName] = true;
+
+            if (! $element->is_required) {
+                continue;
+            }
+
+            $key = 'formData.'.$elementName;
+            $rules[$key] = 'required';
+            $messages[$key.'.required'] = ($element->label ?? $elementName).' is required.';
         }
 
         if ($rules !== []) {
             $this->validate($rules, $messages);
         }
-
-        $this->validateWalkInSchemaRows();
     }
 
     private function validateWalkInCustomerInfo(): void
@@ -849,11 +1244,14 @@ class ReceiveSampleRequest extends Component
         return max(1, $count);
     }
 
-    private function validateWalkInSchemaRows(): void
+    private function validateWalkInSchemaRows(?SubmissionFormSection $section = null): void
     {
-        $rowElements = $this->walkInSections
-            ->filter(fn ($section) => ($section->section_type ?? '') === 'rows_section')
-            ->flatMap(fn ($section) => $this->uniqueRowElementsForSection($section));
+        $sections = $section !== null
+            ? collect([$section])
+            : $this->walkInSections->filter(fn ($walkInSection) => ($walkInSection->section_type ?? '') === 'rows_section');
+
+        $rowElements = $sections
+            ->flatMap(fn (SubmissionFormSection $walkInSection) => $this->uniqueRowElementsForSection($walkInSection));
 
         if ($rowElements->isEmpty()) {
             return;
@@ -1026,12 +1424,14 @@ class ReceiveSampleRequest extends Component
         $contact = $customer->contacts->first();
 
         $contactName = '';
+        $contactId = '';
         if ($contact) {
             $contactName = trim(implode(' ', array_filter([
                 (string) ($contact->first_name ?? ''),
                 (string) ($contact->middle_name ?? ''),
                 (string) ($contact->last_name ?? ''),
             ])));
+            $contactId = (string) $contact->id;
         }
 
         $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
@@ -1043,7 +1443,9 @@ class ReceiveSampleRequest extends Component
             'customer_address' => $address,
             'customer_phone' => $telFax,
             'mobile_number' => $mobile,
-            'contact_person' => $contactName,
+            'contact_person' => $contactId !== '' ? $contactId : $contactName,
+            'customer_email' => (string) ($contact?->email ?? $customer->email ?? ''),
+            'sampling_location' => '',
             'client_name' => (string) ($customer->name ?? ''),
             'customer' => (string) ($customer->name ?? ''),
             'client' => (string) ($customer->name ?? ''),

@@ -245,13 +245,13 @@
 
     /* Form Section Styling */
     .form-section {
-        border-left: 3px solid #6D0A0E;
+        border-left: 3px solid var(--color-primary);
         padding-left: 20px;
         scroll-margin-top: 100px;
     }
 
     .section-header h5 {
-        color: #6D0A0E;
+        color: var(--color-primary);
     }
 
     .element-holder {
@@ -366,7 +366,7 @@
 
     .custom-element .form-control:focus {
         border-color: #d17578;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
     }
 
     /* Form Control Styling */
@@ -438,8 +438,8 @@
     }
 
     .select2-container--default .select2-selection--multiple .select2-selection__choice {
-        background-color: #6D0A0E;
-        border: 1px solid #6D0A0E;
+        background-color: var(--color-primary);
+        border: 1px solid var(--color-primary);
         color: white;
         padding: 2px 8px;
         margin: 2px 5px 5px 0;

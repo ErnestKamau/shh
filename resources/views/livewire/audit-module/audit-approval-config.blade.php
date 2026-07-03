@@ -17,8 +17,8 @@
 
         .modern-search-input:focus {
             outline: none;
-            border-color: #6D0A0E;
-            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-soft-10);
         }
 
         .modern-search-icon {
@@ -41,8 +41,8 @@
 
         .modern-filter-select:focus {
             outline: none;
-            border-color: #6D0A0E;
-            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-soft-10);
         }
 
         .modern-table {
@@ -110,7 +110,7 @@
 
         .modern-action-btn:hover {
             background: #f1f3f4;
-            border-color: #6D0A0E;
+            border-color: var(--color-primary);
         }
 
         .btn-modern {
@@ -264,10 +264,10 @@
                     </td>
                     <td>
                         <div class="btn-group">
-                            <button wire:click="openModal(null, {{ $approver->id }})" class="modern-action-btn" title="Edit" style="color: #d97706;">
+                            <button wire:click="openModal(null, '{{ $approver->id }}')" class="modern-action-btn" title="Edit" style="color: #d97706;">
                                 <i class="mdi mdi-pencil"></i>
                             </button>
-                            <button wire:click="delete({{ $approver->id }})" wire:confirm="Are you sure you want to delete approver '{{ $approver->user->name ?? 'N/A' }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
+                            <button wire:click="delete('{{ $approver->id }}')" wire:confirm="Are you sure you want to delete approver '{{ $approver->user->name ?? 'N/A' }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
                                 <i class="mdi mdi-delete"></i>
                             </button>
                         </div>

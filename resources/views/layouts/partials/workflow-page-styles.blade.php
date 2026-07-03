@@ -62,7 +62,7 @@
 	}
 
 	.workflow-receiving-tab:not(.is-active):hover {
-		border-color: rgba(109, 10, 14, 0.22);
+		border-color: var(--color-primary-border-soft);
 		color: var(--color-primary);
 	}
 

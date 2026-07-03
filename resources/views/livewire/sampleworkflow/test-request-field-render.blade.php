@@ -7,7 +7,7 @@
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
-@if(! $compact)
+@if(! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'customer_email', 'email', 'customer_tax_id'], true))
     <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
         {{ $field['label'] ?? $fieldName }}
         @if($field['required'] ?? false)
@@ -163,6 +163,73 @@
             <label class="custom-control-label small" for="field_{{ $fieldId }}">{{ $field['label'] ?? $fieldName }}</label>
         </div>
     @endif
+@elseif(($field['type'] ?? '') === 'client_contact_select' || $fieldName === 'contact_person')
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
+            {{ $field['label'] ?? 'Contact person' }}
+            @if($field['required'] ?? false)
+                <span class="text-danger">*</span>
+            @endif
+        </label>
+        <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+            wire:click="openWalkInAddContactModal" title="Add customer contact">
+            <i class="mdi mdi-plus"></i>
+        </button>
+    </div>
+    <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
+        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
+        @if($compactStyle) style="{{ $compactStyle }}" @endif
+        @if($field['readonly'] ?? false) disabled @endif>
+        <option value="">Select contact person</option>
+        @foreach($this->customerContacts as $contact)
+            @php
+                $contactLabel = trim(implode(' ', array_filter([
+                    (string) ($contact->first_name ?? ''),
+                    (string) ($contact->middle_name ?? ''),
+                    (string) ($contact->last_name ?? ''),
+                ])));
+            @endphp
+            <option value="{{ $contact->id }}">{{ $contactLabel !== '' ? $contactLabel : 'Contact' }}</option>
+        @endforeach
+    </select>
+@elseif(($field['type'] ?? '') === 'customer_sample_point_select' || $fieldName === 'sampling_location')
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
+            {{ $field['label'] ?? 'Sampling location' }}
+            @if($field['required'] ?? false)
+                <span class="text-danger">*</span>
+            @endif
+        </label>
+        <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+            wire:click="openWalkInAddPointModal" title="Add sample point">
+            <i class="mdi mdi-plus"></i>
+        </button>
+    </div>
+    <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
+        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
+        @if($compactStyle) style="{{ $compactStyle }}" @endif
+        @if($field['readonly'] ?? false) disabled @endif>
+        <option value="">Select sampling location</option>
+        @foreach($this->customerSamplePoints as $point)
+            <option value="{{ $point->id }}">{{ $point->display_name }}</option>
+        @endforeach
+    </select>
+@elseif($fieldName === 'customer_tax_id')
+    {{-- Removed from walk-in TRF --}}
+@elseif($fieldName === 'customer_email' || $fieldName === 'email')
+    @if(! $compact)
+        <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
+            {{ $field['label'] ?? 'Email' }}
+            @if($field['required'] ?? false)
+                <span class="text-danger">*</span>
+            @endif
+        </label>
+    @endif
+    <input type="email" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
+        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
+        placeholder="{{ $compact ? '' : 'Enter email' }}"
+        @if($compactStyle) style="{{ $compactStyle }}" @endif
+        @if($field['readonly'] ?? false) readonly @endif>
 @elseif(($field['type'] ?? '') === 'date')
     <input type="date" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"

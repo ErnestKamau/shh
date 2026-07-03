@@ -24,7 +24,7 @@ class QuotationReportConfigSeeder extends Seeder
             'quotation_closing_text' => 'We hope our offer will meet with your requirements and look forward to work with you for long time. Should you require further information or assistance, please do not hesitate to contact us.',
             'quotation_legal_entity' => 'AMSPEC MIDDLE EAST INSPECTION & TESTING SERVICES L.L.C',
             'quotation_terms_url' => 'https://www.amspecgroup.com/terms-conditions',
-            'sys_quotation_primary_color' => '#6D0A0E',
+            'sys_quotation_primary_color' => '#00A7DF',
             'sys_quotation_accent_color' => '#4CAF50',
         ];
 

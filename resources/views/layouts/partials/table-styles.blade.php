@@ -78,7 +78,7 @@
 	}
 
 	.workflow-panel-selection-actions .btn-outline-primary {
-		border-color: rgba(109, 10, 14, 0.22);
+		border-color: var(--color-primary-border-soft);
 		color: var(--color-primary);
 	}
 

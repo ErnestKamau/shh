@@ -17,6 +17,8 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\System\SystemConfiguration;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
+use App\Services\Sampleworkflow\TrfSampleFieldMapper;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -204,6 +206,7 @@ class SampleCreationService
             case 'sample_type_select':
             case 'client_unit_select':
             case 'client_contact_select':
+            case 'customer_sample_point_select':
             case 'sample_condition_select':
             case 'store_select':
             case 'store_slot_select':
@@ -344,6 +347,15 @@ class SampleCreationService
         if (empty($headerData['sample_type_id']) || !$this->isValidUuid($headerData['sample_type_id'])) {
             throw new \RuntimeException("Mandatory 'sample_type_id' is missing or invalid and could not be recovered for form instance {$instance->id}");
         }
+
+        $instance->loadMissing(['values.element', 'crmCustomer']);
+        $formData = app(SubmissionFormValueNormalizer::class)->valuesMapFromInstance($instance);
+        $trfMapped = app(TrfSampleFieldMapper::class)->mapToSampleHeader($formData, [
+            'crm_customer_id' => $headerData['crm_customer_id'] ?? $instance->crm_customer_id,
+            'crm_contact_id' => $headerData['crm_contact_id'] ?? null,
+            'email' => $submissionRequest?->email,
+        ]);
+        $headerData = app(TrfSampleFieldMapper::class)->mergeFillGaps($headerData, $trfMapped);
 
         $sampleHeader = SampleHeader::create($headerData);
 

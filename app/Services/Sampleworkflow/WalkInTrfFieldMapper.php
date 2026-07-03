@@ -17,12 +17,17 @@ final class WalkInTrfFieldMapper
     {
         $elementType = (string) ($element->element_type ?? 'text');
 
-        $type = match ($elementType) {
-            'client_contact_select' => 'text',
-            default => $elementType,
-        };
-
         $name = (string) ($element->name ?? '');
+
+        $type = match ($elementType) {
+            'client_contact_select' => 'client_contact_select',
+            'customer_sample_point_select' => 'customer_sample_point_select',
+            default => match ($name) {
+                'contact_person' => 'client_contact_select',
+                'sampling_location' => 'customer_sample_point_select',
+                default => $elementType,
+            },
+        };
         $label = (string) ($element->label ?? $element->name ?? '');
 
         if ($name === 'analysis_type_id') {

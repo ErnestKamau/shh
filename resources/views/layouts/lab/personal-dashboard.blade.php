@@ -12,11 +12,11 @@
     }
 
     .personal-hero {
-        background: linear-gradient(135deg, #6d0a0e 0%, #8b1e22 58%, #b53d43 100%);
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
         border-radius: 14px;
         color: #fff;
         padding: 1rem 1.1rem;
-        box-shadow: 0 12px 24px rgba(109, 10, 14, 0.14);
+        box-shadow: 0 12px 24px var(--color-primary-highlight);
         margin-bottom: 1rem;
     }
 
@@ -51,7 +51,7 @@
 
     .personal-date-filter .btn:hover {
         background: #fff;
-        color: #6d0a0e;
+        color: var(--color-primary);
     }
 
     .personal-kpi-card {

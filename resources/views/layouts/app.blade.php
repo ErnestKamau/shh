@@ -25,35 +25,7 @@
 
     {{-- <script src="https://cdn.jsdelivr.net/npm/fullcalendar@3.9.0/dist/fullcalendar.min.js"></script> --}}
     @php
-        $themeVars = \Illuminate\Support\Facades\Cache::rememberForever('global_theme_variables', function () {
-            $keys = ['sys_theme_primary_color', 'sys_theme_secondary_color', 'sys_theme_accent_color', 'sys_sidebar_bg_color', 'sys_sidebar_link_bg'];
-            $configs = \App\Models\System\SystemConfiguration::whereIn('key', $keys)->get()->keyBy('key');
-            
-            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? '#1A1D24';
-            
-            // Calculate dynamic contrast color for text in sidebar
-            $hex = str_replace('#', '', $sidebarBg);
-            if (strlen($hex) == 3) {
-                $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
-            }
-            $r = hexdec(substr($hex, 0, 2)) ?: 0;
-            $g = hexdec(substr($hex, 2, 2)) ?: 0;
-            $b = hexdec(substr($hex, 4, 2)) ?: 0;
-            $yiq = (($r * 299) + ($g * 587) + ($b * 114)) / 1000;
-            
-            $sidebarText = ($yiq >= 128) ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.95)';
-            $sidebarTextMuted = ($yiq >= 128) ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.6)';
-
-            return [
-                'primary' => optional($configs->get('sys_theme_primary_color'))->value ?? '#4a90e2',
-                'secondary' => optional($configs->get('sys_theme_secondary_color'))->value ?? '#50e3c2',
-                'accent' => optional($configs->get('sys_theme_accent_color'))->value ?? '#f5a623',
-                'sidebar_bg' => $sidebarBg,
-                'sidebar_link_bg' => optional($configs->get('sys_sidebar_link_bg'))->value ?? 'rgba(255, 255, 255, 0.05)',
-                'sidebar_text' => $sidebarText,
-                'sidebar_text_muted' => $sidebarTextMuted,
-            ];
-        });
+        $themeVars = \App\Services\System\ThemeService::resolvedVariables();
     @endphp
     @include('layouts.partials.global-styling')
     @include('layouts.partials.typography-styles')
@@ -96,12 +68,12 @@
         }
 
         .tag-select-input:hover {
-            border-color: #6D0A0E;
+            border-color: var(--color-primary);
         }
 
         .tag-select-input:focus-within {
-            border-color: #6D0A0E;
-            box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
             outline: none;
         }
 
@@ -114,7 +86,7 @@
             align-items: center;
             gap: 4px;
             padding: 4px 10px;
-            background-color: #6D0A0E;
+            background-color: var(--color-primary);
             color: white;
             border-radius: 16px;
             font-size: 0.875rem;
@@ -158,7 +130,7 @@
             left: 0;
             right: 0;
             background: #fff;
-            border: 1px solid #6D0A0E;
+            border: 1px solid var(--color-primary);
             border-top: none;
             border-radius: 0 0 8px 8px;
             max-height: 250px;
@@ -1344,7 +1316,7 @@
             left: -2px;
             right: -2px;
             bottom: -2px;
-            background: linear-gradient(135deg, #6D0A0E, #8B1E22, #28a745, #ffc107, #dc3545);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover), var(--color-primary-tint));
             background-size: 300% 300%;
             border-radius: 27px;
             z-index: -1;
@@ -1355,7 +1327,7 @@
 
         .search-input-group:hover {
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-            border-color: #6D0A0E;
+            border-color: var(--color-primary);
         }
 
         .search-input-group:hover::before {
@@ -1363,8 +1335,8 @@
         }
 
         .search-input-group:focus-within {
-            box-shadow: 0 4px 20px rgba(109, 10, 14, 0.2);
-            border-color: #6D0A0E;
+            box-shadow: 0 4px 20px var(--color-primary-shadow);
+            border-color: var(--color-primary);
         }
 
         .search-input-group:focus-within::before {
@@ -1415,13 +1387,13 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(109, 10, 14, 0.1), transparent);
+            background: linear-gradient(90deg, transparent, var(--color-primary-soft-10), transparent);
             transition: left 0.5s ease;
         }
 
         .search-btn:hover {
-            background: rgba(109, 10, 14, 0.1) !important;
-            color: #6D0A0E !important;
+            background: var(--color-primary-soft-10) !important;
+            color: var(--color-primary) !important;
             transform: scale(1.05);
         }
 
@@ -1431,7 +1403,7 @@
 
         .search-btn:active {
             transform: scale(0.98);
-            background: rgba(109, 10, 14, 0.2) !important;
+            background: var(--color-primary-shadow) !important;
         }
 
         .search-btn:focus {
@@ -1452,7 +1424,7 @@
         }
 
         .search-input-group:focus-within .search-btn::after {
-            background: #6D0A0E;
+            background: var(--color-primary);
         }
 
         /* Toggle Button Enhancement */
@@ -1460,15 +1432,15 @@
             background: transparent !important;
             border: 2px solid #e9ecef !important;
             border-radius: 8px !important;
-            color: #6D0A0E !important;
+            color: var(--color-primary) !important;
             transition: all 0.3s ease;
         }
 
         #toggle-main-sidebar:hover {
             background: #f8f9fa !important;
-            border-color: #6D0A0E !important;
+            border-color: var(--color-primary) !important;
             transform: scale(1.05);
-            box-shadow: 0 2px 8px rgba(109, 10, 14, 0.2);
+            box-shadow: 0 2px 8px var(--color-primary-shadow);
         }
 
         /* Navbar Toggler Enhancement */
@@ -1479,11 +1451,11 @@
         }
 
         .navbar-toggler:focus {
-            box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25) !important;
+            box-shadow: 0 0 0 0.2rem var(--color-primary-focus) !important;
         }
 
         .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28109, 10, 14, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 167, 223, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
         }
 
         /* Right Side Navigation Enhancement */
@@ -1497,7 +1469,7 @@
         }
 
         #main-app-header .navbar-nav .nav-link:hover {
-            color: #6D0A0E !important;
+            color: var(--color-primary) !important;
             background: #f8f9fa;
             transform: translateY(-2px);
         }
@@ -1525,7 +1497,7 @@
         }
 
         #main-app-header .navbar-nav .dropdown-item:hover {
-            background: #6D0A0E;
+            background: var(--color-primary);
             color: white !important;
             transform: translateX(5px);
         }
@@ -1582,7 +1554,7 @@
         }
 
         .user-avatar:hover {
-            border-color: #6D0A0E;
+            border-color: var(--color-primary);
             transform: scale(1.1);
         }
 
@@ -1650,7 +1622,7 @@
         }
 
         .breadcrumb-item-modern:hover:not(:last-child)::after {
-            border-color: #6D0A0E;
+            border-color: var(--color-primary);
             opacity: 1;
             transform: rotate(-45deg) scale(1.2);
         }
@@ -1675,15 +1647,15 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(109, 10, 14, 0.08), transparent);
+            background: linear-gradient(90deg, transparent, var(--color-primary-soft), transparent);
             transition: left 0.6s ease;
         }
 
         .breadcrumb-link:hover {
-            color: #6D0A0E;
-            background: linear-gradient(135deg, rgba(109, 10, 14, 0.08) 0%, rgba(109, 10, 14, 0.03) 100%);
+            color: var(--color-primary);
+            background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary-soft-light) 100%);
             transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 2px 10px rgba(109, 10, 14, 0.15);
+            box-shadow: 0 2px 10px var(--color-primary-highlight);
             text-decoration: none;
         }
 
@@ -1701,7 +1673,7 @@
             padding: 8px 16px;
             border-radius: 8px;
             color: #495057;
-            background: linear-gradient(135deg, rgba(109, 10, 14, 0.08) 0%, rgba(109, 10, 14, 0.05) 100%);
+            background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary-soft-medium) 100%);
             font-weight: 600;
             position: relative;
             overflow: hidden;
@@ -1740,11 +1712,11 @@
 
         .breadcrumb-link:hover .breadcrumb-icon {
             transform: scale(1.1) rotate(5deg);
-            text-shadow: 0 0 8px rgba(109, 10, 14, 0.4);
+            text-shadow: 0 0 8px var(--color-primary-glow);
         }
 
         .breadcrumb-current .breadcrumb-icon {
-            text-shadow: 0 0 10px rgba(109, 10, 14, 0.3);
+            text-shadow: 0 0 10px var(--color-primary-border-soft);
         }
 
         .breadcrumb-text {
@@ -1752,7 +1724,7 @@
         }
 
         .breadcrumb-link:hover .breadcrumb-text {
-            text-shadow: 0 1px 3px rgba(109, 10, 14, 0.2);
+            text-shadow: 0 1px 3px var(--color-primary-shadow);
         }
 
         .breadcrumb-current .breadcrumb-text {
@@ -1793,7 +1765,7 @@
 
             .breadcrumb-current {
                 color: #495057;
-                background: linear-gradient(135deg, rgba(109, 10, 14, 0.08) 0%, rgba(109, 10, 14, 0.05) 100%);
+                background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary-soft-medium) 100%);
             }
         }
 

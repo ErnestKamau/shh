@@ -3,8 +3,10 @@
 namespace Tests\Unit\Services\Lab;
 
 use App\AnalysisElements;
+use App\CapturedResult;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\UncertaintyBudget;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class UncertaintyBudgetResolverTest extends TestCase
@@ -134,7 +136,7 @@ class UncertaintyBudgetResolverTest extends TestCase
 
     public function test_enrich_lines_matches_budget_when_ltm_method_differs_from_budget_method(): void
     {
-        $elementId = (string) Str::uuid();
+        $elementId = (string) \Illuminate\Support\Str::uuid();
         $analyteId = (string) Str::uuid();
         $budgetMethodId = (string) Str::uuid();
         $ltmMethodId = (string) Str::uuid();
@@ -174,5 +176,64 @@ class UncertaintyBudgetResolverTest extends TestCase
 
         $this->assertSame('10', $lines[0]['loq']);
         $this->assertSame('2', $lines[0]['mu_percent']);
+    }
+
+    public function test_format_mu_percent_for_captured_result_prefers_manual_value(): void
+    {
+        $captured = new CapturedResult([
+            'measure_uncertanity' => '4.5',
+            'analyte_id' => (string) Str::uuid(),
+            'analysis_type_id' => (string) Str::uuid(),
+        ]);
+
+        $resolver = app(UncertaintyBudgetResolver::class);
+
+        $this->assertSame('4.5', $resolver->formatMuPercentForCapturedResult($captured));
+    }
+
+    public function test_build_mu_percent_index_for_captured_results_resolves_from_budget(): void
+    {
+        $elementId = (string) Str::uuid();
+        $analyteId = (string) Str::uuid();
+        $methodId = (string) Str::uuid();
+        $capturedId = (string) Str::uuid();
+
+        \App\Analyte::query()->create([
+            'id' => $analyteId,
+            'code' => 'MOIST',
+            'name' => 'Moisture',
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $elementId,
+            'analyte_id' => $analyteId,
+            'analysis_type_id' => (string) Str::uuid(),
+            'method' => $methodId,
+            'measurement_uncertainty' => 1.5,
+            'active' => 1,
+        ]);
+
+        UncertaintyBudget::query()->create([
+            'id' => (string) Str::uuid(),
+            'analyte_id' => $analyteId,
+            'method_ids' => $methodId,
+            'expanded_uncertainty' => 2.25,
+            'active' => true,
+            'version_number' => 1,
+        ]);
+
+        $captured = new CapturedResult([
+            'id' => $capturedId,
+            'analysis_element_id' => $elementId,
+            'analyte_id' => $analyteId,
+            'analysis_type_id' => (string) Str::uuid(),
+            'measure_uncertanity' => 0,
+        ]);
+
+        $resolver = app(UncertaintyBudgetResolver::class);
+        $index = $resolver->buildMuPercentIndexForCapturedResults([$captured]);
+
+        $this->assertSame('2.25', $index[$capturedId] ?? null);
     }
 }

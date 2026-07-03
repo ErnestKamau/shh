@@ -1,6 +1,6 @@
 {{-- DomPDF: two logical pages, maroon/green table headers, no blank page breaks --}}
 @php
-    $primaryColor = $branding['primary'] ?? '#6D0A0E';
+    $primaryColor = $branding['primary'] ?? 'var(--color-primary)';
     $accentColor = $branding['accent'] ?? '#4CAF50';
 @endphp
 <style>

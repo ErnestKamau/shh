@@ -40,6 +40,7 @@ class SubmissionFormTrfWasteWaterSeeder extends Seeder
                 ]],
             ]);
             $this->patchSampleRowsSection($form, $this->wasteWaterTrfRowFields());
+            $this->patchMiscellaneousSection($form);
         } else {
             $this->createCustomerDetailsSection($form, 1);
 
@@ -60,8 +61,9 @@ class SubmissionFormTrfWasteWaterSeeder extends Seeder
             ]);
 
             $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->wasteWaterTrfRowFields());
+            $this->createMiscellaneousSection($form, 4);
 
-            $this->createSubmitAndSignSection($form, 4);
+            $this->createSubmitAndSignSection($form, 5);
         }
 
         $this->clearCaches();

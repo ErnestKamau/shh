@@ -7,35 +7,46 @@ use Illuminate\Support\Carbon;
 
 final class AmSpecQuotationNumberGenerator
 {
-    private const PREFIX = 'AMSQ';
-
-    public static function generate(?Carbon $date = null): string
-    {
+    public static function generate(
+        string $customerId,
+        string $customerName,
+        ?Carbon $date = null,
+    ): string {
         $date ??= now();
-        $dateKey = self::PREFIX.$date->format('ymd');
-        $pattern = $dateKey.'-%';
+        $namePart = self::sanitizeCustomerName($customerName);
+        $prefix = $namePart.$date->format('Y');
 
         $lastNumber = QuotationHeader::query()
-            ->where('quote_number', 'like', $pattern)
+            ->where('crm_customer_id', $customerId)
+            ->where('quote_number', 'like', $prefix.'%')
             ->orderByDesc('quote_number')
             ->value('quote_number');
 
         $sequence = 1;
-        if (is_string($lastNumber) && preg_match('/-(\d{3})$/', $lastNumber, $matches) === 1) {
+        if (is_string($lastNumber) && preg_match('/(\d{3})$/', $lastNumber, $matches) === 1) {
             $sequence = (int) $matches[1] + 1;
         }
 
         do {
-            $candidate = self::formatSequence($date, $sequence);
+            $candidate = self::formatSequence($namePart, $date, $sequence);
             $sequence++;
         } while (QuotationHeader::query()->where('quote_number', $candidate)->exists());
 
         return $candidate;
     }
 
-    public static function formatSequence(Carbon $date, int $sequence): string
+    public static function formatSequence(string $customerNamePart, Carbon $date, int $sequence): string
     {
-        return self::PREFIX.$date->format('ymd').'-'.str_pad((string) max(1, $sequence), 3, '0', STR_PAD_LEFT);
+        return $customerNamePart
+            .$date->format('Y')
+            .str_pad((string) max(1, $sequence), 3, '0', STR_PAD_LEFT);
+    }
+
+    public static function sanitizeCustomerName(string $name): string
+    {
+        $sanitized = preg_replace('/[^A-Za-z0-9]/', '', $name) ?? '';
+
+        return $sanitized !== '' ? $sanitized : 'Customer';
     }
 
     public static function isLegacyNumber(?string $quoteNumber): bool
@@ -44,7 +55,7 @@ final class AmSpecQuotationNumberGenerator
             return true;
         }
 
-        return str_starts_with($quoteNumber, 'QUOTE-') || ! str_starts_with($quoteNumber, self::PREFIX);
+        return str_starts_with($quoteNumber, 'QUOTE-');
     }
 
     public static function assignIfMissing(QuotationHeader $header): QuotationHeader
@@ -53,8 +64,12 @@ final class AmSpecQuotationNumberGenerator
             return $header;
         }
 
+        $header->loadMissing('customer');
+
         $header->quote_number = self::generate(
-            $header->quote_date ? Carbon::parse($header->quote_date) : null
+            (string) $header->crm_customer_id,
+            (string) ($header->customer?->name ?? 'Customer'),
+            $header->quote_date ? Carbon::parse($header->quote_date) : null,
         );
         $header->save();
 

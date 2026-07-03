@@ -36,7 +36,7 @@ class AuditApprovalConfig extends Component
             'module' => 'required|in:audit,risk',
             'workflowStep' => 'required|integer|min:1|max:8',
             'roleType' => 'required|in:approver,verifier',
-            'userId' => 'required|exists:users,id',
+            'userId' => 'required|uuid|exists:users,id',
             'isoRole' => 'nullable|in:' . $isoRoles,
             'isRequired' => 'boolean',
             'approvalType' => 'required|in:single,multiple',
@@ -118,11 +118,11 @@ class AuditApprovalConfig extends Component
             'module' => $this->module,
             'workflow_step' => (int) $this->workflowStep,
             'role_type' => $this->roleType,
-            'user_id' => (int) $this->userId,
+            'user_id' => $this->userId,
             'iso_role' => $this->isoRole,
             'is_required' => $this->isRequired,
             'approval_type' => $this->approvalType,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ];
 
         if ($this->isEdit && $this->editId) {

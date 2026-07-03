@@ -132,23 +132,23 @@ document.addEventListener('DOMContentLoaded', function() {
 		justify-content: center;
 		gap: 5px;
 		font-weight: 500 !important;
-		background-color: #6D0A0E !important;
-		border-color: #6D0A0E !important;
+		background-color: var(--color-primary) !important;
+		border-color: var(--color-primary) !important;
 		color: #ffffff !important;
 		transition: all 0.2s ease-in-out;
 		vertical-align: middle;
 	}
 
 	.workflow-header-receive-btn:hover:not(:disabled) {
-		background-color: #8B1E22 !important;
-		border-color: #8B1E22 !important;
+		background-color: var(--color-primary-hover) !important;
+		border-color: var(--color-primary-hover) !important;
 		color: #ffffff !important;
-		box-shadow: 0 4px 8px rgba(109, 10, 14, 0.3) !important;
+		box-shadow: 0 4px 8px var(--color-primary-border-soft) !important;
 	}
 
 	.workflow-header-receive-btn:disabled {
-		background-color: #6D0A0E !important;
-		border-color: #6D0A0E !important;
+		background-color: var(--color-primary) !important;
+		border-color: var(--color-primary) !important;
 		color: #ffffff !important;
 		opacity: 0.65;
 		cursor: not-allowed;

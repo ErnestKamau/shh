@@ -43,20 +43,150 @@ class SubmissionRequestSampleLineService
 
         $trfRowLines = $this->deduplicateLines($this->linesFromSampleRowsFormData($instance));
         if ($trfRowLines !== []) {
-            return $trfRowLines;
+            return $this->finalizeInstanceLines(
+                $instance,
+                $this->enrichTrfRowLinesFromRowsSection($instance, $trfRowLines),
+            );
         }
 
         $rowLines = $this->deduplicateLines($this->parseRowsSections($instance));
 
         if ($this->linesHaveRichSampleDetail($rowLines)) {
-            return $rowLines;
+            return $this->finalizeInstanceLines($instance, $rowLines);
         }
 
         if ($rowLines !== []) {
-            return $rowLines;
+            return $this->finalizeInstanceLines($instance, $rowLines);
         }
 
-        return $this->fallbackLinesFromHeader($instance);
+        return $this->finalizeInstanceLines($instance, $this->fallbackLinesFromHeader($instance));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function finalizeInstanceLines(SubmissionFormInstance $instance, array $lines): array
+    {
+        if ($lines === []) {
+            return [];
+        }
+
+        return $this->enrichLinesWithSavedParameterValues($instance, $lines);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function enrichLinesWithSavedParameterValues(SubmissionFormInstance $instance, array $lines): array
+    {
+        $parameterValuesByRow = $this->parameterValuesByRowIndex($instance);
+        if ($parameterValuesByRow === []) {
+            return $lines;
+        }
+
+        foreach ($lines as &$line) {
+            $rowIndex = (int) ($line['row_index'] ?? 0);
+            $raw = trim((string) ($parameterValuesByRow[$rowIndex] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+
+            $tokens = $this->referenceLabelResolver->extractTokens($raw);
+            if ($tokens === []) {
+                continue;
+            }
+
+            $this->applyParameterTokensToLine($line, $tokens);
+
+            $resolved = $this->referenceLabelResolver->resolveMixed($tokens);
+            if ($resolved !== '') {
+                $line['parameter_label'] = $resolved;
+            }
+
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['parameters'] = $raw;
+        }
+        unset($line);
+
+        return $lines;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parameterValuesByRowIndex(SubmissionFormInstance $instance): array
+    {
+        $byRow = [];
+
+        foreach ($instance->values as $value) {
+            $element = $value->element;
+            if ($element === null || (string) ($element->name ?? '') !== 'parameters') {
+                continue;
+            }
+
+            $stored = trim((string) ($value->value ?? ''));
+            if ($stored === '') {
+                continue;
+            }
+
+            $byRow[(int) ($value->array_index ?? 0)] = $stored;
+        }
+
+        return $byRow;
+    }
+
+    /**
+     * TRF sample_rows snapshots can omit PARAMETERS selections that live on rows_section values.
+     *
+     * @param  list<array<string, mixed>>  $trfRowLines
+     * @return list<array<string, mixed>>
+     */
+    private function enrichTrfRowLinesFromRowsSection(SubmissionFormInstance $instance, array $trfRowLines): array
+    {
+        $sectionLines = $this->deduplicateLines($this->parseRowsSections($instance));
+        if ($sectionLines === []) {
+            return $trfRowLines;
+        }
+
+        $sectionByRow = collect($sectionLines)->keyBy('row_index');
+
+        foreach ($trfRowLines as &$line) {
+            $rowIndex = (int) ($line['row_index'] ?? 0);
+            /** @var array<string, mixed>|null $sectionLine */
+            $sectionLine = $sectionByRow->get($rowIndex);
+            if ($sectionLine === null) {
+                continue;
+            }
+
+            $sectionAttributes = is_array($sectionLine['attributes'] ?? null) ? $sectionLine['attributes'] : [];
+            $sectionElementIds = $sectionAttributes['analysis_element_ids'] ?? [];
+            if ($sectionElementIds === [] && ! empty($sectionLine['analysis_element_id'])) {
+                $sectionElementIds = [(string) $sectionLine['analysis_element_id']];
+            }
+
+            if ($sectionElementIds === []) {
+                $sectionParameterLabel = trim((string) ($sectionLine['parameter_label'] ?? ''));
+                if ($sectionParameterLabel !== '' && ! $this->isTestCategoryLabel($sectionParameterLabel)) {
+                    $line['parameter_label'] = $sectionParameterLabel;
+                }
+
+                continue;
+            }
+
+            $line['analysis_element_id'] = $sectionLine['analysis_element_id'] ?? $sectionElementIds[0];
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['analysis_element_ids'] = array_values(array_map('strval', $sectionElementIds));
+
+            $sectionParameterLabel = trim((string) ($sectionLine['parameter_label'] ?? ''));
+            if ($sectionParameterLabel !== '') {
+                $line['parameter_label'] = $sectionParameterLabel;
+            }
+        }
+        unset($line);
+
+        return $trfRowLines;
     }
 
     /**
@@ -83,6 +213,7 @@ class SubmissionRequestSampleLineService
             }
 
             $seeds[] = [
+                'row_index' => $line['row_index'] ?? null,
                 'sample_type_id' => $line['sample_type_id'],
                 'analysis_type_id' => (string) ($line['analysis_type_id'] ?? ''),
                 'analysis_element_id' => $line['analysis_element_id'],
@@ -891,26 +1022,35 @@ class SubmissionRequestSampleLineService
             }
 
             $this->applyParameterTokensToLine($line, $parameterTokens);
-        }
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['parameters'] = is_array($row['parameters'] ?? null)
+                ? implode(',', $parameterTokens)
+                : trim((string) ($row['parameters'] ?? implode(',', $parameterTokens)));
+        } else {
+            foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemistry' => 'Chemistry', 'chemical_analysis' => 'Chemistry'] as $key => $label) {
+                if (! empty($row[$key])) {
+                    $tests[] = $label;
+                }
+            }
 
-        foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemistry' => 'Chemistry', 'chemical_analysis' => 'Chemistry'] as $key => $label) {
-            if (! empty($row[$key])) {
-                $tests[] = $label;
+            $category = strtolower(trim((string) ($row['test_category'] ?? $row['parameter_category'] ?? '')));
+            if ($category !== '') {
+                $line['parameter_category'] = $category;
+            }
+
+            if ($tests === [] && $category !== '') {
+                $tests[] = match ($category) {
+                    'microbiology' => 'Microbiology',
+                    'legionella' => 'Legionella',
+                    'chemistry', 'chemical', 'chemical_analysis' => 'Chemistry',
+                    default => ucfirst($category),
+                };
             }
         }
 
         $category = strtolower(trim((string) ($row['test_category'] ?? $row['parameter_category'] ?? '')));
-        if ($category !== '') {
+        if ($category !== '' && ! isset($line['parameter_category'])) {
             $line['parameter_category'] = $category;
-        }
-
-        if ($tests === [] && $category !== '') {
-            $tests[] = match ($category) {
-                'microbiology' => 'Microbiology',
-                'legionella' => 'Legionella',
-                'chemistry', 'chemical', 'chemical_analysis' => 'Chemistry',
-                default => ucfirst($category),
-            };
         }
 
         try {
@@ -920,7 +1060,10 @@ class SubmissionRequestSampleLineService
         }
 
         if ($tests !== []) {
-            $line['parameter_label'] = implode(', ', $tests);
+            $line['parameter_label'] = implode(', ', array_values(array_filter(
+                $tests,
+                fn (string $test): bool => ! $this->isTestCategoryLabel($test),
+            )));
         }
 
         if ($line['attributes'] === []) {
@@ -1171,5 +1314,16 @@ class SubmissionRequestSampleLineService
             ->value('id');
 
         return $resolved ? (string) $resolved : null;
+    }
+
+    private function isTestCategoryLabel(string $label): bool
+    {
+        return in_array(strtolower(trim($label)), [
+            'microbiology',
+            'chemistry',
+            'chemical',
+            'chemical analysis',
+            'legionella',
+        ], true);
     }
 }

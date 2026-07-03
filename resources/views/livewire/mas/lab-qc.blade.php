@@ -272,7 +272,7 @@
                     datasets: [{
                         label: "{{ __('mas/qc.robust_cv') }}",
                         data: @json($stats['charts']['top_cv_values'] ?? []),
-                        backgroundColor: '#6D0A0E',
+                        backgroundColor: '{{ \App\Services\System\ThemeService::primaryColor() }}',
                         borderRadius: 4,
                         barThickness: 20
                     }]
@@ -350,7 +350,7 @@
 
 <style>
     .btn-indigo { background-color: #660A0E; color: white; border: none; }
-    .btn-indigo:hover { background-color: #8B1E22; color: white; }
+    .btn-indigo:hover { background-color: var(--color-primary-hover); color: white; }
     .btn-outline-indigo { border-color: #660A0E; color: #660A0E; background: transparent; }
     .btn-outline-indigo:hover { background-color: #660A0E; color: white; }
 </style>

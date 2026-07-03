@@ -17,8 +17,8 @@
 
         .modern-search-input:focus {
             outline: none;
-            border-color: #6D0A0E;
-            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-soft-10);
         }
 
         .modern-search-icon {
@@ -95,7 +95,7 @@
 
         .modern-action-btn:hover {
             background: #f1f3f4;
-            border-color: #6D0A0E;
+            border-color: var(--color-primary);
         }
 
         .btn-modern {
@@ -131,6 +131,35 @@
             padding: 16px 24px;
             border-top: 1px solid #e8eaed;
             background: #ffffff;
+        }
+
+        .modal-dialog-scrollable {
+            max-height: 90vh;
+        }
+
+        .modal-dialog-scrollable .modal-content {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-dialog-scrollable .modal-content form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: inherit;
+        }
+
+        .modal-dialog-scrollable .modal-header,
+        .modal-dialog-scrollable .modal-footer {
+            flex-shrink: 0;
+        }
+
+        .modal-dialog-scrollable .modal-body {
+            overflow-y: auto;
+            max-height: calc(90vh - 120px);
+            flex: 1;
         }
     </style>
 
@@ -207,7 +236,7 @@
                         @php
                             $stepName = $item->next_workflow_step == 8 ? 'N/A' : ($workflowSteps[$item->next_workflow_step] ?? 'N/A');
                         @endphp
-                        <span class="modern-badge" style="background: rgba(109, 10, 14, 0.08); color: #6D0A0E; font-weight: 600;">Step {{ $item->next_workflow_step }}: {{ $stepName }}</span>
+                        <span class="modern-badge" style="background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600;">Step {{ $item->next_workflow_step }}: {{ $stepName }}</span>
                         @else
                         <span class="text-muted">Not configured</span>
                         @endif
@@ -244,7 +273,7 @@
                     @elseif($type === 'audit_statuses')
                     <td style="color: #5f6368;">
                         @if($item->workflow_step)
-                        <span class="modern-badge" style="background: rgba(109, 10, 14, 0.08); color: #6D0A0E; font-weight: 600;">Step {{ $item->workflow_step }}</span>
+                        <span class="modern-badge" style="background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600;">Step {{ $item->workflow_step }}</span>
                         @else
                         <span class="text-muted">-</span>
                         @endif
@@ -283,13 +312,13 @@
                     </td>
                     <td>
                         <div class="btn-group">
-                            <button wire:click="openModal({{ $item->id }})" class="modern-action-btn" title="Edit" style="color: #d97706;">
+                            <button wire:click="openModal('{{ $item->id }}')" class="modern-action-btn" title="Edit" style="color: #d97706;">
                                 <i class="mdi mdi-pencil"></i>
                             </button>
-                            <button wire:click="toggleActive({{ $item->id }})" class="modern-action-btn" title="{{ $item->is_active ? 'Deactivate' : 'Activate' }}" style="color: {{ $item->is_active ? '#5f6368' : '#137333' }};">
+                            <button wire:click="toggleActive('{{ $item->id }}')" class="modern-action-btn" title="{{ $item->is_active ? 'Deactivate' : 'Activate' }}" style="color: {{ $item->is_active ? '#5f6368' : '#137333' }};">
                                 <i class="mdi mdi-{{ $item->is_active ? 'close' : 'check' }}"></i>
                             </button>
-                            <button wire:click="delete({{ $item->id }})" wire:confirm="Are you sure you want to delete '{{ $item->name }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
+                            <button wire:click="delete('{{ $item->id }}')" wire:confirm="Are you sure you want to delete '{{ $item->name }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
                                 <i class="mdi mdi-delete"></i>
                             </button>
                         </div>
@@ -315,7 +344,7 @@
     <!-- Modal -->
     @if($showModal)
     <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
             <div class="modal-content">
                 <form wire:submit="save">
                     <div class="modal-header {{ $isEdit ? 'bg-primary' : 'bg-success' }} text-white">

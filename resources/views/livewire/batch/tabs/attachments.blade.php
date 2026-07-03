@@ -8,7 +8,7 @@
                     <i class="mdi mdi-file-document-box-multiple"></i> Merge selected
                     <span class="badge badge-primary ml-1" id="merge-count">0</span>
                 </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm btn-action-sm" data-target="#add-attachment-batch" data-toggle="modal">
+                <button type="button" class="btn btn-outline-secondary btn-sm btn-action-sm" id="open-add-attachment-modal" data-target="#add-attachment-batch">
                     <i class="mdi mdi-plus"></i> Add
                 </button>
             </div>
@@ -120,6 +120,58 @@
                             </div>
                             @endif
 
+                            <!-- Quotation -->
+                            @if($quotationDocument)
+                            <div class="col-md-4 mb-3">
+                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="mr-3 text-warning bg-warning-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="mdi mdi-file-document-outline mdi-24px"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Quotation</h6>
+                                            <small class="text-muted">{{ $quotationDocument->quote_number ?? ($quotationDocument->submitted_at ? $quotationDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
+                                        </div>
+                                        <div class="d-flex align-items-center" style="gap: 5px;">
+                                            <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Refresh linked quotation attachment">
+                                                <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-primary"></i>
+                                                <span wire:loading wire:target="syncWorkflowDocuments" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                            </button>
+                                            <a href="{{ $quotationDocument->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Quotation">
+                                                <i class="mdi mdi-eye text-dark"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Test Request Form -->
+                            @if($testRequestFormDocument)
+                            <div class="col-md-4 mb-3">
+                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="mr-3 text-secondary bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="mdi mdi-clipboard-text-outline mdi-24px"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Test Request Form</h6>
+                                            <small class="text-muted">{{ $testRequestFormDocument->form_number ?? ($testRequestFormDocument->submitted_at ? $testRequestFormDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
+                                        </div>
+                                        <div class="d-flex align-items-center" style="gap: 5px;">
+                                            <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Refresh linked test request form attachment">
+                                                <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-info"></i>
+                                                <span wire:loading wire:target="syncWorkflowDocuments" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
+                                            </button>
+                                            <a href="{{ $testRequestFormDocument->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Test Request Form">
+                                                <i class="mdi mdi-eye text-dark"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
                             <!-- Invoice -->
                             @if($batch->invoice_id)
                             <div class="col-md-4 mb-3">
@@ -143,7 +195,7 @@
                             @endif
                         </div>
 
-                        @if(!$acceptanceForm && !$rejectionForm && !$receiptNotification && !$batch->invoice_id)
+                        @if(!$acceptanceForm && !$rejectionForm && !$receiptNotification && !$batch->invoice_id && !$quotationDocument && !$testRequestFormDocument)
                         <div class="alert alert-light border text-center py-4" style="border-radius: 10px;">
                             <i class="mdi mdi-file-hidden text-muted" style="font-size: 24px;"></i>
                             <p class="mb-0 mt-2 text-muted small">No workflow documents generated yet.</p>
@@ -403,6 +455,7 @@
     </div>
 
     <!-- Add Attachment Modal -->
+    <div wire:ignore.self>
     <div class="modal fade" id="add-attachment-batch" role="dialog">
         <div class="modal-dialog modal-lg">
             <form id="add-attachment-form" action="{{ route('add_batch_attachment') }}" method="post" enctype="multipart/form-data" class="modal-content shadow-sm" style="border-radius: 20px; border: none; background: #fafbfc;">
@@ -607,8 +660,10 @@
             </form>
         </div>
     </div>
+    </div>
 
     <!-- Add Attachment Type Modal -->
+    <div wire:ignore.self>
     <div class="modal fade" id="add-attachment-type-modal" role="dialog" style="z-index: 1060;">
         <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
@@ -639,6 +694,7 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
 
@@ -1385,6 +1441,13 @@
                 }
             }
 
+            function handleAddAttachmentClick(e) {
+                e.preventDefault();
+                if (window.jQuery && window.jQuery.fn.modal) {
+                    window.jQuery('#add-attachment-batch').modal('show');
+                }
+            }
+
             function initializeHandlers() {
                 // Use event delegation on the container (which persists through Livewire updates)
                 var container = document.getElementById('attachments-container');
@@ -1409,6 +1472,12 @@
                 if (mergeBtn) {
                     mergeBtn.removeEventListener('click', handleMergeClick);
                     mergeBtn.addEventListener('click', handleMergeClick);
+                }
+
+                var addBtn = document.getElementById('open-add-attachment-modal');
+                if (addBtn) {
+                    addBtn.removeEventListener('click', handleAddAttachmentClick);
+                    addBtn.addEventListener('click', handleAddAttachmentClick);
                 }
 
                 // Initial state

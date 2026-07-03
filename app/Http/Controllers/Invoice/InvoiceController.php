@@ -271,13 +271,21 @@ class InvoiceController extends Controller
     }
 
     public function print_invoice(Request $request,$id){
-        $invoice = Invoice::find($id);
-        
+        $invoice = Invoice::query()
+            ->with(['currencyinfo', 'pricelist.currency'])
+            ->find($id);
+
         if(!$invoice){
             return redirect()->back()->with('error','No Invoice with the specified ID');
         }
+
+        if ($invoice->details()->exists() && (float) ($invoice->total ?? 0) <= 0) {
+            $invoice->syncTotalsFromDetails();
+            $invoice->refresh();
+        }
+
         $header = SampleHeader::where('invoice_id',$invoice->id)->first();
-        $customer = getCrmCustomerByID($header->crm_customer_id);
+        $customer = getCrmCustomerByID($header->crm_customer_id ?? $invoice->customer_id);
         // return response()->json($invoice->id,200);
         return view('layouts.lab.invoice.print',compact('invoice','customer'));
     }

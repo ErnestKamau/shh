@@ -105,6 +105,46 @@ class Invoice extends Model implements Auditable
     public function getInvoiceTotalAttribute(){
         return InvoiceDetails::where('invoice_id',$this->id)->sum('total');
     }
+
+    public function syncTotalsFromDetails(): self
+    {
+        $this->total = (float) InvoiceDetails::query()
+            ->where('invoice_id', $this->id)
+            ->sum('total');
+        $this->total_tax = (float) InvoiceDetails::query()
+            ->where('invoice_id', $this->id)
+            ->sum('tax_amount');
+        $this->save();
+
+        return $this;
+    }
+
+    public function resolvedTotalFromDetails(): float
+    {
+        $lineTotal = (float) InvoiceDetails::query()
+            ->where('invoice_id', $this->id)
+            ->sum('total');
+
+        if ($lineTotal > 0) {
+            return $lineTotal;
+        }
+
+        return (float) ($this->total ?? 0);
+    }
+
+    public function resolvedTaxFromDetails(): float
+    {
+        $lineTax = (float) InvoiceDetails::query()
+            ->where('invoice_id', $this->id)
+            ->sum('tax_amount');
+
+        if ($this->resolvedTotalFromDetails() > 0) {
+            return $lineTax;
+        }
+
+        return (float) ($this->total_tax ?? 0);
+    }
+
     public function details(): HasMany
     {
         return $this->hasMany(InvoiceDetails::class, 'invoice_id');

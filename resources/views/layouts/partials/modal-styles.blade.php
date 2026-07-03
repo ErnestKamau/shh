@@ -128,7 +128,7 @@
 	}
 
 	.receive-checkin-card__header {
-		background: linear-gradient(135deg, rgba(109, 10, 14, 0.04) 0%, #ffffff 100%);
+		background: linear-gradient(135deg, var(--color-primary-soft-light) 0%, #ffffff 100%);
 	}
 
 	.vw-modal-header .vw-icon-wrap {

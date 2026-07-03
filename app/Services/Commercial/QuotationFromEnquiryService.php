@@ -18,9 +18,11 @@ use App\Services\Billing\QuotationReportService;
 use App\Services\Billing\QuotationRevisionService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -333,6 +335,7 @@ final class QuotationFromEnquiryService
         }
 
         return QuotationHeader::query()
+            ->with('details')
             ->where('crm_customer_id', $customerId)
             ->where('status', 'Quote Complete')
             ->where(function ($query): void {
@@ -342,6 +345,42 @@ final class QuotationFromEnquiryService
             ->orderByDesc('quote_date')
             ->orderByDesc('id')
             ->get();
+    }
+
+    public function summarizeQuotationAnalysisTypes(QuotationHeader $header): string
+    {
+        $header->loadMissing('details');
+        $detailIds = $header->details->pluck('id')->all();
+
+        $analysisTypeIds = collect();
+
+        if ($detailIds !== []) {
+            $analysisTypeIds = $analysisTypeIds->merge(
+                QuotationDetailAnalysisSplit::query()
+                    ->whereIn('quotation_detail_id', $detailIds)
+                    ->pluck('analysis_type_id')
+            );
+        }
+
+        foreach ($header->details as $detail) {
+            $partIds = array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) ($detail->part_no ?? ''))
+            )));
+            $analysisTypeIds = $analysisTypeIds->merge($partIds);
+        }
+
+        $uniqueIds = $analysisTypeIds->unique()->filter()->values();
+
+        if ($uniqueIds->isEmpty()) {
+            return '';
+        }
+
+        return AnalysisType::query()
+            ->whereIn('id', $uniqueIds->all())
+            ->orderBy('name')
+            ->pluck('name')
+            ->implode(', ');
     }
 
     public function linkExistingQuotationToEnquiry(
@@ -785,6 +824,23 @@ final class QuotationFromEnquiryService
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
             $enquiry->save();
+
+            $instance = $enquiry->submissionFormInstance;
+            if ($instance !== null) {
+                try {
+                    app(SubmissionFormInstanceDocumentAttachmentService::class)->attachQuotation(
+                        $instance,
+                        $header->fresh() ?? $header,
+                        Auth::id(),
+                    );
+                } catch (\Throwable $exception) {
+                    Log::warning('Failed to attach quotation PDF to submission instance.', [
+                        'instance_id' => $instance->id,
+                        'quotation_id' => $header->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
 
             return $this->ensureEnquiryReflectsSentQuotation($enquiry->fresh(['customer', 'contact', 'requestedAnalyses', 'currentQuotation']));
         });

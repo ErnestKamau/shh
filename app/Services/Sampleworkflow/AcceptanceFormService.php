@@ -515,6 +515,9 @@ class AcceptanceFormService
                 ->whereIn('status', ['in_review', 'In Review', 'submitted', 'Submitted'])
                 ->update(['status' => 'approved']);
         }
+
+        app(BatchWorkflowDocumentAttachmentService::class)
+            ->attachForAcceptedBatch($batch->fresh(), Auth::id() ? (string) Auth::id() : null);
     }
 
     private function closeOpenChainOfCustody(SampleHeader $batch, string $comments): void

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Livewire\Sampleworkflow\Concerns\ManagesSampleConfigurationWizard;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
@@ -11,12 +12,19 @@ use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\CustomerContactVerificationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class AcceptanceFormWizard extends Component
 {
+    use ManagesSampleConfigurationWizard;
+    use WithFileUploads;
+
     public bool $showModal = false;
+
+    public string $activeStep = 'sample_config';
 
     public ?string $submissionFormInstanceId = null;
 
@@ -34,11 +42,6 @@ class AcceptanceFormWizard extends Component
 
     /** @var list<array<string, mixed>> */
     public array $lines = [];
-
-    /** @var list<array<string, mixed>> */
-    public array $sampleConfigs = [];
-
-    public ?string $crmCustomerId = null;
 
     public string $receivingPersonName = '';
 
@@ -61,12 +64,54 @@ class AcceptanceFormWizard extends Component
     /** @var list<array{id: string, label: string}> */
     public array $customerContactOptions = [];
 
+    /** @var array<string, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null> */
+    public array $instancePhotoUploads = [];
+
+    public bool $showLabSectionOnConfig = false;
+
+    public bool $showMainStandardOnConfig = true;
+
+    public bool $showSecondaryStandardOnConfig = false;
+
+    public bool $showLabIdOnConfig = true;
+
+    public bool $compactConfigTable = true;
+
+    public bool $showSampleConditionOnConfig = true;
+
+    public bool $showSampleDetailsOnConfig = true;
+
+    public bool $showQuantityOnConfig = false;
+
+    public bool $showParametersOnConfig = false;
+
+    public bool $showInstancePhotoOnConfig = true;
+
+    public bool $showInstanceDisposalOnConfig = true;
+
+    public bool $allowAddRemoveConfig = false;
+
+    public bool $readOnlyConfigTypes = true;
+
+    public bool $defaultExpandParameters = false;
+
+    public bool $defaultExpandSampleDetails = true;
+
     public function mount(): void
     {
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');
         $this->requestDate = now()->format('Y-m-d');
         $this->receivedAt = now()->format('Y-m-d\TH:i');
         $this->customerSignedAt = now()->format('Y-m-d');
+    }
+
+    /** @return list<array{key: string, label: string}> */
+    public function getWizardStepsProperty(): array
+    {
+        return [
+            ['key' => 'sample_config', 'label' => 'Sample configuration'],
+            ['key' => 'signatures', 'label' => 'Sign & accept'],
+        ];
     }
 
     #[On('open-acceptance-wizard')]
@@ -127,34 +172,43 @@ class AcceptanceFormWizard extends Component
         $this->modeOfWork = (string) ($prefill['mode_of_work'] ?? 'Normal');
         $this->dateOfSampling = $prefill['date_of_sampling'];
         $pricingService = app(AcceptanceFormPricingService::class);
-
-        $prefillLines = collect($pricingService->deduplicateRedundantAnalysisTypeLines($prefill['lines']))
-            ->map(function (array $line, int $index) {
-                return [
-                    'line_no' => $index + 1,
-                    'sample_type_id' => $line['sample_type_id'] ?? null,
-                    'sample_type_name' => $line['sample_type_id'] ? optional(\App\SampleType::find($line['sample_type_id']))->name : '',
-                    'analysis_type_id' => $line['analysis_type_id'] ?? null,
-                    'analysis_type_name' => $line['analysis_type_id'] ? optional(\App\AnalysisType::find($line['analysis_type_id']))->name : '',
-                    'analysis_element_id' => $line['analysis_element_id'] ?? null,
-                    'parameter_label' => $line['parameter_label'] ?? '',
-                    'unit_amount' => (float) ($line['unit_amount'] ?? 0),
-                    'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
-                    'is_approved' => (bool) ($line['is_approved'] ?? true),
-                    'sort_order' => $index,
-                ];
-            })->values()->all();
+        $quotationLines = $pricingService->deduplicateRedundantAnalysisTypeLines($prefill['lines']);
+        $quotationLocked = (bool) ($prefill['quotation_locked'] ?? false);
 
         $instance = $this->submissionFormInstanceId
             ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
             : null;
 
         $configService = app(AcceptanceFormSampleConfigService::class);
-        $storedConfig = is_array($enquiry?->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
 
-        if ($storedConfig !== []) {
-            $this->sampleConfigs = $configService->normalizeConfigsForStorage($storedConfig);
+        if ($quotationLocked && $enquiry !== null) {
+            $this->sampleConfigs = $configService->prepareAcceptanceConfigsFromQuotation(
+                $enquiry,
+                $quotationLines,
+                $instance,
+            );
+        } elseif (is_array($enquiry?->enquiry_sample_configuration) && $enquiry->enquiry_sample_configuration !== []) {
+            $this->sampleConfigs = $configService->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration);
+            $this->sampleConfigs = $configService->syncParameterKeysFromQuotationLines($this->sampleConfigs, $quotationLines);
+            foreach ($this->sampleConfigs as $index => $config) {
+                $this->sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisType(
+                    is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [],
+                    (string) ($config['analysis_type_id'] ?? ''),
+                );
+            }
         } else {
+            $prefillLines = collect($quotationLines)->map(function (array $line, int $index) {
+                return [
+                    'line_no' => $index + 1,
+                    'row_index' => $index,
+                    'sample_type_id' => $line['sample_type_id'] ?? null,
+                    'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                    'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                    'parameter_label' => $line['parameter_label'] ?? '',
+                    'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
+                ];
+            })->values()->all();
+
             $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
             $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);
             if ($defaultZoneId !== null) {
@@ -166,21 +220,9 @@ class AcceptanceFormWizard extends Component
             }
         }
 
-        $this->lines = collect($prefillLines)->map(function (array $line, int $index): array {
-            return [
-                'line_no' => $index + 1,
-                'sample_type_id' => $line['sample_type_id'] ?? null,
-                'sample_type_name' => $line['sample_type_name'] ?? '',
-                'analysis_type_id' => $line['analysis_type_id'] ?? null,
-                'analysis_type_name' => $line['analysis_type_name'] ?? '',
-                'analysis_element_id' => $line['analysis_element_id'] ?? null,
-                'parameter_label' => $line['parameter_label'] ?? '',
-                'unit_amount' => (float) ($line['unit_amount'] ?? 0),
-                'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
-                'is_approved' => true,
-                'sort_order' => $index,
-            ];
-        })->values()->all();
+        $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
+
+        $this->lines = $this->mapQuotationLinesForAcceptance($quotationLines);
 
         $this->loadCustomerContactOptions($enquiry);
 
@@ -190,8 +232,51 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
+        $this->activeStep = 'sample_config';
         $this->showModal = true;
         $this->dispatch('acceptance-wizard-opened');
+    }
+
+    public function goToStep(string $step): void
+    {
+        if (! in_array($step, ['sample_config', 'signatures'], true)) {
+            return;
+        }
+
+        if ($step === 'signatures' && $this->activeStep === 'sample_config') {
+            $this->saveSampleConfigAndContinue();
+
+            return;
+        }
+
+        $this->activeStep = $step;
+
+        if ($step === 'signatures') {
+            $this->dispatch('acceptance-wizard-signatures-step');
+        }
+    }
+
+    public function saveSampleConfigAndContinue(): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        try {
+            $this->mergeInstancePhotoUploadsIntoConfigs();
+            $configService->validateReceptionConfigs($this->sampleConfigs);
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first() ?? 'Complete all required sample configuration fields.';
+            $this->dispatch('notify', type: 'error', message: $message);
+
+            return;
+        }
+
+        $this->activeStep = 'signatures';
+        $this->dispatch('acceptance-wizard-signatures-step');
+    }
+
+    public function goBackToSampleConfig(): void
+    {
+        $this->activeStep = 'sample_config';
     }
 
     public function updatedSelectedCustomerContactId(): void
@@ -226,13 +311,46 @@ class AcceptanceFormWizard extends Component
         ]);
 
         $configService = app(AcceptanceFormSampleConfigService::class);
-        $normalizedConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
+
+        $quotationPrefill = app(AcceptanceFormPricingService::class)->buildPrefillFromSelection(
+            $this->submissionRequestId,
+            $this->submissionFormInstanceId,
+        );
+        $quotationLines = app(AcceptanceFormPricingService::class)
+            ->deduplicateRedundantAnalysisTypeLines($quotationPrefill['lines'] ?? []);
+
+        if (($quotationPrefill['quotation_locked'] ?? false) && $quotationLines !== []) {
+            $this->sampleConfigs = $configService->syncParameterKeysFromQuotationLines($this->sampleConfigs, $quotationLines);
+            foreach ($this->sampleConfigs as $index => $config) {
+                $this->sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisType(
+                    is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [],
+                    (string) ($config['analysis_type_id'] ?? ''),
+                );
+            }
+        }
+
+        try {
+            $this->mergeInstancePhotoUploadsIntoConfigs();
+            $normalizedConfigs = $configService->normalizeConfigsForStorage(
+                $this->sampleConfigs,
+                $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
+            );
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first() ?? 'Sample configuration is invalid.';
+            $this->dispatch('notify', type: 'error', message: $message);
+
+            return;
+        }
+
+        $acceptanceLines = ($quotationPrefill['quotation_locked'] ?? false)
+            ? $this->mapQuotationLinesForAcceptance($quotationLines)
+            : $this->lines;
 
         $header = [
             'crm_customer_id' => $this->crmCustomerId,
             'customer_name' => $this->customerName,
             'request_date' => $this->requestDate,
-            'number_of_samples' => $this->numberOfSamples,
+            'number_of_samples' => $configService->totalSampleCount($normalizedConfigs),
             'mode_of_work' => $this->modeOfWork,
             'date_of_sampling' => $this->dateOfSampling,
             'sample_configuration_payload' => $normalizedConfigs,
@@ -245,7 +363,7 @@ class AcceptanceFormWizard extends Component
                 $this->submissionFormInstanceId,
                 $this->submissionRequestId,
                 $header,
-                $this->lines,
+                $acceptanceLines,
                 $this->receivingPersonName,
                 $this->receivingPersonSignature,
                 $this->receivedAt,
@@ -284,6 +402,44 @@ class AcceptanceFormWizard extends Component
         session()->flash('success', "Samples accepted. Job number {$batchCode} created and moved to Samples In Lab.");
     }
 
+    private function mergeInstancePhotoUploadsIntoConfigs(): void
+    {
+        foreach ($this->sampleConfigs as $configIndex => $config) {
+            $configId = (string) ($config['id'] ?? '');
+            $photoKey = $this->instancePhotoUploadKey($configId);
+            $upload = $this->instancePhotoUploads[$photoKey] ?? null;
+
+            if ($upload !== null) {
+                $path = $upload->store('sample_photos', 'public');
+                $this->sampleConfigs[$configIndex]['photo_path'] = $path;
+                unset($this->instancePhotoUploads[$photoKey]);
+            }
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    private function mapQuotationLinesForAcceptance(array $quotationLines): array
+    {
+        return collect($quotationLines)->map(function (array $line, int $index): array {
+            return [
+                'line_no' => $index + 1,
+                'sample_type_id' => $line['sample_type_id'] ?? null,
+                'sample_type_name' => $line['sample_type_name'] ?? '',
+                'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                'analysis_type_name' => $line['analysis_type_name'] ?? '',
+                'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                'parameter_label' => $line['parameter_label'] ?? '',
+                'unit_amount' => (float) ($line['unit_amount'] ?? 0),
+                'number_of_samples' => 1,
+                'is_approved' => (bool) ($line['is_approved'] ?? true),
+                'sort_order' => $index,
+            ];
+        })->values()->all();
+    }
+
     private function loadCustomerContactOptions(?SampleSubmissionRequest $enquiry): void
     {
         if (! $this->crmCustomerId) {
@@ -318,10 +474,12 @@ class AcceptanceFormWizard extends Component
 
     private function resetWizard(): void
     {
+        $this->activeStep = 'sample_config';
         $this->submissionFormInstanceId = null;
         $this->submissionRequestId = null;
         $this->lines = [];
         $this->sampleConfigs = [];
+        $this->instancePhotoUploads = [];
         $this->crmCustomerId = null;
         $this->customerName = '';
         $this->numberOfSamples = 1;

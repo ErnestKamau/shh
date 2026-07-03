@@ -284,12 +284,12 @@
     }
 
     #submission-forms-registry-filters .tag-select-input:hover {
-        border-color: #6D0A0E;
+        border-color: var(--color-primary);
     }
 
     #submission-forms-registry-filters .tag-select-input:focus-within {
-        border-color: #6D0A0E;
-        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
         outline: none;
     }
 

@@ -31,13 +31,15 @@ class SubmissionFormTrfWaterSeeder extends Seeder
             $this->patchCustomerDetailsSection($form);
             $this->patchCollectionDataSection($form, true);
             $this->patchSampleRowsSection($form, $this->waterTrfRowFields());
+            $this->patchMiscellaneousSection($form);
         } else {
             $this->createCustomerDetailsSection($form, 1);
             $this->createCollectionDataSection($form, 2, true);
 
             $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->waterTrfRowFields());
+            $this->createMiscellaneousSection($form, 4);
 
-            $this->createSubmitAndSignSection($form, 4);
+            $this->createSubmitAndSignSection($form, 5);
         }
 
         $this->clearCaches();

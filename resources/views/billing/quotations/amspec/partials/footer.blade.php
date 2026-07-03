@@ -1,5 +1,5 @@
 @php
-    $primaryColor = $branding['primary'] ?? '#6D0A0E';
+    $primaryColor = $branding['primary'] ?? 'var(--color-primary)';
     $termsUrl = $copy['terms_url'] ?? '';
     $isPdf = (bool) ($forPdf ?? false);
 @endphp

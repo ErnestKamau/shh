@@ -2,164 +2,123 @@
 
 @section('title2')
 <title>Inter Laboratory Transfer Log(s)</title>
-
 <style>
-    .form-part-toggler {
-        margin: 0px 0px 5px 0px !important;
-        padding: 6px 6px 6px 6px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-        cursor: pointer;
-    }
-
-    .form-part-toggler:hover {
-        background-color: rgba(0, 0, 0, 0.08);
-    }
-
-    #sample-detail-rows .form-group {
-        display: none;
-    }
-
-    #sample-detail-rows tr.selected-row {
-        background-color: rgb(253, 220, 220);
-    }
-
-    #sample-detail-rows .text {
-        display: unset;
-    }
-
-    #sample-detail-rows tr.editable .form-group {
-        display: unset;
-    }
-
-    #sample-detail-rows tr.editable .text {
-        display: none;
-    }
-
-    #sample-detail-rows tr {
-        cursor: pointer;
-    }
-
     .hidden {
         display: none;
     }
-
-    .overdue-bg-color {
-        background-color: rgba(240, 185, 83, 0.972) !important;
-    }
-
-    .upfront-bg-color {
-        background-color: skyblue !important;
-    }
-
-    .ammend-bg-color {
-        background-color: #fef764 !important;
-    }
-
-    .btn-white {
-        background-color: white !important;
+    .workflow-board-page .workflow-status-chip {
+        border-color: color-mix(in srgb, var(--chip-accent, #64748b) 30%, #e2e8f0);
+        background: color-mix(in srgb, var(--chip-accent, #64748b) 10%, #ffffff);
+        color: var(--chip-accent, #475569);
     }
 </style>
 @endsection
 @section('content2')
-<main>
+<main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
+    @include('layouts.lab.partials.lab-panel-theme-styles')
     <?php
-    $items = array(
-        array(
-            'link' => route('dashboard-lab'),
-            'name' => 'Dashboard',
-            'icon' => null
-        ),
-       
-        array(
-            'link' => route('interLabTransferIndex'),
-            'name' => 'Inter Lab Logs',
-            'icon' => null
-        )
-    );
+    $items = [
+        ['link' => route('dashboard-lab'), 'name' => 'Dashboard', 'icon' => null],
+        ['link' => route('interLabTransferIndex'), 'name' => 'Inter Lab Logs', 'icon' => null],
+    ];
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h4 class="p-4">
-        <span class="float-left"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Laboratory Transfer Log(s)</span>
-        <div class="btn-group float-right">
-            <button type="button" class="btn btn-sm btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                Actions
-            </button>
-            <div class="dropdown-menu dropdown-menu-right">
-                <li>
-                    <span class="btn btn-sm dropdown-item" data-action="bulk" data-toggle="modal" disabled data-target="#change-interlab-status">
-                        <i class="mdi mdi-thumbs-up-down mr-2"></i> Approve / Reject Inter Lab Log(s)
-                    </span>
-                </li>
 
-                <li>
-                    <span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-interlab">
-                        <i class="mdi mdi-delete-empty mr-2"></i> Delete Inter Lab Log(s)
-                    </span>
-                </li>
-                <li>
-                    <a href="{{route('interLabTransferIndex',['is_archived'=>1])}}" class="dropdown-item"><i class="mdi mdi-cogs mr-2"></i> Pull Archive</a>
-                </li>
-
-
+    <div class="row workflow-board-header mb-3">
+        <div class="col-12">
+            <div class="batch-header-bar">
+                <div class="batch-header-top">
+                    <div class="batch-title-group">
+                        <i class="mdi mdi-swap-horizontal-bold" style="font-size:1.2rem;"></i>
+                        <span class="batch-code-label">Inter Laboratory Transfer Log(s)</span>
+                    </div>
+                    <div class="workflow-header-actions">
+                        <div class="btn-group workflow-actions-dropdown">
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Actions
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right">
+                                <span class="dropdown-item" data-action="bulk" data-toggle="modal" disabled data-target="#change-interlab-status">
+                                    <i class="mdi mdi-thumbs-up-down mr-2"></i> Approve / Reject Inter Lab Log(s)
+                                </span>
+                                <span class="dropdown-item" data-toggle="modal" disabled data-target="#delete-interlab">
+                                    <i class="mdi mdi-delete-empty mr-2"></i> Delete Inter Lab Log(s)
+                                </span>
+                                <a href="{{ route('interLabTransferIndex', ['is_archived' => 1]) }}" class="dropdown-item">
+                                    <i class="mdi mdi-archive-arrow-down mr-2"></i> Pull Archive
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0" style="color: rgba(255,255,255,0.82) !important;">Review, approve, and manage inter-laboratory sample transfers.</p>
             </div>
         </div>
+    </div>
 
-    </h4>
-    <div class="table-responsive p-2 card mt-4">
-        <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" style="width:200%" id="interlabbookingtable">
-            <thead class="bg-light">
-                <tr>
-                    <th>
-                        <input type="checkbox" name="selected_inter_lab_all" class="selected_inter_lab_all" id="">
-                    </th>
-                    <th>Status</th>
-                    <th>Batch</th>
-                    <th>Sample/Job No</th>
-                    <th>From Lab</th>
-                    <th>To Lab</th>
-                    <th>Sample Type</th>
-                    <th>Qty</th>
-                    <th>Submitted By</th>
-                    <th>Date Submitted</th>
-                    <th>Recieved By</th>
-                    <th>Date Received</th>
-                    <th>Remarks</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($interlabs as $ilabs)
-                <tr>
-                    <td style="width:5% !important">
-                        @if($ilabs->status == 0)
-                        <input type="checkbox" value="{{$ilabs->id}}" data-code="{{$ilabs->sample_code}}" name="selected_inter_lab" class="selected_inter_lab" id="">
-                        <span class="btn btn-sm btn-default text-warning" data-toggle="modal" data-record="{{json_encode($ilabs)}}" data-target="#change-interlab-status" data-action="single"><i class="mdi mdi-thumbs-up-down" data-toggle="tooltip" title="Approve / Rejected Inter Lab"></i></span>
-                        <span class="btn btn-default text-primary btn-sm initiate-interlab" data-record="{{json_encode($ilabs)}}" data-toggle="modal" data-target="#inter-lab-add" data-action="edit"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Inter Lab"></i></span>
-                        @endif
-                    </td>
-                    <td style="width:8% !important">
-                        @if($ilabs->status == 0)
-                        <span class="badge badge-pill p-2 badge-primary"><i class="mdi mdi-alert-decagram-outline"></i> Awaiting Approval</span>
-                        @elseif($ilabs->status == 1)
-                        <span class="badge badge-pill p-2 badge-success"><i class="mdi mdi-thumb-up"></i> Approved</span>
-                        @else
-                        <span class="badge badge-pill p-2 badge-danger"><i class="mdi mdi-alert-decagram-outline"></i> Rejected</span>
-                        @endif 
-                    </td>
-                    <td>{{$ilabs->batch_code}}</td>
-                    <td style="width:7% !important">{{$ilabs->sample_code}}</td>
-                    <td style="width:10% !important">{{$ilabs->from_lab_section_id > 0 ? $ilabs->from_lab_name : 'Reception'}}</td>
-                    <td style="width:10% !important">{{$ilabs->to_lab_code}} - {{$ilabs->to_lab_name}}</td>
-                    <td style="width:7% !important">{{$ilabs->sample_type_name}}</td>
-                    <td>{{$ilabs->quantity}}</td>
-                    <td>{{$ilabs->submitted_by_name}}</td>
-                    <td>{{$ilabs->date_submitted}}</td>
-                    <td>{{$ilabs->received_by_name}}</td>
-                    <td>{{$ilabs->date_received}}</td>
-                    <td>{{$ilabs->remarks}}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h6><i class="mdi mdi-table"></i> Transfer Logs</h6>
+            <span class="text-muted small">{{ count($interlabs) }} log(s)</span>
+        </div>
+        <div class="workflow-board-panel-body p-0">
+            <div class="table-responsive">
+                <table class="table workflow-table table-hover mb-0" style="width:200%" id="interlabbookingtable">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" name="selected_inter_lab_all" class="selected_inter_lab_all" id="">
+                            </th>
+                            <th>Status</th>
+                            <th>Batch</th>
+                            <th>Sample/Job No</th>
+                            <th>From Lab</th>
+                            <th>To Lab</th>
+                            <th>Sample Type</th>
+                            <th>Qty</th>
+                            <th>Submitted By</th>
+                            <th>Date Submitted</th>
+                            <th>Recieved By</th>
+                            <th>Date Received</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($interlabs as $ilabs)
+                        <tr>
+                            <td style="width:5% !important">
+                                @if($ilabs->status == 0)
+                                <input type="checkbox" value="{{$ilabs->id}}" data-code="{{$ilabs->sample_code}}" name="selected_inter_lab" class="selected_inter_lab" id="">
+                                <span class="btn btn-sm btn-default text-warning" data-toggle="modal" data-record="{{json_encode($ilabs)}}" data-target="#change-interlab-status" data-action="single"><i class="mdi mdi-thumbs-up-down" data-toggle="tooltip" title="Approve / Rejected Inter Lab"></i></span>
+                                <span class="btn btn-default text-primary btn-sm initiate-interlab" data-record="{{json_encode($ilabs)}}" data-toggle="modal" data-target="#inter-lab-add" data-action="edit"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Inter Lab"></i></span>
+                                @endif
+                            </td>
+                            <td style="width:8% !important">
+                                @if($ilabs->status == 0)
+                                <span class="workflow-status-chip" style="--chip-accent: #2563eb;">Awaiting Approval</span>
+                                @elseif($ilabs->status == 1)
+                                <span class="workflow-status-chip" style="--chip-accent: #15803d;">Approved</span>
+                                @else
+                                <span class="workflow-status-chip" style="--chip-accent: #dc2626;">Rejected</span>
+                                @endif
+                            </td>
+                            <td>{{$ilabs->batch_code}}</td>
+                            <td style="width:7% !important">{{$ilabs->sample_code}}</td>
+                            <td style="width:10% !important">{{$ilabs->from_lab_section_id > 0 ? $ilabs->from_lab_name : 'Reception'}}</td>
+                            <td style="width:10% !important">{{$ilabs->to_lab_code}} - {{$ilabs->to_lab_name}}</td>
+                            <td style="width:7% !important">{{$ilabs->sample_type_name}}</td>
+                            <td>{{$ilabs->quantity}}</td>
+                            <td>{{$ilabs->submitted_by_name}}</td>
+                            <td>{{$ilabs->date_submitted}}</td>
+                            <td>{{$ilabs->received_by_name}}</td>
+                            <td>{{$ilabs->date_received}}</td>
+                            <td>{{$ilabs->remarks}}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </main>
 @endsection

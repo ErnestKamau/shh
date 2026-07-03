@@ -199,8 +199,8 @@
     .form-section-title {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #6D0A0E;
-      border-bottom: 2px solid #6D0A0E;
+      color: var(--color-primary);
+      border-bottom: 2px solid var(--color-primary);
       padding-bottom: 10px;
       margin-bottom: 20px;
     }
@@ -211,7 +211,7 @@
     }
 
     .test-required-table th {
-      background: #6D0A0E;
+      background: var(--color-primary);
       color: white;
       padding: 12px;
       text-align: left;
@@ -332,7 +332,7 @@
         </div>
 
         <!-- Form Sections -->
-        @foreach($instance->submissionForm->sections as $section)
+        @foreach(($displaySections ?? $instance->submissionForm->sections) as $section)
           @php
             $sectionTitle = strtoupper($section->title);
             $excludeTitles = ['TESTS REQUIRED', 'TEST REQUIRED'];
@@ -379,9 +379,11 @@
                           // Skip client unit field if we're in Client Details section as it's included in the table
                           $isClientUnitInClientDetails = in_array($element->element_type, ['client_unit_select']) &&
                             $sectionTitle === 'CLIENT DETAILS';
+                          $isMiscFieldInCollection = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::isMiscellaneousFieldInCollectionSection($section, $element);
+                          $isHiddenInternalField = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::shouldHideFromTrfDisplay($element);
                          @endphp
 
-                        @if(!$isClientUnitInClientDetails)
+                        @if(!$isClientUnitInClientDetails && !$isMiscFieldInCollection && !$isHiddenInternalField)
                           <div
                             class="col-md-{{  $sectionTitle === 'CLIENT DETAILS' ? 12 : getColumnWidth($holder->elements->count()) }} mb-3">
                             <div class="{{  $sectionTitle === 'CLIENT DETAILS' ? '' : 'form-group' }}">
@@ -396,9 +398,7 @@
                               <div
                                 class="{{  strtolower($section->title) === 'client details' ? '' : 'form-control-plaintext border rounded p-2 bg-light' }}">
                                 @php
-                                  $elementValue = $instance->values()
-                                    ->where('submission_form_element_id', $element->id)
-                                    ->first();
+                                  $elementValue = $instance->storedValuesForElement($element)->first();
                                   $value = $elementValue ? $elementValue->value : ($element->default_value ?? '-');
 
                                   // Handle special element types with custom display names

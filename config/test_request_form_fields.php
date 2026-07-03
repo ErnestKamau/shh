@@ -85,13 +85,6 @@ return [
 
     'collection_extra_fields' => [
         ['name' => 'date_received', 'label' => 'Date received', 'type' => 'date'],
-        ['name' => 'packaging', 'label' => 'Packaging', 'type' => 'text'],
-        ['name' => 'sample_weight', 'label' => 'Sample weight', 'type' => 'text'],
-        ['name' => 'sample_information', 'label' => 'Sample information', 'type' => 'text'],
-        ['name' => 'ship_name', 'label' => 'Ship / vessel', 'type' => 'text'],
-        ['name' => 'port_of_loading', 'label' => 'Port of loading', 'type' => 'text'],
-        ['name' => 'port_of_discharge', 'label' => 'Port of discharge', 'type' => 'text'],
-        ['name' => 'seal_number', 'label' => 'Seal', 'type' => 'text'],
     ],
 
     'receive_check_in_collection_fields' => [

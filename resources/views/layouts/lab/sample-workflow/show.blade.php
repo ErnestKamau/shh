@@ -4432,7 +4432,8 @@
 		var op = $(ts).children('option:selected');
 		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
 		$('#client-unit-select').trigger('change');
-		if (op.val() > 0) {
+		var clientId = op.val();
+		if (clientId && String(clientId).trim() !== '') {
 			$.ajax({
 				url: `/get/Client-Details/Ajax/${op.val()}`,
 				method: 'GET',

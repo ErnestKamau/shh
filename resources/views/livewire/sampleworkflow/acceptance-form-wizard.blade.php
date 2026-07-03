@@ -1,7 +1,7 @@
 <div class="acc-wizard-root acc-wizard-root--acceptance">
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
+            <div class="modal-dialog {{ $activeStep === 'sample_config' ? 'modal-xl' : 'modal-lg' }} acc-wizard-dialog" role="document">
                 <div class="modal-content acc-wizard-modal">
                     <div class="acc-wizard-header">
                         <div class="acc-wizard-header-text">
@@ -15,123 +15,183 @@
                         </button>
                     </div>
 
+                    <div class="acc-wizard-steps" role="tablist">
+                        @php
+                            $activeIndex = collect($this->wizardSteps)->search(fn ($s) => $s['key'] === $activeStep);
+                            $activeIndex = $activeIndex === false ? 0 : (int) $activeIndex;
+                        @endphp
+                        @foreach($this->wizardSteps as $index => $meta)
+                            @php
+                                $isActive = $activeStep === $meta['key'];
+                                $isDone = $activeIndex > $index;
+                            @endphp
+                            <button
+                                type="button"
+                                class="acc-wizard-step {{ $isActive ? 'is-active' : '' }} {{ $isDone ? 'is-done' : '' }}"
+                                wire:click.stop.prevent="goToStep('{{ $meta['key'] }}')"
+                            >
+                                <span class="acc-wizard-step-index">
+                                    @if($isDone)
+                                        <i class="mdi mdi-check"></i>
+                                    @else
+                                        {{ $index + 1 }}
+                                    @endif
+                                </span>
+                                <span class="acc-wizard-step-label">{{ $meta['label'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+
                     <div class="acc-wizard-body">
-                        <section class="acc-wizard-summary mb-4">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p class="acc-wizard-hint mb-1">Customer</p>
-                                    <p class="mb-0 font-weight-bold">{{ $customerName ?: '—' }}</p>
-                                </div>
-                                <div class="col-md-3">
-                                    <p class="acc-wizard-hint mb-1">Samples</p>
-                                    <p class="mb-0 font-weight-bold">{{ $numberOfSamples }}</p>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="acc-wizard-hint mb-1 d-block" for="acceptance-mode-of-work">Mode of work</label>
-                                    <select id="acceptance-mode-of-work" class="form-control form-control-sm acc-input" wire:model="modeOfWork">
-                                        <option value="Normal">Normal</option>
-                                        <option value="Express">Express</option>
-                                    </select>
-                                    @error('modeOfWork') <small class="text-danger">{{ $message }}</small> @enderror
-                                </div>
-                            </div>
-                        </section>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <section class="acc-wizard-section">
-                                    <h6 class="acc-wizard-section-title">Receiving personnel <span class="text-danger">*</span></h6>
-                                    <p class="acc-wizard-hint mb-3">Lab staff confirming physical receipt of samples.</p>
-
-                                    <div class="form-group">
-                                        <label class="acc-label">Name</label>
-                                        <input type="text" class="form-control acc-input" wire:model="receivingPersonName">
-                                        @error('receivingPersonName') <small class="text-danger">{{ $message }}</small> @enderror
+                        @if($activeStep === 'sample_config')
+                            <section class="acc-wizard-summary mb-4">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="acc-wizard-hint mb-1">Customer</p>
+                                        <p class="mb-0 font-weight-bold">{{ $customerName ?: '—' }}</p>
                                     </div>
-                                    <div class="form-group">
-                                        <label class="acc-label">Received date &amp; time</label>
-                                        <input type="datetime-local" class="form-control acc-input" wire:model="receivedAt">
-                                        @error('receivedAt') <small class="text-danger">{{ $message }}</small> @enderror
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">Samples</p>
+                                        <p class="mb-0 font-weight-bold">{{ $numberOfSamples }}</p>
                                     </div>
-                                    <label class="acc-label d-block">Signature</label>
-                                    <div class="acc-signature-pad" wire:ignore>
-                                        <canvas id="acceptance-receiving-signature-canvas"></canvas>
-                                        <div class="acc-signature-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-receiving-sign-clear">Clear</button>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" id="acceptance-receiving-signature-input" wire:model="receivingPersonSignature">
-                                    @error('receivingPersonSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
-                                </section>
-                            </div>
-
-                            <div class="col-md-6">
-                                <section class="acc-wizard-section">
-                                    <h6 class="acc-wizard-section-title">Customer contact <span class="text-danger">*</span></h6>
-                                    <p class="acc-wizard-hint mb-3">Person authorising the analysis request.</p>
-
-                                    <div class="form-group">
-                                        <label class="acc-label">Contact</label>
-                                        <select class="form-control acc-input" wire:model.defer="selectedCustomerContactId">
-                                            <option value="">Select contact...</option>
-                                            @foreach($customerContactOptions as $contact)
-                                                <option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
-                                            @endforeach
+                                    <div class="col-md-3">
+                                        <label class="acc-wizard-hint mb-1 d-block" for="acceptance-mode-of-work">Mode of work</label>
+                                        <select id="acceptance-mode-of-work" class="form-control form-control-sm acc-input" wire:model="modeOfWork">
+                                            <option value="Normal">Normal</option>
+                                            <option value="Express">Express</option>
                                         </select>
-                                        @error('selectedCustomerContactId') <small class="text-danger">{{ $message }}</small> @enderror
+                                        @error('modeOfWork') <small class="text-danger">{{ $message }}</small> @enderror
                                     </div>
-                                    <div class="form-group">
-                                        <label class="acc-label">Signer name</label>
-                                        <input type="text" class="form-control acc-input" wire:model="customerSignerName">
-                                        @error('customerSignerName') <small class="text-danger">{{ $message }}</small> @enderror
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="acc-label">Date</label>
-                                        <input type="date" class="form-control acc-input" wire:model="customerSignedAt">
-                                        @error('customerSignedAt') <small class="text-danger">{{ $message }}</small> @enderror
-                                    </div>
-                                    <label class="acc-label d-block">Signature</label>
-                                    <div class="acc-signature-pad" wire:ignore>
-                                        <canvas id="acceptance-customer-signature-canvas"></canvas>
-                                        <div class="acc-signature-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-customer-sign-clear">Clear</button>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" id="acceptance-customer-signature-input" wire:model="customerSignature">
-                                    @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
-                                </section>
-                            </div>
-                        </div>
+                                </div>
+                            </section>
 
-                        <section class="acc-wizard-checkboxes mt-3">
+                            @include('livewire.partials.acceptance-sample-config-table')
+                        @else
+                            <section class="acc-wizard-summary mb-4">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="acc-wizard-hint mb-1">Customer</p>
+                                        <p class="mb-0 font-weight-bold">{{ $customerName ?: '—' }}</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">Samples</p>
+                                        <p class="mb-0 font-weight-bold">{{ $numberOfSamples }}</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">Mode of work</p>
+                                        <p class="mb-0 font-weight-bold">{{ $modeOfWork }}</p>
+                                    </div>
+                                </div>
+                            </section>
+
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label class="acc-checkbox-label d-flex align-items-start mb-2">
-                                        <input type="checkbox" class="mr-2 mt-1" wire:model="clientInstructionClear">
-                                        <span>Are client`s instructions clear?</span>
-                                    </label>
+                                    <section class="acc-wizard-section">
+                                        <h6 class="acc-wizard-section-title">Receiving personnel <span class="text-danger">*</span></h6>
+                                        <p class="acc-wizard-hint mb-3">Lab staff confirming physical receipt of samples.</p>
+
+                                        <div class="form-group">
+                                            <label class="acc-label">Name</label>
+                                            <input type="text" class="form-control acc-input" wire:model="receivingPersonName">
+                                            @error('receivingPersonName') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="acc-label">Received date &amp; time</label>
+                                            <input type="datetime-local" class="form-control acc-input" wire:model="receivedAt">
+                                            @error('receivedAt') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                        <label class="acc-label d-block">Signature</label>
+                                        <div class="acc-signature-pad" wire:ignore>
+                                            <canvas id="acceptance-receiving-signature-canvas"></canvas>
+                                            <div class="acc-signature-actions">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-receiving-sign-clear">Clear</button>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" id="acceptance-receiving-signature-input" wire:model="receivingPersonSignature">
+                                        @error('receivingPersonSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                                    </section>
                                 </div>
+
                                 <div class="col-md-6">
-                                    <label class="acc-checkbox-label d-flex align-items-start mb-2">
-                                        <input type="checkbox" class="mr-2 mt-1" wire:model="labCapable">
-                                        <span>Is the laboratory capable of performing the requested tests?</span>
-                                    </label>
+                                    <section class="acc-wizard-section">
+                                        <h6 class="acc-wizard-section-title">Customer contact <span class="text-danger">*</span></h6>
+                                        <p class="acc-wizard-hint mb-3">Person authorising the analysis request.</p>
+
+                                        <div class="form-group">
+                                            <label class="acc-label">Contact</label>
+                                            <select class="form-control acc-input" wire:model.defer="selectedCustomerContactId">
+                                                <option value="">Select contact...</option>
+                                                @foreach($customerContactOptions as $contact)
+                                                    <option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('selectedCustomerContactId') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="acc-label">Signer name</label>
+                                            <input type="text" class="form-control acc-input" wire:model="customerSignerName">
+                                            @error('customerSignerName') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="acc-label">Date</label>
+                                            <input type="date" class="form-control acc-input" wire:model="customerSignedAt">
+                                            @error('customerSignedAt') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                        <label class="acc-label d-block">Signature</label>
+                                        <div class="acc-signature-pad" wire:ignore>
+                                            <canvas id="acceptance-customer-signature-canvas"></canvas>
+                                            <div class="acc-signature-actions">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-customer-sign-clear">Clear</button>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" id="acceptance-customer-signature-input" wire:model="customerSignature">
+                                        @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                                    </section>
                                 </div>
                             </div>
-                        </section>
+
+                            <section class="acc-wizard-checkboxes mt-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="acc-checkbox-label d-flex align-items-start mb-2">
+                                            <input type="checkbox" class="mr-2 mt-1" wire:model="clientInstructionClear">
+                                            <span>Are client`s instructions clear?</span>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="acc-checkbox-label d-flex align-items-start mb-2">
+                                            <input type="checkbox" class="mr-2 mt-1" wire:model="labCapable">
+                                            <span>Is the laboratory capable of performing the requested tests?</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </section>
+                        @endif
                     </div>
 
                     <div class="acc-wizard-footer">
+                        @if($activeStep === 'signatures')
+                            <button type="button" class="btn btn-light acc-btn-ghost mr-auto" wire:click="goBackToSampleConfig">Back</button>
+                        @endif
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
-                        <button type="button" class="btn acc-btn-success" id="acceptance-dual-sign-submit" wire:loading.attr="disabled">
-                            <span wire:loading wire:target="submitDualAccept" class="spinner-border spinner-border-sm mr-1"></span>
-                            Accept samples
-                        </button>
+                        @if($activeStep === 'sample_config')
+                            <button type="button" class="btn acc-btn-success" wire:click="saveSampleConfigAndContinue" wire:loading.attr="disabled">
+                                <span wire:loading wire:target="saveSampleConfigAndContinue" class="spinner-border spinner-border-sm mr-1"></span>
+                                Continue
+                            </button>
+                        @else
+                            <button type="button" class="btn acc-btn-success" id="acceptance-dual-sign-submit" wire:loading.attr="disabled">
+                                <span wire:loading wire:target="submitDualAccept" class="spinner-border spinner-border-sm mr-1"></span>
+                                Accept samples
+                            </button>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     @endif
+
+    @include('livewire.partials.acc-wizard-core-styles')
 
     <style>
         .acc-wizard-root--acceptance {
@@ -142,7 +202,7 @@
             --acc-text: #0f172a;
         }
 
-        .acc-wizard-backdrop {
+        .acc-wizard-root--acceptance .acc-wizard-backdrop {
             position: fixed;
             inset: 0;
             z-index: 1050;
@@ -154,16 +214,18 @@
             backdrop-filter: blur(4px);
         }
 
-        .acc-wizard-dialog { max-width: 920px; margin: 0; }
+        .acc-wizard-root--acceptance .acc-wizard-dialog { margin: 0; }
+        .acc-wizard-root--acceptance .acc-wizard-dialog.modal-lg { max-width: 920px; }
+        .acc-wizard-root--acceptance .acc-wizard-dialog.modal-xl { max-width: 1140px; }
 
-        .acc-wizard-modal {
+        .acc-wizard-root--acceptance .acc-wizard-modal {
             border: none;
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
         }
 
-        .acc-wizard-header {
+        .acc-wizard-root--acceptance .acc-wizard-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -174,7 +236,7 @@
             border-bottom: 1px solid var(--acc-border);
         }
 
-        .acc-wizard-title {
+        .acc-wizard-root--acceptance .acc-wizard-title {
             margin: 0;
             font-size: 1.15rem;
             font-weight: 700;
@@ -183,7 +245,7 @@
             gap: 0.5rem;
         }
 
-        .acc-wizard-close {
+        .acc-wizard-root--acceptance .acc-wizard-close {
             border: none;
             background: #f1f5f9;
             color: var(--acc-muted);
@@ -197,70 +259,78 @@
             flex-shrink: 0;
         }
 
-        .acc-wizard-close:hover {
+        .acc-wizard-root--acceptance .acc-wizard-close:hover {
             background: #e2e8f0;
             color: var(--acc-text);
         }
 
-        .acc-wizard-body {
+        .acc-wizard-root--acceptance .acc-wizard-body {
             padding: 1.25rem 1.5rem;
             background: #fff;
             max-height: min(75vh, 720px);
             overflow-y: auto;
         }
 
-        .acc-wizard-summary {
+        .acc-wizard-root--acceptance .acc-wizard-summary {
             padding: 0.85rem 1rem;
             border-radius: 10px;
             background: #f8fafc;
             border: 1px solid var(--acc-border);
         }
 
-        .acc-wizard-section-title {
+        .acc-wizard-root--acceptance .acc-wizard-section-title {
             font-size: 0.95rem;
             font-weight: 700;
             margin-bottom: 0.35rem;
         }
 
-        .acc-wizard-hint {
+        .acc-wizard-root--acceptance .acc-wizard-hint {
             font-size: 0.82rem;
             color: var(--acc-muted);
             margin: 0;
         }
 
-        .acc-label {
+        .acc-wizard-root--acceptance .acc-label {
             font-size: 0.78rem;
             font-weight: 600;
             color: var(--acc-muted);
             margin-bottom: 0.35rem;
         }
 
-        .acc-input {
+        .acc-wizard-root--acceptance .acc-input {
             border-radius: 8px;
             border-color: #cbd5e1;
         }
 
-        .acc-signature-pad {
+        .acc-wizard-root--acceptance .acc-config-readonly {
+            display: block;
+            padding: 0.35rem 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--acc-text);
+        }
+
+        .acc-wizard-root--acceptance .acc-signature-pad {
             background: #fff;
             border: 1px dashed #cbd5e1;
             border-radius: 10px;
             padding: 0.5rem;
         }
 
-        .acc-signature-pad canvas {
+        .acc-wizard-root--acceptance .acc-signature-pad canvas {
             width: 100%;
             height: 160px;
             display: block;
             border-radius: 6px;
         }
 
-        .acc-signature-actions {
+        .acc-wizard-root--acceptance .acc-signature-actions {
             display: flex;
             justify-content: flex-end;
             margin-top: 0.35rem;
         }
 
-        .acc-wizard-footer {
+        .acc-wizard-root--acceptance .acc-wizard-footer {
             display: flex;
             align-items: center;
             justify-content: flex-end;
@@ -270,7 +340,7 @@
             border-top: 1px solid var(--acc-border);
         }
 
-        .acc-btn-success {
+        .acc-wizard-root--acceptance .acc-btn-success {
             background: #059669;
             border-color: #059669;
             color: #fff;
@@ -278,22 +348,22 @@
             border-radius: 8px;
         }
 
-        .acc-btn-success:hover {
+        .acc-wizard-root--acceptance .acc-btn-success:hover {
             background: #047857;
             border-color: #047857;
             color: #fff;
         }
 
-        .acc-btn-ghost { border-radius: 8px; }
+        .acc-wizard-root--acceptance .acc-btn-ghost { border-radius: 8px; }
 
-        .acc-wizard-checkboxes {
+        .acc-wizard-root--acceptance .acc-wizard-checkboxes {
             padding: 0.85rem 1rem;
             border-radius: 10px;
             background: #f8fafc;
             border: 1px solid var(--acc-border);
         }
 
-        .acc-checkbox-label {
+        .acc-wizard-root--acceptance .acc-checkbox-label {
             font-size: 0.875rem;
             color: var(--acc-text);
             font-weight: 500;
@@ -346,9 +416,7 @@
         }
 
         function initDualSignaturePads() {
-            if (signaturePadsInitialized) {
-                return;
-            }
+            signaturePadsInitialized = false;
 
             if (!document.getElementById('acceptance-receiving-signature-canvas')) {
                 return;
@@ -371,6 +439,10 @@
 
         document.addEventListener('livewire:init', function () {
             Livewire.on('acceptance-wizard-opened', function () {
+                signaturePadsInitialized = false;
+            });
+
+            Livewire.on('acceptance-wizard-signatures-step', function () {
                 signaturePadsInitialized = false;
                 setTimeout(initDualSignaturePads, 300);
             });

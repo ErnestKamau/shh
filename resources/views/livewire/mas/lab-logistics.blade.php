@@ -203,16 +203,16 @@
     .uppercase { text-transform: uppercase; }
     .badge-soft-danger { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
     .badge-soft-success { background-color: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
-    .btn-primary { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+    .btn-primary { background-color: var(--color-primary) !important; border-color: var(--color-primary) !important; color: white !important; }
     .btn-primary:hover { background-color: #55080b !important; border-color: #55080b !important; color: white !important; }
-    .btn-outline-primary { color: #6D0A0E !important; border-color: #6D0A0E !important; }
-    .btn-outline-primary:hover { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
-    .bg-primary { background-color: #6D0A0E !important; }
-    .text-primary { color: #6D0A0E !important; }
-    .btn-cyan { background-color: #6D0A0E !important; color: white !important; border: none; }
+    .btn-outline-primary { color: var(--color-primary) !important; border-color: var(--color-primary) !important; }
+    .btn-outline-primary:hover { background-color: var(--color-primary) !important; border-color: var(--color-primary) !important; color: white !important; }
+    .bg-primary { background-color: var(--color-primary) !important; }
+    .text-primary { color: var(--color-primary) !important; }
+    .btn-cyan { background-color: var(--color-primary) !important; color: white !important; border: none; }
     .btn-cyan:hover { background-color: #55080b !important; color: white !important; }
-    .btn-outline-cyan { border-color: #6D0A0E !important; color: #6D0A0E !important; background: transparent; }
-    .btn-outline-cyan:hover { background-color: #6D0A0E !important; color: white !important; }
+    .btn-outline-cyan { border-color: var(--color-primary) !important; color: var(--color-primary) !important; background: transparent; }
+    .btn-outline-cyan:hover { background-color: var(--color-primary) !important; color: white !important; }
 </style>
 
 <script>

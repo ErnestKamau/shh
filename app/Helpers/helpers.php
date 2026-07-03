@@ -66,9 +66,11 @@ function systemVariables($typ)
 
 function getCompanyDetails()
 {
+	$company = getActiveCompany();
+
 	return array(
-		"name" => "Imara LIMS",
-		"logo" => "/images/imara-sys.png"
+		"name" => $company->name ?? config('app.name', 'LIMS'),
+		"logo" => ($company && ! empty($company->logo)) ? $company->logo : '/images/logo.png'
 	);
 }
 function getSystemFavicon()
@@ -421,6 +423,52 @@ function getExpertin()
 	if (isset($general->id)) {
 		return App\Models\System\SystemConfiguration::where('configuration_type_id', $general->id)->where('key', 'report_email_footer')->first();
 	}
+}
+
+function looksLikeEncryptedPayload(string $value): bool
+{
+	return str_starts_with($value, 'eyJ');
+}
+
+function plaintextConfigurationValue(?string $value): string
+{
+	$value = trim((string) $value);
+	if ($value === '' || ! looksLikeEncryptedPayload($value)) {
+		return $value;
+	}
+
+	for ($attempt = 0; $attempt < 5; $attempt++) {
+		if (! looksLikeEncryptedPayload($value)) {
+			break;
+		}
+
+		try {
+			$decrypted = trim(\Illuminate\Support\Facades\Crypt::decryptString($value));
+		} catch (\Throwable) {
+			try {
+				$decrypted = trim(decrypt($value));
+			} catch (\Throwable) {
+				break;
+			}
+		}
+
+		if ($decrypted === $value) {
+			break;
+		}
+
+		$value = $decrypted;
+	}
+
+	return $value;
+}
+
+function getReportEmailFooter(): string
+{
+	$config = getExpertin();
+
+	return $config !== null
+		? plaintextConfigurationValue($config->value)
+		: '';
 }
 function getsystemconfigbyid($id)
 {

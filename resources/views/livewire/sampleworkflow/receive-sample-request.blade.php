@@ -73,6 +73,15 @@
         .walk-in-trf-desc-modal + .modal-backdrop {
             z-index: 1060 !important;
         }
+        .receive-sample-modal-body .walk-in-trf-field-label-row {
+            min-height: 1.25rem;
+        }
+        .receive-walk-in-entity-modal {
+            z-index: 1070 !important;
+        }
+        .receive-walk-in-entity-modal + .modal-backdrop {
+            z-index: 1065 !important;
+        }
     </style>
     @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
             <section class="receive-sample-selected mb-3">
@@ -212,11 +221,16 @@
         </div>
 
         @if($selectedSampleTypeId && $submissionForm)
-            @include('livewire.partials.walk-in-trf-capture-sections', [
-                'submissionForm' => $submissionForm,
-                'formData' => $formData,
-                'walkInSections' => $walkInSections,
-            ])
+            @include('livewire.partials.walk-in-trf-wizard-styles')
+            <div class="walk-in-trf-wizard-shell mb-3">
+                @include('livewire.partials.walk-in-trf-wizard-stepper')
+                @include('livewire.partials.walk-in-trf-capture-sections', [
+                    'submissionForm' => $submissionForm,
+                    'formData' => $formData,
+                    'walkInSections' => $walkInSections,
+                    'walkInActiveStepIndex' => $walkInActiveStepIndex,
+                ])
+            </div>
         @endif
         @endunless
 
@@ -237,24 +251,162 @@
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
     @enderror
 
-    <footer class="receive-sample-modal-footer d-flex justify-content-end border-top pt-3" style="gap: 8px;">
-        <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
-        <button
-            type="button"
-            class="btn btn-sm btn-primary receive-sample-submit-btn"
-            wire:click="confirmReceive"
-            wire:loading.attr="disabled"
-            onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF signature sync failed before submit', error); }"
-            @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
-        >
-            <span wire:loading.remove wire:target="confirmReceive">
-                <i class="mdi mdi-package-variant-closed mr-1"></i>
-                {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
+    @if($showWalkInAddContactModal)
+        <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title">Add customer contact</h5>
+                        <button type="button" class="close" wire:click="closeWalkInAddContactModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="small font-weight-bold">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" wire:model="walkInNewContactName" placeholder="Contact name">
+                            @error('walkInNewContactName') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="small font-weight-bold">Email</label>
+                            <input type="email" class="form-control form-control-sm" wire:model="walkInNewContactEmail" placeholder="Email">
+                            @error('walkInNewContactEmail') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group mb-0 mt-2">
+                            <label class="small font-weight-bold">Phone</label>
+                            <input type="text" class="form-control form-control-sm" wire:model="walkInNewContactPhone" placeholder="Phone">
+                            @error('walkInNewContactPhone') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-light" wire:click="closeWalkInAddContactModal">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-primary" wire:click="saveWalkInContact">Save contact</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+    @endif
+
+    @if($showWalkInAddPointModal)
+        <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title">Add sample point</h5>
+                        <button type="button" class="close" wire:click="closeWalkInAddPointModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="small font-weight-bold">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" wire:model="walkInNewPointName" placeholder="Sample point name">
+                            @error('walkInNewPointName') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="small font-weight-bold">Client unit <span class="text-danger">*</span></label>
+                            <select class="form-control form-control-sm" wire:model="walkInNewPointUnitId">
+                                <option value="">Select unit...</option>
+                                @foreach($this->customerCompanyUnits as $unit)
+                                    <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('walkInNewPointUnitId') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-light" wire:click="closeWalkInAddPointModal">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-primary" wire:click="saveWalkInSamplePoint">Save sample point</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+    @endif
+
+    <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap" style="gap: 8px;">
+        @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+            <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
+                Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
+                · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
             </span>
-            <span wire:loading wire:target="confirmReceive">
-                <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
-                Processing…
-            </span>
-        </button>
+        @else
+            <span></span>
+        @endif
+
+        <div class="d-flex align-items-center" style="gap: 8px;">
+            <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
+
+            @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+                @if (! $this->walkInIsFirstStep)
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        wire:click="prevWalkInStep"
+                        wire:loading.attr="disabled"
+                        wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
+                    >
+                        <i class="mdi mdi-arrow-left mr-1" aria-hidden="true"></i> Back
+                    </button>
+                @endif
+
+                @if (! $this->walkInIsLastStep)
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-primary"
+                        wire:click="nextWalkInStep"
+                        wire:loading.attr="disabled"
+                        wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
+                        onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF step sync failed', error); }"
+                    >
+                        <span wire:loading.remove wire:target="nextWalkInStep">
+                            Continue
+                            <i class="mdi mdi-arrow-right ml-1" aria-hidden="true"></i>
+                        </span>
+                        <span wire:loading wire:target="nextWalkInStep">
+                            <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
+                            Checking…
+                        </span>
+                    </button>
+                @else
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-primary receive-sample-submit-btn"
+                        wire:click="confirmReceive"
+                        wire:loading.attr="disabled"
+                        wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
+                        onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
+                    >
+                        <span wire:loading.remove wire:target="confirmReceive">
+                            <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
+                            Submit walk-in request
+                        </span>
+                        <span wire:loading wire:target="confirmReceive">
+                            <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
+                            Processing…
+                        </span>
+                    </button>
+                @endif
+            @else
+                <button
+                    type="button"
+                    class="btn btn-sm btn-primary receive-sample-submit-btn"
+                    wire:click="confirmReceive"
+                    wire:loading.attr="disabled"
+                    onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
+                    @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
+                >
+                    <span wire:loading.remove wire:target="confirmReceive">
+                        <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
+                        {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
+                    </span>
+                    <span wire:loading wire:target="confirmReceive">
+                        <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
+                        Processing…
+                    </span>
+                </button>
+            @endif
+        </div>
     </footer>
 </div>

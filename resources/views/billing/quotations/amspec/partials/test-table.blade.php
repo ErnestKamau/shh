@@ -1,5 +1,5 @@
 @php
-    $primaryColor = $branding['primary'] ?? '#6D0A0E';
+    $primaryColor = $branding['primary'] ?? 'var(--color-primary)';
     $accentColor = $branding['accent'] ?? '#4CAF50';
     $isPdf = (bool) ($forPdf ?? false);
     $showMu = (bool) ($showMuColumn ?? true);

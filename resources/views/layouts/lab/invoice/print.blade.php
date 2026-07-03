@@ -33,7 +33,11 @@
             $prices = explode(',', $invoice->sample_details_prices);
             $invoice_details = getInvoiceDetails($invoice->id);
 
-            $currency = $invoice->currencyinfo ?? getPricelistCurrency($invoice->id);
+            $currency = $invoice->display_currency ?? $invoice->currencyinfo ?? getPricelistCurrency($invoice->id);
+            $currencyLabel = $invoice->currency_label ?? ($currency->code ?? $currency->name ?? 'N/A');
+            $invoiceTotal = $invoice->resolvedTotalFromDetails();
+            $invoiceTax = $invoice->resolvedTaxFromDetails();
+            $invoiceSubtotal = $invoiceTotal - $invoiceTax;
             ?>
 
             <h5 class="card-title bg-light p-2" style="height:60%">
@@ -77,9 +81,9 @@
                                     <th class="text-center"> Item No</th>
                                     <th class="text-center">Description</th>
                                     <th class="text-center">Quantity</th>
-                                    <th class="text-right">Unit Price ({{$currency->name}})</th>
+                                    <th class="text-right">Unit Price ({{ $currencyLabel }})</th>
                                     <th class="text-right">Tax</th>
-                                    <th class="text-right">Amount ({{$currency->name}})</th>
+                                    <th class="text-right">Amount ({{ $currencyLabel }})</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -97,10 +101,7 @@
                                         <p class="float-right">{!! $detail->tax_rate != '0' ? $detail->tax_rate.'%' : 'Tax Exempted' !!}</p>
                                     </td>
                                     <td>
-                                        <?php
-                                        $detail_total = $detail->selling_amount * $detail->quantity;
-                                        ?>
-                                        <p class="float-right">{{ number_format($detail_total,2) }}</p>
+                                        <p class="float-right">{{ number_format((float) $detail->total, 2) }}</p>
                                     </td>
                                 </tr>
                                 @endforeach
@@ -114,27 +115,26 @@
                             <table class="table table-clear">
                                 <tbody>
                                     <tr>
-                                        <?php $invoice_subtotal = $invoice->total - $invoice->total_tax; ?>
-                                        <td style="font-size: 1rem;font-weight:600;">Subtotal <small><b>({{$currency->name}})</b></small> : </td>
+                                        <td style="font-size: 1rem;font-weight:600;">Subtotal <small><b>({{ $currencyLabel }})</b></small> : </td>
                                         <td>
-                                            <p class="float-right">{{number_format($invoice_subtotal,2)}}</p>
+                                            <p class="float-right">{{ number_format($invoiceSubtotal, 2) }}</p>
                                         </td>
 
                                     </tr>
 
                                     <tr>
 
-                                        <td style="font-size: 1rem;font-weight:600;">Total Tax <small><b>({{$currency->name}})</b></small> : </td>
+                                        <td style="font-size: 1rem;font-weight:600;">Total Tax <small><b>({{ $currencyLabel }})</b></small> : </td>
                                         <td>
-                                            <p class="float-right">{{number_format($invoice->total_tax,2)}}</p>
+                                            <p class="float-right">{{ number_format($invoiceTax, 2) }}</p>
                                         </td>
 
                                     </tr>
                                     <tr>
 
-                                        <td style="font-size: 1rem;font-weight:600;">Total Amount <small><b>({{$currency->name}})</b></small>: </td>
+                                        <td style="font-size: 1rem;font-weight:600;">Total Amount <small><b>({{ $currencyLabel }})</b></small>: </td>
                                         <td>
-                                            <p class="float-right">{{number_format($invoice->total,2) }}</p>
+                                            <p class="float-right">{{ number_format($invoiceTotal, 2) }}</p>
                                         </td>
                                     </tr>
                                     <tr>

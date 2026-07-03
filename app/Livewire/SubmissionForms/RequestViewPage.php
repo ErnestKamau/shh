@@ -17,6 +17,7 @@ use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationFromEnquiryService;
+use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
@@ -295,7 +296,7 @@ class RequestViewPage extends Component
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['samples', 'notes', 'attachments', 'custody', 'attached'], true)) {
+        if (! in_array($tab, ['samples', 'notes', 'attachments', 'custody'], true)) {
             return;
         }
 
@@ -310,6 +311,11 @@ class RequestViewPage extends Component
 
         try {
             app(TestRequestFormPdfService::class)->generateAndStore($instance);
+            app(SubmissionFormInstanceDocumentAttachmentService::class)->attachTestRequestForm(
+                $instance,
+                auth()->id(),
+                regenerate: false,
+            );
             session()->flash('request_view_message', 'Test Request Form generated successfully.');
             $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $instance->id));
         } catch (\Throwable $exception) {
@@ -495,17 +501,34 @@ class RequestViewPage extends Component
     public function getCustodyTimelineProperty(): Collection
     {
         $events = collect();
+        $preLabCutoff = $this->resolvePreLabCustodyCutoff();
 
         $auditLogs = $this->instance->auditLogs()->with('user')->latest()->get();
         foreach ($auditLogs as $log) {
+            $userName = $log->user ? $log->user->name : 'Customer (Portal)';
+            $title = method_exists($log, 'getActionDisplayName') ? $log->getActionDisplayName() : ucfirst((string) $log->event);
+
+            if ($log->event === 'updated' && isset($log->new_values['status']) && $log->new_values['status'] === 'submitted') {
+                $title = 'Request Submitted (Portal)';
+            } elseif ($log->event === 'created') {
+                $title = 'Request Drafted (Portal)';
+            }
+
+            $occurredAt = \Carbon\Carbon::parse($log->created_at);
+            if ($this->shouldExcludeCustodyEvent($occurredAt, $preLabCutoff)) {
+                continue;
+            }
+
+            $badge = method_exists($log, 'getActionBadgeColor') ? $log->getActionBadgeColor() : ($log->event === 'created' ? 'info' : 'success');
+
             $events->push((object) [
                 'source' => 'audit',
-                'title' => $log->getActionDisplayName(),
-                'subtitle' => $log->action,
-                'user_name' => $log->user?->name,
-                'occurred_at' => $log->created_at,
-                'badge' => $log->getActionBadgeColor(),
-                'comment' => $log->notes,
+                'title' => $title,
+                'subtitle' => 'Status: '.($log->new_values['status'] ?? $this->instance->status),
+                'user_name' => $userName,
+                'occurred_at' => $occurredAt,
+                'badge' => $badge,
+                'comment' => $log->notes ?? null,
             ]);
         }
 
@@ -515,42 +538,81 @@ class RequestViewPage extends Component
             ->get();
 
         foreach ($intrays as $intray) {
+            $userName = $intray->assignedBy ? $intray->assignedBy->name : 'System';
+            $title = $intray->status === 'completed' ? 'Intray completed' : 'Intray assigned';
+            $subtitle = '';
+            if ($intray->toUser) {
+                $subtitle = $intray->fromUser
+                    ? 'From '.$intray->fromUser->name.' → '.$intray->toUser->name
+                    : 'Assigned to '.$intray->toUser->name;
+            }
+
+            $occurredAt = \Carbon\Carbon::parse($intray->completed_at ?? $intray->created_at);
+            if ($this->shouldExcludeCustodyEvent($occurredAt, $preLabCutoff)) {
+                continue;
+            }
+
             $events->push((object) [
                 'source' => 'intray',
-                'title' => $intray->status === 'completed' ? 'Intray completed' : 'Intray assigned',
-                'subtitle' => $intray->fromUser
-                    ? 'From '.$intray->fromUser->name.' → '.$intray->toUser->name
-                    : 'Assigned to '.$intray->toUser->name,
-                'user_name' => $intray->assignedBy?->name,
-                'occurred_at' => $intray->completed_at ?? $intray->created_at,
+                'title' => $title,
+                'subtitle' => $subtitle,
+                'user_name' => $userName,
+                'occurred_at' => $occurredAt,
                 'badge' => $intray->status === 'completed' ? 'success' : 'warning',
                 'comment' => $intray->comment,
             ]);
-        }
-
-        foreach ($this->instance->batches as $batch) {
-            $custodyRecords = ChainOfCustody::query()
-                ->where('sample_header_id', $batch->id)
-                ->orderByDesc('created_at')
-                ->get();
-
-            foreach ($custodyRecords as $custody) {
-                $events->push((object) [
-                    'source' => 'batch',
-                    'title' => $custody->workflow_stage ?? 'Batch custody',
-                    'subtitle' => 'Batch '.$batch->batch_code,
-                    'user_name' => $custody->started_by?->name,
-                    'occurred_at' => $custody->created_at,
-                    'badge' => 'info',
-                    'comment' => null,
-                ]);
-            }
         }
 
         return $events
             ->filter(fn ($event) => $event->occurred_at !== null)
             ->sortByDesc(fn ($event) => $event->occurred_at)
             ->values();
+    }
+
+    public function getCustodyEnteredLabProperty(): bool
+    {
+        return $this->resolvePreLabCustodyCutoff() !== null;
+    }
+
+    private function resolvePreLabCustodyCutoff(): ?\Carbon\Carbon
+    {
+        $labStatuses = [
+            'Samples In Lab',
+            'Sample Verification',
+            'Sample Approval',
+            'Reports for Collection',
+            'Completed',
+        ];
+
+        $labBatch = $this->instance->batches()
+            ->whereIn('status', $labStatuses)
+            ->orderBy('updated_at')
+            ->first();
+
+        if ($labBatch === null) {
+            return null;
+        }
+
+        $labCustody = ChainOfCustody::query()
+            ->where('sample_header_id', $labBatch->id)
+            ->where('workflow_stage', 'Samples In Lab')
+            ->orderBy('created_at')
+            ->first();
+
+        if ($labCustody?->created_at !== null) {
+            return \Carbon\Carbon::parse($labCustody->created_at);
+        }
+
+        return $labBatch->updated_at ? \Carbon\Carbon::parse($labBatch->updated_at) : null;
+    }
+
+    private function shouldExcludeCustodyEvent(\Carbon\Carbon $occurredAt, ?\Carbon\Carbon $preLabCutoff): bool
+    {
+        if ($preLabCutoff === null) {
+            return false;
+        }
+
+        return $occurredAt->greaterThan($preLabCutoff);
     }
 
     public function openProcessEnquiry(): void

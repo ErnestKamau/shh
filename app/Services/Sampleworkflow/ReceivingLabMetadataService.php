@@ -19,13 +19,7 @@ final class ReceivingLabMetadataService
      */
     public function emptyFields(): array
     {
-        $fields = [
-            'statement_of_conformity' => '',
-            'sampled_by' => '',
-            'customer_rep_signature' => '',
-            'customer_rep_contact' => '',
-            'remarks' => '',
-        ];
+        $fields = [];
 
         foreach ($this->collectionInfoFieldDefinitions() as $field) {
             $name = (string) ($field['name'] ?? '');
@@ -67,20 +61,6 @@ final class ReceivingLabMetadataService
             $value = $normalized[$name] ?? $formData[$name] ?? null;
             if ($value !== null && $value !== '') {
                 $fields[$name] = (string) $value;
-            }
-        }
-
-        foreach (['statement_of_conformity', 'sampled_by', 'customer_rep_contact', 'remarks', 'customer_rep_signature'] as $key) {
-            $value = $normalized[$key] ?? $formData[$key] ?? null;
-            if ($value !== null && $value !== '') {
-                $fields[$key] = (string) $value;
-            }
-        }
-
-        if ($fields['customer_rep_signature'] === '') {
-            $legacy = $normalized['customer_rep_name'] ?? $formData['customer_rep_name'] ?? '';
-            if (is_string($legacy) && str_starts_with($legacy, 'data:image')) {
-                $fields['customer_rep_signature'] = $legacy;
             }
         }
 

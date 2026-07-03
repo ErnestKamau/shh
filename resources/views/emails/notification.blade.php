@@ -494,13 +494,12 @@
         <tr class="container__row">
           <td class="container__cell" width="100%" align="left" valign="top">
             <p class="space centerAlign text p" style="margin: 14px 0; color: #000000; font-family: Roboto,Verdana,Geneva,sans-serif; font-size: 16px; line-height: 150%; display: block; margin-left: auto; margin-right: auto; text-align: left; padding-top: 36px!important; padding-bottom: 12px;">
-             <?php $expert = getExpertin();?>
               {{$active->name}} <br>
               {{$active->street}} , {{$active->location}} <br>
               P.O. BOX {{$active->address}} <br>
               Email: {{$active->email}} | Website: <a href="{{$active->website}} ">{{$active->website}} </a> <br>
               Office Cell: {{$active->cell_phone}} <br>
-              {{$expert->value ?? ''}}
+              {!! getReportEmailFooter() !!}
 
               
             </p>

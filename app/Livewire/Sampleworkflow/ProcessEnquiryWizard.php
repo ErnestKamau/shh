@@ -53,6 +53,8 @@ class ProcessEnquiryWizard extends Component
     /** @var list<array{value: string, label: string, checked: bool}> */
     public array $statementOfConformityOptions = [];
 
+    public string $headerSampleType = '';
+
     /** @var list<array<string, string>> */
     public array $displaySampleRows = [];
 
@@ -95,6 +97,26 @@ class ProcessEnquiryWizard extends Component
     /** Hides the Condition of sample column on the sample config table (Process Enquiry does not need it). */
     public bool $showSampleConditionOnConfig = false;
 
+    public bool $showLabSectionOnConfig = false;
+
+    public bool $showMainStandardOnConfig = false;
+
+    public bool $showSecondaryStandardOnConfig = false;
+
+    public bool $showLabIdOnConfig = false;
+
+    public bool $showSampleDetailsOnConfig = false;
+
+    public bool $showQuantityOnConfig = false;
+
+    public bool $showParametersOnConfig = true;
+
+    public bool $allowAddRemoveConfig = true;
+
+    public bool $readOnlyConfigTypes = false;
+
+    public bool $defaultExpandParameters = true;
+
     public bool $showAddLineModal = false;
 
     public ?string $addLineSampleTypeId = null;
@@ -135,16 +157,14 @@ class ProcessEnquiryWizard extends Component
             return [];
         }
 
-        return app(QuotationFromEnquiryService::class)
+        $service = app(QuotationFromEnquiryService::class);
+
+        return $service
             ->listReusableCustomerQuotations($this->crmCustomerId)
             ->map(fn (QuotationHeader $header): array => [
                 'id' => (string) $header->id,
                 'quote_number' => (string) ($header->quote_number ?? ''),
-                'expiring_date' => $header->expiring_date !== null
-                    ? (string) $header->expiring_date
-                    : '',
-                'total_amount' => (float) ($header->total_amount ?? 0),
-                'revision_number' => (int) ($header->revision_number ?? 1),
+                'analysis_types' => $service->summarizeQuotationAnalysisTypes($header),
             ])
             ->values()
             ->all();
@@ -159,7 +179,7 @@ class ProcessEnquiryWizard extends Component
     public function getWizardStepsProperty(): array
     {
         return [
-            ['key' => 'review', 'label' => 'Review enquiry'],
+            ['key' => 'review', 'label' => 'Review request'],
             ['key' => 'sample_config', 'label' => 'Sample configuration'],
             ['key' => 'pricing', 'label' => 'Parameters & pricing'],
         ];
@@ -290,6 +310,7 @@ class ProcessEnquiryWizard extends Component
         }
         $this->collectionDataRows = $display->collectionDataRows($enquiry);
         $this->statementOfConformityOptions = $display->statementOfConformityOptions($enquiry);
+        $this->headerSampleType = $display->headerSampleTypeLabel($enquiry);
         $this->displaySampleRows = $display->sampleRows($enquiry);
         $this->requestedTests = $display->requestedTests($enquiry);
         $this->submissionFormInstanceId = $enquiry->submission_form_instance_id;
@@ -485,7 +506,7 @@ class ProcessEnquiryWizard extends Component
         $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs, $this->crmCustomerId);
 
         try {
-            $configService->validateConfigs($this->sampleConfigs, requireLabSection: true);
+            $configService->validateConfigs($this->sampleConfigs, requireLabSection: false);
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
 
@@ -826,6 +847,9 @@ class ProcessEnquiryWizard extends Component
 
         if (Schema::hasColumn('sample_submission_requests', 'enquiry_sample_configuration')) {
             $enquiry->enquiry_sample_configuration = $this->sampleConfigs;
+            if (Schema::hasColumn('sample_submission_requests', 'number_of_samples')) {
+                $enquiry->number_of_samples = $configService->totalSampleCount($this->sampleConfigs);
+            }
             $enquiry->save();
         }
     }
@@ -864,7 +888,7 @@ class ProcessEnquiryWizard extends Component
         $stored = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
 
         if ($stored !== []) {
-            $this->sampleConfigs = $stored;
+            $this->sampleConfigs = $configService->flattenToPerSampleConfigs($stored);
             $this->reconcileSampleConfigParameterKeys();
             $this->normalizeSampleConfigs();
             $this->backfillLabSectionIdsOnConfigs();
@@ -882,11 +906,13 @@ class ProcessEnquiryWizard extends Component
 
             return [
                 'line_no' => $index + 1,
+                'row_index' => $line['row_index'] ?? $index,
                 'sample_type_id' => $line['sample_type_id'] ?? null,
                 'analysis_type_id' => $line['analysis_type_id'] ?? null,
                 'analysis_element_id' => $line['analysis_element_id'] ?? null,
                 'parameter_label' => $line['parameter_label'] ?? 'Parameter',
                 'number_of_samples' => max(1, (int) ($line['quantity'] ?? $line['number_of_samples'] ?? 1)),
+                'customer_sample_id' => $line['customer_sample_id'] ?? null,
                 'sample_condition' => is_array($enquiryLine) ? ($enquiryLine['sample_condition'] ?? null) : null,
                 'sample_condition_id' => is_array($enquiryLine) ? ($enquiryLine['sample_condition_id'] ?? null) : null,
                 'attributes' => is_array($enquiryLine) && is_array($enquiryLine['attributes'] ?? null)
@@ -899,11 +925,13 @@ class ProcessEnquiryWizard extends Component
             $prefillLines = collect($enquiry->sample_lines)->map(function (array $line, int $index) use ($enquiry): array {
                 return [
                     'line_no' => $index + 1,
+                    'row_index' => $line['row_index'] ?? $index,
                     'sample_type_id' => $line['sample_type_id'] ?? $enquiry->sample_type_id ?? null,
                     'analysis_type_id' => $line['analysis_type_id'] ?? $enquiry->matrix_id ?? null,
                     'analysis_element_id' => $line['analysis_element_id'] ?? null,
                     'parameter_label' => $line['parameter_label'] ?? 'Parameter',
                     'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? $enquiry->number_of_samples ?? 1)),
+                    'customer_sample_id' => $line['customer_sample_id'] ?? null,
                     'sample_condition' => $line['sample_condition'] ?? null,
                     'sample_condition_id' => $line['sample_condition_id'] ?? null,
                     'attributes' => is_array($line['attributes'] ?? null) ? $line['attributes'] : [],
@@ -1152,7 +1180,7 @@ class ProcessEnquiryWizard extends Component
                 'sample_type_id' => (string) ($config['sample_type_id'] ?? ''),
                 'analysis_type_id' => (string) ($config['analysis_type_id'] ?? ''),
                 'parameter_keys' => $parameterKeys,
-                'number_of_samples' => (int) ($config['number_of_samples'] ?? 1),
+                'number_of_samples' => 1,
                 'lab_section_id' => (string) ($config['lab_section_id'] ?? ''),
             ];
         })->sortBy(fn (array $config): string => implode('::', [

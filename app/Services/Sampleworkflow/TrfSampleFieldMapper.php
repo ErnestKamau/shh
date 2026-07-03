@@ -60,6 +60,9 @@ class TrfSampleFieldMapper
             $formData['email_address'] ?? null,
             $enquiryContext['email'] ?? null,
         );
+        if (($email === null || $email === '') && $contactId !== null) {
+            $email = $this->resolveContactEmail($contactId);
+        }
         if ($email !== null) {
             $mapped['schedule_customer_email'] = $email;
         }
@@ -85,7 +88,14 @@ class TrfSampleFieldMapper
         if ($unitId === null && ($unitName === null || $unitName === 'N/A')) {
             $location = $this->scalar($formData['sampling_location'] ?? null);
             if ($location !== null) {
-                $mapped['crm_unit_name'] = $location;
+                if (preg_match('/^[0-9a-f-]{36}$/i', $location)) {
+                    $pointName = SamplePoint::query()->where('id', $location)->value('name');
+                    $mapped['crm_unit_name'] = $pointName !== null && $pointName !== ''
+                        ? (string) $pointName
+                        : $location;
+                } else {
+                    $mapped['crm_unit_name'] = $location;
+                }
             }
         }
 
@@ -118,8 +128,12 @@ class TrfSampleFieldMapper
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
-    public function mapToSampleDetail(array $row, int $rowIndex = 0, ?string $crmCustomerId = null): array
-    {
+    public function mapToSampleDetail(
+        array $row,
+        int $rowIndex = 0,
+        ?string $crmCustomerId = null,
+        ?string $formSamplingLocation = null,
+    ): array {
         $mapped = [];
 
         $description = $this->scalar($row['sample_description'] ?? null);
@@ -147,19 +161,52 @@ class TrfSampleFieldMapper
             $mapped['batch_lot_no'] = $lotNo;
         }
 
-        $pointName = $this->scalar($row['sampling_point'] ?? $row['location'] ?? null);
-        if ($pointName !== null && $crmCustomerId !== null && $crmCustomerId !== '') {
-            $pointId = SamplePoint::query()
-                ->where('crm_customer_id', $crmCustomerId)
-                ->whereRaw('name ILIKE ?', [$pointName])
-                ->value('id');
+        $locationReference = $this->scalar(
+            $row['sampling_location'] ?? null,
+            $row['sampling_point'] ?? null,
+            $row['location'] ?? null,
+            $formSamplingLocation,
+        );
 
-            if ($pointId !== null) {
-                $mapped['sample_point_id'] = (string) $pointId;
-            }
+        $pointId = $this->resolveSamplePointId($crmCustomerId, $locationReference);
+        if ($pointId !== null) {
+            $mapped['sample_point_id'] = $pointId;
         }
 
         return $mapped;
+    }
+
+    public function resolveSamplePointId(?string $customerId, ?string $locationReference): ?string
+    {
+        if ($locationReference === null || trim($locationReference) === '') {
+            return null;
+        }
+
+        $locationReference = trim($locationReference);
+
+        if (preg_match('/^[0-9a-f-]{36}$/i', $locationReference)) {
+            if ($customerId === null || $customerId === '') {
+                return $locationReference;
+            }
+
+            $owned = SamplePoint::query()
+                ->where('id', $locationReference)
+                ->where('crm_customer_id', $customerId)
+                ->value('id');
+
+            return $owned !== null ? (string) $owned : null;
+        }
+
+        if ($customerId === null || $customerId === '') {
+            return null;
+        }
+
+        $pointId = SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->whereRaw('name ILIKE ?', [$locationReference])
+            ->value('id');
+
+        return $pointId !== null ? (string) $pointId : null;
     }
 
     /**
@@ -223,6 +270,18 @@ class TrfSampleFieldMapper
     public function resolveContactId(?string $customerId, ?string $contactReference): ?string
     {
         return $this->resolveContactReference($customerId, $contactReference);
+    }
+
+    private function resolveContactEmail(string $contactId): ?string
+    {
+        $contact = CustomerContact::query()->find($contactId);
+        if ($contact === null) {
+            return null;
+        }
+
+        $email = trim((string) ($contact->email ?? ''));
+
+        return $email !== '' ? $email : null;
     }
 
     private function resolveContactIdFromName(?string $customerId, ?string $contactName): ?string

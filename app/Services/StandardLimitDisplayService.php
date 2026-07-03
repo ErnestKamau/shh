@@ -115,4 +115,58 @@ class StandardLimitDisplayService
 
         return (string) $display;
     }
+
+    public function formatMainValueFromEditForm(string $standardValue, string $limitType): string
+    {
+        $standardValue = trim($standardValue);
+        $limitType = strtoupper(trim($limitType));
+
+        if ($limitType === 'RANGE') {
+            return $standardValue;
+        }
+
+        if ($limitType === 'MIN') {
+            return 'min '.$standardValue;
+        }
+
+        return 'max '.$standardValue;
+    }
+
+    /**
+     * @return array{standard_value: string, limit_type: string}
+     */
+    public function parseEditFormFromMainValue(?string $mainValue): array
+    {
+        $mainValue = trim((string) $mainValue);
+
+        if ($mainValue === '' || $mainValue === 'NS') {
+            return ['standard_value' => '', 'limit_type' => 'MAX'];
+        }
+
+        if (preg_match('/^(min|max)\s+(\d+(?:\.\d+)?)$/i', $mainValue, $matches)) {
+            return [
+                'standard_value' => $matches[2],
+                'limit_type' => strtoupper($matches[1]),
+            ];
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s+(min|max)$/i', $mainValue, $matches)) {
+            return [
+                'standard_value' => $matches[1],
+                'limit_type' => strtoupper($matches[2]),
+            ];
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/i', $mainValue)) {
+            return [
+                'standard_value' => $mainValue,
+                'limit_type' => 'RANGE',
+            ];
+        }
+
+        return [
+            'standard_value' => $mainValue,
+            'limit_type' => 'MAX',
+        ];
+    }
 }

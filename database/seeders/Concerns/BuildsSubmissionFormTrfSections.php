@@ -5,8 +5,10 @@ namespace Database\Seeders\Concerns;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormElementHolder;
+use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormSection;
 use App\SampleType;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use Illuminate\Support\Str;
 
 trait BuildsSubmissionFormTrfSections
@@ -345,6 +347,7 @@ trait BuildsSubmissionFormTrfSections
 
         if ($sections->isEmpty()) {
             $this->createCollectionDataSection($form, 2, $alwaysVisible, $extraApparatusOptions, $extraFields);
+            $this->removeMiscellaneousFieldsFromCollectionSection($form);
 
             return;
         }
@@ -358,7 +361,7 @@ trait BuildsSubmissionFormTrfSections
         $baseFields = [
             ['date', 'Sampling date', 'sampling_date', 1],
             ['text', 'Sampling time', 'sampling_time', 2],
-            ['text', 'Sampling location', 'sampling_location', 3],
+            ['customer_sample_point_select', 'Sampling location', 'sampling_location', 3],
             ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 4, $apparatusOptions],
             ['radio', 'Method of sampling', 'method_of_sampling', 5, [
                 ['value' => 'apha', 'label' => 'APHA'],
@@ -382,13 +385,6 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'ambient', 'label' => 'Ambient'],
             ]],
             ['date', 'Date received', 'date_received', 8],
-            ['text', 'Packaging', 'packaging', 9],
-            ['text', 'Sample weight', 'sample_weight', 10],
-            ['text', 'Sample information', 'sample_information', 11],
-            ['text', 'Ship / vessel', 'ship_name', 12],
-            ['text', 'Port of loading', 'port_of_loading', 13],
-            ['text', 'Port of discharge', 'port_of_discharge', 14],
-            ['text', 'Seal', 'seal_number', 15],
         ];
 
         foreach ($sections as $section) {
@@ -407,7 +403,185 @@ trait BuildsSubmissionFormTrfSections
             foreach (array_merge($baseFields, $extraFields) as $field) {
                 $this->upsertScalarElement($holder, $field, $conditional);
             }
+
+            $this->removeMiscellaneousFieldsFromCollectionSection($form);
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function miscellaneousTrfFieldNames(): array
+    {
+        return SubmissionFormSchemaHelper::miscellaneousTrfFieldNames();
+    }
+
+    /**
+     * @return list<array{0: string, 1: string, 2: string, 3: int}>
+     */
+    protected function miscellaneousTrfFields(): array
+    {
+        return [
+            ['text', 'Packaging', 'packaging', 1],
+            ['text', 'Sample weight', 'sample_weight', 2],
+            ['text', 'Sample information', 'sample_information', 3],
+            ['text', 'Ship / vessel', 'ship_name', 4],
+            ['text', 'Port of loading', 'port_of_loading', 5],
+            ['text', 'Port of discharge', 'port_of_discharge', 6],
+            ['text', 'Seal', 'seal_number', 7],
+        ];
+    }
+
+    protected function createMiscellaneousSection(SubmissionForm $form, int $sortOrder = 4): void
+    {
+        $section = $form->sections()->create([
+            'title' => 'Miscellaneous',
+            'description' => 'Packaging, shipping, and other sample handling details.',
+            'section_type' => 'regular',
+            'sort_order' => $sortOrder,
+        ]);
+
+        $holder = $section->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 12,
+            'sort_order' => 1,
+        ]);
+
+        foreach ($this->miscellaneousTrfFields() as $field) {
+            $this->upsertScalarElement($holder, $field);
+        }
+    }
+
+    protected function patchMiscellaneousSection(SubmissionForm $form): void
+    {
+        $rowsSection = $form->sections()
+            ->where('section_type', 'rows_section')
+            ->where('title', 'Test & sample information')
+            ->first();
+
+        $sortOrder = $rowsSection !== null
+            ? ((int) $rowsSection->sort_order + 1)
+            : 4;
+
+        $section = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Miscellaneous')
+            ->first();
+
+        if ($section === null) {
+            $this->createMiscellaneousSection($form, $sortOrder);
+
+            $section = $form->sections()
+                ->where('section_type', 'regular')
+                ->where('title', 'Miscellaneous')
+                ->first();
+        }
+
+        if ($section === null) {
+            return;
+        }
+
+        $section->update(['sort_order' => $sortOrder]);
+
+        $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+        if ($holder === null) {
+            $holder = $section->elementHolders()->create([
+                'id' => (string) Str::uuid7(),
+                'holder_type' => 'field',
+                'max_elements' => 12,
+                'sort_order' => 1,
+            ]);
+        }
+
+        $holder->update(['max_elements' => max((int) $holder->max_elements, 12)]);
+
+        $collectionSection = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Sample collection data')
+            ->first();
+
+        foreach ($this->miscellaneousTrfFields() as $field) {
+            $name = $field[2];
+            $existing = $holder->elements()->where('name', $name)->first();
+
+            if ($existing === null && $collectionSection !== null) {
+                $collectionHolder = $collectionSection->elementHolders()->where('holder_type', 'field')->first();
+                $moved = $collectionHolder?->elements()->where('name', $name)->first();
+                if ($moved !== null) {
+                    $moved->update([
+                        'submission_form_element_holder_id' => $holder->id,
+                        'sort_order' => $field[3],
+                    ]);
+
+                    continue;
+                }
+            }
+
+            $this->upsertScalarElement($holder, $field);
+        }
+
+        $form->sections()
+            ->whereIn('title', ['Submit & sign', 'Submit and sign'])
+            ->update(['sort_order' => $sortOrder + 1]);
+
+        $this->removeMiscellaneousFieldsFromCollectionSection($form);
+    }
+
+    protected function removeMiscellaneousFieldsFromCollectionSection(SubmissionForm $form): void
+    {
+        $miscHolder = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Miscellaneous')
+            ->first()
+            ?->elementHolders()
+            ->where('holder_type', 'field')
+            ->first();
+
+        $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Sample collection data')
+            ->each(function (SubmissionFormSection $collectionSection) use ($miscHolder): void {
+                $collectionHolder = $collectionSection->elementHolders()->where('holder_type', 'field')->first();
+                if ($collectionHolder === null) {
+                    return;
+                }
+
+                $collectionHolder->elements()
+                    ->whereIn('name', $this->miscellaneousTrfFieldNames())
+                    ->each(function (SubmissionFormElement $element) use ($miscHolder): void {
+                        if ($miscHolder !== null) {
+                            $target = $miscHolder->elements()->where('name', $element->name)->first();
+                            if ($target !== null && $target->id !== $element->id) {
+                                $this->migrateSubmissionFormElementValues((string) $element->id, (string) $target->id);
+                            }
+                        }
+
+                        $element->delete();
+                    });
+            });
+    }
+
+    protected function migrateSubmissionFormElementValues(string $fromElementId, string $toElementId): void
+    {
+        SubmissionFormInstanceValue::query()
+            ->where('submission_form_element_id', $fromElementId)
+            ->each(function (SubmissionFormInstanceValue $value) use ($toElementId): void {
+                $duplicateQuery = SubmissionFormInstanceValue::query()
+                    ->where('submission_form_instance_id', $value->submission_form_instance_id)
+                    ->where('submission_form_element_id', $toElementId);
+
+                if ($value->array_index !== null) {
+                    $duplicateQuery->where('array_index', $value->array_index);
+                }
+
+                if ($duplicateQuery->exists()) {
+                    $value->delete();
+
+                    return;
+                }
+
+                $value->update(['submission_form_element_id' => $toElementId]);
+            });
     }
 
     protected function removeTrfStorageElements(SubmissionForm $form): void
@@ -505,9 +679,8 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
             ['text', 'Mobile number', 'mobile_number', 4, false],
             ['client_contact_select', 'Contact person', 'contact_person', 5, false],
-            ['text', 'CNPJ / Tax ID', 'customer_tax_id', 6, false],
-            ['text', 'Email', 'customer_email', 7, false],
-            ['text', 'CRM contact ID', 'crm_contact_id', 8, false],
+            ['text', 'Email', 'customer_email', 6, false],
+            ['text', 'CRM contact ID', 'crm_contact_id', 7, false],
         ] as [$type, $label, $name, $order, $readonly]) {
             $holder->elements()->create([
                 'element_type' => $type,
@@ -551,9 +724,8 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
             ['text', 'Mobile number', 'mobile_number', 4, false],
             ['client_contact_select', 'Contact person', 'contact_person', 5, false],
-            ['text', 'CNPJ / Tax ID', 'customer_tax_id', 6, false],
-            ['text', 'Email', 'customer_email', 7, false],
-            ['text', 'CRM contact ID', 'crm_contact_id', 8, false],
+            ['text', 'Email', 'customer_email', 6, false],
+            ['text', 'CRM contact ID', 'crm_contact_id', 7, false],
         ] as [$type, $label, $name, $order, $readonly]) {
             $element = $holder->elements()->where('name', $name)->first();
 
@@ -588,6 +760,18 @@ trait BuildsSubmissionFormTrfSections
                 $element->update($payload);
             }
         }
+
+        $holder->elements()
+            ->where('name', 'customer_tax_id')
+            ->each(function (SubmissionFormElement $element): void {
+                $hasValues = \App\Models\SubmissionFormInstanceValue::query()
+                    ->where('submission_form_element_id', $element->id)
+                    ->exists();
+
+                if (! $hasValues) {
+                    $element->delete();
+                }
+            });
     }
 
     /**
@@ -623,7 +807,7 @@ trait BuildsSubmissionFormTrfSections
         $baseFields = [
             ['date', 'Sampling date', 'sampling_date', 1],
             ['text', 'Sampling time', 'sampling_time', 2],
-            ['text', 'Sampling location', 'sampling_location', 3],
+            ['customer_sample_point_select', 'Sampling location', 'sampling_location', 3],
             ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 4, $apparatusOptions],
             ['radio', 'Method of sampling', 'method_of_sampling', 5, [
                 ['value' => 'apha', 'label' => 'APHA'],
@@ -647,13 +831,6 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'ambient', 'label' => 'Ambient'],
             ]],
             ['date', 'Date received', 'date_received', 8],
-            ['text', 'Packaging', 'packaging', 9],
-            ['text', 'Sample weight', 'sample_weight', 10],
-            ['text', 'Sample information', 'sample_information', 11],
-            ['text', 'Ship / vessel', 'ship_name', 12],
-            ['text', 'Port of loading', 'port_of_loading', 13],
-            ['text', 'Port of discharge', 'port_of_discharge', 14],
-            ['text', 'Seal', 'seal_number', 15],
         ];
 
         foreach (array_merge($baseFields, $extraFields) as $field) {

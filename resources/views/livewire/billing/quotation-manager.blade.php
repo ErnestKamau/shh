@@ -1,264 +1,228 @@
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-0">
-                                <i class="mdi mdi-file-document-edit-outline text-primary"></i>
-                                Quotations Management
-                            </h2>
-                            <p class="text-muted mb-0">View and manage customer quotations</p>
-                        </div>
-                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#add-quotation">
-                            <i class="mdi mdi-plus"></i> Create Quotation
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Message Alert -->
+<div class="quotations-manager-page">
+    <style>
+        .quotations-manager-page .workflow-status-chip {
+            border-color: color-mix(in srgb, var(--chip-accent, #64748b) 30%, #e2e8f0);
+            background: color-mix(in srgb, var(--chip-accent, #64748b) 10%, #ffffff);
+            color: var(--chip-accent, #475569);
+        }
+    </style>
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show mb-3" role="alert">
             {{ $message }}
-            <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+            <button type="button" class="close" wire:click="dismissMessage"><span>&times;</span></button>
         </div>
     @endif
 
-    <!-- Filters -->
-    <div class="row mb-4">
+    <div class="row workflow-board-header mb-3">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-                    <h6 class="mb-0 text-muted">
-                        <i class="mdi mdi-filter-variant"></i> Filter Options
-                    </h6>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Quote number...">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Customer</label>
-                                <select wire:model.live="customerFilter" class="form-select modern-select">
-                                    <option value="">All Customers</option>
-                                    @foreach($customers as $customer)
-                                        <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Stage</label>
-                                <select wire:model.live="stageFilter" class="form-select modern-select">
-                                    <option value="">All Stages</option>
-                                    @foreach($quotationStages as $stage)
-                                        <option value="{{ $stage }}">{{ $stage }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Type</label>
-                                <select wire:model.live="quotationTypeFilter" class="form-select modern-select">
-                                    <option value="">All Types</option>
-                                    <option value="Analysis">Analysis</option>
-                                    <option value="General">General</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">&nbsp;</label>
-                                <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">
-                                    <i class="mdi mdi-refresh"></i> Clear
-                                </button>
-                            </div>
-                        </div>
+            <div class="batch-header-bar">
+                <div class="batch-header-top">
+                    <div class="batch-title-group">
+                        <i class="mdi mdi-file-document-edit-outline" style="font-size:1.2rem;"></i>
+                        <span class="batch-code-label">Quotations Management</span>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Start Date</label>
-                                <input type="date" wire:model.live="startDate" class="form-control">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">End Date</label>
-                                <input type="date" wire:model.live="endDate" class="form-control">
-                            </div>
-                        </div>
-                    </div>
+                    <button type="button" class="btn btn-sm btn-primary btn-action-sm" data-toggle="modal" data-target="#add-quotation">
+                        <i class="mdi mdi-plus-circle-outline"></i> Create Quotation
+                    </button>
                 </div>
+                <p class="text-muted small mb-0" style="color: rgba(255,255,255,0.82) !important;">View and manage customer quotations</p>
             </div>
         </div>
     </div>
 
-    <!-- Draft Quotations -->
-    @if($drafts && $drafts->count() > 0)
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card border-warning">
-                    <div class="card-header bg-warning text-white">
-                        <h6 class="mb-0">
-                            <i class="mdi mdi-file-edit"></i> Draft Quotations ({{ $drafts->count() }})
-                        </h6>
-                    </div>
-                    <div class="card-body p-2">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0">
-                                <tbody>
-                                    @foreach($drafts as $draft)
-                                        <tr>
-                                            <td>{{ $draft->quote_number }}</td>
-                                            <td>{{ $draft->customer }}</td>
-                                            <td>{{ $draft->quotation_type }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($draft->created_at)->format('Y-m-d') }}</td>
-                                            <td class="text-end">
-                                                <a href="{{ route('add-qoute-details-view', ['id' => $draft->id]) }}" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i class="mdi mdi-pencil"></i> Continue
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
+    <div class="workflow-board-panel mb-3">
+        <div class="workflow-board-panel-header">
+            <h6><i class="mdi mdi-filter-variant"></i> Filter Options</h6>
+            <button type="button" wire:click="clearFilters" class="btn btn-sm btn-light">
+                <i class="mdi mdi-refresh"></i> Clear
+            </button>
+        </div>
+        <div class="workflow-board-panel-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group mb-3">
+                        <label class="control-label">Search</label>
+                        <input type="text" wire:model.live="search" class="form-control" placeholder="Quote number...">
                     </div>
                 </div>
-            </div>
-        </div>
-    @endif
-
-    <!-- Quotations Table -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Quotations</h5>
-                    <div class="d-flex align-items-center">
-                        <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
-                        <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
-                            @foreach($perPageOptions as $option)
-                                <option value="{{ $option }}">{{ $option }}</option>
+                <div class="col-md-3">
+                    <div class="form-group mb-3">
+                        <label class="control-label">Customer</label>
+                        <select wire:model.live="customerFilter" class="form-control">
+                            <option value="">All Customers</option>
+                            @foreach($customers as $customer)
+                                <option value="{{ $customer->id }}">{{ $customer->name }}</option>
                             @endforeach
                         </select>
                     </div>
                 </div>
-                <div class="card-body">
-                    @if($this->quotations->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead style="background-color: rgba(0, 0, 0, .03);">
-                                    <tr>
-                                        <th>Quote #</th>
-                                        <th>Customer</th>
-                                        <th>Type</th>
-                                        <th>Date</th>
-                                        <th>Expiring</th>
-                                        <th>Status</th>
-                                        <th>Total</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($this->quotations as $quotation)
-                                        <tr class="quotation-preview-hover-parent">
-                                            <td>
-                                                <strong>{{ $quotation->quote_number }}</strong>
-                                            </td>
-                                            <td>
-                                                {{ $quotation->customer }}
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ $quotation->quotation_type === 'Analysis' ? 'primary' : 'info' }}" style="color: white;">
-                                                    {{ $quotation->quotation_type }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {{ \Carbon\Carbon::parse($quotation->quote_date)->format('Y-m-d') }}
-                                            </td>
-                                            <td>
-                                                @if($quotation->expiring_date)
-                                                    {{ \Carbon\Carbon::parse($quotation->expiring_date)->format('Y-m-d') }}
-                                                    @if(\Carbon\Carbon::parse($quotation->expiring_date)->isPast())
-                                                        <span class="badge bg-danger ms-1" style="color: white;">Expired</span>
-                                                    @endif
-                                                @else
-                                                    -
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ $quotation->status === 'Quote Complete' ? 'success' : 'warning' }}" style="color: white;">
-                                                    {{ $quotation->status }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <strong>{{ number_format($quotation->total_amount ?? 0, 2) }}</strong>
-                                            </td>
-                                            <td>
-                                                <div class="d-flex">
-                                                    <button wire:click="viewQuotation({{ $quotation->id }})" 
-                                                            class="btn btn-sm btn-outline-primary mr-1" 
-                                                            title="View Details">
-                                                        <i class="mdi mdi-eye"></i>
-                                                    </button>
-                                                    <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}" 
-                                                       class="btn btn-sm btn-outline-warning mr-1" 
-                                                       title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </a>
-                                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
-                                                       class="btn btn-sm mr-1 quotation-preview-quote-btn"
-                                                       title="Preview quotation document"
-                                                       target="_blank">
-                                                        <i class="mdi mdi-file-eye"></i> Preview Quote
-                                                    </a>
-                                                    <button wire:click="cloneQuotation({{ $quotation->id }})" 
-                                                            class="btn btn-sm btn-outline-secondary mr-1" 
-                                                            title="Clone">
-                                                        <i class="mdi mdi-content-duplicate"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <!-- Pagination -->
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <div class="d-flex align-items-center">
-                                <span class="text-muted me-3">
-                                    Showing {{ $this->quotations->firstItem() ?? 0 }} to {{ $this->quotations->lastItem() ?? 0 }} of {{ $this->quotations->total() }} entries
-                                </span>
-                            </div>
-                            <div>
-                                {{ $this->quotations->links('pagination::bootstrap-4') }}
-                            </div>
-                        </div>
-                    @else
-                        <div class="text-center py-5">
-                            <i class="mdi mdi-file-document-edit-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No quotations found</h5>
-                            <p class="text-muted">Create your first quotation to get started.</p>
-                        </div>
-                    @endif
+                <div class="col-md-2">
+                    <div class="form-group mb-3">
+                        <label class="control-label">Stage</label>
+                        <select wire:model.live="stageFilter" class="form-control">
+                            <option value="">All Stages</option>
+                            @foreach($quotationStages as $stage)
+                                <option value="{{ $stage }}">{{ $stage }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mb-3">
+                        <label class="control-label">Type</label>
+                        <select wire:model.live="quotationTypeFilter" class="form-control">
+                            <option value="">All Types</option>
+                            <option value="Analysis">Analysis</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mb-3">
+                        <label class="control-label">Start Date</label>
+                        <input type="date" wire:model.live="startDate" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mb-3">
+                        <label class="control-label">End Date</label>
+                        <input type="date" wire:model.live="endDate" class="form-control">
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    @if($drafts && $drafts->count() > 0)
+        <div class="workflow-board-panel mb-3" style="border-color: #fcd34d;">
+            <div class="workflow-board-panel-header" style="background: #fffbeb;">
+                <h6 class="text-warning mb-0">
+                    <i class="mdi mdi-file-edit"></i> Draft Quotations ({{ $drafts->count() }})
+                </h6>
+            </div>
+            <div class="workflow-board-panel-body p-0">
+                <div class="table-responsive">
+                    <table class="table workflow-table table-hover mb-0">
+                        <tbody>
+                            @foreach($drafts as $draft)
+                                <tr>
+                                    <td><strong>{{ $draft->quote_number }}</strong></td>
+                                    <td>{{ $draft->customer }}</td>
+                                    <td>{{ $draft->quotation_type }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($draft->created_at)->format('Y-m-d') }}</td>
+                                    <td class="text-right">
+                                        <a href="{{ route('add-qoute-details-view', ['id' => $draft->id]) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="mdi mdi-pencil"></i> Continue
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h6><i class="mdi mdi-table"></i> Quotations</h6>
+            <div class="d-flex align-items-center">
+                <label for="perPage" class="mb-0 mr-2 text-muted small">Show:</label>
+                <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm" style="width: auto;">
+                    @foreach($perPageOptions as $option)
+                        <option value="{{ $option }}">{{ $option }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div class="workflow-board-panel-body @if($this->quotations->count() > 0) p-0 @endif">
+            @if($this->quotations->count() > 0)
+                <div class="table-responsive">
+                    <table class="table workflow-table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Quote #</th>
+                                <th>Customer</th>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Expiring</th>
+                                <th>Status</th>
+                                <th>Total</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($this->quotations as $quotation)
+                                <tr class="quotation-preview-hover-parent">
+                                    <td><strong>{{ $quotation->quote_number }}</strong></td>
+                                    <td>{{ $quotation->customer }}</td>
+                                    <td>
+                                        <span class="workflow-status-chip" style="--chip-accent: {{ $quotation->quotation_type === 'Analysis' ? '#2563eb' : '#0891b2' }};">
+                                            {{ $quotation->quotation_type }}
+                                        </span>
+                                    </td>
+                                    <td>{{ \Carbon\Carbon::parse($quotation->quote_date)->format('Y-m-d') }}</td>
+                                    <td>
+                                        @if($quotation->expiring_date)
+                                            {{ \Carbon\Carbon::parse($quotation->expiring_date)->format('Y-m-d') }}
+                                            @if(\Carbon\Carbon::parse($quotation->expiring_date)->isPast())
+                                                <span class="badge badge-danger ml-1">Expired</span>
+                                            @endif
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="workflow-status-chip" style="--chip-accent: {{ $quotation->status === 'Quote Complete' ? '#15803d' : '#b45309' }};">
+                                            {{ $quotation->status }}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{ number_format($quotation->total_amount ?? 0, 2) }}</strong></td>
+                                    <td>
+                                        <div class="d-flex flex-wrap" style="gap: 4px;">
+                                            <button wire:click="viewQuotation({{ $quotation->id }})"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    title="View Details">
+                                                <i class="mdi mdi-eye"></i>
+                                            </button>
+                                            <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
+                                               class="btn btn-sm btn-outline-warning"
+                                               title="Edit">
+                                                <i class="mdi mdi-pencil"></i>
+                                            </a>
+                                            <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
+                                               class="btn btn-sm btn-outline-secondary quotation-preview-quote-btn"
+                                               title="Preview quotation document"
+                                               target="_blank">
+                                                <i class="mdi mdi-file-eye"></i>
+                                            </a>
+                                            <button wire:click="cloneQuotation({{ $quotation->id }})"
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    title="Clone">
+                                                <i class="mdi mdi-content-duplicate"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                    <span class="text-muted small">
+                        Showing {{ $this->quotations->firstItem() ?? 0 }} to {{ $this->quotations->lastItem() ?? 0 }} of {{ $this->quotations->total() }} entries
+                    </span>
+                    <div>{{ $this->quotations->links('pagination::bootstrap-4') }}</div>
+                </div>
+            @else
+                <div class="text-center py-5">
+                    <i class="mdi mdi-file-document-edit-outline text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="text-muted mt-3">No quotations found</h5>
+                    <p class="text-muted mb-0">Create your first quotation to get started.</p>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -379,25 +343,6 @@
     <style>
     .modal.show {
         display: block !important;
-    }
-    
-    /* Modern Select Styling */
-    .modern-select {
-        border: 2px solid #e9ecef;
-        border-radius: 12px;
-        padding: 12px 16px;
-        font-size: 14px;
-        font-weight: 500;
-        color: #495057;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    
-    .modern-select:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        background-color: #ffffff;
-        outline: none;
     }
     </style>
 </div>

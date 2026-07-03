@@ -1,7 +1,7 @@
 <div>
     <!-- Main Card -->
     <div class="card mb-4" style="border: none; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);">
-        <div class="card-header" style="background: #f8f9fa; border: none; border-left: 6px solid #6D0A0E; padding: 18px 24px;">
+        <div class="card-header" style="background: #f8f9fa; border: none; border-left: 6px solid var(--color-primary); padding: 18px 24px;">
             <h4 class="mb-0" style="font-size: 1.35rem; font-weight: 600; color: #222;">
                 <i class="mdi mdi-chart-bar"></i> Reports & KPIs
             </h4>
@@ -89,10 +89,10 @@
                 <div class="col-md-3 mb-3">
                     <div class="card" style="border: 1px solid #dee2e6; border-radius: 8px; height: 100%;">
                         <div class="card-body text-center">
-                            <i class="mdi mdi-file-document" style="font-size: 3rem; color: #6D0A0E;"></i>
+                            <i class="mdi mdi-file-document" style="font-size: 3rem; color: var(--color-primary);"></i>
                             <h6 class="mt-3 mb-2" style="font-weight: 600;">Audit Summary</h6>
                             <p class="text-muted small mb-3">Summary of all audits</p>
-                            <a href="{{ route('audit.reports.audit-summary') }}" class="btn btn-sm" style="border-color: #6D0A0E; color: #6D0A0E; font-weight: 600;">
+                            <a href="{{ route('audit.reports.audit-summary') }}" class="btn btn-sm" style="border-color: var(--color-primary); color: var(--color-primary); font-weight: 600;">
                                 <i class="mdi mdi-eye"></i> View
                             </a>
                         </div>
@@ -147,7 +147,7 @@
                 <div class="col-md-2 mb-2">
                     <div class="card" style="border: 1px solid #dee2e6; border-radius: 6px;">
                         <div class="card-body text-center py-2">
-                            <h5 class="mb-1" style="font-weight: 700; color: #6D0A0E;">{{ $count }}</h5>
+                            <h5 class="mb-1" style="font-weight: 700; color: var(--color-primary);">{{ $count }}</h5>
                             <small class="text-muted" style="font-size: 0.75rem;">{{ Str::limit($origin, 12) }}</small>
                         </div>
                     </div>

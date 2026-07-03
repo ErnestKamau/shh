@@ -61,7 +61,12 @@
 					</label>
 					<select name="crm_contact_id" id="crm_contact_id" class="form-control"
 						data-selected="{{ $batch->crm_contact_id ?? '' }}">
-						<option value="">Choose Customer First...</option>
+						<option value="">Choose contact...</option>
+						@foreach ($customerContacts as $contact)
+							<option value="{{ $contact->id }}" {{ (string) ($batch->crm_contact_id ?? '') === (string) $contact->id ? 'selected' : '' }}>
+								{{ trim(implode(' ', array_filter([$contact->first_name, $contact->middle_name ?? '', $contact->last_name]))) }}
+							</option>
+						@endforeach
 					</select>
 				</div>
 

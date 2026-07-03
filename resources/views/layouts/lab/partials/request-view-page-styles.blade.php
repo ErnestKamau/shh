@@ -283,25 +283,25 @@
 	}
 
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link:hover {
-		color: #6D0A0E;
+		color: var(--color-primary);
 		border-bottom-color: #cbd5e1;
 	}
 
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active {
-		color: #6D0A0E;
-		border-bottom-color: #6D0A0E;
+		color: var(--color-primary);
+		border-bottom-color: var(--color-primary);
 	}
 
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link:focus,
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.focus {
-		color: #6D0A0E;
+		color: var(--color-primary);
 		border-bottom: 2px solid #cbd5e1;
 	}
 
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active:focus,
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active.focus,
 	.request-view-page.workflow-theme .batch-tabs-panel .batch-nav-tabs .nav-link.active:active {
-		border-bottom-color: #6D0A0E;
+		border-bottom-color: var(--color-primary);
 	}
 
 	.request-view-page .batch-tabs-panel .batch-nav-tabs .nav-link:hover {
@@ -387,7 +387,7 @@
 	/* Section cards */
 	.request-view-page .clinical-form-display .clinical-section-card {
 		background: #fff;
-		border: 1px solid var(--color-primary, #6D0A0E);
+		border: 1px solid var(--color-primary, var(--color-primary));
 		border-radius: 12px;
 		box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 		overflow: hidden;
@@ -425,7 +425,7 @@
 	}
 
 	.request-view-page .clinical-form-display .clinical-section-header:focus-visible {
-		outline: 2px solid var(--color-primary, #6D0A0E);
+		outline: 2px solid var(--color-primary, var(--color-primary));
 		outline-offset: -2px;
 	}
 
@@ -440,7 +440,7 @@
 	.request-view-page .clinical-form-display .clinical-section-title {
 		font-size: 1.05rem;
 		font-weight: 600;
-		color: var(--color-primary, #6D0A0E);
+		color: var(--color-primary, var(--color-primary));
 		margin: 0;
 		display: flex;
 		align-items: center;
@@ -448,14 +448,14 @@
 	}
 
 	.request-view-page .clinical-form-display .clinical-section-icon {
-		color: var(--color-primary, #6D0A0E);
+		color: var(--color-primary, var(--color-primary));
 		font-size: 1.1rem;
 		flex-shrink: 0;
 	}
 
 	.request-view-page .clinical-form-display .clinical-section-description {
 		margin: 0 0 0 1.75rem;
-		color: var(--color-primary, #6D0A0E);
+		color: var(--color-primary, var(--color-primary));
 		opacity: 0.85;
 		font-size: 0.82rem;
 		line-height: 1.45;
@@ -463,7 +463,7 @@
 	}
 
 	.request-view-page .clinical-form-display .clinical-section-chevron {
-		color: var(--color-primary, #6D0A0E);
+		color: var(--color-primary, var(--color-primary));
 		font-size: 1.35rem;
 		flex-shrink: 0;
 		transition: transform 0.2s ease;
@@ -594,12 +594,16 @@
 	.request-view-page .clinical-form-display .clinical-table-wrapper {
 		border: 1px solid var(--workflow-border, #e2e8f0);
 		border-radius: 8px;
-		overflow: hidden;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+		max-width: 100%;
 		background: #fff;
 	}
 
 	.request-view-page .clinical-form-display .clinical-data-table {
-		width: 100%;
+		width: max-content;
+		min-width: 100%;
 		margin: 0;
 		border-collapse: collapse;
 	}
@@ -679,7 +683,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		color: var(--workflow-accent, #6D0A0E);
+		color: var(--workflow-accent, var(--color-primary));
 		font-weight: 500;
 		font-size: 0.875rem;
 		text-decoration: none;
@@ -692,7 +696,7 @@
 	}
 
 	.request-view-page .clinical-form-display .clinical-file-link:focus-visible {
-		outline: 2px solid var(--workflow-accent, #6D0A0E);
+		outline: 2px solid var(--workflow-accent, var(--color-primary));
 		outline-offset: 2px;
 		border-radius: 4px;
 	}

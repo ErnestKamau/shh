@@ -173,27 +173,53 @@
         </div>
     @endif
 
-    {{-- Incomplete Captured Results Alert (no numeric/text result or "No attachment") --}}
+    {{-- Incomplete Captured Results --}}
     @if(!empty($incompleteCapturedResults) && is_array($incompleteCapturedResults))
-        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-            <i class="mdi mdi-alert"></i>
-            <strong>Unfinished / missing results detected:</strong>
-            <ul class="mb-0 mt-1">
-                @foreach(array_slice($incompleteCapturedResults, 0, 10) as $item)
-                    <li>
-                        Item {{ $item['sample_code'] ?? 'N/A' }} &mdash;
-                        {{ $item['analysis_type'] ?? 'Analysis' }} /
-                        {{ $item['parameter'] ?? 'Parameter' }}
-                        ({{ $item['status'] ?? 'incomplete' }})
-                    </li>
-                @endforeach
-                @if(count($incompleteCapturedResults) > 10)
-                    <li class="text-muted">…and {{ count($incompleteCapturedResults) - 10 }} more</li>
-                @endif
-            </ul>
-            <button type="button" class="close" data-dismiss="alert">
-                <span>&times;</span>
+        <div class="mb-3">
+            <button type="button"
+                class="btn btn-danger btn-sm"
+                wire:click="openIncompleteResultsModal">
+                <i class="mdi mdi-alert"></i>
+                Unfinished / missing results
+                <span class="badge badge-light text-danger ml-1">{{ count($incompleteCapturedResults) }}</span>
             </button>
+        </div>
+    @endif
+
+    @if($showIncompleteResultsModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-alert"></i> Unfinished / missing results
+                        </h5>
+                        <button type="button" class="close text-white" wire:click="closeIncompleteResultsModal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        @forelse($this->incompleteCapturedResultsGrouped as $sampleCode => $items)
+                            <div class="mb-3">
+                                <h6 class="font-weight-bold mb-2">{{ $sampleCode }}</h6>
+                                <ul class="mb-0 pl-3 small">
+                                    @foreach($items as $item)
+                                        <li>
+                                            {{ $item['analysis_type'] }} / {{ $item['parameter'] }}
+                                            <span class="text-muted">({{ $item['status'] }})</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @empty
+                            <p class="text-muted mb-0">No missing results found.</p>
+                        @endforelse
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" wire:click="closeIncompleteResultsModal">Close</button>
+                    </div>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -261,15 +287,7 @@
                                 <i class="mdi mdi-plus"></i>
                             </button>
                         </th>
-                        <th style="min-width: 80px;">Slot</th>
                         <th style="min-width: 80px;">Quantity</th>
-                        <th style="min-width: 80px;">
-                            UoM
-                            <button type="button" class="btn btn-xs btn-outline-primary ml-1"
-                                wire:click="openAddModal('reporting_unit_id', null)" title="Add New Unit of Measure">
-                                <i class="mdi mdi-plus"></i>
-                            </button>
-                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -603,40 +621,16 @@
                             @endif
                         </td>
 
-                        {{-- Storage Slot --}}
-                        <td>
-                            <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model="sampleForms.{{ $index }}.store_slot_id" placeholder="Slot..."
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
-                        </td>
-
                         {{-- Quantity --}}
                         <td>
                             <input type="number" class="form-control form-control-sm modern-input"
                                 wire:model="sampleForms.{{ $index }}.quantity" step="0.01" min="0"
                                 @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
                         </td>
-
-                        {{-- Unit of Measure --}}
-                        <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($unitsOfMeasure)->firstWhere('id', $sampleForm['reporting_unit_id'])['name'] ?? '' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model="sampleForms.{{ $index }}.reporting_unit_id">
-                                <option value="">Select...</option>
-                                @foreach($unitsOfMeasure as $unit)
-                                <option value="{{ $unit['id'] }}">{{ $unit['name'] }}</option>
-                                @endforeach
-                            </select>
-                            @endif
-                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="18" class="text-center text-muted py-4">
+                        <td colspan="16" class="text-center text-muted py-4">
                             <i class="mdi mdi-information-outline"></i> No items configured yet. Click "Add" to create
                             entries.
                         </td>
