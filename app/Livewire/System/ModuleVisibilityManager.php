@@ -4,11 +4,25 @@ namespace App\Livewire\System;
 
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Throwable;
 use Livewire\Component;
 
 class ModuleVisibilityManager extends Component
 {
+    /**
+     * Map dashboard module keys to nwidart package module names where applicable.
+     * Keys not present here will be resolved heuristically (e.g. studly-case).
+     */
+    private const PACKAGE_MODULE_KEY_MAP = [
+        'quality_control' => 'QualityControl',
+        'qualitycontrol' => 'QualityControl',
+        'template_engine' => 'TemplateEngine',
+        'templateengine' => 'TemplateEngine',
+        'prp' => 'Prp',
+    ];
+
     public array $modules = [];
 
     public array $visibility = [];
@@ -23,7 +37,7 @@ class ModuleVisibilityManager extends Component
 
     public function save(): void
     {
-        $this->authorizeAction('system.module-switching.view');
+        $this->authorizeAction('system.module-switching.edit');
 
         try {
             $configType = SystemConfigurationsType::where('configuration_type', 'Module Visibility')->first();
@@ -34,11 +48,18 @@ class ModuleVisibilityManager extends Component
                 $configType->save();
             }
 
+            $errors = [];
+            $packageChanges = [];
+
             foreach (array_keys($this->modules) as $moduleKey) {
+                $isVisible = !empty($this->visibility[$moduleKey]);
+
                 $configuration = SystemConfiguration::where('configuration_type_id', $configType->id)
                     ->where('key', 'system_module_visibility')
-                    ->where('value', $moduleKey)
-                    ->first();
+                    ->get()
+                    ->first(function (SystemConfiguration $item) use ($moduleKey): bool {
+                        return $item->value === $moduleKey;
+                    });
 
                 if (!$configuration) {
                     $configuration = new SystemConfiguration();
@@ -47,11 +68,33 @@ class ModuleVisibilityManager extends Component
                     $configuration->value = $moduleKey;
                 }
 
-                $configuration->status = !empty($this->visibility[$moduleKey]) ? 1 : 0;
+                $configuration->status = $isVisible ? 1 : 0;
                 $configuration->save();
+
+                $packageResult = $this->syncPackageModuleStatus($moduleKey, $isVisible);
+
+                if (!empty($packageResult['error'])) {
+                    $errors[] = (string) $packageResult['error'];
+                    continue;
+                }
+
+                if (!empty($packageResult['changed']) && !empty($packageResult['module'])) {
+                    $packageChanges[] = sprintf('%s (%s)', $packageResult['module'], $isVisible ? 'enabled' : 'disabled');
+                }
             }
 
-            session()->flash('success', 'Module visibility settings updated successfully.');
+            if (!empty($errors)) {
+                session()->flash('error', 'Module settings saved with package activation errors: '.implode(' | ', $errors));
+                return;
+            }
+
+            $message = 'Module visibility settings updated successfully.';
+
+            if (!empty($packageChanges)) {
+                $message .= ' Package modules updated: '.implode(', ', $packageChanges).'.';
+            }
+
+            session()->flash('success', $message);
         } catch (Throwable $e) {
             report($e);
             session()->flash('error', 'Failed to save module settings. Please try again.');
@@ -65,7 +108,7 @@ class ModuleVisibilityManager extends Component
 
     private function authorizeAction(string $permission): void
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
         if (!$user) {
             abort(403);
@@ -76,5 +119,67 @@ class ModuleVisibilityManager extends Component
         }
 
         abort(403);
+    }
+
+    /**
+     * @return array{changed: bool, module: string|null, error: string|null}
+     */
+    private function syncPackageModuleStatus(string $moduleKey, bool $shouldEnable): array
+    {
+        $packageModuleName = $this->resolvePackageModuleName($moduleKey);
+
+        if ($packageModuleName === null) {
+            return ['changed' => false, 'module' => null, 'error' => null];
+        }
+
+        try {
+            $modules = app('modules');
+            $module = $modules->find($packageModuleName);
+
+            if (!$module) {
+                return ['changed' => false, 'module' => $packageModuleName, 'error' => "Package module '{$packageModuleName}' was not found."];
+            }
+
+            $isEnabled = $module->isEnabled();
+
+            if ($shouldEnable && !$isEnabled) {
+                $modules->enable($packageModuleName);
+                return ['changed' => true, 'module' => $packageModuleName, 'error' => null];
+            }
+
+            if (!$shouldEnable && $isEnabled) {
+                $modules->disable($packageModuleName);
+                return ['changed' => true, 'module' => $packageModuleName, 'error' => null];
+            }
+
+            return ['changed' => false, 'module' => $packageModuleName, 'error' => null];
+        } catch (Throwable $e) {
+            report($e);
+            return [
+                'changed' => false,
+                'module' => $packageModuleName,
+                'error' => "Failed to update package module '{$packageModuleName}': {$e->getMessage()}",
+            ];
+        }
+    }
+
+    private function resolvePackageModuleName(string $moduleKey): ?string
+    {
+        $modules = app('modules');
+
+        $candidates = array_values(array_unique(array_filter([
+            self::PACKAGE_MODULE_KEY_MAP[$moduleKey] ?? null,
+            $moduleKey,
+            Str::studly($moduleKey),
+            Str::studly(str_replace(['-', '_'], ' ', $moduleKey)),
+        ])));
+
+        foreach ($candidates as $candidate) {
+            if ($modules->has($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

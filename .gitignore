@@ -16,7 +16,7 @@ vendor_old
 /public/images
 !/public/images/forms/
 .history/
-*.md
+.md
 helpdesk-developer.backup.20260111-183650/
 replace-create-ticket.sh
 tests/Unit/AutoRunCreationServiceTest.php

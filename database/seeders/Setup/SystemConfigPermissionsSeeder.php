@@ -32,6 +32,7 @@ class SystemConfigPermissionsSeeder extends Seeder
             'system.companies.add',
             'system.companies.edit',
             'system.module-switching.view',
+            'system.module-switching.edit',
             'system.dashboard.view',
             'system.dashboard.actions',
             'system.dashboard.export',

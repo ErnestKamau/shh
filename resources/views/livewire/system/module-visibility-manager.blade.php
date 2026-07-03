@@ -38,14 +38,21 @@
         </div>
 
         <div class="mt-3">
-            <button type="button" class="btn btn-primary" wire:click="save" wire:loading.attr="disabled">
-                <span wire:loading.remove wire:target="save">
-                    <i class="mdi mdi-content-save"></i> Save Module Settings
-                </span>
-                <span wire:loading wire:target="save">
-                    <i class="mdi mdi-loading mdi-spin"></i> Saving...
-                </span>
-            </button>
+            @can('system.module-switching.edit')
+                <button type="button" class="btn btn-primary" wire:click="save" wire:loading.attr="disabled">
+                    <span wire:loading.remove wire:target="save">
+                        <i class="mdi mdi-content-save"></i> Save Module Settings
+                    </span>
+                    <span wire:loading wire:target="save">
+                        <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                    </span>
+                </button>
+            @else
+                <div class="alert alert-warning mb-0">
+                    <i class="mdi mdi-alert-circle-outline"></i>
+                    You can view module visibility but cannot change it. Missing permission: <strong>system.module-switching.edit</strong>
+                </div>
+            @endcan
         </div>
     </div>
 </div>
