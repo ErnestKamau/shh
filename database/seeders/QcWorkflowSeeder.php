@@ -12,7 +12,6 @@ use App\Result;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\StandardAnalytes;
-use App\Standards;
 use App\User;
 use Database\Seeders\Concerns\ClearsAmSpecQcWorkflowData;
 use Database\Seeders\Concerns\ResolvesAmSpecCompany;
@@ -169,7 +168,7 @@ class QcWorkflowSeeder extends Seeder
                         'analyte_id' => $analyte->id,
                     ],
                     [
-                        'standard_value_id' => 0,
+                        'standard_value_id' => null,
                         'standard_value_type' => 'is_range',
                         'expected_value' => $expected,
                         'absolute_tolerance' => 0,
@@ -331,10 +330,10 @@ class QcWorkflowSeeder extends Seeder
 
                 DB::connection('pgsql')->table('qc_results')->insert([
                     'id' => (string) Str::uuid(),
-                    'captured_result_id' => $capturedId,
-                    'sample_detail_code' => $detailAttributes['sample_code'],
-                    'sample_detail_id' => $detailId,
-                    'sample_header_id' => $headerId,
+                    'captured_result_id' => $captured->id,
+                    'sample_detail_code' => $qcDetail->sample_code,
+                    'sample_detail_id' => $qcDetail->id,
+                    'sample_header_id' => $qcHeader->id,
                     'analyte_id' => $element->analyte_id,
                     'analyte_code' => $element->analyte->code,
                     'result' => (string) $numeric,
@@ -351,7 +350,7 @@ class QcWorkflowSeeder extends Seeder
                     'remarks' => 'QC workflow batch measurement',
                     'qc_scheme_id' => $isoScheme->id,
                     'qc_type_id' => $qcType->id,
-                    'result_id' => $resultId,
+                    'result_id' => $result->id,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
