@@ -56,3 +56,12 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('livewire:init', () => {
+        Livewire.on('module-visibility-save-failed', (payload) => {
+            const message = payload?.message ?? 'Module visibility save failed (no message provided).';
+            console.error('[ModuleVisibility] Save failed:', message);
+        });
+    });
+</script>
