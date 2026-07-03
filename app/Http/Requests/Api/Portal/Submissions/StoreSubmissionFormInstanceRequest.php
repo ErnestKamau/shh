@@ -21,6 +21,7 @@ class StoreSubmissionFormInstanceRequest extends FormRequest
             'portal_account_id' => ['nullable', 'uuid'],
             'crm_customer_id' => ['nullable', 'uuid'],
             'portal_request_id' => ['nullable', 'uuid'],
+            'sample_type_id' => ['nullable', 'uuid'],
             'priority' => ['nullable', 'string', 'max:50'],
             'due_date' => ['nullable', 'date'],
         ];

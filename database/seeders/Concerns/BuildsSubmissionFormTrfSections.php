@@ -970,11 +970,31 @@ trait BuildsSubmissionFormTrfSections
 
     protected function clearCaches(): void
     {
+        $this->ensureAllTrfFormsArePortalSubmittable();
+
         try {
             \Illuminate\Support\Facades\Artisan::call('cache:clear');
             \Illuminate\Support\Facades\Artisan::call('view:clear');
         } catch (\Exception $e) {
             $this->command?->warn('Failed to clear cache: '.$e->getMessage());
         }
+    }
+
+    protected function ensureAllTrfFormsArePortalSubmittable(): void
+    {
+        SubmissionForm::query()
+            ->where('document_code', 'like', 'TRF-%')
+            ->where('document_code', 'not like', '%-OLD-%')
+            ->get()
+            ->each(function (SubmissionForm $form): void {
+                $form->update([
+                    'is_customer_portal_form' => true,
+                    'is_published' => true,
+                    'is_active' => true,
+                    'is_customer_request_form' => false,
+                    'form_type' => 'template',
+                    'placement_slot' => ['customer_portal', 'admin_portal', 'samples_receiving'],
+                ]);
+            });
     }
 }

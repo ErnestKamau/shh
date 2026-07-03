@@ -117,6 +117,7 @@ class TestRequestTemplatesTest extends TestCase
             'form_type' => 'template',
             'placement_mode' => 'button_trigger',
             'display_mode' => 'expanded',
+            'placement_slot' => ['customer_portal', 'admin_portal', 'samples_receiving'],
             'target_pages' => [],
             'lims_destination_pages' => ['sample-workflow'],
         ], $overrides));

@@ -53,7 +53,11 @@ class PortalSubmissionFormAccess
         $query = SubmissionForm::query()
             ->where('is_customer_portal_form', true)
             ->where('is_published', true)
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->where(function (Builder $builder): void {
+                $builder->whereNull('placement_slot')
+                    ->orWhereJsonContains('placement_slot', 'customer_portal');
+            });
 
         if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {
             $query->where(function (Builder $builder) use ($crmCustomerId): void {
@@ -75,16 +79,20 @@ class PortalSubmissionFormAccess
             throw PortalApiException::formNotFound();
         }
 
-        if (! $form->is_customer_portal_form) {
+        if (! $form->canSubmitFromCustomerPortal()) {
+            if (! $form->is_customer_portal_form || ! $form->hasPlacementSlot('customer_portal')) {
+                throw PortalApiException::formNotPortal();
+            }
+
+            if (! $form->is_active) {
+                throw PortalApiException::formNotActive();
+            }
+
+            if (! $form->is_published) {
+                throw PortalApiException::formNotPublished();
+            }
+
             throw PortalApiException::formNotPortal();
-        }
-
-        if (! $form->is_active) {
-            throw PortalApiException::formNotActive();
-        }
-
-        if (! $form->is_published) {
-            throw PortalApiException::formNotPublished();
         }
 
         if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {

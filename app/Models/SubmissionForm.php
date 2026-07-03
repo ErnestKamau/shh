@@ -179,6 +179,47 @@ class SubmissionForm extends Model implements Auditable
         return false;
     }
 
+    public function isTestRequestTemplate(): bool
+    {
+        $code = strtoupper((string) ($this->document_code ?? ''));
+
+        if (str_starts_with($code, 'TRF-')) {
+            return true;
+        }
+
+        return str_contains(strtolower((string) ($this->name ?? '')), 'test request form');
+    }
+
+    public function hasPlacementSlot(string $slotId): bool
+    {
+        foreach ($this->placement_slot ?? [] as $value) {
+            if (is_string($value) && $value === $slotId) {
+                return true;
+            }
+
+            if (is_array($value) && (string) ($value['slot_id'] ?? '') === $slotId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function canSubmitFromCustomerPortal(): bool
+    {
+        if (! $this->is_customer_portal_form || ! $this->isPublishedAndActive()) {
+            return false;
+        }
+
+        $slots = $this->placement_slot ?? [];
+
+        if ($slots === []) {
+            return true;
+        }
+
+        return $this->hasPlacementSlot('customer_portal');
+    }
+
     /**
      * Get the permissions for this submission form
      * 

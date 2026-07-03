@@ -175,6 +175,7 @@ class Phase3CrmMasterDataSeeder extends Seeder
                 'receive_report' => true,
                 'active' => true,
                 'can_login' => true,
+                'can_submit_sample' => true,
             ]
         );
 

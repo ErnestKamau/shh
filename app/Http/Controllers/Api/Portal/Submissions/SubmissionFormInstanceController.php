@@ -194,7 +194,7 @@ class SubmissionFormInstanceController extends Controller
             }
         }
 
-        $instance = SubmissionFormInstance::create([
+        $instanceData = [
             'submission_form_id' => $form->id,
             'form_number' => null,
             'sequence_number' => null,
@@ -206,7 +206,14 @@ class SubmissionFormInstanceController extends Controller
             'status' => 'draft',
             'priority' => $request->input('priority', 'normal'),
             'due_date' => $request->input('due_date'),
-        ]);
+            'source_channel' => 'portal',
+        ];
+
+        if ($request->filled('sample_type_id')) {
+            $instanceData['selected_sample_type_id'] = $request->string('sample_type_id')->toString();
+        }
+
+        $instance = SubmissionFormInstance::create($instanceData);
 
         $this->prefillPortalCustomerFields($instance, $form, $customerId, $portalAccountId);
         try {
@@ -493,6 +500,18 @@ class SubmissionFormInstanceController extends Controller
                 'quotation_status' => $enquiry->status,
                 'source_channel' => $enquiry->source_channel,
             ];
+        }
+
+        if (
+            $instance->relationLoaded('submissionForm')
+            && $instance->submissionForm?->isTestRequestTemplate()
+            && in_array($instance->status, ['submitted', 'Submitted'], true)
+        ) {
+            $payload['test_request_form_pdf_url'] = route(
+                'api.portal.submissions.instances.test-request-form.pdf',
+                ['instance' => $instance->id],
+                absolute: false,
+            );
         }
 
         if (! $includeValues) {
