@@ -38,7 +38,7 @@ final class CommercialEnquiryFieldMapper
             ?? $enquiry->mode_of_service_priority;
         $enquiry->mode_of_payment = $this->scalar($formData, 'mode_of_payment') ?? $enquiry->mode_of_payment;
         $enquiry->purpose = $this->scalar($formData, 'remarks', 'purpose') ?? $enquiry->purpose;
-        $enquiry->crm_contact_id = $this->scalar($formData, 'crm_contact_id') ?? $enquiry->crm_contact_id;
+        $enquiry->crm_contact_id = $this->nullableUuid($this->scalar($formData, 'crm_contact_id')) ?? $enquiry->crm_contact_id;
         $enquiry->submitted_by_full_name = $this->scalar(
             $formData,
             'customer_representative_name',

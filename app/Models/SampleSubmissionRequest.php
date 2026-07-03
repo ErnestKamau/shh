@@ -12,10 +12,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class SampleSubmissionRequest extends Model
 {
     use HasUuids;
+
+    private static ?bool $crmContactIdUsesNumericColumn = null;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -161,6 +165,48 @@ class SampleSubmissionRequest extends Model
             'sample_lines' => 'array',
             'enquiry_sample_configuration' => 'array',
         ];
+    }
+
+    public function setCrmContactIdAttribute(mixed $value): void
+    {
+        $this->attributes['crm_contact_id'] = $this->normalizeCrmContactId($value);
+    }
+
+    private function normalizeCrmContactId(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+
+        if (self::crmContactIdUsesNumericColumn()) {
+            return ctype_digit($string) ? $string : null;
+        }
+
+        return Str::isUuid($string) ? $string : null;
+    }
+
+    private static function crmContactIdUsesNumericColumn(): bool
+    {
+        if (self::$crmContactIdUsesNumericColumn !== null) {
+            return self::$crmContactIdUsesNumericColumn;
+        }
+
+        try {
+            $type = strtolower((string) Schema::getColumnType((new self)->getTable(), 'crm_contact_id'));
+        } catch (\Throwable) {
+            self::$crmContactIdUsesNumericColumn = false;
+
+            return self::$crmContactIdUsesNumericColumn;
+        }
+
+        self::$crmContactIdUsesNumericColumn = str_contains($type, 'int');
+
+        return self::$crmContactIdUsesNumericColumn;
     }
 
     public function getFormattedNumberAttribute(): string
