@@ -14,9 +14,8 @@ It is based on inspected route/controller/service code from all three repositori
 
 ```mermaid
 flowchart LR
-    U[Portal Browser UI] --> P[gcla-portal Nuxt server/api]
-    P --> G[gcla-api-s Gateway API]
-    G --> L[polucon LIMS API]
+    U[Portal Browser UI] --> P[kenya-dairy Nuxt server/api]
+    P --> G[kenya-dairy LIMS API]
 
     P --> S[Sample Submission API<br/>separate upstream]
 
@@ -104,8 +103,8 @@ Relevant implementation references:
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant P as gcla-portal
-    participant G as gcla-api-s
+    participant P as kenya-dairy
+    participant G as kenya-dairy-s
     participant DB as LIMS user store
 
     B->>P: POST /api/auth/login
@@ -191,7 +190,7 @@ Key reference:
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant P as gcla-portal
+    participant P as kenya dairy
     participant S as Sample Submission API (separate upstream)
 
     B->>P: POST /api/sample-submission-report
