@@ -7,6 +7,7 @@ use App\AnalysisType;
 use App\Analyte;
 use App\CapturedResult;
 use App\Company;
+use App\Models\QcModule\Configurations\Approvers;
 use App\Result;
 use App\SampleDetails;
 use App\SampleHeader;
@@ -224,22 +225,14 @@ class QcWorkflowSeeder extends Seeder
         }
 
         foreach ($approverUsers as $user) {
-            $exists = DB::connection('pgsql')->table('qc_approvers_config')
-                ->where('personnel_id', (string) $user->id)
-                ->exists();
+            $approver = Approvers::query()->firstOrCreate(
+                ['personnel_id' => (string) $user->id],
+                ['created_by' => (string) $activeUser->id],
+            );
 
-            if ($exists) {
-                continue;
+            if ($approver->wasRecentlyCreated) {
+                $this->command?->info("Seeded QC approver: {$user->name}");
             }
-
-            DB::connection('pgsql')->table('qc_approvers_config')->insert([
-                'personnel_id' => (string) $user->id,
-                'created_by' => (string) $activeUser->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $this->command?->info("Seeded QC approver: {$user->name}");
         }
     }
 
