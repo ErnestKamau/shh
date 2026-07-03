@@ -22,7 +22,6 @@ replace-create-ticket.sh
 tests/Unit/AutoRunCreationServiceTest.php
 .mcp.json
 boost.json
-docs/
 code-review.agent.md
 .github
 qpluslatest2.sql
