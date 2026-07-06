@@ -59,9 +59,14 @@ class AuditManagementController extends Controller
         ]);
 
         $validated['audit_number'] = Audit::generateAuditNumber();
-        $validated['status_name'] = 'Scheduled';
-        $validated['created_by'] = Auth::id();
         $validated['company_id'] = getUserCompany() ?? 0;
+        ensureAuditWorkflowStatuses($validated['company_id'] ?: null);
+        $scheduledStatus = AuditStatus::where('company_id', $validated['company_id'])
+            ->where('name', 'Scheduled')
+            ->first();
+        $validated['status_name'] = 'Scheduled';
+        $validated['status_id'] = $scheduledStatus?->id;
+        $validated['created_by'] = Auth::id();
 
         $audit = Audit::create($validated);
 
@@ -365,18 +370,28 @@ class AuditManagementController extends Controller
 
         $validated = $request->validate([
             'action' => 'required|in:approve,reject,return,hold',
-            'target_status_id' => 'required|integer|exists:audit_statuses,id',
+            'target_status_id' => 'nullable|uuid|exists:audit_statuses,id',
             'remarks' => 'required|string|min:10',
         ], [
             'action.required' => 'Please select an action.',
             'action.in' => 'Invalid action selected.',
-            'target_status_id.required' => 'Please select a target status.',
+            'target_status_id.uuid' => 'Invalid target status selected.',
             'target_status_id.exists' => 'Selected status does not exist.',
             'remarks.required' => 'Remarks are required for ISO compliance.',
             'remarks.min' => 'Remarks must be at least 10 characters.',
         ]);
 
-        $targetStatus = AuditStatus::findOrFail($validated['target_status_id']);
+        $targetStatus = ! empty($validated['target_status_id'])
+            ? AuditStatus::find($validated['target_status_id'])
+            : null;
+
+        if (! $targetStatus) {
+            $targetStatus = $this->resolveWorkflowTargetStatus($audit, $validated['action']);
+        }
+
+        if (! $targetStatus) {
+            return back()->with('error', 'Could not determine the target status for this action. The next workflow status is not configured for the current step.');
+        }
         $oldStatus = $audit->status_name;
         $newStatus = $targetStatus->name;
 
@@ -429,6 +444,30 @@ class AuditManagementController extends Controller
                         $ncsWithoutRca = $audit->getNCsWithoutRootCauseAnalysis();
                         $ncNumbers = $ncsWithoutRca->pluck('nc_number')->join(', ');
                         $errorMessage = "Cannot proceed. The following non-conformances require root cause analysis: {$ncNumbers}.";
+                    }
+                } elseif ($currentStep === 6 || $audit->status_name === 'CAPA Assigned') {
+                    $unimplementedCapas = $audit->nonConformances()
+                        ->with('correctiveActions')
+                        ->get()
+                        ->flatMap(fn ($nc) => $nc->correctiveActions)
+                        ->filter(fn ($capa) => ! in_array($capa->status_name, ['Implemented', 'Verification Pending', 'Verified', 'Closed']));
+                    if ($unimplementedCapas->isNotEmpty()) {
+                        $capaNumbers = $unimplementedCapas->pluck('capa_number')->join(', ');
+                        $errorMessage = "Cannot proceed. The following corrective actions must be implemented: {$capaNumbers}.";
+                    }
+                } elseif ($currentStep === 7 || $audit->status_name === 'CAPA In Progress') {
+                    $unverifiedCapas = $audit->nonConformances()
+                        ->with('correctiveActions.latestVerification')
+                        ->get()
+                        ->flatMap(fn ($nc) => $nc->correctiveActions)
+                        ->filter(function ($capa) {
+                            $isImplemented = in_array($capa->status_name, ['Implemented', 'Verification Pending', 'Verified', 'Closed']);
+
+                            return $isImplemented && ! $capa->latestVerification;
+                        });
+                    if ($unverifiedCapas->isNotEmpty()) {
+                        $capaNumbers = $unverifiedCapas->pluck('capa_number')->join(', ');
+                        $errorMessage = "Cannot proceed. Verify effectiveness for: {$capaNumbers}. Open each CAPA and use Verify Effectiveness.";
                     }
                 }
                 
@@ -503,6 +542,7 @@ class AuditManagementController extends Controller
         }
 
         // Update status
+        $audit->status_id = $targetStatus->id;
         $audit->status_name = $newStatus;
         
         // Set start date if moving from Scheduled
@@ -595,6 +635,70 @@ class AuditManagementController extends Controller
 
         $successMessage = "Audit {$validated['action']}d and moved to: {$newStatus}.";
         return back()->with('success', $successMessage);
+    }
+
+    /**
+     * Resolve the target audit status from the workflow action when not submitted by the form.
+     */
+    protected function resolveWorkflowTargetStatus(Audit $audit, string $action): ?AuditStatus
+    {
+        switch ($action) {
+            case 'approve':
+                return $audit->getNextWorkflowStatus();
+
+            case 'reject':
+            case 'return':
+                $currentStep = $audit->getCurrentWorkflowStep();
+                if ($currentStep && $currentStep > 1) {
+                    if ($audit->company_id) {
+                        ensureAuditWorkflowStatuses($audit->company_id);
+                    }
+
+                    $workflowSteps = getAuditWorkflowSteps();
+                    $previousStep = $currentStep - 1;
+                    $previousName = $workflowSteps[$previousStep] ?? null;
+
+                    $query = AuditStatus::active()->where(function ($q) use ($audit) {
+                        $q->whereNull('company_id');
+                        if ($audit->company_id) {
+                            $q->orWhere('company_id', $audit->company_id);
+                        }
+                    });
+
+                    $previousStatus = $query->clone()
+                        ->where('workflow_step', $previousStep)
+                        ->orderBy('order_index')
+                        ->first();
+
+                    if ($previousStatus) {
+                        return $previousStatus;
+                    }
+
+                    if ($previousName) {
+                        return $query->where('name', $previousName)->first();
+                    }
+                }
+
+                return null;
+
+            case 'hold':
+                if ($audit->status_id) {
+                    return AuditStatus::find($audit->status_id);
+                }
+
+                return AuditStatus::active()
+                    ->where('name', $audit->status_name)
+                    ->where(function ($q) use ($audit) {
+                        $q->whereNull('company_id');
+                        if ($audit->company_id) {
+                            $q->orWhere('company_id', $audit->company_id);
+                        }
+                    })
+                    ->first();
+
+            default:
+                return null;
+        }
     }
 
     public function generatePdf($id)

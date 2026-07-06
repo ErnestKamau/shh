@@ -126,13 +126,12 @@ class AuditActivityLog extends Model implements Auditable
                 ->first();
             
             if ($previousLog && $previousLog->created_at) {
-                // Calculate duration from previous log's created_at to now
-                $durationSeconds = $previousLog->created_at->diffInSeconds(now());
-                // Ensure positive duration
-                if ($durationSeconds < 0) {
-                    $durationSeconds = abs($durationSeconds);
-                }
+                $durationSeconds = (int) round($previousLog->created_at->diffInSeconds(now(), absolute: true));
             }
+        }
+
+        if ($durationSeconds !== null) {
+            $durationSeconds = (int) round($durationSeconds);
         }
 
         return static::create([

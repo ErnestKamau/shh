@@ -19,6 +19,7 @@ class AuthServiceProvider extends ServiceProvider
         // \App\Models\CertificateTemplate::class => \App\Policies\CertificateTemplatePolicy::class,
         \App\Models\Lab\EquipmentUsageRequest::class => \App\Policies\Lab\EquipmentUsageRequestPolicy::class,
         \App\Models\Registry\RegistryRequest::class => \App\Policies\RegistryRequestPolicy::class,
+        \App\Models\DMS\Document::class => \App\Policies\DmsDocumentPolicy::class,
     ];
 
     /**

@@ -96,12 +96,12 @@
                 </div>
                 @if(!$isClosed)
                 <div class="d-flex align-items-center" style="gap: 0.5rem;">
-                    <button type="button" wire:click="openAddItemModal({{ $checklist->id }})" 
+                    <button type="button" wire:click="openAddItemModal('{{ $checklist->id }}')" 
                             class="btn btn-sm btn-success" 
                             style="border-radius: var(--border-radius-sm, 8px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
                         <i class="mdi mdi-plus"></i> Add Item
                     </button>
-                    <button type="button" wire:click="confirmRemoveChecklist({{ $checklist->id }})" 
+                    <button type="button" wire:click="confirmRemoveChecklist('{{ $checklist->id }}')" 
                             class="btn btn-sm btn-danger"
                             style="border-radius: var(--border-radius-sm, 8px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
                         <i class="mdi mdi-delete"></i> Remove
@@ -182,7 +182,7 @@
                             <td style="padding-left: 1rem; padding-right: 1rem;">
                                 @if(!$isClosed)
                                 <div class="d-flex align-items-center justify-content-end" style="gap: 0.5rem;">
-                                    <button wire:click="openItemModal({{ $item->id }})" 
+                                    <button wire:click="openItemModal('{{ $item->id }}')" 
                                             class="btn btn-sm btn-primary"
                                             style="border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: all 0.3s ease; white-space: nowrap;">
                                         <i class="mdi mdi-pencil"></i> {{ $response ? 'Edit' : 'Record' }}

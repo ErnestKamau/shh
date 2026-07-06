@@ -471,4 +471,6 @@
 	});
 </script>
 
+@yield('script2')
+
 @endsection

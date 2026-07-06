@@ -433,13 +433,9 @@
                                     <label style="font-weight: 500; color: #5f6368; margin-bottom: 8px;">Workflow Step</label>
                                     <select wire:model="workflow_step" class="form-control @error('workflow_step') is-invalid @enderror" style="border-radius: 8px; border: 1px solid #dadce0;">
                                         <option value="">None (Not in workflow)</option>
-                                        <option value="1">Step 1 - Scheduled</option>
-                                        <option value="2">Step 2 - Record Findings & NC</option>
-                                        <option value="3">Step 3 - Root Cause Analysis</option>
-                                        <option value="4">Step 4 - Assign CAPA</option>
-                                        <option value="5">Step 5 - Implement</option>
-                                        <option value="6">Step 6 - Verify</option>
-                                        <option value="7">Step 7 - Close</option>
+                                        @foreach(getAuditWorkflowSteps() as $stepNum => $stepName)
+                                            <option value="{{ $stepNum }}">Step {{ $stepNum }} - {{ $stepName }}</option>
+                                        @endforeach
                                     </select>
                                     <small class="text-muted">Select the workflow step this status belongs to</small>
                                     @error('workflow_step') <div class="invalid-feedback">{{ $message }}</div> @enderror

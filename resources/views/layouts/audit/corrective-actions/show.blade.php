@@ -711,8 +711,9 @@
         // Add action type to breadcrumbs if available
         $actionTypeName = $capa->action_type_name ?? ($capa->actionType?->name ?? null);
         if ($actionTypeName) {
-            $badgeClass = 'badge-info';
-            $items[count($items) - 1]['name'] = $capa->capa_number . ' <span class="badge badge-modern '.$badgeClass.' ml-2" style="font-size: 0.875rem; padding: 0.5rem 1rem; display: inline-flex; align-items: center;">'.$actionTypeName.'</span>';
+            $items[count($items) - 1]['name'] = $capa->capa_number;
+            $items[count($items) - 1]['badge'] = $actionTypeName;
+            $items[count($items) - 1]['badge_class'] = 'badge-info';
         }
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>

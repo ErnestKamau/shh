@@ -11,6 +11,9 @@
 							@if ($item['name'])
 								<span class="breadcrumb-text">{{ $item['name'] }}</span>
 							@endif
+							@if (!empty($item['badge']))
+								<span class="badge badge-modern {{ $item['badge_class'] ?? 'badge-secondary' }} ml-2" style="font-size: 0.875rem; padding: 0.5rem 1rem; display: inline-flex; align-items: center;">{{ $item['badge'] }}</span>
+							@endif
 						</span>
 					@else
 						<a href="{{ $item['link'] }}" class="breadcrumb-link">
@@ -19,6 +22,9 @@
 							@endif
 							@if ($item['name'])
 								<span class="breadcrumb-text">{{ $item['name'] }}</span>
+							@endif
+							@if (!empty($item['badge']))
+								<span class="badge badge-modern {{ $item['badge_class'] ?? 'badge-secondary' }} ml-2" style="font-size: 0.875rem; padding: 0.5rem 1rem; display: inline-flex; align-items: center;">{{ $item['badge'] }}</span>
 							@endif
 						</a>
 					@endif

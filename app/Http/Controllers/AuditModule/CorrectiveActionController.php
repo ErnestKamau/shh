@@ -140,10 +140,7 @@ class CorrectiveActionController extends Controller
         }
 
         // Get verification results for the modal
-        $verificationResults = \App\Models\AuditModule\VerificationResult::active()
-            ->forCompany()
-            ->orderBy('name')
-            ->get();
+        $verificationResults = getActiveVerificationResults();
 
         return view('layouts.audit.corrective-actions.show', compact('capa', 'currentWorkflowStep', 'canImplement', 'auditWorkflowStep', 'audit', 'nextWorkflowStatus', 'isAuditClosed', 'canProceedToNext', 'verificationResults'));
     }

@@ -100,9 +100,10 @@ class AuditForm extends Component
         if ($this->isEdit) {
             $audit = Audit::forCompany()->find($this->auditId);
             $statusName = $audit ? $audit->status_name : null;
-            // Allow saving summary fields when status is "Verify" or later statuses
-            $allowedStatuses = ['Verify', 'Pending Closure', 'Closed'];
-            $canSaveSummaryFields = $statusName && in_array($statusName, $allowedStatuses);
+            $currentStep = $audit ? ($audit->getCurrentWorkflowStep() ?? 0) : 0;
+            $allowedStatuses = ['CAPA Verification', 'Pending Closure', 'Closed', 'Verify'];
+            $canSaveSummaryFields = $currentStep >= 8
+                || ($statusName && in_array($statusName, $allowedStatuses, true));
         }
 
         $data = [
@@ -140,10 +141,15 @@ class AuditForm extends Component
                 ->with('success', 'Audit updated successfully.');
         } else {
             $data['audit_number'] = Audit::generateAuditNumber();
-            $data['status_name'] = 'Scheduled';
-            $data['created_by'] = auth()->id();
             $data['company_id'] = getUserCompany();
-            
+            ensureAuditWorkflowStatuses($data['company_id'] ?: null);
+            $scheduledStatus = \App\Models\AuditModule\AuditStatus::where('company_id', $data['company_id'])
+                ->where('name', 'Scheduled')
+                ->first();
+            $data['status_name'] = 'Scheduled';
+            $data['status_id'] = $scheduledStatus?->id;
+            $data['created_by'] = auth()->id();
+
             $audit = Audit::create($data);
             AuditActivityLog::logCreation($audit, 'Audit scheduled');
             
@@ -199,9 +205,10 @@ class AuditForm extends Component
             $audit = Audit::forCompany()->find($this->auditId);
             if ($audit) {
                 $statusName = $audit->status_name;
-                // Allow editing summary fields when status is "Verify" or later
-                $allowedStatuses = ['Verify', 'Pending Closure', 'Closed'];
-                $canEditSummaryFields = $statusName && in_array($statusName, $allowedStatuses);
+                $currentStep = $audit->getCurrentWorkflowStep() ?? 0;
+                $allowedStatuses = ['CAPA Verification', 'Pending Closure', 'Closed', 'Verify'];
+                $canEditSummaryFields = $currentStep >= 8
+                    || ($statusName && in_array($statusName, $allowedStatuses, true));
             }
         }
 

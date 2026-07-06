@@ -61,6 +61,7 @@ class AuditChecklist extends Model implements Auditable
     public function auditsMany(): BelongsToMany
     {
         return $this->belongsToMany(Audit::class, 'audit_checklist_audit', 'audit_checklist_id', 'audit_id')
+            ->using(AuditChecklistAudit::class)
             ->withPivot('order_index')
             ->withTimestamps()
             ->orderByPivot('order_index');

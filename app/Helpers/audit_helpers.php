@@ -112,6 +112,40 @@ if (!function_exists('auditSqlMonthExpression')) {
     }
 }
 
+if (!function_exists('ensureAuditWorkflowStatuses')) {
+    /**
+     * Ensure all canonical audit workflow statuses exist for a company.
+     * Audits use status_name strings (e.g. "Scheduled") that must match these rows.
+     */
+    function ensureAuditWorkflowStatuses(?string $companyId = null): void
+    {
+        $companyId = $companyId ?? getUserCompany();
+        if ($companyId === null || $companyId === '') {
+            return;
+        }
+
+        foreach (getAuditWorkflowSteps() as $step => $name) {
+            $cleanCode = preg_replace('/[^A-Za-z0-9]/', '', $name);
+            $code = strtoupper(substr($cleanCode ?: ('STEP' . $step), 0, 10));
+
+            \App\Models\AuditModule\AuditStatus::updateOrCreate(
+                [
+                    'company_id' => $companyId,
+                    'name' => $name,
+                ],
+                [
+                    'code' => $code,
+                    'description' => "Workflow step {$step}: {$name}",
+                    'workflow_step' => $step,
+                    'order_index' => $step,
+                    'is_active' => true,
+                    'color_code' => '#6c757d',
+                ]
+            );
+        }
+    }
+}
+
 if (!function_exists('getActiveAuditStatuses')) {
     /**
      * Get all active audit statuses for the current company.
@@ -120,6 +154,8 @@ if (!function_exists('getActiveAuditStatuses')) {
      */
     function getActiveAuditStatuses()
     {
+        ensureAuditWorkflowStatuses();
+
         return \App\Models\AuditModule\AuditStatus::active()->forCompany()->ordered()->get();
     }
 }
@@ -260,6 +296,30 @@ if (!function_exists('auditConfigurationForCompany')) {
     }
 }
 
+if (!function_exists('auditNcCapaFormUrl')) {
+    /**
+     * Deep-link to the NC CAPA tab and open the add-CAPA modal.
+     */
+    function auditNcCapaFormUrl(string $ncId): string
+    {
+        return route('audit.nc.show', ['id' => $ncId, 'open' => 'capa']);
+    }
+}
+
+if (!function_exists('auditAllowsCapaAssignment')) {
+    /**
+     * Whether CAPA can be assigned on an NC linked to an audit.
+     */
+    function auditAllowsCapaAssignment(?\App\Models\AuditModule\Audit $audit, \App\Models\AuditModule\NonConformance $nc): bool
+    {
+        if (!$audit || $audit->status_name === 'Closed' || $nc->status_name === 'Closed') {
+            return false;
+        }
+
+        return $nc->hasRca();
+    }
+}
+
 if (!function_exists('getActiveRootCauseMethods')) {
     /**
      * Get all active root cause analysis methods for the current company.
@@ -320,14 +380,95 @@ if (!function_exists('getActiveCapaPriorities')) {
 
 if (!function_exists('getActiveNcOrigins')) {
     /**
+     * Ensure core NC origins exist for current company.
+     */
+    function ensureNcOrigins(?string $companyId = null): void
+    {
+        $companyId = $companyId ?? getUserCompany();
+        if ($companyId === null || $companyId === '') {
+            return;
+        }
+
+        $defaults = [
+            ['code' => 'AUDIT_FINDING', 'name' => 'Audit Finding'],
+            ['code' => 'LAB_PROCESS', 'name' => 'Laboratory Process'],
+            ['code' => 'EQUIPMENT', 'name' => 'Equipment'],
+        ];
+
+        foreach ($defaults as $row) {
+            \App\Models\AuditModule\NcOrigin::updateOrCreate(
+                ['code' => $row['code'], 'company_id' => $companyId],
+                [
+                    'name' => $row['name'],
+                    'description' => 'NC origin: ' . $row['name'],
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+}
+
+if (!function_exists('getActiveNcOrigins')) {
+    /**
      * Get all active NC origins for the current company.
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
     function getActiveNcOrigins()
     {
+        ensureNcOrigins();
+
         return auditConfigurationForCompany(
             \App\Models\AuditModule\NcOrigin::active()
+        )->orderBy('name')->get();
+    }
+}
+
+if (!function_exists('ensureVerificationResults')) {
+    /**
+     * Ensure default CAPA verification results exist for a company.
+     */
+    function ensureVerificationResults(?string $companyId = null): void
+    {
+        $companyId = $companyId ?? getUserCompany();
+        if ($companyId === null || $companyId === '') {
+            return;
+        }
+
+        $defaults = [
+            ['code' => 'EFFECTIVE', 'name' => 'Effective', 'requires_reopen' => false, 'color_code' => '#28a745'],
+            ['code' => 'NOT_EFFECTIVE', 'name' => 'Not Effective', 'requires_reopen' => true, 'color_code' => '#dc3545'],
+            ['code' => 'PARTIALLY_EFFECTIVE', 'name' => 'Partially Effective', 'requires_reopen' => false, 'color_code' => '#ffc107'],
+        ];
+
+        foreach ($defaults as $row) {
+            \App\Models\AuditModule\VerificationResult::updateOrCreate(
+                ['code' => $row['code'], 'company_id' => $companyId],
+                [
+                    'name' => $row['name'],
+                    'description' => 'Verification outcome: ' . $row['name'],
+                    'color_code' => $row['color_code'],
+                    'requires_reopen' => $row['requires_reopen'],
+                    'next_workflow_step' => null,
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+}
+
+if (!function_exists('getActiveVerificationResults')) {
+    /**
+     * Get all active verification results for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveVerificationResults()
+    {
+        ensureVerificationResults();
+
+        return auditConfigurationForCompany(
+            \App\Models\AuditModule\VerificationResult::active()
         )->orderBy('name')->get();
     }
 }

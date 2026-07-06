@@ -102,7 +102,7 @@
             <h5 class="mb-0">Audit Summary</h5>
             @if(!$canEditSummaryFields && $statusName)
             <span class="badge badge-warning">
-                <i class="mdi mdi-information-outline"></i> Available when status is "Verify" or later
+                <i class="mdi mdi-information-outline"></i> Available at CAPA Verification or when closing the audit
             </span>
             @endif
         </div>
@@ -121,7 +121,7 @@
                       @if(!$canEditSummaryFields && $statusName) disabled @endif></textarea>
             @if(!$canEditSummaryFields && $statusName)
             <small class="form-text text-muted">
-                <i class="mdi mdi-lock"></i> This field will be enabled when the audit status is "Verify" or later
+                <i class="mdi mdi-lock"></i> This field is enabled at CAPA Verification or when closing the audit
             </small>
             @endif
         </div>
@@ -140,7 +140,7 @@
                       @if(!$canEditSummaryFields && $statusName) disabled @endif></textarea>
             @if(!$canEditSummaryFields && $statusName)
             <small class="form-text text-muted">
-                <i class="mdi mdi-lock"></i> This field will be enabled when the audit status is "Verify" or later
+                <i class="mdi mdi-lock"></i> This field is enabled at CAPA Verification or when closing the audit
             </small>
             @endif
         </div>
@@ -159,7 +159,7 @@
                       @if(!$canEditSummaryFields && $statusName) disabled @endif></textarea>
             @if(!$canEditSummaryFields && $statusName)
             <small class="form-text text-muted">
-                <i class="mdi mdi-lock"></i> This field will be enabled when the audit status is "Verify" or later
+                <i class="mdi mdi-lock"></i> This field is enabled at CAPA Verification or when closing the audit
             </small>
             @endif
         </div>

@@ -660,12 +660,12 @@
         $audit = $nc->audit;
         $auditCurrentStep = $audit ? $audit->getCurrentWorkflowStep() : null;
         $auditStatusName = $audit ? $audit->status_name : null;
-        $isRootCauseAnalysisStep = ($auditStatusName === 'Root Cause Analysis');
         $isClosed = $nc->status_name === 'Closed';
-        
+
         // Get next workflow status for audit (if audit exists)
         $nextWorkflowStatus = $audit ? $audit->getNextWorkflowStatus() : null;
         $isAuditClosed = $audit ? ($audit->status_name === 'Closed') : false;
+        $canAddRca = !$isClosed && !$isAuditClosed;
         $canProceedToNext = $audit ? $audit->canProceedToNextStatus() : false;
         $findingsRequiringNC = $audit ? $audit->getFindingsRequiringNC() : null;
         
@@ -679,7 +679,9 @@
                               stripos($categoryName, 'major') !== false ||
                               stripos($categoryName, 'minor') !== false;
             $badgeClass = $isNonconformity ? 'badge-danger' : 'badge-info';
-            $items[count($items) - 1]['name'] = $nc->nc_number . ' <span class="badge badge-modern '.$badgeClass.' ml-2" style="font-size: 0.875rem; padding: 0.5rem 1rem; display: inline-flex; align-items: center;">'.$categoryName.'</span>';
+            $items[count($items) - 1]['name'] = $nc->nc_number;
+            $items[count($items) - 1]['badge'] = $categoryName;
+            $items[count($items) - 1]['badge_class'] = $badgeClass;
         }
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
@@ -846,11 +848,8 @@
                     </a>
                 </li>
                 @php
-                    // Show CAPA tab if: has CAPAs, or status allows CAPA assignment, or has RCA and audit is in CAPA/Implement/Verify/Close status
-                    $showCapaTab = $nc->correctiveActions->count() > 0 || 
-                                   $nc->status_name === 'CAPA Assigned' || 
-                                   ($audit && $audit->status_name === 'Assign CAPA') ||
-                                   ($nc->hasRca() && $audit && in_array($audit->status_name, ['Assign CAPA', 'Implement', 'Verify', 'Close']));
+                    $showCapaTab = $nc->correctiveActions->count() > 0
+                        || auditAllowsCapaAssignment($audit, $nc);
                 @endphp
                 @if($showCapaTab)
                 <li class="nav-item">
@@ -906,38 +905,48 @@
                         'message' => 'Please record at least one finding before proceeding.',
                         'items' => []
                     ];
-                } elseif ($auditCurrentStep === 5 || $auditStatusName === 'Assign CAPA') {
-                    // Check if all NCs with RCA have at least one CAPA
-                    $ncsWithoutCapa = $audit->nonConformances()
-                        ->whereHas('rootCauseAnalyses')
-                        ->whereDoesntHave('correctiveActions')
-                        ->get();
-                    
-                    if ($ncsWithoutCapa->count() > 0) {
+                } elseif ($auditCurrentStep === 6 || $auditStatusName === 'CAPA Assigned') {
+                    if ($nc->correctiveActions()->count() === 0 && $nc->hasRca()) {
                         $requirements[] = [
                             'type' => 'warning',
-                            'message' => 'The following non-conformances require corrective actions (CAPA) to be assigned before proceeding:',
-                            'items' => $ncsWithoutCapa->map(function($nc) {
-                                return [
-                                    'number' => $nc->nc_number,
-                                    'url' => route('audit.nc.show', $nc->id),
-                                    'button_class' => 'btn-primary',
-                                    'button_text' => 'Add CAPA',
-                                    'icon' => 'plus'
-                                ];
-                            })->toArray()
+                            'message' => 'This non-conformance requires a corrective action (CAPA) to be assigned before the audit can proceed:',
+                            'items' => [[
+                                'number' => $nc->nc_number,
+                                'url' => auditNcCapaFormUrl($nc->id),
+                                'button_class' => 'btn-primary',
+                                'button_text' => 'Add CAPA',
+                                'icon' => 'plus'
+                            ]]
                         ];
-                    } elseif ($canProceedToNext && $nextWorkflowStatus) {
-                        // Double-check: ensure no findings requiring NCs before showing ready
-                        if (!$findingsRequiringNC || $findingsRequiringNC->count() === 0) {
+                    } else {
+                        $unimplementedCapas = $nc->correctiveActions
+                            ->filter(function($capaItem) {
+                                return !in_array($capaItem->status_name, ['Implemented', 'Verification Pending', 'Verified', 'Closed']);
+                            });
+
+                        if ($unimplementedCapas->count() > 0) {
+                            $requirements[] = [
+                                'type' => 'warning',
+                                'message' => 'CAPA is assigned. Mark it as implemented before advancing the audit:',
+                                'items' => $unimplementedCapas->map(function($capaItem) {
+                                    return [
+                                        'number' => $capaItem->capa_number,
+                                        'url' => route('audit.capa.show', $capaItem->id),
+                                        'button_class' => 'btn-success',
+                                        'button_text' => 'Implement',
+                                        'icon' => 'wrench'
+                                    ];
+                                })->toArray()
+                            ];
+                        } elseif ($canProceedToNext && $nextWorkflowStatus) {
                             $requirements[] = [
                                 'type' => 'success',
-                                'message' => 'All requirements met. Ready to proceed to next step.',
+                                'message' => 'CAPA is assigned and implemented. The audit is ready to proceed.',
                                 'items' => []
                             ];
                         }
                     }
-                } elseif ($auditCurrentStep === 6 || $auditStatusName === 'Implement') {
+                } elseif ($auditCurrentStep === 7 || $auditStatusName === 'CAPA In Progress') {
                     // Check if ALL CAPAs in the audit are implemented (matching Audit model validation)
                     $unimplementedCapas = $audit->nonConformances()
                         ->with('correctiveActions')
@@ -970,7 +979,7 @@
                             'items' => []
                         ];
                     }
-                } elseif ($auditCurrentStep === 7 || $auditStatusName === 'Verify') {
+                } elseif ($auditCurrentStep === 8 || $auditStatusName === 'CAPA Verification') {
                     // Check if ALL implemented CAPAs in the audit are verified
                     $unverifiedCapas = $audit->nonConformances()
                         ->with('correctiveActions.latestVerification')
@@ -1280,7 +1289,7 @@
                                 <i class="mdi mdi-information-outline"></i> Perform root cause analysis to identify the underlying cause of the non-conformance.
                             </small>
                         </div>
-                        @if($isRootCauseAnalysisStep && !$isClosed && !$isAuditClosed)
+                        @if($canAddRca)
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#addRcaModal">
                             <i class="mdi mdi-magnify"></i> Add Root Cause Analysis
                         </button>
@@ -1383,12 +1392,9 @@
 
                 <!-- Corrective Actions Tab -->
                 @php
-                    // Show CAPA tab content if: has CAPAs, or status allows CAPA assignment, or has RCA and audit is in CAPA/Implement/Verify/Close status
-                    $showCapaTabContent = $nc->correctiveActions->count() > 0 || 
-                                   $nc->status_name === 'CAPA Assigned' || 
-                                         ($audit && $audit->status_name === 'Assign CAPA') ||
-                                         ($nc->hasRca() && $audit && in_array($audit->status_name, ['Assign CAPA', 'Implement', 'Verify', 'Close']));
-                    $canAddCapaInTab = $showCapaTabContent && $nc->hasRca() && !$isClosed && !$isAuditClosed;
+                    $showCapaTabContent = $nc->correctiveActions->count() > 0
+                        || auditAllowsCapaAssignment($audit, $nc);
+                    $canAddCapaInTab = $showCapaTabContent && auditAllowsCapaAssignment($audit, $nc);
                 @endphp
                 @if($showCapaTabContent)
                 <div class="tab-pane fade" id="capas" role="tabpanel">
@@ -2244,7 +2250,25 @@
         });
     }
 
+    function openCapaAssignmentUi() {
+        const capaTab = $('a[href="#capas"]');
+        if (capaTab.length) {
+            capaTab.tab('show');
+        }
+
+        if ($('#addCapaModal').length) {
+            setTimeout(function() {
+                $('#addCapaModal').modal('show');
+            }, 300);
+        }
+    }
+
     $(document).ready(function() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('open') === 'capa' || window.location.hash === '#capas') {
+            openCapaAssignmentUi();
+        }
+
         // Initial load
         setTimeout(function() {
             initTinyMCE();

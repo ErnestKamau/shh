@@ -90,6 +90,7 @@ class Audit extends Model implements Auditable
     public function checklists(): BelongsToMany
     {
         return $this->belongsToMany(AuditChecklist::class, 'audit_checklist_audit', 'audit_id', 'audit_checklist_id')
+            ->using(AuditChecklistAudit::class)
             ->withPivot('order_index')
             ->withTimestamps()
             ->orderByPivot('order_index');
@@ -213,22 +214,35 @@ class Audit extends Model implements Auditable
      * Get current workflow step from status configuration
      * Uses workflow_step from audit_statuses table (dynamic configuration)
      */
+    /**
+     * Scope audit status queries to this audit's company (and global rows).
+     */
+    protected function auditStatusesForTenant()
+    {
+        $companyId = $this->company_id;
+
+        return AuditStatus::active()->where(function ($q) use ($companyId) {
+            $q->whereNull('company_id');
+            if ($companyId !== null && $companyId !== '') {
+                $q->orWhere('company_id', $companyId);
+            }
+        });
+    }
+
     public function getCurrentWorkflowStep(): ?int
     {
         if (!$this->status_name) {
             return null;
         }
 
-        // Get status from database with workflow_step
-        $status = AuditStatus::where('name', $this->status_name)
-            ->forCompany()
+        $status = $this->auditStatusesForTenant()
+            ->where('name', $this->status_name)
             ->first();
 
         if ($status && $status->workflow_step !== null) {
             return $status->workflow_step;
         }
 
-        // Fallback: Check if status_name matches workflow step names (for backward compatibility)
         $workflowSteps = getAuditWorkflowSteps();
         $stepNum = array_search($this->status_name, $workflowSteps);
         if ($stepNum !== false) {
@@ -273,48 +287,57 @@ class Audit extends Model implements Auditable
      */
     public function getNextWorkflowStatus(): ?AuditStatus
     {
+        if ($this->company_id) {
+            ensureAuditWorkflowStatuses($this->company_id);
+        }
+
         if (!$this->status_name) {
-            // If no status, get the first status
             return getActiveAuditStatuses()->first();
         }
 
-        // Get current workflow step
         $currentStep = $this->getCurrentWorkflowStep();
         if (!$currentStep) {
             return null;
         }
 
-        // Get next step
         $nextStep = $currentStep + 1;
-        if ($nextStep > 7) {
-            return null; // Already at the last step
+        $workflowSteps = getAuditWorkflowSteps();
+        $maxStep = max(array_keys($workflowSteps));
+        if ($nextStep > $maxStep) {
+            return null;
         }
 
-        // Find statuses with the next workflow_step from database configuration
-        $nextStatus = AuditStatus::active()
-            ->forCompany()
+        $nextStatus = $this->auditStatusesForTenant()
             ->where('workflow_step', $nextStep)
-            ->ordered()
+            ->orderBy('order_index')
             ->first();
-        
+
         if ($nextStatus) {
             return $nextStatus;
         }
 
-        // Fallback: If no status found with workflow_step, try to find by order_index
-        $currentStatus = AuditStatus::where('name', $this->status_name)
-            ->forCompany()
+        $nextStatusName = $workflowSteps[$nextStep] ?? null;
+        if ($nextStatusName) {
+            $nextStatus = $this->auditStatusesForTenant()
+                ->where('name', $nextStatusName)
+                ->first();
+
+            if ($nextStatus) {
+                return $nextStatus;
+            }
+        }
+
+        $currentStatus = $this->auditStatusesForTenant()
+            ->where('name', $this->status_name)
             ->first();
 
         if (!$currentStatus) {
             return null;
         }
 
-        // Get next status by order_index as fallback
-        return AuditStatus::active()
-            ->forCompany()
+        return $this->auditStatusesForTenant()
             ->where('order_index', '>', $currentStatus->order_index)
-            ->ordered()
+            ->orderBy('order_index')
             ->first();
     }
     

@@ -517,14 +517,6 @@ class NonConformanceController extends Controller
     {
         $nc = NonConformance::forCompany()->findOrFail($id);
 
-        // Workflow enforcement: Can only create CAPA at step 5 (after RCA is created)
-        $currentStep = $nc->getCurrentWorkflowStep();
-        if (!$nc->canProceedToStep(5)) {
-            $currentStepName = $nc->getWorkflowStepName() ?? 'Unknown';
-            return back()->with('error', "Cannot create corrective action. Current workflow step: {$currentStepName}. Root cause analysis must be completed (Step 4) before creating CAPAs.");
-        }
-
-        // Verify RCA exists
         if (!$nc->hasRca()) {
             return back()->with('error', 'Cannot create corrective action. Root cause analysis must be completed first.');
         }

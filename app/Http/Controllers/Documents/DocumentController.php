@@ -154,8 +154,8 @@ class DocumentController extends Controller
         $userDepartment = $user->department;
         
         // Check if user has permission to create documents
-        if (!$user->hasCanAddDocumentsRole()) {
-            return redirect()->back()->with('error', 'You do not have permission to create documents. This action requires the "Can Add Documents" role.');
+        if (!$user->canAddDocuments()) {
+            return redirect()->back()->with('error', 'You do not have permission to create documents. This action requires the "documents.components.document management.add" permission.');
         }
         
         $documentTypes = DocumentType::where('is_active', true)->get();
@@ -230,8 +230,8 @@ class DocumentController extends Controller
         }
 
         // Check if user has permission to create documents
-        if (!$user->hasCanAddDocumentsRole()) {
-            return redirect()->back()->with('error', 'You do not have permission to create documents. This action requires the "Can Add Documents" role.');
+        if (!$user->canAddDocuments()) {
+            return redirect()->back()->with('error', 'You do not have permission to create documents. This action requires the "documents.components.document management.add" permission.');
         }
 
         $request->validate([
@@ -1018,8 +1018,8 @@ class DocumentController extends Controller
         }
 
         // Check if user has permission to create documents
-        if (!$user->hasCanAddDocumentsRole()) {
-            return redirect()->back()->with('error', 'You do not have permission to create documents. This action requires the "Can Add Documents" role.');
+        if (!$user->canAddDocuments()) {
+            return redirect()->back()->with('error', 'You do not have permission to create documents. This action requires the "documents.components.document management.add" permission.');
         }
 
         // Validate request

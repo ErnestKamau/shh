@@ -232,7 +232,7 @@ class ConfigManager extends Component
             $rules['code'] = 'required|string|max:10|' . $uniqueRule;
             $rules['color_code'] = 'nullable|string|max:7';
             $rules['order_index'] = 'nullable|integer|min:0';
-            $rules['workflow_step'] = 'nullable|integer|min:1|max:7';
+            $rules['workflow_step'] = 'nullable|integer|min:1|max:' . max(array_keys(getAuditWorkflowSteps()));
         } elseif ($this->type === 'workflow_actions') {
             // Generate code from name if not provided
             if (empty(trim($this->code))) {

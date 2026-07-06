@@ -365,7 +365,7 @@
                         <label style="font-weight: 500; color: #5f6368; margin-bottom: 8px;">
                             Target Type <span class="text-danger">*</span>
                         </label>
-                        <select wire:model="target_type" class="form-control" style="border-radius: 8px; border: 1px solid #dadce0;" required>
+                        <select wire:model.live="target_type" class="form-control" style="border-radius: 8px; border: 1px solid #dadce0;" required>
                             <option value="next">Next Workflow Step</option>
                             <option value="specific">Specific Status</option>
                             <option value="current">Current Status (Stay)</option>

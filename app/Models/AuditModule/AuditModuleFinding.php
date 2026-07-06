@@ -105,7 +105,7 @@ class AuditModuleFinding extends Model implements Auditable
     }
 
     // Helper Methods
-    public static function generateFindingNumber(int $auditId): string
+    public static function generateFindingNumber(string $auditId): string
     {
         $audit = Audit::find($auditId);
         $count = static::where('audit_id', $auditId)->count() + 1;

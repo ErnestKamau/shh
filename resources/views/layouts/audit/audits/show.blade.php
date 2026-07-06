@@ -948,7 +948,9 @@
             default => 'secondary'
         };
         // Add status badge as the last item in breadcrumbs
-        $items[count($items) - 1]['name'] = $audit->audit_number . ' <span class="badge badge-modern badge-'.$statusClass.' ml-2" style="font-size: 0.875rem; padding: 0.5rem 1rem; display: inline-flex; align-items: center;">'.$audit->status_name.'</span>';
+        $items[count($items) - 1]['name'] = $audit->audit_number;
+        $items[count($items) - 1]['badge'] = $audit->status_name;
+        $items[count($items) - 1]['badge_class'] = 'badge-'.$statusClass;
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
@@ -1204,8 +1206,8 @@
                     $missingSummaryFields[] = 'Recommendations';
                 }
                 
-                // Show warning if at step 7 or higher and fields are missing
-                if ($currentStep >= 7 && !empty($missingSummaryFields)) {
+                // Summary fields are required before closing (not during CAPA In Progress)
+                if ($currentStep >= 9 && !empty($missingSummaryFields)) {
                     $requirements[] = [
                         'type' => 'warning',
                         'message' => 'The following required fields must be completed before closing the audit:',
@@ -1244,13 +1246,31 @@
                         'message' => 'Please record at least one finding before proceeding.',
                         'items' => []
                     ];
-                } elseif ($currentStep === 5 || $auditStatusName === 'CAPA Assigned') {
+                } elseif ($currentStep === 5 || $auditStatusName === 'Root Cause Analysis') {
+                    $ncsWithoutRca = $audit->getNCsWithoutRootCauseAnalysis();
+
+                    if ($ncsWithoutRca->count() > 0) {
+                        $requirements[] = [
+                            'type' => 'warning',
+                            'message' => 'The following non-conformances require root cause analysis before proceeding:',
+                            'items' => $ncsWithoutRca->map(function($nc) {
+                                return [
+                                    'number' => $nc->nc_number,
+                                    'url' => route('audit.nc.show', $nc->id),
+                                    'button_class' => 'btn-primary',
+                                    'button_text' => 'Add RCA',
+                                    'icon' => 'magnify'
+                                ];
+                            })->toArray()
+                        ];
+                    }
+                } elseif ($currentStep === 6 || $auditStatusName === 'CAPA Assigned') {
                     // Check if all NCs with RCA have at least one CAPA
                     $ncsWithoutCapa = $audit->nonConformances()
                         ->whereHas('rootCauseAnalyses')
                         ->whereDoesntHave('correctiveActions')
                         ->get();
-                    
+
                     if ($ncsWithoutCapa->count() > 0) {
                         $requirements[] = [
                             'type' => 'warning',
@@ -1258,25 +1278,47 @@
                             'items' => $ncsWithoutCapa->map(function($nc) {
                                 return [
                                     'number' => $nc->nc_number,
-                                    'url' => route('audit.nc.show', $nc->id),
+                                    'url' => auditNcCapaFormUrl($nc->id),
                                     'button_class' => 'btn-primary',
                                     'button_text' => 'Add CAPA',
                                     'icon' => 'plus'
                                 ];
                             })->toArray()
                         ];
-                    } elseif (isset($canProceedToNext) && $canProceedToNext && isset($nextWorkflowStatus) && $nextWorkflowStatus) {
-                        // Double-check: ensure no findings requiring NCs before showing ready
-                        $findingsReqCheck = isset($findingsRequiringNC) ? $findingsRequiringNC : $audit->getFindingsRequiringNC();
-                        if (!$findingsReqCheck || $findingsReqCheck->count() === 0) {
+                    } else {
+                        $unimplementedCapas = $audit->nonConformances()
+                            ->with('correctiveActions')
+                            ->get()
+                            ->flatMap(function($nc) {
+                                return $nc->correctiveActions;
+                            })
+                            ->filter(function($capaItem) {
+                                return !in_array($capaItem->status_name, ['Implemented', 'Verification Pending', 'Verified', 'Closed']);
+                            });
+
+                        if ($unimplementedCapas->count() > 0) {
+                            $requirements[] = [
+                                'type' => 'warning',
+                                'message' => 'CAPAs are assigned. Mark each corrective action as implemented before advancing the audit:',
+                                'items' => $unimplementedCapas->map(function($capaItem) {
+                                    return [
+                                        'number' => $capaItem->capa_number,
+                                        'url' => route('audit.capa.show', $capaItem->id),
+                                        'button_class' => 'btn-success',
+                                        'button_text' => 'Implement',
+                                        'icon' => 'wrench'
+                                    ];
+                                })->toArray()
+                            ];
+                        } elseif (isset($canProceedToNext) && $canProceedToNext && isset($nextWorkflowStatus) && $nextWorkflowStatus) {
                             $requirements[] = [
                                 'type' => 'success',
-                                'message' => 'All requirements met. Ready to proceed to next step.',
+                                'message' => 'All CAPAs are assigned and implemented. Ready to proceed to CAPA In Progress.',
                                 'items' => []
                             ];
                         }
                     }
-                } elseif ($currentStep === 6 || $auditStatusName === 'CAPA In Progress') {
+                } elseif ($currentStep === 7 || $auditStatusName === 'CAPA In Progress') {
                     // Check if ALL CAPAs in the audit are implemented (matching Audit model validation)
                     $unimplementedCapas = $audit->nonConformances()
                         ->with('correctiveActions')
@@ -1291,7 +1333,7 @@
                     if ($unimplementedCapas->count() > 0) {
                         $requirements[] = [
                             'type' => 'warning',
-                            'message' => 'The following corrective actions must be implemented before the audit can proceed to verification:',
+                            'message' => 'The following corrective actions must be implemented before the audit can proceed:',
                             'items' => $unimplementedCapas->map(function($capaItem) {
                                 return [
                                     'number' => $capaItem->capa_number,
@@ -1302,14 +1344,41 @@
                                 ];
                             })->toArray()
                         ];
-                    } elseif (isset($canProceedToNext) && $canProceedToNext && isset($nextWorkflowStatus) && $nextWorkflowStatus) {
-                        $requirements[] = [
-                            'type' => 'success',
-                            'message' => 'All corrective actions have been implemented. The audit is ready to proceed to verification.',
-                            'items' => []
-                        ];
+                    } else {
+                        $unverifiedCapas = $audit->nonConformances()
+                            ->with('correctiveActions.latestVerification')
+                            ->get()
+                            ->flatMap(function($nc) {
+                                return $nc->correctiveActions;
+                            })
+                            ->filter(function($capaItem) {
+                                $isItemImplemented = in_array($capaItem->status_name, ['Implemented', 'Verification Pending', 'Verified', 'Closed']);
+                                return $isItemImplemented && !$capaItem->latestVerification;
+                            });
+
+                        if ($unverifiedCapas->count() > 0) {
+                            $requirements[] = [
+                                'type' => 'warning',
+                                'message' => 'CAPAs are implemented. Verify effectiveness on each corrective action, then use Workflow Action to advance to CAPA Verification:',
+                                'items' => $unverifiedCapas->map(function($capaItem) {
+                                    return [
+                                        'number' => $capaItem->capa_number,
+                                        'url' => route('audit.capa.show', $capaItem->id),
+                                        'button_class' => 'btn-primary',
+                                        'button_text' => 'Verify',
+                                        'icon' => 'check-all'
+                                    ];
+                                })->toArray()
+                            ];
+                        } elseif (isset($canProceedToNext) && $canProceedToNext && isset($nextWorkflowStatus) && $nextWorkflowStatus) {
+                            $requirements[] = [
+                                'type' => 'success',
+                                'message' => 'All corrective actions are verified. Ready to proceed to CAPA Verification.',
+                                'items' => []
+                            ];
+                        }
                     }
-                } elseif ($currentStep === 7 || $auditStatusName === 'CAPA Verification') {
+                } elseif ($currentStep === 8 || $auditStatusName === 'CAPA Verification') {
                     // Check if ALL implemented CAPAs in the audit are verified
                     $unverifiedCapas = $audit->nonConformances()
                         ->with('correctiveActions.latestVerification')

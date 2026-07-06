@@ -386,6 +386,20 @@ class User extends Authenticatable implements Auditable
 			return $value;
 		}
 	}
+	public function canAddDocuments(): bool
+	{
+		if ($this->isSystemAdmin()) {
+			return true;
+		}
+
+		try {
+			return $this->hasPermissionTo('documents.permission')
+				|| $this->hasPermissionTo('documents.components.document management.add');
+		} catch (\Throwable $exception) {
+			return false;
+		}
+	}
+
 	public function checkApproveLabSampleRole(){
 		return $this->hasRole('Can Approve Samples');
 	}

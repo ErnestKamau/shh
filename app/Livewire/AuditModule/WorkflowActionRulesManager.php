@@ -159,6 +159,14 @@ class WorkflowActionRulesManager extends Component
         $this->dynamicConditions = [];
     }
 
+    public function updatedTargetType($value): void
+    {
+        if ($value !== 'specific') {
+            $this->target_status_id = '';
+            $this->target_status_name = '';
+        }
+    }
+
     public function save()
     {
         $rules = [
@@ -180,7 +188,9 @@ class WorkflowActionRulesManager extends Component
             return;
         }
 
-        $this->validate($rules);
+        $this->validate($rules, [
+            'target_status_id.required' => 'Please select a target status.',
+        ]);
 
         $data = [
             'workflow_action_id' => $this->workflow_action_id,
