@@ -42,9 +42,36 @@ class RiskConfigurationOption extends Model implements Auditable
     protected $casts = [
         'order_index' => 'integer',
         'is_active' => 'boolean',
-        'metadata' => 'array',
         'company_id' => 'string',
     ];
+
+    /**
+     * Normalize metadata, including legacy double-encoded JSON.
+     *
+     * @return array<string, mixed>
+     */
+    public function getMetadataAttribute(mixed $value): array
+    {
+        return normalizeRiskConfigurationMetadata($value);
+    }
+
+    public function setMetadataAttribute(mixed $value): void
+    {
+        if (is_array($value)) {
+            $this->attributes['metadata'] = json_encode($value);
+
+            return;
+        }
+
+        if (is_string($value) && $value !== '') {
+            $normalized = normalizeRiskConfigurationMetadata($value);
+            $this->attributes['metadata'] = json_encode($normalized);
+
+            return;
+        }
+
+        $this->attributes['metadata'] = null;
+    }
 
     // Relationships
     public function createdBy(): BelongsTo

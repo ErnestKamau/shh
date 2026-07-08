@@ -2810,6 +2810,24 @@ function mapRiskRecordWorkflowStepToStatusStep(?int $riskStep): ?int
 }
 
 /**
+ * Canonical risk workflow steps (independent of configurable risk statuses).
+ *
+ * @return array<int, string>
+ */
+function getRiskWorkflowStepDefinitions(): array
+{
+	return [
+		1 => 'Identified',
+		2 => 'Under Assessment',
+		3 => 'Under Evaluation',
+		4 => 'Treatment Planning',
+		5 => 'Treatment Implementation',
+		6 => 'Under Monitoring',
+		7 => 'Closed',
+	];
+}
+
+/**
  * Risk workflow for navigation: key 0 = "All Risks" filter; keys 1–7 match risk_statuses.workflow_step
  * (Step 1 = Identified, …, Step 7 = Closed). Counts/queries map to risks.workflow_step via
  * mapRiskStatusWorkflowStepToRiskRecordStep().
@@ -2818,51 +2836,10 @@ function mapRiskRecordWorkflowStepToStatusStep(?int $riskStep): ?int
  */
 function getRiskWorkflowSteps(): array
 {
-	$allStatuses = App\Models\RiskManagement\RiskStatus::active()
-		->forCompany()
-		->get(['workflow_step', 'name', 'order_index']);
-
-	$statusesWithStep = $allStatuses->filter(function ($status) {
-		return ! is_null($status->workflow_step);
-	})->sortBy('workflow_step')->sortBy('order_index');
-
-	if ($statusesWithStep->isEmpty()) {
-		return [
-			0 => 'All Risks',
-			1 => 'Identified',
-			2 => 'Under Assessment',
-			3 => 'Under Evaluation',
-			4 => 'Treatment Planning',
-			5 => 'Treatment Implementation',
-			6 => 'Under Monitoring',
-			7 => 'Closed',
-		];
-	}
-
-	$steps = [0 => 'All Risks'];
-
-	foreach ($statusesWithStep as $status) {
-		$stepNum = (int) $status->workflow_step;
-		$stepName = trim($status->name);
-
-		if ($stepName === '') {
-			continue;
-		}
-
-		if (isset($steps[$stepNum])) {
-			$nextStep = $stepNum;
-			while (isset($steps[$nextStep])) {
-				$nextStep++;
-			}
-			$stepNum = $nextStep;
-		}
-
-		$steps[$stepNum] = $stepName;
-	}
-
-	ksort($steps);
-
-	return $steps;
+	return [
+		0 => 'All Risks',
+		...getRiskWorkflowStepDefinitions(),
+	];
 }
 
 /**

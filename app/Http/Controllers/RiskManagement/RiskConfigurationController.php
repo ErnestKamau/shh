@@ -41,8 +41,10 @@ class RiskConfigurationController extends Controller
      */
     public function show($optionType)
     {
+        ensureRiskConfigurationOptionsSeeded($optionType);
+
         $companyId = riskCompanyId();
-        
+
         $options = RiskConfigurationOption::forType($optionType)
             ->forCompany($companyId)
             ->ordered()
@@ -97,9 +99,9 @@ class RiskConfigurationController extends Controller
             return back()->withErrors(['code' => 'An option with this code already exists for this type.'])->withInput();
         }
 
-        // Build metadata for evaluation_result
+        // Build metadata for evaluation_result (array — model casts to JSON)
         if ($validated['option_type'] === 'evaluation_result' && !empty($validated['required_actions'])) {
-            $validated['metadata'] = json_encode(['required_actions' => $validated['required_actions']]);
+            $validated['metadata'] = ['required_actions' => $validated['required_actions']];
         }
 
         // Handle acceptance_threshold_rpn - use rpn_value as code
@@ -137,11 +139,11 @@ class RiskConfigurationController extends Controller
             'required_actions' => 'nullable|string',
         ]);
 
-        // Build metadata for evaluation_result
+        // Build metadata for evaluation_result (array — model casts to JSON)
         if ($option->option_type === 'evaluation_result' && isset($validated['required_actions'])) {
-            $metadata = $option->metadata ?? [];
+            $metadata = normalizeRiskConfigurationMetadata($option->metadata);
             $metadata['required_actions'] = $validated['required_actions'];
-            $validated['metadata'] = json_encode($metadata);
+            $validated['metadata'] = $metadata;
         }
 
         $validated['updated_by'] = Auth::id();

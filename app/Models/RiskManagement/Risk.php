@@ -157,6 +157,40 @@ class Risk extends Model implements Auditable
         return $this->belongsTo(RiskStatus::class, 'status_id');
     }
 
+    public function isClosed(): bool
+    {
+        if ((int) ($this->workflow_step ?? 0) >= 8) {
+            return true;
+        }
+
+        if ($this->closure_date !== null) {
+            return true;
+        }
+
+        $statusCode = strtoupper((string) ($this->status?->code ?? ''));
+
+        return $this->status_name === 'Closed' || $statusCode === 'CLOSED';
+    }
+
+    public function getDisplayStatusNameAttribute(): string
+    {
+        $recordStep = (int) ($this->workflow_step ?? 0);
+
+        if ($recordStep >= 8 || $this->isClosed()) {
+            return 'Closed';
+        }
+
+        if ($recordStep >= 2) {
+            $canonical = canonicalRiskWorkflowStepName($recordStep);
+
+            if ($canonical !== null) {
+                return $canonical;
+            }
+        }
+
+        return $this->status_name ?? 'N/A';
+    }
+
     public function likelihoodScale(): BelongsTo
     {
         return $this->belongsTo(LikelihoodScale::class, 'likelihood_scale_id');
@@ -434,16 +468,18 @@ class Risk extends Model implements Auditable
     }
 
     /**
-     * Get current workflow step from status configuration
+     * Current workflow step on the risk record (2–8).
+     * Record step 2 = Identified, …, 8 = Closed.
+     * Status config uses a different 1–7 scale (Identified = 1).
      */
     public function getCurrentWorkflowStep(): ?int
     {
         if ($this->workflow_step) {
-            return $this->workflow_step;
+            return (int) $this->workflow_step;
         }
 
         if (!$this->status_name) {
-            return 2; // Default to step 2 (Identified)
+            return 2; // Identified on the risk record
         }
 
         $status = RiskStatus::where('name', $this->status_name)
@@ -459,38 +495,38 @@ class Risk extends Model implements Auditable
             ->first();
 
         if ($status && $status->workflow_step !== null) {
-            return $status->workflow_step;
+            // Status config steps are 1–7; convert to risk-record steps 2–8.
+            return mapRiskStatusWorkflowStepToRiskRecordStep((int) $status->workflow_step);
         }
 
-        return 2; // Default to step 2 (Identified)
+        return 2; // Identified on the risk record
     }
 
     /**
-     * Get the next available workflow status based on workflow step mapping
+     * Next available status using status-config numbering (1–7).
+     * Risk Identified (record step 2) advances to status step 2 (Under Assessment).
      */
     public function getNextWorkflowStatus(): ?RiskStatus
     {
-        $currentStep = $this->getCurrentWorkflowStep();
-        if (!$currentStep) {
-            return getActiveRiskStatuses()->where('workflow_step', 2)->first(); // Step 2 is Identified
+        $currentRecordStep = $this->getCurrentWorkflowStep();
+        $currentStatusStep = mapRiskRecordWorkflowStepToStatusStep($currentRecordStep);
+
+        if ($currentStatusStep === null) {
+            return RiskStatus::active()
+                ->forCompany()
+                ->where('workflow_step', 1)
+                ->ordered()
+                ->first();
         }
 
-        $nextStep = $currentStep + 1;
-        if ($nextStep > 8) {
-            return null; // Already at the last step (Step 8 is Closed)
+        $nextStatusStep = $currentStatusStep + 1;
+        if ($nextStatusStep > 7) {
+            return null;
         }
 
-        $companyId = getUserCompany();
         return RiskStatus::active()
-            ->where('workflow_step', $nextStep)
-            ->where(function ($q) use ($companyId) {
-                if ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                    return;
-                }
-
-                $q->whereNull('company_id');
-            })
+            ->forCompany()
+            ->where('workflow_step', $nextStatusStep)
             ->ordered()
             ->first();
     }
@@ -505,10 +541,11 @@ class Risk extends Model implements Auditable
             return false;
         }
 
-        $currentStep = $this->getCurrentWorkflowStep() ?? 1;
-        $nextStep = $nextStatus->workflow_step ?? ($currentStep + 1);
+        $nextRecordStep = $nextStatus->workflow_step !== null
+            ? mapRiskStatusWorkflowStepToRiskRecordStep((int) $nextStatus->workflow_step)
+            : (($this->getCurrentWorkflowStep() ?? 2) + 1);
 
-        return $this->canProceedToStep($nextStep);
+        return $this->canProceedToStep($nextRecordStep);
     }
 
     /**
@@ -612,6 +649,93 @@ class Risk extends Model implements Auditable
     }
 
     /**
+     * Human-readable reasons why the risk cannot advance to the next workflow step.
+     *
+     * @return array<int, string>
+     */
+    public function getWorkflowBlockingReasons(?int $targetRecordStep = null): array
+    {
+        if ($this->isClosed()) {
+            return ['This risk is closed and cannot be moved in the workflow.'];
+        }
+
+        $currentStep = $this->getCurrentWorkflowStep() ?? 1;
+        $nextStatus = $this->getNextWorkflowStatus();
+
+        if ($targetRecordStep === null) {
+            if (! $nextStatus) {
+                return ['No next workflow status is configured. Go to Risk Settings → Risk Statuses and ensure all 7 steps exist (Identified through Closed).'];
+            }
+
+            $targetRecordStep = mapRiskStatusWorkflowStepToRiskRecordStep((int) $nextStatus->workflow_step);
+        }
+
+        if ($this->canProceedToStep($targetRecordStep)) {
+            return [];
+        }
+
+        $nextStatusName = $nextStatus?->name ?? 'the next step';
+        $reasons = [];
+
+        if ($targetRecordStep > $currentStep + 1 && $targetRecordStep !== 7) {
+            $reasons[] = "You can only move one workflow step at a time. Current step is {$currentStep}; target step is {$targetRecordStep}.";
+        }
+
+        if ($targetRecordStep === 3 && $currentStep === 2) {
+            $reasons[] = 'Ensure the risk has a title and basic identification details before moving to Under Assessment.';
+        } elseif ($targetRecordStep === 4 && $currentStep === 3) {
+            if (! $this->likelihood_score || ! $this->severity_score || ! $this->rpn) {
+                $reasons[] = 'Complete the risk assessment: set Likelihood and Severity scores (Assessment tab → Add/Edit Assessment).';
+            }
+            if (! $this->assessment_date) {
+                $reasons[] = 'Save a risk assessment record with an assessment date.';
+            }
+        } elseif ($targetRecordStep === 5 && $currentStep === 4) {
+            if (! $this->evaluation_date || ! $this->evaluation_result) {
+                $reasons[] = 'Complete the risk evaluation (Evaluation tab → Add/Edit Evaluation).';
+            }
+            if ($this->evaluation_result === 'Unacceptable' && $this->treatmentPlans()->count() === 0) {
+                $reasons[] = 'Unacceptable risks require at least one treatment plan before leaving evaluation.';
+            }
+        } elseif ($targetRecordStep === 6 && $currentStep === 5) {
+            if ($this->treatmentPlans()->count() === 0) {
+                $reasons[] = 'Add at least one treatment plan (Treatment Planning tab).';
+            }
+        } elseif ($targetRecordStep === 7 && $currentStep === 6) {
+            if ($this->requires_treatment) {
+                $incomplete = $this->treatmentPlans()
+                    ->where('implementation_status', '!=', 'Completed')
+                    ->count();
+                if ($incomplete > 0) {
+                    $reasons[] = "All treatment plans must have implementation status Completed ({$incomplete} still open).";
+                }
+            }
+        } elseif ($targetRecordStep === 8 && $currentStep === 7) {
+            if ($this->reviews()->count() === 0) {
+                $reasons[] = 'Add at least one risk review (Reviews tab) before closing.';
+            }
+            $treatmentPlansCount = $this->treatmentPlans()->count();
+            if ($treatmentPlansCount > 0) {
+                $incomplete = $this->treatmentPlans()
+                    ->whereNotIn('implementation_status', ['Completed', 'Cancelled'])
+                    ->count();
+                if ($incomplete > 0) {
+                    $reasons[] = "{$incomplete} treatment plan(s) must be Completed or Cancelled before closing.";
+                }
+            }
+            if ($this->residual_rpn && $this->residual_rpn > ($this->acceptance_threshold_rpn ?? 15) && empty($this->closure_justification)) {
+                $reasons[] = 'Provide closure justification because residual RPN exceeds the acceptance threshold.';
+            }
+        }
+
+        if ($reasons === []) {
+            $reasons[] = "Cannot proceed to '{$nextStatusName}'. The workflow status configuration may not match the current step — check Risk Settings → Risk Statuses.";
+        }
+
+        return $reasons;
+    }
+
+    /**
      * Check if risk requires review (based on next_review_date)
      */
     public function requiresReview(): bool
@@ -632,7 +756,7 @@ class Risk extends Model implements Auditable
      */
     public function canBeClosed(): bool
     {
-        return $this->canProceedToStep(7);
+        return $this->canProceedToStep(8);
     }
 
     /**

@@ -239,7 +239,7 @@
                               data-content-id="risk-details-{{ $risk->id }}"
                               data-container="body"
                               style="cursor: pointer;">
-                            {{ $risk->status_name ?? 'N/A' }}
+                            {{ $risk->display_status_name ?? 'N/A' }}
                         </span>
                     </td>
                     <td>{{ $risk->date_identified ? $risk->date_identified->format('Y-m-d') : 'N/A' }}</td>

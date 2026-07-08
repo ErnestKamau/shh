@@ -208,13 +208,13 @@
                     </td>
                     <td>
                         <div class="btn-group">
-                            <button wire:click="openModal({{ $item->id }})" class="modern-action-btn" title="Edit" style="color: #d97706;">
+                            <button wire:click="openModal('{{ $item->id }}')" class="modern-action-btn" title="Edit" style="color: #d97706;">
                                 <i class="mdi mdi-pencil"></i>
                             </button>
-                            <button wire:click="toggleActive({{ $item->id }})" class="modern-action-btn" title="{{ $item->is_active ? 'Deactivate' : 'Activate' }}" style="color: {{ $item->is_active ? '#5f6368' : '#137333' }};">
+                            <button wire:click="toggleActive('{{ $item->id }}')" class="modern-action-btn" title="{{ $item->is_active ? 'Deactivate' : 'Activate' }}" style="color: {{ $item->is_active ? '#5f6368' : '#137333' }};">
                                 <i class="mdi mdi-{{ $item->is_active ? 'close-circle' : 'check-circle' }}"></i>
                             </button>
-                            <button wire:click="delete({{ $item->id }})" wire:confirm="Are you sure you want to delete '{{ $item->name }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
+                            <button wire:click="delete('{{ $item->id }}')" wire:confirm="Are you sure you want to delete '{{ $item->name }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
                                 <i class="mdi mdi-delete"></i>
                             </button>
                         </div>
@@ -340,7 +340,7 @@
                                     $workflowSteps = getRiskWorkflowSteps();
                                 @endphp
                                 @foreach($workflowSteps as $stepNum => $stepName)
-                                    @if($stepNum > 1) {{-- Skip "All Risks" step 1 --}}
+                                    @if($stepNum > 0) {{-- Skip pseudo-step 0 = "All Risks" --}}
                                     <option value="{{ $stepNum }}">Step {{ $stepNum }} - {{ $stepName }}</option>
                                     @endif
                                 @endforeach

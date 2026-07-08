@@ -36,6 +36,7 @@ class ConfigurationOptionsManager extends Component
     public function mount($optionType)
     {
         $this->optionType = $optionType;
+        ensureRiskConfigurationOptionsSeeded($optionType);
     }
 
     public function openModal($id = null)
@@ -204,7 +205,8 @@ class ConfigurationOptionsManager extends Component
         }
         
         if (!empty($metadata)) {
-            $data['metadata'] = json_encode($metadata);
+            // Model casts metadata to array — pass an array, do not json_encode
+            $data['metadata'] = $metadata;
         }
         
         if ($this->isEdit) {

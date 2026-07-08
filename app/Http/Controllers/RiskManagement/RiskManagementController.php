@@ -146,7 +146,8 @@ class RiskManagementController extends Controller
 
         $validated['risk_number'] = Risk::generateRiskNumber();
         $validated['status_name'] = 'Identified';
-        $validated['workflow_step'] = 2; // Step 2 is Identified (Step 1 is "All Risks" filter only)
+        // Risk record stores Identified as step 2 (sidebar status step 1).
+        $validated['workflow_step'] = 2;
         $validated['created_by'] = Auth::id();
         $validated['identified_by_user_id'] = Auth::id();
         $validated['identified_by'] = Auth::user()->name;
@@ -191,11 +192,20 @@ class RiskManagementController extends Controller
             $validated['department'] = $dept->name ?? null;
         }
 
-        // Get initial status (Step 2 is Identified)
+        // Initial status from status config: step 1 = Identified
         $status = RiskStatus::forCompany()
-            ->where('workflow_step', 2)
+            ->active()
+            ->where('workflow_step', 1)
             ->ordered()
             ->first();
+
+        if (! $status) {
+            $status = RiskStatus::forCompany()
+                ->active()
+                ->where('name', 'Identified')
+                ->ordered()
+                ->first();
+        }
         
         if ($status) {
             $validated['status_id'] = $status->id;
@@ -277,14 +287,14 @@ class RiskManagementController extends Controller
             ->get()
             ->groupBy('workflow_step');
 
-        // Get next status
+        // Get next status (status-config step after current Identified/status step)
         $nextWorkflowStatus = $risk->getNextWorkflowStatus();
-        
-        // If no next status but we're at step 2 (Identified), try to get step 3 status directly
-        if (!$nextWorkflowStatus && ($risk->workflow_step == 2 || $risk->workflow_step == 0 || $risk->workflow_step == 1)) {
+
+        // Fallback for Identified risks: next status-config step is 2 (Under Assessment)
+        if (! $nextWorkflowStatus && in_array((int) $risk->workflow_step, [0, 1, 2], true)) {
             $nextWorkflowStatus = RiskStatus::forCompany()
                 ->active()
-                ->where('workflow_step', 3)
+                ->where('workflow_step', 2)
                 ->ordered()
                 ->first();
         }
@@ -585,23 +595,17 @@ class RiskManagementController extends Controller
             'updated_by' => Auth::id(),
         ];
         
-        // Move to Step 3 (Under Assessment) if currently at Step 2 (Identified) or 0/null/1
+        // Move to Under Assessment (record step 3) if currently at Identified (record step 2)
         if ($currentWorkflowStep == 2 || $currentWorkflowStep == 1 || $currentWorkflowStep == 0) {
-            $status = RiskStatus::forCompany()
-                ->where('workflow_step', 3)
-                ->where('is_active', true)
-                ->ordered()
-                ->first();
-            
+            $status = getRiskStatusForRecordStep(3);
+
             $updateData['workflow_step'] = 3;
-            
+
             if ($status) {
                 $updateData['status_id'] = $status->id;
-                $updateData['status_name'] = $status->name;
+                $updateData['status_name'] = canonicalRiskWorkflowStepName(3) ?? $status->name;
             } else {
-                if (!isset($updateData['status_name'])) {
-                    $updateData['status_name'] = 'Under Assessment';
-                }
+                $updateData['status_name'] = canonicalRiskWorkflowStepName(3) ?? 'Under Assessment';
             }
         }
         
@@ -697,9 +701,12 @@ class RiskManagementController extends Controller
             }
         }
         
-        // Get workflow step from evaluation result metadata
-        $metadata = is_array($evaluationResultOption->metadata) ? $evaluationResultOption->metadata : (is_string($evaluationResultOption->metadata) ? json_decode($evaluationResultOption->metadata, true) : []);
-        $nextWorkflowStep = $metadata['workflow_step'] ?? null;
+        // Config stores risk_statuses.workflow_step (1–7); map to risks.workflow_step (2–8)
+        $metadata = normalizeRiskConfigurationMetadata($evaluationResultOption->metadata);
+        $nextStatusStep = isset($metadata['workflow_step']) ? (int) $metadata['workflow_step'] : null;
+        $nextRecordStep = $nextStatusStep
+            ? mapRiskStatusWorkflowStepToRiskRecordStep($nextStatusStep)
+            : null;
 
         // Create new evaluation record
         $evaluation = RiskEvaluation::create([
@@ -743,24 +750,28 @@ class RiskManagementController extends Controller
             'updated_by' => Auth::id(),
         ]);
 
-        // Transition to configured workflow step from evaluation result
-        if ($nextWorkflowStep && ($risk->workflow_step === 2 || $risk->workflow_step === 3)) {
+        // Transition using status-scale step lookup + record-scale risks.workflow_step
+        $recordStepAllowsAdvance = in_array((int) $risk->workflow_step, [3, 4], true)
+            || mapRiskRecordWorkflowStepToStatusStep((int) $risk->workflow_step) === 3;
+
+        if ($nextStatusStep && $recordStepAllowsAdvance) {
             $status = RiskStatus::forCompany()
-                ->where('workflow_step', $nextWorkflowStep)
+                ->where('workflow_step', $nextStatusStep)
                 ->ordered()
                 ->first();
             
-            if ($status) {
+            if ($status && $nextRecordStep) {
                 $risk->update([
                     'status_id' => $status->id,
                     'status_name' => $status->name,
-                    'workflow_step' => $nextWorkflowStep,
+                    'workflow_step' => $nextRecordStep,
                 ]);
             }
-        } elseif (!$nextWorkflowStep && $risk->workflow_step === 2) {
-            // Fallback: Move to Step 3 if no workflow step configured
+        } elseif (! $nextStatusStep && $recordStepAllowsAdvance) {
+            // Fallback: treatment when required, otherwise monitoring (status steps 4 / 6)
+            $fallbackStatusStep = $requiresTreatment ? 4 : 6;
             $status = RiskStatus::forCompany()
-                ->where('workflow_step', 3)
+                ->where('workflow_step', $fallbackStatusStep)
                 ->ordered()
                 ->first();
             
@@ -768,7 +779,7 @@ class RiskManagementController extends Controller
                 $risk->update([
                     'status_id' => $status->id,
                     'status_name' => $status->name,
-                    'workflow_step' => 3,
+                    'workflow_step' => mapRiskStatusWorkflowStepToRiskRecordStep($fallbackStatusStep),
                 ]);
             }
         }
@@ -886,20 +897,9 @@ class RiskManagementController extends Controller
         
         $treatmentPlan = RiskTreatmentPlan::create($validated);
 
-        // Move to Step 5 (Treatment Planning) if currently at Step 4 (Under Evaluation)
+        // Move to Treatment Planning (record step 5) if currently at Under Evaluation (record step 4)
         if ($risk->workflow_step === 4) {
-            $status = RiskStatus::forCompany()
-                ->where('workflow_step', 5)
-                ->ordered()
-                ->first();
-            
-            if ($status) {
-                $risk->update([
-                    'status_id' => $status->id,
-                    'status_name' => $status->name,
-                    'workflow_step' => 5,
-                ]);
-            }
+            applyRiskRecordWorkflowStep($risk, 5);
         }
         
         // Refresh to get updated values
@@ -963,12 +963,12 @@ class RiskManagementController extends Controller
         
         // Get next workflow status - always try to get it for workflow actions
         $nextWorkflowStatus = $risk->getNextWorkflowStatus();
-        
-        // If no next status but we're at step 2 (Identified), try to get step 3 status directly
-        if (!$nextWorkflowStatus && ($risk->workflow_step == 2 || $risk->workflow_step == 0 || $risk->workflow_step == 1)) {
+
+        // Fallback for Identified risks: next status-config step is 2 (Under Assessment)
+        if (! $nextWorkflowStatus && in_array((int) $risk->workflow_step, [0, 1, 2], true)) {
             $nextWorkflowStatus = RiskStatus::forCompany()
                 ->active()
-                ->where('workflow_step', 3)
+                ->where('workflow_step', 2)
                 ->ordered()
                 ->first();
         }
@@ -1075,18 +1075,7 @@ class RiskManagementController extends Controller
             ->count() === $risk->treatmentPlans()->count();
 
         if ($allCompleted && $risk->workflow_step === 5) {
-            $status = RiskStatus::forCompany()
-                ->where('workflow_step', 6)
-                ->ordered()
-                ->first();
-            
-            if ($status) {
-                $risk->update([
-                    'status_id' => $status->id,
-                    'status_name' => $status->name,
-                    'workflow_step' => 6,
-                ]);
-            }
+            applyRiskRecordWorkflowStep($risk, 6);
         }
         
         // Refresh to get updated values
@@ -1262,20 +1251,9 @@ class RiskManagementController extends Controller
             ]);
         }
 
-        // Move to Step 7 (Risk Monitoring) if currently at Step 6 (Treatment Implementation)
+        // Move to Under Monitoring (record step 7) if currently at Treatment Implementation (record step 6)
         if ($risk->workflow_step === 6) {
-            $status = RiskStatus::forCompany()
-                ->where('workflow_step', 7)
-                ->ordered()
-                ->first();
-            
-            if ($status) {
-                $risk->update([
-                    'status_id' => $status->id,
-                    'status_name' => $status->name,
-                    'workflow_step' => 7,
-                ]);
-            }
+            applyRiskRecordWorkflowStep($risk, 7);
         }
 
         // Handle review decision - ISO 31000 Review Decision Loop
@@ -1301,23 +1279,19 @@ class RiskManagementController extends Controller
             case 'close_risk':
             case 'Close Risk':
                 // Decision 1: Close the Risk
-                // Move to Step 8 (Closed) - but validate first
-                $closedStatus = RiskStatus::forCompany()
-                    ->where('workflow_step', 8)
-                    ->ordered()
-                    ->first();
-                
+                $closedStatus = getClosedRiskStatus();
+
                 if ($closedStatus) {
                     // Validate closure requirements before closing
                     $canClose = true;
                     $closureErrors = [];
-                    
+
                     // Check if at least one review exists (we just created one)
                     if ($risk->reviews()->count() === 0) {
                         $canClose = false;
                         $closureErrors[] = 'At least one review must be completed';
                     }
-                    
+
                     // Check treatment plans if they exist
                     if ($risk->treatmentPlans()->count() > 0) {
                         $completedCount = $risk->treatmentPlans()
@@ -1328,7 +1302,7 @@ class RiskManagementController extends Controller
                             $closureErrors[] = 'All treatment plans must be completed or cancelled';
                         }
                     }
-                    
+
                     // Check residual risk and closure justification
                     if (isset($validated['review_rpn']) && $validated['review_rpn'] && $validated['review_rpn'] > ($risk->acceptance_threshold_rpn ?? 15)) {
                         if (empty($validated['decision_justification'])) {
@@ -1336,12 +1310,9 @@ class RiskManagementController extends Controller
                             $closureErrors[] = 'Closure justification required when residual RPN exceeds threshold';
                         }
                     }
-                    
+
                     if ($canClose) {
-                        $risk->update([
-                            'status_id' => $closedStatus->id,
-                            'status_name' => $closedStatus->name,
-                            'workflow_step' => 8,
+                        applyRiskRecordWorkflowStep($risk, 8, [
                             'closure_date' => now(),
                             'closed_by' => Auth::id(),
                             'closure_justification' => $validated['decision_justification'] ?? $risk->closure_justification,
@@ -1352,44 +1323,20 @@ class RiskManagementController extends Controller
                     }
                 }
                 break;
-                
+
             case 'continue_monitoring':
             case 'Continue Monitoring':
-                // Decision 2: Continue Monitoring
-                // Stay in Step 7 (Risk Monitoring), just update next review date
-                if ($risk->workflow_step !== 7) {
-                    $monitoringStatus = RiskStatus::forCompany()
-                        ->where('workflow_step', 7)
-                        ->ordered()
-                        ->first();
-                    
-                    if ($monitoringStatus) {
-                        $risk->update([
-                            'status_id' => $monitoringStatus->id,
-                            'status_name' => $monitoringStatus->name,
-                            'workflow_step' => 7,
-                        ]);
-                    }
+                // Decision 2: Continue Monitoring — stay on record step 7
+                if ((int) $risk->workflow_step !== 7) {
+                    applyRiskRecordWorkflowStep($risk, 7);
                 }
                 // Update next review date (already done above)
                 break;
-                
+
             case 'additional_controls_needed':
             case 'Additional Controls Needed':
-                // Decision 4: Escalate & Re-treat the Risk
-                // Move to Step 5 (Treatment Planning) for additional treatment planning
-                $status = RiskStatus::forCompany()
-                    ->where('workflow_step', 5)
-                    ->ordered()
-                    ->first();
-                
-                if ($status) {
-                    $risk->update([
-                        'status_id' => $status->id,
-                        'status_name' => $status->name,
-                        'workflow_step' => 5,
-                    ]);
-                }
+                // Decision 4: Escalate & Re-treat the Risk — return to Treatment Planning (record step 5)
+                applyRiskRecordWorkflowStep($risk, 5);
                 break;
         }
         
@@ -1428,23 +1375,11 @@ class RiskManagementController extends Controller
             }
         }
         
-        // Move to Step 3 (Assessment) if reassessment is needed
+        // Move to Under Assessment (record step 3) if reassessment is needed
         if ($shouldReassess) {
-            $assessmentStatus = RiskStatus::forCompany()
-                ->where('workflow_step', 3)
-                ->ordered()
-                ->first();
-            
-            if ($assessmentStatus) {
-                $risk->update([
-                    'status_id' => $assessmentStatus->id,
-                    'status_name' => $assessmentStatus->name,
-                    'workflow_step' => 3,
-                ]);
-                
-                // Log the reassessment reason
-                \Log::info("Risk {$risk->id} moved to Assessment step. Reason: {$reassessReason}");
-            }
+            applyRiskRecordWorkflowStep($risk, 3);
+
+            \Log::info("Risk {$risk->id} moved to Assessment step. Reason: {$reassessReason}");
         }
         
         // Refresh to get updated values
@@ -1584,21 +1519,18 @@ class RiskManagementController extends Controller
             case 'close_risk':
             case 'Close Risk':
                 // Decision 1: Close the Risk
-                $closedStatus = RiskStatus::forCompany()
-                    ->where('workflow_step', 8)
-                    ->ordered()
-                    ->first();
-                
+                $closedStatus = getClosedRiskStatus();
+
                 if ($closedStatus) {
                     // Validate closure requirements
                     $canClose = true;
                     $closureErrors = [];
-                    
+
                     if ($risk->reviews()->count() === 0) {
                         $canClose = false;
                         $closureErrors[] = 'At least one review must be completed';
                     }
-                    
+
                     if ($risk->treatmentPlans()->count() > 0) {
                         $completedCount = $risk->treatmentPlans()
                             ->whereIn('implementation_status', ['Completed', 'completed', 'Cancelled', 'cancelled'])
@@ -1608,19 +1540,16 @@ class RiskManagementController extends Controller
                             $closureErrors[] = 'All treatment plans must be completed or cancelled';
                         }
                     }
-                    
+
                     if (isset($validated['review_rpn']) && $validated['review_rpn'] && $validated['review_rpn'] > ($risk->acceptance_threshold_rpn ?? 15)) {
                         if (empty($validated['decision_justification'])) {
                             $canClose = false;
                             $closureErrors[] = 'Closure justification required when residual RPN exceeds threshold';
                         }
                     }
-                    
+
                     if ($canClose) {
-                        $risk->update([
-                            'status_id' => $closedStatus->id,
-                            'status_name' => $closedStatus->name,
-                            'workflow_step' => 8,
+                        applyRiskRecordWorkflowStep($risk, 8, [
                             'closure_date' => now(),
                             'closed_by' => Auth::id(),
                             'closure_justification' => $validated['decision_justification'] ?? $risk->closure_justification,
@@ -1628,90 +1557,57 @@ class RiskManagementController extends Controller
                     }
                 }
                 break;
-                
+
             case 'continue_monitoring':
             case 'Continue Monitoring':
                 // Decision 2: Continue Monitoring
-                if ($risk->workflow_step !== 7) {
-                    $monitoringStatus = RiskStatus::forCompany()
-                        ->where('workflow_step', 7)
-                        ->ordered()
-                        ->first();
-                    
-                    if ($monitoringStatus) {
-                        $risk->update([
-                            'status_id' => $monitoringStatus->id,
-                            'status_name' => $monitoringStatus->name,
-                            'workflow_step' => 7,
-                        ]);
-                    }
+                if ((int) $risk->workflow_step !== 7) {
+                    applyRiskRecordWorkflowStep($risk, 7);
                 }
                 break;
-                
+
             case 'additional_controls_needed':
             case 'Additional Controls Needed':
                 // Decision 4: Escalate & Re-treat the Risk
-                $status = RiskStatus::forCompany()
-                    ->where('workflow_step', 5)
-                    ->ordered()
-                    ->first();
-                
-                if ($status) {
-                    $risk->update([
-                        'status_id' => $status->id,
-                        'status_name' => $status->name,
-                        'workflow_step' => 5,
-                    ]);
-                }
+                applyRiskRecordWorkflowStep($risk, 5);
                 break;
         }
-        
+
         // Decision 3: Reassess the Risk (same logic as storeReview)
         $shouldReassess = false;
         $reassessReason = '';
-        
+
         // Check 1: User explicitly checked "Reassess Risk" checkbox
         if (isset($validated['reassess_risk']) && $validated['reassess_risk']) {
             $shouldReassess = true;
             $reassessReason = 'User requested reassessment';
         }
         // Check 2: Auto-detect if review scores differ significantly from current assessment
-        elseif (isset($validated['review_likelihood_score']) && isset($validated['review_severity_score']) && 
+        elseif (isset($validated['review_likelihood_score']) && isset($validated['review_severity_score']) &&
                 $validated['review_likelihood_score'] && $validated['review_severity_score']) {
             $currentRPN = $risk->rpn ?? 0;
             $reviewRPN = $validated['review_rpn'] ?? 0;
-            
+
             if ($currentRPN > 0 && $reviewRPN > 0) {
                 $difference = abs($currentRPN - $reviewRPN);
                 $percentageChange = ($difference / $currentRPN) * 100;
-                
+
                 $currentRiskLevel = $risk->risk_level ?? '';
                 $reviewRiskLevel = $validated['review_risk_level'] ?? '';
-                
-                if ($difference >= 5 || $percentageChange >= 50 || 
+
+                if ($difference >= 5 || $percentageChange >= 50 ||
                     ($currentRiskLevel && $reviewRiskLevel && $currentRiskLevel !== $reviewRiskLevel)) {
                     $shouldReassess = true;
-                    $reassessReason = "Significant RPN change detected (Current: {$currentRPN}, Review: {$reviewRPN}, Change: {$difference} points / " . round($percentageChange, 1) . "%)";
+                    $reassessReason = "Significant RPN change detected (Current: {$currentRPN}, Review: {$reviewRPN}, Change: {$difference} points / " . round($percentageChange, 1) . '%)';
                 }
             }
         }
-        
-        // Move to Step 3 (Assessment) if reassessment is needed
+
+        // Move to Under Assessment (record step 3) if reassessment is needed
         if ($shouldReassess) {
-            $assessmentStatus = RiskStatus::forCompany()
-                ->where('workflow_step', 3)
-                ->ordered()
-                ->first();
-            
-            if ($assessmentStatus) {
-                $risk->update([
-                    'status_id' => $assessmentStatus->id,
-                    'status_name' => $assessmentStatus->name,
-                    'workflow_step' => 3,
-                ]);
-                
-                \Log::info("Risk {$risk->id} moved to Assessment step. Reason: {$reassessReason}");
-            }
+            applyRiskRecordWorkflowStep($risk, 3);
+
+            \Log::info("Risk {$risk->id} moved to Assessment step. Reason: {$reassessReason}");
         }
         
         // Refresh to get updated values
@@ -1781,15 +1677,12 @@ class RiskManagementController extends Controller
         $validated['closed_by'] = Auth::id();
         $validated['updated_by'] = Auth::id();
 
-        $status = RiskStatus::forCompany()
-            ->where('workflow_step', 8) // Step 8 is Closed
-            ->ordered()
-            ->first();
-        
+        $status = getClosedRiskStatus();
+
         if ($status) {
             $validated['status_id'] = $status->id;
-            $validated['status_name'] = $status->name;
-            $validated['workflow_step'] = 8; // Step 8 is Closed
+            $validated['status_name'] = canonicalRiskWorkflowStepName(8) ?? $status->name;
+            $validated['workflow_step'] = 8;
         }
 
         $risk->update($validated);
@@ -1825,13 +1718,13 @@ class RiskManagementController extends Controller
         $risk = Risk::forCompany()->findOrFail($id);
         
         // Prevent status changes for closed risks
-        if ($risk->status_name === 'Closed') {
+        if ($risk->isClosed()) {
             return back()->with('error', 'Cannot proceed. Risk is closed and finalized.');
         }
 
         $validated = $request->validate([
             'action' => 'required|in:approve,reject,return,hold',
-            'target_status_id' => 'required|integer|exists:risk_statuses,id',
+            'target_status_id' => 'required|uuid|exists:risk_statuses,id',
             'remarks' => 'required|string|min:10',
         ], [
             'action.required' => 'Please select an action.',
@@ -1845,40 +1738,44 @@ class RiskManagementController extends Controller
         $targetStatus = RiskStatus::findOrFail($validated['target_status_id']);
         $oldStatus = $risk->status_name;
         $newStatus = $targetStatus->name;
+        $targetStatusStep = $targetStatus->workflow_step !== null ? (int) $targetStatus->workflow_step : null;
+        $targetRecordStep = $targetStatusStep !== null
+            ? mapRiskStatusWorkflowStepToRiskRecordStep($targetStatusStep)
+            : null;
 
         // Validate workflow progression based on action
         if ($validated['action'] === 'approve') {
             // For approve, check if can proceed to next status
             $nextStatus = $risk->getNextWorkflowStatus();
-            
-            // If no next status but we're at step 2 (Identified), try to get step 3 status directly
-            if (!$nextStatus && ($risk->workflow_step == 2 || $risk->workflow_step == 0 || $risk->workflow_step == 1)) {
+
+            // Fallback for Identified risks: next status-config step is 2 (Under Assessment)
+            if (! $nextStatus && in_array((int) $risk->workflow_step, [0, 1, 2], true)) {
                 $nextStatus = RiskStatus::forCompany()
                     ->active()
-                    ->where('workflow_step', 3)
+                    ->where('workflow_step', 2)
                     ->ordered()
                     ->first();
             }
-            
-            // If still no next status, allow manual status selection for step 2
-            if (!$nextStatus && ($risk->workflow_step == 2 || $risk->workflow_step == 0 || $risk->workflow_step == 1)) {
-                // Allow proceeding to any status with workflow_step 3 (Under Assessment)
-                if ($targetStatus->workflow_step != 3) {
-                    return back()->with('error', 'Cannot approve to this status. Please select a status for workflow step 3 (Under Assessment).');
+
+            // If still no next status, allow manual status selection for Under Assessment
+            if (! $nextStatus && in_array((int) $risk->workflow_step, [0, 1, 2], true)) {
+                if ($targetStatusStep !== 2) {
+                    return back()->with('error', 'Cannot approve to this status. Please select a status for workflow step 2 (Under Assessment).');
                 }
             } elseif ($nextStatus && $nextStatus->id != $targetStatus->id) {
                 return back()->with('error', 'Cannot approve to this status. Please select the correct next workflow step.');
             }
 
             // Check if can proceed to the target status (not just next status)
-            $targetStep = $targetStatus->workflow_step ?? null;
+            // canProceedToStep() expects risk-record numbering (2–8)
+            $targetStep = $targetRecordStep;
             if ($targetStep && !$risk->canProceedToStep($targetStep)) {
                 $currentStep = $risk->getCurrentWorkflowStep() ?? 2;
                 $errorMessage = "Cannot proceed to '{$newStatus}'. Please complete the required actions.";
                 
                 // Step-specific validation messages
                 if ($targetStep === 3 && $currentStep === 2) {
-                    // Step 2 to Step 3 - no specific requirements, assessment happens in step 3
+                    // Identified -> Under Assessment
                     $errorMessage = "Cannot proceed to '{$newStatus}'. Please ensure the risk is properly identified.";
                 } elseif ($targetStep === 4 && $currentStep === 3) {
                     if (!$risk->likelihood_score || !$risk->severity_score || !$risk->assessment_date) {
@@ -2025,14 +1922,17 @@ class RiskManagementController extends Controller
         }
 
         // Update status
-        $risk->status_name = $newStatus;
-        $risk->status_id = $targetStatus->id;
-        $risk->workflow_step = $targetStatus->workflow_step ?? $risk->workflow_step;
-        
-        // Set closure date if closing
-        if ($newStatus === 'Closed') {
+        if ($targetRecordStep === 8) {
+            $closedStatus = getClosedRiskStatus();
+            $risk->status_id = $closedStatus?->id ?? $targetStatus->id;
+            $risk->status_name = canonicalRiskWorkflowStepName(8) ?? $closedStatus?->name ?? 'Closed';
+            $risk->workflow_step = 8;
             $risk->closure_date = now();
             $risk->closed_by = Auth::id();
+        } else {
+            $risk->status_name = canonicalRiskWorkflowStepName($targetRecordStep ?? (int) $risk->workflow_step) ?? $newStatus;
+            $risk->status_id = $targetStatus->id;
+            $risk->workflow_step = $targetRecordStep ?? $risk->workflow_step;
         }
 
         $risk->updated_by = Auth::id();

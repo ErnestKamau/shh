@@ -102,7 +102,7 @@ class RisksTable extends Component
         $this->riskToChangeStatus = $id;
         $risk = Risk::find($id);
         
-        if ($risk->status_name === 'Closed') {
+        if ($risk->isClosed()) {
             $this->dispatch('notify', ['type' => 'error', 'message' => 'Cannot change status. Risk is closed and finalized.']);
             return;
         }
@@ -133,7 +133,7 @@ class RisksTable extends Component
         if ($this->riskToChangeStatus && $this->newStatus) {
             $risk = Risk::find($this->riskToChangeStatus);
             if ($risk) {
-                if ($risk->status_name === 'Closed') {
+                if ($risk->isClosed()) {
                     $this->dispatch('notify', ['type' => 'error', 'message' => 'Cannot change status. Risk is closed and finalized.']);
                     return;
                 }

@@ -1,4 +1,17 @@
 <div>
+    @php
+        $riskWorkflowStepDefinitions = function_exists('getRiskWorkflowStepDefinitions')
+            ? getRiskWorkflowStepDefinitions()
+            : [
+                1 => 'Identified',
+                2 => 'Under Assessment',
+                3 => 'Under Evaluation',
+                4 => 'Treatment Planning',
+                5 => 'Treatment Implementation',
+                6 => 'Under Monitoring',
+                7 => 'Closed',
+            ];
+    @endphp
     <style>
         .modern-search-bar {
             background: #ffffff;
@@ -172,7 +185,9 @@
                     @if($type === 'risk_statuses')
                     <td style="color: #5f6368;">
                         @if($item->workflow_step)
-                        <span class="modern-badge" style="background: #e3f2fd; color: #1976d2; font-weight: 600;">Step {{ $item->workflow_step }}</span>
+                        <span class="modern-badge" style="background: #e3f2fd; color: #1976d2; font-weight: 600;">
+                            Step {{ $item->workflow_step }} - {{ $riskWorkflowStepDefinitions[(int) $item->workflow_step] ?? 'Workflow Step' }}
+                        </span>
                         @else
                         <span class="text-muted">-</span>
                         @endif
@@ -213,13 +228,13 @@
                     </td>
                     <td>
                         <div class="btn-group">
-                            <button wire:click="openModal({{ $item->id }})" class="modern-action-btn" title="Edit" style="color: #d97706;">
+                            <button wire:click="openModal('{{ $item->id }}')" class="modern-action-btn" title="Edit" style="color: #d97706;">
                                 <i class="mdi mdi-pencil"></i>
                             </button>
-                            <button wire:click="toggleActive({{ $item->id }})" class="modern-action-btn" title="{{ $item->is_active ? 'Deactivate' : 'Activate' }}" style="color: {{ $item->is_active ? '#5f6368' : '#137333' }};">
+                            <button wire:click="toggleActive('{{ $item->id }}')" class="modern-action-btn" title="{{ $item->is_active ? 'Deactivate' : 'Activate' }}" style="color: {{ $item->is_active ? '#5f6368' : '#137333' }};">
                                 <i class="mdi mdi-{{ $item->is_active ? 'close' : 'check' }}"></i>
                             </button>
-                            <button wire:click="delete({{ $item->id }})" wire:confirm="Are you sure you want to delete '{{ $item->name }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
+                            <button wire:click="delete('{{ $item->id }}')" wire:confirm="Are you sure you want to delete '{{ $item->name }}'? This action cannot be undone." class="modern-action-btn" title="Delete" style="color: #c33;">
                                 <i class="mdi mdi-delete"></i>
                             </button>
                         </div>
@@ -279,15 +294,11 @@
                                     <label>Workflow Step</label>
                                     <select wire:model="workflow_step" class="form-control @error('workflow_step') is-invalid @enderror">
                                         <option value="">None (Not in workflow)</option>
-                                        <option value="1">Step 1 - Identified</option>
-                                        <option value="2">Step 2 - Assessed</option>
-                                        <option value="3">Step 3 - Evaluated</option>
-                                        <option value="4">Step 4 - Treatment Planned</option>
-                                        <option value="5">Step 5 - Implemented</option>
-                                        <option value="6">Step 6 - Monitored</option>
-                                        <option value="7">Step 7 - Closed</option>
+                                        @foreach($riskWorkflowStepDefinitions as $stepNumber => $stepLabel)
+                                        <option value="{{ $stepNumber }}">Step {{ $stepNumber }} - {{ $stepLabel }}</option>
+                                        @endforeach
                                     </select>
-                                    <small class="text-muted">Select the workflow step this status belongs to</small>
+                                    <small class="text-muted">Select the workflow step this status maps to (steps are fixed workflow phases).</small>
                                     @error('workflow_step') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>

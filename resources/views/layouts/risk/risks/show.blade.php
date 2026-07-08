@@ -976,17 +976,20 @@
             ]
         ];
         $currentStep = $risk->getCurrentWorkflowStep() ?? 1;
-        $isClosed = $risk->status_name === 'Closed';
+        $isClosed = $risk->isClosed();
+        $likelihoodScore = $risk->likelihoodScale->score ?? $risk->likelihood_score ?? null;
+        $severityScore = $risk->severityScale->score ?? $risk->severity_score ?? null;
+        $hasAssessment = $likelihoodScore && $severityScore;
+        $canEditAssessment = ! $isClosed
+            && auth()->user()->can('risk-management.components.risks.edit')
+            && (
+                in_array((int) $currentStep, [2, 3, 4], true)
+                || ($hasAssessment && (int) $currentStep < 8)
+            );
     @endphp
     @php
-        $statusClass = match($risk->status_name) {
-            'Closed' => 'success',
-            'Monitored' => 'info',
-            'Identified' => 'warning',
-            default => 'secondary'
-        };
-        // Add status badge as the last item in breadcrumbs
-        $items[count($items) - 1]['name'] = $risk->risk_number . ' <span class="badge badge-modern badge-'.$statusClass.' ml-2" style="font-size: 0.875rem; padding: 0.5rem 1rem; display: inline-flex; align-items: center;">'.$risk->status_name.'</span>';
+        // Breadcrumbs render escaped text, so keep the label plain.
+        $items[count($items) - 1]['name'] = $risk->risk_number . ' - ' . ($risk->display_status_name ?? 'Unknown');
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
@@ -1243,7 +1246,7 @@
                     </a>
                 </li>
                 @endif
-                @if(($risk->likelihood_score && $risk->severity_score) || $currentStep >= 3)
+                @if($hasAssessment || (int) $currentStep >= 2)
                 <li class="nav-item">
                     <a class="nav-link" data-toggle="tab" href="#assessment" role="tab">
                         <i class="mdi mdi-clipboard-check"></i> {{ __('Assessment') }}
@@ -1305,7 +1308,7 @@
             @if(!$isClosed)
             @php
                 $currentStep = $risk->getCurrentWorkflowStep() ?? 1;
-                $riskStatusName = $risk->status_name ?? '';
+                $riskStatusName = $risk->display_status_name ?? '';
                 $requirements = [];
                 
                 // Check for missing required fields based on workflow step
@@ -1351,6 +1354,15 @@
                     $requirements[] = [
                         'type' => 'info',
                         'message' => 'At least one risk review is recommended before closing.',
+                        'items' => [],
+                    ];
+                }
+
+                $workflowBlockingReasons = $risk->getWorkflowBlockingReasons();
+                foreach ($workflowBlockingReasons as $blockingReason) {
+                    $requirements[] = [
+                        'type' => 'warning',
+                        'message' => $blockingReason,
                         'items' => [],
                     ];
                 }
@@ -1820,26 +1832,17 @@
                     @endif
                 </div>
                 <!-- Assessment Tab -->
-                @if(($risk->likelihood_score && $risk->severity_score) || $currentStep >= 3)
+                @if($hasAssessment || (int) $currentStep >= 2)
                 <div class="tab-pane fade" id="assessment" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
                         <h6 class="section-header mb-0">
                             <i class="mdi mdi-clipboard-check text-primary"></i> {{ __('Risk Assessment') }}
                         </h6>
-                        @php
-                            // Get scores from scale relationship first (most accurate), then fallback to risk model
-                            // This ensures we always show the score from the configured scale
-                            $likelihoodScore = $risk->likelihoodScale->score ?? $risk->likelihood_score ?? null;
-                            $severityScore = $risk->severityScale->score ?? $risk->severity_score ?? null;
-                            $hasAssessment = $likelihoodScore && $severityScore;
-                        @endphp
-                        @if($currentStep == 3 && !$isClosed)
-                    @if(auth()->user()->can('risk-management.components.risks.edit'))
+                        @if($canEditAssessment)
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#assessmentModal">
-                            <i class="mdi mdi-{{ $hasAssessment ? 'pencil' : 'plus' }}"></i> 
+                            <i class="mdi mdi-{{ $hasAssessment ? 'pencil' : 'plus' }}"></i>
                             {{ $hasAssessment ? __('Edit Assessment') : __('Add Assessment') }}
                         </button>
-                        @endif
                         @endif
                         </div>
                     
@@ -1991,7 +1994,14 @@
                     @else
                     <div class="alert alert-info text-center" style="border-radius: var(--border-radius-sm);">
                         <i class="mdi mdi-information-outline" style="font-size: 3rem; color: #cbd5e1;"></i>
-                        <p style="margin: 1rem 0 0 0; color: #64748b; font-size: 0.9375rem;">{{ __('No assessment recorded yet. Click "Add Assessment" to complete the risk assessment.') }}</p>
+                        <p style="margin: 1rem 0 0 0; color: #64748b; font-size: 0.9375rem;">
+                            {{ __('No assessment recorded yet.') }}
+                            @if(!empty($canEditAssessment))
+                                {{ __('Click "Add Assessment" to complete the risk assessment.') }}
+                            @else
+                                {{ __('Complete the assessment when this risk reaches the assessment workflow step.') }}
+                            @endif
+                        </p>
                             </div>
                     @endif
                 </div>
@@ -3664,7 +3674,7 @@
                                 <select class="form-control @error('review_likelihood_score') is-invalid @enderror" id="review_likelihood_score" name="review_likelihood_score" style="border-radius: var(--border-radius-sm);">
                                     <option value="">{{ __('Select Score...') }}</option>
                                     @foreach(getRiskScores() as $score)
-                                    <option value="{{ $score->code }}" {{ old('review_likelihood_score') == $score->code ? 'selected' : '' }}>{{ $score->code }}@if($score->metadata && isset($score->metadata['label'])) - {{ $score->metadata['label'] }}@endif</option>
+                                    <option value="{{ $score->code }}" {{ old('review_likelihood_score') == $score->code ? 'selected' : '' }}>{{ $score->code }}@if(data_get($score, 'metadata.label')) - {{ data_get($score, 'metadata.label') }}@endif</option>
                                     @endforeach
                                 </select>
                                 @error('review_likelihood_score') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -3676,7 +3686,7 @@
                                 <select class="form-control @error('review_severity_score') is-invalid @enderror" id="review_severity_score" name="review_severity_score" style="border-radius: var(--border-radius-sm);">
                                     <option value="">{{ __('Select Score...') }}</option>
                                     @foreach(getRiskScores() as $score)
-                                    <option value="{{ $score->code }}" {{ old('review_severity_score') == $score->code ? 'selected' : '' }}>{{ $score->code }}@if($score->metadata && isset($score->metadata['label'])) - {{ $score->metadata['label'] }}@endif</option>
+                                    <option value="{{ $score->code }}" {{ old('review_severity_score') == $score->code ? 'selected' : '' }}>{{ $score->code }}@if(data_get($score, 'metadata.label')) - {{ data_get($score, 'metadata.label') }}@endif</option>
                                     @endforeach
                                 </select>
                                 @error('review_severity_score') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -3809,7 +3819,7 @@
                                 <select class="form-control @error('review_likelihood_score') is-invalid @enderror" id="edit_review_likelihood_score{{ $review->id }}" name="review_likelihood_score" style="border-radius: var(--border-radius-sm);">
                                     <option value="">{{ __('Select Score...') }}</option>
                                     @foreach(getRiskScores() as $score)
-                                    <option value="{{ $score->code }}" {{ $review->review_likelihood_score == $score->code ? 'selected' : '' }}>{{ $score->code }}@if($score->metadata && isset($score->metadata['label'])) - {{ $score->metadata['label'] }}@endif</option>
+                                    <option value="{{ $score->code }}" {{ $review->review_likelihood_score == $score->code ? 'selected' : '' }}>{{ $score->code }}@if(data_get($score, 'metadata.label')) - {{ data_get($score, 'metadata.label') }}@endif</option>
                                     @endforeach
                                 </select>
                                 @error('review_likelihood_score') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -3821,7 +3831,7 @@
                                 <select class="form-control @error('review_severity_score') is-invalid @enderror" id="edit_review_severity_score{{ $review->id }}" name="review_severity_score" style="border-radius: var(--border-radius-sm);">
                                     <option value="">{{ __('Select Score...') }}</option>
                                     @foreach(getRiskScores() as $score)
-                                    <option value="{{ $score->code }}" {{ $review->review_severity_score == $score->code ? 'selected' : '' }}>{{ $score->code }}@if($score->metadata && isset($score->metadata['label'])) - {{ $score->metadata['label'] }}@endif</option>
+                                    <option value="{{ $score->code }}" {{ $review->review_severity_score == $score->code ? 'selected' : '' }}>{{ $score->code }}@if(data_get($score, 'metadata.label')) - {{ data_get($score, 'metadata.label') }}@endif</option>
                                     @endforeach
                                 </select>
                                 @error('review_severity_score') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -4035,7 +4045,7 @@
                         <i class="mdi mdi-information-outline" style="font-size: 24px; margin-right: 12px;"></i>
                         <div>
                             <strong>ISO Compliance Note:</strong> All workflow actions require documented remarks for audit trail purposes.
-                            <br><small class="text-muted">Current Status: <strong>{{ $risk->status_name }}</strong></small>
+                            <br><small class="text-muted">Current Status: <strong>{{ $risk->display_status_name }}</strong></small>
                         </div>
                     </div>
 
@@ -4050,7 +4060,7 @@
                             <option value="return">Return for Correction</option>
                             <option value="hold">Hold / Suspend</option>
                         </select>
-                        <small class="form-text text-muted">Select the action you want to perform on this audit.</small>
+                        <small class="form-text text-muted">Select the action you want to perform on this risk.</small>
                     </div>
 
                     <div class="form-group" id="target_status_display" style="display: none;">
@@ -4060,7 +4070,7 @@
                         <div class="alert alert-success d-flex align-items-center mb-0" id="target_status_alert" style="border-radius: 8px; border-left: 4px solid #28a745;">
                             <i class="mdi mdi-arrow-right" style="font-size: 24px; margin-right: 12px;"></i>
                             <div style="flex: 1;">
-                                <strong>Audit will move to:</strong>
+                                <strong>Risk will move to:</strong>
                                 <div class="mt-1">
                                     <span class="badge badge-success" id="target_status_badge" style="font-size: 0.9rem; padding: 6px 12px;">
                                         {{ isset($nextWorkflowStatus) && $nextWorkflowStatus ? $nextWorkflowStatus->name : 'N/A' }}
@@ -4165,21 +4175,23 @@
     // Evaluation results data for RPN-based lookup
     @php
         $evaluationResultsForJs = $evaluationResults->map(function($result) {
-            $metadata = is_array($result->metadata) ? $result->metadata : (is_string($result->metadata) ? json_decode($result->metadata, true) : []);
+            $metadata = normalizeRiskConfigurationMetadata($result->metadata);
             return [
                 'code' => $result->code,
                 'name' => $result->name,
                 'rpn_min' => $metadata['rpn_min'] ?? null,
                 'rpn_max' => $metadata['rpn_max'] ?? null,
-                'workflow_step' => $metadata['workflow_step'] ?? null,
+                'workflow_step' => isset($metadata['workflow_step']) ? (int) $metadata['workflow_step'] : null,
                 'required_actions' => $metadata['required_actions'] ?? '',
             ];
         })->values();
+        // JSON-object keys (not a PHP-indexed array) so JS lookup works for step 1–7
+        $workflowStepsForJs = getRiskWorkflowSteps();
     @endphp
     const evaluationResultsData = @json($evaluationResultsForJs);
     
-    // Workflow steps for display
-    const workflowSteps = @json(getRiskWorkflowSteps());
+    // Workflow steps for display (object keys: "1"…"7"; skip "0" = All Risks)
+    const workflowSteps = @json($workflowStepsForJs);
     
     // Function to determine evaluation result based on RPN
     function getEvaluationResultByRPN(rpn) {
@@ -4265,9 +4277,10 @@
                 resultDisplay.addClass('alert-success');
             }
             
-            // Show workflow step
-            if (matchedResult.workflow_step && workflowSteps[matchedResult.workflow_step]) {
-                workflowStepText.html('<i class="mdi mdi-arrow-right"></i> Next: ' + workflowSteps[matchedResult.workflow_step]);
+            // Show next workflow step (status-scale keys 1–7)
+            const nextStepKey = String(matchedResult.workflow_step ?? '');
+            if (nextStepKey && workflowSteps[nextStepKey]) {
+                workflowStepText.html('<i class="mdi mdi-arrow-right"></i> Next: ' + workflowSteps[nextStepKey]);
             } else {
                 workflowStepText.html('');
             }
@@ -4457,7 +4470,7 @@
     // Store next workflow status data
     var nextWorkflowStatusData = {
         @if(isset($nextWorkflowStatus) && $nextWorkflowStatus)
-        id: {{ $nextWorkflowStatus->id }},
+        id: '{{ $nextWorkflowStatus->id }}',
         name: '{{ addslashes($nextWorkflowStatus->name) }}',
         available: true
         @else
@@ -4465,11 +4478,12 @@
         @endif
     };
     
-    // Store available statuses for step 3 (in case no next status is configured when at step 2)
-    var step3Statuses = [
-        @if(isset($availableStatuses) && isset($availableStatuses[3]))
-            @foreach($availableStatuses[3] as $status)
-            {id: {{ $status->id }}, name: '{{ addslashes($status->name) }}'},
+    // Store available statuses for status-config step 2 (Under Assessment)
+    // Used when Identified (risk-record step 2 / status-config step 1) has no explicit next status.
+    var nextAssessmentStatuses = [
+        @if(isset($availableStatuses) && isset($availableStatuses[2]))
+            @foreach($availableStatuses[2] as $status)
+            {id: '{{ $status->id }}', name: '{{ addslashes($status->name) }}'},
             @endforeach
         @endif
     ];
@@ -4515,29 +4529,30 @@
                 targetStatusIdInput.val(nextWorkflowStatusData.id);
             targetStatusAlert.removeClass('alert-warning alert-danger alert-info').addClass('alert-success');
             targetStatusDescription.html('<i class="mdi mdi-information-outline"></i> Moving to the next workflow step');
-            } else if (step3Statuses.length > 0) {
-                // If no next status but we have step 3 statuses available, use the first one
+            } else if (nextAssessmentStatuses.length > 0) {
+                // If no next status but step-2 statuses exist, use the first one
                 targetStatusDisplay.show();
-                targetStatusBadge.text(step3Statuses[0].name);
-                targetStatusIdInput.val(step3Statuses[0].id);
+                targetStatusBadge.text(nextAssessmentStatuses[0].name);
+                targetStatusIdInput.val(nextAssessmentStatuses[0].id);
                 targetStatusAlert.removeClass('alert-warning alert-danger alert-info').addClass('alert-success');
-                targetStatusDescription.html('<i class="mdi mdi-information-outline"></i> Moving to workflow step 3 (Under Assessment)');
+                targetStatusDescription.html('<i class="mdi mdi-information-outline"></i> Moving to workflow step 2 (Under Assessment)');
             } else {
-                warningMessage.html('<strong>Warning:</strong> No next workflow status configured. Please configure workflow step 3 statuses in the system settings.');
+                warningMessage.html('<strong>Warning:</strong> No next workflow status configured. Please configure a status for workflow step 2 (Under Assessment) in Risk Statuses.');
                 warningDiv.removeClass('alert-info').addClass('alert-warning').show();
                 targetStatusIdInput.val('');
             }
         } else if (action === 'reject' || action === 'return') {
             // Show previous status for reject/return
             @php
-                $currentStep = $risk->getCurrentWorkflowStep();
-                $previousStep = $currentStep && $currentStep > 1 ? $currentStep - 1 : null;
+                $currentRecordStep = $risk->getCurrentWorkflowStep();
+                $previousStatusStep = $currentRecordStep !== null
+                    ? mapRiskRecordWorkflowStepToStatusStep(max(1, (int) $currentRecordStep - 1))
+                    : null;
                 $previousStatus = null;
-                if ($previousStep) {
-                    $companyId = getUserCompany() ?? 0;
+                if ($previousStatusStep) {
                     $previousStatus = \App\Models\RiskManagement\RiskStatus::forCompany()
                         ->active()
-                        ->where('workflow_step', $previousStep)
+                        ->where('workflow_step', $previousStatusStep)
                         ->ordered()
                         ->first();
                 }
@@ -4554,10 +4569,10 @@
             targetStatusIdInput.val('');
             @endif
             if (action === 'reject') {
-                warningMessage.html('<strong>Rejection Note:</strong> Rejecting will return the audit to a previous status. Ensure all rejection reasons are documented.');
+                warningMessage.html('<strong>Rejection Note:</strong> Rejecting will return the risk to a previous status. Ensure all rejection reasons are documented.');
                 warningDiv.removeClass('alert-info').addClass('alert-warning').show();
             } else {
-                warningMessage.html('<strong>Return Note:</strong> Returning the audit requires correction. Document what needs to be corrected.');
+                warningMessage.html('<strong>Return Note:</strong> Returning the risk requires correction. Document what needs to be corrected.');
                 warningDiv.removeClass('alert-info').addClass('alert-warning').show();
             }
         } else if (action === 'hold') {
@@ -4567,7 +4582,7 @@
             targetStatusIdInput.val('{{ $risk->status_id }}');
             targetStatusAlert.removeClass('alert-success alert-warning alert-danger').addClass('alert-info');
             targetStatusDescription.html('<i class="mdi mdi-information-outline"></i> Status will remain unchanged');
-            warningMessage.html('<strong>Hold Note:</strong> Holding suspends the audit workflow. Document the reason for suspension.');
+            warningMessage.html('<strong>Hold Note:</strong> Holding suspends the risk workflow. Document the reason for suspension.');
             warningDiv.removeClass('alert-info').addClass('alert-warning').show();
         }
     });
@@ -4990,10 +5005,10 @@
                                 <tbody>
                                     @foreach($evaluationResults as $result)
                                     @php
-                                        $metadata = is_array($result->metadata) ? $result->metadata : (is_string($result->metadata) ? json_decode($result->metadata, true) : []);
+                                        $metadata = normalizeRiskConfigurationMetadata($result->metadata);
                                         $rpnMin = $metadata['rpn_min'] ?? 'N/A';
                                         $rpnMax = $metadata['rpn_max'] ?? 'N/A';
-                                        $workflowStep = $metadata['workflow_step'] ?? '';
+                                        $workflowStep = isset($metadata['workflow_step']) ? (int) $metadata['workflow_step'] : null;
                                         $workflowSteps = getRiskWorkflowSteps();
                                         $nextStepName = $workflowStep && isset($workflowSteps[$workflowStep]) ? $workflowSteps[$workflowStep] : '-';
                                         $badgeClass = strtolower($result->code) === 'unacceptable' ? 'danger' : (strtolower($result->code) === 'tolerable' ? 'warning' : 'success');
@@ -5302,7 +5317,12 @@
                 @csrf
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title">
-                        <i class="mdi mdi-clipboard-check"></i> {{ __('Risk Assessment') }}
+                        <i class="mdi mdi-clipboard-check"></i>
+                        @php
+                            $assessmentModalHasData = ($risk->likelihood_score && $risk->severity_score)
+                                || ($risk->likelihood_scale_id && $risk->severity_scale_id);
+                        @endphp
+                        {{ $assessmentModalHasData ? __('Edit Assessment') : __('Add Assessment') }}
                     </h5>
                     <button type="button" class="close text-white" data-dismiss="modal">
                         <span>&times;</span>
