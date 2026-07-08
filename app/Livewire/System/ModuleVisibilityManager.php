@@ -44,6 +44,7 @@ class ModuleVisibilityManager extends Component
             if (!$configType) {
                 $configType = new SystemConfigurationsType();
                 $configType->configuration_type = 'Module Visibility';
+                $configType->description = 'Controls which application modules are visible and enabled';
                 $configType->status = 1;
                 $configType->save();
             }
