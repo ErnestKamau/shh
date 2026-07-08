@@ -54,8 +54,9 @@
                                     {{ $action->performer->name }}
                                 </p>
                             @endif
-                            @if($action->comment)
-                                <blockquote class="rr-timeline__comment">{{ $action->comment }}</blockquote>
+                            @php $displayComment = $action->displayComment(); @endphp
+                            @if($displayComment)
+                                <blockquote class="rr-timeline__comment">{{ $displayComment }}</blockquote>
                             @endif
                         </div>
                     </li>

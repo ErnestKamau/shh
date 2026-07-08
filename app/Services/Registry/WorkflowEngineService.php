@@ -111,7 +111,7 @@ class WorkflowEngineService
         ?string $fromStage,
         ?string $toStage,
         ?string $comment = null,
-        ?int $performedBy = null,
+        ?string $performedBy = null,
         array $payload = []
     ): RegistryRequestAction {
         return RegistryRequestAction::create([

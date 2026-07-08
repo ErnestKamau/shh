@@ -2,7 +2,7 @@
         <form wire:submit="assign" class="rr-assign-form mb-3">
             <div class="form-group mb-2">
                 <label class="rr-meta-label d-block mb-1">Assign to</label>
-                <select wire:model="assigned_to" class="form-control">
+                <select wire:model.live="assigned_to" class="form-control no-select2">
                     <option value="">Select user…</option>
                     @foreach($users as $u)
                         <option value="{{ $u->id }}">{{ $u->name }}</option>

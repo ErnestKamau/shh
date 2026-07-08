@@ -6,6 +6,7 @@ use App\DTOs\Registry\AssignRegistryRequestDTO;
 use App\Events\Registry\RegistryRequestAssigned;
 use App\Models\Registry\RegistryRequest;
 use App\Models\Registry\RegistryRequestAssignment;
+use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -40,12 +41,15 @@ class RegistryAssignmentService
 
             $request->update(['assigned_to' => $dto->assignedTo]);
 
+            $assigneeName = User::query()->whereKey($dto->assignedTo)->value('name')
+                ?? 'Unknown user';
+
             $this->workflowEngineService->recordAction(
                 $request,
                 'assigned',
                 $request->current_stage,
                 $request->current_stage,
-                'Assigned to user #' . $dto->assignedTo,
+                'Assigned to ' . $assigneeName,
                 $dto->assignedBy
             );
 

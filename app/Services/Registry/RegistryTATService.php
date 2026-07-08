@@ -31,7 +31,7 @@ class RegistryTATService
         }
 
         $exitedAt = now();
-        $duration = $log->entered_at->diffInSeconds($exitedAt);
+        $duration = (int) round(abs($log->entered_at->diffInSeconds($exitedAt)));
 
         $log->update([
             'exited_at' => $exitedAt,

@@ -319,7 +319,7 @@
                          id="registry-tab-documents"
                          role="tabpanel"
                          aria-labelledby="documents-tab">
-                        @livewire('registry.registry-document-uploader', ['requestId' => $registryRequest->id])
+                        @livewire('registry.registry-document-uploader', ['requestId' => $registryRequest->id], key('registry-docs-'.$registryRequest->id))
                     </div>
                     @can('registry.components.approval queue.edit')
                         <div class="tab-pane fade"

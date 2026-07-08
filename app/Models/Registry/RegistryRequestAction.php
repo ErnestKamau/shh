@@ -43,4 +43,23 @@ class RegistryRequestAction extends Model
     {
         return $this->belongsTo(User::class, 'performed_by');
     }
+
+    public function displayComment(): ?string
+    {
+        $comment = $this->comment;
+
+        if (! is_string($comment) || $comment === '') {
+            return $comment;
+        }
+
+        if (preg_match('/^Assigned to user #([0-9a-fA-F-]{36})$/', $comment, $matches) !== 1) {
+            return $comment;
+        }
+
+        $userName = User::query()->whereKey($matches[1])->value('name');
+
+        return $userName !== null
+            ? 'Assigned to ' . $userName
+            : $comment;
+    }
 }

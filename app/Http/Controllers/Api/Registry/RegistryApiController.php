@@ -108,7 +108,7 @@ class RegistryApiController extends Controller
 
         $updated = $this->assignAction->execute(new AssignRegistryRequestDTO(
             registryRequestId: $id,
-            assignedTo: (int) $request->input('assigned_to'),
+            assignedTo: (string) $request->input('assigned_to'),
             roleContext: $request->input('role_context'),
             assignedBy: $request->user()?->id,
         ));

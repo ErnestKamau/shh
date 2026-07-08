@@ -12,7 +12,7 @@
                     <form wire:submit="save">
                         <div class="form-group">
                             <label class="fw-bold">Category *</label>
-                            <select wire:model="request_category_id" class="form-control">
+                            <select wire:model.live="request_category_id" class="form-control no-select2">
                                 <option value="">Select...</option>
                                 @foreach($categories as $c)
                                     <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -32,7 +32,7 @@
                         <div class="row">
                             <div class="col-md-4 form-group">
                                 <label class="fw-bold">Priority</label>
-                                <select wire:model="priority" class="form-control">
+                                <select wire:model="priority" class="form-control no-select2">
                                     <option value="low">Low</option>
                                     <option value="normal">Normal</option>
                                     <option value="high">High</option>
@@ -41,7 +41,7 @@
                             </div>
                             <div class="col-md-4 form-group">
                                 <label class="fw-bold">Direction</label>
-                                <select wire:model="direction" class="form-control">
+                                <select wire:model="direction" class="form-control no-select2">
                                     <option value="incoming">Incoming</option>
                                     <option value="outgoing">Outgoing</option>
                                 </select>

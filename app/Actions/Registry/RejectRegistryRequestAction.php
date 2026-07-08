@@ -12,7 +12,7 @@ class RejectRegistryRequestAction
     ) {
     }
 
-    public function execute(string $registryRequestId, ?string $comment = null, ?int $performedBy = null): RegistryRequest
+    public function execute(string $registryRequestId, ?string $comment = null, ?string $performedBy = null): RegistryRequest
     {
         return $this->transitionWorkflowAction->execute(new WorkflowTransitionDTO(
             registryRequestId: $registryRequestId,

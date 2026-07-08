@@ -6,9 +6,9 @@ readonly class AssignRegistryRequestDTO
 {
     public function __construct(
         public string $registryRequestId,
-        public int $assignedTo,
+        public string $assignedTo,
         public ?string $roleContext = null,
-        public ?int $assignedBy = null,
+        public ?string $assignedBy = null,
     ) {
     }
 }

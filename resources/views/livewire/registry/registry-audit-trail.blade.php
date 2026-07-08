@@ -23,7 +23,7 @@
                                 <span class="rr-audit-action">{{ ucwords(str_replace('_', ' ', $a->action_type)) }}</span>
                             </td>
                             <td>{{ $a->performer?->name ?? '—' }}</td>
-                            <td class="rr-audit-table__comment">{{ $a->comment ?: '—' }}</td>
+                            <td class="rr-audit-table__comment">{{ $a->displayComment() ?: '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -8,7 +8,7 @@ readonly class WorkflowTransitionDTO
         public string $registryRequestId,
         public string $actionName,
         public ?string $comment = null,
-        public ?int $performedBy = null,
+        public ?string $performedBy = null,
     ) {
     }
 }

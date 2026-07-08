@@ -8,7 +8,7 @@ readonly class ApproveRegistryRequestDTO
         public string $registryRequestId,
         public string $actionName = 'approve',
         public ?string $comment = null,
-        public ?int $performedBy = null,
+        public ?string $performedBy = null,
     ) {
     }
 }

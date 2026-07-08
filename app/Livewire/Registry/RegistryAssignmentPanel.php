@@ -12,7 +12,7 @@ class RegistryAssignmentPanel extends Component
 {
     public string $requestId;
 
-    public ?int $assigned_to = null;
+    public ?string $assigned_to = null;
 
     public string $role_context = '';
 
@@ -24,13 +24,13 @@ class RegistryAssignmentPanel extends Component
     public function assign(AssignRegistryRequestAction $action): void
     {
         $this->validate([
-            'assigned_to' => ['required', 'integer', 'exists:users,id'],
+            'assigned_to' => ['required', 'uuid', 'exists:users,id'],
             'role_context' => ['nullable', 'string', 'max:100'],
         ]);
 
         $action->execute(new AssignRegistryRequestDTO(
             registryRequestId: $this->requestId,
-            assignedTo: (int) $this->assigned_to,
+            assignedTo: (string) $this->assigned_to,
             roleContext: $this->role_context ?: null,
         ));
 

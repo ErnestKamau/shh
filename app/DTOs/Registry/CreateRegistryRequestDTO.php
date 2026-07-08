@@ -14,7 +14,7 @@ readonly class CreateRegistryRequestDTO
         public ?string $entityType = null,
         public ?string $entityId = null,
         public array $metadata = [],
-        public ?int $receivedBy = null,
+        public ?string $receivedBy = null,
     ) {
     }
 
@@ -30,7 +30,7 @@ readonly class CreateRegistryRequestDTO
             entityType: $data['entity_type'] ?? null,
             entityId: isset($data['entity_id']) ? (string) $data['entity_id'] : null,
             metadata: (array) ($data['metadata'] ?? []),
-            receivedBy: isset($data['received_by']) ? (int) $data['received_by'] : null,
+            receivedBy: isset($data['received_by']) ? (string) $data['received_by'] : null,
         );
     }
 }
