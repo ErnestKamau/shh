@@ -40,14 +40,13 @@ class ModuleVisibilityManager extends Component
         $this->authorizeAction('system.module-switching.edit');
 
         try {
-            $configType = SystemConfigurationsType::where('configuration_type', 'Module Visibility')->first();
-            if (!$configType) {
-                $configType = new SystemConfigurationsType();
-                $configType->configuration_type = 'Module Visibility';
-                $configType->description = 'Controls which application modules are visible and enabled';
-                $configType->status = 1;
-                $configType->save();
-            }
+            $configType = SystemConfigurationsType::firstOrCreate(
+                ['configuration_type' => 'Module Visibility'],
+                [
+                    'description' => 'Controls which application modules are visible and enabled',
+                    'status' => true,
+                ]
+            );
 
             $errors = [];
             $packageChanges = [];
