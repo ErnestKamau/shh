@@ -4,7 +4,7 @@
 		--color-primary-hover: {{ $themeVars['secondary'] }};
 		--color-accent: {{ $themeVars['accent'] }};
 		--color-sidebar-bg: {{ $themeVars['sidebar_bg'] }};
-		--color-sidebar-hover: #1a1a1a;
+		--color-sidebar-hover: {{ $themeVars['sidebar_hover'] ?? '#1a1a1a' }};
 		--color-sidebar-link-bg: {{ $themeVars['sidebar_link_bg'] }};
 		--color-sidebar-text: {{ $themeVars['sidebar_text'] ?? 'rgba(255, 255, 255, 0.95)' }};
 		--color-sidebar-text-muted: {{ $themeVars['sidebar_text_muted'] ?? 'rgba(255, 255, 255, 0.6)' }};
@@ -30,7 +30,7 @@
 		--color-success-strong: #16a34a;
 		--color-warning: #f59e0b;
 		--color-error: #dc2626;
-		--color-info: #00a7df;
+		--color-info: var(--color-primary);
 		--color-btn-secondary: #596273;
 		--workflow-accent: var(--color-primary);
 		--workflow-accent-soft: var(--color-primary-soft);

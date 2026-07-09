@@ -14,7 +14,6 @@ use App\Models\CRM\Complaint;
 use App\Models\SampleSubmissionRequest;
 use App\Observers\TicketObserver;
 use Illuminate\Support\ServiceProvider;
-use App\Services\System\ThemeService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -56,33 +55,6 @@ class AppServiceProvider extends ServiceProvider
                 Schema::table('sampling_schedules', function ($table) {
                     $table->boolean('is_collected')->default(false);
                 });
-            }
-        } catch (\Throwable $e) {}
-
-        try {
-            $configs = ThemeService::CONFIG_DEFAULTS;
-            $type = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Global System Theme Settings')->first();
-            if ($type) {
-                $createdAny = false;
-
-                foreach ($configs as $key => $val) {
-                    $configuration = \App\Models\System\SystemConfiguration::firstOrCreate(
-                        ['key' => $key],
-                        [
-                            'configuration_type_id' => $type->id,
-                            'value' => $val,
-                            'status' => true,
-                        ]
-                    );
-
-                    if ($configuration->wasRecentlyCreated) {
-                        $createdAny = true;
-                    }
-                }
-
-                if ($createdAny) {
-                    ThemeService::forgetCache();
-                }
             }
         } catch (\Throwable $e) {}
 
