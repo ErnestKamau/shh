@@ -20,75 +20,7 @@ use Illuminate\Validation\ValidationException;
 
 class SubmissionFormSubmissionService
 {
-    public function submitWalkInInstance(
-        SubmissionForm $submissionForm,
-        array $payload,
-        ?string $crmCustomerId = null,
-        ?string $selectedSampleTypeId = null,
-        string $sourceChannel = CommercialEnquirySyncService::SOURCE_WALK_IN,
-        ?string $samplingScheduleId = null,
-    ): SubmissionFormInstance {
-        return DB::transaction(function () use (
-            $submissionForm,
-            $payload,
-            $crmCustomerId,
-            $selectedSampleTypeId,
-            $sourceChannel,
-            $samplingScheduleId,
-        ): SubmissionFormInstance {
-            $instance = SubmissionFormInstance::query()->create([
-                'submission_form_id' => $submissionForm->id,
-                'title' => $submissionForm->name.' - '.now()->format('Y-m-d H:i'),
-                'submitted_by' => Auth::id(),
-                'status' => 'draft',
-                'priority' => 'normal',
-                'crm_customer_id' => $crmCustomerId,
-                'selected_sample_type_id' => $selectedSampleTypeId,
-                'source_channel' => $sourceChannel,
-                'sampling_schedule_id' => $samplingScheduleId,
-            ]);
-
-            $request = new Request();
-            $request->merge($payload);
-            $this->mergeSubmissionFieldsIntoRequest($request);
-
-            $elements = $this->elementsForForm($submissionForm);
-            $this->processFormData($instance, $request, $elements);
-            $this->assignFormNumberWithRetry($instance, $submissionForm);
-
-            $instance->update([
-                'status' => 'submitted',
-                'submitted_at' => now(),
-            ]);
-
-            $instance->refresh();
-
-            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
-            if (class_exists($labIntakeCaseServiceClass)) {
-                try {
-                    app($labIntakeCaseServiceClass)->syncFromSubmission($instance->fresh(), null);
-                } catch (\Throwable $th) {
-                    Log::warning('Lab intake case sync failed after walk-in form submit.', [
-                        'instance_id' => $instance->id,
-                        'message' => $th->getMessage(),
-                    ]);
-                }
-            }
-
-            try {
-                app(CommercialEnquirySyncService::class)->syncFromSubmittedInstance(
-                    $instance->fresh(['values.element', 'submissionForm', 'crmCustomer'])
-                );
-            } catch (\Throwable $th) {
-                Log::warning('Commercial enquiry sync failed after walk-in form submit.', [
-                    'instance_id' => $instance->id,
-                    'message' => $th->getMessage(),
-                ]);
-            }
-
-            return $instance->fresh(['submissionForm', 'values.element']);
-        });
-    }
+    private ?bool $hasSelectedSampleTypeColumn = null;
 
     public function mergeSubmissionFieldsIntoRequest(Request $request): void
     {
@@ -321,6 +253,18 @@ class SubmissionFormSubmissionService
             $instance->refresh();
 
             $this->syncCommercialPipelineIfApplicable($instance->fresh(['values.element']), $submissionForm);
+
+            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
+            if (class_exists($labIntakeCaseServiceClass)) {
+                try {
+                    app($labIntakeCaseServiceClass)->syncFromSubmission($instance->fresh(), null);
+                } catch (\Throwable $th) {
+                    Log::warning('Lab intake case sync failed after walk-in form submit.', [
+                        'instance_id' => $instance->id,
+                        'message' => $th->getMessage(),
+                    ]);
+                }
+            }
 
             return $instance->fresh(['submissionForm', 'values.element']);
         });

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\SafeEncrypted;
+use App\Concerns\HasVarcharUuidRelationships;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\QuotationHeader;
@@ -18,6 +19,7 @@ use Illuminate\Support\Str;
 class SampleSubmissionRequest extends Model
 {
     use HasUuids;
+    use HasVarcharUuidRelationships;
 
     private static ?bool $crmContactIdUsesNumericColumn = null;
 
@@ -277,7 +279,7 @@ class SampleSubmissionRequest extends Model
 
     public function submissionFormInstance(): BelongsTo
     {
-        return $this->belongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
+        return $this->uuidBelongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
     }
 
 

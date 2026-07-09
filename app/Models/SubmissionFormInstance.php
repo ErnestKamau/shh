@@ -125,7 +125,7 @@ class SubmissionFormInstance extends Model implements Auditable
 
     public function sampleSubmissionRequest(): HasOne
     {
-        return $this->hasOne(SampleSubmissionRequest::class, 'submission_form_instance_id');
+        return $this->uuidHasOne(SampleSubmissionRequest::class, 'submission_form_instance_id');
     }
 
     /**

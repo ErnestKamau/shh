@@ -11,10 +11,12 @@ use App\SampleDate;
 use App\SampleHeader;
 use App\SamplesCategory;
 use App\AnalysisType;
+use App\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 final class SampleWorkflowKpiStatisticsService
 {
@@ -183,31 +185,104 @@ final class SampleWorkflowKpiStatisticsService
 
         $capturedBySample = $this->capturedResultsGroupedBySampleDetail($sampleDetailIds);
         $equipmentBySample = $this->equipmentIdsBySampleDetail($sampleDetailIds);
+        $samplerNames = $this->samplerNamesByUserId(
+            $headers->pluck('sampling_officer')->filter()->unique()->values()
+        );
 
-        return $samples->map(function ($row) use ($headers, $dueDates, $capturedBySample, $equipmentBySample): array {
+        return $samples->map(function ($row) use ($headers, $dueDates, $capturedBySample, $equipmentBySample, $samplerNames): array {
             $header = $headers->get($row->sample_header_id);
             $detailId = (string) $row->id;
             $parameters = $capturedBySample->get($detailId, collect())->pluck('analyte_code')->filter()->unique()->implode(', ');
-
-            $scheduledCollected = $this->resolveScheduledCollectedLabel($header, $row);
+            $sampleCount = (int) ($row->no_of_samples ?? 1);
+            [$scheduledCount, $collectedCount] = $this->resolveScheduledCollectedCounts($header, $row, $sampleCount);
+            $samplerId = $header?->sampling_officer ?? '—';
+            $samplerName = $row->sampling_officer_name
+                ?? ($header?->sampling_officer_name ?? null)
+                ?? ($samplerId !== '—' ? ($samplerNames->get($samplerId) ?? '—') : '—');
 
             return [
                 'date' => $row->receipt_date ?: ($row->date_collected ?: '—'),
                 'client' => $row->crm_name ?? '—',
-                'samples_scheduled_collected' => $scheduledCollected,
-                'sampler' => $row->sampling_officer_name ?? ($header?->sampling_officer_name ?? '—'),
+                'samples_scheduled' => $scheduledCount,
+                'samples_collected' => $collectedCount,
+                'samples_scheduled_collected' => $this->resolveScheduledCollectedLabel($header, $row),
+                'sampler_name' => $samplerName,
+                'sampler' => $samplerName,
+                'sampler_id' => $samplerId,
                 'equipment_id' => $equipmentBySample->get($detailId, '—'),
+                'job_id' => $row->batch_code ?? '—',
+                'sample_id' => $row->sample_code ?? '—',
                 'job_sample_id' => $this->formatJobSampleId($row),
-                'location' => $row->gps ?? '—',
+                'sample_details' => $this->formatSampleDetails($row),
+                'location' => $row->gps ?? ($header?->crm_unit_name ?? '—'),
                 'sampling_points' => $row->sample_point_name ?? '—',
                 'parameters' => $parameters !== '' ? $parameters : '—',
-                'temp' => '—',
+                'temperature' => $header?->condition_quality_sample ?? '—',
+                'temp' => $header?->condition_quality_sample ?? '—',
                 'units' => $row->reporting_unit_name ?? '—',
                 'volume' => $row->quantity ?? '—',
                 'registered_by' => $row->submit_by ?? ($header?->receiving_officer_name ?? '—'),
                 'due_date' => $dueDates->get($row->sample_header_id)?->date ?? ($header?->date_expected ?? '—'),
             ];
         })->values()->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, mixed>  $filters
+     * @return list<array<string, mixed>>
+     */
+    public function filterRegistrationDetailRows(array $rows, array $filters): array
+    {
+        return array_values(array_filter($rows, function (array $row) use ($filters): bool {
+            if ($this->filledFilter($filters, 'client') && ! $this->textMatches($row['client'] ?? '', (string) $filters['client'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'sampler_name') && ! $this->textMatches($row['sampler_name'] ?? '', (string) $filters['sampler_name'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'sampler_id') && ! $this->textMatches($row['sampler_id'] ?? '', (string) $filters['sampler_id'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'equipment_id') && ! $this->textMatches($row['equipment_id'] ?? '', (string) $filters['equipment_id'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'job_id') && ! $this->textMatches($row['job_id'] ?? '', (string) $filters['job_id'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'sample_id') && ! $this->textMatches($row['sample_id'] ?? '', (string) $filters['sample_id'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'location') && ! $this->textMatches($row['location'] ?? '', (string) $filters['location'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'sampling_points') && ! $this->textMatches($row['sampling_points'] ?? '', (string) $filters['sampling_points'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'registered_by') && ! $this->textMatches($row['registered_by'] ?? '', (string) $filters['registered_by'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'registration_type')) {
+                $type = Str::lower((string) $filters['registration_type']);
+                if ($type === 'scheduled' && (int) ($row['samples_scheduled'] ?? 0) === 0) {
+                    return false;
+                }
+                if ($type === 'collected' && (int) ($row['samples_collected'] ?? 0) === 0) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
 
     /**
@@ -298,6 +373,8 @@ final class SampleWorkflowKpiStatisticsService
                 'data_entry_complete' => 0,
                 'data_entry_partial' => 0,
                 'data_entry_not_started' => 0,
+                'review_pending' => 0,
+                'review_approved' => 0,
             ];
 
             $cursor->addDay();
@@ -312,6 +389,8 @@ final class SampleWorkflowKpiStatisticsService
             'data_entry_complete' => $period['data_entry_complete'],
             'data_entry_partial' => $period['data_entry_partial'],
             'data_entry_not_started' => $period['data_entry_not_started'],
+            'review_pending' => $period['review_pending'],
+            'review_approved' => $period['review_approved'],
         ];
 
         return $rows;
@@ -359,6 +438,8 @@ final class SampleWorkflowKpiStatisticsService
         $dataEntryByHeader = $this->dataEntryStatusByHeader($headerIds);
         $reviewByHeader = $this->reviewStatusByHeader($headerIds);
         $analysisNames = $this->analysisTypeNamesById();
+        $analysisProgressBySample = $this->analysisProgressBySampleDetail($sampleDetailIds);
+        $pendingApprovalByHeader = $this->pendingApprovalCountByHeader($headerIds);
 
         $batchJobCounts = $this->batchJobCountsForLab();
 
@@ -368,6 +449,8 @@ final class SampleWorkflowKpiStatisticsService
             $dataEntryByHeader,
             $reviewByHeader,
             $analysisNames,
+            $analysisProgressBySample,
+            $pendingApprovalByHeader,
             $batchJobCounts
         ): array {
             $header = $headers->get($row->sample_header_id);
@@ -377,13 +460,22 @@ final class SampleWorkflowKpiStatisticsService
                 'completed' => 0,
                 'pending' => 0,
             ]);
-
+            $detailId = (string) $row->id;
+            $analysisProgress = $analysisProgressBySample->get($detailId, ['completed' => 0, 'pending' => 0]);
             $analysisLabel = $this->resolveAnalysisTypeLabel($row->analysis_type_id ?? null, $analysisNames);
+            $sampleDetails = trim(($row->sample_code ?? '—').' / '.($row->sample_type_name ?? '—').' / '.$analysisLabel);
+            $reviewStatus = $reviewByHeader->get($row->sample_header_id, $row->workflow_stage ?? '—');
+            $pendingApprovalCount = $pendingApprovalByHeader->get($row->sample_header_id, 0);
 
             return [
                 'date' => $labEntryDates->get($row->sample_header_id) ?? ($row->receipt_date ?? '—'),
                 'client' => $row->crm_name ?? '—',
-                'sample_details' => trim(($row->sample_code ?? '—').' / '.($row->sample_type_name ?? '—').' / '.$analysisLabel),
+                'job_id' => $batchCode,
+                'no_of_samples' => (int) ($row->no_of_samples ?? 1),
+                'sample_details' => $sampleDetails,
+                'jobs_received' => $jobCounts['received'],
+                'jobs_completed' => $jobCounts['completed'],
+                'jobs_pending' => $jobCounts['pending'],
                 'jobs_received_completed_pending' => sprintf(
                     'Job %s — received: %d, completed: %d, pending: %d',
                     $batchCode,
@@ -391,11 +483,60 @@ final class SampleWorkflowKpiStatisticsService
                     $jobCounts['completed'],
                     $jobCounts['pending']
                 ),
+                'analysis_completed' => $analysisProgress['completed'],
+                'analysis_pending' => $analysisProgress['pending'],
                 'data_entry_status' => $dataEntryByHeader->get($row->sample_header_id, '—'),
-                'review_approval_status' => $reviewByHeader->get($row->sample_header_id, $row->workflow_stage ?? '—'),
+                'review_for_approval' => $reviewStatus,
+                'review_approval_status' => $reviewStatus,
+                'pending_approval_count' => $pendingApprovalCount,
+                'final_reports_issued' => $this->formatFinalReportsIssued($header),
                 'final_reports' => $this->formatFinalReports($header),
             ];
         })->values()->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, mixed>  $filters
+     * @return list<array<string, mixed>>
+     */
+    public function filterLaboratoryDetailRows(array $rows, array $filters): array
+    {
+        return array_values(array_filter($rows, function (array $row) use ($filters): bool {
+            if ($this->filledFilter($filters, 'client') && ! $this->textMatches($row['client'] ?? '', (string) $filters['client'])) {
+                return false;
+            }
+
+            if ($this->filledFilter($filters, 'job_id')) {
+                $jobNeedle = (string) $filters['job_id'];
+                $matchesJob = $this->textMatches($row['job_id'] ?? '', $jobNeedle)
+                    || $this->textMatches((string) ($row['jobs_received_completed_pending'] ?? ''), $jobNeedle);
+
+                if (! $matchesJob) {
+                    return false;
+                }
+            }
+
+            if ($this->filledFilter($filters, 'data_entry_status')) {
+                $needle = Str::lower((string) $filters['data_entry_status']);
+                $status = Str::lower((string) ($row['data_entry_status'] ?? ''));
+                if ($needle === 'complete' && ! str_starts_with($status, 'complete')) {
+                    return false;
+                }
+                if ($needle === 'partial' && ! str_starts_with($status, 'partial')) {
+                    return false;
+                }
+                if ($needle === 'not_started' && ! str_starts_with($status, 'not started')) {
+                    return false;
+                }
+            }
+
+            if ($this->filledFilter($filters, 'review_status') && ! $this->textMatches($row['review_for_approval'] ?? '', (string) $filters['review_status'])) {
+                return false;
+            }
+
+            return true;
+        }));
     }
 
     /**
@@ -723,6 +864,137 @@ final class SampleWorkflowKpiStatisticsService
         }
 
         return (string) $count;
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function resolveScheduledCollectedCounts(?SampleHeader $header, object $row, int $sampleCount): array
+    {
+        if (! empty($row->receipt_date)) {
+            return [0, $sampleCount];
+        }
+
+        if ($header !== null && in_array($header->status, self::REGISTRATION_STATUSES, true)) {
+            return [$sampleCount, 0];
+        }
+
+        return [0, $sampleCount];
+    }
+
+    private function formatSampleDetails(object $row): string
+    {
+        $parts = array_filter([
+            $row->sample_type_name ?? null,
+            $row->product_name ?? null,
+            $row->comments ?? null,
+        ]);
+
+        return $parts !== [] ? implode(' / ', $parts) : '—';
+    }
+
+    /**
+     * @param  Collection<int, string>  $userIds
+     * @return Collection<string, string>
+     */
+    private function samplerNamesByUserId(Collection $userIds): Collection
+    {
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', $userIds)
+            ->pluck('name', 'id');
+    }
+
+    /**
+     * @param  Collection<int, string>  $sampleDetailIds
+     * @return Collection<string, array{completed: int, pending: int}>
+     */
+    private function analysisProgressBySampleDetail(Collection $sampleDetailIds): Collection
+    {
+        if ($sampleDetailIds->isEmpty()) {
+            return collect();
+        }
+
+        return CapturedResult::query()
+            ->whereIn('sample_detail_id', $sampleDetailIds)
+            ->get()
+            ->groupBy(fn (CapturedResult $result): string => (string) $result->sample_detail_id)
+            ->map(function (Collection $results): array {
+                $total = $results->count();
+                $completed = $results->filter(
+                    fn (CapturedResult $result): bool => $result->result !== null && $result->result !== ''
+                )->count();
+
+                return [
+                    'completed' => $completed,
+                    'pending' => max(0, $total - $completed),
+                ];
+            });
+    }
+
+    /**
+     * @param  Collection<int, string>  $headerIds
+     * @return Collection<string, int>
+     */
+    private function pendingApprovalCountByHeader(Collection $headerIds): Collection
+    {
+        if ($headerIds->isEmpty()) {
+            return collect();
+        }
+
+        return BatchLabSectionApprover::query()
+            ->whereIn('batch_id', $headerIds)
+            ->where(function ($query): void {
+                $query->where('status', false)->orWhereNull('status');
+            })
+            ->select('batch_id', DB::raw('count(*) as pending_count'))
+            ->groupBy('batch_id')
+            ->pluck('pending_count', 'batch_id')
+            ->map(fn ($count): int => (int) $count);
+    }
+
+    private function formatFinalReportsIssued(?SampleHeader $header): string
+    {
+        if ($header === null) {
+            return '—';
+        }
+
+        $issued = [];
+
+        if (! empty($header->batch_report_url)) {
+            $issued[] = 'Report issued';
+        }
+
+        if (! empty($header->batch_report_online_url)) {
+            $issued[] = 'Online report';
+        }
+
+        if (isset($header->report_status) && $header->report_status !== '') {
+            $issued[] = 'Status: '.$header->report_status;
+        }
+
+        if (isset($header->prelim_report_status) && $header->prelim_report_status !== '') {
+            $issued[] = 'Prelim: '.$header->prelim_report_status;
+        }
+
+        return $issued !== [] ? implode('; ', $issued) : 'Not issued';
+    }
+
+    private function filledFilter(array $filters, string $key): bool
+    {
+        return isset($filters[$key]) && $filters[$key] !== '' && $filters[$key] !== 'all';
+    }
+
+    private function textMatches(string $haystack, string $needle): bool
+    {
+        if ($needle === '') {
+            return true;
+        }
+
+        return str_contains(Str::lower($haystack), Str::lower($needle));
     }
 
     private function formatJobSampleId(object $row): string

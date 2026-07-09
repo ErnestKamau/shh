@@ -31,7 +31,7 @@
                 <div class="card ai-card shadow-sm h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-muted text-uppercase small font-weight-bold mb-0">System Health</h6>
+                            <h6 class="text-muted text-uppercase small font-weight-bold mb-0">{{ __('mas/ai.health_score') }}</h6>
                             <i class="mdi mdi-heart-pulse text-purple mdi-24px"></i>
                         </div>
                         <h2 class="font-weight-bold mb-1">{{ $stats['kpis']['health_score'] ?? 0 }}%</h2>
@@ -45,11 +45,11 @@
                 <div class="card ai-card shadow-sm h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-muted text-uppercase small font-weight-bold mb-0">Accuracy</h6>
+                            <h6 class="text-muted text-uppercase small font-weight-bold mb-0">{{ __('mas/ai.routing_accuracy') }}</h6>
                             <i class="mdi mdi-target-variant text-purple mdi-24px"></i>
                         </div>
                         <h2 class="font-weight-bold mb-1">{{ $stats['kpis']['routing_accuracy_percent'] ?? 0 }}%</h2>
-                        <p class="text-muted small mb-0">Intent detection success</p>
+                        <p class="text-muted small mb-0">{{ __('mas/ai.intent_detection') }}</p>
                     </div>
                 </div>
             </div>
@@ -57,7 +57,7 @@
                 <div class="card ai-card shadow-sm h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-muted text-uppercase small font-weight-bold mb-0">Active Alerts</h6>
+                            <h6 class="text-muted text-uppercase small font-weight-bold mb-0">{{ __('mas/ai.alerts_drift') }}</h6>
                             <i class="mdi mdi-alert-circle {{ ($stats['alerts_active'] ?? 0) > 0 ? 'text-danger' : 'text-purple' }} mdi-24px"></i>
                         </div>
                         <h2 class="font-weight-bold mb-1">{{ $stats['alerts_active'] ?? 0 }}</h2>
@@ -84,7 +84,7 @@
             <div class="col-lg-7 mb-4">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white py-3">
-                        <h6 class="m-0 font-weight-bold text-purple"><i class="mdi mdi-trophy-outline mr-1"></i> Model Performance Leaderboard</h6>
+                        <h6 class="m-0 font-weight-bold text-purple"><i class="mdi mdi-trophy-outline mr-1"></i> {{ __('mas/ai.model_performance') }}</h6>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -139,7 +139,7 @@
             <div class="col-lg-5 mb-4">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-header bg-white py-3">
-                        <h6 class="m-0 font-weight-bold text-purple"><i class="mdi mdi-brain-outline mr-1"></i> Intent Analysis</h6>
+                        <h6 class="m-0 font-weight-bold text-purple"><i class="mdi mdi-brain-outline mr-1"></i> {{ __('mas/ai.intent_detection') }}</h6>
                     </div>
                     <div class="card-body">
                         @foreach($intentBreakdown['intents'] ?? [] as $intent)

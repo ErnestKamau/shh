@@ -1,7 +1,7 @@
 @extends('layouts.inventory.layout.app')
 
 @section('title2')
-  <title>Dashboard | Inventory Management</title>
+  <title>{{ __('inventory.dashboard') }} | {{ __('inventory.module_name') }}</title>
   <style type="text/css">
     .my-card
     {
@@ -19,8 +19,8 @@
 @section('content2')
   <main>
     <h2 class="p-4">
-      <i class="mdi mdi-desktop-mac-dashboard"></i> Dashboard
-			<small class="badge badge-pill bg-white my-small-text"><i class="mdi mdi-hammer-wrench"></i> In Development</small>
+      <i class="mdi mdi-desktop-mac-dashboard"></i> {{ __('inventory.dashboard') }}
+			<small class="badge badge-pill bg-white my-small-text"><i class="mdi mdi-hammer-wrench"></i> {{ __('inventory.in_development') }}</small>
     </h2>
     <br>
     <div class="row p-4 no-gutters">
@@ -30,7 +30,7 @@
             <div class="rotate">
               <i class="fas fa-list fa-4x"></i>
             </div>
-            <h6 class="text-uppercase">Categories</h6>
+            <h6 class="text-uppercase">{{ __('inventory.categories') }}</h6>
             <h1 class="display-4">{{ number_format($categoriesNo) }}</h1>
           </div>
         </div>
@@ -41,7 +41,7 @@
             <div class="rotate">
               <i class="fas fa-users fa-4x"></i>
             </div>
-            <h6 class="text-uppercase">Suppliers</h6>
+            <h6 class="text-uppercase">{{ __('inventory.suppliers') }}</h6>
             <h1 class="display-4">{{ number_format($suppliers) }}</h1>
           </div>
         </div>
@@ -52,7 +52,7 @@
             <div class="rotate">
               <i class="fas fa-sitemap fa-4x"></i>
             </div>
-            <h6 class="text-uppercase">Departments</h6>
+            <h6 class="text-uppercase">{{ __('inventory.departments') }}</h6>
             <h1 class="display-4">{{ number_format($departments) }}</h1>
           </div>
         </div>
@@ -63,7 +63,7 @@
             <div class="rotate">
               <i class="fas fa-info-circle fa-4x"></i>
             </div>
-            <h6 class="text-uppercase">Restock Notifications</h6>
+            <h6 class="text-uppercase">{{ __('inventory.restock_notifications') }}</h6>
             <h1 class="display-4">{{ number_format(getRestockNotifications(false, true)) }}</h1>
           </div>
         </div>
@@ -73,8 +73,8 @@
 			<div class="card">
 				<div class="card-head-sm p-3 border-bottom">
 					<h5>
-						<i class="fas fa-line-chart"></i> Inventory Activity
-						<small class="float-right text-info"><i class="fas fa-calendar"></i> Last 30 Days</small>
+						<i class="fas fa-line-chart"></i> {{ __('inventory.inventory_activity') }}
+						<small class="float-right text-info"><i class="fas fa-calendar"></i> {{ __('inventory.last_30_days') }}</small>
 					</h5>
 				</div>
 				<div class="card-body">

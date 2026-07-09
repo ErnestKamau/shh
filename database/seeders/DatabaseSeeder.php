@@ -52,6 +52,7 @@ class DatabaseSeeder extends Seeder
             CRMLanguageSeeder::class,
             EquipmentLanguageSeeder::class,
             LabDashboardLanguageSeeder::class,
+            \Database\Seeders\Setup\Languages\ModuleNavigationLanguageSeeder::class,
             // Keep MAS translations last so migrated MAS keys win on overlap.
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,

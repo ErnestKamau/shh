@@ -2,7 +2,7 @@
 
 @section('module-name')
 	<li class="nav-item">
-		<a class="nav-link module-name" href="{{ route('personnel-home') }}"><i class="mdi mdi-account-group"></i> Personnel Management</a>
+		<a class="nav-link module-name" href="{{ route('personnel-home') }}"><i class="mdi mdi-account-group"></i> {{ __('personnel.module_title') }}</a>
 	</li>
 @endsection
 
@@ -35,7 +35,7 @@
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
-				<span class="text-lg text-bold">PERSONNEL MANAGEMENT</span>
+				<span class="text-lg text-bold">{{ __('personnel.module_title') }}</span>
 			</div>
 			<!-- Separator with title -->
 			{{-- <li class="list-group-item bg-black sidebar-separator-title text-muted d-flex align-items-center menu-collapsed">
@@ -49,7 +49,7 @@
 			<a href="{{ route('personnel-home') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
-					<span class="menu-collapsed">Dashboard</span>
+					<span class="menu-collapsed">{{ __('personnel.dashboard') }}</span>
 				</div>
 			</a>
 			@endif
@@ -57,7 +57,7 @@
 			<a href="{{ route('personnel-list') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-format-list-bulleted fa-fw mr-3"></span>
-					<span class="menu-collapsed">Personnel List</span>
+					<span class="menu-collapsed">{{ __('personnel.personnel_list') }}</span>
 				</div>
 			</a>
 			@endif
@@ -65,7 +65,7 @@
 			<a href="/organizational-departments" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-home-group fa-fw mr-3"></span>
-					<span class="menu-collapsed">Departments</span>
+					<span class="menu-collapsed">{{ __('personnel.departments') }}</span>
 				</div>
 			</a>
 			@endif
@@ -73,7 +73,7 @@
 			<a href="/organizational-roles" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-key fa-fw mr-3"></span>
-					<span class="menu-collapsed">Roles</span>
+					<span class="menu-collapsed">{{ __('personnel.roles') }}</span>
 				</div>
 			</a>
 			@endif
@@ -87,7 +87,7 @@
 			<a href="{{ route('get-audit-logs') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-search fa-fw mr-3"></span>
-					<span class="menu-collapsed">Audit Trail</span>
+					<span class="menu-collapsed">{{ __('personnel.audit_trail') }}</span>
 				</div>
 			</a>
 			@endif
@@ -95,7 +95,7 @@
 			<a href="{{ route('locked-accounts') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-lock fa-fw mr-3"></span>
-					<span class="menu-collapsed">Locked Accounts</span>
+					<span class="menu-collapsed">{{ __('personnel.locked_accounts') }}</span>
 				</div>
 			</a>
 			@endif
@@ -103,7 +103,7 @@
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
-					<span class="menu-collapsed">Configurations</span>
+					<span class="menu-collapsed">{{ __('personnel.configuration') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -125,7 +125,7 @@
 				@endif
 				@if($canPersonnelConfigurations)
 				<a href="{{ route('personnel-certification-home') }}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Certifications</span>
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ __('personnel.certifications') }}</span>
 				</a>
 				@endif
 			</div>

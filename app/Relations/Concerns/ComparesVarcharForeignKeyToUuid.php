@@ -2,20 +2,12 @@
 
 namespace App\Relations\Concerns;
 
-use Illuminate\Support\Facades\DB;
+use App\Support\VarcharUuidSql;
 
 trait ComparesVarcharForeignKeyToUuid
 {
     protected function varcharForeignKeyMatchesUuidColumnSql(string $varcharQualifiedColumn, string $uuidQualifiedColumn): string
     {
-        if (DB::connection()->getDriverName() === 'pgsql') {
-            return sprintf(
-                "NULLIF(TRIM(%s::text), '') = NULLIF(TRIM(%s::text), '')",
-                $varcharQualifiedColumn,
-                $uuidQualifiedColumn,
-            );
-        }
-
-        return sprintf('%s = %s', $varcharQualifiedColumn, $uuidQualifiedColumn);
+        return VarcharUuidSql::equals($varcharQualifiedColumn, $uuidQualifiedColumn);
     }
 }

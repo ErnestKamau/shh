@@ -42,6 +42,13 @@ class TranslationsExport implements FromCollection, WithHeadings
 
     public function headings(): array
     {
-        return array_merge(['group', 'key'], $this->languageCodes);
+        $languageHeaders = Language::query()
+            ->active()
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Language $language): string => $language->name . ' (' . $language->code . ')')
+            ->all();
+
+        return array_merge(['Module', 'Key'], $languageHeaders);
     }
 }

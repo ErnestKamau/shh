@@ -91,8 +91,8 @@
 					<th>SAP Code</th>
 					<th>Item</th>
 					<th>Code</th>
-					<th>{{ __('Stock In') }}</th>
-					<th>{{ __('Stock Out') }}</th>
+					<th>{{ __('inventory.stock_in') }}</th>
+					<th>{{ __('inventory.stock_out') }}</th>
 					<th>UoM</th>
 					<th>Cost Center</th>
 					<th>Store</th>

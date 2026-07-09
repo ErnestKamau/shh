@@ -1,7 +1,12 @@
 @php
     $label = (string) ($element->label ?? $element->name);
     $type = (string) ($element->element_type ?? 'text');
+    $name = (string) ($element->name ?? '');
     $required = (bool) ($element->is_required ?? false);
+    $rowIndex = null;
+    if (preg_match('/\.(\d+)$/', (string) $wirePrefix, $rowIndexMatch)) {
+        $rowIndex = (int) $rowIndexMatch[1];
+    }
 @endphp
 
 <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
@@ -66,11 +71,66 @@
         @endif
         @break
     @case('signature')
+    @case('contact_signature')
+        <div class="acc-signature-pad trf-signature-pad" wire:ignore>
+            <canvas
+                id="trf-sig-{{ $fieldId }}-canvas"
+                class="trf-signature-canvas"
+                data-field="{{ $fieldId }}"
+                data-livewire-model="{{ $wirePrefix }}"
+                style="width: 100%; height: 120px; touch-action: none;"
+            ></canvas>
+            <div class="acc-signature-actions mt-2">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary trf-signature-clear"
+                    data-canvas="trf-sig-{{ $fieldId }}-canvas"
+                    data-input="field_{{ $fieldId }}"
+                >Clear</button>
+            </div>
+        </div>
         <input type="hidden" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}">
-        <div class="small text-muted">Signature captured on submit</div>
+        @break
+    @case('analysis_type_select')
+        <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
+            <option value="">-- Select Analysis Type --</option>
+            @foreach($this->analysisTypes as $analysisType)
+                <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
+            @endforeach
+        </select>
+        @break
+    @case('analysis_elements_select')
+        @include('livewire.partials.walk-in-trf-parameters-cell', [
+            'fieldId' => $fieldId,
+            'rowIndex' => $rowIndex ?? 0,
+            'wirePrefix' => $wirePrefix,
+            'compact' => false,
+        ])
+        @if($this->parametersForRow($rowIndex)->isEmpty())
+            <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
+        @endif
         @break
     @default
-        <input type="text" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}" class="form-control form-control-sm">
+        @if($name === 'analysis_type_id')
+            <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
+                <option value="">-- Select Analysis Type --</option>
+                @foreach($this->analysisTypes as $analysisType)
+                    <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
+                @endforeach
+            </select>
+        @elseif(in_array($name, ['parameter', 'parameters'], true))
+            @include('livewire.partials.walk-in-trf-parameters-cell', [
+                'fieldId' => $fieldId,
+                'rowIndex' => $rowIndex ?? 0,
+                'wirePrefix' => $wirePrefix,
+                'compact' => false,
+            ])
+            @if($this->parametersForRow($rowIndex)->isEmpty())
+                <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
+            @endif
+        @else
+            <input type="text" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}" class="form-control form-control-sm">
+        @endif
 @endswitch
 
 @error(str_replace('formData.', 'formData.', $wirePrefix))

@@ -7,6 +7,7 @@ use App\Models\SamplingSchedule;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\SubmissionForm;
+use App\Models\SubmissionFormElement;
 use App\SampleType;
 use App\AnalysisType;
 use App\AnalysisElements;
@@ -825,6 +826,13 @@ class ScheduleSamplingManager extends Component
         $this->showFormModal = true;
     }
 
+    public function updatedShowFormModal(bool $value): void
+    {
+        if ($value) {
+            $this->dispatch('schedule-trf-reinit-widgets');
+        }
+    }
+
     public function getSelectedSampleTypeProperty()
     {
         if (!$this->selectedSampleTypeId) {
@@ -1004,12 +1012,12 @@ class ScheduleSamplingManager extends Component
                     $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
                     if (($section->section_type ?? '') === 'rows_section') {
                         foreach ($elements as $element) {
-                            $this->formData[$element->name] = [$element->element_type === 'checkbox' ? false : ''];
+                            $this->formData[$element->name] = [$this->defaultValueForElement($element)];
                         }
                         continue;
                     }
                     foreach ($elements as $element) {
-                        $this->formData[$element->name] = $element->element_type === 'checkbox' ? false : '';
+                        $this->formData[$element->name] = $this->defaultValueForElement($element);
                     }
                 }
             }
@@ -1075,33 +1083,25 @@ class ScheduleSamplingManager extends Component
                     }
 
                     if ($matchingEntry) {
-                        $analysisTypeName = '';
-                        if (!empty($matchingEntry['analysis_type_id'])) {
-                            $at = \App\AnalysisType::find($matchingEntry['analysis_type_id']);
-                            if ($at) {
-                                $analysisTypeName = $at->name;
-                            }
-                        }
-
-                        if ($analysisTypeName) {
-                            foreach (['analysis_type', 'analysis_types'] as $k) {
-                                if (array_key_exists($k, $this->formData)) {
-                                    $this->formData[$k] = $analysisTypeName;
-                                }
+                        if (! empty($matchingEntry['analysis_type_id'])) {
+                            if (array_key_exists('analysis_type_id', $this->formData) && is_array($this->formData['analysis_type_id'])) {
+                                $this->formData['analysis_type_id'][0] = (string) $matchingEntry['analysis_type_id'];
+                            } elseif (array_key_exists('analysis_type_id', $this->formData)) {
+                                $this->formData['analysis_type_id'] = (string) $matchingEntry['analysis_type_id'];
                             }
                         }
 
                         $parameterNames = [];
                         $parameterIds = $matchingEntry['parameters'] ?? [];
-                        if (!empty($parameterIds) && is_array($parameterIds)) {
+                        if (! empty($parameterIds) && is_array($parameterIds)) {
                             $parameterNames = \App\Analyte::whereIn('id', $parameterIds)->pluck('name')->toArray();
                         }
 
-                        if (!empty($parameterNames)) {
-                            foreach (['parameter', 'parameters'] as $k) {
-                                if (array_key_exists($k, $this->formData)) {
-                                    $this->formData[$k] = $parameterNames[0] ?? '';
-                                }
+                        if (! empty($parameterNames)) {
+                            if (array_key_exists('parameters', $this->formData) && is_array($this->formData['parameters'])) {
+                                $this->formData['parameters'][0] = $parameterNames;
+                            } elseif (array_key_exists('parameters', $this->formData)) {
+                                $this->formData['parameters'] = $parameterNames;
                             }
                         }
 
@@ -1113,10 +1113,42 @@ class ScheduleSamplingManager extends Component
                 }
             }
         }
+
+        if ($value) {
+            $this->dispatch('schedule-trf-reinit-widgets');
+        }
     }
 
     public function updated($propertyName, $value): void
     {
+        if (preg_match('/^formData\.analysis_type_id(?:\.(\d+))?$/', $propertyName, $matches)) {
+            $rowIndex = isset($matches[1]) ? (int) $matches[1] : null;
+
+            if ($rowIndex !== null) {
+                if (isset($this->formData['parameters'][$rowIndex])) {
+                    $this->formData['parameters'][$rowIndex] = [];
+                }
+
+                $this->dispatch(
+                    'schedule-trf-params-row-reset',
+                    rowIndex: $rowIndex,
+                    options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(),
+                    selected: [],
+                );
+            } elseif (array_key_exists('parameters', $this->formData)) {
+                $this->formData['parameters'] = is_array($this->formData['parameters']) ? [] : '';
+
+                $this->dispatch(
+                    'schedule-trf-params-row-reset',
+                    rowIndex: 0,
+                    options: $this->parametersForRow(0)->pluck('name')->values()->all(),
+                    selected: [],
+                );
+            }
+
+            return;
+        }
+
         $fieldKey = str_replace('formData.', '', $propertyName);
 
         // Prefill customer details when customer is selected
@@ -1142,13 +1174,136 @@ class ScheduleSamplingManager extends Component
         }
 
         // Clear parameter selection when analysis type changes
-        if (in_array($fieldKey, ['analysis_type', 'analysis_types'], true)) {
+        if (in_array($fieldKey, ['analysis_type', 'analysis_types', 'analysis_type_id'], true)) {
             foreach (['parameter', 'parameters'] as $paramKey) {
-                if (array_key_exists($paramKey, $this->formData)) {
-                    $this->formData[$paramKey] = '';
+                if (! array_key_exists($paramKey, $this->formData)) {
+                    continue;
                 }
+
+                $this->formData[$paramKey] = is_array($this->formData[$paramKey]) ? [] : '';
             }
         }
+    }
+
+    public function addSchemaRow(string $sectionId): void
+    {
+        $form = $this->submissionForm;
+        if ($form === null) {
+            return;
+        }
+
+        $section = $form->sections->firstWhere('id', $sectionId);
+        if ($section === null || ($section->section_type ?? '') !== 'rows_section') {
+            return;
+        }
+
+        foreach ($section->elementHolders->flatMap->elements as $element) {
+            $existing = $this->formData[$element->name] ?? [];
+            if (! is_array($existing)) {
+                $existing = [];
+            }
+            $existing[] = $this->defaultValueForElement($element);
+            $this->formData[$element->name] = $existing;
+        }
+
+        $this->dispatch('schedule-trf-reinit-widgets');
+    }
+
+    public function removeSchemaRow(string $sectionId, int $rowIndex): void
+    {
+        $form = $this->submissionForm;
+        if ($form === null) {
+            return;
+        }
+
+        $section = $form->sections->firstWhere('id', $sectionId);
+        if ($section === null || ($section->section_type ?? '') !== 'rows_section') {
+            return;
+        }
+
+        foreach ($section->elementHolders->flatMap->elements as $element) {
+            $name = (string) ($element->name ?? '');
+            if ($name === '' || ! isset($this->formData[$name]) || ! is_array($this->formData[$name])) {
+                continue;
+            }
+
+            unset($this->formData[$name][$rowIndex]);
+            $this->formData[$name] = array_values($this->formData[$name]);
+        }
+    }
+
+    private function defaultValueForElement(SubmissionFormElement $element): mixed
+    {
+        if ($element->element_type === 'checkbox') {
+            $options = $element->options ?? [];
+
+            if (($element->name ?? '') === 'test_requirements') {
+                return '';
+            }
+
+            return is_array($options) && $options !== [] ? [] : false;
+        }
+
+        if ($element->element_type === 'analysis_elements_select' || ($element->name ?? '') === 'parameters') {
+            return [];
+        }
+
+        return '';
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, \App\Analyte>
+     */
+    public function parametersForRow(?int $rowIndex = null): \Illuminate\Support\Collection
+    {
+        if (! $this->selectedSampleTypeId) {
+            return collect();
+        }
+
+        $atName = null;
+        $atId = null;
+
+        foreach (['analysis_type', 'analysis_types'] as $key) {
+            if ($rowIndex !== null) {
+                if (! empty($this->formData[$key][$rowIndex] ?? null)) {
+                    $atName = $this->formData[$key][$rowIndex];
+                    break;
+                }
+            } elseif (! empty($this->formData[$key])) {
+                $atName = $this->formData[$key];
+                break;
+            }
+        }
+
+        if ($rowIndex !== null) {
+            $atId = $this->formData['analysis_type_id'][$rowIndex] ?? null;
+        } elseif (! empty($this->formData['analysis_type_id'])) {
+            $atId = is_array($this->formData['analysis_type_id'])
+                ? null
+                : $this->formData['analysis_type_id'];
+        }
+
+        if ($atId) {
+            $at = AnalysisType::query()
+                ->where('sample_type_id', $this->selectedSampleTypeId)
+                ->where('id', $atId)
+                ->first();
+        } elseif ($atName) {
+            $at = AnalysisType::query()
+                ->where('sample_type_id', $this->selectedSampleTypeId)
+                ->where('name', $atName)
+                ->first();
+        } else {
+            return collect();
+        }
+
+        if (! $at) {
+            return collect();
+        }
+
+        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at): void {
+            $q->where('analysis_type_id', $at->id)->where('active', true);
+        })->orderBy('name')->get();
     }
 
     public function getCustomersProperty()
@@ -1158,36 +1313,20 @@ class ScheduleSamplingManager extends Component
 
     public function getAnalysisTypesProperty()
     {
-        if (!$this->selectedSampleTypeId) {
+        if (! $this->selectedSampleTypeId) {
             return collect();
         }
-        return \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)->orderBy('name')->get();
+
+        return AnalysisType::query()
+            ->where('sample_type_id', $this->selectedSampleTypeId)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     public function getParametersProperty()
     {
-        if (!$this->selectedSampleTypeId) {
-            return collect();
-        }
-        $atName = null;
-        foreach (['analysis_type', 'analysis_types'] as $key) {
-            if (!empty($this->formData[$key])) {
-                $atName = $this->formData[$key];
-                break;
-            }
-        }
-        if (!$atName) {
-            return collect();
-        }
-        $at = \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)
-            ->where('name', $atName)
-            ->first();
-        if (!$at) {
-            return collect();
-        }
-        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at) {
-            $q->where('analysis_type_id', $at->id)->where('active', 1);
-        })->orderBy('name')->get();
+        return $this->parametersForRow(null);
     }
 
     public function saveScheduleForm()

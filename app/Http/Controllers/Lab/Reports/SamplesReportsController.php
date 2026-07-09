@@ -17,19 +17,9 @@ use App\Models\CRM\CRMCustomer;
 use App\PricelistCustomer;
 use App\Pricelist;
 use App\SampleType;
-use App\Exports\Lab\LaboratoryKpiDetailExport;
-use App\Exports\Lab\LaboratoryKpiSummaryExport;
-use App\Exports\Lab\RegistrationKpiDetailExport;
-use App\Exports\Lab\RegistrationKpiSummaryExport;
 use App\Services\Lab\SampleWorkflowKpiStatisticsService;
-use Barryvdh\DomPDF\Facade as pdfdom;
-use PDF;
-
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SamplesReportsController extends Controller
 {
@@ -45,83 +35,35 @@ class SamplesReportsController extends Controller
         $registrationKpiPeriod = $this->resolveRegistrationKpiPeriodMetrics($request);
         $laboratoryKpiPeriod = $this->resolveLaboratoryKpiPeriodMetrics($request);
 
+        [$registrationStart, $registrationEnd] = $this->resolveKpiDateRange($request, 'kpi_start_date', 'kpi_end_date');
+        [$laboratoryStart, $laboratoryEnd] = $this->resolveKpiDateRange($request, 'lab_kpi_start_date', 'lab_kpi_end_date');
+
+        $registrationDetailRows = $this->kpiStatisticsService->getRegistrationDetailRows($registrationStart, $registrationEnd);
+        $registrationDetailRows = $this->kpiStatisticsService->filterRegistrationDetailRows(
+            $registrationDetailRows,
+            $this->registrationFiltersFromRequest($request)
+        );
+
+        $laboratoryDetailRows = $this->kpiStatisticsService->getLaboratoryDetailRows($laboratoryStart, $laboratoryEnd);
+        $laboratoryDetailRows = $this->kpiStatisticsService->filterLaboratoryDetailRows(
+            $laboratoryDetailRows,
+            $this->laboratoryFiltersFromRequest($request)
+        );
+
+        $activeKpiTab = $request->string('kpi_tab')->toString() ?: 'overview';
+        $registrationFilters = $this->registrationFiltersFromRequest($request);
+        $laboratoryFilters = $this->laboratoryFiltersFromRequest($request);
+
         return view('layouts.lab.reports.index', compact(
             'metrics',
             'registrationKpiPeriod',
             'laboratoryKpiPeriod',
+            'registrationDetailRows',
+            'laboratoryDetailRows',
+            'activeKpiTab',
+            'registrationFilters',
+            'laboratoryFilters',
         ));
-    }
-
-    public function exportRegistrationKpiSummary(Request $request): BinaryFileResponse
-    {
-        [$startDate, $endDate] = $this->validatedExportDates($request);
-
-        $rows = $this->kpiStatisticsService->getRegistrationDailyRows($startDate, $endDate);
-        $filename = sprintf(
-            'registration-kpis-summary-%s-to-%s.xlsx',
-            $startDate->format('Y-m-d'),
-            $endDate->format('Y-m-d')
-        );
-
-        return Excel::download(new RegistrationKpiSummaryExport($rows), $filename);
-    }
-
-    public function exportRegistrationKpiDetail(Request $request): BinaryFileResponse
-    {
-        [$startDate, $endDate] = $this->validatedExportDates($request);
-
-        $rows = $this->kpiStatisticsService->getRegistrationDetailRows($startDate, $endDate);
-        $filename = sprintf(
-            'registration-kpis-detail-%s-to-%s.xlsx',
-            $startDate->format('Y-m-d'),
-            $endDate->format('Y-m-d')
-        );
-
-        return Excel::download(new RegistrationKpiDetailExport($rows), $filename);
-    }
-
-    public function exportLaboratoryKpiSummary(Request $request): BinaryFileResponse
-    {
-        [$startDate, $endDate] = $this->validatedExportDates($request);
-
-        $rows = $this->kpiStatisticsService->getLaboratoryDailyRows($startDate, $endDate);
-        $filename = sprintf(
-            'laboratory-kpis-summary-%s-to-%s.xlsx',
-            $startDate->format('Y-m-d'),
-            $endDate->format('Y-m-d')
-        );
-
-        return Excel::download(new LaboratoryKpiSummaryExport($rows), $filename);
-    }
-
-    public function exportLaboratoryKpiDetail(Request $request): BinaryFileResponse
-    {
-        [$startDate, $endDate] = $this->validatedExportDates($request);
-
-        $rows = $this->kpiStatisticsService->getLaboratoryDetailRows($startDate, $endDate);
-        $filename = sprintf(
-            'laboratory-kpis-detail-%s-to-%s.xlsx',
-            $startDate->format('Y-m-d'),
-            $endDate->format('Y-m-d')
-        );
-
-        return Excel::download(new LaboratoryKpiDetailExport($rows), $filename);
-    }
-
-    /**
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    private function validatedExportDates(Request $request): array
-    {
-        $request->validate([
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-        ]);
-
-        $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
-        $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
-
-        return [$startDate, $endDate];
     }
 
     /**
@@ -139,7 +81,7 @@ class SamplesReportsController extends Controller
      */
     private function resolveLaboratoryKpiPeriodMetrics(Request $request): array
     {
-        [$startDate, $endDate] = $this->resolveKpiDateRange($request);
+        [$startDate, $endDate] = $this->resolveKpiDateRange($request, 'lab_kpi_start_date', 'lab_kpi_end_date');
 
         return $this->kpiStatisticsService->getLaboratoryPeriodMetrics($startDate, $endDate);
     }
@@ -147,17 +89,49 @@ class SamplesReportsController extends Controller
     /**
      * @return array{0: Carbon, 1: Carbon}
      */
-    private function resolveKpiDateRange(Request $request): array
+    private function resolveKpiDateRange(Request $request, string $startKey = 'kpi_start_date', string $endKey = 'kpi_end_date'): array
     {
-        $startDate = $request->filled('kpi_start_date')
-            ? Carbon::parse($request->input('kpi_start_date'))->startOfDay()
+        $startDate = $request->filled($startKey)
+            ? Carbon::parse($request->input($startKey))->startOfDay()
             : now()->startOfMonth();
 
-        $endDate = $request->filled('kpi_end_date')
-            ? Carbon::parse($request->input('kpi_end_date'))->endOfDay()
+        $endDate = $request->filled($endKey)
+            ? Carbon::parse($request->input($endKey))->endOfDay()
             : now()->endOfMonth();
 
         return [$startDate, $endDate];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function registrationFiltersFromRequest(Request $request): array
+    {
+        return [
+            'client' => $request->input('reg_client', ''),
+            'sampler_name' => $request->input('reg_sampler_name', ''),
+            'sampler_id' => $request->input('reg_sampler_id', ''),
+            'equipment_id' => $request->input('reg_equipment_id', ''),
+            'job_id' => $request->input('reg_job_id', ''),
+            'sample_id' => $request->input('reg_sample_id', ''),
+            'location' => $request->input('reg_location', ''),
+            'sampling_points' => $request->input('reg_sampling_points', ''),
+            'registered_by' => $request->input('reg_registered_by', ''),
+            'registration_type' => $request->input('reg_type', 'all'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function laboratoryFiltersFromRequest(Request $request): array
+    {
+        return [
+            'client' => $request->input('lab_client', ''),
+            'job_id' => $request->input('lab_job_id', ''),
+            'data_entry_status' => $request->input('lab_data_entry_status', 'all'),
+            'review_status' => $request->input('lab_review_status', ''),
+        ];
     }
 
     /**

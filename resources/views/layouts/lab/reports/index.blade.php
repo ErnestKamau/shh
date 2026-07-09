@@ -1,19 +1,19 @@
 @extends('layouts.lab.layout.app')
 @section('title2')
-<title> Laboratory Reports — Sample Workflow KPIs </title>
+<title> Sample Workflow — KPIs </title>
 @endsection
 @section('content2')
 <main>
     <?php
     $items = array(
         array(
-            'link' => 'equipment-home',
-            'name' => 'Equipment',
+            'link' => route('sample-workflow', ['status' => 'All Samples']),
+            'name' => 'Sample Workflow',
             'icon' => null
         ),
         array(
             'link' => null,
-            'name' => 'Reports',
+            'name' => 'Workflow KPIs',
             'icon' => null
         ),
 
@@ -28,6 +28,11 @@
         'metrics' => $metrics ?? [],
         'registrationKpiPeriod' => $registrationKpiPeriod ?? null,
         'laboratoryKpiPeriod' => $laboratoryKpiPeriod ?? null,
+        'registrationDetailRows' => $registrationDetailRows ?? [],
+        'laboratoryDetailRows' => $laboratoryDetailRows ?? [],
+        'activeKpiTab' => $activeKpiTab ?? 'overview',
+        'registrationFilters' => $registrationFilters ?? [],
+        'laboratoryFilters' => $laboratoryFilters ?? [],
     ])
 
     {{--

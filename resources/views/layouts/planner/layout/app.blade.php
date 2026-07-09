@@ -2,7 +2,7 @@
 
 @section('module-name')
 <li class="nav-item">
-    <a class="nav-link module-name" href="{{ route('full-calendar') }}"><i class="mdi mdi-calendar"></i> System Planner</a>
+    <a class="nav-link module-name" href="{{ route('full-calendar') }}"><i class="mdi mdi-calendar"></i> {{ __('planner.module_name') }}</a>
 </li>
 @endsection
 
@@ -461,27 +461,41 @@
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-calendar-text fa-3x"></i><br>
-				<span class="text-lg text-bold">System Planner</span>
+				<span class="text-lg text-bold">{{ __('planner.module_name') }}</span>
 			</div>
 
 			<a href="{{ route('full-calendar') }}" class="list-group-item list-group-item-action {{ request()->routeIs('full-calendar') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calendar fa-fw mr-1"></span>
-					<span class="menu-collapsed">Dashboard</span>
+					<span class="menu-collapsed">{{ __('planner.dashboard') }}</span>
 				</div>
 			</a>
 
 			<a href="{{ route('system-planner.schedule-sampling') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.schedule-sampling') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clock-outline fa-fw mr-1"></span>
-					<span class="menu-collapsed">Schedule Sampling</span>
+					<span class="menu-collapsed">{{ __('planner.schedule_sampling') }}</span>
+				</div>
+			</a>
+
+			<a href="{{ route('system-planner.actual-collections') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.actual-collections') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-clipboard-check-outline fa-fw mr-1"></span>
+					<span class="menu-collapsed">{{ __('planner.actual_collections') }}</span>
+				</div>
+			</a>
+
+			<a href="{{ route('system-planner.kpi-reports') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.kpi-reports') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-chart-timeline-variant fa-fw mr-1"></span>
+					<span class="menu-collapsed">{{ __('planner.kpi_reports') }}</span>
 				</div>
 			</a>
 			
 			<a href="{{ route('system-planner.tasks') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.tasks') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calendar-text-outline fa-fw mr-1"></span>
-					<span class="menu-collapsed">Tasks</span>
+					<span class="menu-collapsed">{{ __('planner.tasks') }}</span>
 				</div>
 			</a>
 

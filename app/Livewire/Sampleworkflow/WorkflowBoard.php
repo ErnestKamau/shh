@@ -34,6 +34,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use App\Support\VarcharUuidSql;
 use Throwable;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -816,9 +817,9 @@ class WorkflowBoard extends Component
                             ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -886,9 +887,9 @@ class WorkflowBoard extends Component
                             })
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -957,9 +958,9 @@ class WorkflowBoard extends Component
                             ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -1001,9 +1002,9 @@ class WorkflowBoard extends Component
                             })
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -1397,9 +1398,9 @@ class WorkflowBoard extends Component
                                         ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
                                         ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                             $linkQuery
-                                                ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                                ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                                 ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                                    $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                                    $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                                 })
                                                 ->orWhere(function ($portalLink) use ($driver): void {
                                                     $portalLink->when($driver === 'pgsql', function ($query): void {

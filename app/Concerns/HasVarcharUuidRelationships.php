@@ -4,6 +4,7 @@ namespace App\Concerns;
 
 use App\Relations\UuidBelongsTo;
 use App\Relations\UuidHasMany;
+use App\Relations\UuidHasOne;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -47,6 +48,25 @@ trait HasVarcharUuidRelationships
         $localKey = $localKey ?: $this->getKeyName();
 
         return new UuidHasMany(
+            $instance->newQuery(),
+            $this,
+            $foreignKey,
+            $localKey,
+        );
+    }
+
+    /**
+     * @param  class-string<Model>  $related
+     */
+    protected function uuidHasOne($related, ?string $foreignKey = null, ?string $localKey = null): UuidHasOne
+    {
+        $instance = $this->newRelatedInstance($related);
+
+        $foreignKey = $foreignKey ?: $instance->getForeignKey();
+
+        $localKey = $localKey ?: $this->getKeyName();
+
+        return new UuidHasOne(
             $instance->newQuery(),
             $this,
             $foreignKey,

@@ -731,5 +731,15 @@ class EventController extends Controller
     {
         return view('layouts.planner.schedule_sampling');
     }
+
+    public function actualCollectionsIndex()
+    {
+        return view('layouts.planner.actual_collections');
+    }
+
+    public function kpiReportsIndex()
+    {
+        return view('layouts.planner.kpi_reports');
+    }
 }
 
