@@ -60,7 +60,7 @@
     <div class="change-card">
 
         <div class="text-center">
-            <img src="/images/imara-sys.png" class="brand-logo" alt="{{ config('app.name') }}">
+            @include('layouts.partials.auth-logo', ['authLogoClass' => 'brand-logo'])
         </div>
 
         @if (session('password_expired') || auth()->user()->isPasswordExpired())

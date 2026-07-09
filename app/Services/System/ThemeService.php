@@ -3,6 +3,7 @@
 namespace App\Services\System;
 
 use App\Models\System\SystemConfiguration;
+use App\Models\System\SystemConfigurationsType;
 use Illuminate\Support\Facades\Cache;
 
 class ThemeService
@@ -19,19 +20,41 @@ class ThemeService
 
     public const SIDEBAR_LINK_BG = 'rgba(255, 255, 255, 0.08)';
 
-    public const PRIMARY_TINT = '#DAF2FA';
-
     public const BACKGROUND = '#F8FAFC';
 
     public const QUOTATION_PRIMARY = '#00A7DF';
 
-    /** @var array<string, string> */
-    public const CONFIG_DEFAULTS = [
+    public const AMSPEC_PRIMARY = '#6D0A0E';
+
+    public const AMSPEC_PRIMARY_HOVER = '#8B1E22';
+
+    public const AMSPEC_QUOTATION_PRIMARY = '#6D0A0E';
+
+    /** @var array<string, string> Kenya Dairy Board (cyan) palette */
+    public const KDB_THEME = [
         'sys_theme_primary_color' => self::PRIMARY,
         'sys_theme_secondary_color' => self::PRIMARY_HOVER,
         'sys_theme_accent_color' => self::ACCENT,
         'sys_sidebar_bg_color' => self::SIDEBAR_BG,
         'sys_sidebar_link_bg' => self::SIDEBAR_LINK_BG,
+    ];
+
+    /** @var array<string, string> AmSpec (maroon / burgundy) palette */
+    public const AMSPEC_THEME = [
+        'sys_theme_primary_color' => self::AMSPEC_PRIMARY,
+        'sys_theme_secondary_color' => self::AMSPEC_PRIMARY_HOVER,
+        'sys_theme_accent_color' => '#ffffff',
+        'sys_sidebar_bg_color' => self::AMSPEC_PRIMARY,
+        'sys_sidebar_link_bg' => 'rgba(255, 255, 255, 0.08)',
+    ];
+
+    /** @var array<string, string> */
+    public const CONFIG_DEFAULTS = self::KDB_THEME;
+
+    /** @var array<string, array<string, string>> */
+    public const PRESETS = [
+        'amspec' => self::AMSPEC_THEME,
+        'kdb' => self::KDB_THEME,
     ];
 
     /**
@@ -74,19 +97,90 @@ class ThemeService
         return ($yiq >= 128) ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.6)';
     }
 
+    public static function sidebarHoverColor(string $sidebarBg, string $secondary): string
+    {
+        $rgb = self::hexToRgb($sidebarBg);
+        $yiq = (($rgb['r'] * 299) + ($rgb['g'] * 587) + ($rgb['b'] * 114)) / 1000;
+
+        return ($yiq >= 128) ? '#e5e7eb' : $secondary;
+    }
+
+    public static function tintFromHex(string $hex, float $whiteMix = 0.92): string
+    {
+        $rgb = self::hexToRgb($hex);
+
+        $r = (int) round($rgb['r'] + (255 - $rgb['r']) * $whiteMix);
+        $g = (int) round($rgb['g'] + (255 - $rgb['g']) * $whiteMix);
+        $b = (int) round($rgb['b'] + (255 - $rgb['b']) * $whiteMix);
+
+        return sprintf('#%02X%02X%02X', $r, $g, $b);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function applyPreset(string $preset): array
+    {
+        $palette = self::PRESETS[$preset] ?? null;
+
+        if ($palette === null) {
+            throw new \InvalidArgumentException("Unknown theme preset [{$preset}]. Use: ".implode(', ', array_keys(self::PRESETS)));
+        }
+
+        $type = SystemConfigurationsType::query()->firstOrCreate(
+            ['configuration_type' => 'Global System Theme Settings'],
+            [
+                'description' => 'Manage colors and aesthetics globally across all modules, including primary highlight colors and sidebar styles.',
+                'status' => true,
+            ]
+        );
+
+        foreach ($palette as $key => $value) {
+            SystemConfiguration::query()->updateOrCreate(
+                ['key' => $key],
+                [
+                    'configuration_type_id' => $type->id,
+                    'value' => $value,
+                    'status' => true,
+                ]
+            );
+        }
+
+        $quotationType = SystemConfigurationsType::query()->where('configuration_type', 'Quotation Report')->first();
+
+        if ($quotationType) {
+            $quotationPrimary = $preset === 'amspec'
+                ? self::AMSPEC_QUOTATION_PRIMARY
+                : self::QUOTATION_PRIMARY;
+
+            SystemConfiguration::query()->updateOrCreate(
+                ['key' => 'sys_quotation_primary_color'],
+                [
+                    'configuration_type_id' => $quotationType->id,
+                    'value' => $quotationPrimary,
+                    'status' => true,
+                ]
+            );
+        }
+
+        self::forgetCache();
+
+        return $palette;
+    }
+
     /**
      * @return array<string, string>
      */
     public static function resolvedVariables(): array
     {
         return Cache::rememberForever('global_theme_variables', function () {
-            $keys = array_keys(self::CONFIG_DEFAULTS);
+            $keys = array_keys(self::KDB_THEME);
             $configs = SystemConfiguration::whereIn('key', $keys)->get()->keyBy('key');
 
-            $primary = optional($configs->get('sys_theme_primary_color'))->value ?? self::PRIMARY;
-            $secondary = optional($configs->get('sys_theme_secondary_color'))->value ?? self::PRIMARY_HOVER;
-            $accent = optional($configs->get('sys_theme_accent_color'))->value ?? self::ACCENT;
-            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? self::SIDEBAR_BG;
+            $primary = optional($configs->get('sys_theme_primary_color'))->value ?? self::AMSPEC_PRIMARY;
+            $secondary = optional($configs->get('sys_theme_secondary_color'))->value ?? self::AMSPEC_PRIMARY_HOVER;
+            $accent = optional($configs->get('sys_theme_accent_color'))->value ?? '#ffffff';
+            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? self::AMSPEC_PRIMARY;
             $sidebarLinkBg = optional($configs->get('sys_sidebar_link_bg'))->value ?? self::SIDEBAR_LINK_BG;
 
             return [
@@ -95,6 +189,7 @@ class ThemeService
                 'accent' => $accent,
                 'sidebar_bg' => $sidebarBg,
                 'sidebar_link_bg' => $sidebarLinkBg,
+                'sidebar_hover' => self::sidebarHoverColor($sidebarBg, $secondary),
                 'sidebar_text' => self::sidebarTextColor($sidebarBg),
                 'sidebar_text_muted' => self::sidebarTextMutedColor($sidebarBg),
                 'primary_soft' => self::rgbaFromHex($primary, 0.08),
@@ -106,7 +201,7 @@ class ThemeService
                 'primary_soft_medium' => self::rgbaFromHex($primary, 0.05),
                 'primary_highlight' => self::rgbaFromHex($primary, 0.15),
                 'primary_glow' => self::rgbaFromHex($primary, 0.4),
-                'primary_tint' => self::PRIMARY_TINT,
+                'primary_tint' => self::tintFromHex($primary),
             ];
         });
     }
