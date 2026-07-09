@@ -16,6 +16,7 @@ use Database\Seeders\Setup\AuditModulePermissionsSeeder;
 use Database\Seeders\Setup\RiskModulePermissionsSeeder;
 use Database\Seeders\Setup\DmsModulePermissionsSeeder;
 use Database\Seeders\Setup\LabModulePermissionsSeeder;
+use Database\Seeders\Setup\SubmissionFormPermissionsSeeder;
 use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
 use Database\Seeders\Setup\RegistryModuleDataSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
@@ -41,6 +42,7 @@ class DatabaseSeeder extends Seeder
             PersonnelPermissionsSeeder::class,
             CRMPermissionsSeeder::class,
             LabModulePermissionsSeeder::class,
+            SubmissionFormPermissionsSeeder::class,
             AuditModulePermissionsSeeder::class,
             RiskModulePermissionsSeeder::class,
             DmsModulePermissionsSeeder::class,

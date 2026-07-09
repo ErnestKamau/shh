@@ -197,17 +197,23 @@ class AcceptanceFormWizard extends Component
                 );
             }
         } else {
-            $prefillLines = collect($quotationLines)->map(function (array $line, int $index) {
-                return [
-                    'line_no' => $index + 1,
-                    'row_index' => $index,
-                    'sample_type_id' => $line['sample_type_id'] ?? null,
-                    'analysis_type_id' => $line['analysis_type_id'] ?? null,
-                    'analysis_element_id' => $line['analysis_element_id'] ?? null,
-                    'parameter_label' => $line['parameter_label'] ?? '',
-                    'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
-                ];
-            })->values()->all();
+            $prefillLines = $enquiry !== null
+                ? $configService->buildPrefillLinesFromEnquiry($enquiry, collect($quotationLines)->map(function (array $line, int $index): array {
+                    return array_merge($line, [
+                        'row_index' => $line['row_index'] ?? $index,
+                        'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
+                    ]);
+                })->all())
+                : collect($quotationLines)->map(function (array $line, int $index): array {
+                    return [
+                        'row_index' => $index,
+                        'sample_type_id' => $line['sample_type_id'] ?? null,
+                        'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                        'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                        'parameter_label' => $line['parameter_label'] ?? '',
+                        'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
+                    ];
+                })->values()->all();
 
             $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
             $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);

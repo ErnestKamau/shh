@@ -117,6 +117,30 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * Build prefill rows for sample configuration from enquiry TRF data.
+     * TRF sample_lines represent physical samples; quotation lines are per-parameter.
+     *
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    public function buildPrefillLinesFromEnquiry(
+        SampleSubmissionRequest $enquiry,
+        array $quotationLines = [],
+    ): array {
+        $sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+
+        if ($sampleLines !== []) {
+            return $this->buildPrefillLinesFromTrfSampleLines($enquiry, $sampleLines, $quotationLines);
+        }
+
+        if ($quotationLines !== []) {
+            return $this->buildPrefillLinesFromQuotationLines($enquiry, $quotationLines);
+        }
+
+        return [];
+    }
+
+    /**
      * Build acceptance sample configs from accepted quotation lines, merging reception fields
      * saved during Process Enquiry onto each per-sample row.
      *
@@ -1156,6 +1180,126 @@ class AcceptanceFormSampleConfigService
         }
 
         return null;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    private function buildPrefillLinesFromTrfSampleLines(
+        SampleSubmissionRequest $enquiry,
+        array $sampleLines,
+        array $quotationLines,
+    ): array {
+        $enquiry->loadMissing('requestedAnalyses');
+        $parametersByTypeKey = $enquiry->requestedAnalyses->groupBy(
+            fn ($analysis): string => (string) ($analysis->sample_type_id ?? '').'::'.(string) ($analysis->analysis_type_id ?? ''),
+        );
+
+        $prefill = [];
+
+        foreach (array_values($sampleLines) as $index => $line) {
+            $rowIndex = array_key_exists('sort_order', $line)
+                ? (int) $line['sort_order']
+                : (int) ($line['row_index'] ?? $index);
+            $sampleTypeId = $line['sample_type_id'] ?? $enquiry->sample_type_id ?? null;
+            $analysisTypeId = $line['analysis_type_id'] ?? $enquiry->matrix_id ?? null;
+            $typeKey = (string) ($sampleTypeId ?? '').'::'.(string) ($analysisTypeId ?? '');
+            $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $elementIds = is_array($attributes['analysis_element_ids'] ?? null)
+                ? array_values(array_filter(array_map('strval', $attributes['analysis_element_ids'])))
+                : [];
+
+            if ($elementIds === [] && $parametersByTypeKey->has($typeKey)) {
+                $elementIds = $parametersByTypeKey->get($typeKey)
+                    ->pluck('analysis_element_id')
+                    ->filter()
+                    ->map(fn ($id): string => (string) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
+
+            if ($elementIds === [] && count($sampleLines) === 1 && $quotationLines !== []) {
+                $elementIds = collect($quotationLines)
+                    ->pluck('analysis_element_id')
+                    ->filter()
+                    ->map(fn ($id): string => (string) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
+
+            if ($elementIds !== []) {
+                $attributes['analysis_element_ids'] = $elementIds;
+            }
+
+            $prefill[] = [
+                'row_index' => $rowIndex,
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_element_id' => $elementIds[0] ?? $line['analysis_element_id'] ?? null,
+                'parameter_label' => $line['parameter_label'] ?? 'Parameter',
+                'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? $enquiry->number_of_samples ?? 1)),
+                'customer_sample_id' => $line['sample_id'] ?? $line['customer_sample_id'] ?? null,
+                'sample_condition' => $line['sample_condition'] ?? null,
+                'sample_condition_id' => $line['sample_condition_id'] ?? null,
+                'attributes' => $attributes,
+            ];
+        }
+
+        return $prefill;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $quotationLines
+     * @return list<array<string, mixed>>
+     */
+    private function buildPrefillLinesFromQuotationLines(
+        SampleSubmissionRequest $enquiry,
+        array $quotationLines,
+    ): array {
+        $physicalSampleCount = max(1, (int) ($enquiry->number_of_samples ?? 1));
+
+        if ($physicalSampleCount === 1 && count($quotationLines) > 1) {
+            $first = $quotationLines[0];
+            $elementIds = collect($quotationLines)
+                ->pluck('analysis_element_id')
+                ->filter()
+                ->map(fn ($id): string => (string) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            return [[
+                'row_index' => (int) ($first['row_index'] ?? 0),
+                'sample_type_id' => $first['sample_type_id'] ?? null,
+                'analysis_type_id' => $first['analysis_type_id'] ?? null,
+                'analysis_element_id' => $elementIds[0] ?? null,
+                'parameter_label' => $first['parameter_label'] ?? 'Parameter',
+                'number_of_samples' => 1,
+                'customer_sample_id' => $first['customer_sample_id'] ?? null,
+                'sample_condition' => $first['sample_condition'] ?? null,
+                'sample_condition_id' => $first['sample_condition_id'] ?? null,
+                'attributes' => $elementIds !== [] ? ['analysis_element_ids' => $elementIds] : [],
+            ]];
+        }
+
+        return collect($quotationLines)->map(function (array $line, int $index): array {
+            return [
+                'row_index' => array_key_exists('row_index', $line) ? (int) $line['row_index'] : $index,
+                'sample_type_id' => $line['sample_type_id'] ?? null,
+                'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                'parameter_label' => $line['parameter_label'] ?? 'Parameter',
+                'number_of_samples' => max(1, (int) ($line['quantity'] ?? $line['number_of_samples'] ?? 1)),
+                'customer_sample_id' => $line['customer_sample_id'] ?? null,
+                'sample_condition' => $line['sample_condition'] ?? null,
+                'sample_condition_id' => $line['sample_condition_id'] ?? null,
+                'attributes' => is_array($line['attributes'] ?? null) ? $line['attributes'] : [],
+            ];
+        })->all();
     }
 
     /**

@@ -89,6 +89,7 @@ final class QuotationFromEnquiryService
             $header->is_draft = 0;
             $header->is_complete = 1;
             $header->is_approved = 1;
+            $header->show_unit_price_column = true;
             $header->save();
 
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
@@ -96,8 +97,15 @@ final class QuotationFromEnquiryService
             app(QuotationReportService::class)->seedDefaultTermsOfSale($header);
             app(QuotationReportService::class)->seedDefaultStructuredTerms($header);
 
-            $lines = $this->buildInlineLines($enquiry);
-            $this->persistInlineLines($header, $lines);
+            $storedConfig = is_array($enquiry->enquiry_sample_configuration)
+                ? $enquiry->enquiry_sample_configuration
+                : [];
+            if ($storedConfig === []) {
+                $lines = $this->buildInlineLines($enquiry);
+                if ($lines !== []) {
+                    $this->persistInlineLines($header, $lines);
+                }
+            }
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
@@ -200,22 +208,25 @@ final class QuotationFromEnquiryService
     public function buildInlineLinesFromAcceptanceLines(SampleSubmissionRequest $enquiry, array $acceptanceLines): array
     {
         $customerId = (string) $enquiry->crm_customer_id;
-        $pricelist = $this->pricingService->resolveCustomerAssignedPricelist($customerId);
+        $preferredPricelist = $this->pricingService->resolveCustomerAssignedPricelist($customerId);
         $lines = [];
 
         foreach ($acceptanceLines as $index => $line) {
             $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
             $elementId = (string) ($line['analysis_element_id'] ?? '');
-            $qty = max(1, (int) ($line['number_of_samples'] ?? $line['quantity'] ?? 1));
+            $physicalSampleCount = max(1, (int) ($line['number_of_samples'] ?? $line['quantity'] ?? 1));
+            $resolved = $this->pricingService->resolveLinePriceWithPricelist(
+                $customerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                $elementId !== '' ? $elementId : null,
+                $preferredPricelist,
+            );
             $unitPrice = isset($line['unit_price']) || isset($line['unit_amount'])
                 ? (float) ($line['unit_price'] ?? $line['unit_amount'] ?? 0)
-                : $this->quotationPricingResolver->suggestPrefillUnitPrice(
-                    $pricelist,
-                    $sampleTypeId,
-                    $analysisTypeId,
-                    $elementId !== '' ? $elementId : null,
-                );
+                : $resolved['price'];
+            $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
 
             $lines[] = [
                 'line_no' => $index + 1,
@@ -225,10 +236,12 @@ final class QuotationFromEnquiryService
                 'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
                 'analysis_element_id' => $elementId !== '' ? $elementId : null,
                 'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
-                'quantity' => $qty,
+                'acceptance_config_key' => $line['acceptance_config_key'] ?? null,
+                'physical_sample_count' => $physicalSampleCount,
+                'quantity' => $physicalSampleCount,
                 'unit_price' => $unitPrice,
                 'tax' => $this->taxResolver->resolveLineTaxPercent(
-                    $pricelist,
+                    $pricelistForTax,
                     $sampleTypeId !== '' ? $sampleTypeId : null,
                     $analysisTypeId,
                     $elementId !== '' ? $elementId : null,
@@ -511,6 +524,9 @@ final class QuotationFromEnquiryService
                     'default_analytes' => $detail->default_analytes,
                     'sub_acc_analytes' => $detail->sub_acc_analytes,
                     'description' => $detail->description,
+                    'test_method' => $detail->test_method,
+                    'loq' => $detail->loq,
+                    'mu_percent' => $detail->mu_percent,
                     'item_name' => $detail->item_name,
                     'photo_url' => $detail->photo_url,
                     'invoicable_item_id' => $detail->invoicable_item_id,
@@ -725,6 +741,7 @@ final class QuotationFromEnquiryService
             'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
             'analysis_element_id' => $elementId !== null && $elementId !== '' ? $elementId : null,
             'parameter_label' => $parameterLabel,
+            'physical_sample_count' => $quantity,
             'quantity' => $quantity,
             'unit_price' => $unitPrice,
             'tax' => $tax,
@@ -743,7 +760,7 @@ final class QuotationFromEnquiryService
         $taxTotal = 0.0;
 
         foreach ($lines as $line) {
-            $qty = max(1, (int) ($line['quantity'] ?? 1));
+            $qty = max(1, (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1));
             $unitPrice = (float) ($line['unit_price'] ?? 0);
             $taxRate = (float) ($line['tax'] ?? 0);
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
@@ -761,6 +778,9 @@ final class QuotationFromEnquiryService
                 'default_analytes' => $elementId,
                 'sub_acc_analytes' => '',
                 'description' => (string) ($line['parameter_label'] ?? ''),
+                'test_method' => (string) ($line['test_method'] ?? ''),
+                'loq' => (string) ($line['loq'] ?? ''),
+                'mu_percent' => (string) ($line['mu_percent'] ?? ''),
             ]);
 
             if ($analysisTypeId !== '') {

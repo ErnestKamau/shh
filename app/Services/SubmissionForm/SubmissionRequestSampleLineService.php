@@ -331,7 +331,9 @@ class SubmissionRequestSampleLineService
         }
 
         foreach ($unique as $index => &$line) {
-            $line['row_index'] = $index;
+            if (! array_key_exists('row_index', $line)) {
+                $line['row_index'] = $index;
+            }
         }
         unset($line);
 

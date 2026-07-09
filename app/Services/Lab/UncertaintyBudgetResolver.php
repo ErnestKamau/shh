@@ -3,6 +3,7 @@
 namespace App\Services\Lab;
 
 use App\AnalysisElements;
+use App\AnalysisMethod;
 use App\CapturedResult;
 use App\UncertaintyBudget;
 use Illuminate\Support\Collection;
@@ -11,36 +12,59 @@ final class UncertaintyBudgetResolver
 {
     /**
      * @param  Collection<int, UncertaintyBudget>|null  $preloaded
+     * @param  Collection<string, Collection<int, AnalysisElements>>|null  $siblingsByAnalyte
      */
-    public function resolveForElement(AnalysisElements $element, ?string $companyId = null, ?Collection $preloaded = null): ?UncertaintyBudget
-    {
-        $analyteId = (string) ($element->analyte_id ?? '');
+    public function resolveForElement(
+        AnalysisElements $element,
+        ?string $companyId = null,
+        ?Collection $preloaded = null,
+        ?Collection $siblingsByAnalyte = null,
+    ): ?UncertaintyBudget {
+        $metricsElement = $this->resolveMetricsElement($element, $siblingsByAnalyte);
+        $analyteId = (string) ($metricsElement->analyte_id ?? '');
         if ($analyteId === '') {
             return null;
         }
 
-        $methodId = $this->resolveMethodId($element);
-        if ($methodId === '') {
-            return null;
-        }
-
+        $methodIds = $this->resolveMethodIds($metricsElement);
         $companyId ??= (string) (getUserCompany() ?? '');
 
         if ($preloaded !== null) {
-            return $this->matchFromCollection($preloaded, $analyteId, $this->resolveMethodIds($element));
+            if ($methodIds !== []) {
+                $match = $this->matchFromCollection($preloaded, $analyteId, $methodIds);
+                if ($match !== null) {
+                    return $match;
+                }
+            }
+
+            return $preloaded
+                ->filter(fn (UncertaintyBudget $budget): bool => (string) $budget->analyte_id === $analyteId)
+                ->sortByDesc('version_number')
+                ->first();
         }
 
-        $methodIds = $this->resolveMethodIds($element);
+        if ($methodIds !== []) {
+            $match = UncertaintyBudget::query()
+                ->where('analyte_id', $analyteId)
+                ->where('active', true)
+                ->when($companyId !== '', fn ($query) => $query->where('company_id', $companyId))
+                ->where(function ($query) use ($methodIds): void {
+                    foreach ($methodIds as $methodId) {
+                        $query->orWhere('method_ids', 'LIKE', '%'.$methodId.'%');
+                    }
+                })
+                ->orderByDesc('version_number')
+                ->first();
+
+            if ($match !== null) {
+                return $match;
+            }
+        }
 
         return UncertaintyBudget::query()
             ->where('analyte_id', $analyteId)
             ->where('active', true)
             ->when($companyId !== '', fn ($query) => $query->where('company_id', $companyId))
-            ->where(function ($query) use ($methodIds): void {
-                foreach ($methodIds as $methodId) {
-                    $query->orWhere('method_ids', 'LIKE', '%'.$methodId.'%');
-                }
-            })
             ->orderByDesc('version_number')
             ->first();
     }
@@ -88,28 +112,131 @@ final class UncertaintyBudgetResolver
         return $query->orderByDesc('version_number')->get();
     }
 
-    public function formatLoq(AnalysisElements $element): string
+    public function formatLoq(AnalysisElements $element, ?Collection $siblingsByAnalyte = null): string
     {
-        if ($element->lod === null || (float) $element->lod <= 0) {
+        $source = $this->resolveMetricsElement($element, $siblingsByAnalyte);
+        $value = $source->hod ?? $source->lod;
+
+        if ($value === null || (float) $value <= 0) {
             return '';
         }
 
-        return rtrim(rtrim(number_format((float) $element->lod, 6, '.', ''), '0'), '.');
+        return rtrim(rtrim(number_format((float) $value, 6, '.', ''), '0'), '.');
     }
 
-    public function formatMuPercent(AnalysisElements $element, ?UncertaintyBudget $budget = null): string
-    {
-        $budget ??= $this->resolveForElement($element);
+    public function formatMuPercent(
+        AnalysisElements $element,
+        ?UncertaintyBudget $budget = null,
+        ?Collection $siblingsByAnalyte = null,
+    ): string {
+        $metricsElement = $this->resolveMetricsElement($element, $siblingsByAnalyte);
+        $budget ??= $this->resolveForElement($metricsElement, null, null, $siblingsByAnalyte);
 
         if ($budget !== null && $budget->expanded_uncertainty !== null && (float) $budget->expanded_uncertainty > 0) {
             return rtrim(rtrim(number_format((float) $budget->expanded_uncertainty, 6, '.', ''), '0'), '.');
         }
 
-        if ($element->measurement_uncertainty !== null && (float) $element->measurement_uncertainty > 0) {
-            return rtrim(rtrim(number_format((float) $element->measurement_uncertainty, 4, '.', ''), '0'), '.');
+        if ($metricsElement->measurement_uncertainty !== null && (float) $metricsElement->measurement_uncertainty > 0) {
+            return rtrim(rtrim(number_format((float) $metricsElement->measurement_uncertainty, 4, '.', ''), '0'), '.');
         }
 
         return '';
+    }
+
+    public function formatTestMethod(AnalysisElements $element, ?Collection $siblingsByAnalyte = null): string
+    {
+        $metricsElement = $this->resolveMetricsElement($element, $siblingsByAnalyte);
+        $metricsElement->loadMissing(['ltmethod', 'mmethod', 'methodSequence']);
+
+        if ($metricsElement->ltmethod) {
+            return (string) $metricsElement->ltmethod->name;
+        }
+
+        if ($metricsElement->mmethod) {
+            return (string) $metricsElement->mmethod->name;
+        }
+
+        if (! empty($metricsElement->method)) {
+            $method = AnalysisMethod::query()->find($metricsElement->method);
+
+            return (string) ($method?->name ?? '');
+        }
+
+        if ($metricsElement->methodSequence) {
+            return (string) $metricsElement->methodSequence->name;
+        }
+
+        return '';
+    }
+
+    /**
+     * @return array{loq: string, mu_percent: string, test_method: string}
+     */
+    public function resolveLabMetricsForElement(
+        AnalysisElements $element,
+        ?Collection $budgets = null,
+        ?Collection $siblingsByAnalyte = null,
+    ): array {
+        $metricsElement = $this->resolveMetricsElement($element, $siblingsByAnalyte);
+        $budgets ??= $this->preloadForElements(collect([$element, $metricsElement])->unique('id')->values());
+        $budget = $this->resolveForElement($metricsElement, null, $budgets, $siblingsByAnalyte);
+
+        return [
+            'loq' => $this->formatLoq($metricsElement),
+            'mu_percent' => $this->formatMuPercent($metricsElement, $budget, $siblingsByAnalyte),
+            'test_method' => $this->formatTestMethod($metricsElement, $siblingsByAnalyte),
+        ];
+    }
+
+    /**
+     * @param  Collection<string, Collection<int, AnalysisElements>>|null  $siblingsByAnalyte
+     */
+    public function resolveMetricsElement(AnalysisElements $element, ?Collection $siblingsByAnalyte = null): AnalysisElements
+    {
+        if ($this->elementHasLabMetrics($element)) {
+            return $element;
+        }
+
+        $analyteId = (string) ($element->analyte_id ?? '');
+        if ($analyteId === '') {
+            return $element;
+        }
+
+        $siblings = $siblingsByAnalyte?->get($analyteId) ?? $this->preloadActiveElementsByAnalyteIds([$analyteId])->get($analyteId, collect());
+        $candidates = $siblings->filter(fn (AnalysisElements $candidate): bool => $this->elementHasLabMetrics($candidate));
+
+        $analysisTypeId = (string) ($element->analysis_type_id ?? '');
+        if ($analysisTypeId !== '') {
+            $sameType = $candidates->first(
+                fn (AnalysisElements $candidate): bool => (string) $candidate->analysis_type_id === $analysisTypeId
+            );
+            if ($sameType !== null) {
+                return $sameType;
+            }
+        }
+
+        $match = $candidates->first();
+
+        return $match ?? $element;
+    }
+
+    /**
+     * @param  list<string>  $analyteIds
+     * @return Collection<string, Collection<int, AnalysisElements>>
+     */
+    public function preloadActiveElementsByAnalyteIds(array $analyteIds): Collection
+    {
+        $analyteIds = array_values(array_unique(array_filter($analyteIds)));
+        if ($analyteIds === []) {
+            return collect();
+        }
+
+        return AnalysisElements::query()
+            ->with(['ltmethod', 'mmethod', 'methodSequence'])
+            ->whereIn('analyte_id', $analyteIds)
+            ->where('active', 1)
+            ->get()
+            ->groupBy('analyte_id');
     }
 
     public function formatMuPercentForCapturedResult(
@@ -290,35 +417,63 @@ final class UncertaintyBudgetResolver
             return array_map(function (array $line): array {
                 $line['loq'] = '';
                 $line['mu_percent'] = '';
+                $line['test_method'] = '';
 
                 return $line;
             }, $lines);
         }
 
         $elements = AnalysisElements::query()
+            ->with(['ltmethod', 'mmethod', 'methodSequence'])
             ->whereIn('id', $elementIds)
             ->get()
             ->keyBy('id');
 
-        $budgets = $this->preloadForElements($elements->values());
+        $analyteIds = $elements->pluck('analyte_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
+        $siblingsByAnalyte = $this->preloadActiveElementsByAnalyteIds($analyteIds);
+        $budgetElements = $elements->values();
+        foreach ($siblingsByAnalyte as $siblings) {
+            $budgetElements = $budgetElements->merge($siblings);
+        }
+        $budgets = $this->preloadForElements($budgetElements->unique('id')->values());
 
-        return array_map(function (array $line) use ($elements, $budgets): array {
+        return array_map(function (array $line) use ($elements, $budgets, $siblingsByAnalyte): array {
             $elementId = (string) ($line['analysis_element_id'] ?? '');
             $element = $elementId !== '' ? $elements->get($elementId) : null;
 
             if ($element === null) {
                 $line['loq'] = '';
                 $line['mu_percent'] = '';
+                $line['test_method'] = '';
 
                 return $line;
             }
 
-            $budget = $this->resolveForElement($element, null, $budgets);
-            $line['loq'] = $this->formatLoq($element);
-            $line['mu_percent'] = $this->formatMuPercent($element, $budget);
+            $metrics = $this->resolveLabMetricsForElement($element, $budgets, $siblingsByAnalyte);
+            $line['loq'] = $metrics['loq'];
+            $line['mu_percent'] = $metrics['mu_percent'];
+            $line['test_method'] = $metrics['test_method'];
 
             return $line;
         }, $lines);
+    }
+
+    private function elementHasLabMetrics(AnalysisElements $element): bool
+    {
+        if (($element->hod !== null && (float) $element->hod > 0)
+            || ($element->lod !== null && (float) $element->lod > 0)) {
+            return true;
+        }
+
+        if ($element->measurement_uncertainty !== null && (float) $element->measurement_uncertainty > 0) {
+            return true;
+        }
+
+        if ($this->resolveMethodId($element) !== '') {
+            return true;
+        }
+
+        return ! empty($element->method_sequence_id);
     }
 
     /**

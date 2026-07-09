@@ -129,6 +129,8 @@
                                         <th>Equipment</th>
                                         <th>Operator</th>
                                         <th>Reporting Unit</th>
+                                        <th>LOD</th>
+                                        <th>LOQ</th>
                                         <th>Calculated</th>
                                         <th>Method Sequence</th>
                                         <th>Status</th>
@@ -165,6 +167,8 @@
                                             <td>{{ $element->equipment->name ?? 'N/A' }}</td>
                                             <td>{{ $element->operator->name ?? 'N/A' }}</td>
                                             <td>{{ $element->reporting_unit }}</td>
+                                            <td>{{ $element->lod ?? '—' }}</td>
+                                            <td>{{ $element->hod ?? '—' }}</td>
                                             <td>
                                                 @if($element->result_is_calculated)
                                                     <span class="em-pill em-pill--calc em-pill--on" title="Result is Calculated">
@@ -462,6 +466,20 @@
                                     <div class="form-group mb-3">
                                         <label class="form-label">Level</label>
                                         <input type="number" wire:model="elementForm.level" class="form-control" min="1">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">LOD (Limit of Detection)</label>
+                                        <input type="number" step="0.0000001" wire:model="elementForm.lod" class="form-control" placeholder="Limit of Detection">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">LOQ (Limit of Quantification)</label>
+                                        <input type="number" step="0.0000001" wire:model="elementForm.hod" class="form-control" placeholder="Limit of Quantification">
                                     </div>
                                 </div>
                             </div>

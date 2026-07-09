@@ -1,28 +1,46 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * BelongsToMany::sync() inserts only the FK columns on these pivots.
+     * Without a DB default on id, PostgreSQL rejects the row (NOT NULL on id).
      */
     public function up(): void
     {
-        Schema::table('sample_analysis_stage_pivot_tables', function (Blueprint $table) {
-            //
-        });
+        foreach ([
+            'submission_form_sample_analysis_stage',
+            'sample_to_sample_analysis_stages',
+        ] as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            DB::statement(sprintf(
+                'ALTER TABLE %s ALTER COLUMN id SET DEFAULT gen_random_uuid()',
+                $table
+            ));
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::table('sample_analysis_stage_pivot_tables', function (Blueprint $table) {
-            //
-        });
+        foreach ([
+            'submission_form_sample_analysis_stage',
+            'sample_to_sample_analysis_stages',
+        ] as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            DB::statement(sprintf(
+                'ALTER TABLE %s ALTER COLUMN id DROP DEFAULT',
+                $table
+            ));
+        }
     }
 };

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\SampleSubmissionRequest;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -45,6 +46,84 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame('CUST-1', $configs[0]['customer_sample_id']);
         $this->assertSame('CUST-2', $configs[1]['customer_sample_id']);
         $this->assertSame('CUST-3', $configs[2]['customer_sample_id']);
+    }
+
+    public function test_build_prefill_from_enquiry_uses_trf_sample_lines_not_quotation_parameters(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $enquiry = new SampleSubmissionRequest([
+            'sample_type_id' => 'st-food',
+            'matrix_id' => 'at-cooked',
+            'number_of_samples' => 1,
+            'sample_lines' => [
+                [
+                    'sort_order' => 0,
+                    'sample_type_id' => 'st-food',
+                    'analysis_type_id' => 'at-cooked',
+                    'number_of_samples' => 1,
+                    'attributes' => [
+                        'analysis_element_ids' => ['el-carb', 'el-energy'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $quotationLines = [
+            [
+                'sample_type_id' => 'st-food',
+                'analysis_type_id' => 'at-cooked',
+                'analysis_element_id' => 'el-carb',
+                'parameter_label' => 'Carbohydrates',
+                'quantity' => 1,
+            ],
+            [
+                'sample_type_id' => 'st-food',
+                'analysis_type_id' => 'at-cooked',
+                'analysis_element_id' => 'el-energy',
+                'parameter_label' => 'Energy',
+                'quantity' => 1,
+            ],
+        ];
+
+        $prefill = $service->buildPrefillLinesFromEnquiry($enquiry, $quotationLines);
+        $configs = $service->buildConfigsFromPrefill($prefill);
+
+        $this->assertCount(1, $prefill);
+        $this->assertCount(1, $configs);
+        $this->assertSame(['el-carb', 'el-energy'], $configs[0]['parameter_keys']);
+    }
+
+    public function test_build_prefill_from_enquiry_merges_multiple_quotation_lines_for_single_sample(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $enquiry = new SampleSubmissionRequest([
+            'number_of_samples' => 1,
+            'sample_lines' => [],
+        ]);
+
+        $quotationLines = [
+            [
+                'sample_type_id' => 'st-food',
+                'analysis_type_id' => 'at-cooked',
+                'analysis_element_id' => 'el-carb',
+                'parameter_label' => 'Carbohydrates',
+            ],
+            [
+                'sample_type_id' => 'st-food',
+                'analysis_type_id' => 'at-cooked',
+                'analysis_element_id' => 'el-energy',
+                'parameter_label' => 'Energy',
+            ],
+        ];
+
+        $prefill = $service->buildPrefillLinesFromEnquiry($enquiry, $quotationLines);
+        $configs = $service->buildConfigsFromPrefill($prefill);
+
+        $this->assertCount(1, $prefill);
+        $this->assertCount(1, $configs);
+        $this->assertSame(['el-carb', 'el-energy'], $configs[0]['parameter_keys']);
     }
 
     public function test_build_configs_merges_parameters_on_same_row_index(): void

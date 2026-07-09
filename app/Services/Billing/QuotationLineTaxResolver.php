@@ -80,6 +80,15 @@ final class QuotationLineTaxResolver
             if ($item !== null) {
                 return $item;
             }
+
+            $item = PricelistItem::query()
+                ->where('pricelist_id', $pricelist->id)
+                ->where('active', 1)
+                ->where('analysis_element_id', $analysisElementId)
+                ->first();
+            if ($item !== null) {
+                return $item;
+            }
         }
 
         if ($analysisTypeId !== '') {

@@ -219,14 +219,27 @@
                                 @endif
 
                                 <div class="acc-pricing-toolbar mb-3 d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
-                                    <h6 class="acc-wizard-section-title mb-0">Inline quotation</h6>
+                                    <h6 class="acc-wizard-section-title mb-0">Parameters &amp; pricing</h6>
                                     <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
                                         @if($this->currencyDisplay !== '')
                                             <span class="small text-muted">Currency: <strong>{{ $this->currencyDisplay }}</strong></span>
                                         @endif
-                                        <span class="small text-muted">VAT regime: <strong>{{ number_format($this->taxRate, 2) }}%</strong></span>
+                                        <span class="small text-muted">Physical samples: <strong>{{ $this->physicalSampleCount }}</strong></span>
+                                        @if($quotationBuilt)
+                                            <span class="badge badge-success">Quotation saved</span>
+                                        @else
+                                            <span class="badge badge-secondary">Draft pricing</span>
+                                        @endif
+                                        @unless($this->showPristineReuseQuotation)
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
+                                                <i class="mdi mdi-sync"></i> Sync from pricelist
+                                            </button>
+                                            <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
+                                                <i class="mdi mdi-file-document-check-outline"></i> Build quotation
+                                            </button>
+                                        @endunless
                                         @unless($this->showPristineReuseQuotation && $pdfGenerated)
-                                            <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled" @disabled(!$quotationBuilt && !$this->showPristineReuseQuotation)>
                                                 <i class="mdi mdi-file-pdf-box"></i> Generate PDF
                                             </button>
                                         @endunless
@@ -236,9 +249,6 @@
                                                 Preview quotation
                                             </a>
                                         @endif
-                                        <button type="button" class="btn btn-outline-primary btn-sm" wire:click="openAddQuotationLineModal">
-                                            <i class="mdi mdi-plus"></i> Add line
-                                        </button>
                                     </div>
                                 </div>
 
@@ -250,8 +260,9 @@
                                                 <th>Parameter</th>
                                                 <th class="text-center">LOQ</th>
                                                 <th class="text-center">MU%</th>
-                                                <th class="text-right">Amount</th>
-                                                <th>Samples</th>
+                                                <th class="text-right">Unit price</th>
+                                                <th class="text-center">Samples</th>
+                                                <th class="text-right">Line total</th>
                                                 <th class="text-right">Tax %</th>
                                                 <th class="text-center">Subcontract</th>
                                                 <th class="text-center" style="width: 90px;">Actions</th>
@@ -259,6 +270,11 @@
                                         </thead>
                                         <tbody>
                                             @forelse($lines as $index => $line)
+                                                @php
+                                                    $sampleCount = max(1, (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1));
+                                                    $unitPrice = (float) ($line['unit_price'] ?? 0);
+                                                    $lineTotal = $sampleCount * $unitPrice;
+                                                @endphp
                                                 <tr wire:key="ql-{{ $index }}">
                                                     <td>{{ $index + 1 }}</td>
                                                     <td>{{ $line['parameter_label'] ?? 'Parameter' }}</td>
@@ -268,10 +284,8 @@
                                                         <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
                                                                wire:model.blur="lines.{{ $index }}.unit_price">
                                                     </td>
-                                                    <td>
-                                                        <input type="number" min="1" class="form-control form-control-sm"
-                                                               wire:model.blur="lines.{{ $index }}.quantity">
-                                                    </td>
+                                                    <td class="text-center text-muted">{{ $sampleCount }}</td>
+                                                    <td class="text-right text-muted">{{ number_format($lineTotal, 2) }}</td>
                                                     <td class="text-right">
                                                         <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
                                                                wire:model.blur="lines.{{ $index }}.tax">
@@ -294,21 +308,21 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="9" class="text-muted text-center py-4">No quotation lines could be prefilled.</td>
+                                                    <td colspan="10" class="text-muted text-center py-4">No pricing lines yet. Complete sample configuration, then sync prices from the pricelist.</td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <th colspan="7" class="text-right">Subtotal</th>
+                                                <th colspan="8" class="text-right">Subtotal</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="7" class="text-right">Tax</th>
+                                                <th colspan="8" class="text-right">Tax</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="7" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
+                                                <th colspan="8" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['total'], 2) }}</th>
                                             </tr>
                                         </tfoot>
@@ -335,7 +349,7 @@
                                 <button type="button" class="btn btn-outline-secondary" wire:click.stop.prevent="goToStep('sample_config')">
                                     <i class="mdi mdi-arrow-left"></i> Back
                                 </button>
-                                <button type="button" class="btn btn-primary" wire:click="sendQuotation" wire:loading.attr="disabled">
+                                <button type="button" class="btn btn-primary" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt && !$this->showPristineReuseQuotation)>
                                     <span wire:loading.remove wire:target="sendQuotation">
                                         <i class="mdi mdi-send"></i>
                                         {{ $quotationSent ? 'Send again' : 'Send to customer' }}
@@ -350,6 +364,79 @@
                                 </button>
                             </div>
                         @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showBuildQuotationModal)
+        <div class="acc-wizard-backdrop acc-wizard-backdrop--nested" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered acc-add-modal-dialog">
+                <div class="modal-content acc-wizard-modal acc-add-modal">
+                    <div class="acc-wizard-header acc-wizard-header--compact">
+                        <h5 class="acc-wizard-title mb-0">Build quotation</h5>
+                        <button type="button" class="acc-wizard-close" wire:click="closeBuildQuotationModal">
+                            <i class="mdi mdi-close"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body px-4 py-3">
+                        <p class="text-muted small mb-3">
+                            Review pricing for <strong>{{ $customerName }}</strong> ({{ $requestReference }}).
+                            Physical samples: <strong>{{ $this->physicalSampleCount }}</strong>.
+                            Unit prices will appear on the customer quotation PDF.
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Parameter</th>
+                                        <th class="text-center">Samples</th>
+                                        <th class="text-right">Unit price</th>
+                                        <th class="text-right">Line total</th>
+                                        <th class="text-right">Tax %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($lines as $line)
+                                        @php
+                                            $sampleCount = max(1, (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1));
+                                            $unitPrice = (float) ($line['unit_price'] ?? 0);
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $line['parameter_label'] ?? 'Parameter' }}</td>
+                                            <td class="text-center">{{ $sampleCount }}</td>
+                                            <td class="text-right">{{ number_format($unitPrice, 2) }}</td>
+                                            <td class="text-right">{{ number_format($sampleCount * $unitPrice, 2) }}</td>
+                                            <td class="text-right">{{ number_format((float) ($line['tax'] ?? 0), 2) }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="3" class="text-right">Subtotal</th>
+                                        <th class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="3" class="text-right">Tax</th>
+                                        <th class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="3" class="text-right">Grand total</th>
+                                        <th class="text-right">{{ number_format($this->pricingTotals['total'], 2) }}</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="acc-wizard-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeBuildQuotationModal">Back to editing</button>
+                        <button type="button" class="btn btn-primary" wire:click="confirmBuildQuotation" wire:loading.attr="disabled">
+                            Confirm &amp; save quotation
+                        </button>
                     </div>
                 </div>
             </div>

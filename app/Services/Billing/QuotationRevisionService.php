@@ -83,6 +83,9 @@ class QuotationRevisionService
                     'default_analytes' => $detail->default_analytes,
                     'sub_acc_analytes' => $detail->sub_acc_analytes,
                     'description' => $detail->description,
+                    'test_method' => $detail->test_method,
+                    'loq' => $detail->loq,
+                    'mu_percent' => $detail->mu_percent,
                     'item_name' => $detail->item_name,
                     'photo_url' => $detail->photo_url,
                 ]);

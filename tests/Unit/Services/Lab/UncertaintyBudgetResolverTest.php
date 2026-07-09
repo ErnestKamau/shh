@@ -20,6 +20,17 @@ class UncertaintyBudgetResolverTest extends TestCase
         $this->assertSame('0.001', $resolver->formatLoq($element));
     }
 
+    public function test_format_loq_prefers_hod_over_lod(): void
+    {
+        $element = new AnalysisElements([
+            'lod' => 0.001,
+            'hod' => 10,
+        ]);
+        $resolver = app(UncertaintyBudgetResolver::class);
+
+        $this->assertSame('10', $resolver->formatLoq($element));
+    }
+
     public function test_format_mu_percent_prefers_expanded_uncertainty_from_budget(): void
     {
         $element = new AnalysisElements([
@@ -176,6 +187,46 @@ class UncertaintyBudgetResolverTest extends TestCase
 
         $this->assertSame('10', $lines[0]['loq']);
         $this->assertSame('2', $lines[0]['mu_percent']);
+    }
+
+    public function test_enrich_lines_falls_back_to_sibling_element_for_loq(): void
+    {
+        $sparseElementId = (string) Str::uuid();
+        $richElementId = (string) Str::uuid();
+        $analyteId = (string) Str::uuid();
+
+        \App\Analyte::query()->create([
+            'id' => $analyteId,
+            'code' => 'BA',
+            'name' => 'Barium',
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $sparseElementId,
+            'analyte_id' => $analyteId,
+            'analysis_type_id' => (string) Str::uuid(),
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $richElementId,
+            'analyte_id' => $analyteId,
+            'analysis_type_id' => (string) Str::uuid(),
+            'hod' => 0.01,
+            'active' => 1,
+        ]);
+
+        $resolver = app(UncertaintyBudgetResolver::class);
+        $lines = $resolver->enrichLinesWithLabMetrics([
+            [
+                'analysis_element_id' => $sparseElementId,
+                'parameter_label' => 'Barium',
+            ],
+        ]);
+
+        $this->assertSame('0.01', $lines[0]['loq']);
+        $this->assertArrayHasKey('test_method', $lines[0]);
     }
 
     public function test_format_mu_percent_for_captured_result_prefers_manual_value(): void

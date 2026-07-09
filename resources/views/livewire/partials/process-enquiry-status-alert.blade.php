@@ -1,6 +1,6 @@
 @if($statusMessage !== '')
     <div
-        class="alert alert-{{ $statusLevel === 'error' ? 'danger' : ($statusLevel === 'success' ? 'success' : 'info') }} py-2 mb-3"
+        class="alert alert-{{ $statusLevel === 'error' ? 'danger' : ($statusLevel === 'success' ? 'success' : ($statusLevel === 'warning' ? 'warning' : 'info')) }} py-2 mb-3"
         @if($statusAutoDismiss)
             wire:key="enquiry-status-{{ md5($statusMessage) }}"
             x-data

@@ -177,9 +177,15 @@ final class AmSpecQuotationPdfService
         /** @var Collection<string, AnalysisElements> $elementsById */
         $elementsById = $elementIds === []
             ? collect()
-            : AnalysisElements::query()->with(['mmethod', 'ltmethod', 'analyte'])->whereIn('id', $elementIds)->get()->keyBy('id');
+            : AnalysisElements::query()->with(['mmethod', 'ltmethod', 'analyte', 'methodSequence'])->whereIn('id', $elementIds)->get()->keyBy('id');
 
-        $budgets = $this->uncertaintyBudgetResolver->preloadForElements($elementsById->values());
+        $analyteIds = $elementsById->pluck('analyte_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
+        $siblingsByAnalyte = $this->uncertaintyBudgetResolver->preloadActiveElementsByAnalyteIds($analyteIds);
+        $budgetElements = $elementsById->values();
+        foreach ($siblingsByAnalyte as $siblings) {
+            $budgetElements = $budgetElements->merge($siblings);
+        }
+        $budgets = $this->uncertaintyBudgetResolver->preloadForElements($budgetElements->unique('id')->values());
 
         foreach ($details as $detail) {
             $detail->setRelation(
@@ -191,14 +197,14 @@ final class AmSpecQuotationPdfService
 
             if ($elementIds === []) {
                 $sno++;
-                $rows[] = $this->buildRow($sno, $detail, null, $enquiry, $elementsById, $budgets);
+                $rows[] = $this->buildRow($sno, $detail, null, $enquiry, $elementsById, $budgets, $siblingsByAnalyte);
 
                 continue;
             }
 
             foreach ($elementIds as $elementId) {
                 $sno++;
-                $rows[] = $this->buildRow($sno, $detail, $elementId, $enquiry, $elementsById, $budgets);
+                $rows[] = $this->buildRow($sno, $detail, $elementId, $enquiry, $elementsById, $budgets, $siblingsByAnalyte);
             }
         }
 
@@ -232,6 +238,7 @@ final class AmSpecQuotationPdfService
         ?SampleSubmissionRequest $enquiry,
         Collection $elementsById,
         Collection $budgets,
+        ?Collection $siblingsByAnalyte = null,
     ): array {
         $element = $elementId !== null ? $elementsById->get($elementId) : null;
 
@@ -240,18 +247,19 @@ final class AmSpecQuotationPdfService
             $testName = (string) ($element->analyte?->name ?? $element->parametername ?? 'Test');
         }
 
-        $methodName = '';
-        if ($element !== null) {
-            $methodName = (string) ($element->ltmethod?->name ?? $element->mmethod?->name ?? '');
-        }
+        $metrics = $element !== null
+            ? $this->uncertaintyBudgetResolver->resolveLabMetricsForElement($element, $budgets, $siblingsByAnalyte)
+            : ['test_method' => '', 'loq' => '', 'mu_percent' => ''];
 
-        $loq = $element !== null ? $this->uncertaintyBudgetResolver->formatLoq($element) : '';
-        $budget = $element !== null
-            ? $this->uncertaintyBudgetResolver->resolveForElement($element, null, $budgets)
-            : null;
-        $mu = $element !== null
-            ? $this->uncertaintyBudgetResolver->formatMuPercent($element, $budget)
-            : '';
+        $methodName = trim((string) ($detail->test_method ?? '')) !== ''
+            ? (string) $detail->test_method
+            : $metrics['test_method'];
+        $loq = trim((string) ($detail->loq ?? '')) !== ''
+            ? (string) $detail->loq
+            : $metrics['loq'];
+        $mu = trim((string) ($detail->mu_percent ?? '')) !== ''
+            ? (string) $detail->mu_percent
+            : $metrics['mu_percent'];
 
         return [
             'sno' => $sno,

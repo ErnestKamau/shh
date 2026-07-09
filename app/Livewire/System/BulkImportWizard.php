@@ -2,11 +2,13 @@
 
 namespace App\Livewire\System;
 
+use App\Company;
 use App\Models\BulkImportBatch;
 use App\Services\BulkImportService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class BulkImportWizard extends Component
 {
@@ -24,6 +26,8 @@ class BulkImportWizard extends Component
     public string $messageType = 'success';
     public ?string $selectedZoneId = null;
     public array $zones = [];
+    public bool $replaceExisting = false;
+    public string $purgeConfirmation = '';
 
     public function mount()
     {
@@ -78,8 +82,21 @@ class BulkImportWizard extends Component
 
     public function uploadFile(): void
     {
-        $this->validate([
+        $rules = [
             'uploadedFile' => 'required|file|mimes:xlsx,xls,csv|max:5120',
+        ];
+
+        if ($this->selectedFormType === 'lab_hierarchy' && $this->replaceExisting) {
+            $companyName = $this->resolveCompanyName();
+            $rules['purgeConfirmation'] = [
+                'required',
+                'string',
+                Rule::in(['DELETE ALL LAB DATA', $companyName]),
+            ];
+        }
+
+        $this->validate($rules, [
+            'purgeConfirmation.in' => 'Type DELETE ALL LAB DATA or your company name exactly to confirm.',
         ]);
 
         try {
@@ -91,7 +108,8 @@ class BulkImportWizard extends Component
             $results = $this->bulkImportService()->processImport(
                 $this->currentBatch,
                 $this->uploadedFile,
-                $this->selectedZoneId
+                $this->selectedZoneId,
+                $this->selectedFormType === 'lab_hierarchy' && $this->replaceExisting
             );
 
             if ($results['success']) {
@@ -126,8 +144,21 @@ class BulkImportWizard extends Component
         $this->uploadedFile = null;
         $this->importResults = [];
         $this->selectedZoneId = null;
+        $this->replaceExisting = false;
+        $this->purgeConfirmation = '';
         $this->message = '';
         $this->formTypes = [];
+    }
+
+    public function resolveCompanyName(): string
+    {
+        $companyId = Auth::user()->company_id ?? Auth::user()->inventory_location_id;
+
+        if (! $companyId) {
+            return '';
+        }
+
+        return (string) (Company::query()->whereKey($companyId)->value('name') ?? '');
     }
 
     public function downloadErrorReport()

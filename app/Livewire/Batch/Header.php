@@ -629,6 +629,7 @@ class Header extends Component
         ]);
 
         $batch = $this->batch;
+        $previousWorkflow = $this->status ?: $batch->status;
 
         // Lab section check removed per user request
         
@@ -690,7 +691,8 @@ class Header extends Component
 
         $this->showApprovalModal = false;
         session()->flash('success', 'Batch sent for approval successfully');
-        $this->dispatch('batchUpdated');
+
+        return redirect()->route('sample-workflow', ['status' => $previousWorkflow]);
     }
 
     public function getBatchLabs()

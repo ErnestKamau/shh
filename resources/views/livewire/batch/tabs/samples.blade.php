@@ -998,13 +998,13 @@
                                         <div class="d-flex align-items-center justify-content-between">
                                             <small>{{ $param['standard_value'] }}</small>
                                             @if($param['standard_id'])
-                                            <button type="button" wire:click.stop="openEditStandardModal({{ $id }}, 1)"
+                                            <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 1)"
                                                 class="btn btn-sm btn-link p-0 text-secondary ml-1"
                                                 title="Edit Main Standard" style="line-height: 1;"
                                                 wire:loading.attr="disabled">
-                                                <i wire:loading.remove wire:target="openEditStandardModal({{ $id }}, 1)"
+                                                <i wire:loading.remove wire:target="openEditStandardModal('{{ $id }}', 1)"
                                                     class="mdi mdi-pencil" style="font-size: 12px;"></i>
-                                                <i wire:loading wire:target="openEditStandardModal({{ $id }}, 1)"
+                                                <i wire:loading wire:target="openEditStandardModal('{{ $id }}', 1)"
                                                     class="mdi mdi-loading mdi-spin" style="font-size: 12px;"></i>
                                             </button>
                                             @endif
@@ -1013,13 +1013,13 @@
                                         <div class="d-flex align-items-center justify-content-between mt-1">
                                             <small class="text-muted">{{ $param['sec_standard_value'] }}</small>
                                             @if($param['sec_standard_id'])
-                                            <button type="button" wire:click.stop="openEditStandardModal({{ $id }}, 2)"
+                                            <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 2)"
                                                 class="btn btn-sm btn-link p-0 text-muted ml-1"
                                                 title="Edit Secondary Standard" style="line-height: 1;"
                                                 wire:loading.attr="disabled">
-                                                <i wire:loading.remove wire:target="openEditStandardModal({{ $id }}, 2)"
+                                                <i wire:loading.remove wire:target="openEditStandardModal('{{ $id }}', 2)"
                                                     class="mdi mdi-pencil" style="font-size: 12px;"></i>
-                                                <i wire:loading wire:target="openEditStandardModal({{ $id }}, 2)"
+                                                <i wire:loading wire:target="openEditStandardModal('{{ $id }}', 2)"
                                                     class="mdi mdi-loading mdi-spin" style="font-size: 12px;"></i>
                                             </button>
                                             @endif

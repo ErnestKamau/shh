@@ -227,7 +227,9 @@ class AcceptanceFormPricingService
             return null;
         }
 
-        $pricelistCustomer = PricelistCustomer::where('customer_id', $customerId)
+        $pricelistCustomer = PricelistCustomer::query()
+            ->where('customer_id', $customerId)
+            ->orderByDesc('created_at')
             ->select('pricelist_id')
             ->first();
 
@@ -236,6 +238,81 @@ class AcceptanceFormPricingService
         }
 
         return Pricelist::find($pricelistCustomer->pricelist_id);
+    }
+
+    /**
+     * @return list<Pricelist>
+     */
+    public function assignedPricelistsForCustomer(string $customerId): array
+    {
+        if ($customerId === '') {
+            return [];
+        }
+
+        $pricelistIds = PricelistCustomer::query()
+            ->where('customer_id', $customerId)
+            ->orderByDesc('created_at')
+            ->pluck('pricelist_id')
+            ->unique()
+            ->values();
+
+        if ($pricelistIds->isEmpty()) {
+            return [];
+        }
+
+        $pricelistsById = Pricelist::query()
+            ->whereIn('id', $pricelistIds)
+            ->where('active', 1)
+            ->get()
+            ->keyBy('id');
+
+        return $pricelistIds
+            ->map(fn (string $id): ?Pricelist => $pricelistsById->get($id))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Resolve a line price by searching all pricelists assigned to the customer.
+     *
+     * @return array{price: float, pricelist: ?Pricelist}
+     */
+    public function resolveLinePriceWithPricelist(
+        ?string $customerId,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?string $analysisElementId = null,
+        ?Pricelist $preferredPricelist = null,
+    ): array {
+        $candidates = [];
+
+        if ($preferredPricelist !== null) {
+            $candidates[] = $preferredPricelist;
+        }
+
+        if ($customerId !== null && $customerId !== '') {
+            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
+                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
+                    continue;
+                }
+                $candidates[] = $pricelist;
+            }
+        }
+
+        $fallback = $this->resolvePricelist($customerId);
+        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
+            $candidates[] = $fallback;
+        }
+
+        foreach ($candidates as $pricelist) {
+            $price = $this->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
+            if ($price > 0) {
+                return ['price' => $price, 'pricelist' => $pricelist];
+            }
+        }
+
+        return ['price' => 0.0, 'pricelist' => $candidates[0] ?? null];
     }
 
     /**
@@ -378,6 +455,15 @@ class AcceptanceFormPricingService
 
         if (!empty($analysisElementId)) {
             $item = (clone $query)->where('analysis_element_id', $analysisElementId)->first();
+            if ($item) {
+                return (float) $item->selling_price;
+            }
+
+            $item = PricelistItem::query()
+                ->where('pricelist_id', $pricelist->id)
+                ->where('active', 1)
+                ->where('analysis_element_id', $analysisElementId)
+                ->first();
             if ($item) {
                 return (float) $item->selling_price;
             }

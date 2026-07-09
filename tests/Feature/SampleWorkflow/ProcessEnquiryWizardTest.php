@@ -74,6 +74,35 @@ class ProcessEnquiryWizardTest extends TestCase
         $this->assertSame([$elementId], $merged[0]['parameter_keys']);
     }
 
+    public function test_build_inline_lines_from_acceptance_lines_sets_physical_sample_count(): void
+    {
+        $customerId = (string) Str::uuid();
+        $sampleTypeId = (string) Str::uuid();
+        $analysisTypeId = (string) Str::uuid();
+        $elementId = (string) Str::uuid();
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            'source_channel' => 'walk_in',
+        ]);
+
+        $lines = app(QuotationFromEnquiryService::class)->buildInlineLinesFromAcceptanceLines($enquiry, [
+            [
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_element_id' => $elementId,
+                'parameter_label' => 'Carbohydrates',
+                'number_of_samples' => 2,
+                'acceptance_config_key' => 'cfg-1',
+            ],
+        ]);
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(2, $lines[0]['physical_sample_count']);
+        $this->assertSame(2, $lines[0]['quantity']);
+    }
+
     public function test_build_inline_lines_from_acceptance_lines_applies_vat_from_pricelist(): void
     {
         \App\TaxRegime::query()->create([

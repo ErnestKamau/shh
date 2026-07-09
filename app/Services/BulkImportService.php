@@ -93,7 +93,7 @@ class BulkImportService
     /**
      * Process an uploaded file for a given batch.
      */
-    public function processImport(BulkImportBatch $batch, $uploadedFile, ?string $zoneId = null)
+    public function processImport(BulkImportBatch $batch, $uploadedFile, ?string $zoneId = null, bool $replaceExisting = false)
     {
         set_time_limit(0);
         ini_set('memory_limit', '1024M');
@@ -102,6 +102,12 @@ class BulkImportService
             $batch->status = 'processing';
             $batch->started_at = now();
             $batch->save();
+
+            $purgeSummary = null;
+            if ($replaceExisting && $batch->module === 'lab' && $batch->form_type === 'lab_hierarchy') {
+                $purgeSummary = app(\App\Services\Lab\LabHierarchyPurgeService::class)
+                    ->purgeForCompany((string) $batch->company_id);
+            }
 
             $importerClass = $this->getImporterClass($batch->module, $batch->form_type);
             
@@ -140,6 +146,7 @@ class BulkImportService
                     'error_rows' => $batch->error_rows,
                     'errors' => $batch->getErrorSummary(),
                     'upserted' => $batch->getUpsertSummary(),
+                    'purge_summary' => $purgeSummary,
                 ],
             ];
         } catch (\Exception $e) {

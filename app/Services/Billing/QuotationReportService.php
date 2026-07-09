@@ -438,12 +438,18 @@ class QuotationReportService
         /** @var Collection<string, AnalysisElements> $elementsById */
         $elementsById = $elementIds === []
             ? collect()
-            : AnalysisElements::with(['ltmethod', 'mmethod'])
+            : AnalysisElements::with(['ltmethod', 'mmethod', 'methodSequence'])
                 ->whereIn('id', $elementIds)
                 ->get()
                 ->keyBy('id');
 
-        $budgets = $this->uncertaintyBudgetResolver->preloadForElements($elementsById->values());
+        $analyteIds = $elementsById->pluck('analyte_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
+        $siblingsByAnalyte = $this->uncertaintyBudgetResolver->preloadActiveElementsByAnalyteIds($analyteIds);
+        $budgetElements = $elementsById->values();
+        foreach ($siblingsByAnalyte as $siblings) {
+            $budgetElements = $budgetElements->merge($siblings);
+        }
+        $budgets = $this->uncertaintyBudgetResolver->preloadForElements($budgetElements->unique('id')->values());
 
         foreach ($details as $detail) {
             if ($header->quotation_type === 'General') {
@@ -496,6 +502,7 @@ class QuotationReportService
                     $element,
                     (float) $detail->unit_price,
                     $budgets,
+                    $siblingsByAnalyte,
                 );
             }
         }
@@ -760,6 +767,7 @@ class QuotationReportService
         AnalysisElements $element,
         float $storedUnitPrice,
         Collection $budgets,
+        ?Collection $siblingsByAnalyte = null,
     ): array {
         $analyte = Analyte::find($element->analyte_id);
         $resolved = $this->pricingResolver->resolveLineUnitPrice(
@@ -771,13 +779,13 @@ class QuotationReportService
             true,
         );
         $sourceFlags = $this->elementSourceFlags($detail, (string) $element->id);
-        $budget = $this->uncertaintyBudgetResolver->resolveForElement($element, null, $budgets);
+        $metrics = $this->uncertaintyBudgetResolver->resolveLabMetricsForElement($element, $budgets, $siblingsByAnalyte);
 
         return $this->makeLineRow(
             $analyte?->name ?? $element->parametername,
-            $this->resolveTestMethodName($element),
-            $this->uncertaintyBudgetResolver->formatLoq($element),
-            $this->uncertaintyBudgetResolver->formatMuPercent($element, $budget),
+            trim((string) ($detail->test_method ?? '')) !== '' ? (string) $detail->test_method : $metrics['test_method'],
+            trim((string) ($detail->loq ?? '')) !== '' ? (string) $detail->loq : $metrics['loq'],
+            trim((string) ($detail->mu_percent ?? '')) !== '' ? (string) $detail->mu_percent : $metrics['mu_percent'],
             $resolved['unit_price'],
             (int) $detail->quantity,
             $sourceFlags['is_accredited'],

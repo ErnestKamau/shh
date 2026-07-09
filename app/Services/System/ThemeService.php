@@ -4,34 +4,29 @@ namespace App\Services\System;
 
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class ThemeService
 {
-    public const PRIMARY = '#00A7DF';
+    public const PRIMARY = '#6D0A0E';
 
-    public const PRIMARY_HOVER = '#0090C0';
+    public const PRIMARY_HOVER = '#8B1E22';
 
-    public const SECONDARY = '#000000';
+    public const ACCENT = '#ffffff';
 
-    public const ACCENT = '#FFFFFF';
-
-    public const SIDEBAR_BG = '#000000';
+    public const SIDEBAR_BG = '#6D0A0E';
 
     public const SIDEBAR_LINK_BG = 'rgba(255, 255, 255, 0.08)';
 
     public const BACKGROUND = '#F8FAFC';
 
-    public const QUOTATION_PRIMARY = '#00A7DF';
+    public const QUOTATION_PRIMARY = '#6D0A0E';
 
-    public const AMSPEC_PRIMARY = '#6D0A0E';
+    public const QUOTATION_ACCENT = '#4CAF50';
 
-    public const AMSPEC_PRIMARY_HOVER = '#8B1E22';
-
-    public const AMSPEC_QUOTATION_PRIMARY = '#6D0A0E';
-
-    /** @var array<string, string> Kenya Dairy Board (cyan) palette */
-    public const KDB_THEME = [
+    /** @var array<string, string> */
+    public const AMSPEC_THEME = [
         'sys_theme_primary_color' => self::PRIMARY,
         'sys_theme_secondary_color' => self::PRIMARY_HOVER,
         'sys_theme_accent_color' => self::ACCENT,
@@ -39,22 +34,18 @@ class ThemeService
         'sys_sidebar_link_bg' => self::SIDEBAR_LINK_BG,
     ];
 
-    /** @var array<string, string> AmSpec (maroon / burgundy) palette */
-    public const AMSPEC_THEME = [
-        'sys_theme_primary_color' => self::AMSPEC_PRIMARY,
-        'sys_theme_secondary_color' => self::AMSPEC_PRIMARY_HOVER,
-        'sys_theme_accent_color' => '#ffffff',
-        'sys_sidebar_bg_color' => self::AMSPEC_PRIMARY,
-        'sys_sidebar_link_bg' => 'rgba(255, 255, 255, 0.08)',
-    ];
-
     /** @var array<string, string> */
-    public const CONFIG_DEFAULTS = self::KDB_THEME;
+    public const CONFIG_DEFAULTS = self::AMSPEC_THEME;
 
-    /** @var array<string, array<string, string>> */
-    public const PRESETS = [
-        'amspec' => self::AMSPEC_THEME,
-        'kdb' => self::KDB_THEME,
+    /** @var list<string> */
+    public const BRANDING_CONFIG_KEYS = [
+        'sys_theme_primary_color',
+        'sys_theme_secondary_color',
+        'sys_theme_accent_color',
+        'sys_sidebar_bg_color',
+        'sys_sidebar_link_bg',
+        'sys_quotation_primary_color',
+        'sys_quotation_accent_color',
     ];
 
     /**
@@ -117,16 +108,23 @@ class ThemeService
     }
 
     /**
+     * @return Collection<string, SystemConfiguration>
+     */
+    public static function themeConfigurationRecords(): Collection
+    {
+        return SystemConfiguration::query()
+            ->whereIn('key', array_keys(self::AMSPEC_THEME))
+            ->orderByDesc('updated_at')
+            ->get()
+            ->unique('key')
+            ->keyBy('key');
+    }
+
+    /**
      * @return array<string, string>
      */
-    public static function applyPreset(string $preset): array
+    public static function applyTheme(): array
     {
-        $palette = self::PRESETS[$preset] ?? null;
-
-        if ($palette === null) {
-            throw new \InvalidArgumentException("Unknown theme preset [{$preset}]. Use: ".implode(', ', array_keys(self::PRESETS)));
-        }
-
         $type = SystemConfigurationsType::query()->firstOrCreate(
             ['configuration_type' => 'Global System Theme Settings'],
             [
@@ -135,7 +133,7 @@ class ThemeService
             ]
         );
 
-        foreach ($palette as $key => $value) {
+        foreach (self::AMSPEC_THEME as $key => $value) {
             SystemConfiguration::query()->updateOrCreate(
                 ['key' => $key],
                 [
@@ -149,15 +147,11 @@ class ThemeService
         $quotationType = SystemConfigurationsType::query()->where('configuration_type', 'Quotation Report')->first();
 
         if ($quotationType) {
-            $quotationPrimary = $preset === 'amspec'
-                ? self::AMSPEC_QUOTATION_PRIMARY
-                : self::QUOTATION_PRIMARY;
-
             SystemConfiguration::query()->updateOrCreate(
                 ['key' => 'sys_quotation_primary_color'],
                 [
                     'configuration_type_id' => $quotationType->id,
-                    'value' => $quotationPrimary,
+                    'value' => self::QUOTATION_PRIMARY,
                     'status' => true,
                 ]
             );
@@ -165,7 +159,7 @@ class ThemeService
 
         self::forgetCache();
 
-        return $palette;
+        return self::AMSPEC_THEME;
     }
 
     /**
@@ -174,13 +168,12 @@ class ThemeService
     public static function resolvedVariables(): array
     {
         return Cache::rememberForever('global_theme_variables', function () {
-            $keys = array_keys(self::KDB_THEME);
-            $configs = SystemConfiguration::whereIn('key', $keys)->get()->keyBy('key');
+            $configs = self::themeConfigurationRecords();
 
-            $primary = optional($configs->get('sys_theme_primary_color'))->value ?? self::AMSPEC_PRIMARY;
-            $secondary = optional($configs->get('sys_theme_secondary_color'))->value ?? self::AMSPEC_PRIMARY_HOVER;
-            $accent = optional($configs->get('sys_theme_accent_color'))->value ?? '#ffffff';
-            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? self::AMSPEC_PRIMARY;
+            $primary = optional($configs->get('sys_theme_primary_color'))->value ?? self::PRIMARY;
+            $secondary = optional($configs->get('sys_theme_secondary_color'))->value ?? self::PRIMARY_HOVER;
+            $accent = optional($configs->get('sys_theme_accent_color'))->value ?? self::ACCENT;
+            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? self::SIDEBAR_BG;
             $sidebarLinkBg = optional($configs->get('sys_sidebar_link_bg'))->value ?? self::SIDEBAR_LINK_BG;
 
             return [

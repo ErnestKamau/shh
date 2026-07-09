@@ -186,4 +186,55 @@ class AcceptanceFormPricingServiceTest extends TestCase
         $this->assertSame('Lead', $prefill['parameters'][0]['parameter_label']);
         $this->assertSame($analysisTypeId, $prefill['parameters'][0]['analysis_type_id']);
     }
+
+    public function test_resolve_line_price_with_pricelist_searches_all_customer_assignments(): void
+    {
+        $customerId = (string) \Illuminate\Support\Str::uuid();
+        $sampleTypeId = (string) \Illuminate\Support\Str::uuid();
+        $analysisTypeId = (string) \Illuminate\Support\Str::uuid();
+        $elementId = (string) \Illuminate\Support\Str::uuid();
+
+        $foodPricelist = Pricelist::query()->create([
+            'code' => 'PL-FOOD',
+            'description' => 'Food only',
+            'active' => true,
+        ]);
+        $metalsPricelist = Pricelist::query()->create([
+            'code' => 'PL-0001',
+            'description' => 'test',
+            'active' => true,
+        ]);
+
+        \App\Models\Billing\PricelistCustomer::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'customer_id' => $customerId,
+            'pricelist_id' => $foodPricelist->id,
+        ]);
+        \App\Models\Billing\PricelistCustomer::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'customer_id' => $customerId,
+            'pricelist_id' => $metalsPricelist->id,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $metalsPricelist->id,
+            'sample_type_id' => $sampleTypeId,
+            'analysis_id' => $analysisTypeId,
+            'analysis_element_id' => $elementId,
+            'selling_price' => 6580,
+            'active' => true,
+        ]);
+
+        $service = app(AcceptanceFormPricingService::class);
+        $resolved = $service->resolveLinePriceWithPricelist(
+            $customerId,
+            $sampleTypeId,
+            $analysisTypeId,
+            $elementId,
+            $foodPricelist,
+        );
+
+        $this->assertSame(6580.0, $resolved['price']);
+        $this->assertSame($metalsPricelist->id, $resolved['pricelist']?->id);
+    }
 }

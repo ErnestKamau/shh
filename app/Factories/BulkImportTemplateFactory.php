@@ -306,20 +306,20 @@ class BulkImportTemplateFactory
                     'headers' => [
                         'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
                         'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
-                        'lab_section_code*', 'equipment_code', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name',
-                        'analyte_code*', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
+                        'lab_section_code*', 'equipment_code', 'lod', 'loq', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'analyte_code', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
                         'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
                         'standard_value_code', 'standard_value_name', 'standard_value_type',
                         'standard_low', 'standard_high', 'standard_matrix_operator', 'standard_value'
                     ],
                     'examples' => [
                         [
-                            'ST-WATER', 'Water Material', '1', '30',
-                            'AT-POTABLE', 'Potable Water Analysis', 'LAB-01', '0', '2',
-                            'LS-PHYSCHEM', 'EQ-PH01', '0.01', '14.0', 'high', 'SEQ-PH', 'PROC-PH',
-                            'AN-PH', 'pH Level', '2', 'pH', 'units', '0', '0',
-                            'STD-TBS-WATER', 'TBS Potable Water Standard', '0', 'chemical',
-                            'VAL-PH', 'pH Limit', 'range', '6.5', '8.5', '', ''
+                            'Food & Feed', 'Food & Feed', '1', '30',
+                            'General Foods', 'General Foods', 'AMSPEC', '0', '',
+                            'Microbiology', '', '', '10', '', '', '',
+                            '', 'Mesophilic Aerobic Plate Count in Food Samples', '1', '', 'CFU/g', '0', 'No',
+                            '', '', '', '',
+                            '', '', '', '', '', ''
                         ],
                     ],
                     'rules' => [
@@ -335,11 +335,12 @@ class BulkImportTemplateFactory
                         'lab_section_code' => 'required|string|max:100',
                         'equipment_code' => 'nullable|string|max:100',
                         'lod' => 'nullable|numeric|min:0',
+                        'loq' => 'nullable|numeric|min:0',
                         'hod' => 'nullable|numeric|min:0',
                         'level' => 'nullable|string|max:50',
                         'method_sequence_name' => 'nullable|string|max:255',
                         'procedure_worksheet_name' => 'nullable|string|max:255',
-                        'analyte_code' => 'required|string|max:100',
+                        'analyte_code' => 'nullable|string|max:100',
                         'analyte_name' => 'required|string|max:255',
                         'decimal_places' => 'nullable|integer|min:0|max:10',
                         'reporting_symbol' => 'nullable|string|max:50',

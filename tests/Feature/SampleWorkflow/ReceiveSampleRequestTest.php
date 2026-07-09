@@ -350,6 +350,27 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertNotDispatched('receive-completed');
     }
 
+    public function test_walk_in_next_step_clears_customer_error_after_selection(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR-STEP');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $this->createWalkInCustomerDetailsSection($portalForm);
+        $this->createWalkInCollectionSection($portalForm);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->call('nextWalkInStep')
+            ->assertHasErrors(['formData.customer_name'])
+            ->set('formData.customer_name', 'Walk-in Customer')
+            ->call('nextWalkInStep')
+            ->assertHasNoErrors()
+            ->assertSet('walkInActiveStepIndex', 1);
+    }
+
     public function test_walk_in_capture_requires_at_least_one_sample_row(): void
     {
         $sampleType = $this->createSampleType('Water', 'SMP-WTR-ROW');
@@ -514,6 +535,64 @@ class ReceiveSampleRequestTest extends TestCase
             'target_pages' => [],
             'lims_destination_pages' => ['sample-workflow'],
         ]);
+    }
+
+    private function createWalkInCustomerDetailsSection(SubmissionForm $form): SubmissionFormSection
+    {
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Customer details',
+            'section_type' => 'regular',
+            'sort_order' => 0,
+        ]);
+
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'field',
+            'sort_order' => 0,
+        ]);
+
+        SubmissionFormElement::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_element_holder_id' => $holder->id,
+            'element_type' => 'text',
+            'label' => 'Name',
+            'name' => 'customer_name',
+            'sort_order' => 0,
+        ]);
+
+        return $section;
+    }
+
+    private function createWalkInCollectionSection(SubmissionForm $form): SubmissionFormSection
+    {
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Sample collection data',
+            'section_type' => 'regular',
+            'sort_order' => 1,
+        ]);
+
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'field',
+            'sort_order' => 0,
+        ]);
+
+        SubmissionFormElement::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_element_holder_id' => $holder->id,
+            'element_type' => 'text',
+            'label' => 'Sampling location',
+            'name' => 'sampling_location',
+            'sort_order' => 0,
+        ]);
+
+        return $section;
     }
 
     private function createSubmittedInstance(SubmissionForm $form, array $overrides = []): SubmissionFormInstance

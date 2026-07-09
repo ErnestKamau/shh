@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use App\Models\System\SystemConfigurationsType;
 use App\Models\System\SystemConfiguration;
+use App\Services\System\ThemeService;
 
 return new class extends Migration
 {
@@ -16,41 +17,13 @@ return new class extends Migration
             ]
         );
 
-        $configs = [
-            [
-                'key' => 'sys_theme_primary_color',
-                'value' => '#00A7DF',
-                'status' => true,
-            ],
-            [
-                'key' => 'sys_theme_secondary_color',
-                'value' => '#0090C0',
-                'status' => true,
-            ],
-            [
-                'key' => 'sys_theme_accent_color',
-                'value' => '#FFFFFF',
-                'status' => true,
-            ],
-            [
-                'key' => 'sys_sidebar_bg_color',
-                'value' => '#000000',
-                'status' => true,
-            ],
-            [
-                'key' => 'sys_sidebar_link_bg',
-                'value' => 'rgba(255, 255, 255, 0.08)',
-                'status' => true,
-            ],
-        ];
-
-        foreach ($configs as $config) {
+        foreach (ThemeService::AMSPEC_THEME as $key => $value) {
             SystemConfiguration::firstOrCreate(
-                ['key' => $config['key']],
+                ['key' => $key],
                 [
                     'configuration_type_id' => $type->id,
-                    'value' => $config['value'],
-                    'status' => $config['status'],
+                    'value' => $value,
+                    'status' => true,
                 ]
             );
         }

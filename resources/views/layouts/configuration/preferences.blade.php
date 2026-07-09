@@ -275,11 +275,11 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <button type="button" class="preset-theme-btn" data-bg="#000000" data-primary="#00A7DF" data-secondary="#0090C0" data-accent="#FFFFFF">
-                                <span class="text-bold">Kenya Dairy Board</span>
+                            <button type="button" class="preset-theme-btn" data-bg="#6D0A0E" data-primary="#6D0A0E" data-secondary="#8B1E22" data-accent="#FFFFFF">
+                                <span class="text-bold">AmSpec</span>
                                 <div class="color-swatch-group">
-                                    <div class="color-swatch" style="background: #000000;"></div>
-                                    <div class="color-swatch" style="background: #00A7DF;"></div>
+                                    <div class="color-swatch" style="background: #6D0A0E;"></div>
+                                    <div class="color-swatch" style="background: #8B1E22;"></div>
                                 </div>
                             </button>
                         </div>
@@ -486,12 +486,12 @@
         });
 
         document.getElementById('resetDefaultBtn').addEventListener('click', function() {
-            sidebarBgInput.value = '#000000';
-            sidebarBgText.value = '#000000';
-            primaryInput.value = '#00A7DF';
-            primaryText.value = '#00A7DF';
-            secondaryInput.value = '#0090C0';
-            secondaryText.value = '#0090C0';
+            sidebarBgInput.value = '#6D0A0E';
+            sidebarBgText.value = '#6D0A0E';
+            primaryInput.value = '#6D0A0E';
+            primaryText.value = '#6D0A0E';
+            secondaryInput.value = '#8B1E22';
+            secondaryText.value = '#8B1E22';
             accentInput.value = '#FFFFFF';
             accentText.value = '#FFFFFF';
             sidebarLinkBgInput.value = 'rgba(255, 255, 255, 0.08)';

@@ -34,15 +34,51 @@ class Standards extends Model implements Auditable
     public function getQcSchemeIdsArrAttribute(){
         return explode(',',$this->qc_scheme_ids);
     }
-    public function getQcSchemeNamesAttribute(){
+    public function getQcSchemeNamesAttribute(): string
+    {
         if (empty($this->qc_scheme_ids)) {
             return '';
         }
-        $qcIds = array_filter(explode(',', $this->qc_scheme_ids));
-        if (empty($qcIds)) {
+
+        $values = array_values(array_filter(array_map('trim', explode(',', (string) $this->qc_scheme_ids))));
+        if ($values === []) {
             return '';
         }
-        return implode(', ', QcSchemes::whereIn('id', $qcIds)->pluck('code')->toArray());
+
+        $uuidIds = [];
+        $codes = [];
+
+        foreach ($values as $value) {
+            if ($this->isUuid($value)) {
+                $uuidIds[] = $value;
+            } else {
+                $codes[] = $value;
+            }
+        }
+
+        $resolved = [];
+
+        if ($uuidIds !== []) {
+            $resolved = array_merge($resolved, QcSchemes::whereIn('id', $uuidIds)->pluck('code')->all());
+        }
+
+        if ($codes !== []) {
+            $foundByCode = QcSchemes::whereIn('code', $codes)->pluck('code')->all();
+            $resolved = array_merge($resolved, $foundByCode);
+
+            foreach ($codes as $code) {
+                if (! in_array($code, $foundByCode, true)) {
+                    $resolved[] = $code;
+                }
+            }
+        }
+
+        return implode(', ', array_values(array_unique($resolved)));
+    }
+
+    private function isUuid(string $value): bool
+    {
+        return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value);
     }
 
     public function standardAnalytes(){

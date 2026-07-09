@@ -549,11 +549,23 @@ class ReceiveSampleRequest extends Component
 
     public function updatedFormDataCustomerName(?string $value): void
     {
+        $this->resetValidation([
+            'formData.customer_name',
+            'formData.client_name',
+            'formData.customer',
+            'formData.client',
+        ]);
         $this->prefillCustomerDetailsFromSelection($value);
     }
 
     public function updatedFormDataClientName(?string $value): void
     {
+        $this->resetValidation([
+            'formData.customer_name',
+            'formData.client_name',
+            'formData.customer',
+            'formData.client',
+        ]);
         $this->prefillCustomerDetailsFromSelection($value);
     }
 
@@ -1159,6 +1171,13 @@ class ReceiveSampleRequest extends Component
 
     private function validateWalkInCustomerInfo(): void
     {
+        $this->resetValidation([
+            'formData.customer_name',
+            'formData.client_name',
+            'formData.customer',
+            'formData.client',
+        ]);
+
         $customerName = '';
 
         foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {

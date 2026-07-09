@@ -192,6 +192,26 @@
                             </ul>
                         </div>
 
+                        @if ($selectedFormType === 'lab_hierarchy')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing lab data</strong>
+                                <p class="mb-2 small">When enabled, all sample types, analysis types, analysis elements, analytes, batches, samples, and captured results for your company will be permanently deleted before import. Standards are not deleted.</p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_lab_hierarchy">
+                                    <label class="form-check-label" for="replace_existing_lab_hierarchy">
+                                        Replace all existing lab data for this company (including batches, samples, and results)
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation">Type <code>DELETE ALL LAB DATA</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL LAB DATA">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
                         <form wire:submit.prevent="uploadFile()">
                             @if ($selectedFormType === 'user' || $selectedFormType === 'equipment' || $selectedFormType === 'inventory')
                                 <div class="mb-4 text-start">
@@ -421,6 +441,17 @@
                                     <ul class="mb-0">
                                         <li><strong>{{ $importResults['upserted']['inserted'] ?? 0 }}</strong> new records created</li>
                                         <li><strong>{{ $importResults['upserted']['updated'] ?? 0 }}</strong> existing records updated</li>
+                                    </ul>
+                                </div>
+                            @endif
+
+                            @if (!empty($importResults['purge_summary']))
+                                <div class="alert alert-warning mb-4">
+                                    <strong>Pre-import purge summary:</strong>
+                                    <ul class="mb-0 small">
+                                        @foreach ($importResults['purge_summary'] as $label => $count)
+                                            <li><strong>{{ str_replace('_', ' ', $label) }}:</strong> {{ $count }}</li>
+                                        @endforeach
                                     </ul>
                                 </div>
                             @endif

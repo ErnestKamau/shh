@@ -13,6 +13,7 @@ use App\Models\Auth\Permission;
 use App\Models\Auth\Role;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
+use App\Services\System\ThemeService;
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
@@ -145,6 +146,11 @@ class SystemSetupSeeder extends Seeder
                 $skippedCount  = 0;
 
                 foreach ($sourceConfigs as $row) {
+                    if (in_array($row->key, ThemeService::BRANDING_CONFIG_KEYS, true)) {
+                        $skippedCount++;
+                        continue;
+                    }
+
                     // Resolve the new configuration_type_id from the map built above.
                     $newTypeId = isset($row->configuration_type_id)
                         ? ($typeIdMap[$row->configuration_type_id] ?? null)

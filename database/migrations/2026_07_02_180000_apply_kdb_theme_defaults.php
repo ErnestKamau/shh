@@ -12,7 +12,7 @@ return new class extends Migration
         $type = SystemConfigurationsType::where('configuration_type', 'Global System Theme Settings')->first();
 
         if ($type) {
-            foreach (ThemeService::CONFIG_DEFAULTS as $key => $value) {
+            foreach (ThemeService::AMSPEC_THEME as $key => $value) {
                 SystemConfiguration::updateOrCreate(
                     ['key' => $key],
                     [
@@ -42,24 +42,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        $legacy = [
-            'sys_theme_primary_color' => '#6D0A0E',
-            'sys_theme_secondary_color' => '#8B1E22',
-            'sys_theme_accent_color' => '#ffffff',
-            'sys_sidebar_bg_color' => '#6D0A0E',
-            'sys_sidebar_link_bg' => 'rgba(255, 255, 255, 0.08)',
-        ];
-
-        $type = SystemConfigurationsType::where('configuration_type', 'Global System Theme Settings')->first();
-
-        if ($type) {
-            foreach ($legacy as $key => $value) {
-                SystemConfiguration::where('key', $key)->update(['value' => $value]);
-            }
-        }
-
-        SystemConfiguration::where('key', 'sys_quotation_primary_color')->update(['value' => '#6D0A0E']);
-
         ThemeService::forgetCache();
     }
 };
