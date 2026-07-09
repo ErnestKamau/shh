@@ -554,7 +554,7 @@
                                         <div class="col-md-6">
                                             <div class="info-card">
                                                 <div class="info-label">
-                                                    <i class="mdi mdi-timer-sand text-warning"></i> Quotation Acceptance TAT
+                                                    <i class="mdi mdi-timer-sand text-warning"></i> Quotation Acceptance TAT (avg)
                                                 </div>
                                                 <div class="info-value">
                                                     @php

@@ -3,6 +3,7 @@
 namespace App\Livewire\Crm\Customer\Tabs;
 
 use App\SampleHeader;
+use App\Support\VarcharUuidSql;
 use App\Livewire\Crm\BaseCrmComponent;
 use App\BatchAmmendment;
 use App\ChainOfCustody;
@@ -54,7 +55,9 @@ class CustomerReportsTab extends BaseCrmComponent
     public function getReportsProperty()
     {
         // 1. Explicitly select the ID as 'batch_id' to avoid ANY ambiguity
-        $query = SampleHeader::join('sample_types as st', 'st.id', '=', 'sample_headers.sample_type_id')
+        $query = SampleHeader::join('sample_types as st', function ($join): void {
+                $join->whereRaw(VarcharUuidSql::equals('st.id', 'sample_headers.sample_type_id'));
+            })
             ->select(
                 'sample_headers.*', 
                 'sample_headers.id as batch_id', // <--- CRITICAL FIX

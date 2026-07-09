@@ -1854,7 +1854,6 @@ Route::get('/inter-Lab/Transfer-Index/{is_archived?}', 'SampleWorkFlowController
 Route::post('/delete/Inter-Lab-Transfer/Logs', 'SampleWorkFlowController@deleteInterLabTransferLogs')->name('deleteInterLabTransferLogs')->middleware('can:laboratory.components.inter-lab-logs.delete');
 Route::get('/get/Lab-Sections/By-Lab/{id}', 'SampleWorkFlowController@getLabSectionsByLab')->name('getLabSectionsByLab')->middleware('can:laboratory.components.inter-lab-logs.view');
 Route::post('/moveToLab', 'SampleWorkFlowController@moveToLab')->name('moveToLab')->middleware('can:laboratory.components.inter-lab-logs.edit');
-Route::get('/showBatchCOA', 'SampleWorkFlowController@showBatchCOA')->name('showBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/generate-test-request-report', 'SampleWorkFlowController@generateTestRequestReport')->name('generateTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/process-test-request-report', 'SampleWorkFlowController@processTestRequestReport')->name('processTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/deliver-test-request-report', 'SampleWorkFlowController@deliverTestRequestReport')->name('deliverTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
@@ -1868,7 +1867,6 @@ Route::post('delete/Verification-Approver/Config', 'SampleWorkFlowController@del
 Route::post('change/Batch-Approval/Status', 'SampleWorkFlowController@changeBatchApprovalStatus')->name('changeBatchApprovalStatus')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::post('send-back-to-lab-for-amendment', 'SampleWorkFlowController@sendBackToLabForAmendment')->name('sendBackToLabForAmendment')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::post('resubmit-amendment-for-verification', 'SampleWorkFlowController@resubmitAmendmentForVerification')->name('resubmitAmendmentForVerification')->middleware('can:laboratory.components.verification-approvals.edit');
-Route::get('/get/Show-Batch/COA/{batch_code}/{format}', 'SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/sample-condition-index', 'SampleConditionController@index')->name('sample_condition_index')->middleware('can:laboratory.components.sample-types.view');
 Route::get('/sample-products/index', 'CRM\CompanyProductController@index')->name('sample-product-index')->middleware('can:crm.products.view');

@@ -46,47 +46,21 @@
                     <div class="mb-4">
                         <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Workflow Documents</h6>
                         <div class="row">
-                            <!-- Acceptance Form -->
-                            @if($acceptanceForm)
-                            <div class="col-md-4 mb-3">
-                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body p-3 d-flex align-items-center">
-                                        <div class="mr-3 text-success bg-success-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                            <i class="mdi mdi-check-decagram mdi-24px"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Acceptance Form</h6>
-                                            <small class="text-muted">{{ $acceptanceForm->submitted_at ? $acceptanceForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
-                                        </div>
-                                        <div class="d-flex align-items-center" style="gap: 5px;">
-                                            <button wire:click="regenerateAcceptanceForm" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Regenerate PDF with Dynamic Logo">
-                                                <i wire:loading.remove wire:target="regenerateAcceptanceForm" class="mdi mdi-refresh text-primary"></i>
-                                                <span wire:loading wire:target="regenerateAcceptanceForm" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-                                            </button>
-                                            <a href="{{ $acceptanceForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View PDF">
-                                                <i class="mdi mdi-eye text-dark"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-
                             <!-- Rejection Form -->
                             @if($rejectionForm)
-                            <div class="col-md-4 mb-3">
-                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body p-3 d-flex align-items-center">
-                                        <div class="mr-3 text-danger bg-danger-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                            <i class="mdi mdi-close-octagon mdi-24px"></i>
+                            <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body py-2 px-2 d-flex align-items-center">
+                                        <div class="mr-2 text-danger bg-danger-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                                            <i class="mdi mdi-close-octagon mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Rejection Form</h6>
-                                            <small class="text-muted">{{ $rejectionForm->submitted_at ? $rejectionForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Rejection Form</h6>
+                                            <small class="text-muted" style="font-size: 10px;">{{ $rejectionForm->submitted_at ? $rejectionForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
                                         </div>
-                                        <div>
-                                            <a href="{{ $rejectionForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View PDF">
-                                                <i class="mdi mdi-eye text-dark"></i>
+                                        <div class="ml-1" style="flex-shrink: 0;">
+                                            <a href="{{ $rejectionForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View PDF">
+                                                <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -96,23 +70,23 @@
 
                             <!-- Receipt Notification -->
                             @if($receiptNotification)
-                            <div class="col-md-4 mb-3">
-                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body p-3 d-flex align-items-center">
-                                        <div class="mr-3 text-info bg-info-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                            <i class="mdi mdi-receipt mdi-24px"></i>
+                            <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body py-2 px-2 d-flex align-items-center">
+                                        <div class="mr-2 text-info bg-info-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                                            <i class="mdi mdi-receipt mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Receipt Notification</h6>
-                                            <small class="text-muted">{{ $receiptNotification->created_at->format('Y-m-d H:i') }}</small>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Receipt Notification</h6>
+                                            <small class="text-muted" style="font-size: 10px;">{{ $receiptNotification->created_at->format('Y-m-d H:i') }}</small>
                                         </div>
-                                        <div class="d-flex align-items-center" style="gap: 5px;">
-                                            <button wire:click="regenerateReceiptNotification" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Regenerate PDF with Dynamic Logo">
-                                                <i wire:loading.remove wire:target="regenerateReceiptNotification" class="mdi mdi-refresh text-info"></i>
+                                        <div class="d-flex align-items-center ml-1" style="gap: 3px; flex-shrink: 0;">
+                                            <button wire:click="regenerateReceiptNotification" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="Regenerate PDF with Dynamic Logo">
+                                                <i wire:loading.remove wire:target="regenerateReceiptNotification" class="mdi mdi-refresh text-info" style="font-size: 14px;"></i>
                                                 <span wire:loading wire:target="regenerateReceiptNotification" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
                                             </button>
-                                            <a href="{{ $receiptNotification->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Document">
-                                                <i class="mdi mdi-eye text-dark"></i>
+                                            <a href="{{ $receiptNotification->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View Document">
+                                                <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -122,23 +96,23 @@
 
                             <!-- Quotation -->
                             @if($quotationDocument)
-                            <div class="col-md-4 mb-3">
-                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body p-3 d-flex align-items-center">
-                                        <div class="mr-3 text-warning bg-warning-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                            <i class="mdi mdi-file-document-outline mdi-24px"></i>
+                            <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body py-2 px-2 d-flex align-items-center">
+                                        <div class="mr-2 text-warning bg-warning-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                                            <i class="mdi mdi-file-document-outline mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Quotation</h6>
-                                            <small class="text-muted">{{ $quotationDocument->quote_number ?? ($quotationDocument->submitted_at ? $quotationDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Quotation</h6>
+                                            <small class="text-muted text-truncate d-block" style="font-size: 10px;">{{ $quotationDocument->quote_number ?? ($quotationDocument->submitted_at ? $quotationDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
                                         </div>
-                                        <div class="d-flex align-items-center" style="gap: 5px;">
-                                            <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Refresh linked quotation attachment">
-                                                <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-primary"></i>
+                                        <div class="d-flex align-items-center ml-1" style="gap: 3px; flex-shrink: 0;">
+                                            <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="Refresh linked quotation attachment">
+                                                <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-primary" style="font-size: 14px;"></i>
                                                 <span wire:loading wire:target="syncWorkflowDocuments" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
                                             </button>
-                                            <a href="{{ $quotationDocument->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Quotation">
-                                                <i class="mdi mdi-eye text-dark"></i>
+                                            <a href="{{ $quotationDocument->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View Quotation">
+                                                <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -148,23 +122,23 @@
 
                             <!-- Test Request Form -->
                             @if($testRequestFormDocument)
-                            <div class="col-md-4 mb-3">
-                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body p-3 d-flex align-items-center">
-                                        <div class="mr-3 text-secondary bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                            <i class="mdi mdi-clipboard-text-outline mdi-24px"></i>
+                            <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body py-2 px-2 d-flex align-items-center">
+                                        <div class="mr-2 text-secondary bg-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                                            <i class="mdi mdi-clipboard-text-outline mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Test Request Form</h6>
-                                            <small class="text-muted">{{ $testRequestFormDocument->form_number ?? ($testRequestFormDocument->submitted_at ? $testRequestFormDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Test Request Form</h6>
+                                            <small class="text-muted text-truncate d-block" style="font-size: 10px;">{{ $testRequestFormDocument->form_number ?? ($testRequestFormDocument->submitted_at ? $testRequestFormDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
                                         </div>
-                                        <div class="d-flex align-items-center" style="gap: 5px;">
-                                            <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Refresh linked test request form attachment">
-                                                <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-info"></i>
+                                        <div class="d-flex align-items-center ml-1" style="gap: 3px; flex-shrink: 0;">
+                                            <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="Refresh linked test request form attachment">
+                                                <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-info" style="font-size: 14px;"></i>
                                                 <span wire:loading wire:target="syncWorkflowDocuments" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
                                             </button>
-                                            <a href="{{ $testRequestFormDocument->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Test Request Form">
-                                                <i class="mdi mdi-eye text-dark"></i>
+                                            <a href="{{ $testRequestFormDocument->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View Test Request Form">
+                                                <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -174,19 +148,19 @@
 
                             <!-- Invoice -->
                             @if($batch->invoice_id)
-                            <div class="col-md-4 mb-3">
-                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body p-3 d-flex align-items-center">
-                                        <div class="mr-3 text-primary bg-primary-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                            <i class="mdi mdi-file-document mdi-24px"></i>
+                            <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body py-2 px-2 d-flex align-items-center">
+                                        <div class="mr-2 text-primary bg-primary-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                                            <i class="mdi mdi-file-document mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Invoice</h6>
-                                            <small class="text-muted">ID: {{ $batch->invoice_id }}</small>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Invoice</h6>
+                                            <small class="text-muted text-truncate d-block" style="font-size: 10px;">ID: {{ $batch->invoice_id }}</small>
                                         </div>
-                                        <div>
-                                            <a href="{{ route('print-invoice', $batch->invoice_id) }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Invoice">
-                                                <i class="mdi mdi-eye text-dark"></i>
+                                        <div class="ml-1" style="flex-shrink: 0;">
+                                            <a href="{{ route('print-invoice', $batch->invoice_id) }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View Invoice">
+                                                <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -195,7 +169,7 @@
                             @endif
                         </div>
 
-                        @if(!$acceptanceForm && !$rejectionForm && !$receiptNotification && !$batch->invoice_id && !$quotationDocument && !$testRequestFormDocument)
+                        @if(!$rejectionForm && !$receiptNotification && !$batch->invoice_id && !$quotationDocument && !$testRequestFormDocument)
                         <div class="alert alert-light border text-center py-4" style="border-radius: 10px;">
                             <i class="mdi mdi-file-hidden text-muted" style="font-size: 24px;"></i>
                             <p class="mb-0 mt-2 text-muted small">No workflow documents generated yet.</p>
@@ -330,22 +304,6 @@
                 <!-- 3. REPORTS TAB -->
                 <!-- ============================================== -->
                 <div class="tab-pane" id="reports" role="tabpanel">
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Generate Reports</h6>
-                            <div class="d-flex gap-2" style="gap: 10px;">
-                                <a href="#" onclick="alert('Analysis Report generation route to be implemented')" class="btn btn-outline-primary border-2 shadow-sm rounded-pill px-4 font-weight-bold">
-                                    <i class="mdi mdi-chart-box mr-1"></i> Generate Analysis Report
-                                </a>
-                                @if($batch->hasDnaLab())
-                                <button wire:click="openCaseFileModal" class="btn btn-outline-dark border-2 shadow-sm rounded-pill px-4 font-weight-bold">
-                                    <i class="mdi mdi-folder-account mr-1"></i> Generate Case File
-                                </button>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-
                     <div>
                         <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Uploaded Reports</h6>
                         <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">

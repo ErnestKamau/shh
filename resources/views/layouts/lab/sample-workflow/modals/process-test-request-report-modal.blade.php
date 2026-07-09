@@ -167,6 +167,8 @@
                             ->where('active', 1)->get();
                     }
 
+                    $companyUnitsById = $companyUnits->keyBy('id');
+
                     $companyUnitOptions = $companyUnits
                         ->pluck('name')
                         ->map(fn($name) => trim((string) $name))
@@ -177,6 +179,13 @@
                         $contactUnits = collect(explode(',', (string) ($contact->unit_name ?? '')))
                             ->map(fn($unit) => trim((string) $unit))
                             ->filter();
+
+                        if (!empty($contact->crm_company_unit_id)) {
+                            $mappedUnitName = trim((string) ($companyUnitsById->get($contact->crm_company_unit_id)?->name ?? ''));
+                            if ($mappedUnitName !== '') {
+                                $contactUnits->push($mappedUnitName);
+                            }
+                        }
 
                         $companyUnitOptions = $companyUnitOptions->merge($contactUnits);
                     }
@@ -212,15 +221,21 @@
                             </div>
                         @else
                             <div class="form-group mb-3">
-                                <label class="small font-weight-bold" for="ptrr-company-unit" style="color:#555;">Department / Company Unit</label>
-                                <select class="form-control form-control-sm" id="ptrr-company-unit" style="border-radius:8px;">
-                                    <option value="">Select Department / Company Unit...</option>
+                                <label class="small font-weight-bold" style="color:#555;">Department / Company Unit</label>
+                                <small class="text-muted d-block mb-2" style="font-size:11px;">Select one or more departments to filter contacts.</small>
+                                <div id="ptrr-company-unit-list" style="border:1px solid #dee2e6;border-radius:8px;max-height:110px;overflow-y:auto;padding:8px 12px;background:#fafafa;">
                                     @foreach($companyUnitOptions as $unitName)
-                                        <option value="{{ $unitName }}" {{ strtolower((string) $defaultCompanyUnit) === strtolower((string) $unitName) ? 'selected' : '' }}>
+                                    <div class="custom-control custom-checkbox mb-1">
+                                        <input type="checkbox" class="custom-control-input ptrr-company-unit-check"
+                                               id="ptrr-unit-{{ md5($unitName) }}"
+                                               value="{{ $unitName }}"
+                                               {{ strtolower((string) $defaultCompanyUnit) === strtolower((string) $unitName) ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="ptrr-unit-{{ md5($unitName) }}" style="font-size:13px;cursor:pointer;">
                                             {{ $unitName }}
-                                        </option>
+                                        </label>
+                                    </div>
                                     @endforeach
-                                </select>
+                                </div>
                             </div>
 
                             {{-- Contact picker --}}
@@ -231,7 +246,17 @@
                                     @php
                                         $contactUnits = collect(explode(',', (string) ($c->unit_name ?? '')))
                                             ->map(fn($unit) => trim((string) $unit))
-                                            ->filter()
+                                            ->filter();
+
+                                        if (!empty($c->crm_company_unit_id)) {
+                                            $mappedUnitName = trim((string) ($companyUnitsById->get($c->crm_company_unit_id)?->name ?? ''));
+                                            if ($mappedUnitName !== '') {
+                                                $contactUnits->push($mappedUnitName);
+                                            }
+                                        }
+
+                                        $contactUnits = $contactUnits
+                                            ->unique(fn($name) => strtolower((string) $name))
                                             ->values()
                                             ->all();
                                         $contactName = trim((string) ($c->name ?? implode(' ', array_filter([
@@ -262,7 +287,7 @@
                                     </div>
                                     @endforeach
                                     <div id="ptrr-no-contacts-for-unit" class="text-muted" style="display:none;font-size:12px;padding:4px 0;">
-                                        No contacts found for the selected department/company unit.
+                                        No contacts found for the selected department(s)/company unit(s).
                                     </div>
                                 </div>
                             </div>
@@ -292,6 +317,37 @@
                                 </div>
                             </div>
 
+                            {{-- Portal language selection --}}
+                            <div class="form-group mb-3" id="ptrr-portal-languages-section" style="display:none;">
+                                <label class="small font-weight-bold" style="color:#555;">
+                                    <i class="mdi mdi-web mr-1" style="color:#4A90D9;"></i> Portal Languages
+                                </label>
+                                <small class="text-muted d-block mb-2" style="font-size:11px;">
+                                    Choose which language versions customers can view and download on the portal.
+                                </small>
+                                <div class="d-flex" style="gap:10px;flex-wrap:wrap;">
+                                    @foreach([
+                                        'en' => ['label' => 'English', 'sub' => 'Default', 'code' => 'EN'],
+                                        'ar' => ['label' => 'Arabic',  'sub' => 'عربي',   'code' => 'AR'],
+                                        'pt' => ['label' => 'Portuguese', 'sub' => 'Português', 'code' => 'PT'],
+                                    ] as $val => $lang)
+                                    <label for="ptrr-portal-lang-{{ $val }}"
+                                           class="ptrr-portal-lang-card"
+                                           style="display:flex;align-items:center;gap:10px;padding:10px 16px;border:2px solid #dee2e6;border-radius:8px;cursor:pointer;flex:1;min-width:130px;transition:all .15s;">
+                                        <input type="checkbox" id="ptrr-portal-lang-{{ $val }}"
+                                               value="{{ $val }}" class="ptrr-portal-lang-check"
+                                               {{ $val === 'en' ? 'checked' : '' }}
+                                               style="display:none;">
+                                        <span style="background:#4A90D9;color:#fff;font-weight:700;font-size:11px;padding:3px 7px;border-radius:4px;letter-spacing:.5px;flex-shrink:0;">{{ $lang['code'] }}</span>
+                                        <span>
+                                            <strong style="font-size:13px;display:block;">{{ $lang['label'] }}</strong>
+                                            <span style="font-size:11px;color:#888;">{{ $lang['sub'] }}</span>
+                                        </span>
+                                    </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
                             {{-- Delivery result area --}}
                             <div id="ptrr-delivery-result" style="display:none;"></div>
 
@@ -307,6 +363,7 @@
 
                 <style>
                     .ptrr-channel-card:has(.ptrr-ch-check:checked) { border-color:#8B1A1A !important; background:#fdf4f4; }
+                    .ptrr-portal-lang-card:has(.ptrr-portal-lang-check:checked) { border-color:#4A90D9 !important; background:#f4f8fd; }
                 </style>
                 <script>
                 (function() {
@@ -326,21 +383,42 @@
                         }
                     }
 
-                    var companyUnitSelect = document.getElementById('ptrr-company-unit');
-                    var contactItems = Array.from(document.querySelectorAll('.ptrr-contact-item'));
-                    var emptyUnitContacts = document.getElementById('ptrr-no-contacts-for-unit');
+                    var modal = document.getElementById('process-test-request-report-modal');
+
+                    function getSelectedCompanyUnits() {
+                        if (!modal) {
+                            return [];
+                        }
+
+                        return Array.from(modal.querySelectorAll('.ptrr-company-unit-check:checked'))
+                            .map(function(input) { return (input.value || '').toString().trim(); })
+                            .filter(Boolean);
+                    }
+
+                    function getSelectedCompanyUnitsNormalized() {
+                        return getSelectedCompanyUnits().map(normalizeUnit);
+                    }
 
                     function filterContactsByUnit() {
-                        if (!companyUnitSelect || !contactItems.length) {
+                        var contactItems = modal
+                            ? Array.from(modal.querySelectorAll('.ptrr-contact-item'))
+                            : [];
+                        var emptyUnitContacts = modal
+                            ? modal.querySelector('#ptrr-no-contacts-for-unit')
+                            : null;
+                        var selectedUnits = getSelectedCompanyUnitsNormalized();
+
+                        if (!contactItems.length) {
                             return;
                         }
 
-                        var selectedUnit = normalizeUnit(companyUnitSelect.value);
                         var visibleCount = 0;
 
                         contactItems.forEach(function(item) {
                             var contactUnits = parseUnits(item.getAttribute('data-unit-names'));
-                            var belongs = selectedUnit !== '' && contactUnits.includes(selectedUnit);
+                            var belongs = selectedUnits.length > 0 && selectedUnits.some(function(unit) {
+                                return contactUnits.includes(unit);
+                            });
                             item.style.display = belongs ? '' : 'none';
 
                             if (!belongs) {
@@ -354,13 +432,88 @@
                         });
 
                         if (emptyUnitContacts) {
-                            emptyUnitContacts.style.display = selectedUnit !== '' && visibleCount === 0 ? '' : 'none';
+                            emptyUnitContacts.style.display = selectedUnits.length > 0 && visibleCount === 0 ? '' : 'none';
                         }
                     }
 
-                    if (companyUnitSelect) {
-                        companyUnitSelect.addEventListener('change', filterContactsByUnit);
+                    function getSelectedReportLanguage() {
+                        var checked = modal ? modal.querySelector('.ptrr-lang-radio:checked') : null;
+                        return checked ? checked.value : 'en';
+                    }
+
+                    function syncPortalLanguageWithReportLanguage() {
+                        if (!modal) {
+                            return;
+                        }
+
+                        var reportLang = getSelectedReportLanguage();
+                        var portalCheckbox = modal.querySelector('.ptrr-portal-lang-check[value="' + reportLang + '"]');
+                        if (portalCheckbox && !portalCheckbox.checked) {
+                            portalCheckbox.checked = true;
+                            portalCheckbox.dispatchEvent(new Event('change'));
+                        }
+                    }
+
+                    function togglePortalLanguagesSection() {
+                        if (!modal) {
+                            return;
+                        }
+
+                        var portalChannel = modal.querySelector('#ptrr-ch-portal');
+                        var section = modal.querySelector('#ptrr-portal-languages-section');
+                        if (!portalChannel || !section) {
+                            return;
+                        }
+
+                        section.style.display = portalChannel.checked ? '' : 'none';
+                        if (portalChannel.checked) {
+                            syncPortalLanguageWithReportLanguage();
+                        }
+                    }
+
+                    function getSelectedPortalLanguages() {
+                        if (!modal) {
+                            return [];
+                        }
+
+                        return Array.from(modal.querySelectorAll('.ptrr-portal-lang-check:checked'))
+                            .map(function(input) { return (input.value || '').toString().trim(); })
+                            .filter(Boolean);
+                    }
+
+                    if (modal) {
+                        modal.addEventListener('change', function(event) {
+                            if (event.target && event.target.classList.contains('ptrr-company-unit-check')) {
+                                filterContactsByUnit();
+                            }
+                        });
+
+                        modal.querySelectorAll('.ptrr-lang-radio').forEach(function(radio) {
+                            radio.addEventListener('change', function() {
+                                var portalChannel = modal.querySelector('#ptrr-ch-portal');
+                                if (portalChannel && portalChannel.checked) {
+                                    syncPortalLanguageWithReportLanguage();
+                                }
+                            });
+                        });
+
+                        if (typeof $ !== 'undefined') {
+                            $(modal).on('shown.bs.modal', function() {
+                                filterContactsByUnit();
+                                togglePortalLanguagesSection();
+                            });
+                        }
+
                         filterContactsByUnit();
+                        togglePortalLanguagesSection();
+
+                        modal.querySelectorAll('.ptrr-portal-lang-check:checked').forEach(function(cb) {
+                            var card = cb.closest('.ptrr-portal-lang-card');
+                            if (card) {
+                                card.style.borderColor = '#4A90D9';
+                                card.style.background = '#f4f8fd';
+                            }
+                        });
                     }
 
                     document.querySelectorAll('.ptrr-ch-check').forEach(function(cb) {
@@ -368,6 +521,17 @@
                             var card = this.closest('.ptrr-channel-card');
                             card.style.borderColor = this.checked ? '#8B1A1A' : '#dee2e6';
                             card.style.background  = this.checked ? '#fdf4f4' : '';
+                            if (this.id === 'ptrr-ch-portal') {
+                                togglePortalLanguagesSection();
+                            }
+                        });
+                    });
+
+                    document.querySelectorAll('.ptrr-portal-lang-check').forEach(function(cb) {
+                        cb.addEventListener('change', function() {
+                            var card = this.closest('.ptrr-portal-lang-card');
+                            card.style.borderColor = this.checked ? '#4A90D9' : '#dee2e6';
+                            card.style.background  = this.checked ? '#f4f8fd' : '';
                         });
                     });
 
@@ -382,10 +546,10 @@
                             document.querySelectorAll('.ptrr-ch-check:checked').forEach(function(c) {
                                 channels.push(c.value);
                             });
-                            var selectedUnit = companyUnitSelect ? companyUnitSelect.value : '';
+                            var selectedUnits = getSelectedCompanyUnits();
 
-                            if (companyUnitSelect && !selectedUnit) {
-                                alert('Please select a department/company unit.'); return;
+                            if (!selectedUnits.length) {
+                                alert('Please select at least one department/company unit.'); return;
                             }
 
                             if (!contactIds.length) {
@@ -393,6 +557,11 @@
                             }
                             if (!channels.length) {
                                 alert('Please select at least one delivery channel.'); return;
+                            }
+
+                            var portalLanguages = getSelectedPortalLanguages();
+                            if (channels.indexOf('portal') !== -1 && !portalLanguages.length) {
+                                alert('Please select at least one portal language.'); return;
                             }
 
                             var batchId = document.querySelector('#process-trr-form input[name="batch_id"]').value;
@@ -406,9 +575,12 @@
                             body.append('_token', csrf);
                             body.append('batch_id', batchId);
                             body.append('notes', notes);
-                            body.append('company_unit', selectedUnit || '');
+                            selectedUnits.forEach(function(unit) {
+                                body.append('company_units[]', unit);
+                            });
                             contactIds.forEach(function(id) { body.append('contact_ids[]', id); });
                             channels.forEach(function(ch)  { body.append('channels[]', ch); });
+                            portalLanguages.forEach(function(lang) { body.append('portal_languages[]', lang); });
 
                             fetch('{{ route("deliverTestRequestReport") }}', { method: 'POST', body: body })
                                 .then(function(r) { return r.json(); })

@@ -465,68 +465,6 @@
     </div>
     @endif
 
-    {{-- View COA Report Modal (migrated from legacy sample-workflow show view) --}}
-    @if(isset($batch->id) && isset($batch->status) && in_array($batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection']))
-    <div class="modal fade" id="view-coa-report" role="dialog">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form action="#" method="get" id="coa-report-form-again">
-                    <div class="modal-body">
-                        @if($batch->getVerificationApprovalStatus() > 0 && $batch->status == 'Sample Verification' )
-                        <div class="alert alert-danger p-2 d-flex mt-1">
-                            <i class="mdi mdi-decagram" style="font-size:30px"></i>
-                            <span class="p-2">Confirm all approvers have approved the report to have all the required signatories appear on the COA.</span>
-                        </div>
-                        @endif
-                        @if($batch->getApprovalStageStatus() > 0 && $batch->status == 'Sample Approval' )
-                        <div class="alert alert-danger p-2 d-flex mt-1">
-                            <i class="mdi mdi-decagram" style="font-size:30px"></i>
-                            <span class="p-2">Confirm all approvers have approved the report to have all the required signatories appear on the COA.</span>
-                        </div>
-                        @endif
-
-                        <div class="alert alert-success p-2 d-flex">
-                            <i class="mdi mdi-cogs" style="font-size: 25px"></i>
-                            <span class="p-2">Confirm you want to view COA report for this batch by selecting the report standard below:</span>
-                        </div>
-                        <div class="form-group">
-                            <label for="" class="control-label">Report Format</label>
-                            <select name="report_format" id="report_format_select_again" class="form-control no-select2" required>
-                                <option value="">Select Report Format</option>
-                                <option value="gcla_02">GCLA 02 Form (Certificate of Analysis)</option>
-                                @if(isset($batch) && $batch->hasForensicChemistryLab())
-                                <option value="dcea_009">DCEA 009 Form (Government Laboratory Analyst Report)</option>
-                                @endif
-                                @if(isset($report_formats) && $report_formats->isNotEmpty())
-                                    @foreach($report_formats as $format)
-                                    <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
-                                        {{ $format->report_name }}@if($format->report_code) ({{ $format->report_code }})@endif
-                                    </option>
-                                    @endforeach
-                                @else
-                                    <option value="" disabled>No report formats configured for this batch's lab section</option>
-                                @endif
-                            </select>
-                        </div>
-                        <div class="form-group hidden" id="gcla_language_group_again" style="margin-top: 10px;">
-                            <label for="gcla_language_again" class="control-label">Report Language</label>
-                            <select name="gcla_language_again" id="gcla_language_again" class="form-control no-select2">
-                                <option value="sw" selected>Kiswahili (Swahili)</option>
-                                <option value="en">English</option>
-                            </select>
-                        </div>
-                        <input type="hidden" name="batch_id" value="{{$batch->id}}">
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-sm btn-outline-success" type="button" id="generate-coa-btn-again"><i class="mdi mdi-cogs"></i> Generate Report</button>
-                        <span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    @endif
-
     {{-- Parameter Settings Modal --}}
     <div id="parameter-settings-modal" class="modal fade" role="dialog">
         <div class="modal-dialog">
@@ -816,7 +754,7 @@
 
 		// Capture which action opened Process Results so we can apply context-specific options.
 		$(document).on('click', '[data-target="#process-results-modal"]', function () {
-			var nextModalTarget = $(this).attr('data-next-modal') || '#view-coa-report';
+			var nextModalTarget = $(this).attr('data-next-modal') || '';
 			$('#process-results-modal').data('next-modal-target', nextModalTarget);
 		});
 
@@ -827,7 +765,7 @@
 			var trigger = event && event.relatedTarget ? $(event.relatedTarget) : $();
 			var nextModalTarget = trigger.attr('data-next-modal')
 				|| $modal.data('next-modal-target')
-				|| '#view-coa-report';
+				|| '';
 
 			$modal.data('next-modal-target', nextModalTarget);
 
@@ -985,8 +923,10 @@
 
 						setTimeout(function () {
 							$modal.modal('hide');
-							var postProcessModal = $modal.data('next-modal-target') || '#view-coa-report';
-							$(postProcessModal).modal('show');
+							var postProcessModal = $modal.data('next-modal-target');
+							if (postProcessModal) {
+								$(postProcessModal).modal('show');
+							}
 						}, 500);
 					},
 					error: function(data){
@@ -998,61 +938,6 @@
 					}
 				})
 			})
-		});
-
-		// View COA Report Modal Handler
-		$('#view-coa-report').on('show.bs.modal', function(){
-			var $modal = $('#view-coa-report');
-			
-			if ($.fn.select2) {
-				$modal.find('#report_format_select_again').select2({
-					width: '100%',
-					dropdownParent: $modal
-				});
-			}
-			if (lastProcessedReportOptions && lastProcessedReportOptions.report_format) {
-				$modal.find('#report_format_select_again').val(lastProcessedReportOptions.report_format).trigger('change');
-				if (lastProcessedReportOptions.report_format === 'gcla_02' || lastProcessedReportOptions.report_format === 'dcea_009') {
-					$modal.find('#gcla_language_again').val(lastProcessedReportOptions.gcla_language || 'sw');
-				}
-			} else {
-				$modal.find('#report_format_select_again').val('').trigger('change');
-			}
-
-			$modal.find('#report_format_select_again').off('change').on('change', function () {
-				if ($(this).val() === 'gcla_02' || $(this).val() === 'dcea_009') {
-					$modal.find('#gcla_language_group_again').removeClass('hidden');
-				} else {
-					$modal.find('#gcla_language_group_again').addClass('hidden');
-				}
-			});
-		});
-
-		// Handle COA report generation
-		$('#generate-coa-btn-again').on('click', function() {
-			var reportFormat = $('#report_format_select_again').val();
-			var batchId = $('input[name="batch_id"]').val();
-
-			if (!reportFormat) {
-				alert('Please select a report format');
-				return;
-			}
-
-			// Generate the URL for the PDF report
-			var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
-			url = url.replace(':batch_id', batchId);
-			url = url.replace(':report_format', reportFormat);
-
-			if (reportFormat === 'gcla_02' || reportFormat === 'dcea_009') {
-				var lang = $('#gcla_language_again').val() || 'sw';
-				url += '?gcla_language=' + lang;
-			}
-
-			// Open the PDF in a new window/tab
-			window.open(url, '_blank');
-
-			// Close the modal
-			$('#view-coa-report').modal('hide');
 		});
 
 		// ----------------------------------------------------

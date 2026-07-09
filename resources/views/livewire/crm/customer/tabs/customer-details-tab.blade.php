@@ -336,6 +336,22 @@
                                 </td>
                             </tr>
                         @endif
+                        <tr>
+                            <th>Quotation acceptance TAT (avg):</th>
+                            <td>
+                                @php
+                                    $tatMinutes = is_numeric($customer->quotation_acceptance_tat_minutes)
+                                        ? max((int) $customer->quotation_acceptance_tat_minutes, 0)
+                                        : null;
+                                @endphp
+                                @if($tatMinutes !== null)
+                                    <span class="crm-badge crm-badge-info">{{ number_format($tatMinutes / 60, 2) }} hours</span>
+                                    <small class="text-muted d-block mt-1">{{ number_format($tatMinutes) }} minutes</small>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                        </tr>
                         </tbody>
                     </table>
                 </div>

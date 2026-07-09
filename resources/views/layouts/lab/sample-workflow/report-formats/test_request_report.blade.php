@@ -26,7 +26,8 @@
         background: #fff;
         border: 1px solid #ccc;
         padding: 28px 32px 24px;
-        font-family: {{ $isRTL ? "'Noto Naskh Arabic', 'Arabic Typesetting', Arial" : 'Arial, Helvetica, sans-serif' }};
+        /* Dompdf ships with DejaVu fonts; use them for Arabic glyph coverage. */
+        font-family: {{ $isRTL ? "'DejaVu Sans', 'DejaVu Serif', Arial" : 'Arial, Helvetica, sans-serif' }};
         font-size: 11px;
         color: #111;
         line-height: 1.4;
@@ -274,7 +275,7 @@
         color: #000;
         font-weight: bold;
         line-height: 1.65;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: inherit;
     }
     .page-disclaimer .disclaimer-qr {
         flex-shrink: 0;

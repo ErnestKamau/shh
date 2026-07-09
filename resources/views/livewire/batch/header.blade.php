@@ -289,8 +289,6 @@
                                     <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
                                             style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                             Verification</span></li>
-                                    <li><span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal"><i
-                                                class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span></li>
                                 @endif
 
                                 @if(isset($batch->status) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0 && $status == 'Sample Verification')
@@ -319,11 +317,6 @@
                                         <li><span class="btn btn-sm dropdown-item" wire:click="openApprovalModal"
                                                 style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                                 Approval</span></li>
-                                    @endif
-                                    @if($batch->batch_report_url)
-                                        <?php                $reportpath = '/storage' . $batch->batch_report_url; ?>
-                                        <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i
-                                                    class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
                                     @endif
                                 @endif
                                 @if(isset($batch->status) && $batch->status == 'Samples In Lab' && ($batch->invoice_id == 0 || $batch->invoice_id == null))
@@ -366,11 +359,6 @@
                                         @endif
                                     @endif
                                     @if($batch->status == "Sample Approval")
-                                        @if($batch->batch_report_url)
-                                            <?php                    $reportpath = '/storage' . $batch->batch_report_url; ?>
-                                            <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i
-                                                        class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
-                                        @endif
                                         <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" data-next-modal="#process-test-request-report-modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span></li>
                                         @if(in_array($batch->status, ["Sample Approval", "Reports for Collection", "Reports In Payment"]))
                                             {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
@@ -399,13 +387,6 @@
                                     @if($batch->status == 'Reports In Payment')
                                         <li><span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal"
                                                 data-toggle="modal"><i class="mdi mdi-email mr-2"></i> Send for Collection</span></li>
-                                    @endif
-                                    @if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
-                                        @if($batch->batch_report_url)
-                                            <?php                    $reportpath = '/storage' . $batch->batch_report_url; ?>
-                                            <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i
-                                                        class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
-                                        @endif
                                     @endif
                                 @endif
                             @endif

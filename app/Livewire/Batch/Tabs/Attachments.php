@@ -238,7 +238,8 @@ class Attachments extends Component
         $config->configuration_type_id = $configurationTypeId;
         $config->save();
 
-        $this->newAttachmentTypeId = $config->id;
+        $newTypeKey = $config->getKey();
+        $this->newAttachmentTypeId = is_numeric($newTypeKey) ? (int) $newTypeKey : null;
         $this->newAttachmentTypeName = '';
 
         Log::info('Attachments Livewire: attachment type created', [

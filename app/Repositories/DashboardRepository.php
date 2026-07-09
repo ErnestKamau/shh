@@ -11,12 +11,14 @@ use App\DTOs\Dashboard\FeedbackSummaryDTO;
 use App\DTOs\Dashboard\InvoiceSummaryDTO;
 use App\DTOs\Dashboard\NotificationDTO;
 use App\DTOs\Dashboard\RecentReportDTO;
+use App\DTOs\Dashboard\ReportLanguageDownloadDTO;
 use App\DTOs\Dashboard\RecentSubmissionDTO;
 use App\DTOs\Dashboard\SubmissionSummaryDTO;
 use App\Invoice;
 use App\Models\CRM\Complaint;
 use App\Models\CRM\CustomerFeedback;
 use App\Models\CRM\CustomerNotification;
+use App\Models\TestRequestReportLanguageFile;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
@@ -322,8 +324,36 @@ class DashboardRepository
 
     private function mapReport(SampleHeader $header): RecentReportDTO
     {
+        $revisionNo = (int) ($header->test_request_report_sequence ?? 1);
+
+        $languageFiles = TestRequestReportLanguageFile::query()
+            ->where('batch_id', $header->id)
+            ->where('revision_no', $revisionNo)
+            ->orderBy('language')
+            ->get();
+
+        $availableLanguages = $languageFiles
+            ->map(function (TestRequestReportLanguageFile $file): ReportLanguageDownloadDTO {
+                $downloadUrl = $file->report_online_url
+                    ?: ($file->report_url ? url('/storage'.$file->report_url) : null);
+
+                return new ReportLanguageDownloadDTO(
+                    code: $file->language,
+                    label: $file->label(),
+                    downloadUrl: $downloadUrl,
+                );
+            })
+            ->values()
+            ->all();
+
         $downloadUrl = $header->batch_report_online_url
             ?: ($header->batch_report_url ? url('/storage'.$header->batch_report_url) : null);
+
+        if ($availableLanguages !== []) {
+            $preferred = collect($availableLanguages)->first(fn (ReportLanguageDownloadDTO $lang) => $lang->code === 'en')
+                ?? $availableLanguages[0];
+            $downloadUrl = $preferred->downloadUrl ?? $downloadUrl;
+        }
 
         return new RecentReportDTO(
             reportNumber: $header->document_number ?? $header->batch_code,
@@ -332,6 +362,7 @@ class DashboardRepository
             reportType: $header->relationLoaded('sample_type') ? $header->sample_type?->name : null,
             downloadUrl: $downloadUrl,
             releaseStatus: $this->publicStatusLabel((string) $header->status),
+            availableLanguages: $availableLanguages,
         );
     }
 

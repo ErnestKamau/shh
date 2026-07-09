@@ -849,6 +849,7 @@ final class QuotationFromEnquiryService
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
+            app(QuotationAcceptanceTatService::class)->stampFirstSentAt($enquiry, $now);
             $enquiry->save();
 
             $instance = $enquiry->submissionFormInstance;
@@ -1096,19 +1097,14 @@ final class QuotationFromEnquiryService
         }
 
         $quotation = $enquiry->currentQuotation;
-        $tatMinutes = $this->computeQuotationAcceptanceTatMinutes($quotation?->sent_to_customer_at);
+        $acceptedAt = now();
 
         $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
         $enquiry->accepted_quotation_header_id = (string) $quotation->id;
-        $enquiry->quotation_accepted_at = now();
+        $enquiry->quotation_accepted_at = $acceptedAt;
         $enquiry->save();
 
-        DB::table('crm_customers')
-            ->where('id', (string) $enquiry->crm_customer_id)
-            ->update([
-                'quotation_acceptance_tat_minutes' => $tatMinutes,
-                'updated_at' => now(),
-            ]);
+        app(QuotationAcceptanceTatService::class)->recalculateCustomerTat((string) $enquiry->crm_customer_id);
 
         if ($clientPoNumber !== null || $poSkipped) {
             return app(EnquiryReceptionReadinessService::class)->markReadyForReception(
@@ -1122,17 +1118,5 @@ final class QuotationFromEnquiryService
         }
 
         return $enquiry->fresh(['customer', 'contact', 'requestedAnalyses']);
-    }
-
-    private function computeQuotationAcceptanceTatMinutes($sentToCustomerAt): int
-    {
-        if ($sentToCustomerAt === null) {
-            return 0;
-        }
-
-        $sentAt = Carbon::parse($sentToCustomerAt);
-        $minutes = $sentAt->diffInMinutes(now(), false);
-
-        return $minutes > 0 ? $minutes : 0;
     }
 }
