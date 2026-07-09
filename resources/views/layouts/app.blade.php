@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
 
 <head>
     <meta charset="utf-8">
@@ -2662,32 +2662,6 @@
         console.error('[WebPush] Service worker registration failed:', err);
     });
 }());
-</script>
-<script>
-// Translation Debugging
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== Translation Debug ===');
-    console.log('Current Locale: {{ app()->getLocale() }}');
-    console.log('Session Locale: {{ session('locale', 'not set') }}');
-    
-    // Test some translations
-    console.log('System translations test:');
-    console.log('  system.languages_and_translations:', "{{ __('system.languages_and_translations') }}");
-    console.log('  system.languages:', "{{ __('system.languages') }}");
-    
-    console.log('Dashboard translations test:');
-    console.log('  dashboard.welcome_back:', "{{ __('dashboard.welcome_back') }}");
-    console.log('  dashboard.samples_reception:', "{{ __('dashboard.samples_reception') }}");
-    console.log('  dashboard.sample_verification:', "{{ __('dashboard.sample_verification') }}");
-    
-    // Check if translations are using English as fallback
-    const currentLocale = '{{ app()->getLocale() }}';
-    if (currentLocale === 'en') {
-        console.warn('Locale is still English - translation not applied');
-    } else {
-        console.log('Locale is ' + currentLocale + ' - translation should be applied');
-    }
-});
 </script>
 @endauth
 

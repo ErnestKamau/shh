@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\SafeEncrypted;
+use App\Concerns\HasVarcharUuidRelationships;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\QuotationHeader;
@@ -18,6 +19,7 @@ use Illuminate\Support\Str;
 class SampleSubmissionRequest extends Model
 {
     use HasUuids;
+    use HasVarcharUuidRelationships;
 
     private static ?bool $crmContactIdUsesNumericColumn = null;
 
@@ -73,8 +75,11 @@ class SampleSubmissionRequest extends Model
         'enquiry_notes',
         'enquiry_sample_configuration',
         'quotation_accepted_at',
+        'quotation_first_sent_to_customer_at',
         'subcontracting_dispatch_status',
         'subcontracting_dispatch_date',
+        'subcontracting_dispatch_lab_ids',
+        'subcontracting_dispatch_lab_names',
         'client_po_number',
         'po_skipped',
         'advance_payment_reference',
@@ -155,7 +160,10 @@ class SampleSubmissionRequest extends Model
             'date_expected' => 'date',
             'booking_date_reviewed_at' => 'datetime',
             'quotation_accepted_at' => 'datetime',
+            'quotation_first_sent_to_customer_at' => 'datetime',
             'subcontracting_dispatch_date' => 'datetime',
+            'subcontracting_dispatch_lab_ids' => SafeEncrypted::class,
+            'subcontracting_dispatch_lab_names' => SafeEncrypted::class,
             'number_of_samples' => 'integer',
             'is_police_sample' => 'boolean',
             'request_for_sampling' => 'boolean',
@@ -273,7 +281,7 @@ class SampleSubmissionRequest extends Model
 
     public function submissionFormInstance(): BelongsTo
     {
-        return $this->belongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
+        return $this->uuidBelongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
     }
 
 

@@ -1,4 +1,4 @@
-@extends('layouts.planner.layout.app')
+@extends('layouts.planner.layout.app', ['select2' => true])
 
 @section('title2')
 <title>System Planner - Schedule Sampling</title>

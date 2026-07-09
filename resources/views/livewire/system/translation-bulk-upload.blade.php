@@ -35,7 +35,7 @@
         @if($mode === 'json')
             <div class="form-group">
                 <label>{{ __('system.json_payload') }}</label>
-                <textarea class="form-control" rows="8" wire:model.defer="jsonPayload" placeholder='[{"group":"trip","key":"assigned","en":"Trip assigned","sw":"Safari imepewa"}]'></textarea>
+                <textarea class="form-control" rows="8" wire:model.defer="jsonPayload" placeholder='[{"group":"ai","key":"active","en":"Active","pt":"Ativo","ar":"نشط"}]'></textarea>
                 @error('jsonPayload') <small class="text-danger">{{ $message }}</small> @enderror
             </div>
         @else

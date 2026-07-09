@@ -23,6 +23,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -41,7 +42,8 @@ final class QuotationFromEnquiryService
         $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
         $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
 
-        if ($enquiry->quotation_source_mode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
+        if ($this->isSourceQuotationFeatureAvailable()
+            && $enquiry->quotation_source_mode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
             && ! empty($enquiry->selected_source_quotation_header_id)) {
             $linked = $this->resolveLinkedSourceQuotation($enquiry);
             if ($linked !== null) {
@@ -413,9 +415,13 @@ final class QuotationFromEnquiryService
             throw new RuntimeException('Selected quotation has expired.');
         }
 
-        $enquiry->selected_source_quotation_header_id = (string) $source->id;
+        if ($this->hasSelectedSourceQuotationColumn()) {
+            $enquiry->selected_source_quotation_header_id = (string) $source->id;
+        }
         $enquiry->current_quotation_header_id = (string) $source->id;
-        $enquiry->quotation_source_mode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING;
+        if ($this->hasQuotationSourceModeColumn()) {
+            $enquiry->quotation_source_mode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING;
+        }
 
         if ($enquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
             || $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW) {
@@ -431,7 +437,8 @@ final class QuotationFromEnquiryService
     {
         $enquiry->refresh();
 
-        if ($enquiry->quotation_source_mode !== SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
+        if (! $this->isSourceQuotationFeatureAvailable()
+            || $enquiry->quotation_source_mode !== SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
             || empty($enquiry->selected_source_quotation_header_id)) {
             return $this->createOrOpen($enquiry);
         }
@@ -553,6 +560,10 @@ final class QuotationFromEnquiryService
 
     public function resolveLinkedSourceQuotation(SampleSubmissionRequest $enquiry): ?QuotationHeader
     {
+        if (! $this->isSourceQuotationFeatureAvailable()) {
+            return null;
+        }
+
         $sourceId = (string) $enquiry->selected_source_quotation_header_id;
         $currentId = (string) ($enquiry->current_quotation_header_id ?? '');
 
@@ -574,6 +585,21 @@ final class QuotationFromEnquiryService
         $this->linkExistingQuotationToEnquiry($enquiry->fresh(), $source);
 
         return $source->fresh(['details']);
+    }
+
+    private function hasQuotationSourceModeColumn(): bool
+    {
+        return Schema::hasColumn('sample_submission_requests', 'quotation_source_mode');
+    }
+
+    private function hasSelectedSourceQuotationColumn(): bool
+    {
+        return Schema::hasColumn('sample_submission_requests', 'selected_source_quotation_header_id');
+    }
+
+    private function isSourceQuotationFeatureAvailable(): bool
+    {
+        return $this->hasQuotationSourceModeColumn() && $this->hasSelectedSourceQuotationColumn();
     }
 
     /**
@@ -843,6 +869,7 @@ final class QuotationFromEnquiryService
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
+            app(QuotationAcceptanceTatService::class)->stampFirstSentAt($enquiry, $now);
             $enquiry->save();
 
             $instance = $enquiry->submissionFormInstance;
@@ -1090,11 +1117,14 @@ final class QuotationFromEnquiryService
         }
 
         $quotation = $enquiry->currentQuotation;
+        $acceptedAt = now();
 
         $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
         $enquiry->accepted_quotation_header_id = (string) $quotation->id;
-        $enquiry->quotation_accepted_at = now();
+        $enquiry->quotation_accepted_at = $acceptedAt;
         $enquiry->save();
+
+        app(QuotationAcceptanceTatService::class)->recalculateCustomerTat((string) $enquiry->crm_customer_id);
 
         if ($clientPoNumber !== null || $poSkipped) {
             return app(EnquiryReceptionReadinessService::class)->markReadyForReception(

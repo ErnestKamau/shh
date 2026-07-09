@@ -194,6 +194,8 @@ Route::post('/company-activate', 'CompanyController@activate_company')->name('ac
 Route::get('/full-calendar/view/{date?}', 'Event\EventController@index')->name('full-calendar')->middleware('can:calendar.module.access');
 Route::get('/system-planner/tasks', 'Event\EventController@tasks')->name('system-planner.tasks')->middleware('can:calendar.module.access');
 Route::get('/system-planner/schedule-sampling', 'Event\EventController@scheduleSamplingIndex')->name('system-planner.schedule-sampling')->middleware('can:calendar.module.access');
+Route::get('/system-planner/actual-collections', 'Event\EventController@actualCollectionsIndex')->name('system-planner.actual-collections')->middleware('can:calendar.module.access');
+Route::get('/system-planner/kpi-reports', 'Event\EventController@kpiReportsIndex')->name('system-planner.kpi-reports')->middleware('can:calendar.module.access');
 Route::post('/full-calendar/add', 'Event\EventController@created')->name('full-calendar-create')->middleware('can:sampling-planner.components.all events.add');
 
 Route::post('/fullcalendareventmaster/create', 'Event\EventController@create')->middleware('can:sampling-planner.components.all events.add');
@@ -542,6 +544,7 @@ Route::get('/updateTatCaptured', 'SampleWorkFlowController@updateTatCaptured')->
 Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}', 'SampleWorkFlowController@getTatBatchApprovalCounterAjax')->name('getTatBatchApprovalCounterAjax')->middleware('can:laboratory.components.all samples.view');
 
 Route::post('/process-raw-results/lab', 'SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab')->middleware('can:laboratory.components.all samples.edit');
+Route::get('/sample-workflow/kpis', 'Lab\Reports\SamplesReportsController@index')->name('sample-workflow.kpis')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.all samples.view');
 Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
     ->name('sample-workflow.assign-user')
@@ -1733,13 +1736,15 @@ Route::get('/billing/tax-regime', function () {
 //#################################TAX REGIME#######################################
 
 //#################################LAB REPORTS#######################################
-Route::get('/lab/reports-home', 'Lab\Reports\SamplesReportsController@index')->name('lab-reports-home')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports-home', function (\Illuminate\Http\Request $request) {
+    return redirect()->route('sample-workflow.kpis', $request->query());
+})->name('lab-reports-home')->middleware('can:laboratory.components.lab-reports.view');
 // Dormant while KPI dashboard is active — legacy batch/sample/profit report POST handler kept for restoration.
 Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->name('lab-report-show')->middleware('can:laboratory.components.lab-reports.view');
-Route::get('/lab/reports/kpi/registration/summary', 'Lab\Reports\SamplesReportsController@exportRegistrationKpiSummary')->name('lab.kpi.registration.summary.export')->middleware('can:laboratory.components.lab-reports.view');
-Route::get('/lab/reports/kpi/registration/detail', 'Lab\Reports\SamplesReportsController@exportRegistrationKpiDetail')->name('lab.kpi.registration.detail.export')->middleware('can:laboratory.components.lab-reports.view');
-Route::get('/lab/reports/kpi/laboratory/summary', 'Lab\Reports\SamplesReportsController@exportLaboratoryKpiSummary')->name('lab.kpi.laboratory.summary.export')->middleware('can:laboratory.components.lab-reports.view');
-Route::get('/lab/reports/kpi/laboratory/detail', 'Lab\Reports\SamplesReportsController@exportLaboratoryKpiDetail')->name('lab.kpi.laboratory.detail.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/registration/summary', [\App\Http\Controllers\Lab\Reports\SampleWorkflowKpiExportController::class, 'registrationSummary'])->name('lab.kpi.registration.summary.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/registration/detail', [\App\Http\Controllers\Lab\Reports\SampleWorkflowKpiExportController::class, 'registrationDetail'])->name('lab.kpi.registration.detail.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/laboratory/summary', [\App\Http\Controllers\Lab\Reports\SampleWorkflowKpiExportController::class, 'laboratorySummary'])->name('lab.kpi.laboratory.summary.export')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/lab/reports/kpi/laboratory/detail', [\App\Http\Controllers\Lab\Reports\SampleWorkflowKpiExportController::class, 'laboratoryDetail'])->name('lab.kpi.laboratory.detail.export')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/module-reports', 'Lab\Reports\ModuleReportsController@index')->name('module-reports.index')->middleware('auth');
 Route::post('/module-reports/view', 'Lab\Reports\ModuleReportsController@viewReport')->name('module-reports.view')->middleware('auth');
 Route::get('/module-reports/print', 'Lab\Reports\ModuleReportsController@printReport')->name('module-reports.print')->middleware('auth');
@@ -1849,7 +1854,6 @@ Route::get('/inter-Lab/Transfer-Index/{is_archived?}', 'SampleWorkFlowController
 Route::post('/delete/Inter-Lab-Transfer/Logs', 'SampleWorkFlowController@deleteInterLabTransferLogs')->name('deleteInterLabTransferLogs')->middleware('can:laboratory.components.inter-lab-logs.delete');
 Route::get('/get/Lab-Sections/By-Lab/{id}', 'SampleWorkFlowController@getLabSectionsByLab')->name('getLabSectionsByLab')->middleware('can:laboratory.components.inter-lab-logs.view');
 Route::post('/moveToLab', 'SampleWorkFlowController@moveToLab')->name('moveToLab')->middleware('can:laboratory.components.inter-lab-logs.edit');
-Route::get('/showBatchCOA', 'SampleWorkFlowController@showBatchCOA')->name('showBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/generate-test-request-report', 'SampleWorkFlowController@generateTestRequestReport')->name('generateTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/process-test-request-report', 'SampleWorkFlowController@processTestRequestReport')->name('processTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/deliver-test-request-report', 'SampleWorkFlowController@deliverTestRequestReport')->name('deliverTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
@@ -1863,7 +1867,6 @@ Route::post('delete/Verification-Approver/Config', 'SampleWorkFlowController@del
 Route::post('change/Batch-Approval/Status', 'SampleWorkFlowController@changeBatchApprovalStatus')->name('changeBatchApprovalStatus')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::post('send-back-to-lab-for-amendment', 'SampleWorkFlowController@sendBackToLabForAmendment')->name('sendBackToLabForAmendment')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::post('resubmit-amendment-for-verification', 'SampleWorkFlowController@resubmitAmendmentForVerification')->name('resubmitAmendmentForVerification')->middleware('can:laboratory.components.verification-approvals.edit');
-Route::get('/get/Show-Batch/COA/{batch_code}/{format}', 'SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/sample-condition-index', 'SampleConditionController@index')->name('sample_condition_index')->middleware('can:laboratory.components.sample-types.view');
 Route::get('/sample-products/index', 'CRM\CompanyProductController@index')->name('sample-product-index')->middleware('can:crm.products.view');

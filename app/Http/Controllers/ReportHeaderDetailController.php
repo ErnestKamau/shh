@@ -277,7 +277,7 @@ class ReportHeaderDetailController extends Controller
 		$accreditation_logo = $this->resolveImageAsDataUri(public_path('images/sadc-ilac.jpeg'));
 		$stamp       = $this->resolveImageAsDataUri(public_path('images/company_logo.png'));
 
-		$batch = SampleHeader::with(['customer'])->find($batch_id);
+		$batch = SampleHeader::with(['customer', 'submissionFormInstance.submissionForm'])->find($batch_id);
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
 		$batch->save();
@@ -307,6 +307,36 @@ class ReportHeaderDetailController extends Controller
 			$filename = $customer_name . '-' . $batch_code . '-' . date("d-M-Y-H-i-s") . '.pdf';
 		}
 		$filename = urlencode($filename);
+
+		if ($this->shouldUseTestRequestReport($batch)) {
+			Log::info('process_pdf_report: using test request report generator', [
+				'batch_id' => $batch->id,
+				'batch_code' => $batch->batch_code,
+				'report_format' => $report_format,
+			]);
+
+			$lang = strtolower((string) request('gcla_language', 'en'));
+			if (! in_array($lang, ['en', 'ar', 'pt'], true)) {
+				$lang = 'en';
+			}
+
+			$reportRequest = Request::create('/generate-test-request-report', 'GET', [
+				'batch_id' => (string) $batch->id,
+				'lang' => $lang,
+				'mode' => 'pdf',
+			]);
+			$reportRequest->setUserResolver(fn () => auth()->user());
+
+			$response = app(SampleWorkFlowController::class)->generateTestRequestReport($reportRequest);
+
+			if (! empty($batch->crm_customer_id)) {
+				$cacheService = app(\App\Services\Dashboard\DashboardCacheService::class);
+				$cacheService->forgetList('reports', (string) $batch->crm_customer_id);
+				$cacheService->forgetCustomer((string) $batch->crm_customer_id);
+			}
+
+			return $response;
+		}
 
 		// Attachments merging options (passed via query parameters)
 		$mergeWithAttachments = request()->boolean('merge_with_attachments');
@@ -449,6 +479,24 @@ class ReportHeaderDetailController extends Controller
 		// For water_report we currently just return a JSON response.
 		// Attachment merging is not applied in this legacy flow.
 		return response()->json(['success' => true, 'message' => 'PDF successfully saved to FTP!']);
+	}
+
+	private function shouldUseTestRequestReport(SampleHeader $batch): bool
+	{
+		$instance = $batch->submissionFormInstance;
+		if (! $instance || ! $instance->submissionForm) {
+			return false;
+		}
+
+		$documentCode = strtoupper((string) ($instance->submissionForm->document_code ?? ''));
+		$formName = strtolower((string) ($instance->submissionForm->name ?? ''));
+
+		if (str_starts_with($documentCode, 'TRF-') || $documentCode === 'LSR-001') {
+			return true;
+		}
+
+		return str_contains($formName, 'test request form')
+			|| str_contains($formName, 'laboratory service request');
 	}
 	public function moveFTP($ftpPath, $localPath)
 	{

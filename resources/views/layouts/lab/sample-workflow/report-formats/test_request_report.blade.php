@@ -26,7 +26,8 @@
         background: #fff;
         border: 1px solid #ccc;
         padding: 28px 32px 24px;
-        font-family: {{ $isRTL ? "'Noto Naskh Arabic', 'Arabic Typesetting', Arial" : 'Arial, Helvetica, sans-serif' }};
+        /* Dompdf ships with DejaVu fonts; use them for Arabic glyph coverage. */
+        font-family: {{ $isRTL ? "'DejaVu Sans', 'DejaVu Serif', Arial" : 'Arial, Helvetica, sans-serif' }};
         font-size: 11px;
         color: #111;
         line-height: 1.4;
@@ -274,7 +275,7 @@
         color: #000;
         font-weight: bold;
         line-height: 1.65;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: inherit;
     }
     .page-disclaimer .disclaimer-qr {
         flex-shrink: 0;
@@ -524,17 +525,10 @@
                 <td>{{ str_pad($totalPages, 2, '0', STR_PAD_LEFT) }}</td>
             </tr>
             <tr>
-                <td class="dlbl">{{ $labels['date_of_analysis'] }}</td>
-                <td colspan="3">
-                    @if($analysisDate && $analysisDate->start_analysis_date)
-                        {{ date('d/m/Y', strtotime($analysisDate->start_analysis_date)) }}
-                        @if($analysisDate->analysis_dates)
-                            &ndash; {{ date('d/m/Y', strtotime($analysisDate->analysis_dates)) }}
-                        @endif
-                    @else
-                        -
-                    @endif
-                </td>
+                <td class="dlbl">{{ $labels['date_of_analysis'] }} Start</td>
+                <td>{{ $analysisStartDate ?? '-' }}</td>
+                <td class="dlbl">{{ $labels['date_of_analysis'] }} End</td>
+                <td>{{ $analysisEndDate ?? '-' }}</td>
             </tr>
             <tr>
                 <td class="dlbl">{{ $labels['packaging'] ?? 'Packaging' }}</td>

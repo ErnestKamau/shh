@@ -208,6 +208,29 @@ function getRequestToStoreWorkflow()
 	return array("Request to Store", "Material Issuance");
 }
 
+function getInventoryWorkflowStageLabel(string $stage): string
+{
+	$labels = [
+		'Purchase Request' => 'inventory.workflow_purchase_request',
+		'Request for Quotation' => 'inventory.workflow_request_for_quotation',
+		'Purchase Orders' => 'inventory.workflow_purchase_orders',
+		'Goods Receipt' => 'inventory.workflow_goods_receipt',
+		'Goods Return' => 'inventory.workflow_goods_return',
+		'Request to Store' => 'inventory.workflow_request_to_store',
+		'Material Issuance' => 'inventory.workflow_material_issuance',
+		'Lend' => 'inventory.lend',
+		'Loan' => 'inventory.loan',
+	];
+
+	if (isset($labels[$stage])) {
+		$translated = __($labels[$stage]);
+
+		return $translated !== $labels[$stage] ? $translated : $stage;
+	}
+
+	return $stage;
+}
+
 function getConvoID($id)
 {
 	$convo_id1 = App\Conversation::where('from_user_id', auth()->user()->id)->where('to_user_id', $id)->get();
@@ -692,11 +715,25 @@ function getSampleWorflowStages()
 function getSampleWorkflowStageLabel($stage)
 {
 	$labels = [
-		'Samples En-Route' => 'Sample Receiving',
-		'Samples Reception' => 'Sample Receiving (Received)',
+		'Samples En-Route' => 'lab.workflow_samples_receiving',
+		'Samples Reception' => 'lab.workflow_samples_receiving',
+		'All Samples' => 'lab.workflow_all_samples',
+		'Samples Request Review' => 'lab.workflow_samples_request_review',
+		'Samples In Lab' => 'lab.status_samples_in_lab',
+		'Sample Verification' => 'lab.status_sample_verification',
+		'Sample Approval' => 'lab.status_sample_approval',
+		'Reports In Payment' => 'lab.workflow_reports_in_payment',
+		'Reports for Collection' => 'lab.workflow_reports_for_collection',
+		'Completed Sample' => 'lab.status_finished_sample',
 	];
 
-	return $labels[$stage] ?? $stage;
+	if (isset($labels[$stage])) {
+		$translated = __($labels[$stage]);
+
+		return $translated !== $labels[$stage] ? $translated : $stage;
+	}
+
+	return $stage;
 }
 function getVisibleComplaintWorkflowMap()
 {

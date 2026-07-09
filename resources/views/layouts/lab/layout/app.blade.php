@@ -2,7 +2,7 @@
 
 @section('module-name')
 <li class="nav-item d-flex align-items-center">
-	<a class="nav-link module-name" href="{{ route('dashboard-lab') }}"><i class="mdi mdi-flask"></i> Lab Management</a>
+	<a class="nav-link module-name" href="{{ route('dashboard-lab') }}"><i class="mdi mdi-flask"></i> {{ __('lab.module_name') }}</a>
 	{{-- Legacy physical check-in header button (Ready for Reception) — replaced by Receive request (walk-in TRF capture)
 	<button type="button"
 		class="btn btn-sm ml-3 workflow-header-receive-btn"
@@ -14,7 +14,7 @@
 	<button type="button"
 		class="btn btn-sm ml-3 workflow-header-receive-btn workflow-header-receive-request-btn"
 		data-sf-trigger="workflow-walk-in-request">
-		<i class="mdi mdi-walk"></i> Receive request
+		<i class="mdi mdi-walk"></i> {{ __('lab.receive_request') }}
 	</button>
 </li>
 @endsection
@@ -199,6 +199,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			$isInSampleWorkflow = request()->routeIs(
 				'dashboard-lab-personal',
 				'sample-workflow',
+				'sample-workflow.kpis',
+				'lab-reports-home',
 				'sample-workflow-stage',
 				'view-batch-details',
 				'batch-worksheets',
@@ -206,6 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				'lab.submission-requests.*',
 				'sample-workflow.submission-requests.*'
 			);
+			$isWorkflowKpisActive = request()->routeIs('sample-workflow.kpis', 'lab-reports-home');
 			$isSampleWorkflowStageActive = static function (string $stage) use ($labWorkflowStatus, $labRouteName): bool {
 				if ($labWorkflowStatus === $stage) {
 					return true;
@@ -217,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-flask fa-3x"></i><br>
-				<span class="text-lg text-bold">LAB MANAGEMENT</span>
+				<span class="text-lg text-bold">{{ __('lab.module_name') }}</span>
 			</div>
 			<!-- Separator with title -->
 			{{-- <li class="list-group-item bg-black sidebar-separator-title text-muted d-flex align-items-center menu-collapsed">
@@ -229,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="{{ route('dashboard-lab') }}" class="list-group-item list-group-item-action {{ $isLabDashboardActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
-					<span class="menu-collapsed">Dashboard</span>
+					<span class="menu-collapsed">{{ __('lab.dashboard') }}</span>
 				</div>
 			</a>
 			@endif
@@ -237,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="{{ $isInSampleWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInSampleWorkflow ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
-					<span class="menu-collapsed">Sample Workflow</span>
+					<span class="menu-collapsed">{{ __('lab.sample_workflow') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -248,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				@if($canAllSamples)
 				<a href="{{ route('dashboard-lab-personal') }}" class="list-group-item list-group-item-action {{ $isLabPersonalDashboardActive ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Personal Dashboard</span>
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.personal_dashboard') }}</span>
 					</div>
 				</a>
 				@endif
@@ -260,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
-							<i class="mdi mdi-circle-medium"></i> Inter Lab Transfer
+							<i class="mdi mdi-circle-medium"></i> {{ __('lab.inter_lab_transfer') }}
 						</span>
 						<small class="badge badge-pill badge-success">{{getInterLabTotals()}}</small>
 					</div>
@@ -278,39 +281,49 @@ document.addEventListener('DOMContentLoaded', function() {
 				@endif
 				@endforeach
 
+				@if($canLabReports)
+				<a href="{{ route('sample-workflow.kpis') }}" class="list-group-item list-group-item-action {{ $isWorkflowKpisActive ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i> {{ __('lab.workflow_kpis') }}
+						</span>
+					</div>
+				</a>
+				@endif
+
 			</div>
 			@endif
 			@if($canProformaInvoices || $canTaxRegime || $canQuotation || $canPricelists)
 			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
-					<span class="menu-collapsed">Billing</span>
+					<span class="menu-collapsed">{{ __('lab.billing') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
 		<div id="billing-menu" class="collapse sidebar-submenu">
 			@if($canProformaInvoices)
 			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Draft Invoices
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.draft_invoices') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 
 		<a href="{{route('billing.currencies')}}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Currencies
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.currencies') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 			@endif
 
 			@if($canPricelists)
 		<a href="{{ route('view-pricelists') }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Pricelists
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.pricelists') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 			@endif
 
 			@if($canTaxRegime)
 		<a href="{{route('billing.tax-regime')}}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Tax Regime
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.tax_regime') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 			@endif
@@ -319,21 +332,21 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
-					<span class="menu-collapsed">Quotations</span>
+					<span class="menu-collapsed">{{ __('lab.quotations') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
 			<div id="quotation-menu" class="collapse sidebar-submenu">
 				<a href="{{route('quotation-index')}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> All Quotes
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.all_quotes') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{route('quotation-index',['stage'=>'Quote In Preparation'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Preparation
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.quotes_in_preparation') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Finalised Quotes
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.finalised_quotes') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 			</div>
@@ -345,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="{{ route('lab.equipment-requests.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.equipment-requests.*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools mr-3"></span>
-					<span class="menu-collapsed">Equipment Requests</span>
+					<span class="menu-collapsed">{{ __('lab.equipment_requests') }}</span>
 				</div>
 			</a>
 			@endif
@@ -353,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="{{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
-					<span class="menu-collapsed">Qc Workflow</span>
+					<span class="menu-collapsed">{{ __('lab.qc_workflow') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -363,19 +376,19 @@ document.addEventListener('DOMContentLoaded', function() {
 						<small class="float-right badge badge-pill"></small></span>
 				</a> -->
 				<a href="{{route('qcWorkflowIndex')}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Qc History
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.qc_history') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{ route('showUnProcessed') }}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Awaiting Processing
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.awaiting_processing') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{ route('qc-reports') }}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Qc Reports
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.qc_reports') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{route('qc_configuration_index')}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Configurations
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.configurations') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 
@@ -385,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="/analytes" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-molecule fa-fw mr-3"></span>
-					<span class="menu-collapsed">Analytes</span>
+					<span class="menu-collapsed">{{ __('lab.analytes') }}</span>
 				</div>
 			</a>
 			@endif
@@ -393,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="{{ route('livewire.labs') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Labs</span>
+					<span class="menu-collapsed">{{ __('lab.labs') }}</span>
 				</div>
 			</a>
 			@endif
@@ -401,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="{{ route('livewire.monitoring') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-monitor-dashboard fa-fw mr-3"></span>
-					<span class="menu-collapsed">Monitoring</span>
+					<span class="menu-collapsed">{{ __('lab.monitoring') }}</span>
 				</div>
 			</a>
 			@endif
@@ -409,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="/sample-analysis-stages" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
-					<span class="menu-collapsed">Sample Analysis Stages</span>
+					<span class="menu-collapsed">{{ __('lab.sample_analysis_stages') }}</span>
 				</div>
 			</a>
 			@endif
@@ -417,19 +430,19 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="{{ route('livewire.sample-types') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-test-tube fa-fw mr-3"></span>
-					<span class="menu-collapsed">Sample Types</span>
+					<span class="menu-collapsed">{{ __('lab.sample_types') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('formulars.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('formulars.*') || request()->routeIs('stage-headers.*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calculator fa-fw mr-3"></span>
-					<span class="menu-collapsed">Formulas</span>
+					<span class="menu-collapsed">{{ __('lab.formulas') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('livewire.standards') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
-					<span class="menu-collapsed">Standards</span>
+					<span class="menu-collapsed">{{ __('lab.standards') }}</span>
 				</div>
 			</a>
 			@endif
@@ -438,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="/reporting-units" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
-					<span class="menu-collapsed">Reporting Units</span>
+					<span class="menu-collapsed">{{ __('lab.reporting_units') }}</span>
 				</div>
 			</a>
 			@endif
@@ -446,22 +459,22 @@ document.addEventListener('DOMContentLoaded', function() {
 				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-clipboard-check-outline mr-3"></span>
-						<span class="menu-collapsed">Method Validation</span>
+						<span class="menu-collapsed">{{ __('lab.method_validation') }}</span>
 						<span class="submenu-icon ml-auto"></span>
 					</div>
 				</a>
 				<div id="method-validation-menu" class="collapse sidebar-submenu">
 					<a href="/analysis-methods" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Methods</span>
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.methods') }}</span>
 					</a>
 					@if($canMethodValidationRegistration)
 					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Method Registration</span>
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.method_registration') }}</span>
 					</a>
 					@endif
 					@if($canMethodValidationDataReview)
 					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Data Review & Analysis</span>
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.data_review_analysis') }}</span>
 					</a>
 					@endif
 				</div>
@@ -470,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				<a href="{{ route('uncertainty-budgets.index') }}" class="list-group-item list-group-item-action">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-calculator fa-fw mr-3"></span>
-					<span class="menu-collapsed">Uncertainty Budget</span>
+					<span class="menu-collapsed">{{ __('lab.uncertainty_budget') }}</span>
 				</div>
 			</a>
 			@endif
@@ -479,26 +492,26 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
-					<span class="menu-collapsed">Solutions Monitoring</span>
+					<span class="menu-collapsed">{{ __('lab.solutions_monitoring') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
 			<div id="stock-monitoring-menu" class="collapse sidebar-submenu">
 
 				<a href="{{route('stock-monitoring-categories')}}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Categories
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.categories') }}
 				<small class="float-right badge badge-pill"></small></span>
 			</a>
 			<a href="{{route('stock_management_index')}}" class="list-group-item list-group-item-action">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Management
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.solutions_management') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 			<a href="{{route('solution-movement-index')}}" class="list-group-item list-group-item-action">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Movement
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.solutions_movement') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 			<a href="{{route('solutions-preparation-index')}}" class="list-group-item list-group-item-action">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Preparation Tracking
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.preparation_tracking') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 
@@ -516,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
 	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
-			<span class="menu-collapsed">Configurations</span>
+			<span class="menu-collapsed">{{ __('lab.configurations') }}</span>
 			<span class="submenu-icon ml-auto"></span>
 		</div>
 	</a>
@@ -524,37 +537,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		@if($canSampleTypes)
 		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Conditions
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.sample_conditions') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 		@if($canChecklistApprovals)
 		<a href="{{ route('livewire.workflow-approvals') }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Checklist Approvals
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.checklist_approvals') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 		@if($canConfigRouteAccess)
 		<a href="{{ route('module-pre-configs', ['config' => 'Zones', 'module' => 'Lab-Management']) }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Zone
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.zone') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 		@if($canRftForms)
 		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Submission Form Templates
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.submission_form_templates') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 
 		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Report Templates
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.report_templates') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 
 		@if(auth()->user()->can('settings.module.access'))
 		<a href="{{ route('system-settings.whatsapp') }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Whatsapp Configuration
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.whatsapp_configuration') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
@@ -573,18 +586,14 @@ document.addEventListener('DOMContentLoaded', function() {
 	<a href="#report-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
-			<span class="menu-collapsed">Reports</span>
+			<span class="menu-collapsed">{{ __('lab.reports') }}</span>
 			<span class="submenu-icon ml-auto"></span>
 		</div>
 	</a>
 	<div id="report-menu" class="collapse sidebar-submenu">
 
 		<a href="{{ route('module-reports.index') }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Centralized Module Reports
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
-		<a href="{{ route('lab-reports-home') }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Lab Reports
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.centralized_module_reports') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		<a href="{{ route('lab-report-tat') }}" class="list-group-item list-group-item-action">

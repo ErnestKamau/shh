@@ -641,10 +641,6 @@
 						<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
 					</span>
 				</li>
-				<li class="">
-					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-
-				</li>
 
 				@if( $batch->prelim_report_status != 0 && $status == 'Sample Verification')
 				<li>
@@ -689,10 +685,6 @@
 					</span>
 				</li>
 				@endif
-				<li>
-					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-
-				</li>
 
 				@endif
 				@if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2)
@@ -730,15 +722,6 @@
 					</span>
 				</li>
 				@endif
-				<li class="hidden">
-					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-
-				</li>
-				@else
-				<li class="hidden">
-					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report {{$not_captured->count()}}</span>
-				</li>
-				@endif
 				@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
@@ -768,9 +751,6 @@
 
 				@endif
 				@if($batch->status == "Sample Approval")
-				<li>
-					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-				</li>
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal" title="Generate Test Request Report"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span>
 				</li>
@@ -817,11 +797,6 @@
 				@if(isset($batch->status) && $batch->status == 'Reports In Payment')
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
-				</li>
-				@endif
-				@if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
-				<li>
-					<span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 				</li>
 				@endif
 				@endif
@@ -2953,56 +2928,6 @@
 		</form>
 	</div>
 </div>
-@if(in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection','Samples In Lab']))
-<div class="modal fade" id="view-coa-report" role="dialog">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<form action="#" method="get" id="coa-report-form">
-
-				<div class="modal-body">
-					@if($batch->getVerificationApprovalStatus() > 0 && $batch->status == 'Sample Verification' )
-					<div class="alert alert-danger p-2 d-flex">
-						<i class="mdi mdi-decagram" style="font-size:30px"></i>
-						<span class="p-2">Confirm all approvers have approved the report to have all the required signatories appear on the COA.</span>
-
-					</div>
-					@endif
-					@if($batch->getApprovalStageStatus() > 0 && $batch->status == 'Sample Approval' )
-					<div class="alert alert-danger p-2 d-flex">
-						<i class="mdi mdi-decagram" style="font-size:30px"></i>
-						<span class="p-2">Confirm all approvers have approved the report to have all the required signatories appear on the COA.</span>
-
-					</div>
-					@endif
-
-
-					<div class="alert alert-success p-2 d-flex">
-						<i class="mdi mdi-cogs" style="font-size: 25px"></i>
-						<span class="p-2">Confirm you want to view COA report for this batch by selecting the report standard below:</span>
-					</div>
-					<div class="form-group">
-						<label for="" class="control-label">Report Format</label>
-						<select name="report_format" id="report_format_select" class="form-control no-select2" required>
-							<option value="">Select Report Format</option>
-							<option value="0">Aspergillus Report (MB 821/25-3)</option>
-							<option value="1">Microbiology Report (MB 826/25)</option>
-							<option value="2">Hygiene Swabs Report (MB 756/25-2)</option>
-						</select>
-					</div>
-					<div class="form-group hidden">
-						<label for="" class="control-label"><input type="checkbox" name="add_pesticide" id="" class=""> Include Pesticide Results</label>
-					</div>
-					<input type="hidden" name="batch_id" value="{{$batch->id}}">
-				</div>
-				<div class="modal-footer">
-					<button class="btn btn-sm btn-outline-success" type="button" id="generate-coa-btn"><i class="mdi mdi-cogs"></i> Generate Report</button>
-					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
-				</div>
-			</form>
-		</div>
-	</div>
-</div>
-@endif
 <div id="add-sample-conditions" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -8255,27 +8180,6 @@
 	</tr>`;
 
 	$(document).ready(function() {
-		// Handle COA report generation
-		$('#generate-coa-btn').on('click', function() {
-			var reportFormat = $('#report_format_select').val();
-			var batchId = $('input[name="batch_id"]').val();
-
-			if (!reportFormat) {
-				alert('Please select a report format');
-				return;
-			}
-
-			// Generate the URL for the PDF report
-			var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
-			url = url.replace(':batch_id', batchId);
-			url = url.replace(':report_format', reportFormat);
-
-			// Open the PDF in a new window/tab
-			window.open(url, '_blank');
-
-			// Close the modal
-			$('#view-coa-report').modal('hide');
-		});
 		// Handle store selection to populate slots
 		$('#bulk-store-select').on('change', function() {
 			var selectedStore = $(this).find('option:selected');

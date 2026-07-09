@@ -21,6 +21,7 @@ use Illuminate\Validation\ValidationException;
 class SubmissionFormSubmissionService
 {
     private ?bool $hasSelectedSampleTypeColumn = null;
+
     public function mergeSubmissionFieldsIntoRequest(Request $request): void
     {
         $fields = $request->input('fields');
@@ -253,6 +254,18 @@ class SubmissionFormSubmissionService
 
             $this->syncCommercialPipelineIfApplicable($instance->fresh(['values.element']), $submissionForm);
 
+            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
+            if (class_exists($labIntakeCaseServiceClass)) {
+                try {
+                    app($labIntakeCaseServiceClass)->syncFromSubmission($instance->fresh(), null);
+                } catch (\Throwable $th) {
+                    Log::warning('Lab intake case sync failed after walk-in form submit.', [
+                        'instance_id' => $instance->id,
+                        'message' => $th->getMessage(),
+                    ]);
+                }
+            }
+
             return $instance->fresh(['submissionForm', 'values.element']);
         });
     }
@@ -431,6 +444,11 @@ class SubmissionFormSubmissionService
         });
 
         foreach ($indices as $index) {
+            if (! is_numeric($index)) {
+                continue;
+            }
+
+            $arrayIndex = (int) $index;
             $inputValue = $inputs[$index] ?? null;
             $fileValue = $files[$index] ?? null;
 
@@ -459,6 +477,7 @@ class SubmissionFormSubmissionService
 
             if (($saveValue !== null && $saveValue !== '') || $filePath !== null) {
                 $this->saveFieldValue($instance, $element, $saveValue, $filePath, is_numeric($index) ? (int) $index : null);
+                $this->saveFieldValue($instance, $element, $saveValue, $filePath, $arrayIndex);
             }
         }
     }

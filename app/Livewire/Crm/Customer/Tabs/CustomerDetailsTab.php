@@ -34,7 +34,7 @@ class CustomerDetailsTab extends BaseCrmComponent
 
     public function mount($customer)
     {
-        $this->customer = $customer;
+        $this->customer = $customer->fresh(['country']);
         $this->countries = \App\Country::orderBy('name')->get();
         
         // Load Account Settings

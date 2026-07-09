@@ -549,6 +549,29 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-timer-sand text-warning"></i> Quotation Acceptance TAT (avg)
+                                                </div>
+                                                <div class="info-value">
+                                                    @php
+                                                        $tatMinutes = is_numeric($customer->quotation_acceptance_tat_minutes)
+                                                            ? max((int) $customer->quotation_acceptance_tat_minutes, 0)
+                                                            : null;
+                                                    @endphp
+                                                    @if($tatMinutes !== null)
+                                                        <span class="badge badge-info-modern">{{ number_format($tatMinutes / 60, 2) }} hours</span>
+                                                        <small class="text-muted d-block mt-1">{{ number_format($tatMinutes) }} minutes</small>
+                                                    @else
+                                                        <span class="text-muted">N/A</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         @endif

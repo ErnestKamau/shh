@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sample_workflow_decontamination_log_items')) {
+            return;
+        }
+
         Schema::create('sample_workflow_decontamination_log_items', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('decontamination_log_id');

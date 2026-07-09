@@ -8,6 +8,9 @@ final class RecentReportDTO
 {
     use ArrayableDto;
 
+    /**
+     * @param  list<ReportLanguageDownloadDTO>  $availableLanguages
+     */
     public function __construct(
         public readonly ?string $reportNumber,
         public readonly ?string $submissionRequestNumber,
@@ -15,5 +18,6 @@ final class RecentReportDTO
         public readonly ?string $reportType,
         public readonly ?string $downloadUrl,
         public readonly string $releaseStatus,
+        public readonly array $availableLanguages = [],
     ) {}
 }

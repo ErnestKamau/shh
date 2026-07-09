@@ -11,12 +11,14 @@ use App\DTOs\Dashboard\FeedbackSummaryDTO;
 use App\DTOs\Dashboard\InvoiceSummaryDTO;
 use App\DTOs\Dashboard\NotificationDTO;
 use App\DTOs\Dashboard\RecentReportDTO;
+use App\DTOs\Dashboard\ReportLanguageDownloadDTO;
 use App\DTOs\Dashboard\RecentSubmissionDTO;
 use App\DTOs\Dashboard\SubmissionSummaryDTO;
 use App\Invoice;
 use App\Models\CRM\Complaint;
 use App\Models\CRM\CustomerFeedback;
 use App\Models\CRM\CustomerNotification;
+use App\Models\TestRequestReportLanguageFile;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
@@ -24,6 +26,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DashboardRepository
 {
@@ -90,6 +93,31 @@ class DashboardRepository
 
     public function paginateReports(string $customerId, int $perPage): LengthAwarePaginator
     {
+        $reportStatus = (string) config('dashboard.report_status', 'Completed');
+        $base = SampleHeader::query()->where('crm_customer_id', $customerId);
+        $totalByCustomer = (clone $base)->count();
+        $completedByCustomer = (clone $base)->where('status', $reportStatus)->count();
+        $withUrlByCustomer = (clone $base)->where(function (Builder $query): void {
+            $query->whereNotNull('batch_report_url')
+                ->orWhereNotNull('batch_report_online_url');
+        })->count();
+        $eligible = (clone $base)
+            ->where('status', $reportStatus)
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('batch_report_url')
+                    ->orWhereNotNull('batch_report_online_url');
+            })->count();
+
+        Log::info('portal.dashboard.reports.query', [
+            'customer_id' => $customerId,
+            'report_status' => $reportStatus,
+            'total_by_customer' => $totalByCustomer,
+            'completed_by_customer' => $completedByCustomer,
+            'with_report_url_by_customer' => $withUrlByCustomer,
+            'eligible_reports' => $eligible,
+            'per_page' => $perPage,
+        ]);
+
         return $this->releasedReportsQuery($customerId)
             ->paginate($perPage)
             ->through(fn (SampleHeader $header) => $this->mapReport($header));
@@ -284,7 +312,7 @@ class DashboardRepository
     private function releasedReportsQuery(string $customerId): Builder
     {
         return SampleHeader::query()
-            ->with(['sampleType:id,name'])
+            ->with(['sample_type:id,name'])
             ->where('crm_customer_id', $customerId)
             ->where('status', config('dashboard.report_status', 'Completed'))
             ->where(function (Builder $query): void {
@@ -296,16 +324,45 @@ class DashboardRepository
 
     private function mapReport(SampleHeader $header): RecentReportDTO
     {
+        $revisionNo = (int) ($header->test_request_report_sequence ?? 1);
+
+        $languageFiles = TestRequestReportLanguageFile::query()
+            ->where('batch_id', $header->id)
+            ->where('revision_no', $revisionNo)
+            ->orderBy('language')
+            ->get();
+
+        $availableLanguages = $languageFiles
+            ->map(function (TestRequestReportLanguageFile $file): ReportLanguageDownloadDTO {
+                $downloadUrl = $file->report_online_url
+                    ?: ($file->report_url ? url('/storage'.$file->report_url) : null);
+
+                return new ReportLanguageDownloadDTO(
+                    code: $file->language,
+                    label: $file->label(),
+                    downloadUrl: $downloadUrl,
+                );
+            })
+            ->values()
+            ->all();
+
         $downloadUrl = $header->batch_report_online_url
             ?: ($header->batch_report_url ? url('/storage'.$header->batch_report_url) : null);
+
+        if ($availableLanguages !== []) {
+            $preferred = collect($availableLanguages)->first(fn (ReportLanguageDownloadDTO $lang) => $lang->code === 'en')
+                ?? $availableLanguages[0];
+            $downloadUrl = $preferred->downloadUrl ?? $downloadUrl;
+        }
 
         return new RecentReportDTO(
             reportNumber: $header->document_number ?? $header->batch_code,
             submissionRequestNumber: $header->reference_number ?? $header->batch_code,
             releasedDate: $header->updated_at?->toIso8601String(),
-            reportType: $header->relationLoaded('sampleType') ? $header->sampleType?->name : null,
+            reportType: $header->relationLoaded('sample_type') ? $header->sample_type?->name : null,
             downloadUrl: $downloadUrl,
             releaseStatus: $this->publicStatusLabel((string) $header->status),
+            availableLanguages: $availableLanguages,
         );
     }
 

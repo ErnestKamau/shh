@@ -15,7 +15,7 @@
                         <button
                             type="button"
                             class="form-section-title font-weight-bold text-dark border-bottom pb-2 mb-0 w-100 text-left bg-transparent border-0 d-flex align-items-center justify-content-between"
-                            @click="open = !open; $nextTick(() => { if (typeof window.initSubmissionFormSignaturePads === 'function') window.initSubmissionFormSignaturePads(true); })"
+                            @click="open = !open; $nextTick(() => { if (typeof window.initSubmissionFormSignaturePads === 'function') window.initSubmissionFormSignaturePads(true); if (typeof window.initScheduleTrfSignaturePads === 'function') window.initScheduleTrfSignaturePads(true); if (typeof window.initScheduleTrfParameterSelects === 'function') window.initScheduleTrfParameterSelects(); })"
                         >
                             <span>{{ $section->title }}</span>
                             <i class="mdi" :class="open ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>

@@ -78,6 +78,7 @@ class SystemSetupSeeder extends Seeder
                     'personnel.module.access',
                     'dms.module.access',
                     'calendar.module.access',
+                    'actual-collections.view.all',
                     'matrix.module.access',
                     'ai.module.access',
                     'ai_analytics.module.access',

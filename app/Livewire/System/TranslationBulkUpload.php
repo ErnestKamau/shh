@@ -4,6 +4,7 @@ namespace App\Livewire\System;
 
 use App\Models\System\Language;
 use App\Services\System\TranslationManagementService;
+use App\Support\TranslationImportHeaders;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -134,7 +135,7 @@ class TranslationBulkUpload extends Component
         }
 
         $headers = fgetcsv($handle) ?: [];
-        $headers = array_map(fn ($value) => strtolower(trim((string) $value)), $headers);
+        $headers = TranslationImportHeaders::normalize($headers);
 
         while (($columns = fgetcsv($handle)) !== false) {
             if ($columns === [null] || $columns === []) {
@@ -163,7 +164,9 @@ class TranslationBulkUpload extends Component
         }
 
         $headers = array_shift($sheetRows) ?: [];
-        $headers = array_map(fn ($value) => strtolower(trim((string) $value)), $headers);
+        $headers = TranslationImportHeaders::normalize(
+            array_map(fn ($value) => (string) $value, $headers)
+        );
 
         foreach ($sheetRows as $columns) {
             if (!is_array($columns)) {

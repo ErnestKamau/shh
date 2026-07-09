@@ -10,7 +10,27 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::connection($this->connection)->create('manifest_intent_patterns', function (Blueprint $table) {
+        $schema = Schema::connection($this->connection);
+
+        if (! $schema->hasTable('manifest_intents')) {
+            $schema->create('manifest_intents', function (Blueprint $table) {
+                $table->string('id', 100)->primary();
+                $table->string('domain', 50);
+                $table->string('group_type', 10)->default('A');
+                $table->text('sql_query');
+                $table->text('description');
+                $table->string('output_format', 30)->default('table');
+                $table->integer('ttl_seconds')->default(120);
+                $table->boolean('active')->default(true);
+                $table->timestamps();
+            });
+        }
+
+        if ($schema->hasTable('manifest_intent_patterns')) {
+            return;
+        }
+
+        $schema->create('manifest_intent_patterns', function (Blueprint $table) {
             $table->id();
             $table->string('intent_id', 100);
             $table->string('pattern', 255);

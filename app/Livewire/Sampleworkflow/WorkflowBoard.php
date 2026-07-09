@@ -11,6 +11,7 @@ use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
 use App\Models\System\SystemConfiguration;
+use App\Models\SubmissionForm;
 use App\User;
 use App\Models\SubmissionFormInstance;
 use App\Models\SampleSubmissionRequest;
@@ -33,6 +34,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use App\Support\VarcharUuidSql;
 use Throwable;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -270,6 +272,11 @@ class WorkflowBoard extends Component
 
     protected function backfillDispatchedSubcontractJobs(): void
     {
+        if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_status')
+            || ! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_date')) {
+            return;
+        }
+
         $dispatchedWithoutJob = SampleSubmissionRequest::query()
             ->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
             ->where(function ($query): void {
@@ -638,13 +645,42 @@ class WorkflowBoard extends Component
      */
     public static function receivingSubmissionFormsQuery(?array $statuses = null): \Illuminate\Database\Eloquent\Builder
     {
+        $templateFormIds = SubmissionForm::query()
+            ->where('form_type', 'template')
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+
+        if ($templateFormIds === []) {
+            return SubmissionFormInstance::query()->where('id', '00000000-0000-0000-0000-000000000000');
+        }
+
+        $linkedInstanceIds = SampleHeader::query()
+            ->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception'])
+            ->pluck('submission_form_instance_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+
         $query = SubmissionFormInstance::query()
-            ->whereHas('submissionForm', function ($formQuery) {
-                $formQuery->where('form_type', 'template');
-            })
-            ->whereDoesntHave('batches', function ($bq) {
-                $bq->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+            ->where(function ($templateQuery) use ($templateFormIds): void {
+                foreach ($templateFormIds as $index => $templateFormId) {
+                    if ($index === 0) {
+                        $templateQuery->where('submission_form_id', $templateFormId);
+
+                        continue;
+                    }
+
+                    $templateQuery->orWhere('submission_form_id', $templateFormId);
+                }
             });
+
+        if ($linkedInstanceIds !== []) {
+            $query->whereNotIn('id', $linkedInstanceIds);
+        }
 
         $query->whereIn('status', $statuses ?? self::receivingRequestStatusKeys());
 
@@ -742,6 +778,11 @@ class WorkflowBoard extends Component
     {
         $driver = DB::connection()->getDriverName();
         $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+
+        if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_status')) {
+            return SubmissionFormInstance::query()->where('id', '00000000-0000-0000-0000-000000000000');
+        }
+
         $approvalGateStatuses = [
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
@@ -776,9 +817,9 @@ class WorkflowBoard extends Component
                             ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -846,9 +887,9 @@ class WorkflowBoard extends Component
                             })
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -917,9 +958,9 @@ class WorkflowBoard extends Component
                             ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -961,9 +1002,9 @@ class WorkflowBoard extends Component
                             })
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
-                                    ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                    ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                     ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                        $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                        $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                     })
                                     ->orWhere(function ($portalLink) use ($driver): void {
                                         $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -1357,9 +1398,9 @@ class WorkflowBoard extends Component
                                         ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
                                         ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                             $linkQuery
-                                                ->whereColumn('ssr.submission_form_instance_id', 'submission_form_instances.id')
+                                                ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
                                                 ->when($hasTestRequestFormInstanceId, function ($query): void {
-                                                    $query->orWhereColumn('ssr.test_request_form_instance_id', 'submission_form_instances.id');
+                                                    $query->orWhereRaw(VarcharUuidSql::equals('ssr.test_request_form_instance_id', 'submission_form_instances.id'));
                                                 })
                                                 ->orWhere(function ($portalLink) use ($driver): void {
                                                     $portalLink->when($driver === 'pgsql', function ($query): void {
@@ -3001,7 +3042,7 @@ class WorkflowBoard extends Component
         $batches = $this->batches;
 
         $batchAssignmentMap = collect();
-        if ($batches instanceof LengthAwarePaginator) {
+        if ($batches instanceof LengthAwarePaginator && Schema::hasTable('sample_header_user_assignments')) {
             $batchIds = collect($batches->items())
                 ->pluck('id')
                 ->filter()

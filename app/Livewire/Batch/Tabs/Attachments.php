@@ -207,8 +207,12 @@ class Attachments extends Component
         ]);
     }
 
-    public function saveAttachmentType(): void
+    public function saveAttachmentType(?string $attachmentTypeName = null): void
     {
+        if ($attachmentTypeName !== null) {
+            $this->newAttachmentTypeName = $attachmentTypeName;
+        }
+
         $name = trim($this->newAttachmentTypeName);
 
         if ($name === '') {
@@ -234,7 +238,8 @@ class Attachments extends Component
         $config->configuration_type_id = $configurationTypeId;
         $config->save();
 
-        $this->newAttachmentTypeId = $config->id;
+        $newTypeKey = $config->getKey();
+        $this->newAttachmentTypeId = is_numeric($newTypeKey) ? (int) $newTypeKey : null;
         $this->newAttachmentTypeName = '';
 
         Log::info('Attachments Livewire: attachment type created', [
@@ -243,7 +248,7 @@ class Attachments extends Component
             'new_type_value' => $config->value,
         ]);
 
-        $this->dispatch('attachmentTypeSaved');
+        $this->dispatch('attachmentTypeSaved', id: $config->id, value: $config->value);
     }
 
     public function syncWorkflowDocuments(): void

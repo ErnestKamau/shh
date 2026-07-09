@@ -6,11 +6,11 @@
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h3 class="mb-1 font-weight-bold"><i class="mdi mdi-clock-outline text-primary"></i> Sampling Schedules</h3>
-                            <p class="text-muted mb-0">Plan and coordinate sampling runs for CRM customers</p>
+                            <h3 class="mb-1 font-weight-bold"><i class="mdi mdi-clock-outline text-primary"></i> {{ __('planner.sampling_schedules') }}</h3>
+                            <p class="text-muted mb-0">{{ __('planner.sampling_schedules_subtitle') }}</p>
                         </div>
                         <button wire:click="showCreateModal" class="btn btn-primary" style="border-radius:30px;padding:0.6rem 1.8rem;font-weight:600;">
-                            <i class="mdi mdi-plus-circle mr-1"></i> Schedule Sampling
+                            <i class="mdi mdi-plus-circle mr-1"></i> {{ __('planner.schedule_sampling') }}
                         </button>
                     </div>
                 </div>
@@ -28,17 +28,17 @@
     <!-- Search & Filter Toggle -->
     <div class="row mb-3">
         <div class="col-md-6">
-            <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by title, location, client..." style="border-radius:10px;">
+            <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="{{ __('planner.search_placeholder') }}" style="border-radius:10px;">
         </div>
         <div class="col-md-6 text-right">
             <button wire:click="toggleFilters" class="btn btn-outline-secondary mr-2" style="border-radius:10px;">
-                <i class="mdi mdi-filter-variant mr-1"></i> {{ $showFilters ? 'Hide' : 'Show' }} Filters
+                <i class="mdi mdi-filter-variant mr-1"></i> {{ $showFilters ? __('planner.hide_filters') : __('planner.show_filters') }}
             </button>
             <button wire:click="exportToExcel" class="btn btn-success mr-2" style="border-radius:10px;">
-                <i class="mdi mdi-file-excel mr-1"></i> Export Excel
+                <i class="mdi mdi-file-excel mr-1"></i> {{ __('planner.export_excel') }}
             </button>
             <button wire:click="exportToPdf" class="btn btn-danger" style="border-radius:10px;">
-                <i class="mdi mdi-file-pdf mr-1"></i> Export PDF
+                <i class="mdi mdi-file-pdf mr-1"></i> {{ __('planner.export_pdf') }}
             </button>
         </div>
     </div>
@@ -50,19 +50,19 @@
             <div class="row">
                 {{-- Date Range --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Date From</label>
+                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.date_from') }}</label>
                     <input type="date" wire:model.live="filterDateFrom" class="form-control" style="border-radius:8px;">
                 </div>
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Date To</label>
+                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.date_to') }}</label>
                     <input type="date" wire:model.live="filterDateTo" class="form-control" style="border-radius:8px;">
                 </div>
 
                 {{-- Client --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Client</label>
+                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.client') }}</label>
                     <select wire:model.live="filterClientId" class="form-control no-select2" style="border-radius:8px;">
-                        <option value="">All Clients</option>
+                        <option value="">{{ __('planner.all_clients') }}</option>
                         @foreach($clients as $client)
                         <option value="{{ $client['id'] }}">{{ $client['name'] }}</option>
                         @endforeach
@@ -71,9 +71,9 @@
 
                 {{-- Frequency --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Frequency</label>
+                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.frequency') }}</label>
                     <select wire:model.live="filterFrequency" class="form-control no-select2" style="border-radius:8px;">
-                        <option value="">All Frequencies</option>
+                        <option value="">{{ __('planner.all_frequencies') }}</option>
                         @foreach($frequencies as $freq)
                         <option value="{{ $freq }}">{{ $freq }}</option>
                         @endforeach
@@ -600,7 +600,7 @@
 
     <!-- ═══ FORM MODAL ═══ -->
     @if($showFormModal && $selectedScheduleId)
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
+    <div id="schedule-sampling-form-modal" class="modal fade show d-block schedule-sampling-form-modal" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
                 <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
@@ -641,7 +641,15 @@
                 </div>
                 <div class="modal-footer bg-light p-3" style="flex-shrink:0; gap: 8px;">
                     <button type="button" class="btn btn-secondary" wire:click="$set('showFormModal', false)">Close</button>
-                    <button type="button" class="btn btn-primary" wire:click="saveScheduleForm" wire:loading.attr="disabled" wire:target="saveScheduleForm" @if(!$selectedSampleTypeId) disabled @endif>
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="if (typeof window.syncScheduleTrfBeforeSubmit === 'function') { window.syncScheduleTrfBeforeSubmit(); }"
+                        wire:click="saveScheduleForm"
+                        wire:loading.attr="disabled"
+                        wire:target="saveScheduleForm"
+                        @if(!$selectedSampleTypeId) disabled @endif
+                    >
                         <span wire:loading.remove wire:target="saveScheduleForm"><i class="mdi mdi-check mr-1"></i> Save Responses</span>
                         <span wire:loading wire:target="saveScheduleForm"><span class="spinner-border spinner-border-sm"></span> Saving...</span>
                     </button>
@@ -663,5 +671,303 @@
     .rm-act-btn--edit:hover{background:#dbeafe;border-color:#93c5fd;}
     .rm-act-btn--delete{border:1px solid #fecaca;color:#b91c1c;background:#fef2f2;}
     .rm-act-btn--delete:hover{background:#fee2e2;border-color:#fca5a5;}
+    .schedule-sampling-form-modal .trf-signature-pad.acc-signature-pad {
+        background: #fff;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        padding: 0.5rem;
+    }
+    .schedule-sampling-form-modal .trf-signature-pad.acc-signature-pad canvas {
+        width: 100%;
+        height: 120px;
+        display: block;
+        border-radius: 6px;
+        background: #fff;
+    }
+    .schedule-sampling-form-modal .walk-in-trf-parameters-wrap .select2-container {
+        width: 100% !important;
+    }
+    .schedule-sampling-form-modal .walk-in-trf-parameters-wrap .select2-container--default .select2-selection--multiple {
+        min-height: 38px;
+        max-height: 120px;
+        overflow-y: auto;
+    }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script>
+        (function () {
+            const modalSelector = '#schedule-sampling-form-modal';
+
+            function getModal() {
+                return document.querySelector(modalSelector);
+            }
+
+            function destroyScheduleParamSelect($select) {
+                if (!$select || !$select.length) {
+                    return;
+                }
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.off('change.schedule-trf-params');
+                    $select.select2('destroy');
+                }
+
+                $select.removeData('schedule-trf-params-bound');
+            }
+
+            function bindScheduleParamSelect($select) {
+                if (!$select || !$select.length || $select.data('schedule-trf-params-bound')) {
+                    return;
+                }
+
+                const modal = getModal();
+                const livewireModel = $select.data('livewire-model');
+                const componentEl = $select.closest('[wire\\:id]');
+
+                $select.select2({
+                    width: '100%',
+                    placeholder: 'Select parameters...',
+                    allowClear: true,
+                    closeOnSelect: false,
+                    dropdownParent: modal ? $(modal) : $(document.body),
+                });
+
+                $select.on('change.schedule-trf-params', function () {
+                    const val = $(this).val() || [];
+
+                    if (livewireModel && componentEl && window.Livewire) {
+                        const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                        if (component) {
+                            component.set(livewireModel, val, false);
+                        }
+                    }
+                });
+
+                $select.data('schedule-trf-params-bound', true);
+            }
+
+            window.resetScheduleTrfParamRow = function (wrapEl, options, selected) {
+                if (!wrapEl || typeof $ === 'undefined' || !$.fn.select2) {
+                    return;
+                }
+
+                const $wrap = $(wrapEl);
+                const $select = $wrap.find('.walk-in-trf-parameters-select');
+                const livewireModel = $wrap.data('livewire-model');
+                const componentEl = $wrap.closest('[wire\\:id]');
+                const safeSelected = Array.isArray(selected) ? selected : [];
+                const safeOptions = Array.isArray(options) ? options : [];
+
+                destroyScheduleParamSelect($select);
+                $select.empty();
+
+                safeOptions.forEach(function (name) {
+                    const isSelected = safeSelected.indexOf(name) !== -1;
+                    $select.append(new Option(name, name, isSelected, isSelected));
+                });
+
+                bindScheduleParamSelect($select);
+                $select.val(safeSelected).trigger('change.select2');
+                $wrap.attr('data-options', JSON.stringify(safeOptions));
+                $wrap.attr('data-selected', JSON.stringify(safeSelected));
+
+                if (livewireModel && componentEl && window.Livewire) {
+                    const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                    if (component) {
+                        component.set(livewireModel, safeSelected, false);
+                    }
+                }
+            };
+
+            window.initScheduleTrfParameterSelects = function (options) {
+                options = options || {};
+                const targetRowIndex = options.rowIndex;
+                const modal = getModal();
+
+                if (!modal || typeof $ === 'undefined' || !$.fn.select2) {
+                    return;
+                }
+
+                modal.querySelectorAll('.walk-in-trf-parameters-wrap').forEach(function (wrap) {
+                    const rowIndex = wrap.getAttribute('data-row-index');
+                    if (targetRowIndex !== undefined && targetRowIndex !== null && String(rowIndex) !== String(targetRowIndex)) {
+                        return;
+                    }
+
+                    const $select = $(wrap).find('.walk-in-trf-parameters-select');
+                    if ($select.length === 0 || $select.data('schedule-trf-params-bound')) {
+                        return;
+                    }
+
+                    let selected = [];
+                    try {
+                        selected = JSON.parse(wrap.getAttribute('data-selected') || '[]');
+                    } catch (error) {
+                        selected = [];
+                    }
+
+                    bindScheduleParamSelect($select);
+                    $select.val(selected).trigger('change.select2');
+                });
+            };
+
+            function syncSignatureValue(canvas, input, pad) {
+                const value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
+                input.value = value;
+
+                const livewireModel = canvas.getAttribute('data-livewire-model');
+                const componentEl = canvas.closest('[wire\\:id]');
+                if (livewireModel && componentEl && window.Livewire) {
+                    const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                    if (component) {
+                        component.set(livewireModel, value, false);
+                    }
+                }
+
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            window.initScheduleTrfSignaturePads = function (forceReinit) {
+                const modal = getModal();
+                if (!modal || typeof SignaturePad === 'undefined') {
+                    return;
+                }
+
+                function setupCanvas(canvas) {
+                    if (forceReinit) {
+                        delete canvas.dataset.signatureInitialized;
+                        canvas._trfSignaturePad = null;
+                    }
+
+                    const fieldId = canvas.getAttribute('data-field');
+                    const input = document.getElementById('field_' + fieldId);
+                    if (!input || !canvas.parentElement) {
+                        return;
+                    }
+
+                    const rect = canvas.getBoundingClientRect();
+                    const width = rect.width > 10 ? rect.width : canvas.offsetWidth;
+                    const height = rect.height > 10 ? rect.height : canvas.offsetHeight;
+                    if (width < 10 || height < 10) {
+                        delete canvas.dataset.signatureInitialized;
+                        return;
+                    }
+
+                    if (canvas.dataset.signatureInitialized === '1' && canvas._trfSignaturePad) {
+                        return;
+                    }
+
+                    canvas.dataset.signatureInitialized = '1';
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = width * ratio;
+                    canvas.height = height * ratio;
+                    const context = canvas.getContext('2d');
+                    context.setTransform(1, 0, 0, 1, 0, 0);
+                    context.scale(ratio, ratio);
+
+                    const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+                    canvas._trfSignaturePad = pad;
+
+                    if (input.value) {
+                        try {
+                            pad.fromDataURL(input.value);
+                        } catch (error) {}
+                    }
+
+                    pad.addEventListener('endStroke', function () {
+                        syncSignatureValue(canvas, input, pad);
+                    });
+
+                    const clearBtn = canvas.parentElement.querySelector('.trf-signature-clear[data-canvas="' + canvas.id + '"]');
+                    if (clearBtn) {
+                        clearBtn.onclick = function () {
+                            pad.clear();
+                            syncSignatureValue(canvas, input, pad);
+                        };
+                    }
+                }
+
+                modal.querySelectorAll('.trf-signature-canvas').forEach(setupCanvas);
+            };
+
+            window.syncScheduleTrfBeforeSubmit = function () {
+                const modal = getModal();
+                if (!modal) {
+                    return;
+                }
+
+                modal.querySelectorAll('.walk-in-trf-parameters-wrap').forEach(function (wrap) {
+                    const $select = $(wrap).find('.walk-in-trf-parameters-select');
+                    if ($select.length === 0) {
+                        return;
+                    }
+
+                    const livewireModel = $(wrap).data('livewire-model') || $select.data('livewire-model');
+                    const componentEl = wrap.closest('[wire\\:id]');
+                    const selected = $select.val() || [];
+
+                    if (livewireModel && componentEl && window.Livewire) {
+                        const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                        if (component) {
+                            component.set(livewireModel, selected, false);
+                        }
+                    }
+                });
+
+                if (typeof SignaturePad === 'undefined') {
+                    return;
+                }
+
+                modal.querySelectorAll('.trf-signature-canvas').forEach(function (canvas) {
+                    const pad = canvas._trfSignaturePad;
+                    const fieldId = canvas.getAttribute('data-field');
+                    if (!pad || !fieldId) {
+                        return;
+                    }
+
+                    const input = document.getElementById('field_' + fieldId);
+                    if (!input) {
+                        return;
+                    }
+
+                    syncSignatureValue(canvas, input, pad);
+                });
+            };
+
+            function reinitScheduleTrfWidgets() {
+                setTimeout(function () {
+                    window.initScheduleTrfSignaturePads(true);
+                    window.initScheduleTrfParameterSelects();
+                }, 150);
+            }
+
+            document.addEventListener('livewire:init', function () {
+                Livewire.on('schedule-trf-reinit-widgets', reinitScheduleTrfWidgets);
+
+                Livewire.on('schedule-trf-params-row-reset', function (payload) {
+                    setTimeout(function () {
+                        const modal = getModal();
+                        if (!modal || payload?.rowIndex === undefined || typeof window.resetScheduleTrfParamRow !== 'function') {
+                            return;
+                        }
+
+                        const wrap = modal.querySelector('.walk-in-trf-parameters-wrap[data-row-index="' + payload.rowIndex + '"]');
+                        if (!wrap) {
+                            return;
+                        }
+
+                        window.resetScheduleTrfParamRow(wrap, payload.options || [], payload.selected || []);
+                    }, 80);
+                });
+            });
+
+            document.addEventListener('click', function (event) {
+                const toggle = event.target.closest('[wire\\:click*="showFormModal"]');
+                if (toggle) {
+                    setTimeout(reinitScheduleTrfWidgets, 200);
+                }
+            });
+        })();
+    </script>
 </div>

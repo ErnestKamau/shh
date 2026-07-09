@@ -15,6 +15,7 @@ use App\Models\CRM\CompanyProduct;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\SamplePoint;
 use App\SampleHeader;
+use App\Support\VarcharUuidSql;
 
 class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
 {
@@ -108,7 +109,9 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
 
             case 'orders':
                 return SampleHeader::query()
-                    ->join('sample_types as st', 'st.id', '=', 'sample_headers.sample_type_id')
+                    ->join('sample_types as st', function ($join): void {
+                        $join->whereRaw(VarcharUuidSql::equals('st.id', 'sample_headers.sample_type_id'));
+                    })
                     ->select('sample_headers.*', 'st.name as sample_type')
                     ->withCount('samples')
                     ->where('sample_headers.crm_customer_id', $this->customerId)
@@ -124,7 +127,9 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
 
             case 'reports':
                 return SampleHeader::query()
-                    ->join('sample_types as st', 'st.id', '=', 'sample_headers.sample_type_id')
+                    ->join('sample_types as st', function ($join): void {
+                        $join->whereRaw(VarcharUuidSql::equals('st.id', 'sample_headers.sample_type_id'));
+                    })
                     ->select('sample_headers.*', 'st.name as sample_type')
                     ->where('sample_headers.crm_customer_id', $this->customerId)
                     ->where('sample_headers.status', 'Completed')

@@ -23,8 +23,10 @@ class LaboratoryKpiSummaryExport implements FromArray, WithHeadings, WithTitle
             $row['jobs_completed'],
             $row['jobs_pending'],
             $row['data_entry_complete'],
-            $row['data_entry_partial'],
-            $row['data_entry_not_started'],
+            $row['data_entry_partial'] ?? 0,
+            $row['data_entry_not_started'] ?? 0,
+            $row['review_pending'] ?? 0,
+            $row['review_approved'] ?? 0,
         ], $this->rows);
     }
 
@@ -38,6 +40,8 @@ class LaboratoryKpiSummaryExport implements FromArray, WithHeadings, WithTitle
             'Data Entry Complete',
             'Data Entry Partial',
             'Data Entry Not Started',
+            'Review Pending',
+            'Review Approved',
         ];
     }
 

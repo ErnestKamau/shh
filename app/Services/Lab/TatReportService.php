@@ -9,6 +9,7 @@ use App\Services\Dashboards\LabTatDashboardService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use App\Support\VarcharUuidSql;
 use Illuminate\Support\Facades\DB;
 
 class TatReportService
@@ -393,11 +394,7 @@ class TatReportService
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
             $join->whereRaw(
-                sprintf(
-                    "NULLIF(TRIM(%s::text), '')::uuid = %s",
-                    $varcharColumn,
-                    $uuidColumn,
-                )
+                VarcharUuidSql::equals($varcharColumn, $uuidColumn),
             );
 
             return;

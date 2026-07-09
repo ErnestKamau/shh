@@ -20,11 +20,15 @@ class LaboratoryKpiDetailExport implements FromArray, WithHeadings, WithTitle
         return array_map(fn (array $row): array => [
             $row['date'],
             $row['client'],
+            $row['no_of_samples'] ?? 1,
             $row['sample_details'],
-            $row['jobs_received_completed_pending'],
+            $row['jobs_received'] ?? 0,
+            $row['analysis_completed'] ?? 0,
+            $row['analysis_pending'] ?? 0,
             $row['data_entry_status'],
-            $row['review_approval_status'],
-            $row['final_reports'],
+            $row['review_for_approval'] ?? ($row['review_approval_status'] ?? '—'),
+            $row['pending_approval_count'] ?? 0,
+            $row['final_reports_issued'] ?? ($row['final_reports'] ?? '—'),
         ], $this->rows);
     }
 
@@ -32,12 +36,16 @@ class LaboratoryKpiDetailExport implements FromArray, WithHeadings, WithTitle
     {
         return [
             'Date',
-            'Client',
-            'No./Details of Samples',
-            'Jobs Received/Completed/Pending',
+            'Client Name',
+            'No. of Samples',
+            'Sample Details',
+            'Jobs Received',
+            'Analysis Completed',
+            'Analysis Pending/Ongoing',
             'Data Entry Status',
-            'Review/Approval Status',
-            'Final Reports',
+            'Review for Approval',
+            'Pending Approval Count',
+            'Final Reports Issued',
         ];
     }
 

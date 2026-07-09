@@ -3,6 +3,7 @@
 namespace Database\Seeders\Concerns;
 
 use App\AnalysisType;
+use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionForm;
@@ -426,6 +427,19 @@ trait SeedsTrfWorkflowSamples
             assignedAnalystIds: array_filter([(string) ($analystUser?->id ?? '')]),
         );
 
+        if (! $acceptanceForm->sample_header_id) {
+            // Manager signature runs inside a transaction; retry sample creation after commit.
+            CreateSamplesFromAcceptanceFormJob::dispatchSync((string) $acceptanceForm->id);
+            $acceptanceForm = $acceptanceForm->fresh(['lines', 'sampleHeader']);
+        }
+
+        if (! $acceptanceForm?->sample_header_id) {
+            throw new \RuntimeException(
+                'Failed to create sample batch after manager approval for '.$seedKey.'. '
+                .((string) ($acceptanceForm?->processing_error ?? 'No processing error was recorded.'))
+            );
+        }
+
         $header = SampleHeader::query()->findOrFail($acceptanceForm->sample_header_id);
         $this->assertSeededNumberingFormats($header);
         $this->applyWorkflowStatus($header, $scenario['workflow'], $stages, $users);
@@ -556,18 +570,21 @@ trait SeedsTrfWorkflowSamples
 
     private function resolveSampleTypeForForm(SubmissionForm $form, string $documentCode): SampleType
     {
-        $sampleType = $form->sampleTypes()->first();
-
-        if ($sampleType !== null) {
-            return $sampleType;
-        }
-
         $patterns = match ($documentCode) {
             'TRF-WATER-020' => ['water', 'WTR', 'potable'],
             'TRF-FOOD-019' => ['food', 'FOOD'],
             'TRF-WASTE-036' => ['waste', 'WWTR'],
             default => [],
         };
+
+        $linkedSampleTypes = $form->sampleTypes()->get();
+
+        $sampleType = $this->pickSampleTypeCandidate($linkedSampleTypes, $patterns, true)
+            ?? $this->pickSampleTypeCandidate($linkedSampleTypes, $patterns, false);
+
+        if ($sampleType !== null) {
+            return $sampleType;
+        }
 
         $query = SampleType::query();
         $query->where(function ($builder) use ($patterns): void {
@@ -577,12 +594,54 @@ trait SeedsTrfWorkflowSamples
             }
         });
 
-        $sampleType = $query->first();
+        $matchedSampleTypes = $query->orderBy('code')->get();
+        $sampleType = $this->pickSampleTypeCandidate($matchedSampleTypes, $patterns, true)
+            ?? $this->pickSampleTypeCandidate($matchedSampleTypes, $patterns, false);
+
         if ($sampleType === null) {
             throw new \RuntimeException("No sample type found for {$documentCode}.");
         }
 
         return $sampleType;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, SampleType>  $candidates
+     * @param  list<string>  $patterns
+     */
+    private function pickSampleTypeCandidate(Collection $candidates, array $patterns, bool $requireActiveAnalysisType): ?SampleType
+    {
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $orderedCandidates = $candidates->sortBy(function (SampleType $candidate) use ($patterns): string {
+            $haystack = strtolower((string) ($candidate->name.' '.$candidate->code));
+
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && str_contains($haystack, strtolower($pattern))) {
+                    return '0_'.$haystack;
+                }
+            }
+
+            return '1_'.$haystack;
+        });
+
+        foreach ($orderedCandidates as $candidate) {
+            if (! $requireActiveAnalysisType || $this->sampleTypeHasActiveAnalysisType((string) $candidate->id)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function sampleTypeHasActiveAnalysisType(string $sampleTypeId): bool
+    {
+        return AnalysisType::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->where('active', 1)
+            ->exists();
     }
 
     private function resolveAnalysisTypeForSampleType(SampleType $sampleType, string $categoryFlag): AnalysisType

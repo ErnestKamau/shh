@@ -6029,23 +6029,6 @@ class SampleWorkFlowController extends Controller
         return redirect()->back()->with('success', 'Sample(s) moved to samples in Lab section successfully');
     }
 
-    public function showBatchCOA(Request $request)
-    {
-        $batch = SampleHeader::find($request->batch_id);
-        $batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->get();
-        $samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
-
-        $status = $batch->status;
-        $result_presentation = SystemConfiguration::where('key', 'exponential_result_format')->first();
-
-        $company = getActiveCompany();
-        $exclude_pesticides = isset($request->add_pesticide) ? 0 : 1;
-        $standard_report = $request->template_id;
-        $analysis_date = $this->resolveBatchAnalysisDateRange($batch->id);
-        // return response()->json('here');
-        return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides', 'result_presentation'));
-    }
-
     private function resolveBatchAnalysisDateRange(string $batchId): ?object
     {
         $records = SampleAnalysisDates::where('sample_header_id', $batchId)
@@ -6146,8 +6129,20 @@ class SampleWorkFlowController extends Controller
             'channels.*'  => ['in:email,whatsapp,portal'],
             'contact_ids' => ['required', 'array', 'min:1'],
             'contact_ids.*' => ['string'],
+            'company_units' => ['nullable', 'array', 'min:1'],
+            'company_units.*' => ['string', 'max:255'],
+            'company_unit' => ['nullable', 'string', 'max:255'],
+            'portal_languages' => ['nullable', 'array', 'min:1'],
+            'portal_languages.*' => ['in:en,ar,pt'],
             'notes'       => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $channels = $request->channels;
+        if (in_array('portal', $channels, true)) {
+            $request->validate([
+                'portal_languages' => ['required', 'array', 'min:1'],
+            ]);
+        }
 
         $batch = SampleHeader::with(['customer'])->find($request->batch_id);
         if (!$batch) {
@@ -6179,7 +6174,43 @@ class SampleWorkFlowController extends Controller
         $contactIds  = $request->contact_ids;
         $notes       = $request->notes;
         $customerId  = $batch->crm_customer_id;
+        $portalLanguages = collect($request->input('portal_languages', []))
+            ->map(fn ($language) => (string) $language)
+            ->filter(fn ($language) => in_array($language, ['en', 'ar', 'pt'], true))
+            ->unique()
+            ->values()
+            ->all();
         $results     = [];
+        $selectedUnits = collect($request->input('company_units', []))
+            ->map(fn ($unit) => trim((string) $unit))
+            ->filter()
+            ->unique(fn ($unit) => strtolower($unit))
+            ->values();
+
+        $legacyUnit = trim((string) $request->input('company_unit', ''));
+        if ($selectedUnits->isEmpty() && $legacyUnit !== '') {
+            $selectedUnits = collect([$legacyUnit]);
+        }
+
+        $unitNameMap = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $customerId)
+            ->pluck('name', 'id')
+            ->map(fn($name) => trim((string) $name));
+
+        $validUnitNames = $unitNameMap
+            ->map(fn ($name) => strtolower((string) $name))
+            ->values();
+
+        $selectedUnitsNormalized = $selectedUnits
+            ->map(fn ($unit) => strtolower($unit))
+            ->values();
+
+        $invalidUnits = $selectedUnitsNormalized->reject(fn ($unit) => $validUnitNames->contains($unit));
+        if ($selectedUnits->isNotEmpty() && $invalidUnits->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'One or more selected departments/company units are invalid for this customer.',
+            ], 422);
+        }
 
         // ── Portal channel: batch-level operation, run once before contact loop ──
         if (in_array('portal', $channels) && $customerId) {
@@ -6187,7 +6218,20 @@ class SampleWorkFlowController extends Controller
             $portalError  = null;
 
             try {
-                DB::transaction(function () use ($batch, $customerId, $downloadUrl, $reportNumber): void {
+                $languageFiles = app(\App\Services\Sampleworkflow\TestRequestReportPdfService::class)
+                    ->generatePortalLanguageFiles($batch, $revisionNo, $portalLanguages);
+
+                $primaryFile = collect($languageFiles)->first(fn ($file) => $file->language === 'en')
+                    ?? $languageFiles[0] ?? null;
+
+                $downloadUrl = $primaryFile?->report_online_url
+                    ?: ($primaryFile?->report_url ? url('/storage'.$primaryFile->report_url) : $downloadUrl);
+
+                $languageSummary = collect($languageFiles)
+                    ->map(fn ($file) => \App\Models\TestRequestReportRevision::$languages[$file->language] ?? strtoupper($file->language))
+                    ->implode(', ');
+
+                DB::transaction(function () use ($batch, $customerId, $downloadUrl, $reportNumber, $languageSummary): void {
                     // Keep the newer online URL and the legacy storage path in sync so
                     // either portal implementation can surface the report.
                     $batch->batch_report_online_url = $downloadUrl;
@@ -6218,7 +6262,7 @@ class SampleWorkFlowController extends Controller
                         'entity_type'              => \App\SampleHeader::class,
                         'entity_id'                => $batch->id,
                         'notification_type'        => 'Laboratory Test Report Ready',
-                        'notification_description' => "Report {$reportNumber} has been processed and is ready for download." . ($downloadUrl ? " View: {$downloadUrl}" : ''),
+                        'notification_description' => "Report {$reportNumber} is available on the portal in: {$languageSummary}.",
                     ]);
                 });
 
@@ -6259,8 +6303,41 @@ class SampleWorkFlowController extends Controller
             $channels = array_filter($channels, fn($c) => $c !== 'portal');
         }
 
-        // Load requested contacts
-        $contacts = \App\Models\CRM\CustomerContact::whereIn('id', $contactIds)->get()->keyBy('id');
+        // Load requested contacts, limited to this customer and optional selected company unit.
+        $contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->whereIn('id', $contactIds)
+            ->get()
+            ->filter(function ($contact) use ($selectedUnitsNormalized, $selectedUnits, $unitNameMap) {
+                if ($selectedUnits->isEmpty()) {
+                    return true;
+                }
+
+                $units = collect(explode(',', (string) ($contact->unit_name ?? '')))
+                    ->map(fn($unit) => strtolower(trim((string) $unit)))
+                    ->filter();
+
+                if ($units->intersect($selectedUnitsNormalized)->isNotEmpty()) {
+                    return true;
+                }
+
+                if (!empty($contact->crm_company_unit_id)) {
+                    $mappedUnitName = strtolower((string) ($unitNameMap->get($contact->crm_company_unit_id) ?? ''));
+
+                    return $mappedUnitName !== '' && $selectedUnitsNormalized->contains($mappedUnitName);
+                }
+
+                return false;
+            })
+            ->keyBy('id');
+
+        $contactIds = array_values(array_filter($contactIds, fn($id) => $contacts->has($id)));
+        if (empty($contactIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No valid contacts found for the selected department(s)/company unit(s).',
+            ], 422);
+        }
 
         foreach ($contactIds as $contactId) {
             $contact = $contacts->get($contactId);
@@ -6407,7 +6484,7 @@ class SampleWorkFlowController extends Controller
                 'report_title'        => 'تقرير الاختبار المعملي',
                 'certificate_no'      => 'رقم الشهادة',
                 'page_of'             => 'صفحة %d من %d',
-                'attention'           => 'الاهتمام',
+                'attention'           => 'إلى عناية',
                 'client'              => 'العميل',
                 'address'             => 'العنوان والموقع',
                 'report_no'           => 'رقم التقرير',
@@ -6450,7 +6527,7 @@ class SampleWorkFlowController extends Controller
                 'report_title'        => 'RELATÓRIO DE ENSAIO LABORATORIAL',
                 'certificate_no'      => 'Certificado n.º',
                 'page_of'             => 'Página %d de %d',
-                'attention'           => 'Atenção',
+                'attention'           => 'À atenção de',
                 'client'              => 'Cliente',
                 'address'             => 'Endereço e Localização',
                 'report_no'           => 'N.º do Relatório',
@@ -6460,14 +6537,14 @@ class SampleWorkFlowController extends Controller
                 'container_type'      => 'Tipo de Recipiente',
                 'sample_description'  => 'Descrição da Amostra',
                 'weight'              => 'Peso',
-                'sampled_by'          => 'Amostrado Por',
+                'sampled_by'          => 'Amostrado por',
                 'sample_temperature'  => 'Temperatura da Amostra',
-                'sample_preservation' => 'Conservação da Amostra',
+                'sample_preservation' => 'Preservação da Amostra',
                 'production_date'     => 'Data de Produção',
                 'expiry_date'         => 'Data de Validade',
                 'lot_no'              => 'N.º de Lote',
                 'no_of_pages'         => 'N.º de Páginas',
-                'date_of_analysis'    => 'Data de Análise',
+                'date_of_analysis'    => 'Data da Análise',
                 'sample_reference'    => 'Referência da Amostra',
                 'sample_point'        => 'Ponto de Amostragem',
                 'condition'           => 'Condição',
@@ -6475,19 +6552,19 @@ class SampleWorkFlowController extends Controller
                 'results'             => 'Resultados',
                 'unit'                => 'Unidade',
                 'specification'       => 'Especificação',
-                'mu_percent'          => 'I.M.%',
-                'method'              => 'Método de Análise',
+                'mu_percent'          => 'I.M. %',
+                'method'              => 'Método de análise',
                 'no_results'          => 'Nenhum resultado registado para esta amostra.',
                 'no_samples'          => 'Nenhuma amostra encontrada para este lote.',
                 'analysis_conducted'  => 'Análise conduzida por',
                 'test_method_dev'     => 'Desvio do método de ensaio: Nenhum',
-                'signed_behalf'       => 'Assinado em nome de',
+                'signed_behalf'       => 'Assinado por e em nome de',
                 'no_signature'        => 'Sem assinatura registada',
                 'results_relate'      => 'Os resultados dos ensaios referem-se apenas às amostras ensaiadas.',
                 'no_reproduce'        => 'Este relatório não pode ser reproduzido, exceto na íntegra, sem aprovação escrita do Laboratório.',
                 'end_of_text'         => '-Fim do texto',
                 'issued_on'           => 'Emitido em',
-                'disclaimer'          => 'AVISO: TODAS AS AMOSTRAS FORAM TESTADAS NUM LABORATÓRIO EXTERNO',
+                'disclaimer'          => 'AVISO: TODAS AS AMOSTRAS FORAM ENSAIADAS NUM LABORATÓRIO EXTERNO',
             ],
             default => [
                 'report_title'        => 'LABORATORY TEST REPORT',
@@ -6604,25 +6681,6 @@ class SampleWorkFlowController extends Controller
             'footerQrCode',
             'verificationUrl'
         )));
-    }
-
-    public function getShowBatchCOA($batch_code, $format)
-    {
-        $batch = SampleHeader::where('batch_code', $batch_code)->first();
-        $batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('status', 1)->get();
-        $samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
-        $disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
-        $non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();
-        $status = $batch->status;
-        // $url = env('APP_URL').'/showBatchCOAGet';
-        // $qr_url = url($url);
-        // return response()->json($batch_result,200);
-
-        // $qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
-
-        $company = getActiveCompany();
-        // return response()->json('here');
-        return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers'));
     }
 
     public function moveToVerificationApprovalLevel(Request $request)

@@ -55,6 +55,37 @@
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror
         </div>
+
+        <div class="form-group mt-3 mb-0">
+            <label class="receive-sample-field-label" for="subcontract-dispatch-labs">
+                Subcontracted lab(s) <span class="text-danger">*</span>
+            </label>
+            <div id="subcontract-dispatch-labs" class="border rounded p-2" style="max-height: 180px; overflow-y: auto;">
+                @forelse ($availableLabs as $lab)
+                    <div class="form-check mb-1">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            value="{{ $lab['id'] }}"
+                            id="subcontract-dispatch-lab-{{ $lab['id'] }}"
+                            wire:model="selectedLabIds"
+                        >
+                        <label class="form-check-label" for="subcontract-dispatch-lab-{{ $lab['id'] }}">
+                            {{ $lab['label'] }}
+                        </label>
+                    </div>
+                @empty
+                    <small class="text-muted">No external labs available for dispatch.</small>
+                @endforelse
+            </div>
+            <small class="form-text text-muted">Select one or more approved labs to dispatch this request to.</small>
+            @error('selectedLabIds')
+                <div class="invalid-feedback d-block">{{ $message }}</div>
+            @enderror
+            @error('selectedLabIds.*')
+                <div class="invalid-feedback d-block">{{ $message }}</div>
+            @enderror
+        </div>
     @endif
 
     @error('selection')

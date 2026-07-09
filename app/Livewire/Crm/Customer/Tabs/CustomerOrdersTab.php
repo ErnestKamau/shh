@@ -3,6 +3,7 @@
 namespace App\Livewire\Crm\Customer\Tabs;
 
 use App\SampleHeader;
+use App\Support\VarcharUuidSql;
 use App\Livewire\Crm\BaseCrmComponent;
 
 class CustomerOrdersTab extends BaseCrmComponent
@@ -40,7 +41,9 @@ class CustomerOrdersTab extends BaseCrmComponent
     public function getOrdersProperty()
     {
         return SampleHeader::leftJoin('sample_details as sd', 'sample_headers.id', '=', 'sd.sample_header_id')
-            ->join('sample_types as st', 'st.id', 'sample_headers.sample_type_id')
+            ->join('sample_types as st', function ($join): void {
+                $join->whereRaw(VarcharUuidSql::equals('st.id', 'sample_headers.sample_type_id'));
+            })
             ->selectRaw('sample_headers.id, sample_headers.batch_code, sample_headers.date_collected, sample_headers.reference_number, sample_headers.document_number, sample_headers.status, count(sd.id) as samples, st.name as sample_type')
             ->where('sample_headers.crm_customer_id', $this->customer->id)
             ->when($this->search, function($query) {

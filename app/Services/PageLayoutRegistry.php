@@ -45,9 +45,7 @@ class PageLayoutRegistry
             'slots'   => [
                 ['id' => 'before_page_content',    'label' => 'Before main content (top of page)',  'selector' => null],
                 ['id' => 'after_breadcrumb',       'label' => 'After breadcrumb navigation',        'selector' => '.breadcrumb-container'],
-                // Before the Livewire workflow board — insert after the breadcrumb (same position)
                 ['id' => 'before_workflow_table',  'label' => 'Before workflow board',              'selector' => '.breadcrumb-container'],
-                // After the Livewire workflow board root element
                 ['id' => 'after_workflow_table',   'label' => 'After workflow board',               'selector' => 'main [wire\:id]'],
                 ['id' => 'after_page_content',     'label' => 'After main content (bottom of page)', 'selector' => null],
             ],
@@ -75,6 +73,16 @@ class PageLayoutRegistry
                 ['trigger_id' => 'workflow-action-mark-complete',          'label' => 'Actions: Mark Complete'],
                 ['trigger_id' => 'workflow-action-return-to-approval',     'label' => 'Actions: Return to Approval'],
             ],
+        ],
+
+        'sample-workflow.kpis' => [
+            'label'   => 'Workflow KPIs',
+            'slots'   => [
+                ['id' => 'before_page_content', 'label' => 'Before main content (top of page)', 'selector' => null],
+                ['id' => 'after_breadcrumb',    'label' => 'After breadcrumb navigation',       'selector' => '.breadcrumb-container'],
+                ['id' => 'after_page_content',  'label' => 'After main content (bottom of page)', 'selector' => null],
+            ],
+            'buttons' => [],
         ],
 
         // ─── Billing – Invoices ──────────────────────────────────────────────────────
