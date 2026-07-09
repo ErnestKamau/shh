@@ -260,13 +260,14 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = FindingStatus::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => null,
                     'color_code' => '#6c757d',
                     'order_index' => $row['order_index'],
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -318,11 +319,12 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = NcOrigin::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => 'Demo NC origin: '.$row['name'],
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -347,13 +349,14 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = NcStatus::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => null,
                     'color_code' => '#6c757d',
                     'order_index' => $row['order_index'],
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -375,13 +378,14 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = RcaStatus::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => null,
                     'color_code' => '#6c757d',
                     'order_index' => $row['order_index'],
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -396,21 +400,23 @@ class AuditModuleWorkflowSeeder extends Seeder
     {
         $result = [];
         $result['5WHY'] = RootCauseMethod::updateOrCreate(
-            ['code' => 'DEMO_5WHY', 'company_id' => $companyId],
+            ['code' => 'DEMO_5WHY'],
             [
                 'name' => '5 Whys (Demo)',
                 'description' => 'Iterative why analysis.',
                 'template' => ['why_1' => '', 'why_2' => '', 'why_3' => '', 'why_4' => '', 'why_5' => ''],
                 'is_active' => true,
+                'company_id' => $companyId,
             ]
         );
         $result['FISHBONE'] = RootCauseMethod::updateOrCreate(
-            ['code' => 'DEMO_FISH', 'company_id' => $companyId],
+            ['code' => 'DEMO_FISH'],
             [
                 'name' => 'Fishbone / Ishikawa (Demo)',
                 'description' => 'Cause-and-effect diagram.',
                 'template' => ['man' => '', 'machine' => '', 'method' => '', 'material' => '', 'measurement' => '', 'environment' => ''],
                 'is_active' => true,
+                'company_id' => $companyId,
             ]
         );
 
@@ -430,11 +436,12 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = CapaCategory::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => 'Demo CAPA category',
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -449,12 +456,12 @@ class AuditModuleWorkflowSeeder extends Seeder
     {
         $result = [];
         $result['PROC'] = CapaActionType::updateOrCreate(
-            ['code' => 'DEMO_PROC', 'company_id' => $companyId],
-            ['name' => 'Process Change', 'description' => 'Update SOP or work instruction', 'is_active' => true]
+            ['code' => 'DEMO_PROC'],
+            ['name' => 'Process Change', 'description' => 'Update SOP or work instruction', 'is_active' => true, 'company_id' => $companyId]
         );
         $result['TRAIN'] = CapaActionType::updateOrCreate(
-            ['code' => 'DEMO_TRAIN', 'company_id' => $companyId],
-            ['name' => 'Training', 'description' => 'Staff training or competency', 'is_active' => true]
+            ['code' => 'DEMO_TRAIN'],
+            ['name' => 'Training', 'description' => 'Staff training or competency', 'is_active' => true, 'company_id' => $companyId]
         );
 
         return $result;
@@ -506,13 +513,14 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = CapaStatus::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => null,
                     'color_code' => '#6c757d',
                     'order_index' => $row['order_index'],
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -529,7 +537,7 @@ class AuditModuleWorkflowSeeder extends Seeder
         for ($score = 1; $score <= 5; $score++) {
             $code = 'DEMO_SEV_'.$score;
             $result[$code] = SeverityScale::updateOrCreate(
-                ['code' => $code, 'company_id' => $companyId],
+                ['code' => $code],
                 [
                     'name' => 'Severity '.$score,
                     'description' => 'Demo severity scale level '.$score,
@@ -537,6 +545,7 @@ class AuditModuleWorkflowSeeder extends Seeder
                     'color_code' => '#fd7e14',
                     'order_index' => $score,
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -553,7 +562,7 @@ class AuditModuleWorkflowSeeder extends Seeder
         for ($score = 1; $score <= 5; $score++) {
             $code = 'DEMO_LIK_'.$score;
             $result[$code] = LikelihoodScale::updateOrCreate(
-                ['code' => $code, 'company_id' => $companyId],
+                ['code' => $code],
                 [
                     'name' => 'Likelihood '.$score,
                     'description' => 'Demo likelihood scale level '.$score,
@@ -561,6 +570,7 @@ class AuditModuleWorkflowSeeder extends Seeder
                     'color_code' => '#17a2b8',
                     'order_index' => $score,
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -582,7 +592,7 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $i => $row) {
             $result[$row['code']] = ComplianceStatus::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => null,
@@ -590,6 +600,7 @@ class AuditModuleWorkflowSeeder extends Seeder
                     'badge_class' => $row['badge_class'],
                     'order_index' => $i + 1,
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -610,7 +621,7 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = VerificationResult::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => 'Demo verification outcome',
@@ -618,6 +629,7 @@ class AuditModuleWorkflowSeeder extends Seeder
                     'requires_reopen' => $row['requires_reopen'],
                     'next_workflow_step' => null,
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -638,12 +650,13 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = VerificationClosureStatus::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => null,
                     'color_code' => '#6c757d',
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -665,11 +678,12 @@ class AuditModuleWorkflowSeeder extends Seeder
         $result = [];
         foreach ($rows as $row) {
             $result[$row['code']] = AuditTeamRole::updateOrCreate(
-                ['code' => $row['code'], 'company_id' => $companyId],
+                ['code' => $row['code']],
                 [
                     'name' => $row['name'],
                     'description' => 'Demo team role',
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }
@@ -685,13 +699,14 @@ class AuditModuleWorkflowSeeder extends Seeder
         $auditType = $this->config['audit_types']['DEMO_INT'] ?? AuditType::where('code', 'DEMO_INT')->first();
 
         $checklist = AuditChecklist::updateOrCreate(
-            ['code' => 'DEMO-CHK-ISO17025', 'company_id' => $companyId],
+            ['code' => 'DEMO-CHK-ISO17025'],
             [
                 'name' => 'ISO/IEC 17025 Internal Audit Checklist (Demo)',
                 'description' => 'Sample checklist for laboratory QMS internal audits.',
                 'audit_type_id' => $auditType?->id,
                 'iso_standard' => 'ISO/IEC 17025:2017',
                 'is_active' => true,
+                'company_id' => $companyId,
                 'created_by' => (string) $this->ctx['user_id'],
             ]
         );
@@ -731,7 +746,7 @@ class AuditModuleWorkflowSeeder extends Seeder
     private function seedWorkflowActionsAndRules(string $companyId): void
     {
         $advance = WorkflowAction::updateOrCreate(
-            ['code' => 'DEMO_ADVANCE', 'company_id' => $companyId],
+            ['code' => 'DEMO_ADVANCE'],
             [
                 'name' => 'Advance Workflow',
                 'description' => 'Move audit to the next workflow step with mandatory remarks.',
@@ -743,11 +758,12 @@ class AuditModuleWorkflowSeeder extends Seeder
                 'requires_target_status' => false,
                 'is_active' => true,
                 'order_index' => 1,
+                'company_id' => $companyId,
             ]
         );
 
         $hold = WorkflowAction::updateOrCreate(
-            ['code' => 'DEMO_HOLD', 'company_id' => $companyId],
+            ['code' => 'DEMO_HOLD'],
             [
                 'name' => 'Place On Hold',
                 'description' => 'Pause workflow progression pending additional information.',
@@ -759,6 +775,7 @@ class AuditModuleWorkflowSeeder extends Seeder
                 'requires_target_status' => false,
                 'is_active' => true,
                 'order_index' => 2,
+                'company_id' => $companyId,
             ]
         );
 

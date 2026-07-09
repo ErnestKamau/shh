@@ -119,7 +119,7 @@ class RiskConfigurationSeeder extends Seeder
 
         foreach ($labels as $score => [$likelihoodName, $severityName, $likelihoodColor, $severityColor]) {
             LikelihoodScale::updateOrCreate(
-                ['code' => 'RISK_LIK_'.$score, 'company_id' => $companyId],
+                ['code' => 'RISK_LIK_'.$score],
                 [
                     'name' => $likelihoodName,
                     'description' => "Likelihood score {$score} – {$likelihoodName}",
@@ -127,11 +127,12 @@ class RiskConfigurationSeeder extends Seeder
                     'color_code' => $likelihoodColor,
                     'order_index' => $score,
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
 
             SeverityScale::updateOrCreate(
-                ['code' => 'RISK_SEV_'.$score, 'company_id' => $companyId],
+                ['code' => 'RISK_SEV_'.$score],
                 [
                     'name' => $severityName,
                     'description' => "Severity score {$score} – {$severityName}",
@@ -139,6 +140,7 @@ class RiskConfigurationSeeder extends Seeder
                     'color_code' => $severityColor,
                     'order_index' => $score,
                     'is_active' => true,
+                    'company_id' => $companyId,
                 ]
             );
         }

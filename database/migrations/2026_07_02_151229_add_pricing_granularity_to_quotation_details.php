@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private const PRICING_GRANULARITY_ELEMENT = 'element';
+    private const PRICING_GRANULARITY_ANALYSIS_TYPE = 'analysis_type';
+
     public function up(): void
     {
         if (! Schema::hasTable('quotation_details')) {
@@ -64,13 +67,13 @@ return new class extends Migration
         $elementIds = array_values(array_unique($elementIds));
 
         if (count($elementIds) === 1) {
-            return QuotationDetails::PRICING_GRANULARITY_ELEMENT;
+            return self::PRICING_GRANULARITY_ELEMENT;
         }
 
         if (count($elementIds) > 1) {
-            return QuotationDetails::PRICING_GRANULARITY_ANALYSIS_TYPE;
+            return self::PRICING_GRANULARITY_ANALYSIS_TYPE;
         }
 
-        return QuotationDetails::PRICING_GRANULARITY_ANALYSIS_TYPE;
+        return self::PRICING_GRANULARITY_ANALYSIS_TYPE;
     }
 };

@@ -17,7 +17,7 @@ return new class extends Migration
                 'TRF-WASTE-036',
             ])
             ->each(function (SubmissionForm $form): void {
-                $this->removeMiscellaneousTrfFields($form);
+                $this->removeMiscellaneousFieldsFromCollectionSection($form);
             });
     }
 

@@ -524,17 +524,10 @@
                 <td>{{ str_pad($totalPages, 2, '0', STR_PAD_LEFT) }}</td>
             </tr>
             <tr>
-                <td class="dlbl">{{ $labels['date_of_analysis'] }}</td>
-                <td colspan="3">
-                    @if($analysisDate && $analysisDate->start_analysis_date)
-                        {{ date('d/m/Y', strtotime($analysisDate->start_analysis_date)) }}
-                        @if($analysisDate->analysis_dates)
-                            &ndash; {{ date('d/m/Y', strtotime($analysisDate->analysis_dates)) }}
-                        @endif
-                    @else
-                        -
-                    @endif
-                </td>
+                <td class="dlbl">{{ $labels['date_of_analysis'] }} Start</td>
+                <td>{{ $analysisStartDate ?? '-' }}</td>
+                <td class="dlbl">{{ $labels['date_of_analysis'] }} End</td>
+                <td>{{ $analysisEndDate ?? '-' }}</td>
             </tr>
             <tr>
                 <td class="dlbl">{{ $labels['packaging'] ?? 'Packaging' }}</td>

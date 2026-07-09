@@ -431,8 +431,12 @@ class ProcessEnquiryWizard extends Component
                 return;
             }
         } else {
-            $enquiry->quotation_source_mode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST;
-            $enquiry->selected_source_quotation_header_id = null;
+            if (Schema::hasColumn('sample_submission_requests', 'quotation_source_mode')) {
+                $enquiry->quotation_source_mode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST;
+            }
+            if (Schema::hasColumn('sample_submission_requests', 'selected_source_quotation_header_id')) {
+                $enquiry->selected_source_quotation_header_id = null;
+            }
             $enquiry->save();
             $this->maybeAutoMergeAssignedPricelist($enquiry);
         }

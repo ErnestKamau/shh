@@ -72,7 +72,7 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function submissionForm(): BelongsTo
     {
-        return $this->belongsTo(SubmissionForm::class);
+        return $this->uuidBelongsTo(SubmissionForm::class, 'submission_form_id');
     }
 
     /**

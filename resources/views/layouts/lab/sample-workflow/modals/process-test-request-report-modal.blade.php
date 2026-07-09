@@ -157,9 +157,41 @@
                     {{-- ════════ DELIVERY OPTIONS ════════ --}}
                 @php
                     $batchContacts = collect();
+                    $companyUnits = collect();
                     if (!empty($batch->crm_customer_id)) {
+                        $companyUnits = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)
+                            ->orderBy('name')
+                            ->get(['id', 'name']);
+
                         $batchContacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $batch->crm_customer_id)
                             ->where('active', 1)->get();
+                    }
+
+                    $companyUnitOptions = $companyUnits
+                        ->pluck('name')
+                        ->map(fn($name) => trim((string) $name))
+                        ->filter()
+                        ->values();
+
+                    foreach ($batchContacts as $contact) {
+                        $contactUnits = collect(explode(',', (string) ($contact->unit_name ?? '')))
+                            ->map(fn($unit) => trim((string) $unit))
+                            ->filter();
+
+                        $companyUnitOptions = $companyUnitOptions->merge($contactUnits);
+                    }
+
+                    $companyUnitOptions = $companyUnitOptions
+                        ->unique(fn($name) => strtolower((string) $name))
+                        ->sort(fn($a, $b) => strcasecmp((string) $a, (string) $b))
+                        ->values();
+
+                    $defaultCompanyUnit = trim((string) ($batch->crm_unit_name ?? ''));
+                    if (
+                        $defaultCompanyUnit === ''
+                        || !$companyUnitOptions->contains(fn($name) => strtolower((string) $name) === strtolower($defaultCompanyUnit))
+                    ) {
+                        $defaultCompanyUnit = '';
                     }
                 @endphp
 
@@ -174,20 +206,52 @@
                             <div class="alert alert-warning py-2 px-3" style="font-size:12px;border-radius:6px;">
                                 <i class="mdi mdi-alert-outline mr-1"></i> No contacts found for this customer.
                             </div>
+                        @elseif($companyUnitOptions->isEmpty())
+                            <div class="alert alert-warning py-2 px-3" style="font-size:12px;border-radius:6px;">
+                                <i class="mdi mdi-alert-outline mr-1"></i> No department/company units configured for this customer.
+                            </div>
                         @else
+                            <div class="form-group mb-3">
+                                <label class="small font-weight-bold" for="ptrr-company-unit" style="color:#555;">Department / Company Unit</label>
+                                <select class="form-control form-control-sm" id="ptrr-company-unit" style="border-radius:8px;">
+                                    <option value="">Select Department / Company Unit...</option>
+                                    @foreach($companyUnitOptions as $unitName)
+                                        <option value="{{ $unitName }}" {{ strtolower((string) $defaultCompanyUnit) === strtolower((string) $unitName) ? 'selected' : '' }}>
+                                            {{ $unitName }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             {{-- Contact picker --}}
                             <div class="form-group mb-3">
                                 <label class="small font-weight-bold" style="color:#555;">Select Contact(s)</label>
-                                <div style="border:1px solid #dee2e6;border-radius:8px;max-height:130px;overflow-y:auto;padding:8px 12px;background:#fafafa;">
+                                <div id="ptrr-contact-list" style="border:1px solid #dee2e6;border-radius:8px;max-height:130px;overflow-y:auto;padding:8px 12px;background:#fafafa;">
                                     @foreach($batchContacts as $c)
-                                    <div class="custom-control custom-checkbox mb-1">
+                                    @php
+                                        $contactUnits = collect(explode(',', (string) ($c->unit_name ?? '')))
+                                            ->map(fn($unit) => trim((string) $unit))
+                                            ->filter()
+                                            ->values()
+                                            ->all();
+                                        $contactName = trim((string) ($c->name ?? implode(' ', array_filter([
+                                            $c->first_name ?? null,
+                                            $c->middle_name ?? null,
+                                            $c->last_name ?? null,
+                                        ]))));
+                                        if ($contactName === '') {
+                                            $contactName = 'Contact';
+                                        }
+                                    @endphp
+                                    <div class="custom-control custom-checkbox mb-1 ptrr-contact-item"
+                                         data-unit-names='@json($contactUnits)'>
                                         <input type="checkbox" class="custom-control-input ptrr-contact-check"
                                                id="ptrr-contact-{{ $c->id }}" value="{{ $c->id }}"
-                                               data-name="{{ $c->name ?? 'Contact' }}"
+                                               data-name="{{ $contactName }}"
                                                data-email="{{ $c->email ?? '' }}"
                                                data-phone="{{ $c->mobile ?? $c->telephone ?? '' }}">
                                         <label class="custom-control-label" for="ptrr-contact-{{ $c->id }}" style="font-size:13px;cursor:pointer;">
-                                            <strong>{{ $c->name ?? 'Contact' }}</strong>
+                                            <strong>{{ $contactName }}</strong>
                                             @if($c->email)
                                                 <span class="text-muted" style="font-size:11px;"> &bull; {{ $c->email }}</span>
                                             @endif
@@ -197,6 +261,9 @@
                                         </label>
                                     </div>
                                     @endforeach
+                                    <div id="ptrr-no-contacts-for-unit" class="text-muted" style="display:none;font-size:12px;padding:4px 0;">
+                                        No contacts found for the selected department/company unit.
+                                    </div>
                                 </div>
                             </div>
 
@@ -243,6 +310,59 @@
                 </style>
                 <script>
                 (function() {
+                    function normalizeUnit(value) {
+                        return (value || '').toString().trim().toLowerCase();
+                    }
+
+                    function parseUnits(raw) {
+                        try {
+                            var parsed = JSON.parse(raw || '[]');
+                            if (!Array.isArray(parsed)) {
+                                return [];
+                            }
+                            return parsed.map(function(unit) { return normalizeUnit(unit); }).filter(Boolean);
+                        } catch (e) {
+                            return [];
+                        }
+                    }
+
+                    var companyUnitSelect = document.getElementById('ptrr-company-unit');
+                    var contactItems = Array.from(document.querySelectorAll('.ptrr-contact-item'));
+                    var emptyUnitContacts = document.getElementById('ptrr-no-contacts-for-unit');
+
+                    function filterContactsByUnit() {
+                        if (!companyUnitSelect || !contactItems.length) {
+                            return;
+                        }
+
+                        var selectedUnit = normalizeUnit(companyUnitSelect.value);
+                        var visibleCount = 0;
+
+                        contactItems.forEach(function(item) {
+                            var contactUnits = parseUnits(item.getAttribute('data-unit-names'));
+                            var belongs = selectedUnit !== '' && contactUnits.includes(selectedUnit);
+                            item.style.display = belongs ? '' : 'none';
+
+                            if (!belongs) {
+                                var checkbox = item.querySelector('.ptrr-contact-check');
+                                if (checkbox) {
+                                    checkbox.checked = false;
+                                }
+                            } else {
+                                visibleCount += 1;
+                            }
+                        });
+
+                        if (emptyUnitContacts) {
+                            emptyUnitContacts.style.display = selectedUnit !== '' && visibleCount === 0 ? '' : 'none';
+                        }
+                    }
+
+                    if (companyUnitSelect) {
+                        companyUnitSelect.addEventListener('change', filterContactsByUnit);
+                        filterContactsByUnit();
+                    }
+
                     document.querySelectorAll('.ptrr-ch-check').forEach(function(cb) {
                         cb.addEventListener('change', function() {
                             var card = this.closest('.ptrr-channel-card');
@@ -262,6 +382,11 @@
                             document.querySelectorAll('.ptrr-ch-check:checked').forEach(function(c) {
                                 channels.push(c.value);
                             });
+                            var selectedUnit = companyUnitSelect ? companyUnitSelect.value : '';
+
+                            if (companyUnitSelect && !selectedUnit) {
+                                alert('Please select a department/company unit.'); return;
+                            }
 
                             if (!contactIds.length) {
                                 alert('Please select at least one contact.'); return;
@@ -281,6 +406,7 @@
                             body.append('_token', csrf);
                             body.append('batch_id', batchId);
                             body.append('notes', notes);
+                            body.append('company_unit', selectedUnit || '');
                             contactIds.forEach(function(id) { body.append('contact_ids[]', id); });
                             channels.forEach(function(ch)  { body.append('channels[]', ch); });
 

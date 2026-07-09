@@ -23,6 +23,7 @@ class CRMCustomer extends Model implements Auditable
 	protected $casts = [
 		'report_columns_config' => 'array',
 		'is_internal' => 'boolean',
+    'quotation_acceptance_tat_minutes' => 'integer',
 		'code' => \App\Casts\SafeEncrypted::class,
 		'postal_address' => \App\Casts\SafeEncrypted::class,
 		'physical_address' => \App\Casts\SafeEncrypted::class,

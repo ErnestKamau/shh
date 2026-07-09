@@ -41,6 +41,8 @@ class TestRequestReportDataService
             ->orderBy('start_analysis_date', 'ASC')
             ->first();
 
+        [$analysisStartDate, $analysisEndDate] = $this->resolveBatchAnalysisDateRange($batch->id);
+
         $firstNormalizedRow = $normalizedRows[0] ?? [];
         $firstRawRow = $trfRows[0] ?? [];
 
@@ -175,6 +177,8 @@ class TestRequestReportDataService
             'approverRole' => $approverRole,
             'approvalDate' => $approvalDate,
             'analysisDate' => $analysisDate,
+            'analysisStartDate' => $analysisStartDate,
+            'analysisEndDate' => $analysisEndDate,
             'company' => $company,
             'customer' => $customer,
             'reportLogo' => $reportLogo,
@@ -359,6 +363,62 @@ class TestRequestReportDataService
         return [$reportLogos, $reportLogo, $companyLogo];
     }
 
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function resolveBatchAnalysisDateRange(int|string $batchId): array
+    {
+        $records = SampleAnalysisDates::where('sample_header_id', $batchId)
+            ->get(['start_analysis_date', 'analysis_dates']);
+
+        $startDates = [];
+        $endDates = [];
+
+        foreach ($records as $record) {
+            $recordStart = $this->normalizeDateValue($record->start_analysis_date ?? null);
+            if ($recordStart !== null) {
+                $startDates[] = $recordStart;
+                $endDates[] = $recordStart;
+            }
+
+            $decoded = json_decode((string) $record->analysis_dates, true);
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            foreach ($decoded as $sectionRange) {
+                if (is_array($sectionRange)) {
+                    $startDate = $this->normalizeDateValue($sectionRange['start_date'] ?? $sectionRange['start'] ?? null);
+                    $endDate = $this->normalizeDateValue($sectionRange['end_date'] ?? $sectionRange['end'] ?? null);
+
+                    if ($startDate !== null) {
+                        $startDates[] = $startDate;
+                        $endDates[] = $startDate;
+                    }
+                    if ($endDate !== null) {
+                        $endDates[] = $endDate;
+                    }
+
+                    continue;
+                }
+
+                $singleDate = $this->normalizeDateValue($sectionRange);
+                if ($singleDate !== null) {
+                    $startDates[] = $singleDate;
+                    $endDates[] = $singleDate;
+                }
+            }
+        }
+
+        $startDate = ! empty($startDates) ? min($startDates) : null;
+        $endDate = ! empty($endDates) ? max($endDates) : $startDate;
+
+        return [
+            $this->formatReportDate($startDate),
+            $this->formatReportDate($endDate),
+        ];
+    }
+
     private function pathToDataUri(string $path): string
     {
         if ($path === '') {
@@ -411,6 +471,21 @@ class TestRequestReportDataService
         }
 
         return '-';
+    }
+
+    private function normalizeDateValue(mixed $candidate): ?string
+    {
+        $value = $this->scalarValue($candidate);
+        if ($value === '') {
+            return null;
+        }
+
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            return null;
+        }
+
+        return date('Y-m-d', $timestamp);
     }
 
     /**

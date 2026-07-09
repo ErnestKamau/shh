@@ -482,7 +482,7 @@
                             </label>
                             <span class="btn btn-xs btn-info mb-2 d-flex align-items-center gap-1"
                                 style="cursor: pointer; padding: 3px 10px; font-size: 11px; border-radius: 5px; box-shadow: none;"
-                                data-toggle="modal" data-target="#add-attachment-type-modal"
+                                id="open-add-attachment-type-btn"
                                 title="Add New Attachment Type">
                                 <i class="mdi mdi-plus" style="font-size: 13px;"></i> ADD NEW
                             </span>
@@ -663,8 +663,8 @@
     </div>
 
     <!-- Add Attachment Type Modal -->
-    <div wire:ignore.self>
-    <div class="modal fade" id="add-attachment-type-modal" role="dialog" style="z-index: 1060;">
+    <div wire:ignore>
+    <div class="modal fade" id="add-attachment-type-modal" role="dialog" style="z-index: 1060;" data-livewire-id="{{ $this->getId() }}">
         <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
                 <div class="modal-header border-0 pb-0">
@@ -680,7 +680,7 @@
                             id="new_attachment_type_name"
                             placeholder="Type Name..."
                             style="border-radius: 8px; background-color: #f8f9fa; border: 1px solid #e9ecef;"
-                            wire:model.defer="newAttachmentTypeName">
+                            value="{{ $newAttachmentTypeName }}">
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
@@ -688,7 +688,7 @@
                         data-dismiss="modal">Cancel</button>
                     <button type="button"
                         class="btn btn-primary btn-sm rounded-pill px-4"
-                        wire:click.prevent="saveAttachmentType">
+                        id="save-attachment-type-btn">
                         Save
                     </button>
                 </div>
@@ -1326,6 +1326,99 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
+        // Handler for the "+ ADD NEW" button inside #add-attachment-batch.
+        // Uses document delegation so it works after the modal has been appended to body.
+        (function() {
+            function getAttachmentTypeComponent(modal) {
+                if (!modal) return null;
+
+                var componentId = modal.getAttribute('data-livewire-id');
+                if (!componentId || !window.Livewire || !window.Livewire.find) {
+                    return null;
+                }
+
+                return window.Livewire.find(componentId);
+            }
+
+            function openAddTypeModal(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!window.jQuery || !window.jQuery.fn.modal) return;
+
+                var $ = window.jQuery;
+                var $subModal = $('#add-attachment-type-modal').last();
+                if (!$subModal.length) return;
+
+                // Move to end of <body> so DOM order stacks it above the main modal
+                $subModal.appendTo('body');
+
+                // Calculate a z-index above all currently visible modals
+                var maxZ = 1050;
+                $('.modal.show, .modal.in').each(function() {
+                    var z = parseInt($(this).css('z-index')) || 0;
+                    if (z > maxZ) maxZ = z;
+                });
+                var subZ = maxZ + 20;
+                $subModal.css('z-index', subZ);
+
+                $subModal.modal('show');
+
+                // Raise the new backdrop above the existing modals
+                setTimeout(function() {
+                    $('.modal-backdrop').last().css('z-index', subZ - 10);
+                }, 0);
+            }
+
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('#save-attachment-type-btn');
+                if (!btn) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                var modal = btn.closest('.modal');
+                var input = modal ? modal.querySelector('#new_attachment_type_name') : null;
+                var name = input ? input.value.trim() : '';
+                var component = getAttachmentTypeComponent(modal);
+
+                if (!component) return;
+
+                component.call('saveAttachmentType', name);
+            }, true);
+
+            // Delegate on document so it works after the parent modal has been appended to body
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('#open-add-attachment-type-btn');
+                if (btn) {
+                    openAddTypeModal(e);
+                }
+            }, true); // capture phase — fires before Bootstrap's own listeners
+        })();
+
+        if (!window.hasAttachmentTypeSavedListener) {
+            window.hasAttachmentTypeSavedListener = true;
+            window.addEventListener('attachmentTypeSaved', function(e) {
+                // Close the sub-modal
+                if (window.jQuery && window.jQuery.fn.modal) {
+                    window.jQuery('#add-attachment-type-modal').modal('hide');
+                }
+                // Add the new option to the dropdown in the main modal (may be at body)
+                var selects = document.querySelectorAll('#attachment_type_select');
+                selects.forEach(function(select) {
+                    var exists = Array.from(select.options).some(function(o) {
+                        return String(o.value) === String(e.detail.id);
+                    });
+                    if (!exists) {
+                        var option = document.createElement('option');
+                        option.value = e.detail.id;
+                        option.textContent = e.detail.value;
+                        select.appendChild(option);
+                        select.value = e.detail.id;
+                    }
+                });
+            });
+        }
+
         if (!window.hasOpenNewTabListener) {
             window.hasOpenNewTabListener = true;
             window.addEventListener('open-new-tab', function(event) {
@@ -1443,8 +1536,12 @@
 
             function handleAddAttachmentClick(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 if (window.jQuery && window.jQuery.fn.modal) {
-                    window.jQuery('#add-attachment-batch').modal('show');
+                    var $modal = window.jQuery('#add-attachment-batch').first();
+                    if ($modal.length) {
+                        $modal.appendTo('body').modal('show');
+                    }
                 }
             }
 

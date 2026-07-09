@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Lab;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
@@ -9,6 +10,8 @@ use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class DispatchSubcontractRequest extends Component
@@ -27,6 +30,27 @@ class DispatchSubcontractRequest extends Component
 
     public ?string $selectedFormInstanceId = null;
 
+    /** @var array<int, array{id: string, label: string}> */
+    public array $availableLabs = [];
+
+    /** @var array<int, string> */
+    public array $selectedLabIds = [];
+
+    public function mount(): void
+    {
+        $this->availableLabs = Lab::query()
+            ->where('active', 1)
+            ->where('is_external', 1)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name'])
+            ->map(fn (Lab $lab): array => [
+                'id' => (string) $lab->id,
+                'label' => trim(((string) ($lab->code ?? '')) . ' - ' . ((string) ($lab->name ?? ''))),
+            ])
+            ->values()
+            ->all();
+    }
+
     public function handleSubcontractDispatchModalOpen(array $instanceIds, array $summaries): void
     {
         $this->selectedFormInstanceIds = array_values(array_filter($instanceIds));
@@ -35,6 +59,7 @@ class DispatchSubcontractRequest extends Component
         $this->labelUrl = null;
         $this->selectedEnquiryId = null;
         $this->selectedFormInstanceId = null;
+        $this->selectedLabIds = [];
         $this->resetValidation();
 
         if (count($this->selectedFormInstanceIds) === 1) {
@@ -80,8 +105,12 @@ class DispatchSubcontractRequest extends Component
 
         $this->validate([
             'barcode' => ['required', 'string', 'max:255'],
+            'selectedLabIds' => ['required', 'array', 'min:1'],
+            'selectedLabIds.*' => ['string', Rule::exists('labs', 'id')->where(fn ($query) => $query->where('active', 1)->where('is_external', 1))],
         ], [
             'barcode.required' => 'Scan or enter the request barcode before dispatching.',
+            'selectedLabIds.required' => 'Select at least one subcontracted lab before dispatching.',
+            'selectedLabIds.min' => 'Select at least one subcontracted lab before dispatching.',
         ]);
 
         $user = Auth::user();
@@ -117,8 +146,43 @@ class DispatchSubcontractRequest extends Component
 
         DB::transaction(function () use ($instance, $user): void {
             $enquiry = $instance->sampleSubmissionRequest;
-            $enquiry->subcontracting_dispatch_status = SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED;
-            $enquiry->subcontracting_dispatch_date = now();
+            $selectedLabIds = collect($this->selectedLabIds)
+                ->map(fn ($id) => trim((string) $id))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $selectedLabNames = Lab::query()
+                ->whereIn('id', $selectedLabIds->all())
+                ->where('active', 1)
+                ->where('is_external', 1)
+                ->orderBy('name')
+                ->get(['code', 'name'])
+                ->map(function (Lab $lab): string {
+                    $code = trim((string) ($lab->code ?? ''));
+                    $name = trim((string) ($lab->name ?? ''));
+
+                    return $code !== '' ? ($code . ' - ' . $name) : $name;
+                })
+                ->filter()
+                ->values();
+
+            if (Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_status')) {
+                $enquiry->subcontracting_dispatch_status = SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED;
+            }
+
+            if (Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_date')) {
+                $enquiry->subcontracting_dispatch_date = now();
+            }
+
+            if (Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_lab_ids')) {
+                $enquiry->subcontracting_dispatch_lab_ids = $selectedLabIds->implode(',');
+            }
+
+            if (Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_lab_names')) {
+                $enquiry->subcontracting_dispatch_lab_names = $selectedLabNames->implode(', ');
+            }
+
             $enquiry->save();
 
             if ($instance->status !== 'approved') {

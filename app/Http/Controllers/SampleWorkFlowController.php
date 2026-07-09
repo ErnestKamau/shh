@@ -6146,6 +6146,7 @@ class SampleWorkFlowController extends Controller
             'channels.*'  => ['in:email,whatsapp,portal'],
             'contact_ids' => ['required', 'array', 'min:1'],
             'contact_ids.*' => ['string'],
+            'company_unit' => ['nullable', 'string', 'max:255'],
             'notes'       => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -6180,6 +6181,19 @@ class SampleWorkFlowController extends Controller
         $notes       = $request->notes;
         $customerId  = $batch->crm_customer_id;
         $results     = [];
+        $selectedUnit = trim((string) $request->input('company_unit', ''));
+
+        $unitNameMap = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $customerId)
+            ->pluck('name', 'id')
+            ->map(fn($name) => trim((string) $name));
+
+        $selectedUnitNormalized = strtolower($selectedUnit);
+        if ($selectedUnit !== '' && !$unitNameMap->map(fn($name) => strtolower((string) $name))->contains($selectedUnitNormalized)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected department/company unit is invalid for this customer.',
+            ], 422);
+        }
 
         // ── Portal channel: batch-level operation, run once before contact loop ──
         if (in_array('portal', $channels) && $customerId) {
@@ -6259,8 +6273,40 @@ class SampleWorkFlowController extends Controller
             $channels = array_filter($channels, fn($c) => $c !== 'portal');
         }
 
-        // Load requested contacts
-        $contacts = \App\Models\CRM\CustomerContact::whereIn('id', $contactIds)->get()->keyBy('id');
+        // Load requested contacts, limited to this customer and optional selected company unit.
+        $contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->whereIn('id', $contactIds)
+            ->get()
+            ->filter(function ($contact) use ($selectedUnitNormalized, $selectedUnit, $unitNameMap) {
+                if ($selectedUnit === '') {
+                    return true;
+                }
+
+                $units = collect(explode(',', (string) ($contact->unit_name ?? '')))
+                    ->map(fn($unit) => strtolower(trim((string) $unit)))
+                    ->filter();
+
+                if ($units->contains($selectedUnitNormalized)) {
+                    return true;
+                }
+
+                if (!empty($contact->crm_company_unit_id)) {
+                    $mappedUnitName = strtolower((string) ($unitNameMap->get($contact->crm_company_unit_id) ?? ''));
+                    return $mappedUnitName !== '' && $mappedUnitName === $selectedUnitNormalized;
+                }
+
+                return false;
+            })
+            ->keyBy('id');
+
+        $contactIds = array_values(array_filter($contactIds, fn($id) => $contacts->has($id)));
+        if (empty($contactIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No valid contacts found for the selected department/company unit.',
+            ], 422);
+        }
 
         foreach ($contactIds as $contactId) {
             $contact = $contacts->get($contactId);

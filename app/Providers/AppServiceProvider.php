@@ -12,6 +12,9 @@ use App\RequestEntity;
 use App\Supplier;
 use App\Models\CRM\Complaint;
 use App\Models\SampleSubmissionRequest;
+use App\Models\SubmissionFormInstance;
+use App\Observers\SampleSubmissionRequestObserver;
+use App\Observers\SubmissionFormInstanceObserver;
 use App\Observers\TicketObserver;
 use Illuminate\Support\ServiceProvider;
 use App\Services\System\ThemeService;
@@ -107,6 +110,8 @@ class AppServiceProvider extends ServiceProvider
         InventorySubCategories::observe(ItemObserver::class);
         RequestEntity::observe(PurchaseOrderObserver::class);
         Complaint::observe(TicketObserver::class);
+        SampleSubmissionRequest::observe(SampleSubmissionRequestObserver::class);
+        SubmissionFormInstance::observe(SubmissionFormInstanceObserver::class);
 
         // Keep old and current aliases stable while classes live under Personnel\Zones.
         Livewire::component('zone-configuration-manager', PersonnelZonesConfigurationManager::class);

@@ -24,6 +24,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DashboardRepository
 {
@@ -90,6 +91,31 @@ class DashboardRepository
 
     public function paginateReports(string $customerId, int $perPage): LengthAwarePaginator
     {
+        $reportStatus = (string) config('dashboard.report_status', 'Completed');
+        $base = SampleHeader::query()->where('crm_customer_id', $customerId);
+        $totalByCustomer = (clone $base)->count();
+        $completedByCustomer = (clone $base)->where('status', $reportStatus)->count();
+        $withUrlByCustomer = (clone $base)->where(function (Builder $query): void {
+            $query->whereNotNull('batch_report_url')
+                ->orWhereNotNull('batch_report_online_url');
+        })->count();
+        $eligible = (clone $base)
+            ->where('status', $reportStatus)
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('batch_report_url')
+                    ->orWhereNotNull('batch_report_online_url');
+            })->count();
+
+        Log::info('portal.dashboard.reports.query', [
+            'customer_id' => $customerId,
+            'report_status' => $reportStatus,
+            'total_by_customer' => $totalByCustomer,
+            'completed_by_customer' => $completedByCustomer,
+            'with_report_url_by_customer' => $withUrlByCustomer,
+            'eligible_reports' => $eligible,
+            'per_page' => $perPage,
+        ]);
+
         return $this->releasedReportsQuery($customerId)
             ->paginate($perPage)
             ->through(fn (SampleHeader $header) => $this->mapReport($header));
@@ -284,7 +310,7 @@ class DashboardRepository
     private function releasedReportsQuery(string $customerId): Builder
     {
         return SampleHeader::query()
-            ->with(['sampleType:id,name'])
+            ->with(['sample_type:id,name'])
             ->where('crm_customer_id', $customerId)
             ->where('status', config('dashboard.report_status', 'Completed'))
             ->where(function (Builder $query): void {
@@ -303,7 +329,7 @@ class DashboardRepository
             reportNumber: $header->document_number ?? $header->batch_code,
             submissionRequestNumber: $header->reference_number ?? $header->batch_code,
             releasedDate: $header->updated_at?->toIso8601String(),
-            reportType: $header->relationLoaded('sampleType') ? $header->sampleType?->name : null,
+            reportType: $header->relationLoaded('sample_type') ? $header->sample_type?->name : null,
             downloadUrl: $downloadUrl,
             releaseStatus: $this->publicStatusLabel((string) $header->status),
         );

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Models;
 
+use App\Livewire\Sampleworkflow\WorkflowBoard;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
@@ -13,6 +14,76 @@ use Tests\TestCase;
 class SubmissionFormInstanceRequestedTestsCountTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_submission_form_relation_uses_uuid_safe_existence_query(): void
+    {
+        $form = SubmissionForm::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Commercial TRF',
+            'document_code' => 'TRF-REL',
+            'description' => 'Test',
+            'naming_convention_prefix' => 'TRF',
+            'naming_convention_format' => '{prefix}/{year}/{sequence}',
+            'is_published' => true,
+            'is_active' => true,
+            'is_customer_portal_form' => true,
+            'version' => '1.0',
+            'issue_date' => now()->toDateString(),
+            'form_type' => 'template',
+            'placement_mode' => 'button_trigger',
+            'display_mode' => 'expanded',
+            'target_pages' => [],
+            'lims_destination_pages' => ['sample-workflow'],
+        ]);
+
+        SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Relation test instance',
+            'form_number' => 'TRF-REL-001',
+            'status' => 'in_review',
+            'submitted_at' => now(),
+            'priority' => 'normal',
+        ]);
+
+        $this->assertSame(1, SubmissionFormInstance::query()
+            ->whereHas('submissionForm', fn ($query) => $query->where('form_type', 'template'))
+            ->count());
+    }
+
+    public function test_sidebar_receiving_request_count_can_count_template_instances_without_batches(): void
+    {
+        $form = SubmissionForm::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Receiving TRF',
+            'document_code' => 'TRF-COUNT',
+            'description' => 'Test',
+            'naming_convention_prefix' => 'TRF',
+            'naming_convention_format' => '{prefix}/{year}/{sequence}',
+            'is_published' => true,
+            'is_active' => true,
+            'is_customer_portal_form' => true,
+            'version' => '1.0',
+            'issue_date' => now()->toDateString(),
+            'form_type' => 'template',
+            'placement_mode' => 'button_trigger',
+            'display_mode' => 'expanded',
+            'target_pages' => [],
+            'lims_destination_pages' => ['sample-workflow'],
+        ]);
+
+        SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Receiving count instance',
+            'form_number' => 'TRF-COUNT-001',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'priority' => 'normal',
+        ]);
+
+        $this->assertSame(1, WorkflowBoard::sidebarReceivingRequestCount());
+    }
 
     public function test_requested_tests_count_uses_enquiry_sample_configuration_when_form_values_empty(): void
     {
