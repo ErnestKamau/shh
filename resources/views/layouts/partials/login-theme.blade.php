@@ -1,6 +1,5 @@
 @php
     $themeVars = \App\Services\System\ThemeService::resolvedVariables();
-    $loginLogo = optional(getActiveCompany())->logo ?: '/images/logo.png';
 @endphp
 <style>
     :root {

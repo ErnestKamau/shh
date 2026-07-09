@@ -80,7 +80,7 @@
 									{{ csrf_field() }}
 									<input type="hidden" name="token" value="{{ $token }}">
 									<div class="w3-padding-large w3-center">
-										<img src="/images/imara-sys.png" style="max-width: 120px"  />
+										@include('layouts.partials.auth-logo')
 									</div>
 									<div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
 										<label for="email" class="control-label w3-left w3-text-dark-grey"><strong>{{ __('E-Mail Address') }}</strong></label>

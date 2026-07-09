@@ -172,7 +172,7 @@
 									<form class="w3-padding-large w3-white w3-card-8 w3-round w3-topbar w3-border-brown" method="POST" action="{{ route('login') }}" style="width: 380px; max-width: 100%; box-sizing: border-box;">
 										 {{ csrf_field() }}
 										<div class="w3-padding-large w3-center">
-											<img src="/images/imara-sys.png" style="max-width: 120px"  />
+											@include('layouts.partials.auth-logo')
 										</div>
 										 <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
 											<label for="email" class="control-label w3-left w3-text-dark-grey"><strong>E-Mail Address</strong></label>

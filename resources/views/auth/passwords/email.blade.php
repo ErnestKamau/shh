@@ -79,7 +79,7 @@
 								<form method="POST" action="{{ route('password.email') }}" class="w3-padding-large w3-white w3-card-8 w3-round w3-topbar w3-border-brown">
 									{{ csrf_field() }}
 									<div class="w3-padding-large w3-center">
-										<img src="/images/imara-sys.png" style="max-width: 120px"  />
+										@include('layouts.partials.auth-logo')
                   </div>
                   @if (session('status'))
                     <div class="alert alert-success" role="alert">

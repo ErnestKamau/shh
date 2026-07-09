@@ -63,8 +63,10 @@ class AppServiceProvider extends ServiceProvider
             $configs = ThemeService::CONFIG_DEFAULTS;
             $type = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Global System Theme Settings')->first();
             if ($type) {
+                $createdAny = false;
+
                 foreach ($configs as $key => $val) {
-                    \App\Models\System\SystemConfiguration::updateOrCreate(
+                    $configuration = \App\Models\System\SystemConfiguration::firstOrCreate(
                         ['key' => $key],
                         [
                             'configuration_type_id' => $type->id,
@@ -72,8 +74,15 @@ class AppServiceProvider extends ServiceProvider
                             'status' => true,
                         ]
                     );
+
+                    if ($configuration->wasRecentlyCreated) {
+                        $createdAny = true;
+                    }
                 }
-                ThemeService::forgetCache();
+
+                if ($createdAny) {
+                    ThemeService::forgetCache();
+                }
             }
         } catch (\Throwable $e) {}
 
