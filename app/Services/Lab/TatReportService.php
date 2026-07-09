@@ -394,7 +394,7 @@ class TatReportService
         if (DB::connection()->getDriverName() === 'pgsql') {
             $join->whereRaw(
                 sprintf(
-                    "NULLIF(TRIM(%s::text), '')::uuid = %s",
+                    "NULLIF(TRIM(%s::text), '') = NULLIF(TRIM(%s::text), '')",
                     $varcharColumn,
                     $uuidColumn,
                 )
