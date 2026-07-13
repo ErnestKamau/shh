@@ -5,22 +5,77 @@
   @include('layouts.lab.partials.lab-panel-theme-styles')
   {{-- Include all CSS from original show.blade.php lines 5-431 --}}
   <style>
-		body{
-			overflow-x: hidden !important;
+		/*
+		 * Lock window scroll on batch details. Content scrolls only inside
+		 * #main-container-body so Select2/dropdowns appended to body cannot
+		 * inflate document height into endless page scroll.
+		 */
+		html.batch-details-page,
+		body.batch-details-page {
+			overflow: hidden !important;
+			height: 100%;
+			overscroll-behavior: none;
 		}
 
-        /* Keep batch details page vertically scrollable in fixed-header layouts */
-        #main-container-body {
-            height: calc(100vh - 56px);
-            overflow-y: auto;
-        }
+		body.batch-details-page #main-container-body {
+			height: calc(100vh - 56px) !important;
+			max-height: calc(100vh - 56px) !important;
+			overflow-y: auto !important;
+			overflow-x: hidden !important;
+			overscroll-behavior: contain;
+		}
 
-        @media (max-width: 767.98px) {
-            #main-container-body {
-                height: auto;
-                overflow-y: visible;
-            }
-        }
+		body.batch-details-page .batch-show-page {
+			padding-bottom: 14px;
+			min-height: 0;
+		}
+
+		body.batch-details-page .batch-tabs-panel {
+			margin-bottom: 0;
+		}
+
+		body.batch-details-page .batch-show-modals {
+			display: contents;
+		}
+
+		body.batch-details-page .batch-show-modals > .modal {
+			position: fixed !important;
+		}
+
+		body.batch-details-page .lw-alpine-modal-overlay {
+			position: fixed !important;
+			left: 0 !important;
+			right: 0 !important;
+			width: 100% !important;
+		}
+
+		body.batch-details-page .lw-alpine-modal-overlay.show {
+			display: block !important;
+		}
+
+		.batch-show-page .workflow-board-panel-body.flush-top {
+			padding: 0;
+		}
+
+		@media (max-width: 767.98px) {
+			html.batch-details-page {
+				overflow: hidden !important;
+				height: 100%;
+			}
+
+			body.batch-details-page {
+				overflow-x: hidden !important;
+				overflow-y: auto !important;
+				height: 100%;
+				overscroll-behavior: none;
+			}
+
+			body.batch-details-page #main-container-body {
+				height: auto !important;
+				max-height: none !important;
+				overflow-y: visible !important;
+			}
+		}
 
 		/* Page chrome */
 		.batch-show-page{
@@ -214,6 +269,16 @@
 			}
 		}
   </style>
+  <script>
+    document.documentElement.classList.add('batch-details-page');
+    if (document.body) {
+      document.body.classList.add('batch-details-page');
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        document.body.classList.add('batch-details-page');
+      });
+    }
+  </script>
 @endsection
 
 @section('content2')
@@ -320,8 +385,9 @@
     </div>
     @endif
     </div> {{-- batch-show-shell --}}
+  </main>
 
-    
+  <div class="batch-show-modals" aria-hidden="true">
     {{-- Add Sample Notes Modal (migrated from legacy sample-workflow show view) --}}
     <div id="add-sample-notes" class="modal fade" role="dialog">
         <div class="modal-dialog">
@@ -585,14 +651,25 @@
             </form>
         </div>
     </div>
-    
-  </main>
+  </div> {{-- batch-show-modals --}}
 @endsection
 
 @section('script2')
   <script>
     (function () {
         var unlockTimer = null;
+
+        function isVisibleModal(el) {
+            return el && window.getComputedStyle(el).display !== 'none';
+        }
+
+        function hasOpenAlpineModal() {
+            return Array.from(document.querySelectorAll('.lw-alpine-modal-overlay, .lw-alpine-wizard-backdrop, .report-prep-modal-root')).some(isVisibleModal);
+        }
+
+        function hasOpenAccWizardBackdrop() {
+            return Array.from(document.querySelectorAll('.acc-wizard-backdrop')).some(isVisibleModal);
+        }
 
         function unlockStuckScroll() {
             if (unlockTimer !== null) {
@@ -601,21 +678,48 @@
 
             unlockTimer = setTimeout(function () {
                 unlockTimer = null;
-                var hasOpenModal = document.querySelector('.modal.show, .modal.in');
+                var hasOpenBootstrapModal = document.querySelector('.modal.show, .modal.in');
+                var mainBody = document.getElementById('main-container-body');
 
-                if (!hasOpenModal) {
+                if (mainBody) {
+                    mainBody.style.removeProperty('overflow');
+                    mainBody.style.overflowY = 'auto';
+                }
+
+                if (!hasOpenBootstrapModal && !hasOpenAccWizardBackdrop() && !hasOpenAlpineModal()) {
                     document.body.classList.remove('modal-open');
+                    document.body.classList.remove('acc-wizard-open');
+                    document.body.classList.remove('acc-wizard-page-scroll');
                     document.body.style.removeProperty('overflow');
                     document.body.style.removeProperty('padding-right');
+                }
+
+                // Keep window scroll locked so dropdowns cannot inflate page height.
+                document.documentElement.classList.add('batch-details-page');
+                document.body.classList.add('batch-details-page');
+                if (window.scrollY !== 0) {
+                    window.scrollTo(0, 0);
                 }
             }, 250);
         }
 
-        document.addEventListener('DOMContentLoaded', unlockStuckScroll);
+        document.documentElement.classList.add('batch-details-page');
+
+        window.addEventListener('scroll', function () {
+            if (document.documentElement.classList.contains('batch-details-page') && window.scrollY !== 0) {
+                window.scrollTo(0, 0);
+            }
+        }, { passive: true });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.classList.add('batch-details-page');
+            unlockStuckScroll();
+        });
         document.addEventListener('hidden.bs.modal', unlockStuckScroll);
 
         document.addEventListener('livewire:initialized', function () {
             unlockStuckScroll();
+            Livewire.hook('morph.updated', unlockStuckScroll);
         });
     })();
 
