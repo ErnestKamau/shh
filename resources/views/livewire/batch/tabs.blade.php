@@ -201,9 +201,10 @@
             return;
         }
 
-        var $tabLink = $('#' + tabId + '-tab, [href="#' + tabId + '"]').first();
+        var tabLink = document.querySelector('#' + tabId + '-tab')
+            || document.querySelector('[href="#' + tabId + '"]');
 
-        if (!$tabLink.length) {
+        if (!tabLink) {
             if (tabActivationAttempts < 12) {
                 tabActivationAttempts += 1;
                 window.setTimeout(function () {
@@ -215,16 +216,25 @@
 
         tabActivationAttempts = 0;
         hashNavigationDone = true;
-        $tabLink.tab('show');
+
+        if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(tabLink).show();
+        } else if (typeof tabLink.click === 'function') {
+            tabLink.click();
+        }
 
         setTimeout(function () {
-            $tabLink[0].scrollIntoView({ behavior: 'auto', block: 'nearest' });
+            tabLink.scrollIntoView({ behavior: 'auto', block: 'nearest' });
         }, 300);
     }
 
-    $(document).ready(function () {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            activateTabFromHash(true);
+        });
+    } else {
         activateTabFromHash(true);
-    });
+    }
 
     window.addEventListener('hashchange', function () {
         hashNavigationDone = false;

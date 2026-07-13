@@ -947,24 +947,13 @@
                                     <td>{{ $param['result_reporting_symbol'] ?? '-' }}</td>
                                     <td style="min-width: 160px;">
                                         <div class="input-group input-group-sm">
-                                            <input type="text" class="form-control form-control-sm"
-                                                wire:model.lazy="parametersForm.{{ $id }}.result"
-                                                wire:change="evaluateResult('{{ $id }}')"
-                                                x-data
-                                                x-on:change="
-                                                                                                                                                                                                                                                                            let val = $el.value;
-                                                                                                                                                                                                                                                                            if(val) {
-                                                                                                                                                                                                                                                                                setTimeout(() => {
-                                                                                                                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_name'] }}:');
-                                                                                                                                                                                                                                                                                    if(conf != val) {
-                                                                                                                                                                                                                                                                                        alert('Result mismatch! Please re-enter.');
-                                                                                                                                                                                                                                                                                        $el.value = '';
-                                                                                                                                                                                                                                                                                        $el.dispatchEvent(new Event('change'));
-                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                }, 50);
-                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                       "
-                                                placeholder="Result">
+                                            <input type="text"
+                                                class="form-control form-control-sm js-confirm-result"
+                                                value="{{ $param['result'] ?? '' }}"
+                                                placeholder="Result"
+                                                data-row-id="{{ $id }}"
+                                                data-analyte="{{ $param['analyte_name'] ?? 'analyte' }}"
+                                                data-sample="{{ $param['sample_code'] ?? '' }}">
                                             @if(!empty($param['batch_attachment_url']) && strcasecmp($param['result'] ?? '', 'as attached') === 0)
                                             <div class="input-group-append">
                                                 <a href="{{ $param['batch_attachment_url'] }}" target="_blank"
@@ -2455,4 +2444,167 @@
             });
         }
     </script>
+
+    @script
+    <script>
+        if (!window.__batchSamplesResultConfirmBound) {
+            window.__batchSamplesResultConfirmBound = true;
+
+            const askResultConfirmation = function (message, expected) {
+                return new Promise(function (resolve) {
+                    const existing = document.getElementById('js-result-confirm-overlay');
+                    if (existing) {
+                        existing.remove();
+                    }
+
+                    const overlay = document.createElement('div');
+                    overlay.id = 'js-result-confirm-overlay';
+                    overlay.setAttribute('role', 'dialog');
+                    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:flex;align-items:center;justify-content:center;';
+                    overlay.innerHTML =
+                        '<div style="background:#fff;border-radius:12px;padding:1.25rem;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.2);">' +
+                            '<div style="font-weight:600;margin-bottom:.35rem;">Confirm result</div>' +
+                            '<div class="js-result-confirm-message" style="color:#64748b;font-size:.875rem;margin-bottom:.75rem;"></div>' +
+                            '<div class="js-result-confirm-error alert alert-danger py-2 px-3 mb-2 d-none" style="font-size:.85rem;"></div>' +
+                            '<input type="text" class="form-control" id="js-result-confirm-input" autocomplete="off" placeholder="Re-enter result">' +
+                            '<div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem;">' +
+                                '<button type="button" class="btn btn-light" id="js-result-confirm-cancel">Cancel</button>' +
+                                '<button type="button" class="btn btn-primary" id="js-result-confirm-ok">OK</button>' +
+                            '</div>' +
+                        '</div>';
+
+                    overlay.querySelector('.js-result-confirm-message').textContent = message;
+                    document.body.appendChild(overlay);
+
+                    const input = overlay.querySelector('#js-result-confirm-input');
+                    const errorEl = overlay.querySelector('.js-result-confirm-error');
+                    const finish = function (value) {
+                        overlay.remove();
+                        resolve(value);
+                    };
+                    const showMismatch = function () {
+                        errorEl.textContent = "Result confirmation didn't match captured result!";
+                        errorEl.classList.remove('d-none');
+                        input.value = '';
+                        input.classList.add('is-invalid');
+                        input.focus();
+                    };
+                    const tryAccept = function () {
+                        const value = (input.value || '').trim();
+                        if (value !== String(expected).trim()) {
+                            showMismatch();
+                            return;
+                        }
+                        finish(value);
+                    };
+
+                    overlay.querySelector('#js-result-confirm-cancel').addEventListener('click', function () {
+                        finish(null);
+                    });
+                    overlay.querySelector('#js-result-confirm-ok').addEventListener('click', tryAccept);
+                    overlay.addEventListener('click', function (event) {
+                        if (event.target === overlay) {
+                            finish(null);
+                        }
+                    });
+                    input.addEventListener('input', function () {
+                        input.classList.remove('is-invalid');
+                        errorEl.classList.add('d-none');
+                    });
+                    input.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            tryAccept();
+                        }
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                            finish(null);
+                        }
+                    });
+
+                    setTimeout(function () {
+                        input.focus();
+                    }, 0);
+                });
+            };
+
+            const confirmResultInput = async function (el) {
+                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
+                    return;
+                }
+
+                if (el.dataset.confirming === '1') {
+                    return;
+                }
+
+                const wireRoot = el.closest('[wire\\:id]');
+                if (!wireRoot || typeof Livewire === 'undefined' || typeof Livewire.find !== 'function') {
+                    return;
+                }
+
+                const component = Livewire.find(wireRoot.getAttribute('wire:id'));
+                if (!component) {
+                    return;
+                }
+
+                const current = (el.value || '').trim();
+                const analyte = el.dataset.analyte || 'analyte';
+                const sample = el.dataset.sample || '';
+                const rowId = el.dataset.rowId;
+
+                if (!rowId) {
+                    return;
+                }
+
+                if (current === '') {
+                    delete el.dataset.confirmedValue;
+                    component.call('clearParameterResult', rowId);
+                    return;
+                }
+
+                if (el.dataset.confirmedValue === current) {
+                    return;
+                }
+
+                el.dataset.confirming = '1';
+
+                try {
+                    const confirmation = await askResultConfirmation(
+                        'Please confirm the result for ' + analyte + (sample ? ' in sample ' + sample : '') + ':',
+                        current
+                    );
+
+                    if (confirmation !== null && confirmation.trim() === current) {
+                        el.dataset.confirmedValue = current;
+                        component.call('applyConfirmedResult', rowId, current);
+                    } else {
+                        el.value = '';
+                        delete el.dataset.confirmedValue;
+                        component.call('clearParameterResult', rowId);
+                    }
+                } finally {
+                    delete el.dataset.confirming;
+                }
+            };
+
+            document.addEventListener('change', function (event) {
+                confirmResultInput(event.target);
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key !== 'Enter') {
+                    return;
+                }
+
+                const el = event.target;
+                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
+                    return;
+                }
+
+                event.preventDefault();
+                confirmResultInput(el);
+            });
+        }
+    </script>
+    @endscript
 </div>

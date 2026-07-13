@@ -67,7 +67,7 @@ class ResultRemarkService
             $range = $capturedResult->repeatsampleresult;
             if (!empty($range)) {
                 $parts = array_map('trim', preg_split('/-/', $range));
-                if (count($parts) === 2 && $this->isNumeric($parts[0]) && $this->isNumeric($parts[1]) && ($this->isNumeric($result) || in_array(strtoupper(trim($result)), ['ND', 'NOT DETECTED'], true))) {
+                if (count($parts) === 2 && $this->isNumeric($parts[0]) && $this->isNumeric($parts[1]) && ($this->isNumeric($result) || $this->isNotDetectableLikeResult(strtoupper(trim($result))))) {
                     $low = (float) $parts[0];
                     $high = (float) $parts[1];
                     $resultValue = (float) ($this->isNumeric($result) ? $result : 0);
@@ -85,10 +85,10 @@ class ResultRemarkService
             $sample->third_standard_id,
         ];
 
-        // Interpret ND/Not Detected as 0 for numeric comparisons
+        // Interpret ND/Not Detected/Not Detectable as 0 for numeric comparisons
         $effectiveResult = $result;
         $upperResult = strtoupper(trim($result));
-        if (in_array($upperResult, ['ND', 'NOT DETECTED'], true)) {
+        if ($this->isNotDetectableLikeResult($upperResult)) {
             $effectiveResult = '0';
         }
 
@@ -150,7 +150,7 @@ class ResultRemarkService
         $effectiveNumericResult = null;
         if ($isNumeric) {
             $effectiveNumericResult = (float) $result;
-        } elseif (in_array($upperResult, ['ND', 'NOT DETECTED'], true)) {
+        } elseif ($this->isNotDetectableLikeResult($upperResult)) {
             $effectiveNumericResult = 0.0;
         }
 
@@ -184,26 +184,23 @@ class ResultRemarkService
                 }
 
                 // Handle qualitative codes
-                switch ($code) {
-                    case 'NS':
-                        return '-';
-                    case 'NIL':
-                    case 'ND':
-                        if ($effectiveNumericResult !== null && $effectiveNumericResult <= 0) {
-                            return 'PASS';
-                        }
-                        if (in_array($upperResult, ['ND', 'NOT DETECTED', 'NIL', 'ABSENT'], true)) {
-                            return 'PASS';
-                        }
-                        return 'FAIL';
-                    case 'ABSENT':
-                        return in_array($upperResult, ['ABSENT', 'ND', 'NOT DETECTED', 'NIL', '0'], true) ? 'PASS' : 'FAIL';
-                    default:
-                        if ($upperResult === $code) {
-                            return 'PASS';
-                        }
-                        return '-';
+                if ($code === 'NS' || $code === 'NOT SPECIFIED') {
+                    return '-';
                 }
+
+                if ($this->isNotDetectableStandardCode($code)) {
+                    return $this->evaluateNotDetectableResult($upperResult, $effectiveNumericResult);
+                }
+
+                if ($code === 'ABSENT') {
+                    return $this->isAbsentLikeResult($upperResult) ? 'PASS' : 'FAIL';
+                }
+
+                if ($upperResult === $code) {
+                    return 'PASS';
+                }
+
+                return '-';
             }
         }
 
@@ -293,14 +290,14 @@ class ResultRemarkService
         $resultUpper = strtoupper($resultTrim);
         $standardUpper = strtoupper($standardTrim);
 
-        // Treat ND/Not Detected as 0 for comparisons
+        // Treat ND / Not Detected / Not Detectable as 0 for comparisons
         $effectiveResult = $resultTrim;
-        if (in_array($resultUpper, ['ND', 'NOT DETECTED'], true)) {
+        if ($this->isNotDetectableLikeResult($resultUpper)) {
             $effectiveResult = '0';
         }
 
         if ($standardUpper === 'ABSENT') {
-            if (in_array($resultUpper, ['ABSENT', 'ND', 'NOT DETECTED', 'NIL', '0', ''], true)) {
+            if ($this->isAbsentLikeResult($resultUpper) || $resultUpper === '') {
                 return 'PASS';
             }
 
@@ -311,23 +308,14 @@ class ResultRemarkService
             return '-';
         }
 
-        if ($standardUpper === 'ND' || $standardUpper === 'NIL') {
-            if (in_array($resultUpper, ['ND', 'NOT DETECTED', 'NIL', 'ABSENT'], true)) {
-                return 'PASS';
-            }
-
-            if ($this->isNumeric($effectiveResult) && (float) $effectiveResult <= 0) {
-                return 'PASS';
-            }
-
-            if ($this->isNumeric($effectiveResult) && (float) $effectiveResult > 0) {
-                return 'FAIL';
-            }
-
-            return '-';
+        if ($this->isNotDetectableStandardCode($standardUpper)) {
+            return $this->evaluateNotDetectableResult(
+                $resultUpper,
+                $this->isNumeric($effectiveResult) ? (float) $effectiveResult : null
+            );
         }
 
-        if ($standardUpper === 'NS') {
+        if ($standardUpper === 'NS' || $standardUpper === 'NOT SPECIFIED') {
             return '-';
         }
 
@@ -443,6 +431,74 @@ class ResultRemarkService
         }
 
         return is_numeric($value);
+    }
+
+    protected function evaluateNotDetectableResult(string $upperResult, ?float $effectiveNumericResult): string
+    {
+        if ($effectiveNumericResult !== null && $effectiveNumericResult <= 0) {
+            return 'PASS';
+        }
+
+        if ($this->isNotDetectableLikeResult($upperResult) || $this->isAbsentLikeResult($upperResult)) {
+            return 'PASS';
+        }
+
+        if ($effectiveNumericResult !== null && $effectiveNumericResult > 0) {
+            return 'FAIL';
+        }
+
+        if (in_array($upperResult, ['PRESENT', 'TN'], true)) {
+            return 'FAIL';
+        }
+
+        return '-';
+    }
+
+    protected function isNotDetectableStandardCode(string $code): bool
+    {
+        $normalized = strtoupper(preg_replace('/[\s_\-]+/', ' ', trim($code)) ?? '');
+
+        return in_array($normalized, [
+            'ND',
+            'NIL',
+            'NOT DETECTABLE',
+            'NOT DETECTED',
+            'NON DETECTABLE',
+            'NONE DETECTED',
+            'NONE DETECTABLE',
+        ], true);
+    }
+
+    protected function isNotDetectableLikeResult(string $upperResult): bool
+    {
+        $normalized = strtoupper(preg_replace('/[\s_\-]+/', ' ', trim($upperResult)) ?? '');
+
+        return in_array($normalized, [
+            'ND',
+            'NIL',
+            'NOT DETECTABLE',
+            'NOT DETECTED',
+            'NON DETECTABLE',
+            'NONE DETECTED',
+            'NONE DETECTABLE',
+        ], true);
+    }
+
+    protected function isAbsentLikeResult(string $upperResult): bool
+    {
+        $normalized = strtoupper(preg_replace('/[\s_\-]+/', ' ', trim($upperResult)) ?? '');
+
+        return in_array($normalized, [
+            'ABSENT',
+            'ND',
+            'NIL',
+            'NOT DETECTABLE',
+            'NOT DETECTED',
+            'NON DETECTABLE',
+            'NONE DETECTED',
+            'NONE DETECTABLE',
+            '0',
+        ], true);
     }
 
     protected function evaluateManualLimitOperator(string $result, string $limitValue, string $operator): string

@@ -117,6 +117,7 @@ class Samples extends Component
     public $selectedSampleCode = null;
     public $sampleParameters = [];
     public $activeField = '';
+
     public $activeRowIndex = null;
     /** Lab section dropdown options for Parameters modal (SampleAnalysisStage) */
     public $modalLabSections = [];
@@ -2345,14 +2346,32 @@ class Samples extends Component
     }
 
     /**
-     * Handle parameter updates (Auto-Remark)
+     * Apply a browser-prompt-confirmed result and evaluate the remark.
      */
-    public function updatedParametersForm($value, $key): void
+    public function applyConfirmedResult(string $id, string $result): void
     {
-        if (is_string($key) && str_ends_with($key, '.result')) {
-            $id = substr($key, 0, -strlen('.result'));
-            $this->evaluateResult($id);
+        if (! isset($this->parametersForm[$id])) {
+            return;
         }
+
+        $result = trim($result);
+        $this->parametersForm[$id]['result'] = $result;
+        $this->parametersForm[$id]['result_confirmation'] = $result;
+        $this->evaluateResult($id);
+    }
+
+    /**
+     * Clear a result after a cancelled or mismatched browser confirmation.
+     */
+    public function clearParameterResult(string $id): void
+    {
+        if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        $this->parametersForm[$id]['result'] = '';
+        $this->parametersForm[$id]['result_confirmation'] = '';
+        $this->parametersForm[$id]['remark'] = '';
     }
 
     /**

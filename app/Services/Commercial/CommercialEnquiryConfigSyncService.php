@@ -15,7 +15,11 @@ final class CommercialEnquiryConfigSyncService
     ) {}
 
     /**
-     * Merge TRF/enquiry line seeds with optional full contract pricelist parameters.
+     * Merge TRF/enquiry line seeds into sample configs.
+     *
+     * Pricelist is a price book for tests — it must not invent physical sample rows.
+     * Pass $includeAllContractParameters = true only for explicit legacy tooling;
+     * Process Enquiry Step 2 should keep this false and resolve prices on Step 3.
      *
      * @param  list<array<string, mixed>>  $configs
      * @param  list<array<string, mixed>>  $trfLineSeeds
@@ -25,16 +29,14 @@ final class CommercialEnquiryConfigSyncService
         string $customerId,
         array $configs,
         array $trfLineSeeds,
-        bool $includeAllContractParameters = true,
+        bool $includeAllContractParameters = false,
         ?Pricelist $assignedPricelist = null,
     ): array {
         $seeds = $trfLineSeeds;
 
         if ($includeAllContractParameters) {
-            // When a strictly-scoped pricelist is provided (Process Enquiry path),
-            // fetch parameters directly from that pricelist — no global fallback.
-            // Otherwise use the service resolver (may include global fallback for
-            // other callers such as the Accept wizard).
+            // Legacy: expand every contract pricelist parameter into config seeds.
+            // Prefer request/TRF seeds only; pricing belongs on quotation lines.
             $params = $assignedPricelist !== null
                 ? $this->parametersForPricelist($assignedPricelist)
                 : $this->pricingService->pricelistParametersForCustomer($customerId);

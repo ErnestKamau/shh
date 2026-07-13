@@ -1224,11 +1224,16 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function getRequestedTestsCountAttribute(): int
     {
+        $enquiryCount = $this->countRequestedTestsFromCommercialEnquiry();
+        if ($enquiryCount > 0) {
+            return $enquiryCount;
+        }
+
         $source = $this->relationLoaded('values')
             ? $this->values
             : $this->values()->with('element')->get();
 
-        $total = 0;
+        $uniqueTokens = [];
 
         foreach ($source as $value) {
             $element = $value->element;
@@ -1248,9 +1253,17 @@ class SubmissionFormInstance extends Model implements Auditable
                 continue;
             }
 
-            $tokens = $this->extractValueTokens((string) $value->value);
-            $total += count($tokens);
+            foreach ($this->extractValueTokens((string) $value->value) as $token) {
+                $token = trim((string) $token);
+                if ($token === '') {
+                    continue;
+                }
+
+                $uniqueTokens[$token] = true;
+            }
         }
+
+        $total = count($uniqueTokens);
 
         if ($total > 0) {
             return $total;
@@ -1286,11 +1299,7 @@ class SubmissionFormInstance extends Model implements Auditable
             }
         }
 
-        if ($fromRows > 0) {
-            return $fromRows;
-        }
-
-        return $this->countRequestedTestsFromCommercialEnquiry();
+        return $fromRows;
     }
 
     /**
@@ -1335,6 +1344,20 @@ class SubmissionFormInstance extends Model implements Auditable
         $fromLines = 0;
         foreach ($lines as $line) {
             if (! is_array($line)) {
+                continue;
+            }
+
+            $attributeIds = is_array($line['attributes']['analysis_element_ids'] ?? null)
+                ? $line['attributes']['analysis_element_ids']
+                : [];
+            $attributeIds = array_values(array_filter(
+                array_map(static fn ($id) => trim((string) $id), $attributeIds),
+                static fn (string $id) => $id !== '',
+            ));
+
+            if ($attributeIds !== []) {
+                $fromLines += count($attributeIds);
+
                 continue;
             }
 

@@ -11,7 +11,6 @@ use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
-use App\Services\Commercial\CommercialEnquiryConfigSyncService;
 use App\Services\Commercial\CommercialEnquiryCustomerResolver;
 use App\Services\Commercial\EnquiryReviewDisplayService;
 use App\Services\Commercial\QuotationFromEnquiryService;
@@ -463,7 +462,6 @@ class ProcessEnquiryWizard extends Component
                 $enquiry->selected_source_quotation_header_id = null;
             }
             $enquiry->save();
-            $this->maybeAutoMergeAssignedPricelist($enquiry);
         }
 
         $enquiry->save();
@@ -471,41 +469,6 @@ class ProcessEnquiryWizard extends Component
         $this->normalizeSampleConfigs();
         $this->activeStep = 'sample_config';
         $this->setStatus('info', '');
-    }
-
-    public function syncFromContractPricelist(): void
-    {
-        if ($this->enquiryId === null || ! $this->crmCustomerId) {
-            $this->setStatus('error', 'Customer is required to sync from contract pricelist.');
-
-            return;
-        }
-
-        $pricing = app(AcceptanceFormPricingService::class);
-        $assignedPricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
-
-        if ($assignedPricelist === null) {
-            $this->setStatus('error', 'No contract pricelist is assigned to this customer. Assign a pricelist in the customer record first.');
-
-            return;
-        }
-
-        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
-        if ($enquiry === null) {
-            return;
-        }
-
-        $trfSeeds = $this->buildTrfLineSeedsForConfigSync($enquiry);
-        $syncService = app(CommercialEnquiryConfigSyncService::class);
-        $this->sampleConfigs = $syncService->mergePricelistIntoSampleConfigs(
-            $this->crmCustomerId,
-            $this->sampleConfigs,
-            $trfSeeds,
-            true,
-            $assignedPricelist,
-        );
-
-        $this->setStatus('success', 'Sample configuration updated from contract pricelist.');
     }
 
     public function saveSampleConfigAndContinue(): void
@@ -1343,35 +1306,6 @@ class ProcessEnquiryWizard extends Component
         $this->lines = app(UncertaintyBudgetResolver::class)->enrichLinesWithLabMetrics($this->lines);
     }
 
-    private function maybeAutoMergeAssignedPricelist(SampleSubmissionRequest $enquiry): void
-    {
-        if (! $this->crmCustomerId) {
-            return;
-        }
-
-        $stored = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
-        if ($stored !== []) {
-            return;
-        }
-
-        $pricing = app(AcceptanceFormPricingService::class);
-        $assignedPricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
-
-        if ($assignedPricelist === null) {
-            return;
-        }
-
-        $syncService = app(CommercialEnquiryConfigSyncService::class);
-        $this->sampleConfigs = $syncService->mergePricelistIntoSampleConfigs(
-            $this->crmCustomerId,
-            $this->sampleConfigs,
-            $this->buildTrfLineSeedsForConfigSync($enquiry),
-            true,
-            $assignedPricelist,
-        );
-        $this->reconcileSampleConfigParameterKeys();
-    }
-
     private function reconcileSampleConfigParameterKeys(): void
     {
         if ($this->crmCustomerId === null || trim($this->crmCustomerId) === '' || $this->sampleConfigs === []) {
@@ -1461,38 +1395,6 @@ class ProcessEnquiryWizard extends Component
             (string) ($line['analysis_type_id'] ?? ''),
             (string) ($line['analysis_element_id'] ?? ''),
         ]);
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function buildTrfLineSeedsForConfigSync(SampleSubmissionRequest $enquiry): array
-    {
-        $enquiry->loadMissing('requestedAnalyses');
-
-        if ($enquiry->requestedAnalyses->isNotEmpty()) {
-            return $enquiry->requestedAnalyses->map(fn ($analysis): array => [
-                'sample_type_id' => $analysis->sample_type_id ?? null,
-                'analysis_type_id' => $analysis->analysis_type_id ?? null,
-                'analysis_element_id' => $analysis->analysis_element_id ?? $analysis->analysis_key ?? null,
-                'parameter_label' => $analysis->analysis_label ?? 'Parameter',
-                'number_of_samples' => max(1, (int) ($analysis->number_of_samples ?? 1)),
-            ])->all();
-        }
-
-        $seeds = [];
-
-        foreach (is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [] as $line) {
-            $seeds[] = [
-                'sample_type_id' => $line['sample_type_id'] ?? null,
-                'analysis_type_id' => $line['analysis_type_id'] ?? null,
-                'analysis_element_id' => $line['analysis_element_id'] ?? null,
-                'parameter_label' => $line['parameter_label'] ?? 'Parameter',
-                'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
-            ];
-        }
-
-        return $seeds;
     }
 
     private function refreshAddLineParameterOptions(): void
