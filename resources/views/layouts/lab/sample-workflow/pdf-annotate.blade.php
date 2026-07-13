@@ -372,6 +372,7 @@
         <input type="hidden" name="attachment_id" value="{{ $attachment->id }}">
         <input type="hidden" name="annotations_data" id="save-annotations-data">
         <input type="hidden" name="pdf_pages_data" id="save-pdf-pages-data">
+        <input type="hidden" name="viewer_scale" id="save-viewer-scale" value="1.5">
     </form>
 
     <!-- TinyMCE CDN -->
@@ -390,7 +391,7 @@
     </script>
 
     <!-- PDF Annotation Script -->
-    <script src="{{ asset('js/pdf-annotator.js') }}?v=20260713a"></script>
+    <script src="{{ asset('js/pdf-annotator.js') }}?v=20260713b"></script>
     <script>
         // Initialize PDF Annotator
         const pdfAnnotator = new PDFAnnotator({
