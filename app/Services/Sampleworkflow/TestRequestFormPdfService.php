@@ -75,7 +75,9 @@ class TestRequestFormPdfService
             $viewName = $this->viewForVariant($viewData['variant']);
 
             $pdf = app('dompdf.wrapper');
-            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+            $dompdf = $pdf->getDomPDF();
+            $dompdf->set_option('isHtml5ParserEnabled', true);
+            $dompdf->set_option('compress', false);
             $pdf->loadView($viewName, $viewData);
             $this->applyPaperSettings($pdf, $viewData['variant']);
 

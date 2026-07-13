@@ -165,7 +165,7 @@ class SubmissionFormInstance extends Model implements Auditable
 
     public function analysisAcceptanceForms(): HasMany
     {
-        return $this->hasMany(\App\Models\Sampleworkflow\AnalysisAcceptanceForm::class, 'submission_form_instance_id', 'id')
+        return $this->uuidHasMany(\App\Models\Sampleworkflow\AnalysisAcceptanceForm::class, 'submission_form_instance_id', 'id')
             ->latest();
     }
 

@@ -528,12 +528,19 @@ class Attachments extends Component
     public function getReportAttachmentsProperty()
     {
         $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02', 'DCEA 009'];
-        $reports = $this->attachments->filter(function($a) use ($reportTitles) {
+        $reports = $this->attachments->filter(function ($a) use ($reportTitles) {
+            if ($a->show_on_coa) {
+                return true;
+            }
+
             $name = str_replace('_', ' ', strtolower($a->title));
             $type = str_replace('_', ' ', strtolower($a->attachtypename ?? ''));
-            foreach($reportTitles as $title) {
-                if (stripos($name, strtolower($title)) !== false || stripos($type, strtolower($title)) !== false) return true;
+            foreach ($reportTitles as $title) {
+                if (stripos($name, strtolower($title)) !== false || stripos($type, strtolower($title)) !== false) {
+                    return true;
+                }
             }
+
             return false;
         })->values();
 

@@ -4451,6 +4451,15 @@ class SampleWorkFlowController extends Controller
 
     public function add_batch_attachment(Request $request)
     {
+        $batch = SampleHeader::find($request->batch_id);
+        if (! isset($batch->id)) {
+            return redirect()->back()->with('error', 'No batch with the specified ID');
+        }
+
+        if ($request->boolean('show_on_coa')) {
+            return $this->storeCoaMergedAttachment($request, $batch);
+        }
+
         $request->validate([
             'batch_id' => 'required|string|exists:sample_headers,id',
             'title' => 'required|string|max:255',
@@ -4459,104 +4468,160 @@ class SampleWorkFlowController extends Controller
             'selected_captured_result_ids' => 'nullable|string',
         ]);
 
-        $batch = SampleHeader::find($request->batch_id);
-        if (isset($batch->id)) {
-            $new = new BatchAttachment();
-            $new->batch_id = $batch->id;
-            $new->uploaded_by = auth()->user()->id;
-            $new->title = $request->title;
-            $new->attachment_type = $request->attachment_type;
-            if (isset($request->is_internal) || isset($request->internal_use)) {
-                $new->is_internal = 1;
+        $new = new BatchAttachment();
+        $new->batch_id = $batch->id;
+        $new->uploaded_by = auth()->user()->id;
+        $new->title = $request->title;
+        $new->attachment_type = $request->attachment_type;
+        if (isset($request->is_internal) || isset($request->internal_use)) {
+            $new->is_internal = 1;
+        }
+        $new->show_on_coa = 0;
+        $path = $request->attachment->path();
+        $file = Storage::putFile('batch-attachments', new File($path));
+        $file = explode('/', $file);
+
+        $fName = '/storage/batch-attachments/' . urlencode(end($file));
+
+        $new->attachment_url = (string) $fName;
+        $new->save();
+
+        $this->linkCapturedResultsToAttachment($request, $batch, $new);
+
+        return redirect()->back()->with('success', 'Attachment Added Successfully');
+    }
+
+    private function storeCoaMergedAttachment(Request $request, SampleHeader $batch): \Illuminate\Http\RedirectResponse
+    {
+        $request->validate([
+            'batch_id' => 'required|string|exists:sample_headers,id',
+            'title' => 'required|string|max:255',
+            'attachment_type' => 'required',
+            'coa_attachments' => 'required|array|min:1',
+            'coa_attachments.*' => 'required|file|mimes:pdf',
+            'coa_file_order' => 'nullable|string',
+            'selected_captured_result_ids' => 'nullable|string',
+        ]);
+
+        $mergeService = app(\App\Services\Sampleworkflow\CoaAttachmentMergeService::class);
+        $testRequestReportPath = $mergeService->resolveTestRequestReportPath($batch);
+
+        if ($testRequestReportPath === null) {
+            return redirect()->back()->with(
+                'error',
+                'Test Request Report PDF is not available for this batch. Generate the Test Request Report first, then try again.'
+            );
+        }
+
+        $uploadedFiles = $request->file('coa_attachments', []);
+        $indexedPaths = [];
+        foreach ($uploadedFiles as $index => $uploadedFile) {
+            $indexedPaths[(string) $index] = $uploadedFile->getRealPath();
+        }
+
+        $orderedPaths = [$testRequestReportPath];
+        $order = array_values(array_filter(explode(',', (string) $request->input('coa_file_order', ''))));
+
+        if ($order === []) {
+            foreach ($indexedPaths as $path) {
+                $orderedPaths[] = $path;
             }
-            // Flag whether this attachment should be included when merging into the COA
-            $new->show_on_coa = isset($request->show_on_coa) ? 1 : 0;
-            $path = $request->attachment->path();
-            $file = Storage::putFile('batch-attachments', new File($path));
-            $file = explode('/', $file);
-
-            $fName = '/storage/batch-attachments/' . urlencode(end($file));
-
-            $new->attachment_url = (string) $fName;
-            $new->save();
-
-            // Link captured results to this attachment (when provided)
-            if ($request->filled('selected_captured_result_ids')) {
-                $ids = array_filter(
-                    array_map('intval', explode(',', $request->selected_captured_result_ids))
-                );
-
-                if (!empty($ids)) {
-                    // Safety: only update results that truly belong to this batch.
-                    // This also enables explicit re-upload (replacement) when they are already linked.
-                    $baseQuery = CapturedResult::whereIn('id', $ids)
-                        ->where('sample_header_id', $batch->id);
-
-                    $existingAttachmentIds = (clone $baseQuery)
-                        ->whereNotNull('batch_attachment_id')
-                        ->pluck('batch_attachment_id')
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->toArray();
-
-                    $baseQuery
-                        ->update(['batch_attachment_id' => $new->id]);
-
-                    // For any attachment-based placeholder results, flip the
-                    // textual result to "as attached" now that an attachment exists.
-                    CapturedResult::whereIn('id', $ids)
-                        ->where('sample_header_id', $batch->id)
-                        ->whereIn('result', ['has attachment', 'No attachment', 'no attachment'])
-                        ->update(['result' => 'as attached']);
-
-                    \Log::info('add_batch_attachment: linked captured results', [
-                        'batch_id'          => $batch->id,
-                        'attachment_id'     => $new->id,
-                        'captured_ids'      => $ids,
-                        'replaced_attachment_ids' => $existingAttachmentIds,
-                    ]);
-
-                    // Cleanup: if we replaced links from prior attachments, remove any old
-                    // attachment records that are now orphaned (no captured results still point to them).
-                    foreach ($existingAttachmentIds as $oldAttachmentId) {
-                        if ((int) $oldAttachmentId === (int) $new->id) {
-                            continue;
-                        }
-
-                        $stillLinked = CapturedResult::where('sample_header_id', $batch->id)
-                            ->where('batch_attachment_id', (int) $oldAttachmentId)
-                            ->exists();
-
-                        if ($stillLinked) {
-                            continue;
-                        }
-
-                        $old = BatchAttachment::where('batch_id', $batch->id)
-                            ->where('id', (int) $oldAttachmentId)
-                            ->first();
-
-                        if (! $old) {
-                            continue;
-                        }
-
-                        // Delete stored file (only for the local batch-attachments disk path format)
-                        $url = $old->attachment_url;
-                        if ($url && str_starts_with($url, '/storage/batch-attachments/')) {
-                            $filename = basename(urldecode(parse_url($url, PHP_URL_PATH)));
-                            Storage::delete('batch-attachments/' . $filename);
-                        }
-
-                        // Delete annotations (if any) then the attachment record itself
-                        \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $old->id)->delete();
-                        $old->delete();
-                    }
+        } else {
+            foreach ($order as $orderedIndex) {
+                if (isset($indexedPaths[$orderedIndex])) {
+                    $orderedPaths[] = $indexedPaths[$orderedIndex];
                 }
             }
+        }
 
-            return redirect()->back()->with('success', 'Attachment Added Successfully');
-        } else {
-            return redirect()->back()->with('error', 'No batch with the specified ID');
+        try {
+            $mergedContent = $mergeService->mergeFilesToPdfContent($orderedPaths);
+        } catch (\Throwable $exception) {
+            return redirect()->back()->with('error', 'Failed to merge PDFs with the Test Request Report: '.$exception->getMessage());
+        }
+
+        $fileName = 'TRR_Merged_'.time().'.pdf';
+        $storagePath = 'batch-attachments/'.$fileName;
+        Storage::put($storagePath, $mergedContent);
+
+        $new = new BatchAttachment();
+        $new->batch_id = $batch->id;
+        $new->uploaded_by = auth()->user()->id;
+        $new->title = $request->title;
+        $new->attachment_type = $request->attachment_type;
+        $new->is_internal = isset($request->is_internal) || isset($request->internal_use) ? 1 : 0;
+        $new->show_on_coa = 1;
+        $new->attachment_url = '/storage/'.$storagePath;
+        $new->save();
+
+        $this->linkCapturedResultsToAttachment($request, $batch, $new);
+
+        return redirect()
+            ->route('show-pdf-annotation-page', $new->id)
+            ->with('success', 'Files merged with the Test Request Report. You can now annotate the combined PDF.');
+    }
+
+    private function linkCapturedResultsToAttachment(Request $request, SampleHeader $batch, BatchAttachment $new): void
+    {
+        if (! $request->filled('selected_captured_result_ids')) {
+            return;
+        }
+
+        $ids = array_filter(
+            array_map('intval', explode(',', $request->selected_captured_result_ids))
+        );
+
+        if (empty($ids)) {
+            return;
+        }
+
+        $baseQuery = CapturedResult::whereIn('id', $ids)
+            ->where('sample_header_id', $batch->id);
+
+        $existingAttachmentIds = (clone $baseQuery)
+            ->whereNotNull('batch_attachment_id')
+            ->pluck('batch_attachment_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $baseQuery->update(['batch_attachment_id' => $new->id]);
+
+        CapturedResult::whereIn('id', $ids)
+            ->where('sample_header_id', $batch->id)
+            ->whereIn('result', ['has attachment', 'No attachment', 'no attachment'])
+            ->update(['result' => 'as attached']);
+
+        foreach ($existingAttachmentIds as $oldAttachmentId) {
+            if ((int) $oldAttachmentId === (int) $new->id) {
+                continue;
+            }
+
+            $stillLinked = CapturedResult::where('sample_header_id', $batch->id)
+                ->where('batch_attachment_id', (int) $oldAttachmentId)
+                ->exists();
+
+            if ($stillLinked) {
+                continue;
+            }
+
+            $old = BatchAttachment::where('batch_id', $batch->id)
+                ->where('id', (int) $oldAttachmentId)
+                ->first();
+
+            if (! $old) {
+                continue;
+            }
+
+            $url = $old->attachment_url;
+            if ($url && str_starts_with($url, '/storage/batch-attachments/')) {
+                $filename = basename(urldecode(parse_url($url, PHP_URL_PATH)));
+                Storage::delete('batch-attachments/'.$filename);
+            }
+
+            \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $old->id)->delete();
+            $old->delete();
         }
     }
 
@@ -4692,7 +4757,7 @@ class SampleWorkFlowController extends Controller
         }
 
         // Output merged PDF
-        $outputContent = $pdf->Output('S');
+        $outputContent = $pdf->Output('', 'S');
         $fileName = 'Merged_Report_' . time() . '.pdf';
         $storagePath = 'batch-attachments/' . $fileName;
 
@@ -9271,8 +9336,6 @@ class SampleWorkFlowController extends Controller
                     if ($ann['annotation_type'] == 'text') {
                         $html = $ann['htmlContent'] ?? ($ann['content'] ?? '');
 
-                        // Issue 2: Add black thin border (1 in writeHTMLCell adds border)
-                        // Background is transparent (last arg false)
                         $fontSize = 8;
                         if (isset($ann['style_data']) && is_array($ann['style_data']) && isset($ann['style_data']['fontSize'])) {
                             $fontSize = (int) $ann['style_data']['fontSize'];
@@ -9291,7 +9354,22 @@ class SampleWorkFlowController extends Controller
                             continue;
                         }
 
-                        $pdf->writeHTMLCell($w, $h, $x, $y, $html, $border, 1, false, true, 'L', true);
+                        $cellWidth = max(10, $w);
+                        $minHeight = max(5, $h);
+
+                        // Measure the rendered height so the border fully encloses wrapped content.
+                        $pdf->startTransaction();
+                        $pdf->writeHTMLCell($cellWidth, 0, $x, $y, $html, 0, 1, false, true, 'L', true);
+                        $measuredHeight = max($minHeight, ($pdf->GetY() - $y) + 1.0);
+                        $pdf->rollbackTransaction(true);
+
+                        if ($border) {
+                            $pdf->SetDrawColor(0, 0, 0);
+                            $pdf->SetLineWidth(0.2);
+                            $pdf->Rect($x, $y, $cellWidth, $measuredHeight, 'D');
+                        }
+
+                        $pdf->writeHTMLCell($cellWidth, $measuredHeight, $x, $y, $html, 0, 1, false, true, 'L', true);
                     } elseif ($ann['annotation_type'] == 'image') {
                         // Support both legacy 'content' key and newer 'imageData' key
                         $imgData = $ann['imageData'] ?? ($ann['content'] ?? null);

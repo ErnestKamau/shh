@@ -3,6 +3,7 @@
 namespace App\Models\Sampleworkflow;
 
 use App\Invoice;
+use App\Concerns\HasVarcharUuidRelationships;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Billing\Pricelist;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class AnalysisAcceptanceForm extends Model
 {
     use HasUuids;
+    use HasVarcharUuidRelationships;
 
     public const STATUS_AWAITING_CUSTOMER_SIGN = 'awaiting_customer_sign';
 
@@ -86,7 +88,7 @@ class AnalysisAcceptanceForm extends Model
 
     public function submissionFormInstance(): BelongsTo
     {
-        return $this->belongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
+        return $this->uuidBelongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
     }
 
     public function sampleSubmissionRequest(): BelongsTo

@@ -3000,7 +3000,7 @@
 					<div class="custom-control custom-checkbox">
 						<input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa">
 						<label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa">
-							Include in COA (append this file after the report)
+							Include in Test Request Report (merge report first, then your PDF file(s))
 						</label>
 					</div>
 				</div>

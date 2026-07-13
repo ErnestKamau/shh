@@ -23,6 +23,8 @@ class PDFAnnotator {
         this.editingAnnotation = null; // Currently editing annotation
         this.pendingRepositionAnnotation = null; // Annotation being repositioned
         this.scale = 1.5;
+        this.resizeObserver = null;
+        this.resizeDebounceTimer = null;
         this.isDrawing = false;
         this.tempAnnotation = null;
         this.deleteAnnotationsUrl = config.deleteAnnotationsUrl || null;
@@ -42,14 +44,25 @@ class PDFAnnotator {
             return;
         }
 
+        const loadingEl = document.getElementById('pdf-loading');
+
         try {
+            if (!this.pdfUrl) {
+                throw new Error('PDF URL is missing for this attachment.');
+            }
+
             // Load PDF
-            const loadingTask = pdfjsLib.getDocument(this.pdfUrl);
+            const loadingTask = pdfjsLib.getDocument({
+                url: this.pdfUrl,
+                withCredentials: true,
+            });
             this.pdfDoc = await loadingTask.promise;
             this.totalPages = this.pdfDoc.numPages;
 
             document.getElementById('pdf-page-count').textContent = this.totalPages;
-            document.getElementById('pdf-loading').style.display = 'none';
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
 
             // Clear annotations before loading to ensure clean state
             this.annotations = {};
@@ -75,6 +88,13 @@ class PDFAnnotator {
             // Render first page
             await this.renderPage(1);
 
+            // Re-fit once the lab sidebar and annotation panel have finished layout
+            requestAnimationFrame(() => {
+                if (this.pdfDoc) {
+                    this.renderPage(this.currentPage);
+                }
+            });
+
             // Setup event listeners (only once)
             if (!this.eventListenersSetup) {
                 this.setupEventListeners();
@@ -90,6 +110,9 @@ class PDFAnnotator {
 
         } catch (error) {
             console.error('Error loading PDF:', error);
+            if (loadingEl) {
+                loadingEl.innerHTML = '<p class="text-danger mb-0">Failed to load PDF. Please check that the file exists and try again.</p>';
+            }
             alert('Failed to load PDF. Please try again.');
         }
     }
@@ -154,12 +177,14 @@ class PDFAnnotator {
                                 ann.content = contentStr;
                             }
 
-                            // Always recalculate width when loading from DB to ensure proper sizing
-                            // This fixes the issue where text is cut off after refresh
-                            // Store original width temporarily, but we'll recalculate it
-                            const originalWidth = ann.width;
-                            if (!originalWidth || originalWidth < 250) {
-                                ann.width = null; // Force recalculation
+                            if (this.isSignatureBlockAnnotation(ann)) {
+                                ann.style_data = Object.assign({}, ann.style_data || {}, {
+                                    isSignatureBlock: true,
+                                });
+                                ann.width = Math.min(280, this.getMaxAnnotationWidth(ann.x_position || 0));
+                            } else if (!ann.width || ann.width < 250) {
+                                // Force recalculation for regular text so content is not clipped.
+                                ann.width = null;
                             }
                         }
 
@@ -193,9 +218,38 @@ class PDFAnnotator {
         }
     }
 
+    calculateFitScale(page) {
+        const viewer = document.getElementById('pdf-viewer-section');
+        if (!viewer) {
+            return this.scale || 1.25;
+        }
+
+        const styles = window.getComputedStyle(viewer);
+        const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+        const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+        const availableWidth = Math.max(viewer.clientWidth - paddingX, 100);
+        const availableHeight = Math.max(viewer.clientHeight - paddingY, 100);
+        const baseViewport = page.getViewport({ scale: 1 });
+
+        const scaleByWidth = availableWidth / baseViewport.width;
+        const scaleByHeight = availableHeight / baseViewport.height;
+
+        // Fill the viewer column width (landscape TRFs, COA merges, reports, etc.).
+        let fitScale = scaleByWidth;
+
+        // Portrait pages that fit entirely in the viewport: scale up to remove side gutters.
+        const heightAtWidthFit = baseViewport.height * scaleByWidth;
+        if (heightAtWidthFit <= availableHeight) {
+            fitScale = Math.min(scaleByHeight, scaleByWidth);
+        }
+
+        return Math.max(0.25, Math.min(fitScale, 3));
+    }
+
     async renderPage(pageNum) {
         try {
             const page = await this.pdfDoc.getPage(pageNum);
+            this.scale = this.calculateFitScale(page);
             const viewport = page.getViewport({ scale: this.scale });
 
             // Set canvas dimensions
@@ -217,6 +271,12 @@ class PDFAnnotator {
                 viewport: viewport
             };
             await page.render(renderContext).promise;
+
+            const wrapper = document.getElementById('pdf-canvas-wrapper');
+            if (wrapper) {
+                wrapper.style.width = `${viewport.width}px`;
+                wrapper.style.height = `${viewport.height}px`;
+            }
 
             // Render annotations for this page
             this.renderAnnotations(pageNum);
@@ -251,10 +311,11 @@ class PDFAnnotator {
 
             const isSelected = this.selectedAnnotations.has(this.getAnnotationId(ann));
             if (ann.annotation_type === 'text') {
-                // Ensure width is recalculated for text annotations when loading from DB
-                // This fixes the issue where text is cut off after refresh
-                if (!isUnsaved && (!ann.width || ann.width < 250)) {
-                    // Recalculate width before rendering
+                if (!isUnsaved && this.isSignatureBlockAnnotation(ann)) {
+                    ann.style_data = Object.assign({}, ann.style_data || {}, { isSignatureBlock: true });
+                    ann.width = Math.min(280, this.getMaxAnnotationWidth(ann.x_position || 0));
+                } else if (!isUnsaved && (!ann.width || ann.width < 250)) {
+                    // Recalculate width before rendering for regular text
                     this.recalculateAnnotationWidth(ann);
                 }
                 this.drawTextAnnotation(ann, isSelected, isBeingEdited);
@@ -264,11 +325,15 @@ class PDFAnnotator {
         });
     }
 
-    recalculateAnnotationWidth(annotation) {
-        // Recalculate width based on actual content
+    recalculateAnnotationDimensions(annotation) {
+        // Recalculate width and height based on actual content
         const htmlContent = annotation.htmlContent || annotation.content || '';
-        if (!htmlContent) return;
+        if (!htmlContent) {
+            return;
+        }
+
         const maxWidth = this.getMaxAnnotationWidth(annotation.x_position);
+        const isSignatureBlock = this.isSignatureBlockAnnotation(annotation, htmlContent);
 
         // Create temporary div to measure content
         const tempDiv = document.createElement('div');
@@ -277,42 +342,70 @@ class PDFAnnotator {
         tempDiv.style.visibility = 'hidden';
         tempDiv.style.top = '-9999px';
         tempDiv.style.left = '-9999px';
-        tempDiv.style.fontSize = '14px';
+        tempDiv.style.fontSize = isSignatureBlock ? '11pt' : '14px';
         tempDiv.style.fontFamily = '"Times New Roman", Times, serif';
-        tempDiv.style.lineHeight = '1.4';
-        tempDiv.style.padding = '5px';
-        tempDiv.style.width = 'auto';
-        tempDiv.style.maxWidth = maxWidth + 'px';
-        tempDiv.style.minWidth = '200px';
+        tempDiv.style.lineHeight = '1.35';
+        tempDiv.style.padding = isSignatureBlock ? '8px 10px' : '5px';
+        tempDiv.style.border = '1px solid #000';
+        tempDiv.style.boxSizing = 'border-box';
         tempDiv.style.wordWrap = 'break-word';
         tempDiv.style.overflowWrap = 'break-word';
         tempDiv.style.whiteSpace = 'normal';
-        tempDiv.style.display = 'inline-block';
-        tempDiv.style.boxSizing = 'border-box';
+        tempDiv.style.display = 'block';
+
+        if (isSignatureBlock) {
+            const preferredWidth = Math.min(280, maxWidth);
+            tempDiv.style.width = preferredWidth + 'px';
+            tempDiv.style.maxWidth = preferredWidth + 'px';
+            tempDiv.style.minWidth = preferredWidth + 'px';
+        } else {
+            tempDiv.style.width = 'auto';
+            tempDiv.style.maxWidth = maxWidth + 'px';
+            tempDiv.style.minWidth = '200px';
+        }
+
         document.body.appendChild(tempDiv);
 
         // Force a reflow to get accurate measurements
-        const forceReflow = tempDiv.offsetHeight;
+        tempDiv.offsetHeight;
 
         // Measure actual dimensions
         const scrollWidth = tempDiv.scrollWidth || tempDiv.offsetWidth || 200;
         const scrollHeight = tempDiv.scrollHeight || tempDiv.offsetHeight || 30;
 
-        // Calculate dimensions with padding
-        const actualWidth = Math.max(200, Math.min(scrollWidth + 40, maxWidth));
-        const actualHeight = Math.max(30, scrollHeight + 15);
-
-        // Update annotation dimensions
-        annotation.width = actualWidth;
-        annotation.height = actualHeight;
+        if (isSignatureBlock) {
+            annotation.width = Math.min(280, maxWidth);
+            annotation.height = Math.max(70, scrollHeight);
+        } else {
+            annotation.width = Math.max(200, Math.min(scrollWidth + 12, maxWidth));
+            annotation.height = Math.max(30, scrollHeight + 12);
+        }
 
         document.body.removeChild(tempDiv);
+    }
+
+    recalculateAnnotationWidth(annotation) {
+        this.recalculateAnnotationDimensions(annotation);
+    }
+
+    finalizeAllAnnotationDimensions() {
+        Object.keys(this.annotations).forEach((pageNum) => {
+            this.annotations[pageNum].forEach((ann) => {
+                if (ann.annotation_type === 'text') {
+                    this.recalculateAnnotationDimensions(ann);
+                }
+            });
+        });
     }
 
     drawTextAnnotation(ann, isSelected = false, isEditing = false) {
         // Use HTML overlay instead of canvas for rich text rendering
         const annotationId = 'annotation-' + this.getAnnotationId(ann);
         let annotationDiv = document.getElementById(annotationId);
+        const htmlContent = ann.htmlContent || ann.content || '';
+        const textContent = ann.content || '';
+        const displayContent = htmlContent || textContent;
+        const isSignatureBlock = this.isSignatureBlockAnnotation(ann, displayContent);
 
         if (!annotationDiv) {
             // Create new annotation div
@@ -321,7 +414,6 @@ class PDFAnnotator {
             annotationDiv.className = 'pdf-annotation-overlay';
             annotationDiv.style.position = 'absolute';
             annotationDiv.style.pointerEvents = 'auto';
-            annotationDiv.style.cursor = 'pointer';
             annotationDiv.style.zIndex = '10';
 
             // Append to canvas wrapper
@@ -331,139 +423,243 @@ class PDFAnnotator {
             }
         }
 
-        // Get HTML content (prefer htmlContent, fallback to content)
-        const htmlContent = ann.htmlContent || ann.content || '';
-        const textContent = ann.content || '';
-
         // Set position and size (relative to canvas, which is inside canvas-wrapper)
-        // The canvas-wrapper is positioned, so we use the annotation's x/y directly
         annotationDiv.style.left = ann.x_position + 'px';
         annotationDiv.style.top = ann.y_position + 'px';
 
-        // Set initial width, but allow it to grow based on content
-        const baseWidth = ann.width || 200;
         const maxWidth = this.getMaxAnnotationWidth(ann.x_position);
-        annotationDiv.style.minWidth = baseWidth + 'px';
-        annotationDiv.style.width = 'auto'; // Let content determine width
-        annotationDiv.style.maxWidth = maxWidth + 'px';
-        annotationDiv.style.minHeight = (ann.height || 30) + 'px';
+        if (isSignatureBlock) {
+            const preferredWidth = Math.min(280, maxWidth);
+            ann.width = preferredWidth;
+            annotationDiv.style.minWidth = preferredWidth + 'px';
+            annotationDiv.style.width = preferredWidth + 'px';
+            annotationDiv.style.maxWidth = preferredWidth + 'px';
+            annotationDiv.style.height = 'auto';
+            annotationDiv.style.minHeight = '0';
+        } else {
+            const baseWidth = ann.width || 200;
+            annotationDiv.style.minWidth = Math.min(baseWidth, maxWidth) + 'px';
+            annotationDiv.style.width = 'auto';
+            annotationDiv.style.maxWidth = maxWidth + 'px';
+            annotationDiv.style.minHeight = (ann.height || 30) + 'px';
+        }
 
         // Set styling based on state
+        annotationDiv.classList.toggle('is-selected', !!(isSelected && !this.captureMode));
+        annotationDiv.classList.toggle('is-editing', !!(isEditing && !this.captureMode));
         if (this.captureMode) {
             annotationDiv.style.border = 'none';
             annotationDiv.style.backgroundColor = 'transparent';
             annotationDiv.style.borderRadius = '0';
-        } else if (isEditing) {
-            annotationDiv.style.border = '3px solid #4caf50';
-            annotationDiv.style.backgroundColor = 'rgba(200, 255, 200, 0.1)';
-            annotationDiv.style.borderRadius = '4px';
-        } else if (isSelected) {
-            annotationDiv.style.border = '3px solid #ff5722';
-            annotationDiv.style.backgroundColor = 'rgba(255, 200, 100, 0.1)';
-            annotationDiv.style.borderRadius = '4px';
-        } else {
-            annotationDiv.style.border = 'none';
-            annotationDiv.style.backgroundColor = 'transparent';
-            annotationDiv.style.borderRadius = '0';
+            annotationDiv.style.boxShadow = 'none';
+        } else if (!isSelected && !isEditing) {
+            annotationDiv.style.border = '';
+            annotationDiv.style.backgroundColor = '';
+            annotationDiv.style.borderRadius = '';
         }
 
-        annotationDiv.style.padding = '5px';
+        annotationDiv.style.padding = isSignatureBlock ? '8px 10px' : '5px';
         annotationDiv.style.boxSizing = 'border-box';
-
-        // Ensure the content is styled properly BEFORE setting content
-        annotationDiv.style.fontSize = '14px';
-        annotationDiv.style.lineHeight = '1.4';
+        annotationDiv.style.fontSize = isSignatureBlock ? '11pt' : '14px';
+        annotationDiv.style.lineHeight = '1.35';
         annotationDiv.style.wordWrap = 'break-word';
         annotationDiv.style.overflowWrap = 'break-word';
-        annotationDiv.style.overflow = 'visible'; // Don't clip content
-        annotationDiv.style.whiteSpace = 'normal'; // Allow wrapping
+        annotationDiv.style.overflow = 'visible';
+        annotationDiv.style.whiteSpace = 'normal';
         annotationDiv.style.color = '#000';
-        annotationDiv.style.display = 'inline-block'; // Allow width to adjust to content
+        annotationDiv.style.display = 'block';
+        annotationDiv.style.cursor = this.captureMode ? 'default' : 'grab';
 
-        // Set HTML content (preserve TinyMCE formatting)
-        // Use htmlContent if available, otherwise use content
-        const displayContent = htmlContent || textContent;
         annotationDiv.innerHTML = displayContent;
 
-        // Measure actual content width and update annotation width
-        // Use double requestAnimationFrame to ensure DOM is fully updated
+        // Measure actual content dimensions after layout
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                // Force reflow to get accurate measurements
-                const forceReflow = annotationDiv.offsetHeight;
-
-                // Get accurate measurements
                 const scrollWidth = annotationDiv.scrollWidth;
                 const offsetWidth = annotationDiv.offsetWidth;
                 const scrollHeight = annotationDiv.scrollHeight;
                 const offsetHeight = annotationDiv.offsetHeight;
 
-                // Calculate actual dimensions needed
+                if (isSignatureBlock) {
+                    const preferredWidth = Math.min(280, this.getMaxAnnotationWidth(ann.x_position));
+                    annotationDiv.style.width = preferredWidth + 'px';
+                    ann.width = preferredWidth;
+                    const neededHeight = Math.max(offsetHeight || 0, scrollHeight || 0, 70);
+                    annotationDiv.style.height = neededHeight + 'px';
+                    ann.height = neededHeight;
+                    return;
+                }
+
+                const baseWidth = ann.width || 200;
                 const actualWidth = Math.max(
                     scrollWidth || 0,
                     offsetWidth || 0,
                     baseWidth,
-                    200 // Minimum width
+                    200
                 );
                 const actualHeight = Math.max(
                     scrollHeight || 0,
                     offsetHeight || 0,
                     ann.height || 30,
-                    30 // Minimum height
+                    30
                 );
 
-                // Ensure width accommodates all content (add extra padding for safety)
-                const neededWidth = Math.min(actualWidth + 40, maxWidth); // Increased padding
+                const neededWidth = Math.min(actualWidth + 12, maxWidth);
                 annotationDiv.style.width = neededWidth + 'px';
                 ann.width = neededWidth;
 
-                // Update height if content is taller
-                const neededHeight = actualHeight + 15; // Extra padding for height
-                if (neededHeight > (ann.height || 30)) {
-                    annotationDiv.style.minHeight = neededHeight + 'px';
-                    ann.height = neededHeight;
-                }
-
-                // Double-check: if text is still being cut, increase width further
-                setTimeout(() => {
-                    const checkWidth = annotationDiv.scrollWidth;
-                    const checkHeight = annotationDiv.scrollHeight;
-                    if (checkWidth > neededWidth) {
-                        const finalWidth = Math.min(checkWidth + 50, maxWidth);
-                        annotationDiv.style.width = finalWidth + 'px';
-                        ann.width = finalWidth;
-                    }
-                    if (checkHeight > neededHeight) {
-                        annotationDiv.style.minHeight = (checkHeight + 20) + 'px';
-                        ann.height = checkHeight + 20;
-                    }
-                }, 100);
+                const neededHeight = actualHeight + 8;
+                annotationDiv.style.minHeight = neededHeight + 'px';
+                annotationDiv.style.height = neededHeight + 'px';
+                ann.height = neededHeight;
             });
         });
 
-        // Add click handler for selection (only if not already added)
-        if (!annotationDiv.dataset.clickHandlerAdded) {
-            annotationDiv.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const annId = this.getAnnotationId(ann);
-                if (e.ctrlKey || e.metaKey) {
-                    this.toggleAnnotationSelection(ann);
-                } else {
-                    this.selectedAnnotations.clear();
-                    this.selectedAnnotations.add(annId);
-                }
-                this.renderPage(this.currentPage);
-                this.updateDeleteButtonState();
-                this.updateEditButtonState();
-            });
-            annotationDiv.dataset.clickHandlerAdded = 'true';
-        }
+        this.attachAnnotationOverlayInteractions(annotationDiv, ann);
 
         // Store reference for cleanup
         if (!this.annotationDivs) {
             this.annotationDivs = new Map();
         }
         this.annotationDivs.set(annotationId, annotationDiv);
+    }
+
+    isSignatureBlockAnnotation(ann, html = null) {
+        const content = html || ann?.htmlContent || ann?.content || '';
+        if (ann?.style_data?.isSignatureBlock) {
+            return true;
+        }
+
+        return typeof content === 'string' && (
+            content.includes('annotation-signature-block')
+            || content.includes('data-signature-block')
+            || (content.includes('Signed by:') && content.includes('Signature:'))
+        );
+    }
+
+    attachAnnotationOverlayInteractions(annotationDiv, ann) {
+        if (annotationDiv.dataset.interactionHandlersAdded === 'true') {
+            return;
+        }
+
+        let dragging = false;
+        let dragMoved = false;
+        let startX = 0;
+        let startY = 0;
+        let originLeft = 0;
+        let originTop = 0;
+
+        const onMouseMove = (e) => {
+            if (!dragging) {
+                return;
+            }
+
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                dragMoved = true;
+            }
+
+            const width = parseFloat(ann.width) || annotationDiv.offsetWidth || 100;
+            const height = parseFloat(ann.height) || annotationDiv.offsetHeight || 40;
+            const maxX = Math.max(0, (this.canvas?.width || 600) - width);
+            const maxY = Math.max(0, (this.canvas?.height || 800) - height);
+            const nextX = Math.max(0, Math.min(maxX, originLeft + dx));
+            const nextY = Math.max(0, Math.min(maxY, originTop + dy));
+
+            annotationDiv.style.left = nextX + 'px';
+            annotationDiv.style.top = nextY + 'px';
+            ann.x_position = nextX;
+            ann.y_position = nextY;
+        };
+
+        const onMouseUp = () => {
+            if (!dragging) {
+                return;
+            }
+
+            dragging = false;
+            annotationDiv.classList.remove('is-dragging');
+            annotationDiv.style.cursor = 'grab';
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+
+            if (dragMoved) {
+                if (!this.isUnsavedAnnotation(ann)) {
+                    ann.uniqueId = 'new_' + (++this.annotationIdCounter);
+                    delete ann.id;
+                }
+
+                // Image annotations are painted on canvas — re-render so the image follows the handle.
+                if (ann.annotation_type === 'image') {
+                    this.renderPage(this.currentPage);
+                } else {
+                    this.updateAnnotationsList();
+                }
+
+                this.updateDeleteButtonState();
+                this.updateEditButtonState();
+                return;
+            }
+
+            const annId = this.getAnnotationId(ann);
+            this.selectedAnnotations.clear();
+            this.selectedAnnotations.add(annId);
+            this.refreshOverlaySelectionStyles();
+            this.updateDeleteButtonState();
+            this.updateEditButtonState();
+        };
+
+        annotationDiv.addEventListener('mousedown', (e) => {
+            if (this.captureMode || e.button !== 0) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            dragging = true;
+            dragMoved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            originLeft = parseFloat(annotationDiv.style.left) || ann.x_position || 0;
+            originTop = parseFloat(annotationDiv.style.top) || ann.y_position || 0;
+
+            annotationDiv.classList.add('is-dragging');
+            annotationDiv.style.cursor = 'grabbing';
+
+            // Select while dragging so Delete is available.
+            const annId = this.getAnnotationId(ann);
+            this.selectedAnnotations.clear();
+            this.selectedAnnotations.add(annId);
+            this.refreshOverlaySelectionStyles();
+            this.updateDeleteButtonState();
+            this.updateEditButtonState();
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        annotationDiv.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        annotationDiv.dataset.interactionHandlersAdded = 'true';
+    }
+
+    refreshOverlaySelectionStyles() {
+        if (!this.annotationDivs) {
+            return;
+        }
+
+        this.annotationDivs.forEach((div, annotationId) => {
+            const id = annotationId.replace(/^annotation-/, '');
+            const selected = this.selectedAnnotations.has(this.normalizeAnnotationId(id));
+            const editing = this.editingAnnotation
+                && this.getAnnotationId(this.editingAnnotation) === this.normalizeAnnotationId(id);
+            div.classList.toggle('is-selected', selected && !editing);
+            div.classList.toggle('is-editing', !!editing);
+        });
     }
 
     drawImageAnnotation(ann, isSelected = false, isEditing = false) {
@@ -489,6 +685,53 @@ class PDFAnnotator {
             };
             img.src = ann.imageData;
         }
+
+        // Transparent HTML handle so image annotations can be dragged like text blocks.
+        this.ensureImageDragHandle(ann, isSelected, isEditing);
+    }
+
+    ensureImageDragHandle(ann, isSelected = false, isEditing = false) {
+        if (this.captureMode) {
+            return;
+        }
+
+        const annotationId = 'annotation-image-handle-' + this.getAnnotationId(ann);
+        let handle = document.getElementById(annotationId);
+        if (!handle) {
+            handle = document.createElement('div');
+            handle.id = annotationId;
+            handle.className = 'pdf-annotation-overlay pdf-image-drag-handle';
+            handle.style.position = 'absolute';
+            handle.style.pointerEvents = 'auto';
+            handle.style.zIndex = '11';
+            handle.style.backgroundColor = 'transparent';
+            handle.style.padding = '0';
+            handle.title = 'Drag to reposition';
+
+            const canvasWrapper = document.getElementById('pdf-canvas-wrapper');
+            if (canvasWrapper) {
+                canvasWrapper.appendChild(handle);
+            }
+        }
+
+        handle.style.left = (ann.x_position || 0) + 'px';
+        handle.style.top = (ann.y_position || 0) + 'px';
+        handle.style.width = (ann.width || 100) + 'px';
+        handle.style.height = (ann.height || 100) + 'px';
+        handle.style.minWidth = '0';
+        handle.style.minHeight = '0';
+        handle.style.border = isEditing
+            ? '2px solid #4caf50'
+            : (isSelected ? '2px solid #ff5722' : '1px dashed transparent');
+        handle.classList.toggle('is-selected', !!isSelected);
+        handle.classList.toggle('is-editing', !!isEditing);
+
+        this.attachAnnotationOverlayInteractions(handle, ann);
+
+        if (!this.annotationDivs) {
+            this.annotationDivs = new Map();
+        }
+        this.annotationDivs.set(annotationId, handle);
     }
 
     setupEventListeners() {
@@ -575,7 +818,7 @@ class PDFAnnotator {
                 // Clear selection if clicking on empty space without tool
                 this.selectedAnnotations.clear();
                 this.editingAnnotation = null;
-                this.renderPage(this.currentPage);
+                this.refreshOverlaySelectionStyles();
                 this.updateDeleteButtonState();
                 this.updateEditButtonState();
             }
@@ -628,6 +871,36 @@ class PDFAnnotator {
         document.getElementById('save-annotations-btn').addEventListener('click', () => {
             this.saveAnnotations();
         });
+
+        this.setupViewerResizeHandling();
+    }
+
+    setupViewerResizeHandling() {
+        const viewer = document.getElementById('pdf-viewer-section');
+        const main = document.getElementById('pdf-main');
+        if (!viewer) {
+            return;
+        }
+
+        let resizeTimeout = null;
+        const rerenderCurrentPage = () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (this.pdfDoc && this.currentPage) {
+                    this.renderPage(this.currentPage);
+                }
+            }, 120);
+        };
+
+        window.addEventListener('resize', rerenderCurrentPage);
+
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(rerenderCurrentPage);
+            this.resizeObserver.observe(viewer);
+            if (main) {
+                this.resizeObserver.observe(main);
+            }
+        }
     }
 
     getAnnotationAtPosition(x, y, pageNum) {
@@ -739,6 +1012,14 @@ class PDFAnnotator {
                 // Update both content and htmlContent
                 annotation.content = textContent; // Plain text for search/fallback
                 annotation.htmlContent = htmlContent; // HTML content for rendering
+
+                const isSignatureBlock = this.isSignatureBlockAnnotation(annotation, htmlContent);
+                annotation.style_data = Object.assign({}, annotation.style_data || {}, {
+                    isSignatureBlock: isSignatureBlock,
+                });
+                if (isSignatureBlock) {
+                    annotation.width = 280;
+                }
 
                 // Re-render the annotation with new content
                 this.removeAnnotationOverlay(annotation);
@@ -1079,6 +1360,7 @@ class PDFAnnotator {
             if (!textContent) return;
 
             const uniqueId = 'new_' + (++this.annotationIdCounter);
+            const isSignatureBlock = this.isSignatureBlockAnnotation(null, htmlContent);
             const annotation = {
                 uniqueId: uniqueId,
                 page_number: this.currentPage,
@@ -1087,9 +1369,13 @@ class PDFAnnotator {
                 htmlContent: htmlContent, // Store HTML content for rendering
                 x_position: x,
                 y_position: y,
-                width: 200, // Wider to accommodate HTML content
-                height: 30,
-                style_data: { fontSize: 14, color: '#000' }
+                width: isSignatureBlock ? 280 : 200,
+                height: isSignatureBlock ? 90 : 30,
+                style_data: {
+                    fontSize: isSignatureBlock ? 11 : 14,
+                    color: '#000',
+                    isSignatureBlock: isSignatureBlock,
+                }
             };
 
             if (!this.annotations[this.currentPage]) {
@@ -1299,6 +1585,8 @@ class PDFAnnotator {
                 const originalText = saveBtn.innerHTML;
                 saveBtn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Saving...';
                 saveBtn.disabled = true;
+
+                this.finalizeAllAnnotationDimensions();
 
                 // Prepare annotations data - include all annotations
                 const annotationsData = [];

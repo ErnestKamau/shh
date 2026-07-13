@@ -1,16 +1,26 @@
 @extends('layouts.lab.layout.app', ['dataTable' => false, 'select2' => false, 'datePicker' => false])
 
+@section('hide_password_expiry_banner')
+@endsection
+
 @section('title2')
     <title>Annotate PDF - {{ $attachment->title ?? 'PDF Document' }}</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
+        body.pdf-annotate-page {
             overflow: hidden;
         }
 
+        body.pdf-annotate-page #main-container-body {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - var(--app-header-height, 56px));
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
         #pdf-annotation-container {
-            height: 100vh;
+            flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
         }
@@ -23,29 +33,35 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
         }
 
         #pdf-main {
             flex: 1;
             display: flex;
             overflow: hidden;
+            min-height: 0;
+            min-width: 0;
         }
 
         #pdf-viewer-section {
             flex: 1;
+            min-width: 0;
             overflow: auto;
             background: #ecf0f1;
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            display: block;
+            padding: 8px;
+            box-sizing: border-box;
         }
 
         #pdf-canvas-wrapper {
-            margin: 20px;
+            margin: 0 auto 8px;
             position: relative;
-            display: inline-block;
+            display: block;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         #pdf-canvas,
@@ -68,6 +84,7 @@
 
         #annotations-sidebar {
             width: 300px;
+            flex-shrink: 0;
             background: white;
             border-left: 1px solid #bdc3c7;
             overflow-y: auto;
@@ -122,10 +139,42 @@
             line-height: 1.4;
             overflow: visible !important;
             white-space: normal !important;
-            border: 1px solid #000 !important;
-            /* Issue 2: Black thin border */
-            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #000;
+            background-color: rgba(255, 255, 255, 0.92);
             border-radius: 2px;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .pdf-annotation-overlay.is-dragging {
+            cursor: grabbing;
+            opacity: 0.92;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+            z-index: 30 !important;
+        }
+
+        .pdf-annotation-overlay.is-selected {
+            border: 2px solid #ff5722 !important;
+            background-color: rgba(255, 200, 100, 0.12);
+        }
+
+        .pdf-annotation-overlay.is-editing {
+            border: 2px solid #4caf50 !important;
+            background-color: rgba(200, 255, 200, 0.12);
+        }
+
+        .pdf-annotation-overlay .annotation-signature-block {
+            width: 280px;
+            max-width: 280px;
+            box-sizing: border-box;
+        }
+
+        .pdf-annotation-overlay .annotation-signature-block img {
+            max-height: 48px;
+            max-width: 160px;
+            height: auto;
+            width: auto;
+            display: block;
         }
 
         .pdf-annotation-overlay p {
@@ -152,7 +201,7 @@
                 </h5>
                 @if(isset($batch))
                     <div class="small text-muted mt-1">
-                        <a href="{{ route('view-batch-details', ['batch' => $batch->id]) }}" class="text-light">
+                        <a href="{{ route('view-batch-details', ['batch' => $batch->id]) }}#attachments" class="text-light">
                             <i class="mdi mdi-chevron-left"></i> Back to Batch {{ $batch->batch_code ?? $batch->id }}
                         </a>
                     </div>
@@ -197,7 +246,7 @@
                     <button type="button" class="btn btn-success" id="save-annotations-btn">
                         <i class="mdi mdi-content-save"></i> Save PDF
                     </button>
-                    <a href="{{ route('view-batch-details', $attachment->batch_id) }}" class="btn btn-secondary">
+                    <a href="{{ route('view-batch-details', $attachment->batch_id) }}#attachments" class="btn btn-secondary">
                         <i class="mdi mdi-close"></i> Close
                     </a>
                 </div>
@@ -224,50 +273,14 @@
 
             <!-- Annotations Sidebar -->
             <div id="annotations-sidebar">
-                <h6 class="mb-3"><i class="mdi mdi-auto-fix"></i> Smart-Assist Annotation</h6>
-                <div class="form-group mb-3">
-                    <label>Report Type</label>
-                    <select class="form-control form-control-sm" id="report-type-select">
-                        <option value="">Select Type</option>
-                        <option value="table">Table Report (Default)</option>
-                        <option value="graph">Graph Report</option>
-                    </select>
+                <h6 class="mb-3"><i class="mdi mdi-draw-pen"></i> Signing</h6>
+                <div class="alert alert-light border small mb-3" style="border-radius: 8px;">
+                    To sign this PDF, click <strong>Text</strong> in the toolbar, then use
+                    <strong>Insert Signature</strong> or <strong>Sign Block</strong> in the editor.
+                    Drag any annotation on the page to reposition it before saving.
                 </div>
 
-                <div id="smart-annotation-form" style="display: none;">
-                    <div class="form-group mb-2">
-                        <label class="small text-muted font-weight-bold">Vet Remarks</label>
-                        <textarea class="form-control form-control-sm" id="smart-vet-remarks" rows="3" placeholder="Enter remarks..."></textarea>
-                    </div>
-                    <div class="form-group mb-2">
-                        <label class="small text-muted font-weight-bold">Owner Name</label>
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ $user->name ?? '' }}" readonly>
-                    </div>
-                    <div class="form-group mb-2">
-                        <label class="small text-muted font-weight-bold">Date</label>
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ date('Y-m-d') }}" readonly>
-                    </div>
-                    <div class="form-group mb-3">
-                        <label class="small text-muted font-weight-bold">Signature</label>
-                        @if(isset($signatureUrl))
-                            <div class="border p-1 bg-light text-center">
-                                <img src="{{ $signatureUrl }}" alt="Signature" id="smart-signature-img" style="max-height: 40px; max-width: 100%;">
-                            </div>
-                            <input type="hidden" id="smart-signature-url" value="{{ $signatureUrl }}">
-                        @else
-                            <div class="alert alert-warning p-1 small mb-0">No signature found in your profile.</div>
-                        @endif
-                    </div>
-                    
-                    <button type="button" class="btn btn-primary btn-block btn-sm" id="apply-smart-annotation-btn">
-                        Apply to PDF
-                    </button>
-                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">After applying, you can drag the block to adjust.</small>
-                </div>
-
-                <hr>
-
-                <h6 class="mb-3 mt-3"><i class="mdi mdi-format-list-bulleted"></i> Manual Annotations</h6>
+                <h6 class="mb-3"><i class="mdi mdi-format-list-bulleted"></i> Manual Annotations</h6>
                 <div id="annotations-list">
                     <p class="text-muted small">Click "Text" or "Image" above to add manual annotations.</p>
                 </div>
@@ -288,10 +301,66 @@
                 </div>
                 <div class="modal-body">
                     <textarea id="annotation-text-editor" rows="10" style="width: 100%;"></textarea>
+                    <p class="text-muted small mb-0 mt-2">
+                        Use <strong>Insert Signature</strong> or <strong>Sign Block</strong> in the editor toolbar to sign this annotation.
+                    </p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="save-text-annotation-btn">Save Annotation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Draw / Upload Signature for TinyMCE -->
+    <div class="modal fade" id="annotationSignaturePadModal" tabindex="-1" role="dialog"
+        aria-labelledby="annotationSignaturePadModalLabel" aria-hidden="true" style="z-index: 1065;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="annotationSignaturePadModalLabel">
+                        <i class="mdi mdi-draw"></i> Add Signature
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="draw-signature-tab" data-toggle="tab" href="#draw-signature-pane" role="tab">Draw</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="upload-signature-tab" data-toggle="tab" href="#upload-signature-pane" role="tab">Upload</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="draw-signature-pane" role="tabpanel">
+                            <div class="border rounded bg-white" style="touch-action: none;">
+                                <canvas id="annotation-signature-canvas" width="520" height="180" style="width: 100%; height: 180px; display: block;"></canvas>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small class="text-muted">Draw your signature above</small>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clear-annotation-signature-pad">
+                                    <i class="mdi mdi-eraser"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="upload-signature-pane" role="tabpanel">
+                            <input type="file" id="annotation-signature-upload" class="form-control-file" accept="image/*">
+                            <div class="mt-3 text-center border rounded p-2 bg-light" id="annotation-signature-upload-preview-wrap" style="display:none;">
+                                <img id="annotation-signature-upload-preview" alt="Signature preview" style="max-height: 120px; max-width: 100%;">
+                            </div>
+                            <small class="text-muted d-block mt-2">PNG or JPG with a transparent or white background works best.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="use-annotation-signature-btn">
+                        <i class="mdi mdi-check"></i> Use Signature
+                    </button>
                 </div>
             </div>
         </div>
@@ -308,11 +377,11 @@
     <!-- TinyMCE CDN -->
     <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 
+    <!-- Signature pad for TinyMCE signing -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+
     <!-- html2canvas for capturing HTML overlays -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-    <!-- interact.js for draggable elements -->
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
     <!-- PDF.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -321,20 +390,135 @@
     </script>
 
     <!-- PDF Annotation Script -->
-    <script src="{{ asset('js/pdf-annotator.js') }}"></script>
+    <script src="{{ asset('js/pdf-annotator.js') }}?v=20260713a"></script>
     <script>
         // Initialize PDF Annotator
         const pdfAnnotator = new PDFAnnotator({
-            pdfUrl: '{{ $attachment->attachment_url }}',
-            attachmentId: {{ $attachment->id }},
+            pdfUrl: @json(url($attachment->attachment_url)),
+            attachmentId: @json($attachment->id),
             canvasId: 'pdf-canvas',
             annotationCanvasId: 'annotation-canvas',
-            getAnnotationsUrl: '{{ route('get-pdf-annotations', $attachment->id) }}',
-            deleteAnnotationsUrl: '{{ route('delete-pdf-annotations', $attachment->id) }}'
+            getAnnotationsUrl: @json(route('get-pdf-annotations', $attachment->id)),
+            deleteAnnotationsUrl: @json(route('delete-pdf-annotations', $attachment->id))
         });
 
         // Initialize TinyMCE for annotation text editor
         let annotationEditor = null;
+        let annotationSignaturePad = null;
+        let annotationSignaturePadMode = 'image'; // 'image' | 'block'
+        let annotationSignaturePadTarget = 'tinymce'; // 'tinymce' | 'smart'
+        let annotationUploadedSignatureDataUrl = null;
+        const annotationSignerName = @json($user->name ?? '');
+        const annotationSignerDate = @json(date('Y-m-d'));
+        const annotationProfileSignatureUrl = @json($signatureUrl ?? null);
+
+        function buildSignatureImageHtml(signatureUrl) {
+            if (!signatureUrl) {
+                return '';
+            }
+
+            return '<img src="' + signatureUrl + '" alt="Signature" style="max-height: 48px; max-width: 160px; height: auto; width: auto; display: block;" />';
+        }
+
+        function buildSignatureBlockHtml(signatureUrl) {
+            const signatureHtml = signatureUrl
+                ? buildSignatureImageHtml(signatureUrl)
+                : '<em style="color:#999;">[signature]</em>';
+
+            return ''
+                + '<div class="annotation-signature-block" data-signature-block="1" style="width:280px; max-width:280px; box-sizing:border-box; font-family:\'Times New Roman\', Times, serif; font-size:11pt; line-height:1.35; color:#000;">'
+                + '<div style="margin-bottom:6px;"><strong>Signed by:</strong> ' + (annotationSignerName || '—') + '</div>'
+                + '<table style="width:100%; border:none; border-collapse:collapse; table-layout:fixed;">'
+                + '<tr>'
+                + '<td style="width:62%; vertical-align:bottom; padding:0;">'
+                + '<div style="font-size:10pt; margin-bottom:2px;"><strong>Signature:</strong></div>'
+                + signatureHtml
+                + '</td>'
+                + '<td style="width:38%; vertical-align:bottom; padding:0 0 0 8px; white-space:nowrap;">'
+                + '<div style="font-size:10pt;"><strong>Date:</strong><br>' + annotationSignerDate + '</div>'
+                + '</td>'
+                + '</tr>'
+                + '</table>'
+                + '</div>';
+        }
+
+        function insertSignatureContent(editor, mode, signatureUrl) {
+            if (!editor) {
+                return;
+            }
+
+            const html = mode === 'block'
+                ? buildSignatureBlockHtml(signatureUrl)
+                : buildSignatureImageHtml(signatureUrl);
+
+            if (!html) {
+                editor.notificationManager.open({
+                    text: 'No signature image available.',
+                    type: 'warning',
+                    timeout: 3000
+                });
+                return;
+            }
+
+            editor.insertContent(html);
+            editor.focus();
+        }
+
+        function openAnnotationSignaturePad(mode, target) {
+            annotationSignaturePadMode = mode || 'image';
+            annotationSignaturePadTarget = target || 'tinymce';
+            annotationUploadedSignatureDataUrl = null;
+
+            const uploadInput = document.getElementById('annotation-signature-upload');
+            const previewWrap = document.getElementById('annotation-signature-upload-preview-wrap');
+            const previewImg = document.getElementById('annotation-signature-upload-preview');
+            if (uploadInput) {
+                uploadInput.value = '';
+            }
+            if (previewWrap) {
+                previewWrap.style.display = 'none';
+            }
+            if (previewImg) {
+                previewImg.removeAttribute('src');
+            }
+
+            const modal = document.getElementById('annotationSignaturePadModal');
+            if (typeof $ !== 'undefined' && $('#annotationSignaturePadModal').modal) {
+                $('#annotationSignaturePadModal').modal('show');
+            } else if (modal) {
+                modal.style.display = 'block';
+                modal.classList.add('show');
+            }
+
+            setTimeout(function() {
+                initAnnotationSignaturePad();
+            }, 250);
+        }
+
+        function initAnnotationSignaturePad() {
+            const canvas = document.getElementById('annotation-signature-canvas');
+            if (!canvas || typeof SignaturePad === 'undefined') {
+                return;
+            }
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const width = canvas.offsetWidth || 520;
+            const height = 180;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+
+            if (annotationSignaturePad) {
+                annotationSignaturePad.clear();
+            } else {
+                annotationSignaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgb(255,255,255)',
+                    penColor: 'rgb(0,0,0)'
+                });
+            }
+
+            annotationSignaturePad.clear();
+        }
 
         function initAnnotationEditor() {
             if (typeof tinymce !== 'undefined') {
@@ -345,15 +529,21 @@
 
                 tinymce.init({
                     selector: '#annotation-text-editor',
-                    height: 300,
+                    height: 340,
                     menubar: false,
+                    branding: false,
                     plugins: [
                         'advlist autolink lists link image charmap print preview anchor',
-                        'searchreplace visualblocks code fullscreen',
-                        'insertdatetime media table paste code help wordcount'
+                        'searchreplace visualblocks code fullscreen textcolor',
+                        'insertdatetime media table paste code help wordcount hr'
                     ],
-                    toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | image | help',
-                    content_style: 'body { font-family: "Times New Roman", Times, serif; font-size: 14px; }',
+                    toolbar: [
+                        'undo redo | fontselect fontsizeselect | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify',
+                        'bullist numlist outdent indent | hr | image insertsignature insertsignblock signmenu | removeformat | code help'
+                    ],
+                    font_formats: 'Times New Roman=Times New Roman,Times,serif;Arial=Arial,Helvetica,sans-serif;Courier New=Courier New,Courier,monospace',
+                    fontsize_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 24pt',
+                    content_style: 'body { font-family: "Times New Roman", Times, serif; font-size: 12pt; } img { max-width: 100%; height: auto; }',
                     images_upload_handler: function (blobInfo, success, failure, progress) {
                         var xhr, formData;
 
@@ -401,15 +591,165 @@
                     convert_urls: true,
                     setup: function (editor) {
                         annotationEditor = editor;
+
+                        editor.ui.registry.addButton('insertsignature', {
+                            text: 'Insert Signature',
+                            tooltip: 'Insert your electronic signature image',
+                            icon: 'image',
+                            onAction: function () {
+                                if (annotationProfileSignatureUrl) {
+                                    insertSignatureContent(editor, 'image', annotationProfileSignatureUrl);
+                                    return;
+                                }
+
+                                annotationSignaturePadMode = 'image';
+                                openAnnotationSignaturePad('image', 'tinymce');
+                            }
+                        });
+
+                        editor.ui.registry.addButton('insertsignblock', {
+                            text: 'Sign Block',
+                            tooltip: 'Insert signed-by block with name, signature, and date',
+                            icon: 'template',
+                            onAction: function () {
+                                if (annotationProfileSignatureUrl) {
+                                    insertSignatureContent(editor, 'block', annotationProfileSignatureUrl);
+                                    return;
+                                }
+
+                                annotationSignaturePadMode = 'block';
+                                openAnnotationSignaturePad('block', 'tinymce');
+                            }
+                        });
+
+                        editor.ui.registry.addMenuButton('signmenu', {
+                            text: 'Sign',
+                            tooltip: 'Document signing tools',
+                            fetch: function (callback) {
+                                callback([
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Insert signature image',
+                                        onAction: function () {
+                                            editor.execCommand('mceInsertSignature');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Insert signature block',
+                                        onAction: function () {
+                                            editor.execCommand('mceInsertSignBlock');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Draw / upload signature…',
+                                        onAction: function () {
+                                            openAnnotationSignaturePad('image', 'tinymce');
+                                        }
+                                    }
+                                ]);
+                            }
+                        });
+
+                        editor.addCommand('mceInsertSignature', function () {
+                            if (annotationProfileSignatureUrl) {
+                                insertSignatureContent(editor, 'image', annotationProfileSignatureUrl);
+                            } else {
+                                openAnnotationSignaturePad('image', 'tinymce');
+                            }
+                        });
+
+                        editor.addCommand('mceInsertSignBlock', function () {
+                            if (annotationProfileSignatureUrl) {
+                                insertSignatureContent(editor, 'block', annotationProfileSignatureUrl);
+                            } else {
+                                openAnnotationSignaturePad('block', 'tinymce');
+                            }
+                        });
                     }
                 });
             }
         }
 
+        (function setupAnnotationSignaturePadUi() {
+            const clearBtn = document.getElementById('clear-annotation-signature-pad');
+            const useBtn = document.getElementById('use-annotation-signature-btn');
+            const uploadInput = document.getElementById('annotation-signature-upload');
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function () {
+                    if (annotationSignaturePad) {
+                        annotationSignaturePad.clear();
+                    }
+                });
+            }
+
+            if (uploadInput) {
+                uploadInput.addEventListener('change', function (e) {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) {
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        annotationUploadedSignatureDataUrl = event.target.result;
+                        const previewWrap = document.getElementById('annotation-signature-upload-preview-wrap');
+                        const previewImg = document.getElementById('annotation-signature-upload-preview');
+                        if (previewImg) {
+                            previewImg.src = annotationUploadedSignatureDataUrl;
+                        }
+                        if (previewWrap) {
+                            previewWrap.style.display = '';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            if (useBtn) {
+                useBtn.addEventListener('click', function () {
+                    let signatureDataUrl = null;
+                    const uploadPaneActive = document.getElementById('upload-signature-pane')
+                        && document.getElementById('upload-signature-pane').classList.contains('active');
+
+                    if (uploadPaneActive && annotationUploadedSignatureDataUrl) {
+                        signatureDataUrl = annotationUploadedSignatureDataUrl;
+                    } else if (annotationSignaturePad && !annotationSignaturePad.isEmpty()) {
+                        signatureDataUrl = annotationSignaturePad.toDataURL('image/png');
+                    } else if (annotationUploadedSignatureDataUrl) {
+                        signatureDataUrl = annotationUploadedSignatureDataUrl;
+                    }
+
+                    if (!signatureDataUrl) {
+                        window.alert('Please draw or upload a signature first.');
+                        return;
+                    }
+
+                    if (annotationSignaturePadTarget === 'tinymce' && annotationEditor) {
+                        insertSignatureContent(annotationEditor, annotationSignaturePadMode, signatureDataUrl);
+                    }
+
+                    if (typeof $ !== 'undefined' && $('#annotationSignaturePadModal').modal) {
+                        $('#annotationSignaturePadModal').modal('hide');
+                    } else {
+                        const modal = document.getElementById('annotationSignaturePadModal');
+                        if (modal) {
+                            modal.style.display = 'none';
+                            modal.classList.remove('show');
+                        }
+                    }
+                });
+            }
+        })();
+
         // Initialize on page load (only once)
         let initialized = false;
 
         function setupPdfAnnotatorPage() {
+            document.body.classList.add('pdf-annotate-page');
+
             if (!initialized) {
                 pdfAnnotator.init();
                 initialized = true;
@@ -420,303 +760,6 @@
                 initAnnotationEditor();
             }, 500);
 
-            // Setup Smart Annotation UI logic
-            const reportTypeSelect = document.getElementById('report-type-select');
-            const smartForm = document.getElementById('smart-annotation-form');
-            const applyBtn = document.getElementById('apply-smart-annotation-btn');
-            const wrapper = document.getElementById('pdf-canvas-wrapper');
-
-            // Default to "table" if nothing selected
-            if (reportTypeSelect && !reportTypeSelect.value) {
-                reportTypeSelect.value = 'table';
-            }
-            if (smartForm) {
-                smartForm.style.display = 'block';
-            }
-
-            // Store smart blocks per page so users can place them on multiple pages
-            // and save them as one PDF "collection" in a single operation.
-            const smartBlocksByPage = {}; // { [pageNumber: number]: HTMLDivElement[] }
-            let smartBlockIdCounter = 0;
-            let lastVisibleSmartPage = pdfAnnotator.currentPage || 1;
-
-            const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-
-            const updateSmartBlockVisibility = function(pageNum) {
-                Object.keys(smartBlocksByPage).forEach(pageKey => {
-                    const pn = parseInt(pageKey, 10);
-                    (smartBlocksByPage[pn] || []).forEach(blockEl => {
-                        blockEl.style.display = (pn === pageNum) ? 'block' : 'none';
-                    });
-                });
-                lastVisibleSmartPage = pageNum;
-            };
-
-            const SMART_FONT_SIZE = 8; // small bump for readability
-            const SMART_LINE_HEIGHT = 1.35;
-            const SMART_PADDING = 6;
-            const SMART_SIDE_MARGIN = 20;
-            const SMART_SECTION_GAP_PX = 28;
-
-            reportTypeSelect.addEventListener('change', function() {
-                if (this.value === 'table') {
-                    smartForm.style.display = 'block';
-                } else {
-                    smartForm.style.display = 'none';
-                    // Keep existing smart blocks: report type affects how new blocks are created.
-                }
-            });
-
-            applyBtn.addEventListener('click', function() {
-                const remarks = document.getElementById('smart-vet-remarks').value;
-                const signatureUrl = document.getElementById('smart-signature-url') ? document.getElementById('smart-signature-url').value : null;
-                const ownerName = "{{ $user->name ?? '' }}";
-                const dateVal = "{{ date('Y-m-d') }}";
-                const reportType = reportTypeSelect ? reportTypeSelect.value : 'table';
-
-                const currentPageNumber = pdfAnnotator.currentPage || 1;
-
-                // Create the draggable overlay block (one per click, per page)
-                smartBlockIdCounter++;
-                const smartInstanceId = `new_smart_${smartBlockIdCounter}`;
-
-                const smartBlockOverlay = document.createElement('div');
-                smartBlockOverlay.id = `smart-annotation-block-${smartBlockIdCounter}`;
-                smartBlockOverlay.className = 'smart-annotation-block';
-                smartBlockOverlay.style.position = 'absolute';
-                // Use (almost) full width of the PDF canvas wrapper
-                const wrapperWidth = wrapper ? wrapper.clientWidth : 540;
-                const fullWidth = Math.max(280, wrapperWidth - (SMART_SIDE_MARGIN * 2));
-                // For graph reports we widen the visible smart-annotation-box by +50%
-                // so long comments wrap instead of overlapping.
-                const graphBaseWidth = Math.max(220, Math.floor(fullWidth / 3.5));
-                const blockWidth = reportType === 'graph' ? (graphBaseWidth * 1.5) : fullWidth;
-                const wrapperHeight = wrapper ? wrapper.clientHeight : 800;
-                // Default to the top half so annotations don't land where the template table is.
-                const initialTopPx = Math.round(clamp(wrapperHeight * 0.15, 50, wrapperHeight * 0.45));
-
-                smartBlockOverlay.style.left = `${SMART_SIDE_MARGIN}px`;
-                smartBlockOverlay.style.top = `${initialTopPx}px`;
-                smartBlockOverlay.style.width = `${blockWidth}px`;
-                smartBlockOverlay.style.border = '2px dashed #3498db';
-                smartBlockOverlay.style.backgroundColor = 'rgba(255,255,255,0.9)';
-                smartBlockOverlay.style.padding = `${SMART_PADDING}px`;
-                smartBlockOverlay.style.zIndex = '100';
-                smartBlockOverlay.style.cursor = 'move';
-                smartBlockOverlay.style.fontFamily = '"Times New Roman", Times, serif';
-                smartBlockOverlay.style.fontSize = `${SMART_FONT_SIZE}px`;
-                smartBlockOverlay.style.lineHeight = `${SMART_LINE_HEIGHT}`;
-                smartBlockOverlay.style.display = (currentPageNumber === pdfAnnotator.currentPage) ? 'block' : 'none';
-
-                // Store data in dataset for extraction later
-                smartBlockOverlay.dataset.smartInstanceId = smartInstanceId;
-                smartBlockOverlay.dataset.pageNumber = String(currentPageNumber);
-                smartBlockOverlay.dataset.remarks = remarks;
-                smartBlockOverlay.dataset.owner = ownerName;
-                smartBlockOverlay.dataset.date = dateVal;
-                smartBlockOverlay.dataset.signatureUrl = signatureUrl;
-                smartBlockOverlay.dataset.reportType = reportType;
-                smartBlockOverlay.dataset.x = '0';
-                smartBlockOverlay.dataset.y = '0';
-                smartBlockOverlay.style.transform = 'translate(0px, 0px)';
-
-                let sigHtml = signatureUrl ? `<img src="${signatureUrl}" style="max-height: 40px;">` : ``;
-
-                smartBlockOverlay.innerHTML = `
-                    <div class="smart-comments" style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; margin-bottom: ${SMART_SECTION_GAP_PX}px; word-break: break-word; overflow-wrap: break-word;">
-                        <strong>Comments by vet:</strong><br>
-                        ${remarks.replace(/\n/g, '<br>')}
-                    </div>
-                    <table class="smart-footer" style="width: 100%; border: none; font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">
-                        <tr>
-                            <td style="width: 50%; vertical-align: bottom;">${ownerName}</td>
-                            <td style="width: 50%; vertical-align: bottom;">
-                                <div>
-                                    <strong>Signature:</strong> ${sigHtml}<br><br>
-                                    <strong>Date:</strong> ${dateVal}
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                `;
-
-                wrapper.appendChild(smartBlockOverlay);
-
-                // Measure internal layout once at creation time.
-                // This avoids relying on getBoundingClientRect later when blocks are hidden on other pages.
-                const commentsEl = smartBlockOverlay.querySelector('.smart-comments');
-                const footerEl = smartBlockOverlay.querySelector('.smart-footer');
-                const commentsH = commentsEl ? commentsEl.getBoundingClientRect().height : 0;
-                const footerH = footerEl ? footerEl.getBoundingClientRect().height : 0;
-                const blockH = smartBlockOverlay.getBoundingClientRect().height;
-                smartBlockOverlay.dataset.commentsH = String(commentsH);
-                smartBlockOverlay.dataset.footerH = String(footerH);
-                smartBlockOverlay.dataset.blockH = String(blockH);
-
-                if (!smartBlocksByPage[currentPageNumber]) {
-                    smartBlocksByPage[currentPageNumber] = [];
-                }
-                smartBlocksByPage[currentPageNumber].push(smartBlockOverlay);
-
-                // Make draggable
-                interact(smartBlockOverlay).draggable({
-                    listeners: {
-                        move(event) {
-                            const target = event.target;
-                            // keep the dragged position in the data-x/data-y attributes
-                            const x = (parseFloat(target.dataset.x) || 0) + event.dx;
-                            const y = (parseFloat(target.dataset.y) || 0) + event.dy;
-
-                            // translate the element
-                            target.style.transform = `translate(${x}px, ${y}px)`;
-
-                            // update the posiion attributes
-                            target.dataset.x = x;
-                            target.dataset.y = y;
-                        }
-                    }
-                });
-
-                updateSmartBlockVisibility(pdfAnnotator.currentPage);
-            });
-
-            // Convert all smart blocks into pdfAnnotator annotations before saving.
-            // This ensures multi-page "collection" works even if blocks are on pages not currently visible.
-            const convertSmartBlocksToAnnotations = function() {
-                Object.keys(smartBlocksByPage).forEach(pageKey => {
-                    const pageNum = parseInt(pageKey, 10);
-                    const blocks = smartBlocksByPage[pageNum] || [];
-                    if (!blocks.length) return;
-
-                    if (!pdfAnnotator.annotations[pageNum]) {
-                        pdfAnnotator.annotations[pageNum] = [];
-                    }
-
-                    blocks.forEach(blockEl => {
-                        const finalX = parseFloat(blockEl.style.left) + (parseFloat(blockEl.dataset.x) || 0);
-                        const finalY = parseFloat(blockEl.style.top) + (parseFloat(blockEl.dataset.y) || 0);
-                        const finalW = parseFloat(blockEl.style.width) || (blockEl.offsetWidth || 200);
-                        const finalH = parseFloat(blockEl.dataset.blockH) || (blockEl.offsetHeight || 30);
-
-                        const commentsH = parseFloat(blockEl.dataset.commentsH) || 0;
-                        const footerH = parseFloat(blockEl.dataset.footerH) || 0;
-                        const gap = SMART_SECTION_GAP_PX;
-
-                        const remarks = blockEl.dataset.remarks || '';
-                        const owner = blockEl.dataset.owner || '';
-                        const date = blockEl.dataset.date || '';
-                        const sigUrl = blockEl.dataset.signatureUrl || null;
-                        const reportType = blockEl.dataset.reportType || 'table';
-
-                        const smartInstanceId = blockEl.dataset.smartInstanceId || 'new_smart';
-                        const uidBase = smartInstanceId;
-
-                        // Add a faint border around the whole smart block only for Graph reports (baked PDF).
-                        // Expand width to ensure the signature fits inside the border.
-                        if (reportType === 'graph') {
-                            const signatureX = finalX + (finalW / 2) + 65;
-                            const signatureW = 70;
-                            const signatureRight = signatureX + signatureW;
-                            // Keep the border rectangle wide enough for the signature.
-                            // The visible smart-annotation-box width is already widened above for graph.
-                            const neededBorderW = Math.max(finalW, signatureRight - finalX);
-
-                            pdfAnnotator.annotations[pageNum].push({
-                                uniqueId: `${uidBase}_border`,
-                                page_number: pageNum,
-                                annotation_type: 'text',
-                                content: '',
-                                htmlContent: '',
-                                x_position: finalX,
-                                y_position: finalY,
-                                width: Math.max(50, neededBorderW),
-                                height: Math.max(30, finalH),
-                                style_data: { borderOnly: true }
-                            });
-                        }
-
-                        pdfAnnotator.annotations[pageNum].push({
-                            uniqueId: `${uidBase}_remarks`,
-                            page_number: pageNum,
-                            annotation_type: 'text',
-                            content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; word-break: break-word; overflow-wrap: break-word;"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
-                            htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; word-break: break-word; overflow-wrap: break-word;"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
-                            x_position: finalX + SMART_PADDING,
-                            y_position: finalY + SMART_PADDING,
-                            width: Math.max(100, finalW - (SMART_PADDING * 2)),
-                            height: Math.max(30, commentsH),
-                            style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
-                        });
-
-                        pdfAnnotator.annotations[pageNum].push({
-                            uniqueId: `${uidBase}_owner`,
-                            page_number: pageNum,
-                            annotation_type: 'text',
-                            content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
-                            htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
-                            x_position: finalX + SMART_PADDING,
-                            y_position: finalY + SMART_PADDING + commentsH + gap,
-                            width: Math.max(80, (finalW / 2) - SMART_PADDING),
-                            height: Math.max(18, footerH),
-                            style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
-                        });
-
-                        if (sigUrl) {
-                            pdfAnnotator.annotations[pageNum].push({
-                                uniqueId: `${uidBase}_sig`,
-                                page_number: pageNum,
-                                annotation_type: 'image',
-                                imageData: sigUrl,
-                                content: sigUrl,
-                                x_position: finalX + (finalW / 2) + 65,
-                                y_position: finalY + SMART_PADDING + commentsH + gap - 2,
-                                width: 70,
-                                height: 30
-                            });
-                        }
-
-                        pdfAnnotator.annotations[pageNum].push({
-                            uniqueId: `${uidBase}_date`,
-                            page_number: pageNum,
-                            annotation_type: 'text',
-                            content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><br><strong>Date:</strong> ${date}</div>`,
-                            htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><br><strong>Date:</strong> ${date}</div>`,
-                            x_position: finalX + (finalW / 2),
-                            y_position: finalY + SMART_PADDING + commentsH + gap,
-                            width: Math.max(80, (finalW / 2) - SMART_PADDING),
-                            height: Math.max(18, footerH),
-                            style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
-                        });
-
-                        // Remove DOM element after conversion.
-                        blockEl.remove();
-                    });
-                });
-
-                // Reset blocks.
-                Object.keys(smartBlocksByPage).forEach(pageKey => {
-                    smartBlocksByPage[pageKey] = [];
-                });
-            };
-
-            // Override pdfAnnotator save method so conversion happens before annotation serialization.
-            const originalSave = pdfAnnotator.saveAnnotations;
-            pdfAnnotator.saveAnnotations = function() {
-                if (Object.keys(smartBlocksByPage).some(pageKey => (smartBlocksByPage[pageKey] || []).length > 0)) {
-                    convertSmartBlocksToAnnotations();
-                }
-                originalSave.apply(pdfAnnotator);
-            };
-
-            // Override page rendering to toggle smart blocks per page.
-            const originalRenderPage = pdfAnnotator.renderPage;
-            pdfAnnotator.renderPage = async function(pageNum) {
-                await originalRenderPage.apply(pdfAnnotator, arguments);
-                updateSmartBlockVisibility(pageNum);
-            };
-
-            // Initial visibility.
-            updateSmartBlockVisibility(pdfAnnotator.currentPage || 1);
 
             // Initialize modal event handlers (using vanilla JS or jQuery if available)
             const modal = document.getElementById('textAnnotationModal');

@@ -703,12 +703,51 @@
             font-size: 1.3rem;
         }
 
+        :root {
+            --app-header-height: 56px;
+        }
+
         body {
-            padding-top: 56px;
+            padding-top: var(--app-header-height);
+        }
+
+        body.has-password-expiry-banner {
+            --app-header-height: 92px;
+        }
+
+        .password-expiry-banner {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            right: 0;
+            z-index: 1029;
+            font-size: 13px;
+        }
+
+        .password-expiry-banner .container-fluid {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            min-height: 36px;
+        }
+
+        .password-expiry-banner__dismiss {
+            flex-shrink: 0;
+            color: inherit;
+            opacity: 0.7;
+            font-size: 1.25rem;
+            line-height: 1;
+            border: 0;
+            background: transparent;
+        }
+
+        .password-expiry-banner__dismiss:hover {
+            opacity: 1;
         }
 
         .sticky-offset {
-            top: 56px;
+            top: var(--app-header-height);
         }
 
         #body-row {
@@ -736,13 +775,12 @@
 
         #sidebar-container {
             position: fixed;
-            top: 56px;
+            top: var(--app-header-height);
             min-width: 265px;
             max-width: 265px;
             left: 0;
-            height: calc(100vh - 56px);
-            /* 56px is the navbar height */
-            max-height: calc(100vh - 56px);
+            height: calc(100vh - var(--app-header-height));
+            max-height: calc(100vh - var(--app-header-height));
             background-color: #333;
             padding: 8px 4px;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
@@ -1793,10 +1831,21 @@
     $thePath = request()->path();
     $PageAttachments = getPageAttachments($thePath);
     $current = Auth::user()->id;
+
+    $__showPasswordExpiryBanner = false;
+    if (Auth::check() && ! View::hasSection('hide_password_expiry_banner')) {
+        $__pwDays = Auth::user()->passwordDaysRemaining();
+        if ($__pwDays <= 30) {
+            $__showPasswordExpiryBanner = true;
+            $__pwClass = $__pwDays <= 10 ? 'danger' : ($__pwDays <= 20 ? 'warning' : 'info');
+            $__pwIcon = $__pwDays <= 10 ? 'fa-lock' : 'fa-key';
+            $__pwLabel = $__pwDays <= 10 ? 'URGENT' : ($__pwDays <= 20 ? 'Warning' : 'Notice');
+        }
+    }
     ?>
 </head>
 
-<body>
+<body @if($__showPasswordExpiryBanner) class="has-password-expiry-banner" @endif>
     <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm fixed-top" id="main-app-header">
         <div class="container-fluid">
             <button class="btn btn-transparent btn-lg" id="toggle-main-sidebar"
@@ -1938,28 +1987,24 @@
         </div>
     </nav>
 
-    {{-- Password expiry countdown banner --}}
-    @auth
-        @php
-            $__pwDays  = auth()->user()->passwordDaysRemaining();
-            $__pwClass = $__pwDays <= 10 ? 'danger'  : ($__pwDays <= 20 ? 'warning' : 'info');
-            $__pwIcon  = $__pwDays <= 10 ? 'fa-lock' : 'fa-key';
-            $__pwLabel = $__pwDays <= 10 ? 'URGENT'  : ($__pwDays <= 20 ? 'Warning' : 'Notice');
-        @endphp
-        @if($__pwDays <= 30)
-            <div class="alert alert-{{ $__pwClass }} alert-dismissible mb-0 py-2 px-3 rounded-0 border-0"
-                 role="alert"
-                 style="font-size:13px; position:relative; z-index:9;">
-                <i class="fas {{ $__pwIcon }} mr-1"></i>
-                <strong>{{ $__pwLabel }}:</strong>
-                Your password expires in <strong>{{ $__pwDays }} day{{ $__pwDays === 1 ? '' : 's' }}</strong>.
-                <a href="{{ route('password.force-change') }}" class="alert-link ml-2">Change it now &rarr;</a>
-                <button type="button" class="close py-1" data-dismiss="alert" aria-label="Close">
+    {{-- Password expiry countdown banner (fixed below navbar; hidden via @section('hide_password_expiry_banner') on full-screen pages) --}}
+    @if($__showPasswordExpiryBanner)
+        <div id="password-expiry-banner"
+             class="password-expiry-banner alert alert-{{ $__pwClass }} mb-0 py-2 rounded-0 border-0"
+             role="alert">
+            <div class="container-fluid">
+                <div class="password-expiry-banner__message">
+                    <i class="fas {{ $__pwIcon }} mr-1"></i>
+                    <strong>{{ $__pwLabel }}:</strong>
+                    Your password expires in <strong>{{ $__pwDays }} day{{ $__pwDays === 1 ? '' : 's' }}</strong>.
+                    <a href="{{ route('password.force-change') }}" class="alert-link ml-1">Change it now &rarr;</a>
+                </div>
+                <button type="button" class="password-expiry-banner__dismiss" aria-label="Dismiss">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-        @endif
-    @endauth
+        </div>
+    @endif
 
     @yield('content')
     <div class="modal fade" id="chat-system" role="dialog">
@@ -2565,6 +2610,33 @@
         //   $('#main-body-content').append(`<button id="main-sidebar-toggler" class="btn btn-circle btn-circle-sm btn-danger"><i class="mdi mdi-menu"></i></button>`);
         // }
 
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var banner = document.getElementById('password-expiry-banner');
+        if (!banner) {
+            return;
+        }
+
+        var storageKey = 'password-expiry-banner-dismissed';
+
+        if (sessionStorage.getItem(storageKey)) {
+            banner.remove();
+            document.body.classList.remove('has-password-expiry-banner');
+            return;
+        }
+
+        var dismissButton = banner.querySelector('.password-expiry-banner__dismiss');
+        if (!dismissButton) {
+            return;
+        }
+
+        dismissButton.addEventListener('click', function () {
+            banner.remove();
+            document.body.classList.remove('has-password-expiry-banner');
+            sessionStorage.setItem(storageKey, '1');
+        });
     });
 </script>
 <script src="{{ asset('js/method-sequences.js') }}"></script>

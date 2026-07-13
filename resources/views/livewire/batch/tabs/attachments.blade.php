@@ -68,32 +68,6 @@
                             </div>
                             @endif
 
-                            <!-- Receipt Notification -->
-                            @if($receiptNotification)
-                            <div class="col-6 col-md-4 col-lg-3 mb-2">
-                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
-                                    <div class="card-body py-2 px-2 d-flex align-items-center">
-                                        <div class="mr-2 text-info bg-info-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
-                                            <i class="mdi mdi-receipt mdi-18px"></i>
-                                        </div>
-                                        <div class="flex-grow-1 min-width-0">
-                                            <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Receipt Notification</h6>
-                                            <small class="text-muted" style="font-size: 10px;">{{ $receiptNotification->created_at->format('Y-m-d H:i') }}</small>
-                                        </div>
-                                        <div class="d-flex align-items-center ml-1" style="gap: 3px; flex-shrink: 0;">
-                                            <button wire:click="regenerateReceiptNotification" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="Regenerate PDF with Dynamic Logo">
-                                                <i wire:loading.remove wire:target="regenerateReceiptNotification" class="mdi mdi-refresh text-info" style="font-size: 14px;"></i>
-                                                <span wire:loading wire:target="regenerateReceiptNotification" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
-                                            </button>
-                                            <a href="{{ $receiptNotification->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View Document">
-                                                <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-
                             <!-- Quotation -->
                             @if($quotationDocument)
                             <div class="col-6 col-md-4 col-lg-3 mb-2">
@@ -169,7 +143,7 @@
                             @endif
                         </div>
 
-                        @if(!$rejectionForm && !$receiptNotification && !$batch->invoice_id && !$quotationDocument && !$testRequestFormDocument)
+                        @if(!$rejectionForm && !$batch->invoice_id && !$quotationDocument && !$testRequestFormDocument)
                         <div class="alert alert-light border text-center py-4" style="border-radius: 10px;">
                             <i class="mdi mdi-file-hidden text-muted" style="font-size: 24px;"></i>
                             <p class="mb-0 mt-2 text-muted small">No workflow documents generated yet.</p>
@@ -413,9 +387,9 @@
     </div>
 
     <!-- Add Attachment Modal -->
-    <div wire:ignore.self>
+    <div wire:ignore>
     <div class="modal fade" id="add-attachment-batch" role="dialog">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
             <form id="add-attachment-form" action="{{ route('add_batch_attachment') }}" method="post" enctype="multipart/form-data" class="modal-content shadow-sm" style="border-radius: 20px; border: none; background: #fafbfc;">
                 @csrf
                 <div class="modal-header" style="border-bottom: 1.5px solid #e7eaf0; background: #f3f4f7; border-radius: 20px 20px 0 0;">
@@ -445,7 +419,7 @@
                                 <i class="mdi mdi-plus" style="font-size: 13px;"></i> ADD NEW
                             </span>
                         </div>
-                        <select name="attachment_type" id="attachment_type_select" class="form-control form-control-lg"
+                        <select name="attachment_type" id="attachment_type_select" class="form-control form-control-lg no-select2"
                             style="border-radius: 10px;"
                             onchange="handleAttachmentTypeChange(this)">
                             <option value="">Choose Attachment Type ...</option>
@@ -580,29 +554,49 @@
                     <div class="form-group mb-4">
                         <label class="control-label font-weight-bold text-muted text-uppercase small" for="customFile">Upload File</label>
                         <div class="custom-file" style="border-radius: 10px;">
-                            <input type="file" class="custom-file-input" id="customFile" name="attachment" required>
+                            <input type="file" class="custom-file-input" id="customFile" name="attachment" accept=".pdf,application/pdf" required>
                             <label class="custom-file-label" for="customFile" style="border-radius: 10px; background-color: #f9fafb; border: 1.5px solid #e0e6ed; color: #6c757d;">
                                 Choose file...
                             </label>
                         </div>
+                        <small class="text-muted d-block mt-1" id="coa-upload-hint" style="display:none;">
+                            Use Browse to add PDFs. Each selection adds to the list (or pick several at once). Drag to reorder before saving.
+                        </small>
                     </div>
 
                     <div class="form-group mb-2">
-                        <div class="custom-control custom-checkbox pl-1">
-                            <input type="checkbox" class="custom-control-input" id="internalUse" name="is_internal">
-                            <label class="custom-control-label font-weight-bold text-muted small" for="internalUse" style="margin-left: 3px;">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="internalUse" name="is_internal" value="1">
+                            <label class="custom-control-label font-weight-bold text-muted small" for="internalUse">
                                 For Internal Use Only
                             </label>
                         </div>
                     </div>
 
-                    <div class="form-group mb-2">
-                        <div class="custom-control custom-checkbox pl-1">
-                            <input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa">
-                            <label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa" style="margin-left: 3px;">
-                                Include in COA (append this file after the report)
+                    <div class="form-group mb-3">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa" value="1">
+                            <label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa">
+                                Include in Test Request Report (merge report first, then your PDF file(s))
                             </label>
                         </div>
+                    </div>
+
+                    <div id="coa-merge-section" class="form-group mb-3" style="display:none;">
+                        <label class="control-label font-weight-bold text-muted text-uppercase small mb-2">
+                            Merge Order
+                        </label>
+                        <p class="text-muted small mb-2">
+                            The <strong>Test Request Report</strong> is always placed first. Drag the uploaded files below to set their order.
+                        </p>
+                        <ul id="coa-merge-sortable" class="list-group mb-2">
+                            <li class="list-group-item py-2 d-flex align-items-center" data-locked="1">
+                                <i class="mdi mdi-lock text-muted mr-2"></i>
+                                <span class="font-weight-bold">Test Request Report</span>
+                                <span class="badge badge-light border ml-auto">First</span>
+                            </li>
+                        </ul>
+                        <input type="hidden" name="coa_file_order" id="coa-file-order" value="">
                     </div>
 
                     <input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -657,6 +651,27 @@
 
 
     <style>
+        #add-attachment-batch .modal-dialog {
+            max-height: calc(100vh - 2rem);
+        }
+
+        #add-attachment-batch .modal-content {
+            max-height: calc(100vh - 2rem);
+        }
+
+        #add-attachment-batch .modal-body {
+            overflow-y: auto;
+        }
+
+        #add-attachment-batch #attachment_type_select {
+            position: relative;
+            z-index: 1;
+        }
+
+        #add-attachment-type-modal {
+            z-index: 2060 !important;
+        }
+
         #sortable-attachments {
             list-style-type: none;
             margin: 0;
@@ -1287,16 +1302,122 @@
         // Handler for the "+ ADD NEW" button inside #add-attachment-batch.
         // Uses document delegation so it works after the modal has been appended to body.
         (function() {
-            function getAttachmentTypeComponent(modal) {
-                if (!modal) return null;
-
-                var componentId = modal.getAttribute('data-livewire-id');
-                if (!componentId || !window.Livewire || !window.Livewire.find) {
-                    return null;
+            function ensureNativeAttachmentTypeSelect() {
+                if (!window.jQuery) {
+                    return;
                 }
 
-                return window.Livewire.find(componentId);
+                window.jQuery('#attachment_type_select').each(function() {
+                    var $select = window.jQuery(this);
+                    $select.addClass('no-select2');
+
+                    if ($select.hasClass('select2-hidden-accessible') && window.jQuery.fn.select2) {
+                        $select.select2('destroy');
+                    }
+                });
             }
+
+            function restoreParentAttachmentModal() {
+                if (!window.jQuery) {
+                    return;
+                }
+
+                var $parentModal = window.jQuery('#add-attachment-batch').first();
+                if (!$parentModal.hasClass('show')) {
+                    return;
+                }
+
+                window.jQuery('body').addClass('modal-open');
+
+                var backdrops = window.jQuery('.modal-backdrop');
+                if (backdrops.length > 1) {
+                    backdrops.not(':first').remove();
+                }
+            }
+
+            function updateAttachmentTypeSelect(id, value) {
+                document.querySelectorAll('#attachment_type_select').forEach(function(select) {
+                    if (id === undefined || id === null || value === undefined || value === null) {
+                        return;
+                    }
+
+                    var exists = Array.from(select.options).some(function(option) {
+                        return String(option.value) === String(id);
+                    });
+
+                    if (!exists) {
+                        var option = document.createElement('option');
+                        option.value = id;
+                        option.textContent = value;
+                        select.appendChild(option);
+                    }
+
+                    select.value = String(id);
+
+                    if (typeof handleAttachmentTypeChange === 'function') {
+                        handleAttachmentTypeChange(select);
+                    }
+                });
+
+                ensureNativeAttachmentTypeSelect();
+            }
+
+            function closeAttachmentTypeModal() {
+                if (!window.jQuery || !window.jQuery.fn.modal) {
+                    return;
+                }
+
+                var $subModal = window.jQuery('#add-attachment-type-modal').last();
+                $subModal.modal('hide');
+
+                setTimeout(function() {
+                    restoreParentAttachmentModal();
+                    ensureNativeAttachmentTypeSelect();
+                }, 200);
+            }
+
+            function saveAttachmentTypeFromModal() {
+                if (!window.jQuery) {
+                    return;
+                }
+
+                var input = document.getElementById('new_attachment_type_name');
+                var name = input ? input.value.trim() : '';
+
+                if (name === '') {
+                    window.alert('Please enter a name for the attachment type.');
+                    return;
+                }
+
+                window.jQuery.ajax({
+                    url: @json(route('store-attachment-type')),
+                    type: 'POST',
+                    data: {
+                        _token: @json(csrf_token()),
+                        value: name
+                    },
+                    success: function(response) {
+                        if (!response || !response.success) {
+                            window.alert((response && response.message) ? response.message : 'Error adding attachment type.');
+                            return;
+                        }
+
+                        updateAttachmentTypeSelect(response.id, response.value);
+
+                        if (input) {
+                            input.value = '';
+                        }
+
+                        closeAttachmentTypeModal();
+                    },
+                    error: function() {
+                        window.alert('Error adding attachment type. Please try again.');
+                    }
+                });
+            }
+
+            window.saveAttachmentTypeFromModal = saveAttachmentTypeFromModal;
+            window.ensureNativeAttachmentTypeSelect = ensureNativeAttachmentTypeSelect;
 
             function openAddTypeModal(e) {
                 e.preventDefault();
@@ -1307,75 +1428,44 @@
                 var $subModal = $('#add-attachment-type-modal').last();
                 if (!$subModal.length) return;
 
-                // Move to end of <body> so DOM order stacks it above the main modal
                 $subModal.appendTo('body');
-
-                // Calculate a z-index above all currently visible modals
-                var maxZ = 1050;
-                $('.modal.show, .modal.in').each(function() {
-                    var z = parseInt($(this).css('z-index')) || 0;
-                    if (z > maxZ) maxZ = z;
-                });
-                var subZ = maxZ + 20;
-                $subModal.css('z-index', subZ);
-
                 $subModal.modal('show');
-
-                // Raise the new backdrop above the existing modals
-                setTimeout(function() {
-                    $('.modal-backdrop').last().css('z-index', subZ - 10);
-                }, 0);
             }
 
             document.addEventListener('click', function(e) {
-                var btn = e.target.closest('#save-attachment-type-btn');
-                if (!btn) return;
+                var saveBtn = e.target.closest('#save-attachment-type-btn');
+                if (saveBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    saveAttachmentTypeFromModal();
+                    return;
+                }
 
-                e.preventDefault();
-                e.stopPropagation();
-
-                var modal = btn.closest('.modal');
-                var input = modal ? modal.querySelector('#new_attachment_type_name') : null;
-                var name = input ? input.value.trim() : '';
-                var component = getAttachmentTypeComponent(modal);
-
-                if (!component) return;
-
-                component.call('saveAttachmentType', name);
-            }, true);
-
-            // Delegate on document so it works after the parent modal has been appended to body
-            document.addEventListener('click', function(e) {
-                var btn = e.target.closest('#open-add-attachment-type-btn');
-                if (btn) {
+                var openBtn = e.target.closest('#open-add-attachment-type-btn');
+                if (openBtn) {
                     openAddTypeModal(e);
                 }
-            }, true); // capture phase — fires before Bootstrap's own listeners
-        })();
+            }, true);
 
-        if (!window.hasAttachmentTypeSavedListener) {
-            window.hasAttachmentTypeSavedListener = true;
-            window.addEventListener('attachmentTypeSaved', function(e) {
-                // Close the sub-modal
-                if (window.jQuery && window.jQuery.fn.modal) {
-                    window.jQuery('#add-attachment-type-modal').modal('hide');
+            document.addEventListener('shown.bs.modal', function(e) {
+                if (!e.target || e.target.id !== 'add-attachment-batch') {
+                    return;
                 }
-                // Add the new option to the dropdown in the main modal (may be at body)
-                var selects = document.querySelectorAll('#attachment_type_select');
-                selects.forEach(function(select) {
-                    var exists = Array.from(select.options).some(function(o) {
-                        return String(o.value) === String(e.detail.id);
-                    });
-                    if (!exists) {
-                        var option = document.createElement('option');
-                        option.value = e.detail.id;
-                        option.textContent = e.detail.value;
-                        select.appendChild(option);
-                        select.value = e.detail.id;
-                    }
-                });
+
+                ensureNativeAttachmentTypeSelect();
             });
-        }
+
+            document.addEventListener('hidden.bs.modal', function(e) {
+                if (!e.target || e.target.id !== 'add-attachment-type-modal') {
+                    return;
+                }
+
+                restoreParentAttachmentModal();
+                ensureNativeAttachmentTypeSelect();
+            });
+
+            ensureNativeAttachmentTypeSelect();
+        })();
 
         if (!window.hasOpenNewTabListener) {
             window.hasOpenNewTabListener = true;
@@ -1403,10 +1493,10 @@
             var isResultReport = selectedText.toLowerCase() === 'result report';
             section.style.display = isResultReport ? '' : 'none';
 
-            // Auto-check "Include in COA" when type is Result Report
             var coaCheckbox = document.getElementById('includeInCoa');
             if (coaCheckbox) {
                 coaCheckbox.checked = isResultReport;
+                coaCheckbox.dispatchEvent(new Event('change'));
             }
 
             // Clear selections when switching away
@@ -1463,6 +1553,13 @@
                     if (section) section.style.display = 'none';
                     var sel = document.getElementById('attachment_type_select');
                     if (sel) sel.value = '';
+                    var internalUse = document.getElementById('internalUse');
+                    if (internalUse) internalUse.checked = false;
+                    var includeInCoa = document.getElementById('includeInCoa');
+                    if (includeInCoa) {
+                        includeInCoa.checked = false;
+                        includeInCoa.dispatchEvent(new Event('change'));
+                    }
                     resetCapturedResultSelections();
                 });
             }
@@ -1499,6 +1596,9 @@
                     var $modal = window.jQuery('#add-attachment-batch').first();
                     if ($modal.length) {
                         $modal.appendTo('body').modal('show');
+                        if (typeof window.ensureNativeAttachmentTypeSelect === 'function') {
+                            window.ensureNativeAttachmentTypeSelect();
+                        }
                     }
                 }
             }
@@ -1648,7 +1748,12 @@
                 document.addEventListener('livewire:load', initializeHandlers);
 
                 Livewire.hook('message.processed', function() {
-                    setTimeout(initializeHandlers, 50);
+                    setTimeout(function() {
+                        initializeHandlers();
+                        if (typeof window.ensureNativeAttachmentTypeSelect === 'function') {
+                            window.ensureNativeAttachmentTypeSelect();
+                        }
+                    }, 50);
                 });
             }
 
@@ -1694,6 +1799,31 @@
                 return;
             }
 
+            var includeInCoa = document.getElementById('includeInCoa');
+            var customFile = document.getElementById('customFile');
+
+            if (includeInCoa && includeInCoa.checked) {
+                if (window.__coaAttachmentUpload) {
+                    window.__coaAttachmentUpload.syncBeforeSubmit();
+                }
+
+                if (!customFile || !customFile.files || customFile.files.length === 0) {
+                    e.preventDefault();
+                    window.alert('Please select at least one PDF file to merge with the Test Request Report.');
+                    return;
+                }
+
+                var hasPdf = Array.from(customFile.files).some(function(file) {
+                    return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                });
+
+                if (!hasPdf) {
+                    e.preventDefault();
+                    window.alert('Test Request Report merge only supports PDF files.');
+                    return;
+                }
+            }
+
             var linkedSelectedCount = 0;
             document.querySelectorAll('.captured-result-checkbox:checked').forEach(function(cb) {
                 if (cb.getAttribute('data-has-linked') === '1') {
@@ -1710,5 +1840,284 @@
                 }
             }
         });
+
+        (function() {
+            var includeInCoa = document.getElementById('includeInCoa');
+            var coaSection = document.getElementById('coa-merge-section');
+            var coaHint = document.getElementById('coa-upload-hint');
+            var customFile = document.getElementById('customFile');
+            var sortableList = document.getElementById('coa-merge-sortable');
+            var orderInput = document.getElementById('coa-file-order');
+            var coaSortableInstance = null;
+            var coaSelectedFiles = [];
+
+            function isPdfFile(file) {
+                return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            }
+
+            function destroyCoaSortable() {
+                if (coaSortableInstance) {
+                    coaSortableInstance.destroy();
+                    coaSortableInstance = null;
+                }
+            }
+
+            function resetCoaSortable() {
+                if (!sortableList) {
+                    return;
+                }
+
+                while (sortableList.children.length > 1) {
+                    sortableList.removeChild(sortableList.lastElementChild);
+                }
+
+                if (orderInput) {
+                    orderInput.value = '';
+                }
+
+                destroyCoaSortable();
+            }
+
+            function updateCoaFileOrder() {
+                if (!sortableList || !orderInput) {
+                    return;
+                }
+
+                var order = [];
+                sortableList.querySelectorAll('li[data-file-index]').forEach(function(li) {
+                    order.push(li.getAttribute('data-file-index'));
+                });
+                orderInput.value = order.join(',');
+            }
+
+            function updateCoaFileLabel() {
+                if (!customFile) {
+                    return;
+                }
+
+                var label = customFile.nextElementSibling;
+                if (!label || !label.classList.contains('custom-file-label')) {
+                    return;
+                }
+
+                if (includeInCoa && includeInCoa.checked) {
+                    label.textContent = coaSelectedFiles.length
+                        ? coaSelectedFiles.length + ' PDF file(s) added — click to add more'
+                        : 'Add PDF file(s)...';
+                }
+            }
+
+            function initCoaSortable() {
+                if (!window.Sortable || !sortableList || coaSortableInstance) {
+                    return;
+                }
+
+                coaSortableInstance = window.Sortable.create(sortableList, {
+                    animation: 150,
+                    filter: '[data-locked]',
+                    preventOnFilter: true,
+                    onEnd: updateCoaFileOrder,
+                });
+            }
+
+            function renderCoaFileList() {
+                if (!sortableList) {
+                    return;
+                }
+
+                destroyCoaSortable();
+
+                while (sortableList.children.length > 1) {
+                    sortableList.removeChild(sortableList.lastElementChild);
+                }
+
+                coaSelectedFiles.forEach(function(file, idx) {
+                    var li = document.createElement('li');
+                    li.className = 'list-group-item py-2 d-flex align-items-center';
+                    li.setAttribute('data-file-index', String(idx));
+                    li.innerHTML = '<i class="mdi mdi-drag-vertical text-muted mr-2"></i>'
+                        + '<span class="flex-grow-1 text-truncate">' + file.name + '</span>'
+                        + '<button type="button" class="btn btn-sm btn-link text-danger p-0 ml-2 coa-remove-file" data-index="'
+                        + idx + '" title="Remove"><i class="mdi mdi-close"></i></button>';
+                    sortableList.appendChild(li);
+                });
+
+                updateCoaFileOrder();
+                initCoaSortable();
+                updateCoaFileLabel();
+            }
+
+            function appendCoaFiles(fileList) {
+                var added = false;
+
+                Array.from(fileList).forEach(function(file) {
+                    if (!isPdfFile(file)) {
+                        return;
+                    }
+
+                    var duplicate = coaSelectedFiles.some(function(existing) {
+                        return existing.name === file.name
+                            && existing.size === file.size
+                            && existing.lastModified === file.lastModified;
+                    });
+
+                    if (!duplicate) {
+                        coaSelectedFiles.push(file);
+                        added = true;
+                    }
+                });
+
+                if (added) {
+                    renderCoaFileList();
+                }
+            }
+
+            function getOrderedCoaFiles() {
+                var ordered = [];
+
+                if (!sortableList) {
+                    return coaSelectedFiles.slice();
+                }
+
+                sortableList.querySelectorAll('li[data-file-index]').forEach(function(li) {
+                    var idx = parseInt(li.getAttribute('data-file-index'), 10);
+                    if (!Number.isNaN(idx) && coaSelectedFiles[idx]) {
+                        ordered.push(coaSelectedFiles[idx]);
+                    }
+                });
+
+                return ordered;
+            }
+
+            function syncCoaFilesToInput() {
+                if (!customFile) {
+                    return;
+                }
+
+                var ordered = getOrderedCoaFiles();
+                var dataTransfer = new DataTransfer();
+
+                ordered.forEach(function(file) {
+                    dataTransfer.items.add(file);
+                });
+
+                customFile.files = dataTransfer.files;
+
+                if (orderInput) {
+                    orderInput.value = ordered.map(function(_, index) {
+                        return String(index);
+                    }).join(',');
+                }
+            }
+
+            function captureExistingFiles() {
+                if (coaSelectedFiles.length > 0) {
+                    return coaSelectedFiles.slice();
+                }
+
+                if (customFile && customFile.files && customFile.files.length > 0) {
+                    return Array.from(customFile.files);
+                }
+
+                return [];
+            }
+
+            function setFileInputFiles(files) {
+                if (!customFile) {
+                    return;
+                }
+
+                var dataTransfer = new DataTransfer();
+                files.forEach(function(file) {
+                    dataTransfer.items.add(file);
+                });
+                customFile.files = dataTransfer.files;
+            }
+
+            function setCoaMode(enabled) {
+                if (!customFile) {
+                    return;
+                }
+
+                var existingFiles = captureExistingFiles();
+
+                if (coaSection) {
+                    coaSection.style.display = enabled ? '' : 'none';
+                }
+
+                if (coaHint) {
+                    coaHint.style.display = enabled ? '' : 'none';
+                }
+
+                customFile.multiple = enabled;
+                customFile.accept = enabled ? '.pdf,application/pdf' : '';
+                customFile.name = enabled ? 'coa_attachments[]' : 'attachment';
+                customFile.required = !enabled;
+
+                var label = customFile.nextElementSibling;
+
+                if (enabled) {
+                    coaSelectedFiles = existingFiles.filter(isPdfFile);
+                    renderCoaFileList();
+                    syncCoaFilesToInput();
+
+                    if (label && label.classList.contains('custom-file-label') && coaSelectedFiles.length === 0) {
+                        label.textContent = 'Add PDF file(s)...';
+                    }
+                } else {
+                    coaSelectedFiles = [];
+                    resetCoaSortable();
+
+                    if (existingFiles.length > 0) {
+                        setFileInputFiles([existingFiles[0]]);
+                        if (label && label.classList.contains('custom-file-label')) {
+                            label.textContent = existingFiles[0].name;
+                        }
+                    } else {
+                        customFile.value = '';
+                        if (label && label.classList.contains('custom-file-label')) {
+                            label.textContent = 'Choose file...';
+                        }
+                    }
+                }
+            }
+
+            window.__coaAttachmentUpload = {
+                syncBeforeSubmit: syncCoaFilesToInput,
+            };
+
+            if (includeInCoa) {
+                includeInCoa.addEventListener('change', function() {
+                    setCoaMode(includeInCoa.checked);
+                });
+            }
+
+            if (sortableList) {
+                sortableList.addEventListener('click', function(e) {
+                    var removeButton = e.target.closest('.coa-remove-file');
+                    if (!removeButton) {
+                        return;
+                    }
+
+                    e.preventDefault();
+                    var index = parseInt(removeButton.getAttribute('data-index'), 10);
+                    if (Number.isNaN(index)) {
+                        return;
+                    }
+
+                    coaSelectedFiles.splice(index, 1);
+                    renderCoaFileList();
+                });
+            }
+
+            if (customFile) {
+                customFile.addEventListener('change', function(e) {
+                    if (includeInCoa && includeInCoa.checked && e.target.files && e.target.files.length > 0) {
+                        appendCoaFiles(e.target.files);
+                        e.target.value = '';
+                    }
+                });
+            }
+        })();
     </script>
 </div>
