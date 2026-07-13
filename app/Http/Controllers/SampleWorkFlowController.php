@@ -9229,6 +9229,7 @@ class SampleWorkFlowController extends Controller
             $request->validate([
                 'attachment_id' => 'required|exists:batch_attachments,id',
                 'annotations_data' => 'required|json',
+                'viewer_scale' => 'nullable|numeric|min:0.25|max:3',
             ]);
 
             $attachment = BatchAttachment::findOrFail($request->attachment_id);
@@ -9270,44 +9271,47 @@ class SampleWorkFlowController extends Controller
             // Import existing PDF as template
             $pageCount = $pdf->setSourceFile($filePath);
 
-            // PDF.js scale 1.5 calculations
-            // scale 1.0 = 72 DPI (72 pts per inch)
-            // 1 inch = 25.4 mm
-            // scale 1.5 means 1.5 * 72 pixels per inch
-            $scale = 1.5;
+            // Must match the PDF.js viewer scale used when placing annotations.
+            $scale = (float) $request->input('viewer_scale', 1.5);
+            if ($scale < 0.25 || $scale > 3) {
+                $scale = 1.5;
+            }
             $ppi = $scale * 72;
             $pxToMm = 25.4 / $ppi;
 
-            // Smart-annotation font setup.
-            // If an exact Times New Roman TTF is available on the server, we try to embed it.
-            // Otherwise we fall back to TCPDF's built-in `times` font so annotation saving never breaks.
+            $needsHtmlText = collect($annotationsData ?? [])
+                ->contains(fn ($ann) => ($ann['annotation_type'] ?? '') === 'text');
+
+            // Smart-annotation font setup (only needed for leftover HTML text annotations).
             $smartFontFamily = 'times';
-            $tnrFontFile = null;
-            $tnrFontCandidates = [
-                public_path('fonts/TimesNewRoman.ttf'),
-                public_path('assets/fonts/TimesNewRoman.ttf'),
-                storage_path('app/fonts/TimesNewRoman.ttf'),
-                storage_path('app/public/fonts/TimesNewRoman.ttf'),
-            ];
+            if ($needsHtmlText) {
+                $tnrFontFile = null;
+                $tnrFontCandidates = [
+                    public_path('fonts/TimesNewRoman.ttf'),
+                    public_path('assets/fonts/TimesNewRoman.ttf'),
+                    storage_path('app/fonts/TimesNewRoman.ttf'),
+                    storage_path('app/public/fonts/TimesNewRoman.ttf'),
+                ];
 
-            foreach ($tnrFontCandidates as $candidate) {
-                if (is_string($candidate) && file_exists($candidate)) {
-                    $tnrFontFile = $candidate;
-                    break;
-                }
-            }
-
-            if (is_string($tnrFontFile) && $tnrFontFile !== '') {
-                try {
-                    $loadedFontName = \TCPDF_FONTS::addTTFfont($tnrFontFile, 'TrueTypeUnicode', '', 96);
-                    if (is_string($loadedFontName) && $loadedFontName !== '') {
-                        $smartFontFamily = $loadedFontName;
+                foreach ($tnrFontCandidates as $candidate) {
+                    if (is_string($candidate) && file_exists($candidate)) {
+                        $tnrFontFile = $candidate;
+                        break;
                     }
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to embed Times New Roman TTF, falling back to TCPDF times', [
-                        'tnrFontFile' => $tnrFontFile,
-                        'error' => $e->getMessage(),
-                    ]);
+                }
+
+                if (is_string($tnrFontFile) && $tnrFontFile !== '') {
+                    try {
+                        $loadedFontName = \TCPDF_FONTS::addTTFfont($tnrFontFile, 'TrueTypeUnicode', '', 96);
+                        if (is_string($loadedFontName) && $loadedFontName !== '') {
+                            $smartFontFamily = $loadedFontName;
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to embed Times New Roman TTF, falling back to TCPDF times', [
+                            'tnrFontFile' => $tnrFontFile,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
             }
 
@@ -9357,11 +9361,14 @@ class SampleWorkFlowController extends Controller
                         $cellWidth = max(10, $w);
                         $minHeight = max(5, $h);
 
-                        // Measure the rendered height so the border fully encloses wrapped content.
-                        $pdf->startTransaction();
-                        $pdf->writeHTMLCell($cellWidth, 0, $x, $y, $html, 0, 1, false, true, 'L', true);
-                        $measuredHeight = max($minHeight, ($pdf->GetY() - $y) + 1.0);
-                        $pdf->rollbackTransaction(true);
+                        // Prefer the client-measured height to avoid a costly measure pass.
+                        $measuredHeight = $minHeight;
+                        if ($measuredHeight < 5.5) {
+                            $pdf->startTransaction();
+                            $pdf->writeHTMLCell($cellWidth, 0, $x, $y, $html, 0, 1, false, true, 'L', true);
+                            $measuredHeight = max($minHeight, ($pdf->GetY() - $y) + 1.0);
+                            $pdf->rollbackTransaction(true);
+                        }
 
                         if ($border) {
                             $pdf->SetDrawColor(0, 0, 0);

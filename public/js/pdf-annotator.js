@@ -1520,7 +1520,7 @@ class PDFAnnotator {
             <div class="annotation-item ${isSelected ? 'border border-primary' : ''}" data-annotation-id="${annId}">
                 <div class="mb-1">
                     <span class="badge badge-${ann.annotation_type === 'text' ? 'warning' : 'info'}">
-                        ${ann.annotation_type === 'text' ? 'Text' : 'Image'}
+                        ${this.isSignatureBlockAnnotation(ann) ? 'Signature' : (ann.annotation_type === 'text' ? 'Text' : 'Image')}
                     </span>
                     <span class="badge badge-secondary">Page ${ann.page}</span>
                     ${!isUnsaved ? '<span class="badge badge-success">Saved</span>' : ''}
@@ -1588,21 +1588,27 @@ class PDFAnnotator {
 
                 this.finalizeAllAnnotationDimensions();
 
+                // Snapshot text/signature overlays as images so the baked PDF matches the preview.
+                await this.rasterizeTextAnnotationsForSave();
+
                 // Prepare annotations data - include all annotations
                 const annotationsData = [];
                 Object.keys(this.annotations).forEach(pageNum => {
                     this.annotations[pageNum].forEach(ann => {
+                        const hasRaster = !!(ann.rasterData);
                         annotationsData.push({
-                            page_number: parseInt(pageNum),
-                            annotation_type: ann.annotation_type,
-                            content: ann.content,
-                            imageData: ann.imageData || null,
-                            htmlContent: ann.htmlContent || ann.content,
+                            page_number: parseInt(pageNum, 10),
+                            annotation_type: hasRaster ? 'image' : ann.annotation_type,
+                            content: hasRaster ? (ann.rasterData || ann.content) : ann.content,
+                            imageData: hasRaster ? ann.rasterData : (ann.imageData || null),
+                            htmlContent: hasRaster ? null : (ann.htmlContent || ann.content),
                             x_position: parseFloat(ann.x_position),
                             y_position: parseFloat(ann.y_position),
                             width: ann.width ? parseFloat(ann.width) : null,
                             height: ann.height ? parseFloat(ann.height) : null,
-                            style_data: ann.style_data
+                            style_data: Object.assign({}, ann.style_data || {}, {
+                                rasterizedFromText: hasRaster,
+                            }),
                         });
                     });
                 });
@@ -1611,19 +1617,19 @@ class PDFAnnotator {
                 const uniqueAnnotations = [];
                 const seen = new Set();
                 annotationsData.forEach(ann => {
-                    const key = `${ann.page_number}_${ann.x_position}_${ann.y_position}_${ann.content?.substring(0, 50)}`;
+                    const key = `${ann.page_number}_${ann.x_position}_${ann.y_position}_${String(ann.content || '').substring(0, 50)}`;
                     if (!seen.has(key)) {
                         seen.add(key);
                         uniqueAnnotations.push(ann);
                     }
                 });
 
-                // Issue 4 & 6: We are offloading rendering to the server using TcpdfFpdi 
-                // for 100% original quality and better performance.
-                // No longer capturing canvas images here.
+                const scaleInput = document.getElementById('save-viewer-scale');
+                if (scaleInput) {
+                    scaleInput.value = String(this.scale || 1.5);
+                }
 
                 document.getElementById('save-annotations-data').value = JSON.stringify(uniqueAnnotations);
-                // Send an empty array for pdf_pages_data as it's no longer used for rendering but might be required by validation
                 document.getElementById('save-pdf-pages-data').value = JSON.stringify([]);
 
                 // Submit form
@@ -1634,8 +1640,86 @@ class PDFAnnotator {
                 console.error('Error saving annotations:', error);
                 alert('Failed to save annotations. Please try again.');
                 const saveBtn = document.getElementById('save-annotations-btn');
-                saveBtn.innerHTML = originalText;
-                saveBtn.disabled = false;
+                if (saveBtn) {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                }
+            }
+        }
+    }
+
+    async rasterizeTextAnnotationsForSave() {
+        if (typeof html2canvas !== 'function') {
+            console.warn('html2canvas unavailable; falling back to server HTML rendering.');
+            return;
+        }
+
+        const originalPage = this.currentPage;
+        const originalSelection = new Set(this.selectedAnnotations);
+        const originalEditing = this.editingAnnotation;
+        const pageNumbers = Object.keys(this.annotations)
+            .map((n) => parseInt(n, 10))
+            .filter((n) => !Number.isNaN(n))
+            .sort((a, b) => a - b);
+
+        this.selectedAnnotations.clear();
+        this.editingAnnotation = null;
+        this.captureMode = true;
+
+        try {
+            for (const pageNum of pageNumbers) {
+                const textAnnotations = (this.annotations[pageNum] || []).filter(
+                    (ann) => ann.annotation_type === 'text'
+                );
+
+                if (textAnnotations.length === 0) {
+                    continue;
+                }
+
+                await this.renderPage(pageNum);
+                await new Promise((resolve) => {
+                    requestAnimationFrame(() => requestAnimationFrame(resolve));
+                });
+                // Allow signature images inside overlays to settle.
+                await new Promise((resolve) => setTimeout(resolve, 50));
+
+                for (const ann of textAnnotations) {
+                    const annotationId = 'annotation-' + this.getAnnotationId(ann);
+                    const overlay = (this.annotationDivs && this.annotationDivs.get(annotationId))
+                        || document.getElementById(annotationId);
+
+                    if (!overlay) {
+                        continue;
+                    }
+
+                    overlay.classList.remove('is-selected', 'is-editing', 'is-dragging');
+                    overlay.style.border = '1px solid #000';
+                    overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.92)';
+                    overlay.style.boxShadow = 'none';
+
+                    try {
+                        const canvas = await html2canvas(overlay, {
+                            backgroundColor: '#ffffff',
+                            scale: 2,
+                            logging: false,
+                            useCORS: true,
+                        });
+                        ann.rasterData = canvas.toDataURL('image/png');
+                        ann.x_position = parseFloat(overlay.style.left) || ann.x_position;
+                        ann.y_position = parseFloat(overlay.style.top) || ann.y_position;
+                        ann.width = overlay.offsetWidth || ann.width;
+                        ann.height = overlay.offsetHeight || ann.height;
+                    } catch (rasterError) {
+                        console.warn('Could not rasterize annotation overlay; server will render HTML fallback.', rasterError);
+                    }
+                }
+            }
+        } finally {
+            this.captureMode = false;
+            this.selectedAnnotations = originalSelection;
+            this.editingAnnotation = originalEditing;
+            if (originalPage) {
+                await this.renderPage(originalPage);
             }
         }
     }
