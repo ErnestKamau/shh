@@ -208,7 +208,24 @@
                                                         {{ $line['parameter_label'] ?? 'Parameter' }}
                                                         @if(!empty($line['is_package']))
                                                             <span class="badge badge-primary badge-pill ml-1">Package</span>
-                                                            @if(!empty($line['package_element_labels']) && is_array($line['package_element_labels']))
+                                                            @if(!empty($line['package_element_metrics']) && is_array($line['package_element_metrics']))
+                                                                <div class="small text-muted mt-1">
+                                                                    @foreach($line['package_element_metrics'] as $packageMetric)
+                                                                        @php
+                                                                            $metricParts = array_values(array_filter([
+                                                                                filled($packageMetric['loq'] ?? null) ? 'LOQ: '.$packageMetric['loq'] : null,
+                                                                                filled($packageMetric['mu_percent'] ?? null) ? 'MU: '.$packageMetric['mu_percent'] : null,
+                                                                            ]));
+                                                                        @endphp
+                                                                        <div>
+                                                                            · {{ $packageMetric['label'] ?? 'Parameter' }}
+                                                                            @if($metricParts !== [])
+                                                                                — {{ implode(' · ', $metricParts) }}
+                                                                            @endif
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            @elseif(!empty($line['package_element_labels']) && is_array($line['package_element_labels']))
                                                                 <div class="small text-muted mt-1">
                                                                     @foreach($line['package_element_labels'] as $packageLabel)
                                                                         <div>· {{ $packageLabel }}</div>
@@ -343,7 +360,24 @@
                                                 {{ $line['parameter_label'] ?? 'Parameter' }}
                                                 @if(!empty($line['is_package']))
                                                     <span class="badge badge-primary badge-pill ml-1">Package</span>
-                                                    @if(!empty($line['package_element_labels']) && is_array($line['package_element_labels']))
+                                                    @if(!empty($line['package_element_metrics']) && is_array($line['package_element_metrics']))
+                                                        <div class="small text-muted mt-1">
+                                                            @foreach($line['package_element_metrics'] as $packageMetric)
+                                                                @php
+                                                                    $metricParts = array_values(array_filter([
+                                                                        filled($packageMetric['loq'] ?? null) ? 'LOQ: '.$packageMetric['loq'] : null,
+                                                                        filled($packageMetric['mu_percent'] ?? null) ? 'MU: '.$packageMetric['mu_percent'] : null,
+                                                                    ]));
+                                                                @endphp
+                                                                <div>
+                                                                    · {{ $packageMetric['label'] ?? 'Parameter' }}
+                                                                    @if($metricParts !== [])
+                                                                        — {{ implode(' · ', $metricParts) }}
+                                                                    @endif
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @elseif(!empty($line['package_element_labels']) && is_array($line['package_element_labels']))
                                                         <div class="small text-muted mt-1">
                                                             @foreach($line['package_element_labels'] as $packageLabel)
                                                                 <div>· {{ $packageLabel }}</div>

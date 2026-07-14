@@ -64,10 +64,26 @@ class DepartmentManager extends Component
             'departmentActive' => 'boolean',
         ]);
 
+        $companyId = getUserCompany();
+        $locationId = getCurrentUserLocation()?->id;
+
         if ($this->editingDepartmentId !== null) {
             $department = InventoryDepartment::query()->findOrFail($this->editingDepartmentId);
         } else {
             $department = new InventoryDepartment();
+            $department->module = 'organizational';
+            $department->company_id = $companyId;
+            $department->location_id = $locationId;
+        }
+
+        // Backfill company/location when older records were saved without them.
+        if (empty($department->company_id) && $companyId) {
+            $department->company_id = $companyId;
+        }
+        if (empty($department->location_id) && $locationId) {
+            $department->location_id = $locationId;
+        }
+        if (empty($department->module)) {
             $department->module = 'organizational';
         }
 
@@ -79,6 +95,8 @@ class DepartmentManager extends Component
         $this->message = $this->editingDepartmentId ? 'Department updated successfully.' : 'Department added successfully.';
         $this->messageType = 'success';
         $this->resetPage();
+
+        $this->dispatch('personnel-departments-updated');
     }
 
     public function openDeleteModal(string $departmentId): void
@@ -119,6 +137,8 @@ class DepartmentManager extends Component
         $this->message = 'Department deleted successfully.';
         $this->messageType = 'success';
         $this->resetPage();
+
+        $this->dispatch('personnel-departments-updated');
     }
 
     public function dismissMessage(): void
@@ -129,7 +149,17 @@ class DepartmentManager extends Component
 
     public function getDepartmentsProperty()
     {
-        $query = InventoryDepartment::query()->orderBy('name');
+        $query = InventoryDepartment::query()
+            ->where('module', 'organizational')
+            ->orderBy('name');
+
+        $companyId = getUserCompany();
+        if ($companyId) {
+            $query->where(function ($builder) use ($companyId): void {
+                $builder->where('company_id', $companyId)
+                    ->orWhereNull('company_id');
+            });
+        }
 
         if ($this->search !== '') {
             $query->where('name', 'like', '%' . $this->search . '%');

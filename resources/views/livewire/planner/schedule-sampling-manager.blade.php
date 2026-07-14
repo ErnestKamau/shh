@@ -692,6 +692,18 @@
         max-height: 120px;
         overflow-y: auto;
     }
+    .schedule-sampling-form-modal .walk-in-trf-parameters-actions {
+        gap: 0.25rem;
+        line-height: 1.2;
+    }
+    .schedule-sampling-form-modal .walk-in-trf-parameters-action-btns .btn-link {
+        font-size: 12px;
+        line-height: 1.2;
+        text-decoration: none;
+    }
+    .schedule-sampling-form-modal .walk-in-trf-parameters-action-btns .btn-link:hover {
+        text-decoration: underline;
+    }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
@@ -726,6 +738,7 @@
                 const modal = getModal();
                 const livewireModel = $select.data('livewire-model');
                 const componentEl = $select.closest('[wire\\:id]');
+                const wrapEl = $select.closest('.walk-in-trf-parameters-wrap').get(0);
 
                 $select.select2({
                     width: '100%',
@@ -738,6 +751,11 @@
                 $select.on('change.schedule-trf-params', function () {
                     const val = $(this).val() || [];
 
+                    if (wrapEl) {
+                        $(wrapEl).attr('data-selected', JSON.stringify(val));
+                        updateScheduleParamSelectionCount(wrapEl, val);
+                    }
+
                     if (livewireModel && componentEl && window.Livewire) {
                         const component = Livewire.find(componentEl.getAttribute('wire:id'));
                         if (component) {
@@ -747,6 +765,66 @@
                 });
 
                 $select.data('schedule-trf-params-bound', true);
+            }
+
+            function updateScheduleParamSelectionCount(wrapEl, selected) {
+                if (!wrapEl) {
+                    return;
+                }
+
+                const countEl = wrapEl.querySelector('.walk-in-trf-parameters-count');
+                if (!countEl) {
+                    return;
+                }
+
+                let options = [];
+                try {
+                    options = JSON.parse(wrapEl.getAttribute('data-options') || '[]');
+                } catch (error) {
+                    options = [];
+                }
+
+                if (!Array.isArray(options) || options.length === 0) {
+                    const $select = $(wrapEl).find('.walk-in-trf-parameters-select');
+                    options = $select.find('option').map(function () {
+                        return this.value;
+                    }).get();
+                }
+
+                const selectedCount = Array.isArray(selected) ? selected.length : 0;
+                countEl.textContent = options.length > 0
+                    ? (selectedCount + '/' + options.length + ' selected')
+                    : '';
+            }
+
+            function applyScheduleParamBulkSelection(wrapEl, selectAll) {
+                if (!wrapEl || typeof $ === 'undefined' || !$.fn.select2) {
+                    return;
+                }
+
+                const $wrap = $(wrapEl);
+                const $select = $wrap.find('.walk-in-trf-parameters-select');
+                if ($select.length === 0) {
+                    return;
+                }
+
+                let options = [];
+                try {
+                    options = JSON.parse(wrapEl.getAttribute('data-options') || '[]');
+                } catch (error) {
+                    options = [];
+                }
+
+                if (!Array.isArray(options) || options.length === 0) {
+                    options = $select.find('option').map(function () {
+                        return this.value;
+                    }).get();
+                }
+
+                const selected = selectAll ? options : [];
+                $select.val(selected).trigger('change');
+                $wrap.attr('data-selected', JSON.stringify(selected));
+                updateScheduleParamSelectionCount(wrapEl, selected);
             }
 
             window.resetScheduleTrfParamRow = function (wrapEl, options, selected) {
@@ -773,6 +851,8 @@
                 $select.val(safeSelected).trigger('change.select2');
                 $wrap.attr('data-options', JSON.stringify(safeOptions));
                 $wrap.attr('data-selected', JSON.stringify(safeSelected));
+                updateScheduleParamSelectionCount(wrapEl, safeSelected);
+                $wrap.find('[data-walk-in-params-action]').prop('disabled', safeOptions.length === 0);
 
                 if (livewireModel && componentEl && window.Livewire) {
                     const component = Livewire.find(componentEl.getAttribute('wire:id'));
@@ -811,8 +891,23 @@
 
                     bindScheduleParamSelect($select);
                     $select.val(selected).trigger('change.select2');
+                    updateScheduleParamSelectionCount(wrap, selected);
                 });
             };
+
+            $(document).off('click.schedule-trf-params-bulk', modalSelector + ' [data-walk-in-params-action]')
+                .on('click.schedule-trf-params-bulk', modalSelector + ' [data-walk-in-params-action]', function (event) {
+                    event.preventDefault();
+                    const wrap = this.closest('.walk-in-trf-parameters-wrap');
+                    if (!wrap || this.disabled) {
+                        return;
+                    }
+
+                    applyScheduleParamBulkSelection(
+                        wrap,
+                        this.getAttribute('data-walk-in-params-action') === 'select-all',
+                    );
+                });
 
             function syncSignatureValue(canvas, input, pad) {
                 const value = pad.isEmpty() ? '' : pad.toDataURL('image/png');

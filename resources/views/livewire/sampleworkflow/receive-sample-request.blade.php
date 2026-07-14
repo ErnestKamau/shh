@@ -64,6 +64,21 @@
             max-height: 72px;
             overflow-y: auto;
         }
+        .receive-sample-modal-body .walk-in-trf-parameters-actions {
+            gap: 0.25rem;
+            line-height: 1.2;
+        }
+        .receive-sample-modal-body .walk-in-trf-parameters-action-btns .btn-link {
+            font-size: 11px;
+            line-height: 1.2;
+            text-decoration: none;
+        }
+        .receive-sample-modal-body .walk-in-trf-parameters-action-btns .btn-link:hover {
+            text-decoration: underline;
+        }
+        .receive-sample-modal-body .walk-in-trf-parameters-count {
+            font-size: 10px;
+        }
         .receive-sample-modal-body .walk-in-trf-desc-modal .modal-dialog {
             max-width: 640px;
         }

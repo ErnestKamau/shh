@@ -494,11 +494,16 @@ class QuotationReportService
                     }
 
                     $analyte = Analyte::find($element->analyte_id);
+                    $metrics = $this->uncertaintyBudgetResolver->resolveLabMetricsForElement(
+                        $element,
+                        $budgets,
+                        $siblingsByAnalyte,
+                    );
                     $subRow = $this->makeLineRow(
                         '· '.($analyte?->name ?? $element->parametername ?? 'Parameter'),
-                        '',
-                        '',
-                        '',
+                        $metrics['test_method'],
+                        $metrics['loq'],
+                        $metrics['mu_percent'],
                         0.0,
                         (int) $detail->quantity
                     );

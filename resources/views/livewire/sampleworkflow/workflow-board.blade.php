@@ -6348,6 +6348,70 @@
 				$select.removeData('walkin-params-bound');
 			};
 
+			window.updateWalkInParamSelectionCount = function (wrapEl, selected) {
+				if (!wrapEl) {
+					return;
+				}
+
+				const countEl = wrapEl.querySelector('.walk-in-trf-parameters-count');
+				if (!countEl) {
+					return;
+				}
+
+				let options = [];
+				try {
+					options = JSON.parse(wrapEl.getAttribute('data-options') || '[]');
+				} catch (error) {
+					options = [];
+				}
+
+				if (!Array.isArray(options) || options.length === 0) {
+					const $select = typeof $ !== 'undefined'
+						? $(wrapEl).find('.walk-in-trf-parameters-select')
+						: null;
+					if ($select && $select.length) {
+						options = $select.find('option').map(function () {
+							return this.value;
+						}).get();
+					}
+				}
+
+				const selectedCount = Array.isArray(selected) ? selected.length : 0;
+				countEl.textContent = options.length > 0
+					? (selectedCount + '/' + options.length + ' selected')
+					: '';
+			};
+
+			window.applyWalkInParamBulkSelection = function (wrapEl, selectAll) {
+				if (!wrapEl || typeof $ === 'undefined' || !$.fn.select2) {
+					return;
+				}
+
+				const $wrap = $(wrapEl);
+				const $select = $wrap.find('.walk-in-trf-parameters-select');
+				if ($select.length === 0) {
+					return;
+				}
+
+				let options = [];
+				try {
+					options = JSON.parse(wrapEl.getAttribute('data-options') || '[]');
+				} catch (error) {
+					options = [];
+				}
+
+				if (!Array.isArray(options) || options.length === 0) {
+					options = $select.find('option').map(function () {
+						return this.value;
+					}).get();
+				}
+
+				const selected = selectAll ? options : [];
+				$select.val(selected).trigger('change');
+				$wrap.attr('data-selected', JSON.stringify(selected));
+				window.updateWalkInParamSelectionCount(wrapEl, selected);
+			};
+
 			window.bindWalkInParamSelect = function ($select) {
 				if (!$select || !$select.length || $select.data('walkin-params-bound')) {
 					return;
@@ -6356,6 +6420,7 @@
 				const modal = document.getElementById('receive-sample-modal');
 				const livewireModel = $select.data('livewire-model');
 				const componentEl = $select.closest('[wire\\:id]');
+				const wrapEl = $select.closest('.walk-in-trf-parameters-wrap').get(0);
 
 				$select.select2({
 					width: '100%',
@@ -6367,6 +6432,11 @@
 
 				$select.on('change.walkin-params', function () {
 					const val = $(this).val() || [];
+
+					if (wrapEl) {
+						$(wrapEl).attr('data-selected', JSON.stringify(val));
+						window.updateWalkInParamSelectionCount(wrapEl, val);
+					}
 
 					if (livewireModel && componentEl && window.Livewire) {
 						const component = Livewire.find(componentEl.getAttribute('wire:id'));
@@ -6403,6 +6473,8 @@
 				$select.val(safeSelected).trigger('change.select2');
 				$wrap.attr('data-options', JSON.stringify(safeOptions));
 				$wrap.attr('data-selected', JSON.stringify(safeSelected));
+				window.updateWalkInParamSelectionCount(wrapEl, safeSelected);
+				$wrap.find('[data-walk-in-params-action]').prop('disabled', safeOptions.length === 0);
 
 				if (livewireModel && componentEl && window.Livewire) {
 					const component = Livewire.find(componentEl.getAttribute('wire:id'));
@@ -6445,8 +6517,23 @@
 
 					window.bindWalkInParamSelect($select);
 					$select.val(selected).trigger('change.select2');
+					window.updateWalkInParamSelectionCount(wrap, selected);
 				});
 			};
+
+			$(document).off('click.walkin-params-bulk', '#receive-sample-modal [data-walk-in-params-action]')
+				.on('click.walkin-params-bulk', '#receive-sample-modal [data-walk-in-params-action]', function (event) {
+					event.preventDefault();
+					const wrap = this.closest('.walk-in-trf-parameters-wrap');
+					if (!wrap || this.disabled) {
+						return;
+					}
+
+					window.applyWalkInParamBulkSelection(
+						wrap,
+						this.getAttribute('data-walk-in-params-action') === 'select-all',
+					);
+				});
 
 			Livewire.on('hide-receive-sample-modal', function () {
 				$('#receive-sample-modal').modal('hide');
