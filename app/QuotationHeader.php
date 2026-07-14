@@ -79,16 +79,6 @@ class QuotationHeader extends Model implements Auditable
         return $this->belongsTo(self::class, 'revision_of_quotation_header_id');
     }
 
-    public function sourceQuotation(): BelongsTo
-    {
-        return $this->belongsTo(self::class, 'source_quotation_header_id');
-    }
-
-    public function enquiryClones()
-    {
-        return $this->hasMany(self::class, 'source_quotation_header_id');
-    }
-
     public function revisions()
     {
         return $this->hasMany(self::class, 'revision_of_quotation_header_id');

@@ -604,7 +604,12 @@
                                                                                     </div>
                                                                                 </td>
                                                                                 <td>
-                                                                                    <div class="table-primary-line">{{ $item->analyte_name ?? 'N/A' }}</div>
+                                                                                    <div class="table-primary-line">
+                                                                                        {{ $item->analyte_name ?? 'N/A' }}
+                                                                                        @if(!empty($item->is_package))
+                                                                                            <span class="badge badge-primary badge-pill ml-1">Package</span>
+                                                                                        @endif
+                                                                                    </div>
                                                                                     @if($item->analyte_code)
                                                                                         <div class="table-secondary-line">{{ $item->analyte_code }}</div>
                                                                                     @endif
@@ -784,38 +789,88 @@
                             </div>
 
                             <div class="item-modal-section mb-3">
-                                <div class="item-element-heading mb-2">Analysis Elements Pricing</div>
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2" style="gap: 8px;">
+                                    <div class="item-element-heading mb-0">
+                                        {{ !empty($itemForm['is_package']) ? 'Package Elements' : 'Analysis Elements Pricing' }}
+                                    </div>
+                                    <div class="flag-tile py-1 px-2 mb-0">
+                                        <div class="form-check form-switch mb-0">
+                                            <input type="checkbox" wire:model.live="itemForm.is_package" class="form-check-input" role="switch" id="item-form-is-package">
+                                            <label class="form-check-label" for="item-form-is-package">Package</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @if(!empty($itemForm['is_package']))
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label item-modal-label">Package Cost Price <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" wire:model.blur="itemForm.package_cost_price" class="form-control item-modal-input @error('itemForm.package_cost_price') is-invalid @enderror">
+                                            @error('itemForm.package_cost_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label item-modal-label">Package Price <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" wire:model.blur="itemForm.package_selling_price" class="form-control item-modal-input @error('itemForm.package_selling_price') is-invalid @enderror">
+                                            @error('itemForm.package_selling_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <div class="flag-tile w-100">
+                                                <div class="form-check form-switch mb-0">
+                                                    <input type="checkbox" wire:model="itemForm.package_vat" class="form-check-input" role="switch" id="item-form-package-vat">
+                                                    <label class="form-check-label" for="item-form-package-vat">Has VAT</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="small text-muted mb-2">Tick the analysis elements covered by this package. Membership is saved immediately; package price stays pending until Apply Price Changes.</p>
+                                @endif
 
                                 @if(count($itemElementRows) > 0)
                                     <div class="table-responsive modern-table-wrap">
                                         <table class="table table-hover modern-table mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th>Analyte</th>
-                                                    <th>Cost Price</th>
-                                                    <th>Changed Price</th>
-                                                    <th>Has VAT</th>
+                                                    @if(!empty($itemForm['is_package']))
+                                                        <th style="width: 4rem;">Include</th>
+                                                        <th>Analyte</th>
+                                                    @else
+                                                        <th>Analyte</th>
+                                                        <th>Cost Price</th>
+                                                        <th>Changed Price</th>
+                                                        <th>Has VAT</th>
+                                                    @endif
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 @foreach($itemElementRows as $index => $row)
                                                     <tr>
-                                                        <td>
-                                                            <div class="table-primary-line">{{ $row['analyte_label'] ?: 'N/A' }}</div>
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.cost_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.cost_price') is-invalid @enderror">
-                                                            @error('itemElementRows.' . $index . '.cost_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.selling_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.selling_price') is-invalid @enderror">
-                                                            @error('itemElementRows.' . $index . '.selling_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                                        </td>
-                                                        <td>
-                                                            <div class="form-check form-switch">
-                                                                <input type="checkbox" wire:model="itemElementRows.{{ $index }}.vat" class="form-check-input" role="switch">
-                                                            </div>
-                                                        </td>
+                                                        @if(!empty($itemForm['is_package']))
+                                                            <td>
+                                                                <div class="form-check form-switch">
+                                                                    <input type="checkbox" wire:model="itemElementRows.{{ $index }}.included" class="form-check-input" role="switch">
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <div class="table-primary-line">{{ $row['analyte_label'] ?: 'N/A' }}</div>
+                                                            </td>
+                                                        @else
+                                                            <td>
+                                                                <div class="table-primary-line">{{ $row['analyte_label'] ?: 'N/A' }}</div>
+                                                            </td>
+                                                            <td>
+                                                                <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.cost_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.cost_price') is-invalid @enderror">
+                                                                @error('itemElementRows.' . $index . '.cost_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                                            </td>
+                                                            <td>
+                                                                <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.selling_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.selling_price') is-invalid @enderror">
+                                                                @error('itemElementRows.' . $index . '.selling_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                                            </td>
+                                                            <td>
+                                                                <div class="form-check form-switch">
+                                                                    <input type="checkbox" wire:model="itemElementRows.{{ $index }}.vat" class="form-check-input" role="switch">
+                                                                </div>
+                                                            </td>
+                                                        @endif
                                                     </tr>
                                                 @endforeach
                                             </tbody>

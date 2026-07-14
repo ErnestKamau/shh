@@ -13,11 +13,18 @@ use App\SampleAnalysisStage;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\StandardAnalytes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SampleAnalysisSetupService
 {
+    /** @var array<string, bool> */
+    private array $labSectionValidityCache = [];
+
+    /** @var array<string, ReportingUnit|null> */
+    private array $reportingUnitCache = [];
+
     public function syncAnalysisRelations(SampleHeader $header, SampleDetails $detail, array $analysisTypeIds): void
     {
         $analysisTypeIds = array_values(array_filter(array_unique($analysisTypeIds)));
@@ -40,7 +47,7 @@ class SampleAnalysisSetupService
 
         $insert = [];
         foreach ($analysisTypeIds as $analysisTypeId) {
-            if (!in_array((string) $analysisTypeId, $existing, true)) {
+            if (! in_array((string) $analysisTypeId, $existing, true)) {
                 $insert[] = [
                     'id' => (string) Str::uuid7(),
                     'analysis_type_id' => $analysisTypeId,
@@ -55,6 +62,17 @@ class SampleAnalysisSetupService
         }
     }
 
+    /**
+     * @param  array{
+     *   sample_header?: ?SampleHeader,
+     *   sample_detail?: ?SampleDetails,
+     *   analysis_type?: ?AnalysisType,
+     *   lab?: ?Lab,
+     *   reporting_units_by_key?: array<string, ReportingUnit>,
+     *   standards_by_key?: array<string, StandardAnalytes>,
+     *   analysis_elements?: Collection<int, AnalysisElements>|null
+     * }  $context
+     */
     public function createCapturedResultsForAnalysisType(
         string $batchId,
         string $sampleDetailId,
@@ -64,16 +82,27 @@ class SampleAnalysisSetupService
         ?array $analysisElementIds = null,
         ?array $elementFlagOverrides = null,
         ?string $labSectionOverride = null,
+        array $context = [],
     ): void {
-        $query = AnalysisElements::query()
-            ->where('analysis_type_id', $analysisTypeId)
-            ->where('active', 1);
+        $analysisElements = $context['analysis_elements'] ?? null;
 
-        if ($analysisElementIds !== null && $analysisElementIds !== []) {
-            $query->whereIn('id', $analysisElementIds);
+        if ($analysisElements === null) {
+            $query = AnalysisElements::query()
+                ->with('analyte')
+                ->where('analysis_type_id', $analysisTypeId)
+                ->where('active', 1);
+
+            if ($analysisElementIds !== null && $analysisElementIds !== []) {
+                $query->whereIn('id', $analysisElementIds);
+            }
+
+            $analysisElements = $query->get();
+        } elseif ($analysisElementIds !== null && $analysisElementIds !== []) {
+            $allowed = array_map('strval', $analysisElementIds);
+            $analysisElements = $analysisElements
+                ->filter(fn (AnalysisElements $element) => in_array((string) $element->id, $allowed, true))
+                ->values();
         }
-
-        $analysisElements = $query->get();
 
         if ($analysisElements->isEmpty()) {
             Log::warning('No analysis elements found for analysis type', [
@@ -84,49 +113,46 @@ class SampleAnalysisSetupService
             return;
         }
 
-        $sampleHeader = SampleHeader::query()->find($batchId);
-        $lab = $this->resolveLabForHeader($sampleHeader);
-        $sampleDetail = SampleDetails::query()->find($sampleDetailId);
-        $analysisType = AnalysisType::query()->find($analysisTypeId);
+        $sampleHeader = $context['sample_header'] ?? SampleHeader::query()->find($batchId);
+        $lab = array_key_exists('lab', $context)
+            ? $context['lab']
+            : $this->resolveLabForHeader($sampleHeader);
+        $sampleDetail = $context['sample_detail'] ?? SampleDetails::query()->find($sampleDetailId);
+        $analysisType = $context['analysis_type'] ?? AnalysisType::query()->find($analysisTypeId);
         $labSectionIdFromAnalysisType = $this->resolveValidLabSectionId($analysisType?->lab_section_id);
         $resolvedLabSectionOverride = $this->resolveValidLabSectionId($labSectionOverride);
         $analysisTypeHasNoResultCapture = $analysisType ? (int) ($analysisType->has_no_result ?? 0) : 0;
-        // user_id is a NOT NULL UUID column; fall back to any active user if unauthenticated.
         $userId = $actingUserId ?? (string) (auth()->id() ?? '')
             ?: \App\User::query()->where('active', 1)->value('id');
 
+        /** @var array<string, ReportingUnit> $reportingUnitsByKey */
+        $reportingUnitsByKey = $context['reporting_units_by_key'] ?? $this->preloadReportingUnits($analysisElements);
+
+        /** @var array<string, StandardAnalytes> $standardsByKey */
+        $standardsByKey = $context['standards_by_key'] ?? $this->preloadStandardsForDetail($sampleDetail, $analysisElements);
+
         foreach ($analysisElements as $element) {
-            $analyteCode = $element->analyte->code ?? 'UNKNOWN';
+            $analyteCode = $element->relationLoaded('analyte')
+                ? ($element->analyte->code ?? 'UNKNOWN')
+                : ($element->analyte->code ?? 'UNKNOWN');
+
             $standardID = null;
             $secondaryStandardID = null;
             $thirdStandardID = null;
 
             if ($sampleDetail) {
                 if ($sampleDetail->main_standard) {
-                    $standardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
-                        ->where('standard_id', $sampleDetail->main_standard)->first();
+                    $standardID = $standardsByKey[$this->standardKey($sampleDetail->main_standard, $element->analyte_id)] ?? null;
                 }
                 if ($sampleDetail->secondary_standard) {
-                    $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
-                        ->where('standard_id', $sampleDetail->secondary_standard)->first();
+                    $secondaryStandardID = $standardsByKey[$this->standardKey($sampleDetail->secondary_standard, $element->analyte_id)] ?? null;
                 }
                 if ($sampleDetail->third_standard_id) {
-                    $thirdStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
-                        ->where('standard_id', $sampleDetail->third_standard_id)->first();
+                    $thirdStandardID = $standardsByKey[$this->standardKey($sampleDetail->third_standard_id, $element->analyte_id)] ?? null;
                 }
             }
 
-            $reportingUnitValue = $element->reporting_unit;
-            $reportingUnit = null;
-            if ($reportingUnitValue) {
-                $isUuid = (bool) preg_match(
-                    '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
-                    (string) $reportingUnitValue
-                );
-                $reportingUnit = $isUuid
-                    ? ReportingUnit::where('id', $reportingUnitValue)->orWhere('name', $reportingUnitValue)->first()
-                    : ReportingUnit::where('name', $reportingUnitValue)->first();
-            }
+            $reportingUnit = $this->resolveReportingUnitFromElement($element, $reportingUnitsByKey);
 
             $labSectionId = $resolvedLabSectionOverride
                 ?? $labSectionIdFromAnalysisType
@@ -139,11 +165,12 @@ class SampleAnalysisSetupService
                 'sample_header_id' => $batchId,
                 'analyte_id' => $element->analyte_id,
                 'analyte_code' => $analyteCode,
+                'analysis_element_id' => $element->id,
                 'equipment_id' => (empty($element->equipment_id) || $element->equipment_id === '0' || $element->equipment_id === 0) ? null : $element->equipment_id,
                 'result' => null,
                 'user_id' => $userId,
                 'analysis_type_id' => $analysisTypeId,
-                'operator_id' => null, // captured_results.operator_id is integer; AnalysisElements stores a UUID — incompatible types
+                'operator_id' => null,
                 'method_id' => $element->method,
                 'reporting_unit_id' => $reportingUnit?->id,
                 'ltm_method_id' => $element->ltm_method_id,
@@ -172,7 +199,7 @@ class SampleAnalysisSetupService
                 'analyte_id' => $element->analyte_id,
                 'analyte_code' => $analyteCode,
                 'analysis_type_id' => $analysisTypeId,
-                'unit_code' => $element->reporting_unit,
+                'unit_code' => $reportingUnit?->name ?? $element->reporting_unit,
                 'reporting_symbol' => $element->reporting_symbol ?? null,
                 'recheck' => 0,
                 'analyte_status_contracted' => $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides),
@@ -183,6 +210,152 @@ class SampleAnalysisSetupService
             ]);
             $result->save();
         }
+    }
+
+    /**
+     * Preload analysis elements (with analytes) for many analysis types at once.
+     *
+     * @param  list<string>  $analysisTypeIds
+     * @return Collection<string, Collection<int, AnalysisElements>>
+     */
+    public function preloadElementsByAnalysisType(array $analysisTypeIds): Collection
+    {
+        $analysisTypeIds = array_values(array_filter(array_unique(array_map('strval', $analysisTypeIds))));
+        if ($analysisTypeIds === []) {
+            return collect();
+        }
+
+        return AnalysisElements::query()
+            ->with('analyte')
+            ->whereIn('analysis_type_id', $analysisTypeIds)
+            ->where('active', 1)
+            ->get()
+            ->groupBy(fn (AnalysisElements $element) => (string) $element->analysis_type_id);
+    }
+
+    /**
+     * @param  Collection<int, AnalysisElements>  $analysisElements
+     * @return array<string, ReportingUnit>
+     */
+    public function preloadReportingUnits(Collection $analysisElements): array
+    {
+        $keys = $analysisElements
+            ->pluck('reporting_unit')
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->map(fn ($value) => (string) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($keys === []) {
+            return [];
+        }
+
+        $uuids = [];
+        $names = [];
+        foreach ($keys as $key) {
+            if (Str::isUuid($key)) {
+                $uuids[] = $key;
+            } else {
+                $names[] = $key;
+            }
+        }
+
+        $units = ReportingUnit::query()
+            ->where(function ($query) use ($uuids, $names) {
+                if ($uuids !== []) {
+                    $query->whereIn('id', $uuids);
+                }
+                if ($names !== []) {
+                    $query->orWhereIn('name', $names);
+                }
+            })
+            ->get();
+
+        $map = [];
+        foreach ($units as $unit) {
+            $map[(string) $unit->id] = $unit;
+            $map[(string) $unit->name] = $unit;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  Collection<int, AnalysisElements>  $analysisElements
+     * @return array<string, StandardAnalytes>
+     */
+    public function preloadStandardsForDetail(?SampleDetails $sampleDetail, Collection $analysisElements): array
+    {
+        if (! $sampleDetail) {
+            return [];
+        }
+
+        $standardIds = collect([
+            $sampleDetail->main_standard,
+            $sampleDetail->secondary_standard,
+            $sampleDetail->third_standard_id,
+        ])
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $analyteIds = $analysisElements
+            ->pluck('analyte_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($standardIds === [] || $analyteIds === []) {
+            return [];
+        }
+
+        $map = [];
+        $rows = StandardAnalytes::query()
+            ->whereIn('standard_id', $standardIds)
+            ->whereIn('analyte_id', $analyteIds)
+            ->get();
+
+        foreach ($rows as $row) {
+            $map[$this->standardKey($row->standard_id, $row->analyte_id)] = $row;
+        }
+
+        return $map;
+    }
+
+    private function resolveReportingUnitFromElement(AnalysisElements $element, array $reportingUnitsByKey): ?ReportingUnit
+    {
+        $reportingUnitValue = $element->reporting_unit;
+        if (! $reportingUnitValue) {
+            return null;
+        }
+
+        $key = (string) $reportingUnitValue;
+        if (isset($reportingUnitsByKey[$key])) {
+            return $reportingUnitsByKey[$key];
+        }
+
+        if (array_key_exists($key, $this->reportingUnitCache)) {
+            return $this->reportingUnitCache[$key];
+        }
+
+        $isUuid = Str::isUuid($key);
+        $unit = $isUuid
+            ? ReportingUnit::where('id', $key)->orWhere('name', $key)->first()
+            : ReportingUnit::where('name', $key)->first();
+
+        $this->reportingUnitCache[$key] = $unit;
+
+        return $unit;
+    }
+
+    private function standardKey(mixed $standardId, mixed $analyteId): string
+    {
+        return (string) $standardId.'|'.(string) $analyteId;
     }
 
     private function resolveValidLabSectionId(mixed $candidate): ?string
@@ -196,12 +369,16 @@ class SampleAnalysisSetupService
             return null;
         }
 
-        return SampleAnalysisStage::query()->whereKey($id)->exists() ? $id : null;
+        if (! array_key_exists($id, $this->labSectionValidityCache)) {
+            $this->labSectionValidityCache[$id] = SampleAnalysisStage::query()->whereKey($id)->exists();
+        }
+
+        return $this->labSectionValidityCache[$id] ? $id : null;
     }
 
     private function resolveLabForHeader(?SampleHeader $sampleHeader): ?Lab
     {
-        if (!$sampleHeader) {
+        if (! $sampleHeader) {
             return null;
         }
 

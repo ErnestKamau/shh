@@ -69,7 +69,8 @@ final class QuotationLineTaxResolver
     ): ?PricelistItem {
         $query = PricelistItem::query()
             ->where('pricelist_id', $pricelist->id)
-            ->where('active', 1);
+            ->where('active', 1)
+            ->where('is_package', false);
 
         if ($sampleTypeId !== null && $sampleTypeId !== '') {
             $query->where('sample_type_id', $sampleTypeId);
@@ -84,6 +85,7 @@ final class QuotationLineTaxResolver
             $item = PricelistItem::query()
                 ->where('pricelist_id', $pricelist->id)
                 ->where('active', 1)
+                ->where('is_package', false)
                 ->where('analysis_element_id', $analysisElementId)
                 ->first();
             if ($item !== null) {
@@ -92,7 +94,10 @@ final class QuotationLineTaxResolver
         }
 
         if ($analysisTypeId !== '') {
-            return (clone $query)->where('analysis_id', $analysisTypeId)->first();
+            return (clone $query)
+                ->where('analysis_id', $analysisTypeId)
+                ->whereNull('analysis_element_id')
+                ->first();
         }
 
         return null;

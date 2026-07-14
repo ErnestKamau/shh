@@ -874,8 +874,6 @@ class ReportHeaderDetailController extends Controller
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->with('samplePointArea.companyUnit', 'samplePointArea.subUnit', 'samplePointArea.crmArea')->get();
 		$standard_codes = implode(',', $samples->pluck('main_standard_code')->unique()->toArray());
 
-		$allCapturedResults = CapturedResult::where('sample_header_id', $batch->id)->get();
-
 		$parameters = CapturedResult::where('captured_results.sample_header_id', $batch->id)
 			->select(
 				'captured_results.id',
@@ -930,6 +928,12 @@ class ReportHeaderDetailController extends Controller
 			->get()
 			->groupBy('sample_detail_id');
 
+		$sampleDetailsById = SampleDetails::query()
+			->with('sample_point')
+			->where('sample_header_id', $batch->id)
+			->get()
+			->keyBy('id');
+
 		$groupedSamples = [];
 		$ungroupedSamples = [];
 
@@ -964,7 +968,7 @@ class ReportHeaderDetailController extends Controller
 
 			$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'Pass' : 'Fail';
 			// Resolve sample code and sampling point for display in results tables
-			$sampleDetail = \App\SampleDetails::with('sample_point')->find($sample->id);
+			$sampleDetail = $sampleDetailsById->get($sample->id);
 			$sampleCode = $sampleDetail->sample_code ?? ($sample->sample_code ?? null);
 
 			$samplePointName = null;
@@ -1312,17 +1316,30 @@ class ReportHeaderDetailController extends Controller
 
 		// 2. Resolve Samples Data and Captured Results
 		$samples = \App\SampleDetails::where('sample_header_id', $batch->id)->get();
+		$allCapturedForBatch = \App\CapturedResult::query()
+			->where('sample_header_id', $batch->id)
+			->whereNotNull('result')
+			->get();
+		$capturedBySample = $allCapturedForBatch->groupBy('sample_detail_id');
+
+		$methodIds = $allCapturedForBatch->pluck('method_id')->filter()->unique()->values()->all();
+		$unitIds = $allCapturedForBatch->pluck('reporting_unit_id')->filter()->unique()->values()->all();
+		$methodsById = $methodIds !== []
+			? \App\AnalysisMethod::query()->whereIn('id', $methodIds)->get()->keyBy('id')
+			: collect();
+		$unitsById = $unitIds !== []
+			? \App\ReportingUnit::query()->whereIn('id', $unitIds)->get()->keyBy('id')
+			: collect();
+
 		$samplesData = [];
 		foreach ($samples as $sample) {
-			$capturedResults = \App\CapturedResult::where('sample_detail_id', $sample->id)
-				->whereNotNull('result')
-				->get();
-			
+			$capturedResults = $capturedBySample->get($sample->id, collect());
+
 			$results = [];
 			foreach ($capturedResults as $cr) {
 				$methodName = '-';
 				if ($cr->method_id) {
-					$method = \App\AnalysisMethod::find($cr->method_id);
+					$method = $methodsById->get($cr->method_id);
 					if ($method) {
 						$methodName = $method->code ?? $method->name;
 					}
@@ -1330,11 +1347,11 @@ class ReportHeaderDetailController extends Controller
 				$results[] = [
 					'analyte' => $cr->analyte_code ?? ($cr->analyte?->name ?? ''),
 					'value' => $cr->result,
-					'unit' => $cr->reporting_unit_id ? (\App\ReportingUnit::find($cr->reporting_unit_id)->name ?? '') : '',
+					'unit' => $cr->reporting_unit_id ? ($unitsById->get($cr->reporting_unit_id)->name ?? '') : '',
 					'method' => $methodName,
 				];
 			}
-			
+
 			$appearance = $sample->notes_body;
 			if (is_string($appearance)) {
 				$appearance = trim(html_entity_decode(strip_tags($appearance), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -1351,16 +1368,17 @@ class ReportHeaderDetailController extends Controller
 		}
 
 		// 3. Dynamically compile the "NB:" section underneath the main results table
-		$uniqueMethodIds = \App\CapturedResult::where('sample_header_id', $batch->id)
-			->whereNotNull('method_id')
+		$uniqueMethodIds = $allCapturedForBatch
 			->pluck('method_id')
+			->filter()
 			->unique()
-			->toArray();
-			
+			->values()
+			->all();
+
 		$nbNotesParts = [];
 		$methodIndex = 1;
 		foreach ($uniqueMethodIds as $mId) {
-			$method = \App\AnalysisMethod::find($mId);
+			$method = $methodsById->get($mId);
 			if ($method) {
 				$desc = !empty($method->description) ? $method->description : 'Analytical test method';
 				$nbNotesParts[] = $methodIndex . '. ' . $method->code . ' - ' . $desc;
@@ -1633,11 +1651,21 @@ class ReportHeaderDetailController extends Controller
 		// 4. Resolve Exhibits Data and Findings
 		$samples = \App\SampleDetails::where('sample_header_id', $batch->id)->get();
 		$exhibits = [];
+		$capturedBySample = \App\CapturedResult::query()
+			->where('sample_header_id', $batch->id)
+			->whereNotNull('result')
+			->get()
+			->groupBy('sample_detail_id');
+		$exhibitsBySampleId = collect();
+		if ($ssr) {
+			$exhibitsBySampleId = \App\Models\SampleSubmissionRequestExhibit::query()
+				->where('sample_submission_request_id', $ssr->id)
+				->get()
+				->keyBy('sample_detail_id');
+		}
 
 		foreach ($samples as $sample) {
-			$capturedResults = \App\CapturedResult::where('sample_detail_id', $sample->id)
-				->whereNotNull('result')
-				->get();
+			$capturedResults = $capturedBySample->get($sample->id, collect());
 
 			$found = false;
 			$drugType = 'N/A';
@@ -1654,7 +1682,7 @@ class ReportHeaderDetailController extends Controller
 					} else {
 						$drugType .= ', ' . $analyteName;
 					}
-					
+
 					$analyteModel = $cr->analyte;
 					if ($analyteModel && !empty($analyteModel->description)) {
 						$healthEffect = $analyteModel->description;
@@ -1669,33 +1697,29 @@ class ReportHeaderDetailController extends Controller
 			if ($healthEffect === '-' || empty($healthEffect)) {
 				$lowerDrug = strtolower($drugType);
 				if (str_contains($lowerDrug, 'heroin') || str_contains($lowerDrug, 'diacetylmorphine')) {
-					$healthEffect = $isSwahili 
-						? "Kusababisha uraibu mkubwa, kukandamiza mfumo wa upumuaji, na kifo kikiasiliwa kupita kiasi." 
+					$healthEffect = $isSwahili
+						? "Kusababisha uraibu mkubwa, kukandamiza mfumo wa upumuaji, na kifo kikiasiliwa kupita kiasi."
 						: "Causes severe addiction, respiratory depression, and death upon overdose.";
 				} elseif (str_contains($lowerDrug, 'cocaine')) {
-					$healthEffect = $isSwahili 
-						? "Kusisimua mfumo wa neva wa kati, kusababisha matatizo ya moyo na uraibu mkubwa." 
+					$healthEffect = $isSwahili
+						? "Kusisimua mfumo wa neva wa kati, kusababisha matatizo ya moyo na uraibu mkubwa."
 						: "Stimulates central nervous system, causes cardiac complications and severe addiction.";
 				} elseif (str_contains($lowerDrug, 'cannabis') || str_contains($lowerDrug, 'bangi') || str_contains($lowerDrug, 'tetrahydrocannabinol')) {
-					$healthEffect = $isSwahili 
-						? "Kuharibu mtazamo wa akili, kuongeza mapigo ya moyo, na matatizo ya afya ya akili ya muda mrefu." 
+					$healthEffect = $isSwahili
+						? "Kuharibu mtazamo wa akili, kuongeza mapigo ya moyo, na matatizo ya afya ya akili ya muda mrefu."
 						: "Impairs cognitive perception, increases heart rate, and causes long-term mental health issues.";
 				} else {
-					$healthEffect = $isSwahili 
-						? "Kusababisha madhara makubwa ya kisaikolojia, uraibu, na uharibifu wa viungo vya mwili." 
+					$healthEffect = $isSwahili
+						? "Kusababisha madhara makubwa ya kisaikolojia, uraibu, na uharibifu wa viungo vya mwili."
 						: "Causes severe psychological impairment, addiction, and organic body organ damage.";
 				}
 			}
 
 			// Resolve item description from exhibit tables if available
 			$itemDescription = '';
-			if ($ssr) {
-				$ssrExhibit = \App\Models\SampleSubmissionRequestExhibit::where('sample_submission_request_id', $ssr->id)
-					->where('sample_detail_id', $sample->id)
-					->first();
-				if ($ssrExhibit) {
-					$itemDescription = $ssrExhibit->item_description;
-				}
+			$ssrExhibit = $exhibitsBySampleId->get($sample->id);
+			if ($ssrExhibit) {
+				$itemDescription = $ssrExhibit->item_description;
 			}
 			if (empty($itemDescription)) {
 				$itemDescription = $sample->comments ?? ($sample->barcode ?? ($sample->sample_code ?? ''));

@@ -46,6 +46,8 @@ use App\Services\SupportingDocumentInstanceFormService;
 use App\Services\SampleCreationService;
 use App\Models\System\SystemConfiguration;
 use App\Services\ResultRemarkService;
+use App\Services\Sampleworkflow\CapturedResultCaptureService;
+use App\Services\Sampleworkflow\ProcessedResultSyncService;
 use App\Services\StandardLimitDisplayService;
 use App\Services\SubmissionFormPdfService;
 use App\ModulePreConfigs;
@@ -1258,7 +1260,7 @@ class SampleWorkFlowController extends Controller
                         $captured->analyte_code = $an->analyte_code;
                         $captured->equipment_id = $an->equipment_id;
                         $captured->method_id = $analysisType->method;
-                        $captured->reporting_unit_id = $analysisType->reporting_unit;
+                        $captured->reporting_unit_id = resolveReportingUnitIdFromName($analysisType->reporting_unit);
                         $captured->user_id = \Auth::user()->id;
                         $captured->operator_id = $analysisType->operator_id;
                         $captured->ltm_method_id = $analysisType->ltm_method_id;
@@ -1270,6 +1272,7 @@ class SampleWorkFlowController extends Controller
                         $captured->formular_id = $analysisType->formular_id;
                         $captured->method_sequence_id = $analysisType->method_sequence_id;
                         $captured->stage_header_id = $analysisType->stage_header_id;
+                        $captured->analysis_element_id = $analysisType->id ?? null;
 
                         // Get analysis type for has_no_result_capture
                         $aType = AnalysisType::find($a->id);
@@ -3152,16 +3155,17 @@ class SampleWorkFlowController extends Controller
             $captured->analysis_type_id = $i->analysis_type_id;
             $captured->analyte_code = $i->code;
             $captured->equipment_id = $i->equipment_id;
-            $captured->method_id = $analysisType->method;
+            $captured->method_id = $analysisType->method ?? null;
+            $captured->reporting_unit_id = resolveReportingUnitIdFromName($analysisType->reporting_unit ?? null);
+            $captured->analysis_element_id = $analysisType->id ?? null;
             $batch = getSampleHeaderByID($sampleDetail->sample_header_id);
             $labstr = implode(',', $batch->labs(true));
             $labarr = explode(' - ', $labstr);
             $lab = Lab::where('code', $labarr[0])->where('name', $labarr[1])->first();
             $captured->analyte_status_contracted = $lab->is_external ?? 0;
 
-            $captured->user_id = \Auth::user()->id;
-
-            $captured->save();
+            $actingUserId = auth()->id() ? (string) auth()->id() : null;
+            app(CapturedResultCaptureService::class)->applyOnSave($captured, [], $actingUserId);
 
             $result = Result::where('sample_detail_code', $i->sample_code)
                 ->where('sample_detail_id', $sampleDetail->id)
@@ -3176,8 +3180,8 @@ class SampleWorkFlowController extends Controller
             $result->analyte_id = $i->id;
             $result->analysis_type_id = $i->analysis_type_id;
             $result->analyte_code = $i->code;
-            $result->unit_code = $i->reporting_unit;
-            $result->reporting_symbol = $i->reporting_symbol;
+            $result->unit_code = $analysisType->reporting_unit ?? $i->reporting_unit ?? null;
+            $result->reporting_symbol = $analysisType->reporting_symbol ?? $i->reporting_symbol ?? null;
             $result->analyte_status_contracted = $lab->is_external ?? 0;
             $result->recheck = 0;
 
@@ -3214,8 +3218,9 @@ class SampleWorkFlowController extends Controller
     public function capture_raw_results(Request $request)
     {
         $batchid = 0;
+        $captureService = app(CapturedResultCaptureService::class);
+        $actingUserId = auth()->id() ? (string) auth()->id() : null;
 
-        // return response()->json($request->all(), 200);
         foreach ($request->captured_result_id as $cID) {
             $captured = CapturedResult::find($cID);
 
@@ -3228,19 +3233,21 @@ class SampleWorkFlowController extends Controller
                 $captured->analyte_status_contracted = 0;
             }
             if (isset($request->accredited[$cID])) {
-                // return response()->json($request->accredited[$cID]);
                 $captured->analyte_accredited = 1;
             } else {
-                // return response()->json('here '.$cID);
                 $captured->analyte_accredited = 0;
             }
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
-            // 10013 - id for blank reporting unit
-            $captured->reporting_unit_id = $request->reporting_unit[$cID] ?? 10013;
+            $reportingUnitInput = $request->reporting_unit[$cID] ?? null;
+            $captured->reporting_unit_id = resolveReportingUnitIdFromName(
+                $reportingUnitInput !== null && $reportingUnitInput !== '' ? (string) $reportingUnitInput : null
+            );
             $captured->measure_uncertanity = $request->measure_uncertanity[$cID] ?? 0;
-            $captured->method_id = $request->method_id[$cID] ?? '';
+            $methodId = $request->method_id[$cID] ?? null;
+            $captured->method_id = ($methodId !== null && $methodId !== '' && $methodId !== '0')
+                ? (string) $methodId
+                : null;
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
-            $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
 
             if ($batch->status == 'Samples In Lab') {
@@ -3271,11 +3278,9 @@ class SampleWorkFlowController extends Controller
                 } else {
                     return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
                 }
-                // return response()->json($captured->analyte_id);
                 $captured->main_standard_id = isset($main_standard_analyte->id) ? $main_standard_analyte->id : 0;
                 $captured->secondary_standard_id = isset($sec_standard_analyte->id) ? $sec_standard_analyte->id : 0;
                 $captured->third_standard_id = isset($third_standard_analyte->id) ? $third_standard_analyte->id : 0;
-                // return response()->json($request);
                 $captured->main_value = $request->main_value[$cID];
                 if (isset($sec_standard_analyte->id)) {
                     if ($sec_standard_analyte->standard_value_type == 'is_range') {
@@ -3306,25 +3311,20 @@ class SampleWorkFlowController extends Controller
                     $captured->third_value = '-';
                 }
             }
-            // return response()->json($captured,200);
-            $captured->save();
-            // return response()->json($captured);
+
+            $captureService->applyOnSave($captured, [], $actingUserId);
 
             $sample_detail = getSampleDetailById($captured->sample_detail_id);
             $sample_detail->ammendment_number = $batch->is_amendment;
             $sample_detail->save();
-
-            // return response()->json($sample_detail,200);
         }
         $batch = SampleHeader::find($batchid);
-        // return response()->json($batch->id,200);
         $strStage = 'Capture Results';
         $samWk = 'Samples In Lab';
         $stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
         if (!$stage) {
             $stage = SampleAnalysisStage::find(20015);
         }
-
 
         $custodyDetails = [
             'batch_id' => $batch->id,
@@ -3604,64 +3604,9 @@ class SampleWorkFlowController extends Controller
 
     public function process_raw_results(Request $request, $batch_id, $internal = false)
     {
-        $captured = CapturedResult::join('analysis_elements as ae', function ($join) {
-            $join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-            $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
-        })
-            ->selectRaw('captured_results.result, captured_results.id, ae.decimal_places, ae.significant_figures, ae.reporting_unit, ae.lod, ae.level, ae.hod')
-            ->where('captured_results.sample_header_id', $batch_id)->whereNotNull('captured_results.result')
-            ->orderBy('level', 'asc')->get();
-
-        $arr = [];
-
-        foreach ($captured as $c) {
-            $result = floatval($c->result);
-
-            $eresult = Result::where('captured_result_id', $c->id)->first(); //result to process to
-            if (!$eresult) {
-                $fullCaptured = CapturedResult::find($c->id);
-                $eresult = new Result();
-                $eresult->captured_result_id = $fullCaptured->id;
-                $eresult->sample_detail_code = $fullCaptured->sample_detail_code;
-                $eresult->sample_detail_id = $fullCaptured->sample_detail_id;
-                $eresult->sample_header_id = $fullCaptured->sample_header_id;
-                $eresult->analyte_id = $fullCaptured->analyte_id;
-                $eresult->analyte_code = $fullCaptured->analyte_code;
-                $eresult->analysis_type_id = $fullCaptured->analysis_type_id;
-                $eresult->lab_section_id = $fullCaptured->lab_section_id;
-                $eresult->parameters_order = $fullCaptured->parameters_order ?? 0;
-                $eresult->remark_is_manual = $fullCaptured->remark_is_manual ?? false;
-                $eresult->has_no_result_capture = $fullCaptured->has_no_result_capture ?? false;
-            }
-            $eresult->reporting_symbol = '';
-            $eresult->unit_code = $c->reporting_unit;
-            if ($c->lod && $result < floatval($c->lod)) {
-                $result = $c->lod;
-                $eresult->reporting_symbol = '<';
-            }
-
-            if ($c->hod && $result > floatval($c->hod)) {
-                $result = $c->hod;
-                $eresult->reporting_symbol = '>';
-            }
-
-            if (intval($c->significant_figures) && intval($c->significant_figures > 0)) {
-                $result = sigFig($result, intval($c->significant_figures));
-            } else {
-                if (trim($c->decimal_places) != '') {
-                    $result = round($result, intval($c->decimal_places));
-                }
-            }
-
-            $eresult->result = $result;
-            $eresult->save();
-
-            $arr[] = $eresult;
-        }
-        $header = SampleHeader::find($batch_id);
-        $header->set_date('Processing Date', \Carbon\Carbon::now(), true);
-
-        // return response()->json($arr, 200);
+        $header = app(ProcessedResultSyncService::class)->syncBatch((string) $batch_id, [
+            'apply_lod_formatting' => true,
+        ]);
 
         if ($internal) {
             return $header;
@@ -3680,75 +3625,8 @@ class SampleWorkFlowController extends Controller
             'merge_with_attachments' => $request->boolean('merge_with_attachments'),
             'attachment_ids' => $request->input('attachment_ids', ''),
         ]);
-        $resultsData = Result::where('sample_header_id', $batch_id)->get();
-        foreach ($resultsData as $data) {
-            $checkCaptured = CapturedResult::find($data->captured_result_id);
-            if (!isset($checkCaptured->id)) {
-                $data->delete();
-            }
-        }
-        $captured = CapturedResult::join('analysis_elements as ae', function ($join) {
-            $join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-            $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
-        })
-            ->leftJoin('analysis_guides as ag', function ($join) {
-                $join->on('ag.analyte_id', '=', 'captured_results.analyte_id');
-                $join->on('ag.analysis_type_id', '=', 'captured_results.analysis_type_id');
-            })
 
-            ->selectRaw('captured_results.result,captured_results.main_standard_id,captured_results.secondary_standard_id,captured_results.remark,captured_results.analysis_type_id,captured_results.analyte_id,captured_results.analyte_status_contracted,captured_results.analyte_accredited, captured_results.id, ae.decimal_places, ae.significant_figures, ae.reporting_unit, ae.lod, ae.level, ae.hod,captured_results.result_reporting_symbol,captured_results.repeat_captured_id')
-            ->where('captured_results.sample_header_id', $batch_id)->whereNotNull('captured_results.result')
-            ->orderBy('level', 'asc')->get();
-
-        $arr = [];
-
-        // return response()->json($captured,200);
-        foreach ($captured as $c) {
-            $type = gettype($c->result);
-            if ($type == 'integer' || $type == 'double') {
-                $result = floatval($c->result);
-            } else {
-                $result = $c->result;
-            }
-            // return response()->json($result,200);
-
-            $main_standard = StandardAnalytes::find($c->main_standard_id);
-            $secondary_standard = StandardAnalytes::find($c->secondary_standard_id);
-
-            // return response()->json($secondary_standard,200);
-            $eresult = Result::where('captured_result_id', $c->id)->first(); //result to process to
-            if (!$eresult) {
-                $fullCaptured = CapturedResult::find($c->id);
-                $eresult = new Result();
-                $eresult->captured_result_id = $fullCaptured->id;
-                $eresult->sample_detail_code = $fullCaptured->sample_detail_code;
-                $eresult->sample_detail_id = $fullCaptured->sample_detail_id;
-                $eresult->sample_header_id = $fullCaptured->sample_header_id;
-                $eresult->analyte_id = $fullCaptured->analyte_id;
-                $eresult->analyte_code = $fullCaptured->analyte_code;
-                $eresult->analysis_type_id = $fullCaptured->analysis_type_id;
-                $eresult->lab_section_id = $fullCaptured->lab_section_id;
-                $eresult->parameters_order = $fullCaptured->parameters_order ?? 0;
-                $eresult->remark_is_manual = $fullCaptured->remark_is_manual ?? false;
-                $eresult->has_no_result_capture = $fullCaptured->has_no_result_capture ?? false;
-            }
-            // return response()->json($eresult,200);
-            $eresult->reporting_symbol = '';
-            $eresult->analyte_status_contracted = $c->analyte_status_contracted;
-            $eresult->analyte_accredited = $c->analyte_accredited;
-            $eresult->unit_code = $c->reporting_unit;
-            $eresult->result = $result;
-            $eresult->guide = $c->main_value;
-            $eresult->remarks = $c->remark;
-            $eresult->seond_guide = $c->secondary_value;
-            $eresult->result = $result;
-            $eresult->reporting_symbol = $c->result_reporting_symbol;
-            $eresult->save();
-
-            $arr[] = $eresult;
-        }
-        $header = SampleHeader::find($batch_id);
-        $header->set_date('Processing Date', \Carbon\Carbon::now(), true);
+        $header = app(ProcessedResultSyncService::class)->syncBatch((string) $batch_id);
 
         // When processing results at Sample Approval stage, generate Procedure Worksheet PDFs
         // and attach them to the batch as "Procedure Worksheet" attachments.
@@ -8297,33 +8175,8 @@ class SampleWorkFlowController extends Controller
     }
     public function processRawResultsLab(Request $request)
     {
-        $captured = CapturedResult::where('sample_header_id', $request->batch_id)->whereNotNull('result')->get();
+        app(ProcessedResultSyncService::class)->syncBatch((string) $request->batch_id);
 
-        foreach ($captured as $c) {
-            Result::updateOrCreate(
-                ['captured_result_id' => $c->id],
-                [
-                    "sample_detail_code" => $c->sample_detail_code,
-                    "sample_detail_id" => $c->sample_detail_id,
-                    "sample_header_id" => $c->sample_header_id,
-                    "analyte_id" => $c->analyte_id,
-                    "analyte_code" => $c->analyte_code,
-                    "analysis_type_id" => $c->analysis_type_id,
-                    "lab_section_id" => $c->lab_section_id,
-                    "parameters_order" => $c->parameters_order ?? 0,
-                    "remark_is_manual" => $c->remark_is_manual ?? false,
-                    "has_no_result_capture" => $c->has_no_result_capture ?? false,
-                    "result" => $c->result,
-                    "remarks" => $c->remark,
-                    "reporting_symbol" => $c->result_reporting_symbol,
-                    "seond_guide" => $c->secondary_value,
-                    'guide' => $c->main_value,
-                    'unit_code' => $c->reporting_unit,
-                    'analyte_accredited' => $c->analyte_accredited,
-                    'analyte_status_contracted' => $c->analyte_status_contracted,
-                ]
-            );
-        }
         return redirect()->back()->with('success', 'Results processed successfully!');
     }
 
@@ -8678,19 +8531,16 @@ class SampleWorkFlowController extends Controller
             $sampleCode = $request->input('sample_code');
             $analyte = $request->input('analyte');
 
-            // Find or create the captured result
             $capturedResult = null;
 
             if ($resultId) {
                 $capturedResult = CapturedResult::find($resultId);
             } else {
-                // Create new captured result if it doesn't exist
                 $sample = SampleDetails::where('sample_code', $sampleCode)->first();
                 if (!$sample) {
                     return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
                 }
 
-                // Find analyte
                 $analyteRecord = Analyte::where('code', $analyte)->first();
                 if (!$analyteRecord) {
                     return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
@@ -8704,21 +8554,18 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_code = $analyte;
             }
 
-            // Update the captured result with new settings
-            $capturedResult->reporting_unit_id = $this->resolveReportingUnitIdForParameterSettings(
-                $request->input('reporting_unit')
-            );
-            $capturedResult->method_id = $this->resolveMethodIdForParameterSettings(
-                $request->input('method_id')
-            );
-            $capturedResult->result_reporting_symbol = $request->input('reporting_symbol', $capturedResult->result_reporting_symbol);
-            $capturedResult->operator_id = $this->normalizeNullableForeignKeyForParameterSettings(
-                $request->input('analyst_id')
-            );
-            $capturedResult->analyte_accredited = $request->input('accredited', 0);
-            $capturedResult->analyte_status_contracted = $request->input('subcontracted', 0);
-
-            $capturedResult->save();
+            $actingUserId = auth()->id() ? (string) auth()->id() : null;
+            app(CapturedResultCaptureService::class)->applyOnSave($capturedResult, [
+                'reporting_unit_id' => $this->resolveReportingUnitIdForParameterSettings(
+                    $request->input('reporting_unit')
+                ),
+                'method_id' => $this->resolveMethodIdForParameterSettings(
+                    $request->input('method_id')
+                ),
+                'result_reporting_symbol' => $request->input('reporting_symbol', $capturedResult->result_reporting_symbol),
+                'analyte_accredited' => $request->input('accredited', 0),
+                'analyte_status_contracted' => $request->input('subcontracted', 0),
+            ], $actingUserId);
 
             return response()->json([
                 'success' => true,
@@ -8872,13 +8719,11 @@ class SampleWorkFlowController extends Controller
             $analyte = $request->input('analyte');
             $result = $request->input('result');
 
-            // Find or create the captured result
             $capturedResult = null;
 
             if ($resultId) {
                 $capturedResult = CapturedResult::find($resultId);
             } else {
-                // Create new captured result if it doesn't exist
                 $sample = SampleDetails::where('sample_code', $sampleCode)->first();
                 if (!$sample) {
                     return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
@@ -8897,10 +8742,9 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_code = $analyte;
             }
 
-            // Update result
-            $capturedResult->result = $result;
-
             $validationResult = null;
+            $attributes = ['result' => $result];
+
             if ($result !== null && trim((string) $result) !== '' && $capturedResult->main_value) {
                 $validationResult = app(ResultRemarkService::class)->calculateRemark(
                     $capturedResult,
@@ -8911,11 +8755,12 @@ class SampleWorkFlowController extends Controller
                 );
 
                 if (in_array($validationResult, ['PASS', 'FAIL'], true)) {
-                    $capturedResult->remark = $validationResult;
+                    $attributes['remark'] = $validationResult;
                 }
             }
 
-            $capturedResult->save();
+            $actingUserId = auth()->id() ? (string) auth()->id() : null;
+            app(CapturedResultCaptureService::class)->applyOnSave($capturedResult, $attributes, $actingUserId);
 
             return response()->json([
                 'success' => true,

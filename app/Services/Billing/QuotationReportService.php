@@ -469,6 +469,46 @@ class QuotationReportService
             $sampleTypeName = getSampleTypeByID($detail->sample_type)?->name ?? 'Tests';
             $elementIds = $this->pricingResolver->collectElementIdsFromDetail($detail);
 
+            if ((bool) ($detail->is_package ?? false)) {
+                $packageLabel = trim((string) ($detail->description ?? ''));
+                if ($packageLabel === '') {
+                    $analysisTypeId = trim((string) ($detail->part_no ?? ''));
+                    $packageLabel = $analysisTypeId !== ''
+                        ? (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis').' package'
+                        : 'Analysis package';
+                }
+
+                $grouped[$sampleTypeName][] = $this->makeLineRow(
+                    $packageLabel,
+                    (string) ($detail->test_method ?? ''),
+                    (string) ($detail->loq ?? ''),
+                    (string) ($detail->mu_percent ?? ''),
+                    (float) $detail->unit_price,
+                    (int) $detail->quantity
+                );
+
+                foreach ($elementIds as $elementId) {
+                    $element = $elementsById->get($elementId);
+                    if ($element === null) {
+                        continue;
+                    }
+
+                    $analyte = Analyte::find($element->analyte_id);
+                    $subRow = $this->makeLineRow(
+                        '· '.($analyte?->name ?? $element->parametername ?? 'Parameter'),
+                        '',
+                        '',
+                        '',
+                        0.0,
+                        (int) $detail->quantity
+                    );
+                    $subRow['is_package_sub_item'] = true;
+                    $grouped[$sampleTypeName][] = $subRow;
+                }
+
+                continue;
+            }
+
             if ($elementIds === []) {
                 $analysisTypeIds = array_filter(explode(',', (string) $detail->part_no));
                 foreach ($analysisTypeIds as $analysisTypeId) {

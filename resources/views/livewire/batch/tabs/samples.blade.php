@@ -1034,13 +1034,10 @@
                                         </select>
                                     </td>
                                     <td style="min-width: 140px;">
-                                        <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.operator_id">
-                                            <option value="">- Operator -</option>
-                                            @foreach($modalLists['operators'] as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <small class="text-muted d-block">
+                                            {{ $param['operator_name'] ?? auth()->user()?->name ?? 'Current user' }}
+                                        </small>
+                                        <span class="badge badge-light border">Auto on save</span>
                                     </td>
                                     <td style="min-width: 140px;">
                                         <select class="form-control form-control-sm"

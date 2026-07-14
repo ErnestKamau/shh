@@ -726,7 +726,8 @@ Route::post('/captured-results/update-result', 'SampleWorkFlowController@updateR
 Route::get('/captured-results/get-parameter-settings/{resultId}', 'SampleWorkFlowController@getParameterSettings')->name('get-parameter-settings')->middleware('can:laboratory.components.all samples.view');
 Route::get('/captured-results/get-standard-settings/{resultId}', 'SampleWorkFlowController@getStandardSettings')->name('get-standard-settings')->middleware('can:laboratory.components.all samples.view');
 
-Route::get('/process-raw-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-raw-results')->middleware('can:laboratory.components.all samples.view');
+Route::post('/process-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-results')->middleware('can:laboratory.components.all samples.edit');
+Route::match(['get', 'post'], '/process-raw-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-raw-results')->middleware('can:laboratory.components.all samples.view');
 Route::post('/report-interpretations/{batch_id}', 'ReportHeaderDetailController@report_interpretations')->name('report-interpretations')->middleware('can:laboratory.components.lab-reports.edit');
 Route::get('/process-pdf-report/{batch_id}/{report_format}', 'ReportHeaderDetailController@process_pdf_report')->name('process-pdf-report')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('colorQrCode/', 'ReportHeaderDetailController@colorQrCode')->name('colorQrCode')->middleware('can:laboratory.components.lab-reports.view');

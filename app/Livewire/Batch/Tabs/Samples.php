@@ -2156,11 +2156,27 @@ class Samples extends Component
                     ? $result->batchAttachment?->attachment_url
                     : null;
 
-                // Get operator
-                $operator = \App\User::find($result->operator_id);
+                // Get operator - prefer stored, else current user (auto-assigned on save)
+                $operator = \App\User::find($result->operator_id) ?? auth()->user();
 
-                // Get method
+                // Get method — fall back to analysis element when blank
                 $method = \App\AnalysisMethod::find($result->method_id);
+                if (! $method && $result->analysis_type_id && $result->analyte_id) {
+                    $element = \App\AnalysisElements::query()
+                        ->where('analysis_type_id', $result->analysis_type_id)
+                        ->where('analyte_id', $result->analyte_id)
+                        ->where('active', 1)
+                        ->first();
+                    if ($element?->method) {
+                        $method = \App\AnalysisMethod::find($element->method);
+                        if (! $result->method_id && $method) {
+                            $result->method_id = $method->id;
+                        }
+                        if (! $result->reporting_unit_id && $element->reporting_unit) {
+                            $result->reporting_unit_id = resolveReportingUnitIdFromName($element->reporting_unit);
+                        }
+                    }
+                }
 
                 // Get LTM method (stored as simple value, not a model)
                 $ltmMethod = null;
@@ -2636,18 +2652,17 @@ class Samples extends Component
                     continue;
                 }
 
-                $captured->update([
+                app(\App\Services\Sampleworkflow\CapturedResultCaptureService::class)->applyOnSave($captured, [
                     'result' => $data['result'] ?: null,
                     'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
                     'remark' => $data['remark'] ?: null,
                     'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
-                    'operator_id' => $this->normalizeNullableForeignKey($data['operator_id'] ?? null),
                     'method_id' => $this->normalizeNullableForeignKey($data['method_id'] ?? null),
                     'equipment_id' => $this->normalizeNullableForeignKey($data['equipment_id'] ?? null),
                     'lab_section_id' => $this->normalizeNullableForeignKey($data['lab_section_id'] ?? null),
                     'analyte_status_contracted' => ! empty($data['subcontracted']) ? 1 : 0,
                     'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
-                ]);
+                ], auth()->id() ? (string) auth()->id() : null);
             }
 
             $this->persistSampleAnalysisDateRange();

@@ -77,70 +77,7 @@ class APIController extends Controller
 	}
 	private function process_results($batch_id, $internal = false)
 	{
-		$header = SampleHeader::find($batch_id);
-		// $captured = CapturedResult::join('analysis_elements as ae', function ($join) {
-		// 	$join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-		// 	$join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
-		// })
-		// 	->leftJoin('analysis_guides as ag', function ($join) {
-		// 		$join->on('ag.analyte_id', '=', 'captured_results.analyte_id');
-		// 		$join->on('ag.analysis_type_id', '=', 'captured_results.analysis_type_id');
-		// 	})
-
-
-		// 	->selectRaw('captured_results.result,captured_results.main_standard_id,captured_results.secondary_standard_id,captured_results.remark,captured_results.analysis_type_id,captured_results.analyte_id,captured_results.analyte_status_contracted,captured_results.analyte_accredited, captured_results.id, ae.decimal_places, ae.significant_figures, ae.reporting_unit, ae.lod, ae.level, ae.hod')
-		// 	->where('captured_results.sample_header_id', $batch_id)->whereNotNull('captured_results.result')
-		// 	->orderBy('level', 'asc')->get();
-
-			$captured = CapturedResult::where('sample_header_id',$header->id)->get();
-
-		$arr = array();
-
-		// return response()->json($captured,200);
-		foreach ($captured as $c) {
-			$type = gettype($c->result);
-			if ($type == 'integer' || $type == 'double') {
-
-				$result = floatval($c->result);
-			} else {
-				$result = $c->result;
-			}
-			// return response()->json($secondary_standard,200);
-			$eresult = Result::where('captured_result_id', $c->id)->first(); //result to process to
-			if (!$eresult) {
-				$eresult = new Result();
-				$eresult->captured_result_id = $c->id;
-				$eresult->sample_detail_code = $c->sample_detail_code;
-				$eresult->sample_detail_id = $c->sample_detail_id;
-				$eresult->sample_header_id = $c->sample_header_id;
-				$eresult->analyte_id = $c->analyte_id;
-				$eresult->analyte_code = $c->analyte_code;
-				$eresult->analysis_type_id = $c->analysis_type_id;
-				$eresult->lab_section_id = $c->lab_section_id;
-				$eresult->parameters_order = $c->parameters_order ?? 0;
-				$eresult->remark_is_manual = $c->remark_is_manual ?? false;
-				$eresult->has_no_result_capture = $c->has_no_result_capture ?? false;
-			}
-			// return response()->json($eresult,200);
-			$eresult->reporting_symbol = '';
-			$eresult->analyte_status_contracted = $c->analyte_status_contracted;
-			$eresult->analyte_accredited = $c->analyte_accredited;
-			$eresult->unit_code = $c->reporting_unit;
-			$eresult->result = $result;
-			$eresult->remarks = $c->remark;
-			$eresult->remark_colour = $c->remark_colour;
-
-
-			$eresult->result = $result;
-			$eresult->save();
-			// return response()->json($eresult,200);
-			$arr[] = $eresult;
-		}
-
-		$header->set_date("Processing Date", \Carbon\Carbon::now(), true);
-		// return response()->json($header,200);
-
-		// return response()->json($arr, 200);
+		app(\App\Services\Sampleworkflow\ProcessedResultSyncService::class)->syncBatch((string) $batch_id);
 
 		return 'success';
 	}

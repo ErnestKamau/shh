@@ -2190,7 +2190,11 @@
 			$('#process-results-modal').on('show.bs.modal',function(){
 				var batch = $(this).data('batch');
 				$.ajax({
-					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0 ]) }}",		
+					url:"{{ route('process-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0 ]) }}",
+					method: 'POST',
+					data: {
+						_token: '{{ csrf_token() }}'
+					},
 					success: function(data){
 						console.log(data);
 						$('#process-results-modal').find('.modal-body').empty();

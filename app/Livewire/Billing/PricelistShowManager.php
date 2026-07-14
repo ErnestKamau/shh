@@ -9,9 +9,11 @@ use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistEmailLog;
 use App\Models\Billing\PricelistItem;
+use App\Models\Billing\PricelistItemElement;
 use App\Models\Currency;
 use App\Models\System\SystemConfiguration;
 use App\SampleType;
+use App\Services\Billing\PricelistNumberGenerator;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -132,18 +134,31 @@ class PricelistShowManager extends Component
 
     protected function itemRules(): array
     {
-        return [
+        $rules = [
             'itemForm.analysis_id' => 'required|exists:analysis_types,id',
             'itemForm.sample_type_id' => 'required|exists:sample_types,id',
-            'itemElementRows' => 'required|array|min:1',
-            'itemElementRows.*.analysis_element_id' => 'required|exists:analysis_elements,id',
-            'itemElementRows.*.cost_price' => 'required|numeric|min:0',
-            'itemElementRows.*.selling_price' => 'required|numeric|min:0',
-            'itemElementRows.*.vat' => 'boolean',
             'itemForm.internal_use' => 'boolean',
             'itemForm.external_view' => 'boolean',
             'itemForm.active' => 'boolean',
+            'itemForm.is_package' => 'boolean',
+            'itemElementRows' => 'required|array|min:1',
+            'itemElementRows.*.analysis_element_id' => 'required|exists:analysis_elements,id',
         ];
+
+        if (! empty($this->itemForm['is_package'])) {
+            $rules['itemForm.package_cost_price'] = 'required|numeric|min:0';
+            $rules['itemForm.package_selling_price'] = 'required|numeric|min:0';
+            $rules['itemForm.package_vat'] = 'boolean';
+            $rules['itemElementRows.*.included'] = 'boolean';
+
+            return $rules;
+        }
+
+        $rules['itemElementRows.*.cost_price'] = 'required|numeric|min:0';
+        $rules['itemElementRows.*.selling_price'] = 'required|numeric|min:0';
+        $rules['itemElementRows.*.vat'] = 'boolean';
+
+        return $rules;
     }
 
     protected function cloneRules(): array
@@ -191,6 +206,7 @@ class PricelistShowManager extends Component
                 'analysisType:id,name,code',
                 'analysisElement:id,analyte_id',
                 'analysisElement.analyte:id,name,code',
+                'packageElements',
             ])
             ->where('pricelist_id', $this->pricelistId)
             ->get();
@@ -208,18 +224,22 @@ class PricelistShowManager extends Component
                     : (float) $changedRaw;
                 $displaySelling = $changed;
                 $profit = $displaySelling - $cost;
+                $coveredCount = $item->is_package ? count($item->coveredElementIds()) : 0;
 
                 $item->sample_type_name = $sampleType->name ?? null;
                 $item->sample_type_code = $sampleType->code ?? null;
                 $item->analysis_type_name = $analysisType->name ?? null;
                 $item->analysis_type_code = $analysisType->code ?? null;
-                $item->analyte_name = $analyte?->name ?? 'N/A';
-                $item->analyte_code = $analyte?->code;
+                $item->analyte_name = $item->is_package
+                    ? ('Package ('.$coveredCount.' parameters)')
+                    : ($analyte?->name ?? 'N/A');
+                $item->analyte_code = $item->is_package ? 'PKG' : $analyte?->code;
                 $item->display_selling_price = $displaySelling;
                 $item->applied_selling_price = $selling;
                 $item->profit = $profit;
                 $item->profit_margin = $displaySelling > 0 ? (($profit / $displaySelling) * 100) : 0;
                 $item->has_pending_change = abs($selling - $changed) > 0.004;
+                $item->package_element_count = $coveredCount;
 
                 return $item;
             })
@@ -1336,11 +1356,24 @@ class PricelistShowManager extends Component
             'internal_use' => (bool) $item->internal_use,
             'external_view' => (bool) $item->external_view,
             'active' => (bool) $item->active,
+            'is_package' => (bool) $item->is_package,
+            'package_cost_price' => (float) ($item->cost_price ?? 0),
+            'package_selling_price' => (float) (
+                $item->changed_price === null || $item->changed_price === ''
+                    ? ($item->selling_price ?? 0)
+                    : $item->changed_price
+            ),
+            'package_vat' => (bool) $item->vat,
         ];
 
         $this->refreshItemElementRows();
 
         $this->showItemModal = true;
+    }
+
+    public function updatedItemFormIsPackage(): void
+    {
+        $this->refreshItemElementRows();
     }
 
     public function setItemSampleTypeDropdown(bool $open): void
@@ -1416,68 +1449,27 @@ class PricelistShowManager extends Component
             return;
         }
 
+        if (! empty($this->itemForm['is_package'])) {
+            $includedCount = collect($this->itemElementRows)
+                ->filter(fn (array $row): bool => ! empty($row['included']))
+                ->count();
+
+            if ($includedCount === 0) {
+                $this->showMessage('Select at least one analysis element for the package.', 'danger');
+
+                return;
+            }
+        }
+
         try {
             DB::transaction(function (): void {
-                $maxLevel = (int) PricelistItem::query()
-                    ->where('pricelist_id', $this->pricelistId)
-                    ->max('level');
+                if (! empty($this->itemForm['is_package'])) {
+                    $this->savePackageItem();
 
-                $nextLevel = $maxLevel > 0 ? $maxLevel + 1 : 1;
-
-                foreach ($this->itemElementRows as $row) {
-                    $analysisElementId = (string) ($row['analysis_element_id'] ?? '');
-                    if ($analysisElementId === '') {
-                        continue;
-                    }
-
-                    $proposedPrice = (float) ($row['selling_price'] ?? 0);
-
-                    $payload = [
-                        'analysis_id' => $this->itemForm['analysis_id'],
-                        'analysis_element_id' => $analysisElementId,
-                        'sample_type_id' => $this->itemForm['sample_type_id'],
-                        'cost_price' => (float) ($row['cost_price'] ?? 0),
-                        'changed_price' => $proposedPrice,
-                        'vat' => (bool) ($row['vat'] ?? false),
-                        'internal_use' => (bool) ($this->itemForm['internal_use'] ?? false),
-                        'external_view' => (bool) ($this->itemForm['external_view'] ?? true),
-                        'active' => (bool) ($this->itemForm['active'] ?? true),
-                        'updated_at' => now(),
-                    ];
-
-                    $existing = PricelistItem::query()
-                        ->where('pricelist_id', $this->pricelistId)
-                        ->where('sample_type_id', $this->itemForm['sample_type_id'])
-                        ->where('analysis_id', $this->itemForm['analysis_id'])
-                        ->where('analysis_element_id', $analysisElementId)
-                        ->first();
-
-                    if ($existing) {
-                        PricelistItem::query()
-                            ->where('id', $existing->id)
-                            ->update($payload);
-
-                        continue;
-                    }
-
-                    $payload = array_merge($payload, [
-                        'id' => (string) Str::uuid(),
-                        'pricelist_id' => $this->pricelistId,
-                        'selling_price' => 0,
-                        'level' => $nextLevel,
-                        'created_at' => now(),
-                    ]);
-
-                    PricelistItem::query()->create($payload);
-                    $nextLevel++;
+                    return;
                 }
 
-                Pricelist::query()
-                    ->where('id', $this->pricelistId)
-                    ->update([
-                        'status' => 'has-changes',
-                        'updated_at' => now(),
-                    ]);
+                $this->saveParameterItems();
             });
 
             $this->showMessage($this->editingItem ? 'Pricelist analysis items updated successfully.' : 'Pricelist analysis items added successfully.', 'success');
@@ -1485,6 +1477,166 @@ class PricelistShowManager extends Component
         } catch (\Throwable $e) {
             $this->showMessage('Failed to save pricelist item: ' . $e->getMessage(), 'danger');
         }
+    }
+
+    private function savePackageItem(): void
+    {
+        $proposedPrice = (float) ($this->itemForm['package_selling_price'] ?? 0);
+        $payload = [
+            'analysis_id' => $this->itemForm['analysis_id'],
+            'analysis_element_id' => null,
+            'sample_type_id' => $this->itemForm['sample_type_id'],
+            'cost_price' => (float) ($this->itemForm['package_cost_price'] ?? 0),
+            'changed_price' => $proposedPrice,
+            'vat' => (bool) ($this->itemForm['package_vat'] ?? false),
+            'internal_use' => (bool) ($this->itemForm['internal_use'] ?? false),
+            'external_view' => (bool) ($this->itemForm['external_view'] ?? true),
+            'active' => (bool) ($this->itemForm['active'] ?? true),
+            'is_package' => true,
+            'updated_at' => now(),
+        ];
+
+        $existing = null;
+        if ($this->editingItemId !== null) {
+            $existing = PricelistItem::query()
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('id', $this->editingItemId)
+                ->where('is_package', true)
+                ->first();
+        }
+
+        if ($existing === null) {
+            $existing = PricelistItem::query()
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('sample_type_id', $this->itemForm['sample_type_id'])
+                ->where('analysis_id', $this->itemForm['analysis_id'])
+                ->where('is_package', true)
+                ->whereNull('analysis_element_id')
+                ->first();
+        }
+
+        if ($existing) {
+            PricelistItem::query()->where('id', $existing->id)->update($payload);
+            $packageItemId = (string) $existing->id;
+        } else {
+            $maxLevel = (int) PricelistItem::query()
+                ->where('pricelist_id', $this->pricelistId)
+                ->max('level');
+            $nextLevel = $maxLevel > 0 ? $maxLevel + 1 : 1;
+            $packageItemId = (string) Str::uuid();
+
+            PricelistItem::query()->create(array_merge($payload, [
+                'id' => $packageItemId,
+                'pricelist_id' => $this->pricelistId,
+                'selling_price' => 0,
+                'level' => $nextLevel,
+                'created_at' => now(),
+            ]));
+        }
+
+        $includedElementIds = collect($this->itemElementRows)
+            ->filter(fn (array $row): bool => ! empty($row['included']))
+            ->map(fn (array $row): string => (string) ($row['analysis_element_id'] ?? ''))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        PricelistItemElement::query()
+            ->where('pricelist_item_id', $packageItemId)
+            ->whereNotIn('analysis_element_id', $includedElementIds)
+            ->delete();
+
+        $existingElementIds = PricelistItemElement::query()
+            ->where('pricelist_item_id', $packageItemId)
+            ->pluck('analysis_element_id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        foreach ($includedElementIds as $elementId) {
+            if (in_array($elementId, $existingElementIds, true)) {
+                continue;
+            }
+
+            PricelistItemElement::query()->create([
+                'id' => (string) Str::uuid(),
+                'pricelist_item_id' => $packageItemId,
+                'analysis_element_id' => $elementId,
+            ]);
+        }
+
+        Pricelist::query()
+            ->where('id', $this->pricelistId)
+            ->update([
+                'status' => 'has-changes',
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function saveParameterItems(): void
+    {
+        $maxLevel = (int) PricelistItem::query()
+            ->where('pricelist_id', $this->pricelistId)
+            ->max('level');
+
+        $nextLevel = $maxLevel > 0 ? $maxLevel + 1 : 1;
+
+        foreach ($this->itemElementRows as $row) {
+            $analysisElementId = (string) ($row['analysis_element_id'] ?? '');
+            if ($analysisElementId === '') {
+                continue;
+            }
+
+            $proposedPrice = (float) ($row['selling_price'] ?? 0);
+
+            $payload = [
+                'analysis_id' => $this->itemForm['analysis_id'],
+                'analysis_element_id' => $analysisElementId,
+                'sample_type_id' => $this->itemForm['sample_type_id'],
+                'cost_price' => (float) ($row['cost_price'] ?? 0),
+                'changed_price' => $proposedPrice,
+                'vat' => (bool) ($row['vat'] ?? false),
+                'internal_use' => (bool) ($this->itemForm['internal_use'] ?? false),
+                'external_view' => (bool) ($this->itemForm['external_view'] ?? true),
+                'active' => (bool) ($this->itemForm['active'] ?? true),
+                'is_package' => false,
+                'updated_at' => now(),
+            ];
+
+            $existing = PricelistItem::query()
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('sample_type_id', $this->itemForm['sample_type_id'])
+                ->where('analysis_id', $this->itemForm['analysis_id'])
+                ->where('analysis_element_id', $analysisElementId)
+                ->where('is_package', false)
+                ->first();
+
+            if ($existing) {
+                PricelistItem::query()
+                    ->where('id', $existing->id)
+                    ->update($payload);
+
+                continue;
+            }
+
+            $payload = array_merge($payload, [
+                'id' => (string) Str::uuid(),
+                'pricelist_id' => $this->pricelistId,
+                'selling_price' => 0,
+                'level' => $nextLevel,
+                'created_at' => now(),
+            ]);
+
+            PricelistItem::query()->create($payload);
+            $nextLevel++;
+        }
+
+        Pricelist::query()
+            ->where('id', $this->pricelistId)
+            ->update([
+                'status' => 'has-changes',
+                'updated_at' => now(),
+            ]);
     }
 
     public function openDeleteItemConfirmModal(string $itemId): void
@@ -1495,6 +1647,7 @@ class PricelistShowManager extends Component
                 'analysisType:id,name,code',
                 'analysisElement:id,analyte_id',
                 'analysisElement.analyte:id,name,code',
+                'packageElements',
             ])
             ->where('pricelist_id', $this->pricelistId)
             ->where('id', $itemId)
@@ -1644,15 +1797,21 @@ class PricelistShowManager extends Component
 
             DB::transaction(function () use (&$newPricelistId): void {
                 $newPricelistId = (string) Str::uuid();
+                $companyId = function_exists('getUserCompany')
+                    ? getUserCompany()
+                    : null;
+                $numbers = app(PricelistNumberGenerator::class)->next(
+                    $companyId !== null ? (string) $companyId : null,
+                );
 
                 Pricelist::query()->create([
                     'id' => $newPricelistId,
-                    'code' => $this->generatePricelistCode(),
+                    'code' => $numbers['code'],
                     'description' => $this->cloneForm['description'],
                     'currency_id' => $this->cloneForm['currency_id'],
                     'is_master' => (bool) ($this->cloneForm['is_master'] ?? false),
                     'active' => (bool) ($this->cloneForm['active'] ?? true),
-                    'document_no' => 'DOC-',
+                    'document_no' => $numbers['document_no'],
                     'revision_number' => '1',
                     'status' => 'no-changes',
                     'valid_till' => $this->cloneForm['valid_till'] ?: null,
@@ -1661,6 +1820,7 @@ class PricelistShowManager extends Component
                 ]);
 
                 $items = PricelistItem::query()
+                    ->with('packageElements')
                     ->whereIn('id', $this->selectedItemIds)
                     ->get();
 
@@ -1675,8 +1835,10 @@ class PricelistShowManager extends Component
 
                 $level = 1;
                 foreach ($items as $item) {
+                    $newItemId = (string) Str::uuid();
+
                     PricelistItem::query()->create([
-                        'id' => (string) Str::uuid(),
+                        'id' => $newItemId,
                         'pricelist_id' => $newPricelistId,
                         'analysis_id' => $item->analysis_id,
                         'analysis_element_id' => $item->analysis_element_id,
@@ -1688,10 +1850,21 @@ class PricelistShowManager extends Component
                         'internal_use' => (bool) $item->internal_use,
                         'external_view' => (bool) $item->external_view,
                         'active' => (bool) $item->active,
+                        'is_package' => (bool) $item->is_package,
                         'level' => $level,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+                    if ($item->is_package) {
+                        foreach ($item->coveredElementIds() as $elementId) {
+                            PricelistItemElement::query()->create([
+                                'id' => (string) Str::uuid(),
+                                'pricelist_item_id' => $newItemId,
+                                'analysis_element_id' => $elementId,
+                            ]);
+                        }
+                    }
 
                     $level++;
                 }
@@ -1795,6 +1968,10 @@ class PricelistShowManager extends Component
             'internal_use' => false,
             'external_view' => true,
             'active' => true,
+            'is_package' => false,
+            'package_cost_price' => 0,
+            'package_selling_price' => 0,
+            'package_vat' => false,
         ];
 
         $this->itemElementRows = [];
@@ -1837,12 +2014,43 @@ class PricelistShowManager extends Component
             ->where('pricelist_id', $this->pricelistId)
             ->where('sample_type_id', $sampleTypeId)
             ->where('analysis_id', $analysisId)
+            ->where('is_package', false)
             ->get()
             ->keyBy(function ($item) {
                 return (string) ($item->analysis_element_id ?? '');
             });
 
-        $this->itemElementRows = $elements->map(function ($element) use ($existingItems) {
+        $packageItem = PricelistItem::query()
+            ->with('packageElements')
+            ->where('pricelist_id', $this->pricelistId)
+            ->where('sample_type_id', $sampleTypeId)
+            ->where('analysis_id', $analysisId)
+            ->where('is_package', true)
+            ->whereNull('analysis_element_id')
+            ->first();
+
+        $isPackageMode = ! empty($this->itemForm['is_package']);
+
+        if ($packageItem !== null && $isPackageMode) {
+            $changedRaw = $packageItem->changed_price;
+            $this->itemForm['package_cost_price'] = (float) ($packageItem->cost_price ?? 0);
+            $this->itemForm['package_selling_price'] = $changedRaw === null || $changedRaw === ''
+                ? (float) ($packageItem->selling_price ?? 0)
+                : (float) $changedRaw;
+            $this->itemForm['package_vat'] = (bool) $packageItem->vat;
+            $this->itemForm['internal_use'] = (bool) $packageItem->internal_use;
+            $this->itemForm['external_view'] = (bool) $packageItem->external_view;
+            $this->itemForm['active'] = (bool) $packageItem->active;
+            if ($this->editingItemId === null || $this->editingItemId === (string) $packageItem->id) {
+                $this->itemForm['id'] = $packageItem->id;
+                $this->editingItemId = (string) $packageItem->id;
+                $this->editingItem = true;
+            }
+        }
+
+        $coveredElementIds = $packageItem?->coveredElementIds() ?? [];
+
+        $this->itemElementRows = $elements->map(function ($element) use ($existingItems, $coveredElementIds, $isPackageMode) {
             $existing = $existingItems->get((string) $element->id);
             $analyteCode = trim((string) ($element->analyte?->code ?? ''));
             $analyteName = trim((string) ($element->analyte?->name ?? ''));
@@ -1855,12 +2063,17 @@ class PricelistShowManager extends Component
                     : (float) $changedRaw;
             }
 
+            $included = $isPackageMode
+                ? ($coveredElementIds === [] || in_array((string) $element->id, $coveredElementIds, true))
+                : false;
+
             return [
                 'analysis_element_id' => (string) $element->id,
                 'analyte_label' => trim($analyteCode !== '' ? ($analyteCode . ' - ' . $analyteName) : $analyteName),
                 'cost_price' => (float) ($existing->cost_price ?? 0),
                 'selling_price' => $proposedPrice,
                 'vat' => (bool) ($existing->vat ?? false),
+                'included' => $included,
             ];
         })->values()->all();
     }
@@ -1874,19 +2087,6 @@ class PricelistShowManager extends Component
             'is_master' => false,
             'active' => true,
         ];
-    }
-
-    private function generatePricelistCode(): string
-    {
-        if (function_exists('getNamingConventionCode')) {
-            try {
-                return (string) getNamingConventionCode('Pricelist', false, 'PL-');
-            } catch (\Throwable $e) {
-                // Fallback when naming convention helper is unavailable.
-            }
-        }
-
-        return 'PL-' . now()->format('ymdHis');
     }
 
     private function formatAccountSettingLabel(?string $raw): string
@@ -2043,9 +2243,11 @@ class PricelistShowManager extends Component
 
         $analyteCode = trim((string) ($analyte?->code ?? ''));
         $analyteName = trim((string) ($analyte?->name ?? ''));
-        $analyteLabel = $analyteCode !== ''
-            ? trim($analyteCode . ' - ' . $analyteName)
-            : ($analyteName !== '' ? $analyteName : 'N/A');
+        $analyteLabel = (bool) $item->is_package
+            ? ('Package ('.count($item->coveredElementIds()).' parameters)')
+            : ($analyteCode !== ''
+                ? trim($analyteCode . ' - ' . $analyteName)
+                : ($analyteName !== '' ? $analyteName : 'N/A'));
 
         $selling = (float) ($item->selling_price ?? 0);
         $changedRaw = $item->changed_price;
@@ -2067,6 +2269,7 @@ class PricelistShowManager extends Component
             'commit_state' => $hasPendingChange ? 'Pending' : 'Applied',
             'vat' => (bool) ($item->vat ?? false) ? 'Yes' : 'No',
             'active' => (bool) ($item->active ?? false) ? 'Active' : 'Inactive',
+            'is_package' => (bool) $item->is_package,
         ];
     }
 

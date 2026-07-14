@@ -1522,7 +1522,7 @@
 				<div id="process-results-modal" class="modal fade" role="dialog">
 					<div class="modal-dialog">
 						<!-- Modal content-->
-						<form class="modal-content" method="GET" action="{{ route('process-raw-results', ['batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+						<form class="modal-content" method="POST" action="{{ route('process-results', ['batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
 							@csrf
 							<div class="modal-header">
 								<h4 class="modal-title"><i class="mdi mdi-file-cog-outline"></i> Process Results </h4>

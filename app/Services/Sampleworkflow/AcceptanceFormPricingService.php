@@ -447,7 +447,8 @@ class AcceptanceFormPricingService
 
         $query = PricelistItem::query()
             ->where('pricelist_id', $pricelist->id)
-            ->where('active', 1);
+            ->where('active', 1)
+            ->where('is_package', false);
 
         if (!empty($sampleTypeId)) {
             $query->where('sample_type_id', $sampleTypeId);
@@ -462,6 +463,7 @@ class AcceptanceFormPricingService
             $item = PricelistItem::query()
                 ->where('pricelist_id', $pricelist->id)
                 ->where('active', 1)
+                ->where('is_package', false)
                 ->where('analysis_element_id', $analysisElementId)
                 ->first();
             if ($item) {
@@ -470,13 +472,285 @@ class AcceptanceFormPricingService
         }
 
         if ($analysisTypeId !== '') {
-            $item = (clone $query)->where('analysis_id', $analysisTypeId)->first();
+            $item = (clone $query)
+                ->where('analysis_id', $analysisTypeId)
+                ->whereNull('analysis_element_id')
+                ->first();
             if ($item) {
                 return (float) $item->selling_price;
             }
         }
 
         return 0.0;
+    }
+
+    /**
+     * Find an analysis-type package covering the requested elements, searching pricelists
+     * in the same order as resolveLinePriceWithPricelist (preferred → assigned by recency → master).
+     * A package applies when every element it covers is present in the requested set.
+     *
+     * @param  list<string>  $requestedElementIds
+     * @return ?array{item: PricelistItem, pricelist: Pricelist, covered_element_ids: list<string>}
+     */
+    public function resolvePackageForGroup(
+        ?string $customerId,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        array $requestedElementIds,
+        ?Pricelist $preferredPricelist = null,
+    ): ?array {
+        $requestedElementIds = array_values(array_unique(array_filter(array_map(
+            fn ($id): string => (string) $id,
+            $requestedElementIds
+        ))));
+
+        if ($analysisTypeId === '' || $requestedElementIds === []) {
+            return null;
+        }
+
+        $candidates = [];
+
+        if ($preferredPricelist !== null) {
+            $candidates[] = $preferredPricelist;
+        }
+
+        if ($customerId !== null && $customerId !== '') {
+            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
+                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
+                    continue;
+                }
+                $candidates[] = $pricelist;
+            }
+        }
+
+        $fallback = $this->resolvePricelist($customerId);
+        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
+            $candidates[] = $fallback;
+        }
+
+        foreach ($candidates as $pricelist) {
+            $match = $this->matchPackageInPricelist($pricelist, $sampleTypeId, $analysisTypeId, $requestedElementIds);
+            if ($match !== null) {
+                return [
+                    'item' => $match['item'],
+                    'pricelist' => $pricelist,
+                    'covered_element_ids' => $match['covered_element_ids'],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $requestedElementIds
+     * @return ?array{item: PricelistItem, covered_element_ids: list<string>}
+     */
+    private function matchPackageInPricelist(
+        Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        array $requestedElementIds,
+    ): ?array {
+        $query = PricelistItem::query()
+            ->with('packageElements')
+            ->where('pricelist_id', $pricelist->id)
+            ->where('active', 1)
+            ->where('is_package', true)
+            ->where('analysis_id', $analysisTypeId);
+
+        $packages = (! empty($sampleTypeId))
+            ? (clone $query)->where('sample_type_id', $sampleTypeId)->get()
+            : collect();
+
+        if ($packages->isEmpty()) {
+            $packages = $query->get();
+        }
+
+        foreach ($packages as $package) {
+            $coveredElementIds = $package->coveredElementIds();
+
+            if ($coveredElementIds === []) {
+                continue;
+            }
+
+            if (array_diff($coveredElementIds, $requestedElementIds) === []) {
+                return [
+                    'item' => $package,
+                    'covered_element_ids' => $coveredElementIds,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Collapse per-parameter quotation lines into a single package line when the request
+     * covers all elements in an assigned analysis-type package. Uncovered extras keep
+     * their per-parameter pricing.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function applyPackagePricingToLines(
+        array $lines,
+        ?string $customerId,
+        ?Pricelist $preferredPricelist = null,
+    ): array {
+        if ($lines === []) {
+            return [];
+        }
+
+        $groups = [];
+        foreach ($lines as $index => $line) {
+            if (! empty($line['is_package'])) {
+                continue;
+            }
+
+            $elementId = (string) ($line['analysis_element_id'] ?? '');
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+            if ($elementId === '' || $analysisTypeId === '') {
+                continue;
+            }
+
+            $key = implode('::', [
+                (string) ($line['acceptance_config_key'] ?? ''),
+                (string) ($line['sample_type_id'] ?? ''),
+                $analysisTypeId,
+            ]);
+            $groups[$key][] = $index;
+        }
+
+        $removedIndexes = [];
+        $packageLineByFirstIndex = [];
+
+        foreach ($groups as $indexes) {
+            $firstLine = $lines[$indexes[0]];
+            $sampleTypeId = (string) ($firstLine['sample_type_id'] ?? '');
+            $analysisTypeId = (string) ($firstLine['analysis_type_id'] ?? '');
+
+            $requestedElementIds = array_map(
+                fn (int $index): string => (string) ($lines[$index]['analysis_element_id'] ?? ''),
+                $indexes
+            );
+
+            $match = $this->resolvePackageForGroup(
+                $customerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                $requestedElementIds,
+                $preferredPricelist,
+            );
+
+            if ($match === null) {
+                continue;
+            }
+
+            $coveredElementIds = $match['covered_element_ids'];
+            $coveredIndexes = array_values(array_filter(
+                $indexes,
+                fn (int $index): bool => in_array((string) ($lines[$index]['analysis_element_id'] ?? ''), $coveredElementIds, true)
+            ));
+
+            if ($coveredIndexes === []) {
+                continue;
+            }
+
+            $quantity = max(array_map(
+                fn (int $index): int => max(1, (int) ($lines[$index]['physical_sample_count'] ?? $lines[$index]['quantity'] ?? 1)),
+                $coveredIndexes
+            ));
+
+            $packageLineByFirstIndex[min($coveredIndexes)] = $this->makePackageLine(
+                $firstLine,
+                $match['item'],
+                $coveredElementIds,
+                $quantity,
+            );
+
+            foreach ($coveredIndexes as $index) {
+                $removedIndexes[$index] = true;
+            }
+        }
+
+        if ($packageLineByFirstIndex === []) {
+            return $lines;
+        }
+
+        $result = [];
+        foreach ($lines as $index => $line) {
+            if (isset($packageLineByFirstIndex[$index])) {
+                $result[] = $packageLineByFirstIndex[$index];
+            }
+
+            if (isset($removedIndexes[$index])) {
+                continue;
+            }
+
+            $result[] = $line;
+        }
+
+        foreach ($result as $index => &$line) {
+            $line['line_no'] = $index + 1;
+            if (array_key_exists('sort_order', $line)) {
+                $line['sort_order'] = $index;
+            }
+        }
+        unset($line);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $templateLine
+     * @param  list<string>  $coveredElementIds
+     * @return array<string, mixed>
+     */
+    private function makePackageLine(
+        array $templateLine,
+        PricelistItem $packageItem,
+        array $coveredElementIds,
+        int $quantity,
+    ): array {
+        $elementLabels = AnalysisElements::query()
+            ->with('analyte:id,name,code')
+            ->whereIn('id', $coveredElementIds)
+            ->orderBy('level')
+            ->get()
+            ->map(fn (AnalysisElements $element): string => (string) ($element->analyte?->name ?? $element->name ?? 'Parameter'))
+            ->values()
+            ->all();
+
+        $analysisTypeName = (string) ($templateLine['analysis_type_name'] ?? '');
+        if ($analysisTypeName === '') {
+            $analysisTypeId = (string) ($templateLine['analysis_type_id'] ?? '');
+            $analysisTypeName = $analysisTypeId !== ''
+                ? (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis')
+                : 'Analysis';
+        }
+
+        $taxPercent = $packageItem->vat
+            ? app(\App\Services\Billing\QuotationLineTaxResolver::class)->activeTaxRegimePercent()
+            : 0.0;
+
+        $line = $templateLine;
+        $line['analysis_element_id'] = null;
+        $line['is_package'] = true;
+        $line['package_pricelist_item_id'] = (string) $packageItem->id;
+        $line['package_element_ids'] = array_values($coveredElementIds);
+        $line['package_element_labels'] = $elementLabels;
+        $line['parameter_label'] = $analysisTypeName.' package ('.count($coveredElementIds).' parameters)';
+        $line['physical_sample_count'] = $quantity;
+        $line['quantity'] = $quantity;
+        $line['unit_price'] = (float) $packageItem->selling_price;
+        if (array_key_exists('unit_amount', $line)) {
+            $line['unit_amount'] = (float) $packageItem->selling_price;
+        }
+        $line['tax'] = $taxPercent;
+        $line['subcontracted'] = false;
+
+        return $line;
     }
 
     /**

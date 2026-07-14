@@ -120,55 +120,6 @@
                                     </div>
                                 @endif
 
-                                @if($this->showQuotationSourcePicker)
-                                    <div class="mb-4 border rounded p-3 bg-light">
-                                        <h6 class="acc-wizard-section-title">Quotation source</h6>
-
-                                        <div class="form-group mb-3">
-                                            <div class="custom-control custom-radio mb-2">
-                                                <input type="radio"
-                                                       id="quotation-source-pricelist"
-                                                       class="custom-control-input"
-                                                       wire:model.live="quotationSourceMode"
-                                                       value="{{ \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST }}">
-                                                <label class="custom-control-label font-weight-normal" for="quotation-source-pricelist">
-                                                    Create from customer pricelist
-                                                </label>
-                                            </div>
-                                            <div class="custom-control custom-radio">
-                                                <input type="radio"
-                                                       id="quotation-source-existing"
-                                                       class="custom-control-input"
-                                                       wire:model.live="quotationSourceMode"
-                                                       value="{{ \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING }}">
-                                                <label class="custom-control-label font-weight-normal" for="quotation-source-existing">
-                                                    Use existing customer quotation
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        @if($quotationSourceMode === \App\Models\SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING)
-                                            <div class="form-group mb-0" style="max-width: 28rem;">
-                                                <select id="selected-source-quotation"
-                                                        class="form-control"
-                                                        wire:model.live="selectedSourceQuotationId"
-                                                        aria-label="Select a completed quotation">
-                                                    <option value="">Select a quotation…</option>
-                                                    @foreach($this->reusableCustomerQuotations as $quote)
-                                                        <option value="{{ $quote['id'] }}">
-                                                            {{ $quote['quote_number'] }}@if($quote['analysis_types'] !== '') ({{ $quote['analysis_types'] }})@endif
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                                @if($this->reusableCustomerQuotations === [])
-                                                    <small class="form-text text-muted">
-                                                        No completed, non-expired quotations were found for this customer.
-                                                    </small>
-                                                @endif
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endif
                             </section>
 
                             <div class="acc-wizard-footer">
@@ -198,26 +149,6 @@
                             @include('livewire.partials.process-enquiry-status-alert')
 
                             <section class="acc-wizard-section acc-pricing-section">
-                                @if($this->showPristineReuseQuotation)
-                                    <div class="alert alert-light border mb-3 py-2 px-3 d-flex flex-wrap align-items-center justify-content-between" style="gap: 8px;">
-                                        <div class="mb-0">
-                                            <i class="mdi mdi-file-document-outline text-primary"></i>
-                                            Using quotation <strong>{{ $quoteNumber }}</strong>
-                                            @if($pdfGenerated)
-                                                <span class="badge badge-success ml-1">PDF ready</span>
-                                            @else
-                                                <span class="badge badge-warning ml-1">PDF not generated yet</span>
-                                            @endif
-                                        </div>
-                                        @if($pdfGenerated && $quotationHeaderId)
-                                            <a href="{{ route('quotation.preview', ['id' => $quotationHeaderId]) }}"
-                                               class="btn btn-sm btn-outline-secondary" target="_blank">
-                                                <i class="mdi mdi-eye"></i> Preview quotation
-                                            </a>
-                                        @endif
-                                    </div>
-                                @endif
-
                                 <div class="acc-pricing-toolbar mb-3 d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
                                     <h6 class="acc-wizard-section-title mb-0">Parameters &amp; pricing</h6>
                                     <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
@@ -230,19 +161,15 @@
                                         @else
                                             <span class="badge badge-secondary">Draft pricing</span>
                                         @endif
-                                        @unless($this->showPristineReuseQuotation)
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
-                                                <i class="mdi mdi-sync"></i> Sync from pricelist
-                                            </button>
-                                            <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
-                                                <i class="mdi mdi-file-document-check-outline"></i> Build quotation
-                                            </button>
-                                        @endunless
-                                        @unless($this->showPristineReuseQuotation && $pdfGenerated)
-                                            <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled" @disabled(!$quotationBuilt && !$this->showPristineReuseQuotation)>
-                                                <i class="mdi mdi-file-pdf-box"></i> Generate PDF
-                                            </button>
-                                        @endunless
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
+                                            <i class="mdi mdi-sync"></i> Sync from pricelist
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
+                                            <i class="mdi mdi-file-document-check-outline"></i> Build quotation
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled" @disabled(!$quotationBuilt)>
+                                            <i class="mdi mdi-file-pdf-box"></i> Generate PDF
+                                        </button>
                                         @if($pdfGenerated && $quotationHeaderId)
                                             <a href="{{ route('quotation.preview', ['id' => $quotationHeaderId]) }}"
                                                class="btn btn-sm btn-outline-secondary" target="_blank">
@@ -277,7 +204,19 @@
                                                 @endphp
                                                 <tr wire:key="ql-{{ $index }}">
                                                     <td>{{ $index + 1 }}</td>
-                                                    <td>{{ $line['parameter_label'] ?? 'Parameter' }}</td>
+                                                    <td>
+                                                        {{ $line['parameter_label'] ?? 'Parameter' }}
+                                                        @if(!empty($line['is_package']))
+                                                            <span class="badge badge-primary badge-pill ml-1">Package</span>
+                                                            @if(!empty($line['package_element_labels']) && is_array($line['package_element_labels']))
+                                                                <div class="small text-muted mt-1">
+                                                                    @foreach($line['package_element_labels'] as $packageLabel)
+                                                                        <div>· {{ $packageLabel }}</div>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        @endif
+                                                    </td>
                                                     <td class="text-center text-muted small">{{ $line['loq'] ?? '—' }}</td>
                                                     <td class="text-center text-muted small">{{ $line['mu_percent'] ?? '—' }}</td>
                                                     <td class="text-right">
@@ -349,17 +288,13 @@
                                 <button type="button" class="btn btn-outline-secondary" wire:click.stop.prevent="goToStep('sample_config')">
                                     <i class="mdi mdi-arrow-left"></i> Back
                                 </button>
-                                <button type="button" class="btn btn-primary" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt && !$this->showPristineReuseQuotation)>
+                                <button type="button" class="btn btn-primary" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt)>
                                     <span wire:loading.remove wire:target="sendQuotation">
                                         <i class="mdi mdi-send"></i>
                                         {{ $quotationSent ? 'Send again' : 'Send to customer' }}
                                     </span>
                                     <span wire:loading wire:target="sendQuotation">
-                                        @if($this->showPristineReuseQuotation && $pdfGenerated)
-                                            Sending…
-                                        @else
-                                            Generating &amp; sending…
-                                        @endif
+                                        Generating &amp; sending…
                                     </span>
                                 </button>
                             </div>
@@ -404,7 +339,19 @@
                                             $unitPrice = (float) ($line['unit_price'] ?? 0);
                                         @endphp
                                         <tr>
-                                            <td>{{ $line['parameter_label'] ?? 'Parameter' }}</td>
+                                            <td>
+                                                {{ $line['parameter_label'] ?? 'Parameter' }}
+                                                @if(!empty($line['is_package']))
+                                                    <span class="badge badge-primary badge-pill ml-1">Package</span>
+                                                    @if(!empty($line['package_element_labels']) && is_array($line['package_element_labels']))
+                                                        <div class="small text-muted mt-1">
+                                                            @foreach($line['package_element_labels'] as $packageLabel)
+                                                                <div>· {{ $packageLabel }}</div>
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
+                                                @endif
+                                            </td>
                                             <td class="text-center">{{ $sampleCount }}</td>
                                             <td class="text-right">{{ number_format($unitPrice, 2) }}</td>
                                             <td class="text-right">{{ number_format($sampleCount * $unitPrice, 2) }}</td>

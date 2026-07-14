@@ -5,7 +5,6 @@ namespace App\Services\Commercial;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\Billing\PricelistCustomer;
-use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationDetailAnalysisSplit;
@@ -19,12 +18,9 @@ use App\Services\Billing\QuotationRevisionService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Collection;
 use RuntimeException;
 
 final class QuotationFromEnquiryService
@@ -41,15 +37,6 @@ final class QuotationFromEnquiryService
     {
         $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
         $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
-
-        if ($this->isSourceQuotationFeatureAvailable()
-            && $enquiry->quotation_source_mode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
-            && ! empty($enquiry->selected_source_quotation_header_id)) {
-            $linked = $this->resolveLinkedSourceQuotation($enquiry);
-            if ($linked !== null) {
-                return $linked;
-            }
-        }
 
         if ($enquiry->current_quotation_header_id) {
             $existing = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
@@ -200,7 +187,13 @@ final class QuotationFromEnquiryService
             }
         }
 
-        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics(
+            $this->pricingService->applyPackagePricingToLines(
+                $lines,
+                $customerId,
+                $this->pricingService->resolveCustomerAssignedPricelist($customerId) ?? $pricelist,
+            )
+        );
     }
 
     /**
@@ -255,7 +248,9 @@ final class QuotationFromEnquiryService
             ];
         }
 
-        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics(
+            $this->pricingService->applyPackagePricingToLines($lines, $customerId, $preferredPricelist)
+        );
     }
 
     private function isElementSubcontracted(?string $analysisElementId): bool
@@ -341,268 +336,6 @@ final class QuotationFromEnquiryService
     }
 
     /**
-     * @return Collection<int, QuotationHeader>
-     */
-    public function listReusableCustomerQuotations(string $customerId): Collection
-    {
-        if ($customerId === '') {
-            return collect();
-        }
-
-        return QuotationHeader::query()
-            ->with('details')
-            ->where('crm_customer_id', $customerId)
-            ->where('status', 'Quote Complete')
-            ->where(function ($query): void {
-                $query->whereNull('expiring_date')
-                    ->orWhereDate('expiring_date', '>=', now()->toDateString());
-            })
-            ->orderByDesc('quote_date')
-            ->orderByDesc('id')
-            ->get();
-    }
-
-    public function summarizeQuotationAnalysisTypes(QuotationHeader $header): string
-    {
-        $header->loadMissing('details');
-        $detailIds = $header->details->pluck('id')->all();
-
-        $analysisTypeIds = collect();
-
-        if ($detailIds !== []) {
-            $analysisTypeIds = $analysisTypeIds->merge(
-                QuotationDetailAnalysisSplit::query()
-                    ->whereIn('quotation_detail_id', $detailIds)
-                    ->pluck('analysis_type_id')
-            );
-        }
-
-        foreach ($header->details as $detail) {
-            $partIds = array_values(array_filter(array_map(
-                'trim',
-                explode(',', (string) ($detail->part_no ?? ''))
-            )));
-            $analysisTypeIds = $analysisTypeIds->merge($partIds);
-        }
-
-        $uniqueIds = $analysisTypeIds->unique()->filter()->values();
-
-        if ($uniqueIds->isEmpty()) {
-            return '';
-        }
-
-        return AnalysisType::query()
-            ->whereIn('id', $uniqueIds->all())
-            ->orderBy('name')
-            ->pluck('name')
-            ->implode(', ');
-    }
-
-    public function linkExistingQuotationToEnquiry(
-        SampleSubmissionRequest $enquiry,
-        QuotationHeader $source,
-    ): SampleSubmissionRequest {
-        if ((string) $source->crm_customer_id !== (string) $enquiry->crm_customer_id) {
-            throw new RuntimeException('Selected quotation does not belong to this customer.');
-        }
-
-        if ((string) $source->status !== 'Quote Complete') {
-            throw new RuntimeException('Only completed quotations can be reused.');
-        }
-
-        if ($source->expiring_date !== null
-            && Carbon::parse($source->expiring_date)->lt(now()->startOfDay())) {
-            throw new RuntimeException('Selected quotation has expired.');
-        }
-
-        if ($this->hasSelectedSourceQuotationColumn()) {
-            $enquiry->selected_source_quotation_header_id = (string) $source->id;
-        }
-        $enquiry->current_quotation_header_id = (string) $source->id;
-        if ($this->hasQuotationSourceModeColumn()) {
-            $enquiry->quotation_source_mode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING;
-        }
-
-        if ($enquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
-            || $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW) {
-            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
-        }
-
-        $enquiry->save();
-
-        return $enquiry->fresh(['currentQuotation', 'selectedSourceQuotation']);
-    }
-
-    public function ensureEditableQuotationForEnquiry(SampleSubmissionRequest $enquiry): QuotationHeader
-    {
-        $enquiry->refresh();
-
-        if (! $this->isSourceQuotationFeatureAvailable()
-            || $enquiry->quotation_source_mode !== SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
-            || empty($enquiry->selected_source_quotation_header_id)) {
-            return $this->createOrOpen($enquiry);
-        }
-
-        $sourceId = (string) $enquiry->selected_source_quotation_header_id;
-        $currentId = (string) ($enquiry->current_quotation_header_id ?? '');
-
-        if ($currentId !== '' && $currentId !== $sourceId) {
-            $existing = QuotationHeader::query()->with('details')->find($currentId);
-            if ($existing !== null) {
-                return $existing;
-            }
-        }
-
-        $source = QuotationHeader::query()->with('details')->find($sourceId);
-        if ($source === null) {
-            throw new RuntimeException('Selected source quotation was not found.');
-        }
-
-        if ($currentId === $sourceId) {
-            return $this->cloneAsEnquiryQuotation($enquiry, $source);
-        }
-
-        return $this->linkExistingQuotationToEnquiry($enquiry, $source)->currentQuotation
-            ?? $source;
-    }
-
-    public function cloneAsEnquiryQuotation(
-        SampleSubmissionRequest $enquiry,
-        QuotationHeader $source,
-    ): QuotationHeader {
-        return DB::transaction(function () use ($enquiry, $source): QuotationHeader {
-            $source->loadMissing('details');
-
-            $preparedById = Auth::id();
-            if ($preparedById === null) {
-                throw new RuntimeException('You must be signed in to clone a quotation.');
-            }
-
-            $header = new QuotationHeader();
-            $header->crm_customer_id = $source->crm_customer_id;
-            $header->crm_customer_contact_id = $this->resolveContactId($enquiry)
-                ?? $source->crm_customer_contact_id;
-            $header->quote_date = now()->toDateString();
-            $header->expiring_date = $source->expiring_date !== null
-                ? Carbon::parse($source->expiring_date)->toDateString()
-                : now()->addDays(30)->toDateString();
-            $header->prepared_by_id = (string) $preparedById;
-            $header->quotation_type = $source->quotation_type ?? 'Analysis';
-            $header->status = 'Quote Complete';
-            $header->pricelist_id = $source->pricelist_id;
-            $header->currency_id = $source->currency_id;
-            $header->from_enquiry = true;
-            $header->sample_submission_request_id = $enquiry->id;
-            $header->source_quotation_header_id = $source->id;
-            $header->sub_total = $source->sub_total;
-            $header->tax = $source->tax;
-            $header->total_amount = $source->total_amount;
-            $header->service_delivery = $source->service_delivery;
-            $header->payments = $source->payments;
-            $header->quote_specification = $source->quote_specification;
-            $header->additional_info = $source->additional_info;
-            $header->payment_info = $source->payment_info;
-            $header->subject = $source->subject;
-            $header->sample_point_id = $source->sample_point_id;
-            $header->sampling_location = $source->sampling_location;
-            $header->laboratory_ref = $source->laboratory_ref;
-            $header->terms_override = $source->terms_override;
-            $header->structured_terms = $source->structured_terms;
-            $header->show_loq_column = $source->show_loq_column ?? true;
-            $header->show_mu_column = $source->show_mu_column ?? true;
-            $header->show_unit_price_column = $source->show_unit_price_column ?? true;
-            $header->is_draft = 0;
-            $header->is_complete = 1;
-            $header->is_approved = 1;
-            $header->save();
-
-            AmSpecQuotationNumberGenerator::assignIfMissing($header);
-
-            foreach ($source->details as $detail) {
-                $cloned = QuotationDetails::query()->create([
-                    'quotation_header_id' => $header->id,
-                    'sample_type' => $detail->sample_type,
-                    'quantity' => $detail->quantity,
-                    'unit_price' => $detail->unit_price,
-                    'tax' => $detail->tax,
-                    'part_no' => $detail->part_no,
-                    'accredited_analytes' => $detail->accredited_analytes,
-                    'subcontracted_analytes' => $detail->subcontracted_analytes,
-                    'default_analytes' => $detail->default_analytes,
-                    'sub_acc_analytes' => $detail->sub_acc_analytes,
-                    'description' => $detail->description,
-                    'test_method' => $detail->test_method,
-                    'loq' => $detail->loq,
-                    'mu_percent' => $detail->mu_percent,
-                    'item_name' => $detail->item_name,
-                    'photo_url' => $detail->photo_url,
-                    'invoicable_item_id' => $detail->invoicable_item_id,
-                ]);
-
-                $splits = QuotationDetailAnalysisSplit::query()
-                    ->where('quotation_detail_id', $detail->id)
-                    ->get();
-
-                foreach ($splits as $split) {
-                    QuotationDetailAnalysisSplit::query()->create([
-                        'quotation_detail_id' => $cloned->id,
-                        'analysis_type_id' => $split->analysis_type_id,
-                    ]);
-                }
-            }
-
-            $enquiry->current_quotation_header_id = (string) $header->id;
-            $enquiry->save();
-
-            return $header->fresh(['details']);
-        });
-    }
-
-    public function resolveLinkedSourceQuotation(SampleSubmissionRequest $enquiry): ?QuotationHeader
-    {
-        if (! $this->isSourceQuotationFeatureAvailable()) {
-            return null;
-        }
-
-        $sourceId = (string) $enquiry->selected_source_quotation_header_id;
-        $currentId = (string) ($enquiry->current_quotation_header_id ?? '');
-
-        if ($currentId !== '') {
-            $current = QuotationHeader::query()->find($currentId);
-            if ($current !== null) {
-                return $this->syncHeaderCustomerFromEnquiry(
-                    $this->syncHeaderPricelistAndCurrency($current, $enquiry),
-                    $enquiry,
-                );
-            }
-        }
-
-        $source = QuotationHeader::query()->find($sourceId);
-        if ($source === null) {
-            return null;
-        }
-
-        $this->linkExistingQuotationToEnquiry($enquiry->fresh(), $source);
-
-        return $source->fresh(['details']);
-    }
-
-    private function hasQuotationSourceModeColumn(): bool
-    {
-        return Schema::hasColumn('sample_submission_requests', 'quotation_source_mode');
-    }
-
-    private function hasSelectedSourceQuotationColumn(): bool
-    {
-        return Schema::hasColumn('sample_submission_requests', 'selected_source_quotation_header_id');
-    }
-
-    private function isSourceQuotationFeatureAvailable(): bool
-    {
-        return $this->hasQuotationSourceModeColumn() && $this->hasSelectedSourceQuotationColumn();
-    }
-
-    /**
      * Rebuild inline editor rows from a persisted quotation header.
      *
      * @return list<array<string, mixed>>
@@ -654,6 +387,40 @@ final class QuotationFromEnquiryService
                 'unit_price' => $unitPrice,
                 'tax' => $tax,
                 'subcontracted' => false,
+            ]];
+        }
+
+        if ((bool) ($detail->is_package ?? false)) {
+            $elementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
+            $analysisTypeId = trim((string) ($detail->part_no ?? ''));
+            $elementLabels = AnalysisElements::query()
+                ->with('analyte:id,name')
+                ->whereIn('id', $elementIds)
+                ->orderBy('level')
+                ->get()
+                ->map(fn (AnalysisElements $element): string => (string) ($element->analyte?->name ?? $element->name ?? 'Parameter'))
+                ->values()
+                ->all();
+
+            $analysisTypeName = $analysisTypeId !== ''
+                ? (string) (AnalysisType::find($analysisTypeId)?->name ?? '')
+                : '';
+
+            return [[
+                'sample_type_id' => $sampleTypeId,
+                'sample_type_name' => $sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '',
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_type_name' => $analysisTypeName,
+                'analysis_element_id' => null,
+                'parameter_label' => (string) ($detail->description ?: ($analysisTypeName.' package ('.count($elementIds).' parameters)')),
+                'physical_sample_count' => $quantity,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'tax' => $tax,
+                'subcontracted' => false,
+                'is_package' => true,
+                'package_element_ids' => $elementIds,
+                'package_element_labels' => $elementLabels,
             ]];
         }
 
@@ -790,7 +557,13 @@ final class QuotationFromEnquiryService
             $unitPrice = (float) ($line['unit_price'] ?? 0);
             $taxRate = (float) ($line['tax'] ?? 0);
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
-            $elementId = (string) ($line['analysis_element_id'] ?? '');
+            $isPackage = ! empty($line['is_package']);
+            $packageElementIds = $isPackage
+                ? array_values(array_filter(array_map('strval', $line['package_element_ids'] ?? [])))
+                : [];
+            $elementId = $isPackage
+                ? implode(',', $packageElementIds)
+                : (string) ($line['analysis_element_id'] ?? '');
 
             $detail = QuotationDetails::query()->create([
                 'quotation_header_id' => $header->id,
@@ -800,13 +573,14 @@ final class QuotationFromEnquiryService
                 'tax' => $taxRate,
                 'part_no' => $analysisTypeId,
                 'accredited_analytes' => $elementId,
-                'subcontracted_analytes' => ! empty($line['subcontracted']) ? $elementId : '',
+                'subcontracted_analytes' => ! $isPackage && ! empty($line['subcontracted']) ? $elementId : '',
                 'default_analytes' => $elementId,
                 'sub_acc_analytes' => '',
                 'description' => (string) ($line['parameter_label'] ?? ''),
                 'test_method' => (string) ($line['test_method'] ?? ''),
                 'loq' => (string) ($line['loq'] ?? ''),
                 'mu_percent' => (string) ($line['mu_percent'] ?? ''),
+                'is_package' => $isPackage,
             ]);
 
             if ($analysisTypeId !== '') {

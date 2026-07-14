@@ -109,8 +109,13 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     ->unique()
                     ->values();
 
+                $submissionRequestsById = \App\Models\SampleSubmissionRequest::query()
+                    ->whereIn('id', $candidateIds->all())
+                    ->get()
+                    ->keyBy(fn ($request) => (string) $request->id);
+
                 foreach ($candidateIds as $requestId) {
-                    $submissionRequest = \App\Models\SampleSubmissionRequest::find($requestId);
+                    $submissionRequest = $submissionRequestsById->get($requestId);
                     if ($submissionRequest) {
                         $submissionRequest->update([
                             'sample_header_id' => $header->id,
@@ -123,7 +128,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     ? $sampleConfigService->buildDetailPlansFromConfigs($configPayload)
                     : $this->buildDetailPlans($approvedLines, max(1, (int) $form->number_of_samples));
 
-                $elementFlagOverrides = $this->resolveElementFlagOverrides($form, $candidateIds);
+                $elementFlagOverrides = $this->resolveElementFlagOverrides($form, $candidateIds, $submissionRequestsById);
 
                 $details = $this->createSampleDetails(
                     $header,
@@ -156,9 +161,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     $pricingService,
                     $invoiceNumberGenerator,
                     $candidateIds,
+                    $submissionRequestsById,
                 );
 
-                $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds);
+                $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds, $submissionRequestsById);
                 if ($acceptedQuotationId !== null) {
                     $header->quote_id = $acceptedQuotationId;
                     $header->save();
@@ -348,6 +354,24 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
         $trfMapper = app(TrfSampleFieldMapper::class);
 
+        $allAnalysisTypeIds = collect($detailPlans)
+            ->flatMap(fn (array $plan) => $plan['analysis_type_ids'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $analysisTypesById = AnalysisType::query()
+            ->whereIn('id', $allAnalysisTypeIds)
+            ->get()
+            ->keyBy(fn (AnalysisType $type) => (string) $type->id);
+
+        $elementsByAnalysisType = $analysisSetupService->preloadElementsByAnalysisType($allAnalysisTypeIds);
+        $allElements = $elementsByAnalysisType->flatten(1);
+        $reportingUnitsByKey = $analysisSetupService->preloadReportingUnits($allElements);
+        $lab = $this->resolveLabOnce($header);
+
         $details = [];
         $detailIndex = 0;
 
@@ -358,7 +382,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $detailIndex++;
                 $prefix = (string) ($plan['sample_code_prefix'] ?? '');
                 if ($prefix === '' && ! empty($plan['analysis_type_ids'])) {
-                    $prefix = $this->inferPrefixForAnalysisTypes($plan['analysis_type_ids']);
+                    $prefix = $this->inferPrefixForAnalysisTypes($plan['analysis_type_ids'], $analysisTypesById, $numberingService);
                 }
 
                 $detailAttributes = [
@@ -455,16 +479,28 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     ? null
                     : ($plan['analysis_element_ids'] ?? []);
 
+                $standardsByKey = $analysisSetupService->preloadStandardsForDetail($detail, $allElements);
+
                 foreach ($analysisTypeIds as $analysisTypeId) {
+                    $typeKey = (string) $analysisTypeId;
                     $analysisSetupService->createCapturedResultsForAnalysisType(
                         (string) $header->id,
                         (string) $detail->id,
-                        $analysisTypeId,
+                        $typeKey,
                         $sampleCode,
                         $actingUserId,
                         is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null,
                         $elementFlagOverrides,
                         $plan['lab_section_id'] ?? null,
+                        [
+                            'sample_header' => $header,
+                            'sample_detail' => $detail,
+                            'analysis_type' => $analysisTypesById->get($typeKey),
+                            'lab' => $lab,
+                            'reporting_units_by_key' => $reportingUnitsByKey,
+                            'standards_by_key' => $standardsByKey,
+                            'analysis_elements' => $elementsByAnalysisType->get($typeKey, collect()),
+                        ],
                     );
                 }
 
@@ -475,15 +511,36 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         return $details;
     }
 
+    private function resolveLabOnce(SampleHeader $header): ?\App\Lab
+    {
+        $labs = $header->labs(true);
+        if (empty($labs)) {
+            return null;
+        }
+
+        $labstr = implode(',', $labs);
+        $labarr = explode(' - ', $labstr);
+        if (count($labarr) >= 2) {
+            return \App\Lab::where('code', $labarr[0])->where('name', $labarr[1])->first();
+        }
+
+        return null;
+    }
+
     /**
      * @param  list<string>  $analysisTypeIds
+     * @param  \Illuminate\Support\Collection<string, AnalysisType>|null  $analysisTypesById
      */
-    private function inferPrefixForAnalysisTypes(array $analysisTypeIds): string
-    {
-        $numberingService = app(JobSampleNumberingService::class);
+    private function inferPrefixForAnalysisTypes(
+        array $analysisTypeIds,
+        $analysisTypesById = null,
+        ?JobSampleNumberingService $numberingService = null,
+    ): string {
+        $numberingService ??= app(JobSampleNumberingService::class);
 
         foreach ($analysisTypeIds as $analysisTypeId) {
-            $analysis = AnalysisType::query()->find($analysisTypeId);
+            $analysis = $analysisTypesById?->get((string) $analysisTypeId)
+                ?? AnalysisType::query()->find($analysisTypeId);
             if ($analysis) {
                 return $numberingService->inferPrefixFromAnalysisTypeName($analysis->name);
             }
@@ -494,6 +551,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
     /**
      * @param  list<SampleDetails>  $details
+     * @param  \Illuminate\Support\Collection<string, \App\Models\SampleSubmissionRequest>|null  $submissionRequestsById
      */
     private function createInvoiceFromForm(
         AnalysisAcceptanceForm $form,
@@ -502,6 +560,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         AcceptanceFormPricingService $pricingService,
         InvoiceNumberGenerator $invoiceNumberGenerator,
         \Illuminate\Support\Collection $candidateIds,
+        $submissionRequestsById = null,
     ): ?Invoice {
         $customer = CRMCustomer::query()->find($form->crm_customer_id);
         if (!$customer) {
@@ -517,7 +576,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         $invoice->pricelist_id = $pricelist->id;
         $invoice->currency_id = $pricelist->currency_id;
         $invoice->customer_id = $customer->id;
-        $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds);
+        $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds, $submissionRequestsById);
         if ($acceptedQuotationId !== null) {
             $invoice->quotation_header_id = $acceptedQuotationId;
         }
@@ -536,16 +595,30 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         $taxRate = TaxRegime::query()->where('active', 1)->first();
+        $approvedLines = $form->lines->where('is_approved', true);
+        $analysisTypeIds = $approvedLines
+            ->pluck('analysis_type_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $analysisTypesById = AnalysisType::query()
+            ->whereIn('id', $analysisTypeIds)
+            ->get()
+            ->keyBy(fn (AnalysisType $type) => (string) $type->id);
 
-        foreach ($form->lines->where('is_approved', true) as $line) {
+        $existingDetailsByType = InvoiceDetails::query()
+            ->where('invoice_id', $invoice->id)
+            ->get()
+            ->keyBy(fn (InvoiceDetails $detail) => (string) $detail->analysis_type);
+
+        foreach ($approvedLines as $line) {
             if (empty($line->analysis_type_id)) {
                 continue;
             }
 
-            $existing = InvoiceDetails::query()
-                ->where('invoice_id', $invoice->id)
-                ->where('analysis_type', $line->analysis_type_id)
-                ->first();
+            $typeKey = (string) $line->analysis_type_id;
+            $existing = $existingDetailsByType->get($typeKey);
 
             $quantity = max(1, (int) $line->number_of_samples);
             $sellingPrice = (float) $line->unit_amount;
@@ -562,7 +635,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 continue;
             }
 
-            $analysis = getAnalysisTypeID($line->analysis_type_id);
+            $analysis = $analysisTypesById->get($typeKey);
             $invoiceDetail = new InvoiceDetails();
             $invoiceDetail->crm_customer_id = $form->crm_customer_id;
             $invoiceDetail->analysis_type = $line->analysis_type_id;
@@ -586,6 +659,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             }
 
             $invoiceDetail->save();
+            $existingDetailsByType->put($typeKey, $invoiceDetail);
         }
 
         $invoice->syncTotalsFromDetails();
@@ -614,14 +688,19 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
     /**
      * @param  \Illuminate\Support\Collection<int, string>  $candidateIds
+     * @param  \Illuminate\Support\Collection<string, \App\Models\SampleSubmissionRequest>|null  $submissionRequestsById
      * @return array<string, array{accredited: bool, subcontracted: bool}>
      */
-    private function resolveElementFlagOverrides(AnalysisAcceptanceForm $form, \Illuminate\Support\Collection $candidateIds): array
-    {
+    private function resolveElementFlagOverrides(
+        AnalysisAcceptanceForm $form,
+        \Illuminate\Support\Collection $candidateIds,
+        $submissionRequestsById = null,
+    ): array {
         $readinessService = app(EnquiryReceptionReadinessService::class);
 
         foreach ($candidateIds as $requestId) {
-            $submissionRequest = \App\Models\SampleSubmissionRequest::find($requestId);
+            $submissionRequest = $submissionRequestsById?->get((string) $requestId)
+                ?? \App\Models\SampleSubmissionRequest::find($requestId);
             if ($submissionRequest === null) {
                 continue;
             }
@@ -634,7 +713,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         if ($form->sample_submission_request_id) {
-            $submissionRequest = \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
+            $submissionRequest = $submissionRequestsById?->get((string) $form->sample_submission_request_id)
+                ?? \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
             if ($submissionRequest !== null) {
                 return $readinessService->resolveElementFlagsFromQuotation(
                     $readinessService->resolveAcceptedQuotation($submissionRequest)
@@ -647,15 +727,18 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
     /**
      * @param  \Illuminate\Support\Collection<int, string>  $candidateIds
+     * @param  \Illuminate\Support\Collection<string, \App\Models\SampleSubmissionRequest>|null  $submissionRequestsById
      */
     private function resolveAcceptedQuotationId(
         AnalysisAcceptanceForm $form,
         \Illuminate\Support\Collection $candidateIds,
+        $submissionRequestsById = null,
     ): ?string {
         $readinessService = app(\App\Services\Commercial\EnquiryReceptionReadinessService::class);
 
         foreach ($candidateIds as $requestId) {
-            $submissionRequest = \App\Models\SampleSubmissionRequest::find($requestId);
+            $submissionRequest = $submissionRequestsById?->get((string) $requestId)
+                ?? \App\Models\SampleSubmissionRequest::find($requestId);
             if ($submissionRequest === null) {
                 continue;
             }
@@ -667,7 +750,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         if ($form->sample_submission_request_id) {
-            $submissionRequest = \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
+            $submissionRequest = $submissionRequestsById?->get((string) $form->sample_submission_request_id)
+                ?? \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
             if ($submissionRequest !== null) {
                 $quotation = $readinessService->resolveAcceptedQuotation($submissionRequest);
 

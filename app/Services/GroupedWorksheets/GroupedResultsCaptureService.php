@@ -315,31 +315,24 @@ class GroupedResultsCaptureService
                     continue;
                 }
 
-                $captured->result = $data['result'] ?? null;
-                $captured->result_reporting_symbol = $data['reporting_symbol'] ?? null;
+                $attributes = [
+                    'result' => $data['result'] ?? null,
+                    'result_reporting_symbol' => $data['reporting_symbol'] ?? null,
+                    'worksheet_posted' => true,
+                ];
 
                 if (array_key_exists('remark', $data) && $data['remark'] !== null && $data['remark'] !== '') {
-                    $captured->remark = $data['remark'];
+                    $attributes['remark'] = $data['remark'];
                 }
 
                 $analystId = $userId ? (string) $userId : null;
-                $captured->assignAnalyst($analystId);
-                $captured->assignOperator($analystId);
+                app(\App\Services\Sampleworkflow\CapturedResultCaptureService::class)
+                    ->applyOnSave($captured, $attributes, $analystId);
 
-                if ($captured->analysisElement) {
-                    $captured->applyAnalysisElementDefaults();
-
-                    if (! $captured->equipment_id && $captured->analysisElement->equipment_id) {
-                        $captured->equipment_id = $captured->analysisElement->equipment_id;
-                    }
-
-                    if (! $captured->operator_id && $captured->analysisElement->operator_id) {
-                        $captured->assignOperator((string) $captured->analysisElement->operator_id);
-                    }
+                if ($captured->analysisElement && ! $captured->equipment_id && $captured->analysisElement->equipment_id) {
+                    $captured->equipment_id = $captured->analysisElement->equipment_id;
+                    $captured->save();
                 }
-
-                $captured->worksheet_posted = true;
-                $captured->save();
             }
 
             foreach ($sampleCommentsPayload as $sampleDetailId => $comments) {

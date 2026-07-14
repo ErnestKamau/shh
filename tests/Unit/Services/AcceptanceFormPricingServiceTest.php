@@ -30,6 +30,7 @@ class AcceptanceFormPricingServiceTest extends TestCase
             'analysis_id' => $analysisTypeId,
             'selling_price' => 125.50,
             'active' => true,
+            'is_package' => false,
         ]);
 
         $service = app(AcceptanceFormPricingService::class);

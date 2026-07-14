@@ -570,14 +570,8 @@
                     </div>
                     <div class="form-group">
                         <label class="control-label">Analyst/Operator</label>
-                        <select class="form-control no-select2" name="analyst_id" id="settings_analyst_id">
-                            <option value="">Select Analyst...</option>
-                            @foreach ($analysts as $item)
-                                <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
-                                    {{ is_array($item) ? ($item['name'] ?? $item['id'] ?? '') : (is_object($item) ? ($item->name ?? $item->id ?? '') : (string) $item) }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <input type="text" class="form-control" value="{{ Auth::user()->name ?? 'Current user' }}" readonly>
+                        <small class="text-muted">Assigned automatically to the logged-in user when settings are saved.</small>
                     </div>
                     <div class="form-group">
                         <label class="control-label">Reporting Symbol</label>
@@ -1091,15 +1085,16 @@
 				$modal.find('.proccesing-point').removeClass('hidden');
 				
 				$.ajax({
-					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",	
+					url:"{{ route('process-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",	
 					data:{
+						_token: '{{ csrf_token() }}',
 						report_format : selectedFormat,
 						include_pesticide : include_pesticide,
 						merge_with_attachments: merge_with_attachments,
 						attachment_ids: attachment_ids.join(','),
 						gcla_language: gcla_language
 					},
-					method:'GET',
+					method:'POST',
 					success: function(data){
 						console.log(data);
 						$modal.find('.modal-body').empty();
@@ -1238,7 +1233,6 @@
 							var data = response.data;
 							$('#settings_method_id').val(data.method_id || '');
 							$('#settings_reporting_unit').val(data.reporting_unit || '');
-							$('#settings_analyst_id').val(data.analyst_id || '');
 							$('#settings_reporting_symbol').val(data.reporting_symbol || '');
 							$('#settings_accredited').prop('checked', data.accredited == 1);
 							$('#settings_subcontracted').prop('checked', data.subcontracted == 1);

@@ -7,6 +7,7 @@ use App\AnalysisType;
 use App\SampleType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
 
 class PricelistItem extends Model
@@ -29,6 +30,7 @@ class PricelistItem extends Model
         'internal_use' => 'boolean',
         'external_view' => 'boolean',
         'active' => 'boolean',
+        'is_package' => 'boolean',
         'level' => 'integer',
     ];
 
@@ -50,5 +52,22 @@ class PricelistItem extends Model
     public function analysisElement(): BelongsTo
     {
         return $this->belongsTo(AnalysisElements::class, 'analysis_element_id');
+    }
+
+    public function packageElements(): HasMany
+    {
+        return $this->hasMany(PricelistItemElement::class, 'pricelist_item_id');
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function coveredElementIds(): array
+    {
+        return $this->packageElements
+            ->pluck('analysis_element_id')
+            ->map(fn ($id): string => (string) $id)
+            ->values()
+            ->all();
     }
 }

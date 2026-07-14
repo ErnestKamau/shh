@@ -141,44 +141,6 @@ class ProcessEnquiryWizard extends Component
 
     public bool $addLineCanAddWholeAnalysisType = false;
 
-    public string $quotationSourceMode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST;
-
-    public ?string $selectedSourceQuotationId = null;
-
-    public bool $quotationPristineFromSource = false;
-
-    /** @var list<array<string, mixed>> */
-    public array $initialLinesSnapshot = [];
-
-    /** @var list<array<string, mixed>> */
-    public array $initialSampleConfigsSnapshot = [];
-
-    /** @return list<array<string, mixed>> */
-    public function getReusableCustomerQuotationsProperty(): array
-    {
-        if ($this->crmCustomerId === null || trim($this->crmCustomerId) === '') {
-            return [];
-        }
-
-        $service = app(QuotationFromEnquiryService::class);
-
-        return $service
-            ->listReusableCustomerQuotations($this->crmCustomerId)
-            ->map(fn (QuotationHeader $header): array => [
-                'id' => (string) $header->id,
-                'quote_number' => (string) ($header->quote_number ?? ''),
-                'analysis_types' => $service->summarizeQuotationAnalysisTypes($header),
-            ])
-            ->values()
-            ->all();
-    }
-
-    public function getShowQuotationSourcePickerProperty(): bool
-    {
-        $channel = strtolower(trim($this->sourceChannel));
-
-        return ! in_array($channel, ['scheduled', 'schedule'], true);
-    }
     public function getWizardStepsProperty(): array
     {
         return [
@@ -233,25 +195,6 @@ class ProcessEnquiryWizard extends Component
         $header->loadMissing('currency');
 
         return (string) ($header->currency?->code ?? $header->currency?->name ?? '');
-    }
-
-    public function getShowPristineReuseQuotationProperty(): bool
-    {
-        return $this->quotationSourceMode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
-            && $this->quotationPristineFromSource
-            && $this->quoteNumber !== '';
-    }
-
-    public function updatedSelectedSourceQuotationId(?string $value): void
-    {
-        if ($value === null || trim($value) === '') {
-            $this->pdfGenerated = false;
-
-            return;
-        }
-
-        $source = QuotationHeader::query()->find($value);
-        $this->pdfGenerated = $source !== null && ! empty($source->upload_url);
     }
 
     #[On('process-enquiry-open')]
@@ -338,12 +281,6 @@ class ProcessEnquiryWizard extends Component
         $this->pdfGenerated = ! empty($header?->upload_url);
         $this->quotationSent = $this->enquiryQuotationWasSent($enquiry, $header);
         $this->quotationManuallyEdited = false;
-        $this->quotationSourceMode = (string) ($enquiry->quotation_source_mode
-            ?? SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST);
-        $this->selectedSourceQuotationId = $enquiry->selected_source_quotation_header_id;
-        $this->quotationPristineFromSource = $enquiry->usesSharedSourceQuotation();
-        $this->initialLinesSnapshot = [];
-        $this->initialSampleConfigsSnapshot = [];
         $this->showBuildQuotationModal = false;
 
         if ($header !== null && $header->details->isNotEmpty()) {
@@ -359,10 +296,6 @@ class ProcessEnquiryWizard extends Component
 
         if (! $this->quotationBuilt && $this->sampleConfigs !== [] && $this->crmCustomerId !== '') {
             $this->rebuildQuotationLinesFromSampleConfigs();
-        }
-        if ($this->quotationPristineFromSource) {
-            $this->backfillLabSectionIdsOnConfigs();
-            $this->captureSampleConfigSnapshot();
         }
         $this->activeStep = $this->resolveOpeningStep($enquiry, $header);
         $this->statusMessage = $this->quotationSent
@@ -384,11 +317,8 @@ class ProcessEnquiryWizard extends Component
         }
 
         if ($step === 'pricing') {
-            if ($this->quotationSourceMode !== SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
-                || $this->lines === []) {
-                $this->rebuildQuotationLinesFromSampleConfigs();
-                $this->quotationBuilt = false;
-            }
+            $this->rebuildQuotationLinesFromSampleConfigs();
+            $this->quotationBuilt = false;
             if ($this->quotationHeaderId === null) {
                 try {
                     $header = $this->ensureQuotationHeader();
@@ -438,30 +368,6 @@ class ProcessEnquiryWizard extends Component
         if ($enquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
             || $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW) {
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
-        }
-
-        if ($this->quotationSourceMode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING) {
-            if ($this->selectedSourceQuotationId === null || trim($this->selectedSourceQuotationId) === '') {
-                $this->setStatus('error', 'Select a completed customer quotation to continue.');
-
-                return;
-            }
-
-            try {
-                $this->applySelectedSourceQuotation($enquiry);
-            } catch (Throwable $exception) {
-                $this->setStatus('error', $exception->getMessage());
-
-                return;
-            }
-        } else {
-            if (Schema::hasColumn('sample_submission_requests', 'quotation_source_mode')) {
-                $enquiry->quotation_source_mode = SampleSubmissionRequest::QUOTATION_SOURCE_FROM_PRICELIST;
-            }
-            if (Schema::hasColumn('sample_submission_requests', 'selected_source_quotation_header_id')) {
-                $enquiry->selected_source_quotation_header_id = null;
-            }
-            $enquiry->save();
         }
 
         $enquiry->save();
@@ -518,25 +424,13 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        if ($this->quotationSourceMode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
-            && $this->configsDifferFromSnapshot($this->sampleConfigs)) {
-            $this->ensureEditableBeforeMutation($enquiry);
-            $enquiry = $enquiry->fresh();
-        }
-
-        $configsUnchanged = $this->quotationSourceMode === SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING
-            && $this->quotationPristineFromSource
-            && ! $this->configsDifferFromSnapshot($this->sampleConfigs);
-
-        if (! $configsUnchanged) {
-            $existingLines = $this->lines;
-            $this->lines = $quotationService->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
-            $this->lines = $this->mergePreservedQuotationLineValues(
-                $existingLines,
-                $this->lines,
-                $this->lineSubcontractOverrides
-            );
-        }
+        $existingLines = $this->lines;
+        $this->lines = $quotationService->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
+        $this->lines = $this->mergePreservedQuotationLineValues(
+            $existingLines,
+            $this->lines,
+            $this->lineSubcontractOverrides
+        );
 
         $this->quotationManuallyEdited = false;
         $this->quotationBuilt = false;
@@ -573,7 +467,6 @@ class ProcessEnquiryWizard extends Component
         }
 
         $pricing = app(AcceptanceFormPricingService::class);
-        $taxResolver = app(QuotationLineTaxResolver::class);
         $preferredPricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId)
             ?? $pricing->resolvePricelist($this->crmCustomerId);
 
@@ -583,32 +476,25 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        $this->reconcileSampleConfigParameterKeys();
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $acceptanceLines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
+        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+        if ($enquiry === null) {
+            $this->setStatus('error', 'Enquiry not found.');
+
+            return;
+        }
+
+        $this->lines = app(QuotationFromEnquiryService::class)
+            ->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
+        $this->normalizeQuotationLineQuantities();
+
         $unmatched = 0;
-
-        foreach ($this->lines as $index => $line) {
-            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
-            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
-            $elementId = (string) ($line['analysis_element_id'] ?? '');
-
-            $resolved = $pricing->resolveLinePriceWithPricelist(
-                $this->crmCustomerId,
-                $sampleTypeId !== '' ? $sampleTypeId : null,
-                $analysisTypeId,
-                $elementId !== '' ? $elementId : null,
-                $preferredPricelist,
-            );
-
-            $this->lines[$index]['unit_price'] = $resolved['price'];
-            if ($resolved['price'] <= 0) {
+        foreach ($this->lines as $line) {
+            if ((float) ($line['unit_price'] ?? 0) <= 0) {
                 $unmatched++;
             }
-
-            $this->lines[$index]['tax'] = $taxResolver->resolveLineTaxPercent(
-                $resolved['pricelist'],
-                $sampleTypeId !== '' ? $sampleTypeId : null,
-                $analysisTypeId,
-                $elementId !== '' ? $elementId : null,
-            );
         }
 
         $this->quotationManuallyEdited = true;
@@ -700,14 +586,8 @@ class ProcessEnquiryWizard extends Component
             }
         }
 
-        $wasBuilt = $this->quotationBuilt;
         $this->quotationManuallyEdited = true;
         $this->quotationBuilt = false;
-
-        if ($wasBuilt) {
-            $this->ensureEditableBeforeMutation();
-        }
-
         $this->refreshLineLabMetrics();
     }
 
@@ -830,6 +710,35 @@ class ProcessEnquiryWizard extends Component
         $line = $this->lines[$index];
         $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
         $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+
+        if (! empty($line['is_package'])) {
+            $requestedElementIds = array_values(array_filter(array_map(
+                'strval',
+                $line['package_element_ids'] ?? []
+            )));
+            $match = $pricing->resolvePackageForGroup(
+                $this->crmCustomerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                $requestedElementIds,
+                $pricelist,
+            );
+
+            if ($match !== null) {
+                $this->lines[$index]['unit_price'] = (float) $match['item']->selling_price;
+                $this->lines[$index]['tax'] = $match['item']->vat
+                    ? app(QuotationLineTaxResolver::class)->activeTaxRegimePercent()
+                    : 0.0;
+            }
+
+            $this->quotationManuallyEdited = true;
+            $this->quotationBuilt = false;
+            $this->refreshLineLabMetrics();
+            $this->setStatus('success', 'Package price reset from contract pricelist.');
+
+            return;
+        }
+
         $elementId = (string) ($line['analysis_element_id'] ?? '');
 
         $resolved = $pricing->resolveLinePriceWithPricelist(
@@ -856,7 +765,7 @@ class ProcessEnquiryWizard extends Component
 
     public function generatePdf(): void
     {
-        if (! $this->quotationBuilt && ! $this->showPristineReuseQuotation) {
+        if (! $this->quotationBuilt) {
             $this->setStatus('error', 'Build the quotation first before generating the PDF.');
 
             return;
@@ -900,7 +809,7 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        if (! $this->quotationBuilt && ! $this->showPristineReuseQuotation) {
+        if (! $this->quotationBuilt) {
             $this->setStatus('error', 'Build the quotation first before sending to the customer.');
 
             return;
@@ -1084,10 +993,6 @@ class ProcessEnquiryWizard extends Component
 
     private function persistQuotationLines(): void
     {
-        if ($this->quotationPristineFromSource) {
-            return;
-        }
-
         $header = $this->resolveQuotationHeader();
         if ($header === null || $this->lines === []) {
             return;
@@ -1168,137 +1073,18 @@ class ProcessEnquiryWizard extends Component
 
     private function finalizeQuotationLineMutation(): void
     {
-        $wasBuilt = $this->quotationBuilt;
         $this->quotationManuallyEdited = true;
         $this->quotationBuilt = false;
-
-        if ($wasBuilt) {
-            $this->ensureEditableBeforeMutation();
-        }
 
         if ($this->enquiryId !== null) {
             $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
             if ($enquiry !== null) {
-                $quotationService = app(QuotationFromEnquiryService::class);
-                if ($this->quotationSourceMode !== SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING) {
-                    $this->lines = $quotationService->applyTaxFromAssignedPricelist($enquiry, $this->lines, false);
-                }
+                $this->lines = app(QuotationFromEnquiryService::class)
+                    ->applyTaxFromAssignedPricelist($enquiry, $this->lines, false);
             }
         }
 
         $this->refreshLineLabMetrics();
-    }
-
-    private function applySelectedSourceQuotation(SampleSubmissionRequest $enquiry): void
-    {
-        $source = QuotationHeader::query()
-            ->with('details')
-            ->find($this->selectedSourceQuotationId);
-
-        if ($source === null) {
-            throw new \RuntimeException('Selected quotation was not found.');
-        }
-
-        $quotationService = app(QuotationFromEnquiryService::class);
-        $enquiry = $quotationService->linkExistingQuotationToEnquiry($enquiry, $source);
-
-        $this->quotationHeaderId = $enquiry->current_quotation_header_id;
-        $this->quoteNumber = (string) ($source->quote_number ?? '');
-        $this->lines = $quotationService->buildInlineLinesFromQuotationHeader($source);
-        $this->loadSampleConfigs($enquiry);
-        $this->backfillLabSectionIdsOnConfigs();
-        $this->captureSampleConfigSnapshot();
-        $this->initialLinesSnapshot = $this->lines;
-        $this->quotationPristineFromSource = true;
-        $this->quotationManuallyEdited = false;
-        $this->quotationBuilt = true;
-        $this->pdfGenerated = ! empty($source->upload_url);
-    }
-
-    private function ensureEditableBeforeMutation(?SampleSubmissionRequest $enquiry = null): void
-    {
-        if (! $this->quotationPristineFromSource
-            || $this->quotationSourceMode !== SampleSubmissionRequest::QUOTATION_SOURCE_FROM_EXISTING) {
-            return;
-        }
-
-        $enquiry ??= $this->enquiryId !== null
-            ? SampleSubmissionRequest::query()->find($this->enquiryId)
-            : null;
-
-        if ($enquiry === null) {
-            return;
-        }
-
-        $header = app(QuotationFromEnquiryService::class)->ensureEditableQuotationForEnquiry($enquiry);
-        $enquiry->refresh();
-
-        $this->quotationHeaderId = (string) $header->id;
-        $this->quoteNumber = (string) ($header->quote_number ?? $this->quoteNumber);
-        $this->quotationPristineFromSource = false;
-        $this->pdfGenerated = ! empty($header->upload_url);
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $configs
-     */
-    private function configsDifferFromSnapshot(array $configs): bool
-    {
-        if ($this->initialSampleConfigsSnapshot === []) {
-            return false;
-        }
-
-        return json_encode($this->prepareConfigsForComparisonPipeline($configs))
-            !== json_encode($this->initialSampleConfigsSnapshot);
-    }
-
-    private function captureSampleConfigSnapshot(): void
-    {
-        $this->initialSampleConfigsSnapshot = $this->prepareConfigsForComparisonPipeline($this->sampleConfigs);
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $configs
-     * @return list<array<string, mixed>>
-     */
-    private function prepareConfigsForComparisonPipeline(array $configs): array
-    {
-        if ($this->crmCustomerId === null || trim($this->crmCustomerId) === '') {
-            return $this->normalizeConfigsForComparison($configs);
-        }
-
-        $configService = app(AcceptanceFormSampleConfigService::class);
-        $configs = $configService->reconcileConfigsParameterKeys($configs, $this->crmCustomerId);
-        $configs = $configService->normalizeConfigsForStorage($configs, $this->crmCustomerId);
-
-        return $this->normalizeConfigsForComparison($configs);
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $configs
-     * @return list<array<string, mixed>>
-     */
-    private function normalizeConfigsForComparison(array $configs): array
-    {
-        return collect($configs)->map(function (array $config): array {
-            $parameterKeys = collect($config['parameter_keys'] ?? [])
-                ->map(fn ($key): string => (string) $key)
-                ->sort()
-                ->values()
-                ->all();
-
-            return [
-                'sample_type_id' => (string) ($config['sample_type_id'] ?? ''),
-                'analysis_type_id' => (string) ($config['analysis_type_id'] ?? ''),
-                'parameter_keys' => $parameterKeys,
-                'number_of_samples' => 1,
-                'lab_section_id' => (string) ($config['lab_section_id'] ?? ''),
-            ];
-        })->sortBy(fn (array $config): string => implode('::', [
-            $config['sample_type_id'],
-            $config['analysis_type_id'],
-            implode(',', $config['parameter_keys']),
-        ]))->values()->all();
     }
 
     private function refreshLineLabMetrics(): void

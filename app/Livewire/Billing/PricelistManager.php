@@ -4,6 +4,7 @@ namespace App\Livewire\Billing;
 
 use App\Models\Billing\Pricelist;
 use App\Models\Currency;
+use App\Services\Billing\PricelistNumberGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -335,9 +336,16 @@ class PricelistManager extends Component
                         ->where('id', $this->pricelistForm['id'])
                         ->update($payload);
                 } else {
+                    $companyId = function_exists('getUserCompany')
+                        ? getUserCompany()
+                        : null;
+                    $numbers = app(PricelistNumberGenerator::class)->next(
+                        $companyId !== null ? (string) $companyId : null,
+                    );
+
                     $payload['id'] = (string) Str::uuid();
-                    $payload['code'] = $this->generatePricelistCode();
-                    $payload['document_no'] = 'DOC-';
+                    $payload['code'] = $numbers['code'];
+                    $payload['document_no'] = $numbers['document_no'];
                     $payload['revision_number'] = '1';
                     $payload['created_at'] = now();
 
@@ -388,19 +396,6 @@ class PricelistManager extends Component
             'active' => true,
             'status' => 'no-changes',
         ];
-    }
-
-    private function generatePricelistCode(): string
-    {
-        if (function_exists('getNamingConventionCode')) {
-            try {
-                return (string) getNamingConventionCode('Pricelist', false, 'PL-');
-            } catch (\Throwable $e) {
-                // Fall back to deterministic code when naming convention service is unavailable.
-            }
-        }
-
-        return 'PL-' . now()->format('ymdHis');
     }
 
     public function render()

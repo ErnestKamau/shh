@@ -3345,11 +3345,12 @@
 				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
 
 				$.ajax({
-					url: "{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",
+					url: "{{ route('process-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",
 					data: {
+						_token: '{{ csrf_token() }}',
 						report_format: selectedFormat,
 					},
-					method: 'GET',
+					method: 'POST',
 					success: function(data) {
 						console.log(data);
 						$('#process-results-modal').find('.modal-body').empty();

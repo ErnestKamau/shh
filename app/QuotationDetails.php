@@ -34,7 +34,12 @@ class QuotationDetails extends Model implements Auditable
         'subcontracted_analytes',
         'accredited_analytes',
         'default_analytes',
-        'sub_acc_analytes'
+        'sub_acc_analytes',
+        'is_package',
+    ];
+
+    protected $casts = [
+        'is_package' => 'boolean',
     ];
 
     public function sampletype(){

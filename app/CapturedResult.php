@@ -247,17 +247,85 @@ class CapturedResult extends Model implements Auditable
 
 	public function applyAnalysisElementDefaults(): void
 	{
+		$element = $this->resolveAnalysisElement();
+
 		if (!$this->reporting_unit_id) {
 			$this->reporting_unit_id = resolveReportingUnitIdFromAnalyte(
 				$this->analysis_type_id,
 				$this->analyte_id,
-				$this->analysisElement?->reporting_unit
+				$element?->reporting_unit
 			);
 		}
 
-		if (!$this->method_id && $this->analysisElement?->method) {
-			$this->method_id = $this->analysisElement->method;
+		if (!$this->method_id && $element?->method) {
+			$this->method_id = $element->method;
 		}
+	}
+
+	/**
+	 * Link analysis_element_id from the matching analysis_elements row when missing.
+	 */
+	public function ensureAnalysisElementLinked(): void
+	{
+		if ($this->analysis_element_id) {
+			return;
+		}
+
+		$element = $this->resolveAnalysisElement();
+		if ($element) {
+			$this->analysis_element_id = $element->id;
+		}
+	}
+
+	/**
+	 * Resolve the matching AnalysisElements row via FK or (analysis_type_id, analyte_id).
+	 */
+	public function resolveAnalysisElement(): ?AnalysisElements
+	{
+		if ($this->relationLoaded('analysisElement') && $this->analysisElement) {
+			return $this->analysisElement;
+		}
+
+		if ($this->analysis_element_id) {
+			$element = $this->analysisElement;
+			if ($element) {
+				return $element;
+			}
+		}
+
+		if (!$this->analysis_type_id || !$this->analyte_id) {
+			return null;
+		}
+
+		$element = AnalysisElements::query()
+			->where('analysis_type_id', $this->analysis_type_id)
+			->where('analyte_id', $this->analyte_id)
+			->where('active', 1)
+			->first();
+
+		if ($element) {
+			$this->setRelation('analysisElement', $element);
+		}
+
+		return $element;
+	}
+
+	/**
+	 * Reporting unit name for processing: prefers the per-instance captured unit,
+	 * falls back to the analysis element's reporting_unit string.
+	 */
+	public function effectiveReportingUnitName(): ?string
+	{
+		if ($this->reporting_unit_id) {
+			$label = resolveReportingUnitLabel((string) $this->reporting_unit_id);
+			if ($label !== '-' && $label !== '') {
+				return $label;
+			}
+		}
+
+		$element = $this->resolveAnalysisElement();
+
+		return $element?->reporting_unit ?: null;
 	}
 
 	public function analystIdForTat(): ?string

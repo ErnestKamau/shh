@@ -68,16 +68,34 @@
                                 {{ $group['sample_type_name'] }}
                             </td>
                         @endif
-                        <td>{{ $row['test_name'] }}</td>
+                        <td>
+                            @if(!empty($row['is_package_sub_item']))
+                                <span style="color: #64748b; font-size: 0.95em;">{{ $row['test_name'] }}</span>
+                            @else
+                                {{ $row['test_name'] }}
+                            @endif
+                        </td>
                         <td>{{ $row['test_method'] }}</td>
                         @if($showMuColumn)
                             <td class="text-center">{{ $row['mu_percent'] }}</td>
                         @endif
                         <td class="text-center">{{ $row['loq'] }}</td>
                         @if($showUnitPriceColumn)
-                            <td class="text-right">{{ number_format((float) $row['unit_price'], 2) }}</td>
+                            <td class="text-right">
+                                @if(!empty($row['is_package_sub_item']))
+                                    —
+                                @else
+                                    {{ number_format((float) $row['unit_price'], 2) }}
+                                @endif
+                            </td>
                         @endif
-                        <td class="text-right">{{ number_format((float) $row['total_price'], 2) }}</td>
+                        <td class="text-right">
+                            @if(!empty($row['is_package_sub_item']))
+                                —
+                            @else
+                                {{ number_format((float) $row['total_price'], 2) }}
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             @endforeach

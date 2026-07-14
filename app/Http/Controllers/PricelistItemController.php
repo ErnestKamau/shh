@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Pricelist;
-use App\PricelistItem;
-use App\PricelistCustomer;
+use App\Models\Billing\Pricelist;
+use App\Models\Billing\PricelistCustomer;
+use App\Models\Billing\PricelistItem;
+use App\Services\Billing\PricelistNumberGenerator;
 
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
@@ -85,15 +86,19 @@ class PricelistItemController extends Controller
 		else{
 			$pricelist = new Pricelist;
 			$pricelist->revision_number = 1;
+			$companyId = function_exists('getUserCompany') ? getUserCompany() : null;
+			$numbers = app(PricelistNumberGenerator::class)->next(
+				$companyId !== null ? (string) $companyId : null,
+			);
+			$pricelist->code = $numbers['code'];
+			$pricelist->document_no = $numbers['document_no'];
 		}
 
-		$pricelist->code = getNamingConventionCode("Pricelist", false, "PL-");
 		$pricelist->description = $request->description;
 		$pricelist->currency_id = $request->currency_id;
 		$pricelist->is_master = $request->is_master ?? 0;
 		$pricelist->valid_till = $request->valid_till ?? '2025-12-31';
 		$pricelist->active = $request->active ?? 0;
-		$pricelist->document_no = "DOC-";
 		$pricelist->save();
 	
 		if($do_currency_conversion){

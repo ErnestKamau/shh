@@ -5111,14 +5111,15 @@
 				$modal.find('.proccesing-point').removeClass('hidden');
 
 				$.ajax({
-					url: "{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",
+					url: "{{ route('process-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",
 					data: {
+						_token: '{{ csrf_token() }}',
 						report_format: selectedFormat,
 						include_pesticide: include_pesticide,
 						merge_with_attachments: merge_with_attachments,
 						attachment_ids: attachment_ids.join(',')
 					},
-					method: 'GET',
+					method: 'POST',
 					success: function(data) {
 						console.log(data);
 						$modal.find('.modal-body').empty();
@@ -6682,8 +6683,9 @@
 					</div>
 				</td>
 				<td data-toggle="tooltip" title="${data.analyte_name}">
-					<div class="form-group" name="operators" placeholder="Select Operator...">
-						<select style="min-width: 150px" class="form-control item-operators"  name="operators[${data.id}]" placeholder="Select Operator..." data-selected="${data.def_operator ? data.def_operator.id : 0 }"></select>
+					<div class="form-group">
+						<input type="text" class="form-control" style="min-width: 150px" value="{{ Auth::user()->name ?? 'Current user' }}" readonly>
+						<small class="text-muted">Auto on save</small>
 					</div>
 				</td>
 				@endif
@@ -6782,7 +6784,6 @@
 		});
 
 
-		var selectedOperator = $row.find('select.item-operators').data('selected');
 		var selectedMethod = $row.find('select.method-id').data('selected');
 		var selectedLTMethod = $row.find('select.ltm-method-id').data('selected');
 		var methods = $('#sample-detail-rows').data('methods');
@@ -6803,26 +6804,13 @@
 			});
 		}
 
-
-
-		$row.find('select.item-operators').empty();
-		var OPS = $('#operators-list').data('operators');
-		$.each(OPS, function(o, p) {
-			$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
-		});
 		var $paramsModal = $('#show-sample-analysis-analytes');
 		$row.find('select.method-id').select2({
-			dropdownParent: $paramsModal
-		});
-		$row.find('select.item-operators').select2({
 			dropdownParent: $paramsModal
 		});
 		$row.find('select.remarkmanual').select2({
 			dropdownParent: $paramsModal
 		});
-		if (selectedOperator) {
-			$row.find('select.item-operators').val(selectedOperator).trigger('change');
-		}
 		var $token = $('meta[name="csrf-token"]').attr('content');
 		$row.find('.remove-analyte-row').on('click', function() {
 			if (confirm("Are you sure that you want to remove this analyte?")) {
