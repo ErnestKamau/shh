@@ -43,8 +43,8 @@ class LabPageManager extends Component
     public bool  $showAnalystDropdown = false;
     public bool  $showViewModal       = false;
 
-    public ?int  $editingLabId = null;
-    public ?int  $deleteId     = null;
+    public ?string $editingLabId = null;
+    public ?string $deleteId     = null;
     public array $deleteDetails = [];
     public array $viewLabData   = [];
 
@@ -81,7 +81,7 @@ class LabPageManager extends Component
         $query = Directorate::query()->where('active', 1);
 
         if ($this->zoneFilter !== '') {
-            $query->where('zone_id', (int) $this->zoneFilter);
+            $query->where('zone_id', $this->zoneFilter);
         }
 
         return $query->orderBy('name')->get(['id', 'name']);
@@ -92,7 +92,7 @@ class LabPageManager extends Component
         $query = Directorate::query()->with('labs')->where('active', 1);
 
         if ($this->labForm['zone_id'] !== '') {
-            $query->where('zone_id', (int) $this->labForm['zone_id']);
+            $query->where('zone_id', $this->labForm['zone_id']);
         }
 
         return $query->orderBy('name')->get();
@@ -133,11 +133,11 @@ class LabPageManager extends Component
         }
 
         if ($this->zoneFilter !== '') {
-            $query->where('zone_id', (int) $this->zoneFilter);
+            $query->where('zone_id', $this->zoneFilter);
         }
 
         if ($this->directorateFilter !== '') {
-            $query->where('directorate_id', (int) $this->directorateFilter);
+            $query->where('directorate_id', $this->directorateFilter);
         }
 
         if ($this->statusFilter !== '') {
@@ -153,7 +153,7 @@ class LabPageManager extends Component
         $this->resetValidation('labForm.directorate_id');
     }
 
-    public function viewLab(int $labId): void
+    public function viewLab(string $labId): void
     {
         $lab = Lab::query()
             ->with(['zone', 'directorate', 'manager'])
@@ -197,7 +197,7 @@ class LabPageManager extends Component
         $this->showLabModal = true;
     }
 
-    public function showEditLabModal(int $labId): void
+    public function showEditLabModal(string $labId): void
     {
         $lab = Lab::query()->findOrFail($labId);
 
@@ -221,8 +221,8 @@ class LabPageManager extends Component
     public function saveLab(): void
     {
         $validated = $this->validate([
-            'labForm.zone_id'        => ['nullable', 'integer', 'exists:zones,id'],
-            'labForm.directorate_id' => ['required', 'integer', 'exists:directorates,id'],
+            'labForm.zone_id'        => ['nullable', 'uuid', 'exists:zones,id'],
+            'labForm.directorate_id' => ['required', 'uuid', 'exists:directorates,id'],
             'labForm.name'           => [
                 'required', 'string', 'max:255',
                 Rule::unique('labs', 'name')
@@ -235,16 +235,16 @@ class LabPageManager extends Component
                     ->where(fn ($q) => $q->where('directorate_id', $this->labForm['directorate_id']))
                     ->ignore($this->editingLabId),
             ],
-            'labForm.manager_id'     => ['nullable', 'integer', 'exists:users,id'],
+            'labForm.manager_id'     => ['nullable', 'uuid', 'exists:users,id'],
             'labForm.analyst_ids'    => ['nullable', 'array'],
-            'labForm.analyst_ids.*'  => ['integer', 'exists:users,id'],
+            'labForm.analyst_ids.*'  => ['uuid', 'exists:users,id'],
             'labForm.phone1'         => ['required', 'string', 'max:100'],
             'labForm.email'          => ['required', 'email', 'max:255'],
             'labForm.start_sample_no' => ['nullable', 'string', 'max:100'],
             'labForm.active'         => ['boolean'],
         ]);
 
-        $directorateId = (int) $validated['labForm']['directorate_id'];
+        $directorateId = $validated['labForm']['directorate_id'];
         $directorate   = Directorate::query()->withCount('labs')->findOrFail($directorateId);
 
         if (!$this->editingLabId && $directorate->labs_count >= 7) {
@@ -264,12 +264,12 @@ class LabPageManager extends Component
         }
 
         $payload = [
-            'zone_id'        => $this->labForm['zone_id'] !== '' ? (int) $this->labForm['zone_id'] : null,
+            'zone_id'        => $this->labForm['zone_id'] !== '' ? $this->labForm['zone_id'] : null,
             'directorate_id' => $directorateId,
             'name'           => trim($validated['labForm']['name']),
             'code'           => trim($validated['labForm']['code']),
             'manager_id'     => $validated['labForm']['manager_id'] ?: null,
-            'analyst_ids'    => collect($validated['labForm']['analyst_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            'analyst_ids'    => collect($validated['labForm']['analyst_ids'] ?? [])->map(fn ($id) => (string) $id)->unique()->values()->all(),
             'phone1'         => trim($validated['labForm']['phone1']),
             'email'          => trim($validated['labForm']['email']),
             'start_sample_no' => trim($validated['labForm']['start_sample_no']) !== ''
@@ -310,30 +310,30 @@ class LabPageManager extends Component
         $this->showAnalystDropdown = true;
     }
 
-    public function toggleAnalystSelection(int $userId): void
+    public function toggleAnalystSelection(string $userId): void
     {
-        $selected = array_map('intval', $this->labForm['analyst_ids'] ?? []);
+        $selected = array_map('strval', $this->labForm['analyst_ids'] ?? []);
 
         if (in_array($userId, $selected, true)) {
-            $selected = array_values(array_filter($selected, fn (int $id): bool => $id !== $userId));
+            $selected = array_values(array_filter($selected, fn (string $id): bool => $id !== $userId));
         } else {
             $selected[] = $userId;
             $selected   = array_values(array_unique($selected));
         }
 
-        $this->labForm['analyst_ids'] = array_map('strval', $selected);
+        $this->labForm['analyst_ids'] = $selected;
         $this->analystSearch          = '';
         $this->showAnalystDropdown    = false;
     }
 
-    public function removeAnalyst(int $userId): void
+    public function removeAnalyst(string $userId): void
     {
-        $selected = array_map('intval', $this->labForm['analyst_ids'] ?? []);
-        $selected = array_values(array_filter($selected, fn (int $id): bool => $id !== $userId));
-        $this->labForm['analyst_ids'] = array_map('strval', $selected);
+        $selected = array_map('strval', $this->labForm['analyst_ids'] ?? []);
+        $selected = array_values(array_filter($selected, fn (string $id): bool => $id !== $userId));
+        $this->labForm['analyst_ids'] = $selected;
     }
 
-    public function confirmDelete(int $id): void
+    public function confirmDelete(string $id): void
     {
         $lab = Lab::query()->with('manager')->findOrFail($id);
 

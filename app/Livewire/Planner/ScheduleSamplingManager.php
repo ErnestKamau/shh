@@ -824,6 +824,7 @@ class ScheduleSamplingManager extends Component
         }
 
         $this->showFormModal = true;
+        $this->dispatch('schedule-trf-reinit-widgets');
     }
 
     public function updatedShowFormModal(bool $value): void
