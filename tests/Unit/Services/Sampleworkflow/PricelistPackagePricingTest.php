@@ -242,6 +242,65 @@ class PricelistPackagePricingTest extends TestCase
         $this->assertTrue((bool) ($reloaded[0]['is_package'] ?? false));
         $this->assertSame(275.0, (float) $reloaded[0]['unit_price']);
         $this->assertEqualsCanonicalizing($elementIds, $reloaded[0]['package_element_ids']);
+        $this->assertArrayHasKey('package_element_metrics', $reloaded[0]);
+        $this->assertCount(2, $reloaded[0]['package_element_metrics']);
+        $this->assertEqualsCanonicalizing(
+            $elementIds,
+            collect($reloaded[0]['package_element_metrics'])->pluck('id')->all(),
+        );
+        $this->assertSame('', (string) ($reloaded[0]['loq'] ?? ''));
+        $this->assertSame('', (string) ($reloaded[0]['mu_percent'] ?? ''));
+    }
+
+    public function test_enrich_lines_attaches_package_element_metrics(): void
+    {
+        $sampleType = SampleType::query()->create(['name' => 'Metrics Sample']);
+        $analysisType = AnalysisType::query()->create([
+            'name' => 'Metrics Analysis',
+            'sample_type_id' => $sampleType->id,
+        ]);
+        $elements = collect([1, 2])->map(fn (int $level) => AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => null,
+            'method' => 'Metric '.$level,
+            'level' => $level,
+            'active' => true,
+            'lod' => $level === 1 ? 0.1 : 0.2,
+            'hod' => $level === 1 ? 0.1 : 0.2,
+            'measurement_uncertainty' => $level === 1 ? 5.0 : 7.5,
+        ]));
+        $elementIds = $elements->pluck('id')->map(fn ($id): string => (string) $id)->all();
+
+        $lines = [[
+            'sample_type_id' => (string) $sampleType->id,
+            'analysis_type_id' => (string) $analysisType->id,
+            'analysis_element_id' => null,
+            'parameter_label' => 'Metrics Analysis package (2 parameters)',
+            'quantity' => 1,
+            'unit_price' => 100.0,
+            'is_package' => true,
+            'package_element_ids' => $elementIds,
+            'package_element_labels' => ['Param A', 'Param B'],
+        ]];
+
+        $enriched = app(\App\Services\Lab\UncertaintyBudgetResolver::class)
+            ->enrichLinesWithLabMetrics($lines);
+
+        $this->assertCount(1, $enriched);
+        $this->assertSame('', (string) ($enriched[0]['loq'] ?? ''));
+        $this->assertSame('', (string) ($enriched[0]['mu_percent'] ?? ''));
+        $this->assertArrayHasKey('package_element_metrics', $enriched[0]);
+        $this->assertCount(2, $enriched[0]['package_element_metrics']);
+
+        foreach ($enriched[0]['package_element_metrics'] as $metric) {
+            $this->assertArrayHasKey('id', $metric);
+            $this->assertArrayHasKey('label', $metric);
+            $this->assertArrayHasKey('loq', $metric);
+            $this->assertArrayHasKey('mu_percent', $metric);
+            $this->assertArrayHasKey('test_method', $metric);
+            $this->assertNotSame('', (string) $metric['loq']);
+            $this->assertNotSame('', (string) $metric['mu_percent']);
+        }
     }
 
     public function test_resolve_line_price_ignores_package_rows_for_parameter_lookup(): void

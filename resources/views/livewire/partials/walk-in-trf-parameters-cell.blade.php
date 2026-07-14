@@ -9,6 +9,7 @@
         ? $raw
         : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
     $options = $this->parametersForRow($rowIndex)->pluck('name')->values()->all();
+    $hasOptions = count($options) > 0;
 @endphp
 <div
     class="walk-in-trf-parameters-wrap"
@@ -18,6 +19,34 @@
     data-selected="{{ json_encode(array_values($selectedParams)) }}"
     data-options="{{ json_encode($options) }}"
 >
+    <div class="walk-in-trf-parameters-actions d-flex align-items-center justify-content-between flex-wrap mb-1">
+        <span class="walk-in-trf-parameters-count text-muted {{ ($compact ?? true) ? 'small' : '' }}">
+            @if($hasOptions)
+                {{ count($selectedParams) }}/{{ count($options) }} selected
+            @endif
+        </span>
+        <span class="walk-in-trf-parameters-action-btns">
+            <button
+                type="button"
+                class="btn btn-link p-0 walk-in-trf-params-select-all {{ ($compact ?? true) ? 'small' : '' }}"
+                data-walk-in-params-action="select-all"
+                @disabled(! $hasOptions)
+                title="Select every parameter for this analysis type"
+            >
+                Select all
+            </button>
+            <span class="text-muted px-1" aria-hidden="true">·</span>
+            <button
+                type="button"
+                class="btn btn-link p-0 walk-in-trf-params-clear {{ ($compact ?? true) ? 'small' : '' }}"
+                data-walk-in-params-action="clear"
+                @disabled(! $hasOptions)
+                title="Clear selected parameters"
+            >
+                Clear
+            </button>
+        </span>
+    </div>
     <select
         id="field_{{ $fieldId }}"
         multiple

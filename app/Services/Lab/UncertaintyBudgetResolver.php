@@ -406,9 +406,25 @@ final class UncertaintyBudgetResolver
     public function enrichLinesWithLabMetrics(array $lines): array
     {
         $elementIds = collect($lines)
-            ->pluck('analysis_element_id')
-            ->filter()
-            ->map(fn ($id) => (string) $id)
+            ->flatMap(function (array $line): array {
+                $ids = [];
+
+                $elementId = (string) ($line['analysis_element_id'] ?? '');
+                if ($elementId !== '') {
+                    $ids[] = $elementId;
+                }
+
+                if (! empty($line['is_package']) && is_array($line['package_element_ids'] ?? null)) {
+                    foreach ($line['package_element_ids'] as $packageElementId) {
+                        $packageElementId = trim((string) $packageElementId);
+                        if ($packageElementId !== '') {
+                            $ids[] = $packageElementId;
+                        }
+                    }
+                }
+
+                return $ids;
+            })
             ->unique()
             ->values()
             ->all();
@@ -418,13 +434,16 @@ final class UncertaintyBudgetResolver
                 $line['loq'] = '';
                 $line['mu_percent'] = '';
                 $line['test_method'] = '';
+                if (! empty($line['is_package'])) {
+                    $line['package_element_metrics'] = [];
+                }
 
                 return $line;
             }, $lines);
         }
 
         $elements = AnalysisElements::query()
-            ->with(['ltmethod', 'mmethod', 'methodSequence'])
+            ->with(['analyte:id,name', 'ltmethod', 'mmethod', 'methodSequence'])
             ->whereIn('id', $elementIds)
             ->get()
             ->keyBy('id');
@@ -438,6 +457,20 @@ final class UncertaintyBudgetResolver
         $budgets = $this->preloadForElements($budgetElements->unique('id')->values());
 
         return array_map(function (array $line) use ($elements, $budgets, $siblingsByAnalyte): array {
+            if (! empty($line['is_package'])) {
+                $line['loq'] = '';
+                $line['mu_percent'] = '';
+                $line['test_method'] = '';
+                $line['package_element_metrics'] = $this->buildPackageElementMetrics(
+                    $line,
+                    $elements,
+                    $budgets,
+                    $siblingsByAnalyte,
+                );
+
+                return $line;
+            }
+
             $elementId = (string) ($line['analysis_element_id'] ?? '');
             $element = $elementId !== '' ? $elements->get($elementId) : null;
 
@@ -456,6 +489,51 @@ final class UncertaintyBudgetResolver
 
             return $line;
         }, $lines);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  Collection<string, AnalysisElements>  $elements
+     * @param  Collection<string, mixed>|null  $budgets
+     * @param  Collection<string, Collection<int, AnalysisElements>>|null  $siblingsByAnalyte
+     * @return list<array{id: string, label: string, loq: string, mu_percent: string, test_method: string}>
+     */
+    private function buildPackageElementMetrics(
+        array $line,
+        Collection $elements,
+        ?Collection $budgets,
+        ?Collection $siblingsByAnalyte,
+    ): array {
+        $packageElementIds = is_array($line['package_element_ids'] ?? null)
+            ? array_values(array_filter(array_map(
+                static fn ($id): string => trim((string) $id),
+                $line['package_element_ids'],
+            )))
+            : [];
+
+        $metrics = [];
+        foreach ($packageElementIds as $packageElementId) {
+            $element = $elements->get($packageElementId);
+            if ($element === null) {
+                continue;
+            }
+
+            $labMetrics = $this->resolveLabMetricsForElement($element, $budgets, $siblingsByAnalyte);
+            $metrics[] = [
+                'id' => (string) $element->id,
+                'label' => (string) (
+                    $element->analyte?->name
+                    ?? (trim((string) ($element->parametername ?? '')) !== ''
+                        ? (string) $element->parametername
+                        : 'Parameter')
+                ),
+                'loq' => $labMetrics['loq'],
+                'mu_percent' => $labMetrics['mu_percent'],
+                'test_method' => $labMetrics['test_method'],
+            ];
+        }
+
+        return $metrics;
     }
 
     private function elementHasLabMetrics(AnalysisElements $element): bool
