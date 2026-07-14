@@ -31,13 +31,39 @@ class SystemConfiguration extends Model implements Auditable
 
     /**
      * Decrypt legacy/plaintext values that predate the encrypted cast.
+     *
+     * Also unwraps nested encryption from repeated save cycles where an
+     * already-encrypted payload was encrypted again.
      */
     public function fromEncryptedString($value)
     {
         try {
-            return parent::fromEncryptedString($value);
+            $decrypted = parent::fromEncryptedString($value);
         } catch (\Throwable) {
             return $value;
         }
+
+        $guard = 0;
+        while (
+            is_string($decrypted)
+            && $decrypted !== ''
+            && str_starts_with($decrypted, 'eyJ')
+            && $guard < 30
+        ) {
+            try {
+                $next = parent::fromEncryptedString($decrypted);
+            } catch (\Throwable) {
+                break;
+            }
+
+            if ($next === $decrypted) {
+                break;
+            }
+
+            $decrypted = $next;
+            $guard++;
+        }
+
+        return $decrypted;
     }
 }

@@ -16,12 +16,13 @@ class ProcessEnquiryWizardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_config_sync_merges_contract_pricelist_parameters_without_duplicates(): void
+    public function test_config_sync_does_not_invent_samples_from_contract_pricelist_by_default(): void
     {
         $customerId = (string) Str::uuid();
         $sampleTypeId = (string) Str::uuid();
         $analysisTypeId = (string) Str::uuid();
-        $elementId = (string) Str::uuid();
+        $requestedElementId = (string) Str::uuid();
+        $extraPricelistElementId = (string) Str::uuid();
 
         $pricelist = Pricelist::query()->create([
             'name' => 'Contract',
@@ -34,23 +35,26 @@ class ProcessEnquiryWizardTest extends TestCase
             'customer_id' => $customerId,
         ]);
 
-        PricelistItem::query()->create([
-            'pricelist_id' => $pricelist->id,
-            'sample_type_id' => $sampleTypeId,
-            'analysis_id' => $analysisTypeId,
-            'analysis_element_id' => $elementId,
-            'selling_price' => 80,
-            'vat' => true,
-            'active' => true,
-        ]);
+        foreach ([$requestedElementId, $extraPricelistElementId] as $elementId) {
+            PricelistItem::query()->create([
+                'pricelist_id' => $pricelist->id,
+                'sample_type_id' => $sampleTypeId,
+                'analysis_id' => $analysisTypeId,
+                'analysis_element_id' => $elementId,
+                'selling_price' => 80,
+                'vat' => true,
+                'active' => true,
+            ]);
+        }
 
         $existingConfigs = [
             [
                 'id' => (string) Str::uuid(),
                 'sample_type_id' => $sampleTypeId,
                 'analysis_type_id' => $analysisTypeId,
-                'parameter_keys' => [$elementId],
+                'parameter_keys' => [$requestedElementId],
                 'number_of_samples' => 1,
+                'row_index' => 0,
             ],
         ];
 
@@ -58,9 +62,10 @@ class ProcessEnquiryWizardTest extends TestCase
             [
                 'sample_type_id' => $sampleTypeId,
                 'analysis_type_id' => $analysisTypeId,
-                'analysis_element_id' => $elementId,
+                'analysis_element_id' => $requestedElementId,
                 'parameter_label' => 'pH',
                 'number_of_samples' => 1,
+                'row_index' => 0,
             ],
         ];
 
@@ -68,10 +73,13 @@ class ProcessEnquiryWizardTest extends TestCase
             $customerId,
             $existingConfigs,
             $trfSeeds,
+            false,
+            $pricelist,
         );
 
         $this->assertCount(1, $merged);
-        $this->assertSame([$elementId], $merged[0]['parameter_keys']);
+        $this->assertSame([$requestedElementId], $merged[0]['parameter_keys']);
+        $this->assertNotContains($extraPricelistElementId, $merged[0]['parameter_keys']);
     }
 
     public function test_build_inline_lines_from_acceptance_lines_sets_physical_sample_count(): void

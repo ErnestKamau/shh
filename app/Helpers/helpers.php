@@ -460,7 +460,7 @@ function plaintextConfigurationValue(?string $value): string
 		return $value;
 	}
 
-	for ($attempt = 0; $attempt < 5; $attempt++) {
+	for ($attempt = 0; $attempt < 30; $attempt++) {
 		if (! looksLikeEncryptedPayload($value)) {
 			break;
 		}
@@ -471,7 +471,7 @@ function plaintextConfigurationValue(?string $value): string
 			try {
 				$decrypted = trim(decrypt($value));
 			} catch (\Throwable) {
-				break;
+				return '';
 			}
 		}
 
@@ -482,7 +482,8 @@ function plaintextConfigurationValue(?string $value): string
 		$value = $decrypted;
 	}
 
-	return $value;
+	// Never leak undecryptable ciphertext into emails or UI.
+	return looksLikeEncryptedPayload($value) ? '' : $value;
 }
 
 function getReportEmailFooter(): string

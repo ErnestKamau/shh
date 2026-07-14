@@ -6,12 +6,17 @@ use App\Models\SampleSubmissionRequest;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use stdClass;
 
 final class QuotationAcceptanceTatService
 {
     public function stampFirstSentAt(SampleSubmissionRequest $enquiry, CarbonInterface $sentAt): void
     {
+        if (! Schema::hasColumn('sample_submission_requests', 'quotation_first_sent_to_customer_at')) {
+            return;
+        }
+
         if ($enquiry->quotation_first_sent_to_customer_at !== null) {
             return;
         }
@@ -72,6 +77,10 @@ final class QuotationAcceptanceTatService
         $averageMinutes = $tatMinutes === []
             ? null
             : (int) round(array_sum($tatMinutes) / count($tatMinutes));
+
+        if (! Schema::hasColumn('crm_customers', 'quotation_acceptance_tat_minutes')) {
+            return $averageMinutes;
+        }
 
         DB::table('crm_customers')
             ->where('id', $crmCustomerId)

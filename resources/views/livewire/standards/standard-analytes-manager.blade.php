@@ -205,7 +205,7 @@
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                         <form wire:submit.prevent="saveStandardAnalyte">
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Analyte <span class="text-danger">*</span></label>
                                         <div class="tag-select-container" wire:click="searchAnalytes">
@@ -235,37 +235,6 @@
                                             @endif
                                         </div>
                                         @error('standardAnalyteForm.analyte_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Standard Value</label>
-                                        <div class="tag-select-container" wire:click="searchStandardValues">
-                                            <div class="tag-select-input">
-                                                @if($selectedStandardValueName)
-                                                    <span class="tag-badge">
-                                                        {{ $selectedStandardValueName }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearStandardValue"></i>
-                                                    </span>
-                                                @else
-                                                    <input type="text"
-                                                           wire:model.live="standardValueSearch"
-                                                           wire:keyup="searchStandardValues"
-                                                           class="tag-input"
-                                                           placeholder="Search standard values..."
-                                                           autocomplete="off">
-                                                @endif
-                                            </div>
-                                            @if($showStandardValueDropdown && count($filteredStandardValues) > 0)
-                                                <div class="tag-dropdown">
-                                                    @foreach($filteredStandardValues as $value)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectStandardValue('{{ $value->id }}')">
-                                                            {{ $value->name }} ({{ $value->code }})
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -362,8 +331,8 @@
                                             </div>
                                         </div>
 
-                                        {{-- Matrix Operator and Value Fields (shown when Standard Value is selected) --}}
-                                        @if($standardAnalyteForm['standard_value_id'])
+                                        {{-- Matrix Operator / Actual Value only when IsValue is selected --}}
+                                        @if($this->isSelectedStandardValueIsValue())
                                             <div class="alert alert-info">
                                                 <i class="mdi mdi-information"></i> Additional configuration for the selected standard value.
                                             </div>

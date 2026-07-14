@@ -169,15 +169,19 @@
 
                     $companyUnitsById = $companyUnits->keyBy('id');
 
-                    $companyUnitOptions = $companyUnits
-                        ->pluck('name')
-                        ->map(fn($name) => trim((string) $name))
-                        ->filter()
-                        ->values();
-
-                    foreach ($batchContacts as $contact) {
+                    // Contact.unit_name may store legacy display names or CRM unit UUIDs
+                    // (ContactForm). Always resolve to a human-readable unit name.
+                    $resolveContactUnitNames = function ($contact) use ($companyUnitsById) {
                         $contactUnits = collect(explode(',', (string) ($contact->unit_name ?? '')))
                             ->map(fn($unit) => trim((string) $unit))
+                            ->filter()
+                            ->map(function ($unit) use ($companyUnitsById) {
+                                if (\Illuminate\Support\Str::isUuid($unit)) {
+                                    return trim((string) ($companyUnitsById->get($unit)?->name ?? ''));
+                                }
+
+                                return $unit;
+                            })
                             ->filter();
 
                         if (!empty($contact->crm_company_unit_id)) {
@@ -187,7 +191,19 @@
                             }
                         }
 
-                        $companyUnitOptions = $companyUnitOptions->merge($contactUnits);
+                        return $contactUnits
+                            ->unique(fn($name) => strtolower((string) $name))
+                            ->values();
+                    };
+
+                    $companyUnitOptions = $companyUnits
+                        ->pluck('name')
+                        ->map(fn($name) => trim((string) $name))
+                        ->filter()
+                        ->values();
+
+                    foreach ($batchContacts as $contact) {
+                        $companyUnitOptions = $companyUnitOptions->merge($resolveContactUnitNames($contact));
                     }
 
                     $companyUnitOptions = $companyUnitOptions
@@ -196,6 +212,9 @@
                         ->values();
 
                     $defaultCompanyUnit = trim((string) ($batch->crm_unit_name ?? ''));
+                    if (\Illuminate\Support\Str::isUuid($defaultCompanyUnit)) {
+                        $defaultCompanyUnit = trim((string) ($companyUnitsById->get($defaultCompanyUnit)?->name ?? ''));
+                    }
                     if (
                         $defaultCompanyUnit === ''
                         || !$companyUnitOptions->contains(fn($name) => strtolower((string) $name) === strtolower($defaultCompanyUnit))
@@ -244,21 +263,7 @@
                                 <div id="ptrr-contact-list" style="border:1px solid #dee2e6;border-radius:8px;max-height:130px;overflow-y:auto;padding:8px 12px;background:#fafafa;">
                                     @foreach($batchContacts as $c)
                                     @php
-                                        $contactUnits = collect(explode(',', (string) ($c->unit_name ?? '')))
-                                            ->map(fn($unit) => trim((string) $unit))
-                                            ->filter();
-
-                                        if (!empty($c->crm_company_unit_id)) {
-                                            $mappedUnitName = trim((string) ($companyUnitsById->get($c->crm_company_unit_id)?->name ?? ''));
-                                            if ($mappedUnitName !== '') {
-                                                $contactUnits->push($mappedUnitName);
-                                            }
-                                        }
-
-                                        $contactUnits = $contactUnits
-                                            ->unique(fn($name) => strtolower((string) $name))
-                                            ->values()
-                                            ->all();
+                                        $contactUnits = $resolveContactUnitNames($c)->all();
                                         $contactName = trim((string) ($c->name ?? implode(' ', array_filter([
                                             $c->first_name ?? null,
                                             $c->middle_name ?? null,
