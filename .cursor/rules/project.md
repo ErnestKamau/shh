@@ -27,7 +27,7 @@ Frontend
 - Blade
 - Alpine.js
 - Bootstrap
-- jQuery (legacy support only)
+- jQuery
 
 Authentication
 
@@ -82,7 +82,7 @@ Business logic must never live inside Blade templates.
 
 ---
 
-# General Principles
+# General Principles IMPORTANT!!
 
 Always improve code quality.
 
@@ -104,7 +104,7 @@ Every component should own one feature.
 
 ---
 
-# Existing Code
+# Existing Code IMPORTANT!!
 
 This is an existing enterprise application.
 
@@ -120,7 +120,7 @@ Refactor incrementally.
 
 ---
 
-# Consistency
+# Consistency IMPORTANT!!
 
 Consistency is more important than personal preference.
 
@@ -236,7 +236,7 @@ Configuration over hardcoded values
 
 ---
 
-# Avoid
+# Avoid IMPORTANT!!
 
 Do not introduce unnecessary packages.
 
@@ -248,12 +248,12 @@ Do not replace Livewire.
 
 Do not replace Blade.
 
-Do not replace existing architecture without strong justification.
+Do not replace existing architecture without PERMISSION FROM ME!!
 
 ---
 
 
-# Cursor Behaviour
+# Cursor Behaviour -> IMPORTANT!!
 
 When multiple solutions exist:
 

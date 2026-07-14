@@ -35,15 +35,6 @@ Do not generate code compatible with older PHP versions.
 
 ---
 
-# Strict Typing
-
-Every PHP file should begin with:
-
-declare(strict_types=1);
-
-Strict typing is mandatory for all new PHP files.
-
----
 
 # Type Declarations
 
@@ -298,8 +289,6 @@ Avoid static methods for business logic.
 Use services instead.
 
 Allowed
-
-Factories
 
 Utility functions
 
