@@ -1347,6 +1347,10 @@ class ScheduleSamplingManager extends Component
         }
 
         $submissionForm->loadMissing(['sections.elementHolders.elements']);
+
+        // Pull schedule sample/test/collection data into formData before validation/persist.
+        $this->hydrateFormDataFromSchedule($submissionForm);
+
         $rules = [];
         $messages = [];
         foreach ($submissionForm->sections->flatMap->elementHolders->flatMap->elements as $element) {
@@ -1358,7 +1362,7 @@ class ScheduleSamplingManager extends Component
             $messages[$key.'.required'] = ($element->label ?? $element->name).' is required.';
         }
 
-        if (!empty($rules)) {
+        if (! empty($rules)) {
             $this->validate($rules, $messages);
         }
 
@@ -1374,7 +1378,7 @@ class ScheduleSamplingManager extends Component
                 throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
             }
 
-            $payload = app(SubmissionFormValueNormalizer::class)->toRequestPayload($this->formData);
+            $payload = $this->buildScheduleSubmissionPayload($submissionForm);
 
             app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
                 $submissionForm,
@@ -1396,8 +1400,274 @@ class ScheduleSamplingManager extends Component
 
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->message = 'Error saving form response: ' . $e->getMessage();
+            Log::error('Schedule TRF save failed: '.$e->getMessage(), [
+                'schedule_id' => $this->selectedScheduleId,
+                'sample_type_id' => $this->selectedSampleTypeId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $this->message = 'Error saving form response: '.$e->getMessage();
             $this->messageType = 'error';
+        }
+    }
+
+    /**
+     * Copy schedule analysis/parameters/qty/datetime into TRF formData so lab request view is populated.
+     */
+    private function hydrateFormDataFromSchedule(SubmissionForm $submissionForm): void
+    {
+        if (! $this->selectedScheduleId || ! $this->selectedSampleTypeId) {
+            return;
+        }
+
+        $schedule = SamplingSchedule::query()->find($this->selectedScheduleId);
+        if ($schedule === null) {
+            return;
+        }
+
+        $matchingEntry = $this->matchingScheduleSampleEntry($schedule, (string) $this->selectedSampleTypeId);
+
+        if ($schedule->sampling_datetime) {
+            $this->assignFormValue('sampling_date', $schedule->sampling_datetime->format('Y-m-d'), $submissionForm);
+            $this->assignFormValue('sampling_time', $schedule->sampling_datetime->format('H:i'), $submissionForm);
+            $this->assignFormValue('date_received', $schedule->sampling_datetime->format('Y-m-d'), $submissionForm);
+        }
+
+        $location = trim((string) ($schedule->location ?? ''));
+        if ($location !== '') {
+            // Free-text sample-row location fields — never overwrite UUID sample-point selects.
+            $this->assignFormValue('sampling_point', $location, $submissionForm, textOnly: true);
+            $this->assignFormValue('location', $location, $submissionForm, textOnly: true);
+        }
+
+        $qty = max(1, (int) ($schedule->number_of_samples ?? 1));
+        $this->assignFormValue('sample_quantity', $qty, $submissionForm);
+        $this->assignFormValue('number_of_samples', $qty, $submissionForm);
+        $this->assignFormValue('qty', $qty, $submissionForm);
+
+        if ($matchingEntry !== null && ! empty($matchingEntry['analysis_type_id'])) {
+            $this->assignFormValue('analysis_type_id', (string) $matchingEntry['analysis_type_id'], $submissionForm);
+        }
+
+        $parameterIds = is_array($matchingEntry['parameters'] ?? null) ? $matchingEntry['parameters'] : [];
+        $parameterNames = $this->resolveParameterNames($parameterIds);
+        if ($parameterNames !== []) {
+            $this->assignFormValue('parameters', $parameterNames, $submissionForm);
+        }
+
+        if ($this->isFood || $this->isWater || $this->isWasteWater) {
+            $row = $this->getDefaultSampleRow();
+            if ($parameterNames !== []) {
+                $row['parameters'] = implode(', ', $parameterNames);
+            }
+            if ($matchingEntry !== null && ! empty($matchingEntry['analysis_type_id'])) {
+                $row['analysis_type_id'] = (string) $matchingEntry['analysis_type_id'];
+            }
+            if ($location !== '') {
+                $row['sampling_point'] = $location;
+                $row['location'] = $location;
+            }
+            $row['qty'] = (string) $qty;
+            $row['sample_quantity'] = $qty;
+            $this->formData['sample_rows'] = [$row];
+
+            // Flatten sample_rows into indexed schema fields used by processFormData.
+            foreach ($row as $key => $value) {
+                if ($key === 'parameters' && is_string($value) && $value !== '') {
+                    $value = array_values(array_filter(array_map('trim', explode(',', $value))));
+                }
+                $this->assignFormValue((string) $key, $value, $submissionForm);
+            }
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildScheduleSubmissionPayload(SubmissionForm $submissionForm): array
+    {
+        $normalizer = app(SubmissionFormValueNormalizer::class);
+        $payload = array_merge(
+            $this->formData,
+            $normalizer->toRequestPayload($this->formData),
+        );
+
+        // Rows-section fields must stay as numerically indexed arrays so values
+        // persist with array_index (lab request view groups by that).
+        foreach ($this->rowElementNames($submissionForm) as $name) {
+            if (! array_key_exists($name, $payload)) {
+                continue;
+            }
+
+            if (! is_array($payload[$name])) {
+                $payload[$name] = [$payload[$name]];
+            } elseif ($payload[$name] !== [] && array_keys($payload[$name]) !== range(0, count($payload[$name]) - 1)) {
+                $payload[$name] = array_values($payload[$name]);
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rowElementNames(SubmissionForm $submissionForm): array
+    {
+        $names = [];
+        foreach ($submissionForm->sections as $section) {
+            if (($section->section_type ?? '') !== 'rows_section') {
+                continue;
+            }
+            foreach ($section->elementHolders as $holder) {
+                foreach ($holder->elements as $element) {
+                    $name = (string) ($element->name ?? '');
+                    if ($name !== '') {
+                        $names[] = $name;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $matchingEntry
+     * @return array{sample_type_id?: string, analysis_type_id?: string, parameters?: list<string>}|null
+     */
+    private function matchingScheduleSampleEntry(SamplingSchedule $schedule, string $sampleTypeId): ?array
+    {
+        if (! empty($schedule->sample_details) && is_array($schedule->sample_details)) {
+            foreach ($schedule->sample_details as $entry) {
+                if (($entry['sample_type_id'] ?? '') === $sampleTypeId) {
+                    return is_array($entry) ? $entry : null;
+                }
+            }
+
+            // Fall back to first schedule sample entry when IDs were remapped/renamed.
+            $first = $schedule->sample_details[0] ?? null;
+            if (is_array($first) && (! empty($first['analysis_type_id']) || ! empty($first['parameters']))) {
+                return $first;
+            }
+        }
+
+        if ((string) ($schedule->sample_type_id ?? '') === $sampleTypeId
+            || (string) ($schedule->sample_type_id ?? '') !== '') {
+            return [
+                'sample_type_id' => (string) ($schedule->sample_type_id ?? $sampleTypeId),
+                'analysis_type_id' => $schedule->analysis_type_id ? (string) $schedule->analysis_type_id : null,
+                'parameters' => is_array($schedule->parameters ?? null) ? $schedule->parameters : [],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $parameterIds
+     * @return list<string>
+     */
+    private function resolveParameterNames(array $parameterIds): array
+    {
+        $parameterIds = array_values(array_filter(array_map('strval', $parameterIds)));
+        if ($parameterIds === []) {
+            return [];
+        }
+
+        $byAnalyte = \App\Analyte::query()
+            ->whereIn('id', $parameterIds)
+            ->pluck('name', 'id');
+
+        $names = [];
+        $missing = [];
+        foreach ($parameterIds as $id) {
+            $name = trim((string) ($byAnalyte[$id] ?? ''));
+            if ($name !== '') {
+                $names[] = $name;
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing !== []) {
+            $fromElements = AnalysisElements::query()
+                ->with('analyte')
+                ->whereIn('id', $missing)
+                ->get();
+
+            foreach ($fromElements as $element) {
+                $name = trim((string) ($element->analyte?->name ?? $element->method ?? ''));
+                if ($name !== '') {
+                    $names[] = $name;
+                    $idx = array_search((string) $element->id, $missing, true);
+                    if ($idx !== false) {
+                        unset($missing[$idx]);
+                    }
+                }
+            }
+        }
+
+        // Last resort: keep unresolved IDs so display resolvers can still map them.
+        foreach ($missing as $id) {
+            $names[] = (string) $id;
+        }
+
+        return array_values(array_unique(array_filter($names, fn (string $name): bool => $name !== '')));
+    }
+
+    private function assignFormValue(string $name, mixed $value, SubmissionForm $submissionForm, bool $textOnly = false): void
+    {
+        $element = null;
+        $sectionType = null;
+
+        foreach ($submissionForm->sections as $section) {
+            foreach ($section->elementHolders as $holder) {
+                foreach ($holder->elements as $el) {
+                    if ((string) ($el->name ?? '') === $name) {
+                        $element = $el;
+                        $sectionType = (string) ($section->section_type ?? '');
+                        break 3;
+                    }
+                }
+            }
+        }
+
+        if ($element === null) {
+            return;
+        }
+
+        if ($textOnly && in_array((string) $element->element_type, [
+            'customer_sample_point_select',
+            'sample_point_select',
+            'client_select',
+            'client_contact_select',
+            'analysis_type_select',
+            'analysis_elements_select',
+            'sample_type_select',
+        ], true)) {
+            return;
+        }
+
+        $isRowField = $sectionType === 'rows_section';
+
+        if ($isRowField) {
+            if (! isset($this->formData[$name]) || ! is_array($this->formData[$name])) {
+                $this->formData[$name] = [];
+            }
+
+            $current = $this->formData[$name][0] ?? null;
+            $isEmpty = $current === null || $current === '' || $current === [] || $current === false;
+            if ($isEmpty || in_array($name, ['analysis_type_id', 'parameters', 'sample_quantity', 'number_of_samples', 'sampling_point', 'location'], true)) {
+                $this->formData[$name][0] = $value;
+            }
+
+            return;
+        }
+
+        $current = $this->formData[$name] ?? null;
+        $isEmpty = $current === null || $current === '' || $current === [] || $current === false;
+        if ($isEmpty || in_array($name, ['sampling_date', 'sampling_time', 'date_received', 'sample_quantity', 'number_of_samples'], true)) {
+            $this->formData[$name] = $value;
         }
     }
 

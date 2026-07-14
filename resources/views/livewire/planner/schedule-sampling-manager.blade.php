@@ -559,7 +559,7 @@
                                         <tr style="border-top: 1px solid #eee;">
                                             <td class="px-3 py-2">
                                                 <div class="font-weight-bold" style="font-size:13px;color:#333;">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
-                                                <small class="text-muted">{{ $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
+                                                <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
                                             </td>
                                             <td class="px-3 py-2" style="font-size:12px;vertical-align:middle;color:#555;">
                                                 {{ $instance->submittedBy?->name ?? 'N/A' }}
