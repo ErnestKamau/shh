@@ -60,6 +60,8 @@
                                                     <button class="btn btn-outline-secondary btn-sm parameter-settings-btn" 
                                                             type="button" 
                                                             data-result-id="{{ $result->id }}"
+                                                            data-sample-code="{{ $sampleCode }}"
+                                                            data-analyte="{{ $analyte }}"
                                                             data-toggle="modal" 
                                                             data-target="#parameter-settings-modal">
                                                         <i class="mdi mdi-dots-vertical"></i>
@@ -81,6 +83,8 @@
                                                 <button class="btn btn-link btn-sm p-0 ml-1 edit-standard-btn" 
                                                         type="button"
                                                         data-result-id="{{ $result->id }}"
+                                                        data-sample-code="{{ $sampleCode }}"
+                                                        data-analyte="{{ $analyte }}"
                                                         data-toggle="modal" 
                                                         data-target="#edit-standard-modal">
                                                     <i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>

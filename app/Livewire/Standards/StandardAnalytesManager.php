@@ -156,6 +156,11 @@ class StandardAnalytesManager extends Component
         }
 
         // Populate form with existing data
+        $selectedStandardValue = $standardAnalyte->standard_value_id
+            ? StandardValue::find($standardAnalyte->standard_value_id)
+            : null;
+        $isValueSelected = $selectedStandardValue && ($selectedStandardValue->code ?? '') === 'IsValue';
+
         $this->standardAnalyteForm = [
             'analyte_id' => $standardAnalyte->analyte_id,
             'standard_value_id' => $standardAnalyte->standard_value_id,
@@ -173,8 +178,12 @@ class StandardAnalytesManager extends Component
             'tolerance_1' => $standardAnalyte->tolerance_1 ?? '',
             'tolerance_2' => $standardAnalyte->tolerance_2 ?? '',
             'value_type' => $valueType,
-            'matrix_operator' => $valueType === 'use_value' ? ($standardAnalyte->value_type ?? '') : ($standardAnalyte->matrix_operator ?? ''),
-            'matrix_value' => $valueType === 'use_value' ? ($standardAnalyte->standard_is_value ?? '') : ($standardAnalyte->matrix_value ?? '')
+            'matrix_operator' => $isValueSelected
+                ? ($standardAnalyte->matrix_operator ?: ($standardAnalyte->value_type ?? ''))
+                : '',
+            'matrix_value' => $isValueSelected
+                ? ($standardAnalyte->matrix_value ?: ($standardAnalyte->standard_is_value ?? ''))
+                : '',
         ];
         
         $this->editingStandardAnalyte = $id;
@@ -199,11 +208,22 @@ class StandardAnalytesManager extends Component
             $rules['standardAnalyteForm.high'] = 'required|string';
         } elseif ($this->standardAnalyteForm['value_type'] === 'use_value') {
             $rules['standardAnalyteForm.standard_value_id'] = 'required|exists:standard_values,id';
-            $rules['standardAnalyteForm.matrix_operator'] = 'required|in:max,min,greater_than,less_than';
-            $rules['standardAnalyteForm.matrix_value'] = 'required|string';
+
+            if ($this->isSelectedStandardValueIsValue()) {
+                $rules['standardAnalyteForm.matrix_operator'] = 'required|in:max,min,greater_than,less_than';
+                $rules['standardAnalyteForm.matrix_value'] = 'required|string';
+            }
         }
 
         $this->validate($rules);
+
+        if (
+            $this->standardAnalyteForm['value_type'] === 'use_value'
+            && ! $this->isSelectedStandardValueIsValue()
+        ) {
+            $this->standardAnalyteForm['matrix_operator'] = '';
+            $this->standardAnalyteForm['matrix_value'] = '';
+        }
 
         try {
             DB::beginTransaction();
@@ -217,7 +237,7 @@ class StandardAnalytesManager extends Component
                     'standard_value_type' => $this->standardAnalyteForm['value_type'] === 'range' ? 'is_range' : 'is_standard_value',
                     'low' => $this->standardAnalyteForm['low'],
                     'high' => $this->standardAnalyteForm['high'],
-                    'standard_is_value' => $this->standardAnalyteForm['value_type'] === 'use_value' ? $this->standardAnalyteForm['matrix_value'] : $this->standardAnalyteForm['standard_is_value'],
+                    'standard_is_value' => $this->resolveStandardIsValueForSave(),
                     'comments' => $this->standardAnalyteForm['comments'],
                     'recommendations' => $this->standardAnalyteForm['recommendations'],
                     'expected_value' => $this->standardAnalyteForm['expected_value'],
@@ -227,9 +247,9 @@ class StandardAnalytesManager extends Component
                     'rel_std_dev' => $this->standardAnalyteForm['rel_std_dev'],
                     'tolerance_1' => $this->standardAnalyteForm['tolerance_1'],
                     'tolerance_2' => $this->standardAnalyteForm['tolerance_2'],
-                    'value_type' => $this->standardAnalyteForm['value_type'] === 'use_value' ? $this->standardAnalyteForm['matrix_operator'] : $this->standardAnalyteForm['value_type'],
-                    'matrix_operator' => $this->standardAnalyteForm['matrix_operator'],
-                    'matrix_value' => $this->standardAnalyteForm['matrix_value'],
+                    'value_type' => $this->resolvePersistedValueTypeForSave(),
+                    'matrix_operator' => $this->standardAnalyteForm['matrix_operator'] ?: null,
+                    'matrix_value' => $this->standardAnalyteForm['matrix_value'] ?: null,
                 ]);
                 $this->message = 'Standard analyte updated successfully!';
             } else {
@@ -240,7 +260,7 @@ class StandardAnalytesManager extends Component
                     'standard_value_type' => $this->standardAnalyteForm['value_type'] === 'range' ? 'is_range' : 'is_standard_value',
                     'low' => $this->standardAnalyteForm['low'],
                     'high' => $this->standardAnalyteForm['high'],
-                    'standard_is_value' => $this->standardAnalyteForm['value_type'] === 'use_value' ? $this->standardAnalyteForm['matrix_value'] : $this->standardAnalyteForm['standard_is_value'],
+                    'standard_is_value' => $this->resolveStandardIsValueForSave(),
                     'comments' => $this->standardAnalyteForm['comments'],
                     'recommendations' => $this->standardAnalyteForm['recommendations'],
                     'expected_value' => $this->standardAnalyteForm['expected_value'],
@@ -250,9 +270,9 @@ class StandardAnalytesManager extends Component
                     'rel_std_dev' => $this->standardAnalyteForm['rel_std_dev'],
                     'tolerance_1' => $this->standardAnalyteForm['tolerance_1'],
                     'tolerance_2' => $this->standardAnalyteForm['tolerance_2'],
-                    'value_type' => $this->standardAnalyteForm['value_type'] === 'use_value' ? $this->standardAnalyteForm['matrix_operator'] : $this->standardAnalyteForm['value_type'],
-                    'matrix_operator' => $this->standardAnalyteForm['matrix_operator'],
-                    'matrix_value' => $this->standardAnalyteForm['matrix_value'],
+                    'value_type' => $this->resolvePersistedValueTypeForSave(),
+                    'matrix_operator' => $this->standardAnalyteForm['matrix_operator'] ?: null,
+                    'matrix_value' => $this->standardAnalyteForm['matrix_value'] ?: null,
                 ]);
                 $this->message = 'Standard analyte created successfully!';
             }
@@ -383,6 +403,11 @@ class StandardAnalytesManager extends Component
         $this->selectedStandardValueName = $standardValue->name;
         $this->standardValueSearch = $standardValue->name;
         $this->showStandardValueDropdown = false;
+
+        if (($standardValue->code ?? '') !== 'IsValue') {
+            $this->standardAnalyteForm['matrix_operator'] = '';
+            $this->standardAnalyteForm['matrix_value'] = '';
+        }
     }
 
     public function clearStandardValue(): void
@@ -391,6 +416,46 @@ class StandardAnalytesManager extends Component
         $this->selectedStandardValueName = '';
         $this->standardValueSearch = '';
         $this->showStandardValueDropdown = false;
+        $this->standardAnalyteForm['matrix_operator'] = '';
+        $this->standardAnalyteForm['matrix_value'] = '';
+    }
+
+    public function isSelectedStandardValueIsValue(): bool
+    {
+        $standardValueId = $this->standardAnalyteForm['standard_value_id'] ?? null;
+        if (! $standardValueId) {
+            return false;
+        }
+
+        $standardValue = collect($this->standardValues)->firstWhere('id', (string) $standardValueId);
+
+        return $standardValue && ($standardValue->code ?? '') === 'IsValue';
+    }
+
+    protected function resolveStandardIsValueForSave(): ?string
+    {
+        if ($this->standardAnalyteForm['value_type'] !== 'use_value') {
+            return $this->standardAnalyteForm['standard_is_value'] ?: null;
+        }
+
+        if ($this->isSelectedStandardValueIsValue()) {
+            return $this->standardAnalyteForm['matrix_value'] ?: null;
+        }
+
+        return null;
+    }
+
+    protected function resolvePersistedValueTypeForSave(): ?string
+    {
+        if ($this->standardAnalyteForm['value_type'] === 'range') {
+            return 'range';
+        }
+
+        if ($this->isSelectedStandardValueIsValue()) {
+            return $this->standardAnalyteForm['matrix_operator'] ?: null;
+        }
+
+        return 'use_value';
     }
 
     protected function syncSearchableSelectLabels(): void

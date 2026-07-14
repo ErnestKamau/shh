@@ -6246,20 +6246,34 @@ class SampleWorkFlowController extends Controller
             ->values()
             ->all();
         $results     = [];
+        $unitNameMap = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $customerId)
+            ->pluck('name', 'id')
+            ->map(fn ($name) => trim((string) $name));
+
+        $resolveUnitLabel = function (string $unit) use ($unitNameMap): string {
+            $unit = trim($unit);
+            if ($unit === '') {
+                return '';
+            }
+
+            // ContactForm stores unit UUIDs in unit_name; resolve them to display names.
+            if (\Illuminate\Support\Str::isUuid($unit)) {
+                return trim((string) ($unitNameMap->get($unit) ?? ''));
+            }
+
+            return $unit;
+        };
+
         $selectedUnits = collect($request->input('company_units', []))
-            ->map(fn ($unit) => trim((string) $unit))
+            ->map(fn ($unit) => $resolveUnitLabel((string) $unit))
             ->filter()
             ->unique(fn ($unit) => strtolower($unit))
             ->values();
 
-        $legacyUnit = trim((string) $request->input('company_unit', ''));
+        $legacyUnit = $resolveUnitLabel((string) $request->input('company_unit', ''));
         if ($selectedUnits->isEmpty() && $legacyUnit !== '') {
             $selectedUnits = collect([$legacyUnit]);
         }
-
-        $unitNameMap = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $customerId)
-            ->pluck('name', 'id')
-            ->map(fn($name) => trim((string) $name));
 
         $validUnitNames = $unitNameMap
             ->map(fn ($name) => strtolower((string) $name))
@@ -6373,13 +6387,13 @@ class SampleWorkFlowController extends Controller
             ->where('active', 1)
             ->whereIn('id', $contactIds)
             ->get()
-            ->filter(function ($contact) use ($selectedUnitsNormalized, $selectedUnits, $unitNameMap) {
+            ->filter(function ($contact) use ($selectedUnitsNormalized, $selectedUnits, $unitNameMap, $resolveUnitLabel) {
                 if ($selectedUnits->isEmpty()) {
                     return true;
                 }
 
                 $units = collect(explode(',', (string) ($contact->unit_name ?? '')))
-                    ->map(fn($unit) => strtolower(trim((string) $unit)))
+                    ->map(fn ($unit) => strtolower($resolveUnitLabel((string) $unit)))
                     ->filter();
 
                 if ($units->intersect($selectedUnitsNormalized)->isNotEmpty()) {
@@ -8768,8 +8782,14 @@ class SampleWorkFlowController extends Controller
             $resultId = $request->input('result_id');
             $sampleCode = $request->input('sample_code');
             $analyte = $request->input('analyte');
-            $standardValue = $request->input('standard_value');
-            $limitType = $request->input('limit_type');
+            $valueType = $request->input('value_type');
+            $standardValueId = $request->input('standard_value_id');
+            $matrixOperator = $request->input('matrix_operator');
+            $matrixValue = $request->input('matrix_value');
+            $rangeLow = $request->input('range_low');
+            $rangeHigh = $request->input('range_high');
+            $legacyStandardValue = $request->input('standard_value');
+            $legacyLimitType = $request->input('limit_type');
 
             // Find or create the captured result
             $capturedResult = null;
@@ -8797,10 +8817,16 @@ class SampleWorkFlowController extends Controller
             }
 
             $limitDisplay = app(StandardLimitDisplayService::class);
-            $mainValue = $limitDisplay->formatMainValueFromEditForm(
-                (string) $standardValue,
-                (string) $limitType,
-            );
+            $mainValue = $limitDisplay->formatMainValueFromStructuredEditForm([
+                'value_type' => $valueType,
+                'range_low' => $rangeLow,
+                'range_high' => $rangeHigh,
+                'standard_value_id' => $standardValueId,
+                'matrix_operator' => $matrixOperator,
+                'matrix_value' => $matrixValue,
+                'standard_value' => $legacyStandardValue,
+                'limit_type' => $legacyLimitType,
+            ]);
 
             $capturedResult->main_value = $mainValue;
 
@@ -8950,14 +8976,11 @@ class SampleWorkFlowController extends Controller
             }
 
             $parsed = app(StandardLimitDisplayService::class)
-                ->parseEditFormFromMainValue($capturedResult->main_value);
+                ->parseStructuredEditFormFromMainValue($capturedResult->main_value);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'standard_value' => $parsed['standard_value'],
-                    'limit_type' => $parsed['limit_type'],
-                ],
+                'data' => $parsed,
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -133,6 +133,144 @@ class StandardLimitDisplayService
     }
 
     /**
+     * Build display main_value from the richer Edit Standard Limit form.
+     *
+     * @param  array{
+     *     value_type?: string,
+     *     range_low?: string|null,
+     *     range_high?: string|null,
+     *     standard_value_id?: string|null,
+     *     matrix_operator?: string|null,
+     *     matrix_value?: string|null,
+     *     standard_value?: string|null,
+     *     limit_type?: string|null
+     * }  $payload
+     */
+    public function formatMainValueFromStructuredEditForm(array $payload): string
+    {
+        $valueType = $payload['value_type'] ?? null;
+
+        // Backward compatibility with the previous free-text + MAX/MIN/RANGE form.
+        if ($valueType === null && array_key_exists('standard_value', $payload)) {
+            return $this->formatMainValueFromEditForm(
+                (string) ($payload['standard_value'] ?? ''),
+                (string) ($payload['limit_type'] ?? 'MAX'),
+            );
+        }
+
+        if (($valueType ?? 'use_value') === 'range') {
+            $low = trim((string) ($payload['range_low'] ?? ''));
+            $high = trim((string) ($payload['range_high'] ?? ''));
+
+            return trim($low.' - '.$high);
+        }
+
+        $standardValueId = $payload['standard_value_id'] ?? null;
+        $standardValue = $standardValueId ? StandardValue::find($standardValueId) : null;
+
+        if (! $standardValue) {
+            return 'NS';
+        }
+
+        if ($standardValue->code === 'IsValue') {
+            $operator = strtolower(trim((string) ($payload['matrix_operator'] ?? '')));
+            $actual = trim((string) ($payload['matrix_value'] ?? ''));
+
+            if ($operator === 'less_than' || $operator === '<') {
+                return '< '.$actual;
+            }
+
+            if ($operator === 'greater_than' || $operator === '>') {
+                return '> '.$actual;
+            }
+
+            if (in_array($operator, ['min', 'max'], true) && $actual !== '') {
+                return $operator.' '.$actual;
+            }
+
+            return $actual !== '' ? $actual : 'NS';
+        }
+
+        return (string) ($standardValue->code ?: $standardValue->name ?: 'NS');
+    }
+
+    /**
+     * @return array{
+     *     value_type: string,
+     *     range_low: string,
+     *     range_high: string,
+     *     standard_value_id: string|null,
+     *     matrix_operator: string,
+     *     matrix_value: string,
+     *     standard_value: string,
+     *     limit_type: string
+     * }
+     */
+    public function parseStructuredEditFormFromMainValue(?string $mainValue): array
+    {
+        $legacy = $this->parseEditFormFromMainValue($mainValue);
+        $mainValue = trim((string) $mainValue);
+
+        $result = [
+            'value_type' => 'use_value',
+            'range_low' => '',
+            'range_high' => '',
+            'standard_value_id' => null,
+            'matrix_operator' => '',
+            'matrix_value' => '',
+            'standard_value' => $legacy['standard_value'],
+            'limit_type' => $legacy['limit_type'],
+        ];
+
+        if ($mainValue === '' || $mainValue === 'NS') {
+            return $result;
+        }
+
+        if ($legacy['limit_type'] === 'RANGE') {
+            $parts = preg_split('/\s*-\s*/', $mainValue) ?: [];
+            $result['value_type'] = 'range';
+            $result['range_low'] = trim((string) ($parts[0] ?? ''));
+            $result['range_high'] = trim((string) ($parts[1] ?? ''));
+
+            return $result;
+        }
+
+        if (in_array($legacy['limit_type'], ['MIN', 'MAX'], true) && $legacy['standard_value'] !== '') {
+            $isValue = StandardValue::query()->where('code', 'IsValue')->first();
+            $result['value_type'] = 'use_value';
+            $result['standard_value_id'] = $isValue?->id;
+            $result['matrix_operator'] = strtolower($legacy['limit_type']);
+            $result['matrix_value'] = $legacy['standard_value'];
+
+            return $result;
+        }
+
+        if (preg_match('/^([<>])\s*(\d+(?:\.\d+)?)$/', $mainValue, $matches)) {
+            $isValue = StandardValue::query()->where('code', 'IsValue')->first();
+            $result['value_type'] = 'use_value';
+            $result['standard_value_id'] = $isValue?->id;
+            $result['matrix_operator'] = $matches[1] === '<' ? 'less_than' : 'greater_than';
+            $result['matrix_value'] = $matches[2];
+
+            return $result;
+        }
+
+        $lookup = StandardValue::query()
+            ->where(function ($query) use ($mainValue) {
+                $query->where('code', $mainValue)
+                    ->orWhere('name', $mainValue);
+            })
+            ->first();
+
+        if ($lookup) {
+            $result['value_type'] = 'use_value';
+            $result['standard_value_id'] = $lookup->id;
+        }
+
+        return $result;
+    }
+
+    /**
      * @return array{standard_value: string, limit_type: string}
      */
     public function parseEditFormFromMainValue(?string $mainValue): array

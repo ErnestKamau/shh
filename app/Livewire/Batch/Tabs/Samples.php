@@ -2503,6 +2503,19 @@ class Samples extends Component
         $this->reset('editingStandardData');
     }
 
+    public function updatedEditingStandardDataStandardValuetype($value): void
+    {
+        if (empty($this->editingStandardData) || ! is_array($this->editingStandardData)) {
+            return;
+        }
+
+        $selected = collect($this->standardValueOptions)->firstWhere('id', $value);
+        if (! $selected || ($selected->code ?? '') !== 'IsValue') {
+            $this->editingStandardData['limit_measure'] = '';
+            $this->editingStandardData['value'] = '';
+        }
+    }
+
     public function saveStandardLimit()
     {
         $data = $this->editingStandardData;
@@ -2516,6 +2529,17 @@ class Samples extends Component
             $stdAnalyte = new \App\StandardAnalytes();
             $stdAnalyte->standard_id = $data['standard_id'];
             $stdAnalyte->analyte_id = $data['analyte_id'];
+        }
+
+        $selectedStandardValue = null;
+        if (! empty($data['standard_valuetype'])) {
+            $selectedStandardValue = \App\StandardValue::find($data['standard_valuetype']);
+        }
+        $isValueSelected = $selectedStandardValue && ($selectedStandardValue->code ?? '') === 'IsValue';
+
+        if (($data['standard_value_type'] ?? 2) != 1 && ! $isValueSelected) {
+            $data['limit_measure'] = '';
+            $data['value'] = '';
         }
 
         // Map inputs to model (legacy logic)
@@ -2537,7 +2561,7 @@ class Samples extends Component
             // Logic: 2 && limit_measure == '' -> limit code
             //        2 && limit_measure != '' -> value . ' ' . limit_measure
             if ($data['limit_measure'] == '') {
-                $sv = \App\StandardValue::find($data['standard_valuetype']);
+                $sv = $selectedStandardValue ?: \App\StandardValue::find($data['standard_valuetype']);
                 $newValue = $sv ? $sv->code : $newValue;
             } else {
                 $limit = $data['limit_measure'];

@@ -612,9 +612,31 @@
         #edit-standard-modal .modal-body {
             overflow: visible;
         }
+        #edit-standard-modal .esl-config-card {
+            border: 1px solid #17a2b8;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #edit-standard-modal .esl-config-card__header {
+            background: #17a2b8;
+            color: #fff;
+            padding: 0.55rem 0.85rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        #edit-standard-modal .esl-config-card__body {
+            padding: 0.85rem;
+            background: #fff;
+        }
     </style>
+    @php
+        $editStandardLookupValues = \App\StandardValue::query()
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+    @endphp
     <div id="edit-standard-modal" class="modal fade" role="dialog">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <form class="modal-content" id="edit-standard-form">
                 <div class="modal-header">
                     <h4 class="modal-title">
@@ -628,18 +650,88 @@
                     <input type="hidden" name="result_id" id="standard_result_id">
                     <input type="hidden" name="sample_code" id="standard_sample_code">
                     <input type="hidden" name="analyte" id="standard_analyte">
-                    
-                    <div class="form-group">
-                        <label class="control-label">Standard Limit Value</label>
-                        <input type="text" class="form-control" name="standard_value" id="standard_value" required placeholder="e.g. 10.0">
+
+                    <div class="form-group mb-3">
+                        <label class="control-label d-block">Value Type <span class="text-danger">*</span></label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input esl-value-type" type="radio" name="value_type" id="esl_value_type_range" value="range">
+                            <label class="form-check-label" for="esl_value_type_range">
+                                <i class="mdi mdi-range"></i> Range
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input esl-value-type" type="radio" name="value_type" id="esl_value_type_use_value" value="use_value" checked>
+                            <label class="form-check-label" for="esl_value_type_use_value">
+                                <i class="mdi mdi-numeric"></i> Use Value
+                            </label>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="control-label">Limit Type</label>
-                        <select class="form-control no-select2" name="limit_type" id="standard_limit_type" required>
-                            <option value="MAX">MAX</option>
-                            <option value="MIN">MIN</option>
-                            <option value="RANGE">RANGE</option>
-                        </select>
+
+                    <div id="esl-range-section" class="esl-config-card mb-3" style="display:none; border-color:#007bff;">
+                        <div class="esl-config-card__header" style="background:#007bff;">
+                            <i class="mdi mdi-range"></i> Range Configuration
+                        </div>
+                        <div class="esl-config-card__body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-0">
+                                        <label class="control-label">Low Value <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="range_low" id="esl_range_low" placeholder="Enter low value">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-0">
+                                        <label class="control-label">High Value <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="range_high" id="esl_range_high" placeholder="Enter high value">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="esl-use-value-section" class="esl-config-card mb-0">
+                        <div class="esl-config-card__header">
+                            <i class="mdi mdi-numeric"></i> Standard Value Configuration
+                        </div>
+                        <div class="esl-config-card__body">
+                            <div class="form-group mb-3">
+                                <label class="control-label">Standard Value <span class="text-danger">*</span></label>
+                                <select class="form-control no-select2" name="standard_value_id" id="esl_standard_value_id">
+                                    <option value="">Select standard value...</option>
+                                    @foreach($editStandardLookupValues as $lookupValue)
+                                        <option value="{{ $lookupValue->id }}" data-code="{{ $lookupValue->code }}">
+                                            {{ $lookupValue->name }} ({{ $lookupValue->code }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div id="esl-is-value-fields" style="display:none;">
+                                <div class="alert alert-info py-2">
+                                    <i class="mdi mdi-information"></i> Additional configuration for the selected standard value.
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-0">
+                                            <label class="control-label">Matrix Operator <span class="text-danger">*</span></label>
+                                            <select class="form-control no-select2" name="matrix_operator" id="esl_matrix_operator">
+                                                <option value="">Select Operator</option>
+                                                <option value="max">Max</option>
+                                                <option value="min">Min</option>
+                                                <option value="greater_than">> (Greater Than)</option>
+                                                <option value="less_than">< (Less Than)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-0">
+                                            <label class="control-label">Actual Value <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" name="matrix_value" id="esl_matrix_value" placeholder="Enter actual value">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1127,9 +1219,10 @@
 		// Parameter settings modal show handler
 		$(document).on('click', '.parameter-settings-btn', function() {
 			var $btn = $(this);
+			var $cell = $btn.closest('.parameter-cell');
 			var resultId = $btn.attr('data-result-id') || $btn.data('result-id');
-			var sampleCode = $btn.data('sample-code');
-			var analyte = $btn.data('analyte');
+			var sampleCode = $btn.data('sample-code') || $cell.data('sample') || '';
+			var analyte = $btn.data('analyte') || $cell.data('analyte') || '';
 
 			$('#parameter-settings-form')[0].reset();
 			$('#settings_result_id').val(resultId || '');
@@ -1212,9 +1305,34 @@
 			});
 		});
 
+		function syncEditStandardModalSections() {
+			var valueType = $('#edit-standard-form input[name="value_type"]:checked').val() || 'use_value';
+			var isRange = valueType === 'range';
+			$('#esl-range-section').toggle(isRange);
+			$('#esl-use-value-section').toggle(!isRange);
+
+			var selectedCode = $('#esl_standard_value_id option:selected').data('code') || '';
+			var showIsValueFields = !isRange && selectedCode === 'IsValue';
+			$('#esl-is-value-fields').toggle(showIsValueFields);
+
+			if (!showIsValueFields) {
+				$('#esl_matrix_operator').val('');
+				$('#esl_matrix_value').val('');
+			}
+		}
+
+		function resetEditStandardFormFields() {
+			$('#esl_value_type_use_value').prop('checked', true);
+			$('#esl_range_low').val('');
+			$('#esl_range_high').val('');
+			$('#esl_standard_value_id').val('');
+			$('#esl_matrix_operator').val('');
+			$('#esl_matrix_value').val('');
+			syncEditStandardModalSections();
+		}
+
 		function populateEditStandardForm(existingText) {
-			$('#standard_value').val('');
-			$('#standard_limit_type').val('MAX');
+			resetEditStandardFormFields();
 
 			if (!existingText || existingText === 'No limit set') {
 				return;
@@ -1222,39 +1340,109 @@
 
 			var typedMatch = existingText.match(/^(min|max)\s+(\d+(?:\.\d+)?)$/i);
 			if (typedMatch) {
-				$('#standard_limit_type').val(typedMatch[1].toUpperCase());
-				$('#standard_value').val(typedMatch[2]);
+				$('#esl_value_type_use_value').prop('checked', true);
+				var isValueOption = $('#esl_standard_value_id option').filter(function () {
+					return String($(this).data('code')) === 'IsValue';
+				}).first();
+				if (isValueOption.length) {
+					$('#esl_standard_value_id').val(isValueOption.val());
+				}
+				$('#esl_matrix_operator').val(typedMatch[1].toLowerCase());
+				$('#esl_matrix_value').val(typedMatch[2]);
+				syncEditStandardModalSections();
 				return;
 			}
 
 			var reversedMatch = existingText.match(/^(\d+(?:\.\d+)?)\s+(min|max)$/i);
 			if (reversedMatch) {
-				$('#standard_limit_type').val(reversedMatch[2].toUpperCase());
-				$('#standard_value').val(reversedMatch[1]);
+				$('#esl_value_type_use_value').prop('checked', true);
+				var isValueOptionReversed = $('#esl_standard_value_id option').filter(function () {
+					return String($(this).data('code')) === 'IsValue';
+				}).first();
+				if (isValueOptionReversed.length) {
+					$('#esl_standard_value_id').val(isValueOptionReversed.val());
+				}
+				$('#esl_matrix_operator').val(reversedMatch[2].toLowerCase());
+				$('#esl_matrix_value').val(reversedMatch[1]);
+				syncEditStandardModalSections();
+				return;
+			}
+
+			var compareMatch = existingText.match(/^([<>])\s*(\d+(?:\.\d+)?)$/);
+			if (compareMatch) {
+				$('#esl_value_type_use_value').prop('checked', true);
+				var isValueOptionCompare = $('#esl_standard_value_id option').filter(function () {
+					return String($(this).data('code')) === 'IsValue';
+				}).first();
+				if (isValueOptionCompare.length) {
+					$('#esl_standard_value_id').val(isValueOptionCompare.val());
+				}
+				$('#esl_matrix_operator').val(compareMatch[1] === '<' ? 'less_than' : 'greater_than');
+				$('#esl_matrix_value').val(compareMatch[2]);
+				syncEditStandardModalSections();
 				return;
 			}
 
 			if (/^\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?$/i.test(existingText)) {
-				$('#standard_limit_type').val('RANGE');
-				$('#standard_value').val(existingText);
+				var parts = existingText.split(/\s*-\s*/);
+				$('#esl_value_type_range').prop('checked', true);
+				$('#esl_range_low').val(parts[0] || '');
+				$('#esl_range_high').val(parts[1] || '');
+				syncEditStandardModalSections();
 				return;
 			}
 
-			$('#standard_value').val(existingText);
-			$('#standard_limit_type').val('MAX');
+			var codeOption = $('#esl_standard_value_id option').filter(function () {
+				var code = String($(this).data('code') || '');
+				var name = String($(this).text() || '');
+				return code.toLowerCase() === existingText.toLowerCase()
+					|| name.toLowerCase().indexOf(existingText.toLowerCase()) !== -1;
+			}).first();
+
+			if (codeOption.length) {
+				$('#esl_value_type_use_value').prop('checked', true);
+				$('#esl_standard_value_id').val(codeOption.val());
+				syncEditStandardModalSections();
+			}
 		}
+
+		function applyEditStandardSettings(data) {
+			if (!data) {
+				return;
+			}
+
+			var valueType = data.value_type || 'use_value';
+			if (valueType === 'range') {
+				$('#esl_value_type_range').prop('checked', true);
+				$('#esl_range_low').val(data.range_low || '');
+				$('#esl_range_high').val(data.range_high || '');
+			} else {
+				$('#esl_value_type_use_value').prop('checked', true);
+				$('#esl_standard_value_id').val(data.standard_value_id || '');
+				$('#esl_matrix_operator').val(data.matrix_operator || '');
+				$('#esl_matrix_value').val(data.matrix_value || '');
+			}
+
+			syncEditStandardModalSections();
+		}
+
+		$(document).on('change', '#edit-standard-form .esl-value-type, #esl_standard_value_id', function () {
+			syncEditStandardModalSections();
+		});
 
 		// Edit standard modal show handler
 		$(document).on('click', '.edit-standard-btn', function() {
 			var $btn = $(this);
+			var $cell = $btn.closest('.parameter-cell');
 			var resultId = $btn.attr('data-result-id') || $btn.data('result-id');
-			var sampleCode = $btn.data('sample-code');
-			var analyte = $btn.data('analyte');
+			var sampleCode = $btn.data('sample-code') || $cell.data('sample') || '';
+			var analyte = $btn.data('analyte') || $cell.data('analyte') || '';
 
 			$('#edit-standard-form')[0].reset();
 			$('#standard_result_id').val(resultId || '');
 			$('#standard_sample_code').val(sampleCode || '');
 			$('#standard_analyte').val(analyte || '');
+			resetEditStandardFormFields();
 
 			var existingText = $btn.siblings('.standard-limit-text').text().trim();
 			populateEditStandardForm(existingText);
@@ -1265,10 +1453,7 @@
 					method: 'GET',
 					success: function(response) {
 						if (response.success && response.data) {
-							$('#standard_value').val(response.data.standard_value || '');
-							$('#standard_limit_type')
-								.val(response.data.limit_type || 'MAX')
-								.trigger('change');
+							applyEditStandardSettings(response.data);
 						}
 					}
 				});
@@ -1277,23 +1462,47 @@
 
 		$('#edit-standard-modal').on('shown.bs.modal', function () {
 			var $modal = $(this);
-			var $select = $modal.find('#standard_limit_type');
-			if ($.fn.select2) {
-				if ($select.hasClass('select2-hidden-accessible')) {
-					$select.select2('destroy');
+			$modal.find('select.no-select2').each(function () {
+				var $select = $(this);
+				if ($.fn.select2) {
+					if ($select.hasClass('select2-hidden-accessible')) {
+						$select.select2('destroy');
+					}
+					$select.select2({
+						width: '100%',
+						dropdownParent: $modal,
+						minimumResultsForSearch: $select.is('#esl_standard_value_id') ? 0 : Infinity,
+					});
 				}
-				$select.select2({
-					width: '100%',
-					dropdownParent: $modal,
-					minimumResultsForSearch: Infinity,
-				});
-			}
+			});
+			syncEditStandardModalSections();
 		});
 
 		// Save standard limit form submission
 		$('#edit-standard-form').on('submit', function(e) {
 			e.preventDefault();
 			var $form = $(this);
+			var valueType = $form.find('input[name="value_type"]:checked').val() || 'use_value';
+
+			if (valueType === 'range') {
+				if (!$('#esl_range_low').val() || !$('#esl_range_high').val()) {
+					alert('Please enter both low and high values for the range.');
+					return;
+				}
+			} else {
+				if (!$('#esl_standard_value_id').val()) {
+					alert('Please select a standard value.');
+					return;
+				}
+				var selectedCode = $('#esl_standard_value_id option:selected').data('code') || '';
+				if (selectedCode === 'IsValue') {
+					if (!$('#esl_matrix_operator').val() || !$('#esl_matrix_value').val()) {
+						alert('Please enter Matrix Operator and Actual Value for IsValue.');
+						return;
+					}
+				}
+			}
+
 			var submitBtn = $form.find('button[type="submit"]');
 			submitBtn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
 
@@ -1305,25 +1514,56 @@
 					submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Standard');
 					if (response.success) {
 						$('#edit-standard-modal').modal('hide');
-						
+
 						var sampleCode = $('#standard_sample_code').val();
 						var analyte = $('#standard_analyte').val();
-						var $input = $(`.result-input[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
-						var $editBtn = $(`.edit-standard-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
-						var $settingsBtn = $(`.parameter-settings-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
-						
-						if (response.result_id) {
-							$input.attr('data-result-id', response.result_id);
-							$input.data('result-id', response.result_id);
-							$editBtn.attr('data-result-id', response.result_id);
-							$editBtn.data('result-id', response.result_id);
-							if ($settingsBtn.length) {
-								$settingsBtn.attr('data-result-id', response.result_id).data('result-id', response.result_id);
-							}
+						var resultId = response.result_id || $('#standard_result_id').val();
+						var $editBtn = $();
+						var $input = $();
+						var $settingsBtn = $();
+						var $cell = $();
+
+						if (resultId) {
+							$editBtn = $(`.edit-standard-btn[data-result-id="${resultId}"]`);
+							$input = $(`.result-input[data-result-id="${resultId}"]`);
+							$settingsBtn = $(`.parameter-settings-btn[data-result-id="${resultId}"]`);
+							$cell = $editBtn.closest('.parameter-cell');
+						}
+
+						if (!$cell.length && sampleCode && analyte) {
+							$editBtn = $(`.edit-standard-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+							$input = $(`.result-input[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+							$settingsBtn = $(`.parameter-settings-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+							$cell = $editBtn.closest('.parameter-cell');
+						}
+
+						if (!$cell.length && sampleCode && analyte) {
+							$cell = $(`.parameter-cell[data-sample="${sampleCode}"][data-analyte="${analyte}"]`);
+							$editBtn = $cell.find('.edit-standard-btn');
+							$input = $cell.find('.result-input');
+							$settingsBtn = $cell.find('.parameter-settings-btn');
+						}
+
+						if (resultId) {
+							$input.attr('data-result-id', resultId).data('result-id', resultId);
+							$editBtn.attr('data-result-id', resultId).data('result-id', resultId);
+							$settingsBtn.attr('data-result-id', resultId).data('result-id', resultId);
+						}
+
+						if (sampleCode) {
+							$editBtn.attr('data-sample-code', sampleCode).data('sample-code', sampleCode);
+							$input.attr('data-sample-code', sampleCode).data('sample-code', sampleCode);
+							$settingsBtn.attr('data-sample-code', sampleCode).data('sample-code', sampleCode);
+						}
+
+						if (analyte) {
+							$editBtn.attr('data-analyte', analyte).data('analyte', analyte);
+							$input.attr('data-analyte', analyte).data('analyte', analyte);
+							$settingsBtn.attr('data-analyte', analyte).data('analyte', analyte);
 						}
 
 						if (response.standard_limit) {
-							$editBtn.siblings('.standard-limit-text').text(response.standard_limit);
+							$cell.find('.standard-limit-text').text(response.standard_limit);
 						}
 
 						$input.removeClass('border-success border-danger border-secondary');
@@ -1334,18 +1574,17 @@
 						} else {
 							$input.addClass('border-secondary');
 						}
-						
-						// Trigger change on result input to re-validate styling with new limit
-						$input.trigger('change');
-						
-						alert('Standard limit saved successfully.');
+
+						if (window.Livewire) {
+							Livewire.dispatch('resultsUpdated');
+						}
 					} else {
-						alert('Error: ' + response.message);
+						alert('Error: ' + (response.message || 'Unable to save standard limit.'));
 					}
 				},
 				error: function(xhr) {
 					submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Standard');
-					alert('Failed to save standard limit: ' + xhr.responseText);
+					alert('Failed to save standard limit: ' + ((xhr.responseJSON && xhr.responseJSON.message) || xhr.responseText));
 				}
 			});
 		});

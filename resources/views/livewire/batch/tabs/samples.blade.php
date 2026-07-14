@@ -1703,19 +1703,24 @@
                         </div>
                         @else
                         <div class="form-group">
-                            <label>Value Type</label>
+                            <label>Standard Value <span class="text-danger">*</span></label>
                             <select class="form-control grey-input"
-                                wire:model.defer="editingStandardData.standard_valuetype">
+                                wire:model.live="editingStandardData.standard_valuetype">
                                 <option value="">- Select -</option>
                                 @foreach($standardValueOptions as $opt)
                                 <option value="{{ $opt->id }}">{{ $opt->code }}</option>
                                 @endforeach
                             </select>
                         </div>
+                        @php
+                            $selectedSampleSv = collect($standardValueOptions)->firstWhere('id', $editingStandardData['standard_valuetype'] ?? null);
+                            $sampleIsValueSelected = $selectedSampleSv && ($selectedSampleSv->code ?? '') === 'IsValue';
+                        @endphp
+                        @if($sampleIsValueSelected)
                         <div class="row mt-2">
                             <div class="col-6">
                                 <div class="form-group">
-                                    <label>Limit Measure</label>
+                                    <label>Matrix Operator <span class="text-danger">*</span></label>
                                     <select class="form-control grey-input"
                                         wire:model.defer="editingStandardData.limit_measure">
                                         <option value="">- Choose -</option>
@@ -1728,12 +1733,13 @@
                             </div>
                             <div class="col-6">
                                 <div class="form-group">
-                                    <label>Value</label>
+                                    <label>Actual Value <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control grey-input"
                                         wire:model.defer="editingStandardData.value" placeholder="Value">
                                 </div>
                             </div>
                         </div>
+                        @endif
                         @endif
                     </div>
                     <div class="modal-footer bg-light">
