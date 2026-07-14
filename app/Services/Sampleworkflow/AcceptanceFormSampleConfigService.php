@@ -233,7 +233,7 @@ class AcceptanceFormSampleConfigService
 
             $keys = $group
                 ->slice($sampleSlot * $paramsPerSample, $paramsPerSample)
-                ->map(fn (array $line): ?string => $this->resolveQuotationLineElementId($line))
+                ->flatMap(fn (array $line): array => $this->elementIdsFromQuotationLine($line))
                 ->filter()
                 ->unique()
                 ->values()
@@ -277,6 +277,28 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    public function elementIdsFromQuotationLine(array $line): array
+    {
+        if (! empty($line['is_package']) && is_array($line['package_element_ids'] ?? null)) {
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+
+            return collect($line['package_element_ids'])
+                ->map(fn (mixed $id): ?string => $this->resolveSingleElementId(trim((string) $id), $analysisTypeId))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $resolved = $this->resolveQuotationLineElementId($line);
+
+        return $resolved !== null ? [$resolved] : [];
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $quotationLines
      * @return list<array<string, mixed>>
      */
@@ -292,7 +314,7 @@ class AcceptanceFormSampleConfigService
 
         foreach ($linesByKey as $key => $group) {
             $uniqueElements = $group
-                ->map(fn (array $line): ?string => $this->resolveQuotationLineElementId($line))
+                ->flatMap(fn (array $line): array => $this->elementIdsFromQuotationLine($line))
                 ->filter()
                 ->unique()
                 ->count();

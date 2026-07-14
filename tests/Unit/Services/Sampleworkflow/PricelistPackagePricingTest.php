@@ -8,11 +8,13 @@ use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
 use App\Models\Billing\PricelistItemElement;
+use App\Models\SampleSubmissionRequest;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -250,6 +252,81 @@ class PricelistPackagePricingTest extends TestCase
         );
         $this->assertSame('', (string) ($reloaded[0]['loq'] ?? ''));
         $this->assertSame('', (string) ($reloaded[0]['mu_percent'] ?? ''));
+    }
+
+    public function test_accepted_quotation_package_prefill_keeps_human_label_not_uuid_csv(): void
+    {
+        $sampleType = SampleType::query()->create(['name' => 'Prefill Package Sample']);
+        $analysisType = AnalysisType::query()->create([
+            'name' => 'Prefill Package Analysis',
+            'sample_type_id' => $sampleType->id,
+        ]);
+        $elementIds = collect(range(1, 11))->map(function (int $level) use ($analysisType): string {
+            $element = AnalysisElements::query()->create([
+                'analysis_type_id' => $analysisType->id,
+                'analyte_id' => null,
+                'method' => 'Prefill '.$level,
+                'level' => $level,
+                'active' => true,
+            ]);
+
+            return (string) $element->id;
+        })->all();
+
+        $uuidCsv = implode(',', $elementIds);
+        $this->assertGreaterThan(255, strlen($uuidCsv));
+
+        $header = QuotationHeader::query()->create([
+            'id' => (string) Str::uuid(),
+            'quote_number' => 'Q-PKG-PREFILL-1',
+            'quote_date' => now()->toDateString(),
+            'status' => 'Quote Complete',
+            'quotation_type' => 'Analysis',
+            'from_enquiry' => true,
+            'show_unit_price_column' => true,
+        ]);
+
+        QuotationDetails::query()->create([
+            'quotation_header_id' => $header->id,
+            'sample_type' => (string) $sampleType->id,
+            'part_no' => (string) $analysisType->id,
+            'quantity' => 1,
+            'unit_price' => 500,
+            'tax' => 0,
+            'description' => 'Prefill Package Analysis package (11 parameters)',
+            'accredited_analytes' => $uuidCsv,
+            'default_analytes' => $uuidCsv,
+            'is_package' => true,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid(),
+            'status' => SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            'source_channel' => 'portal',
+            'accepted_quotation_header_id' => $header->id,
+            'current_quotation_header_id' => $header->id,
+            'quotation_accepted_at' => now(),
+            'number_of_samples' => 1,
+            'crm_customer_id' => (string) Str::uuid(),
+        ]);
+
+        $prefill = app(AcceptanceFormPricingService::class)
+            ->buildPrefillFromSelection((string) $enquiry->id, null);
+
+        $this->assertTrue((bool) ($prefill['quotation_locked'] ?? false));
+        $this->assertCount(1, $prefill['lines']);
+        $this->assertTrue((bool) ($prefill['lines'][0]['is_package'] ?? false));
+        $this->assertNull($prefill['lines'][0]['analysis_element_id']);
+        $this->assertSame(
+            'Prefill Package Analysis package (11 parameters)',
+            $prefill['lines'][0]['parameter_label']
+        );
+        $this->assertLessThanOrEqual(255, strlen((string) $prefill['lines'][0]['parameter_label']));
+        $this->assertEqualsCanonicalizing($elementIds, $prefill['lines'][0]['package_element_ids']);
+
+        $resolvedIds = app(AcceptanceFormSampleConfigService::class)
+            ->elementIdsFromQuotationLine($prefill['lines'][0]);
+        $this->assertEqualsCanonicalizing($elementIds, $resolvedIds);
     }
 
     public function test_enrich_lines_attaches_package_element_metrics(): void

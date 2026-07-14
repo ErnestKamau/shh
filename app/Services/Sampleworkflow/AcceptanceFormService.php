@@ -384,7 +384,7 @@ class AcceptanceFormService
                 'sample_type_id' => $sampleTypeId,
                 'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
                 'analysis_element_id' => $analysisElementId,
-                'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
+                'parameter_label' => Str::limit((string) ($line['parameter_label'] ?? 'Parameter'), 255, ''),
                 'unit_amount' => $unitAmount,
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
                 'is_approved' => (bool) ($line['is_approved'] ?? true),
