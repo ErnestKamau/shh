@@ -1505,10 +1505,10 @@ class SubmissionFormInstance extends Model implements Auditable
                     $holderData['elements'][] = $elementData;
                 }
 
-                // For rows sections, group data by array index
-                // Check if this is a rows section based on section type or holder type
-                $isRowsSection = $holder->holder_type === 'rows' ||
-                    ($section->section_type === 'rows_section' && $this->hasMultipleArrayIndices($holder->elements));
+                // For rows sections, group data by array index.
+                // Prefer section_type — some seeded holders still have holder_type "field".
+                $isRowsSection = $holder->holder_type === 'rows'
+                    || ($section->section_type === 'rows_section');
 
                 if ($isRowsSection) {
                     $holderData['holder_type'] = 'rows'; // Override to ensure proper display
