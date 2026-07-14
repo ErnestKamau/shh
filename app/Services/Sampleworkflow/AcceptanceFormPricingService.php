@@ -11,6 +11,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\QuotationDetails;
 use App\SampleDetails;
@@ -335,14 +336,18 @@ class AcceptanceFormPricingService
         $filtered = array_values(array_filter(
             $lines,
             function (array $line) use ($analysisTypesWithElements): bool {
-                if (!empty($line['analysis_element_id'])) {
+                if (! empty($line['is_package'])) {
+                    return true;
+                }
+
+                if (! empty($line['analysis_element_id'])) {
                     return true;
                 }
 
                 $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
 
                 return $analysisTypeId === ''
-                    || !in_array($analysisTypeId, $analysisTypesWithElements, true);
+                    || ! in_array($analysisTypeId, $analysisTypesWithElements, true);
             }
         ));
 
@@ -1428,46 +1433,51 @@ class AcceptanceFormPricingService
         $enquiry->loadMissing(['customer', 'submissionFormInstance']);
         $customerId = (string) $enquiry->crm_customer_id;
         $pricelist = $this->resolvePricelist($customerId);
+
+        // Reuse quotation detail expansion so package lines keep human labels and
+        // package_element_ids instead of stuffing UUID CSV into parameter_label.
+        $inlineLines = app(QuotationFromEnquiryService::class)
+            ->buildInlineLinesFromQuotationHeader($quotation);
+
         $lines = [];
-
-        foreach ($quotation->details as $index => $detail) {
-            $sampleTypeId = (string) ($detail->sample_type ?? $enquiry->sample_type_id ?? '');
-            $analysisTypeId = (string) ($detail->part_no ?? '');
-            $elementId = trim((string) ($detail->accredited_analytes ?? ''));
-            $resolvedElementId = $elementId !== ''
-                ? app(AcceptanceFormSampleConfigService::class)->resolveSingleElementId($elementId, $analysisTypeId)
-                : null;
-            $subcontractedIds = array_filter(array_map(
-                'trim',
-                explode(',', (string) ($detail->subcontracted_analytes ?? ''))
-            ));
-
-            $label = 'Parameter';
-            if ($resolvedElementId !== null) {
-                $element = AnalysisElements::query()->with('analyte')->find($resolvedElementId);
-                if ($element !== null) {
-                    $label = (string) ($element->analyte->name ?? $element->name ?? $label);
+        foreach ($inlineLines as $index => $row) {
+            $sampleTypeId = trim((string) ($row['sample_type_id'] ?? ''));
+            $analysisTypeId = trim((string) ($row['analysis_type_id'] ?? ''));
+            $label = trim((string) ($row['parameter_label'] ?? ''));
+            if ($label === '' || $this->looksLikeElementIdList($label)) {
+                $analysisTypeName = (string) ($row['analysis_type_name'] ?? '');
+                if ($analysisTypeName === '' && $analysisTypeId !== '') {
+                    $analysisTypeName = (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis');
                 }
-            } elseif ($elementId !== '' && ! Str::isUuid($elementId)) {
-                $label = $elementId;
-            } elseif ($analysisTypeId !== '') {
-                $label = (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis');
+                $packageCount = count($row['package_element_ids'] ?? []);
+                $label = ! empty($row['is_package'])
+                    ? ($analysisTypeName !== '' ? $analysisTypeName : 'Analysis').' package'.($packageCount > 0 ? ' ('.$packageCount.' parameters)' : '')
+                    : ($analysisTypeName !== '' ? $analysisTypeName : 'Parameter');
             }
 
             $lines[] = [
                 'line_no' => $index + 1,
                 'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
-                'sample_type_name' => $sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '',
+                'sample_type_name' => (string) ($row['sample_type_name'] ?? ($sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '')),
                 'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
-                'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
-                'analysis_element_id' => $resolvedElementId,
-                'parameter_label' => $label,
-                'unit_amount' => (float) ($detail->unit_price ?? 0),
-                'number_of_samples' => max(1, (int) ($detail->quantity ?? 1)),
+                'analysis_type_name' => (string) ($row['analysis_type_name'] ?? ''),
+                'analysis_element_id' => $row['analysis_element_id'] ?? null,
+                'parameter_label' => Str::limit($label, 255, ''),
+                'unit_amount' => (float) ($row['unit_price'] ?? $row['unit_amount'] ?? 0),
+                'number_of_samples' => max(1, (int) ($row['physical_sample_count'] ?? $row['quantity'] ?? 1)),
                 'is_approved' => true,
                 'sort_order' => $index,
-                'subcontracted' => $resolvedElementId !== null && in_array($resolvedElementId, $subcontractedIds, true),
-                'accredited' => $resolvedElementId !== null && ! in_array($resolvedElementId, $subcontractedIds, true),
+                'subcontracted' => (bool) ($row['subcontracted'] ?? false),
+                'accredited' => ! (bool) ($row['subcontracted'] ?? false),
+                'is_package' => (bool) ($row['is_package'] ?? false),
+                'package_element_ids' => array_values(array_filter(array_map(
+                    'strval',
+                    is_array($row['package_element_ids'] ?? null) ? $row['package_element_ids'] : []
+                ))),
+                'package_element_labels' => array_values(array_filter(array_map(
+                    'strval',
+                    is_array($row['package_element_labels'] ?? null) ? $row['package_element_labels'] : []
+                ))),
             ];
         }
 
@@ -1490,5 +1500,16 @@ class AcceptanceFormPricingService
             'date_of_sampling' => optional($enquiry->date_of_seizure)->format('Y-m-d'),
             'quotation_locked' => true,
         ];
+    }
+
+    private function looksLikeElementIdList(string $value): bool
+    {
+        if ($value === '' || ! str_contains($value, ',')) {
+            return false;
+        }
+
+        $parts = array_values(array_filter(array_map('trim', explode(',', $value))));
+
+        return $parts !== [] && collect($parts)->every(fn (string $part): bool => Str::isUuid($part));
     }
 }
