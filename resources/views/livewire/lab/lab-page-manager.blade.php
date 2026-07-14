@@ -233,9 +233,9 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex gap-1">
-                                                    <button wire:click="viewLab({{ $lab->id }})" class="btn btn-sm btn-outline-info" title="View details"><i class="mdi mdi-eye"></i></button>
-                                                    <button wire:click="showEditLabModal({{ $lab->id }})" class="btn btn-sm btn-outline-warning" title="Edit"><i class="mdi mdi-pencil"></i></button>
-                                                    <button wire:click="confirmDelete({{ $lab->id }})" class="btn btn-sm btn-outline-danger" title="Delete"><i class="mdi mdi-delete"></i></button>
+                                                    <button wire:click="viewLab('{{ $lab->id }}')" class="btn btn-sm btn-outline-info" title="View details"><i class="mdi mdi-eye"></i></button>
+                                                    <button wire:click="showEditLabModal('{{ $lab->id }}')" class="btn btn-sm btn-outline-warning" title="Edit"><i class="mdi mdi-pencil"></i></button>
+                                                    <button wire:click="confirmDelete('{{ $lab->id }}')" class="btn btn-sm btn-outline-danger" title="Delete"><i class="mdi mdi-delete"></i></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -420,7 +420,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeViewModal">Close</button>
-                        <button type="button" class="btn btn-warning" wire:click="showEditLabModal({{ $viewLabData['id'] }})">
+                        <button type="button" class="btn btn-warning" wire:click="showEditLabModal('{{ $viewLabData['id'] }}')">
                             <i class="mdi mdi-pencil me-1"></i> Edit Lab
                         </button>
                     </div>
@@ -492,11 +492,11 @@
                                 <div class="tag-select-container @error('labForm.analyst_ids') is-invalid @enderror" wire:click="$set('showAnalystDropdown', true)">
                                     <div class="tag-select-input">
                                         @foreach($labForm['analyst_ids'] as $analystId)
-                                            @php($analyst = $this->users->firstWhere('id', (int) $analystId))
+                                            @php($analyst = $this->users->firstWhere('id', $analystId))
                                             @if($analyst)
                                                 <span class="tag-badge">
                                                     {{ $analyst->name }}
-                                                    <i class="mdi mdi-close-circle" wire:click.stop="removeAnalyst({{ $analyst->id }})"></i>
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="removeAnalyst('{{ $analyst->id }}')"></i>
                                                 </span>
                                             @endif
                                         @endforeach
@@ -514,7 +514,7 @@
                                     @if($showAnalystDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredAnalysts as $user)
-                                                <div class="tag-dropdown-item d-flex justify-content-between" wire:click.stop="toggleAnalystSelection({{ $user->id }})">
+                                                <div class="tag-dropdown-item d-flex justify-content-between" wire:click.stop="toggleAnalystSelection('{{ $user->id }}')">
                                                     <span>{{ $user->name }}</span>
                                                     @if(in_array((string) $user->id, $labForm['analyst_ids'], true))
                                                         <i class="mdi mdi-check text-success"></i>

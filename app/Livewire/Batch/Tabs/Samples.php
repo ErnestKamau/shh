@@ -452,7 +452,7 @@ class Samples extends Component
                     ->select('id', 'name')->get()->toArray();
             }
 
-            $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
 
             // Load all sample types
             $this->sampleTypes = \App\SampleType::select('id', 'name')->where('active', 1)->orderBy('name')->get()->toArray();
@@ -499,21 +499,21 @@ class Samples extends Component
                     'id' => $sample->id,
                     'sample_code' => $sample->sample_code,
                     'analysis_type_id' => array_filter(explode(',', $sample->analysis_type_id ?? '')),
-                    'lab_id' => $sample->lab_id ?? '',
-                    'sample_condition_id' => $sample->sample_condition_id ?? '',
-                    'sample_point_id' => $sample->sample_point_id ?? '',
+                    'lab_id' => $sample->lab_id ? (string) $sample->lab_id : '',
+                    'sample_condition_id' => $sample->sample_condition_id ? (string) $sample->sample_condition_id : '',
+                    'sample_point_id' => $sample->sample_point_id ? (string) $sample->sample_point_id : '',
                     'photo_url' => $sample->photo_url ?? '',
                     'sample_no' => $sample->sample_no ?? '',
-                    'sample_type_id' => $sample->sample_type_id ?? '',
+                    'sample_type_id' => $sample->sample_type_id ? (string) $sample->sample_type_id : '',
                     'customer_sample_id' => $this->resolveCustomerSampleId($sample),
                     'comments' => $sample->comments ?? '',
-                    'main_standard' => $sample->main_standard ?? '',
-                    'secondary_standard' => $sample->secondary_standard ?? '',
+                    'main_standard' => $sample->main_standard ? (string) $sample->main_standard : '',
+                    'secondary_standard' => $sample->secondary_standard ? (string) $sample->secondary_standard : '',
                     'disposal_date' => $sample->disposal_date ?? '',
-                    'store_id' => $sample->store_id ?? '',
-                    'store_slot_id' => $sample->store_slot_id ?? '',
+                    'store_id' => $sample->store_id ? (string) $sample->store_id : '',
+                    'store_slot_id' => $sample->store_slot_id ? (string) $sample->store_slot_id : '',
                     'quantity' => $sample->quantity ?? 1,
-                    'reporting_unit_id' => $sample->reporting_unit_id ?? '',
+                    'reporting_unit_id' => $sample->reporting_unit_id ? (string) $sample->reporting_unit_id : '',
                 ];
             }
 
@@ -545,9 +545,9 @@ class Samples extends Component
     private function persistSampleFromFormData(SampleDetails $sample, array $sampleData, int $index): SampleDetails
     {
         $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
-            ? implode(',', $sampleData['analysis_type_id'])
+            ? implode(',', array_map('strval', $sampleData['analysis_type_id']))
             : (string) ($sampleData['analysis_type_id'] ?? '');
-        $sample->lab_id = ! empty($sampleData['lab_id']) ? $sampleData['lab_id'] : null;
+        $sample->lab_id = ! empty($sampleData['lab_id']) ? (string) $sampleData['lab_id'] : null;
         $sample->sample_condition_id = ! empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
         $sample->sample_point_id = ! empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
 
@@ -1981,10 +1981,21 @@ class Samples extends Component
      */
     public function saveSamples()
     {
+        Log::info('Samples::saveSamples called', [
+            'batch_id' => $this->batch->id,
+            'rows' => collect($this->sampleForms)->map(fn ($row, $index) => [
+                'index' => $index,
+                'id' => $row['id'] ?? null,
+                'lab_id' => $row['lab_id'] ?? null,
+                'sample_type_id' => $row['sample_type_id'] ?? null,
+                'customer_sample_id' => $row['customer_sample_id'] ?? null,
+            ])->values()->all(),
+        ]);
+
         // Validate all samples
         $this->validate([
             'sampleForms.*.analysis_type_id' => 'required|array|min:1',
-            'sampleForms.*.lab_id' => 'required',
+            'sampleForms.*.lab_id' => 'required|uuid|exists:labs,id',
             'sampleForms.*.sample_condition_id' => 'nullable',
             'sampleForms.*.sample_point_id' => 'nullable',
             'sampleForms.*.photo_url' => 'nullable',
@@ -1997,6 +2008,8 @@ class Samples extends Component
             'sampleForms.*.analysis_type_id.required' => 'Matrix is required',
             'sampleForms.*.analysis_type_id.min' => 'At least one matrix option must be selected',
             'sampleForms.*.lab_id.required' => 'Lab is required',
+            'sampleForms.*.lab_id.uuid' => 'Lab selection is invalid',
+            'sampleForms.*.lab_id.exists' => 'Selected lab does not exist',
             'sampleForms.*.main_standard.required' => 'Main standard is required',
         ]);
 
@@ -2019,6 +2032,12 @@ class Samples extends Component
                 $sample = $this->persistSampleFromFormData($sample, $sampleData, $index);
 
                 $this->sampleForms[$index]['id'] = $sample->id;
+
+                Log::info('Samples::saveSamples persisted row', [
+                    'sample_id' => $sample->id,
+                    'lab_id' => $sample->lab_id,
+                    'customer_sample_id' => $sample->customer_sample_id,
+                ]);
             }
 
             DB::commit();
@@ -2033,7 +2052,10 @@ class Samples extends Component
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error saving samples: ' . $e->getMessage());
+            Log::error('Error saving samples: ' . $e->getMessage(), [
+                'batch_id' => $this->batch->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
             session()->flash('error', 'Failed to save samples: ' . $e->getMessage());
         }
     }
@@ -2073,7 +2095,7 @@ class Samples extends Component
 
         if (empty($selectedAnalysisIds)) {
             // Reset to all labs if no analysis types selected
-            $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
             return;
         }
 
@@ -2087,19 +2109,31 @@ class Samples extends Component
 
             if (!empty($labIds)) {
                 // Filter labs to only those that handle the selected analysis types
-                $this->labSections = Lab::whereIn('id', $labIds)
-                    ->select('id', 'name', 'code')
-                    ->get()
-                    ->toArray();
+                $this->labSections = $this->mapLabsForSelect(
+                    Lab::whereIn('id', $labIds)->select('id', 'name', 'code')->get()
+                );
             } else {
                 // No labs found, keep all labs available
-                $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+                $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
             }
         } catch (\Exception $e) {
             Log::error('Error filtering labs: ' . $e->getMessage());
             // On error, show all labs
-            $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
         }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Lab>|\Illuminate\Database\Eloquent\Collection<int, Lab>  $labs
+     * @return array<int, array{id: string, name: string|null, code: string|null}>
+     */
+    private function mapLabsForSelect($labs): array
+    {
+        return $labs->map(fn (Lab $lab) => [
+            'id' => (string) $lab->id,
+            'name' => $lab->name,
+            'code' => $lab->code,
+        ])->values()->all();
     }
 
     /**

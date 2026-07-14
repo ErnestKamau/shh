@@ -224,11 +224,11 @@
     @endif
 
     {{-- Sample Configuration Form (Livewire-driven) --}}
-    <div class="workflow-board-panel batch-samples-panel">
+    <form wire:submit="saveSamples" class="workflow-board-panel batch-samples-panel">
         <div class="workflow-board-panel-header">
             <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
                 <h5><i class="mdi mdi-flask-outline"></i> Samples configuration</h5>
-                <button type="button" wire:click="saveSamples" class="btn btn-danger btn-sm btn-action-sm text-white"
+                <button type="submit" class="btn btn-danger btn-sm btn-action-sm text-white"
                     wire:loading.attr="disabled" wire:target="saveSamples" style="height: auto; min-height: 32px;">
                     <span wire:loading.remove wire:target="saveSamples"><i class="mdi mdi-content-save"></i> Save</span>
                     <span wire:loading wire:target="saveSamples"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
@@ -454,8 +454,8 @@
 
                         {{-- Sample Type --}}
                         <td>
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.sample_type_id">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.sample_type_id">
                                 <option value="">Select...</option>
                                 @foreach($sampleTypes as $type)
                                 <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
@@ -469,7 +469,7 @@
                         {{-- Customer Sample ID --}}
                         <td>
                             <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.blur="sampleForms.{{ $index }}.customer_sample_id"
+                                wire:model="sampleForms.{{ $index }}.customer_sample_id"
                                 placeholder="Customer sample ID...">
                         </td>
 
@@ -480,11 +480,13 @@
                                 value="{{ collect($labSections)->firstWhere('id', $sampleForm['lab_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.lab_id" required>
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.lab_id"
+                                wire:key="sample-lab-{{ $index }}"
+                                required>
                                 <option value="">Select...</option>
                                 @foreach($labSections as $lab)
-                                <option value="{{ $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
+                                <option value="{{ (string) $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
                                 @endforeach
                             </select>
                             @error("sampleForms.$index.lab_id")
@@ -495,8 +497,8 @@
 
                         {{-- Main Standard --}}
                         <td>
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.main_standard" required>
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.main_standard" required>
                                 <option value="">Select...</option>
                                 @foreach($standards as $std)
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
@@ -509,8 +511,8 @@
 
                         {{-- Secondary Standard --}}
                         <td>
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.secondary_standard">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.secondary_standard">
                                 <option value="">Select...</option>
                                 @foreach($standards as $std)
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
@@ -525,8 +527,8 @@
                                 value="{{ collect($conditions)->firstWhere('id', $sampleForm['sample_condition_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.sample_condition_id">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.sample_condition_id">
                                 <option value="">Select...</option>
                                 @foreach($conditions as $condition)
                                 <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
@@ -545,8 +547,8 @@
                                 value="{{ collect($samplePoints)->firstWhere('id', $sampleForm['sample_point_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.sample_point_id">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.sample_point_id">
                                 <option value="">Select...</option>
                                 @foreach($samplePoints as $point)
                                 <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
@@ -611,7 +613,7 @@
                                 value="{{ collect($storageLocations)->firstWhere('id', $sampleForm['store_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
+                            <select class="form-control form-control-sm modern-select no-select2"
                                 wire:model="sampleForms.{{ $index }}.store_id">
                                 <option value="">Select...</option>
                                 @foreach($storageLocations as $store)
@@ -640,7 +642,7 @@
             </table>
         </div>
         </div>
-    </div>
+    </form>
 
     {{-- Delete Sample Confirmation Modal --}}
     @if($showDeleteSampleModal)
@@ -2608,6 +2610,40 @@
                 confirmResultInput(el);
             });
         }
+
+        // Select2 must not own Livewire selects (see .cursor/rules frontend ownership).
+        const releaseLivewireSelects = () => {
+            if (!window.jQuery || !window.jQuery.fn.select2) {
+                return;
+            }
+
+            let destroyed = 0;
+
+            window.jQuery('.batch-samples-panel select.no-select2').each(function () {
+                const $select = window.jQuery(this);
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    try {
+                        $select.select2('destroy');
+                        destroyed += 1;
+                    } catch (e) {
+                        // Ignore already-destroyed instances.
+                    }
+                }
+
+                $select.show().css('display', '');
+            });
+
+            if (destroyed > 0) {
+                console.log('[Samples] destroyed Select2 wrappers:', destroyed);
+            }
+        };
+
+        releaseLivewireSelects();
+        document.addEventListener('livewire:navigated', releaseLivewireSelects);
+        Livewire.hook('commit', ({ succeed }) => {
+            succeed(() => queueMicrotask(releaseLivewireSelects));
+        });
     </script>
     @endscript
 </div>
