@@ -13,12 +13,24 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithColumnLimit;
+use Maatwebsite\Excel\Concerns\WithReadFilter;
 use Maatwebsite\Excel\Events\BeforeImport;
 use Maatwebsite\Excel\Events\BeforeSheet;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Validators\Failure;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
-abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipleSheets, SkipsUnknownSheets, WithTitle, WithEvents
+abstract class BaseImporter implements
+    ToCollection,
+    SkipsOnFailure,
+    WithMultipleSheets,
+    SkipsUnknownSheets,
+    WithTitle,
+    WithEvents,
+    WithColumnLimit,
+    WithReadFilter
 {
     use Importable;
 
@@ -31,6 +43,11 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     protected int $headerRowIndex = -1;
     protected static array $cachedTemplateDefinitions = [];
     protected ?string $selectedZoneId = null;
+
+    /** @var array<int, string>|null */
+    protected ?array $resolvedHeaderMap = null;
+
+    protected bool $headersResolved = false;
 
     /**
      * Constructor.
@@ -61,7 +78,7 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
 
             $this->batch = new BulkImportBatch([
                 'module' => 'generic',
-                'status' => 'started',
+                'status' => 'processing',
                 'company_id' => $companyId,
                 'user_id' => $userId,
                 'imported_rows' => 0,
@@ -70,6 +87,44 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
             ]);
             $this->batch->save();
         }
+    }
+
+    public function endColumn(): string
+    {
+        return 'AZ';
+    }
+
+    /**
+     * Cap how many worksheet rows PhpSpreadsheet will materialize.
+     * Prevents formatted-but-empty AmSpec-style ranges from exhausting memory.
+     */
+    protected function maxReadableRows(): int
+    {
+        return 5000;
+    }
+
+    public function readFilter(): IReadFilter
+    {
+        $endColumn = $this->endColumn();
+        $maxRows = $this->maxReadableRows();
+
+        return new class($endColumn, $maxRows) implements IReadFilter {
+            public function __construct(
+                private string $endColumn,
+                private int $maxRows
+            ) {
+            }
+
+            public function readCell($columnAddress, $row, $worksheetName = ''): bool
+            {
+                if ($row < 1 || $row > $this->maxRows) {
+                    return false;
+                }
+
+                return Coordinate::columnIndexFromString($columnAddress)
+                    <= Coordinate::columnIndexFromString($this->endColumn);
+            }
+        };
     }
 
     /**
@@ -86,7 +141,7 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     }
 
     protected bool $isSheetInstance = false;
- 
+
     /**
      * Multiple Sheets Support
      */
@@ -97,13 +152,16 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
             return [];
         }
 
-        // We use a range of 20 to support files with multiple tabs.
-        // Reducing from 50 to 20 to save memory, as each clone carries overhead.
-        for ($i = 0; $i < 20; $i++) {
+        $sheets = [];
+        for ($i = 0; $i < 5; $i++) {
             $sheet = clone $this;
             $sheet->isSheetInstance = true;
+            $sheet->resolvedHeaderMap = null;
+            $sheet->headersResolved = false;
+            $sheet->headerRowIndex = -1;
             $sheets[$i] = $sheet;
         }
+
         return $sheets;
     }
 
@@ -129,8 +187,11 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                 \Log::info("Bulk Import Started", ['module' => $this->batch->module, 'form' => $this->batch->form_type]);
                 $this->sheetCount = $event->reader->getSheetCount();
             },
-            BeforeSheet::class => function(BeforeSheet $event) {
+            BeforeSheet::class => function (BeforeSheet $event) {
                 $this->sheetTitle = $event->sheet->getTitle();
+                $this->resolvedHeaderMap = null;
+                $this->headersResolved = false;
+                $this->headerRowIndex = -1;
                 \Log::info("Processing Sheet: " . $this->sheetTitle);
                 $this->onSheetLoaded($this->sheetTitle);
             },
@@ -152,15 +213,25 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     {
         try {
             \Log::info("Processing " . count($rows) . " rows in sheet " . $this->sheetTitle);
-            $headerMap = $this->findHeaderRow($rows);
-            
-            if (empty($headerMap)) {
-                \Log::warning("No header row detected in sheet " . $this->sheetTitle . ". Falling back to first row.");
-                $headerMap = $this->mapHeadersFromRow($rows->first() ?? []);
-                $this->headerRowIndex = 0;
+
+            if ($this->headersResolved && !empty($this->resolvedHeaderMap)) {
+                $headerMap = $this->resolvedHeaderMap;
+                // Subsequent chunks contain data rows only (no header row).
+                $this->headerRowIndex = -1;
             } else {
-                \Log::info("Header row detected at index " . $this->headerRowIndex);
-                $this->afterHeaderRowDetected($headerMap, $rows);
+                $headerMap = $this->findHeaderRow($rows);
+
+                if (empty($headerMap)) {
+                    \Log::warning("No header row detected in sheet " . $this->sheetTitle . ". Falling back to first row.");
+                    $headerMap = $this->mapHeadersFromRow($rows->first() ?? []);
+                    $this->headerRowIndex = 0;
+                } else {
+                    \Log::info("Header row detected at index " . $this->headerRowIndex);
+                    $this->afterHeaderRowDetected($headerMap, $rows);
+                }
+
+                $this->resolvedHeaderMap = $headerMap;
+                $this->headersResolved = true;
             }
 
             $this->detectedHeaders = array_values($headerMap);
@@ -210,7 +281,14 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                         $hasMissingPrimaryKey = true;
                     }
                 } elseif ($formType === 'equipment') {
-                    if (!$checkFilled(['gcla_code', 'equipment_number', 'equipment_no', 'code'])) {
+                    if (!$checkFilled([
+                        'gcla_code',
+                        'equipment_number',
+                        'equipment_no',
+                        'equipment_id',
+                        'asset_number',
+                        'code',
+                    ])) {
                         $hasMissingPrimaryKey = true;
                     }
                 } else {

@@ -3,15 +3,17 @@
 namespace App\Imports\Equipment;
 
 use App\Imports\BaseImporter;
+use App\Models\BulkImportBatch;
 use App\Models\Equipments\Equipment;
-use App\Models\Assets\AssetType;
-use App\Models\Assets\AssetLocation;
+use App\Models\Equipments\MaintainanceCalibrationLog;
+use App\InventoryDepartment;
+use Carbon\Carbon;
 
 class EquipmentImporter extends BaseImporter
 {
     protected ?string $selectedZoneId = null;
 
-    public function __construct(?\App\Models\BulkImportBatch $batch = null, ?string $selectedZoneId = null)
+    public function __construct(?BulkImportBatch $batch = null, ?string $selectedZoneId = null)
     {
         parent::__construct($batch);
         $this->selectedZoneId = $selectedZoneId;
@@ -21,24 +23,22 @@ class EquipmentImporter extends BaseImporter
     {
         $errors = [];
 
-        if (!$this->hasFuzzy($row, ['equipment_instrument', 'instrument', 'name', 'equipment_name'])) {
-            $errors[] = 'Equipment/Instrument Name is required';
+        if (!$this->hasFuzzy($row, $this->nameKeys())) {
+            $errors[] = 'Equipment Name is required';
         }
 
         if (!$this->hasFuzzy($row, ['model'])) {
             $errors[] = 'Model is required';
         }
 
-        if (!$this->hasFuzzy($row, ['gcla_code', 'equipment_number', 'equipment_no', 'code'])) {
-            $errors[] = 'GCLA code (Equipment Number) is required';
+        if (!$this->hasFuzzy($row, $this->equipmentNumberKeys())) {
+            $errors[] = 'Equipment ID / Number is required';
         }
 
-        if (!$this->hasFuzzy($row, ['lab_office_name', 'lab_name', 'office_name', 'lab', 'office'])) {
-            $errors[] = 'Lab/Office Name is required';
-        }
-
-        if (!$this->hasFuzzy($row, ['status'])) {
-            $errors[] = 'Status is required';
+        $hasLab = $this->hasFuzzy($row, $this->labKeys());
+        $hasDepartment = $this->hasFuzzy($row, $this->departmentKeys());
+        if (!$hasLab && !$hasDepartment) {
+            $errors[] = 'Lab/Office Name or Department is required';
         }
 
         return $errors;
@@ -46,8 +46,8 @@ class EquipmentImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $equipmentNumber = $this->fuzzyGet($row, ['gcla_code', 'equipment_number', 'equipment_no', 'code']);
-        $name = $this->fuzzyGet($row, ['equipment_instrument', 'instrument', 'name', 'equipment_name']);
+        $equipmentNumber = $this->fuzzyGet($row, $this->equipmentNumberKeys());
+        $name = $this->fuzzyGet($row, $this->nameKeys());
         if (empty($name)) {
             $name = 'Unnamed Equipment';
         }
@@ -55,8 +55,8 @@ class EquipmentImporter extends BaseImporter
         if (empty($model)) {
             $model = 'Unknown';
         }
-        $serialNumber = $this->fuzzyGet($row, ['serial_no', 'serial_number', 'sn']);
-        if (empty($serialNumber) || strtolower($serialNumber) === 'nil') {
+        $serialNumber = $this->fuzzyGet($row, $this->serialKeys());
+        if (empty($serialNumber) || strtolower((string) $serialNumber) === 'nil') {
             $serialNumber = 'NIL';
         }
 
@@ -80,11 +80,21 @@ class EquipmentImporter extends BaseImporter
         $manualAvailability = $this->fuzzyGet($row, ['manual_availability', 'manual']);
 
         $comments = [];
-        if (!empty($operatingSoftware)) $comments[] = "Software: " . $operatingSoftware;
-        if (!empty($countryOfOrigin)) $comments[] = "Country: " . $countryOfOrigin;
-        if (!empty($installationYear)) $comments[] = "Year: " . $installationYear;
-        if (!empty($powerRequirement)) $comments[] = "Power: " . $powerRequirement;
-        if (!empty($manualAvailability)) $comments[] = "Manual: " . $manualAvailability;
+        if (!empty($operatingSoftware)) {
+            $comments[] = "Software: " . $operatingSoftware;
+        }
+        if (!empty($countryOfOrigin)) {
+            $comments[] = "Country: " . $countryOfOrigin;
+        }
+        if (!empty($installationYear)) {
+            $comments[] = "Year: " . $installationYear;
+        }
+        if (!empty($powerRequirement)) {
+            $comments[] = "Power: " . $powerRequirement;
+        }
+        if (!empty($manualAvailability)) {
+            $comments[] = "Manual: " . $manualAvailability;
+        }
         $commentString = implode(' | ', $comments);
 
         // Parse date purchased from installation year
@@ -93,42 +103,46 @@ class EquipmentImporter extends BaseImporter
             if (is_numeric($installationYear)) {
                 $datePurchased = $installationYear . "-01-01";
             } else {
-                try {
-                    $datePurchased = \Carbon\Carbon::parse($installationYear)->format('Y-m-d');
-                } catch (\Exception $e) {
-                    $datePurchased = date('Y-m-d');
-                }
+                $datePurchased = $this->parseDate($installationYear) ?? date('Y-m-d');
             }
         } else {
             $datePurchased = date('Y-m-d');
         }
 
-        // Resolve lab name to primary lab & matching location
-        $labName = $this->fuzzyGet($row, ['lab_office_name', 'lab_name', 'office_name', 'lab', 'office']);
-        if (empty($labName)) {
+        // Resolve lab name / department to primary lab & matching location
+        $labName = $this->fuzzyGet($row, $this->labKeys());
+        $departmentName = $this->fuzzyGet($row, $this->departmentKeys());
+        if (empty($labName) && empty($departmentName)) {
             $labName = 'Main Office';
+            $departmentName = 'Main Office';
+        } elseif (empty($departmentName)) {
+            $departmentName = $labName;
         }
+
         $labId = null;
         $assetLocationId = null;
         $assignedDepartmentId = null;
 
         // Perform case-insensitive fuzzy lookup
-        $lab = \App\Lab::where('name', 'like', "%$labName%")->first();
-        if ($lab) {
-            $labId = $lab->id;
-            if ($lab->zone) {
-                $assetLocationId = $lab->zone->inventory_location_id;
+        if (!empty($labName)) {
+            $lab = \App\Lab::where('name', 'like', "%$labName%")->first();
+            if ($lab) {
+                $labId = $lab->id;
+                if ($lab->zone) {
+                    $assetLocationId = $lab->zone->inventory_location_id;
+                }
             }
-            
-            // Look up or create InventoryDepartment matching lab name
-            $department = \App\InventoryDepartment::where('module', 'organizational')
-                ->where('name', 'like', "%$labName%")
+        }
+
+        if (!empty($departmentName)) {
+            $department = InventoryDepartment::where('module', 'organizational')
+                ->where('name', 'like', "%$departmentName%")
                 ->where('company_id', $this->batch->company_id)
                 ->first();
 
             if (!$department) {
-                $department = \App\InventoryDepartment::create([
-                    'name' => $labName,
+                $department = InventoryDepartment::create([
+                    'name' => $departmentName,
                     'module' => 'organizational',
                     'company_id' => $this->batch->company_id,
                     'location_id' => $assetLocationId,
@@ -149,13 +163,13 @@ class EquipmentImporter extends BaseImporter
                 if ($firstLab) {
                     $labId = $firstLab->id;
                     $labNameFallback = $firstLab->name;
-                    $department = \App\InventoryDepartment::where('module', 'organizational')
+                    $department = InventoryDepartment::where('module', 'organizational')
                         ->where('name', 'like', "%$labNameFallback%")
                         ->where('company_id', $this->batch->company_id)
                         ->first();
 
                     if (!$department) {
-                        $department = \App\InventoryDepartment::create([
+                        $department = InventoryDepartment::create([
                             'name' => $labNameFallback,
                             'module' => 'organizational',
                             'company_id' => $this->batch->company_id,
@@ -175,7 +189,7 @@ class EquipmentImporter extends BaseImporter
                     $loc = new \App\Models\Assets\AssetLocation();
                     $loc->id = $assetLocationId;
                     $loc->location_code = 'LOC-' . strtoupper(substr($assetLocationId, 0, 8));
-                    $loc->name = $labName . ' Location';
+                    $loc->name = ($labName ?: $departmentName) . ' Location';
                     $loc->is_active = true;
                     $loc->save();
                 } catch (\Throwable $t) {
@@ -194,12 +208,19 @@ class EquipmentImporter extends BaseImporter
                     $defaultLocation->name = 'Default Location';
                     $defaultLocation->is_active = true;
                     $defaultLocation->save();
-                } catch (\Throwable $t) {}
+                } catch (\Throwable $t) {
+                }
             }
             $assetLocationId = $defaultLocation ? $defaultLocation->id : null;
         }
 
-        $status = $this->fuzzyGet($row, ['status']);
+        $calibrationDate = $this->resolveCalibrationDate($row);
+        $status = $this->normalizeOperationalStatus(
+            $this->fuzzyGet($row, ['operational_status', 'status', 'condition'])
+        );
+
+        $calibrationDays = $this->resolveCalibrationDays($row, $calibrationDate);
+        $maintainanceDays = $this->resolveMaintainanceDays($row, $calibrationDays);
 
         // Parse new optional fields
         $purchasePrice = $this->fuzzyGet($row, ['purchase_price', 'purchaseprice', 'price', 'cost']);
@@ -220,13 +241,14 @@ class EquipmentImporter extends BaseImporter
             'make' => $make,
             'model' => $model,
             'serial_number' => $serialNumber,
+            'manufacturer' => $make,
             'asset_location_id' => $assetLocationId,
             'assigned_department' => $assignedDepartmentId,
             'date_purchased' => $datePurchased,
-            'calibration_days' => 365,
-            'maintainance_days' => 365,
-            'status' => $status ?? 'Active',
-            'condition' => $status ?? 'Active',
+            'calibration_days' => $calibrationDays,
+            'maintainance_days' => $maintainanceDays,
+            'status' => $status,
+            'condition' => $status,
             'comment' => $commentString,
             'active' => true,
             'is_disposal' => false,
@@ -245,6 +267,7 @@ class EquipmentImporter extends BaseImporter
             'end_of_life' => $endOfLife ? $this->parseDate($endOfLife) : null,
             'end_of_service' => $endOfService ? $this->parseDate($endOfService) : null,
 
+            '_calibration_date' => $calibrationDate,
             '_resolved_lab_id' => $labId,
         ];
     }
@@ -253,7 +276,8 @@ class EquipmentImporter extends BaseImporter
     {
         try {
             $labId = $transformedData['_resolved_lab_id'] ?? null;
-            unset($transformedData['_resolved_lab_id']);
+            $calDate = $transformedData['_calibration_date'] ?? null;
+            unset($transformedData['_resolved_lab_id'], $transformedData['_calibration_date']);
 
             $equipment = Equipment::updateOrCreate(
                 ['equipment_number' => $transformedData['equipment_number'], 'company_id' => $this->batch->company_id],
@@ -265,10 +289,241 @@ class EquipmentImporter extends BaseImporter
                 $equipment->save();
             }
 
+            if ($calDate) {
+                $existingLog = MaintainanceCalibrationLog::where('equipment_id', $equipment->id)
+                    ->where('type', 'Calibration')
+                    ->whereDate('date', $calDate)
+                    ->first();
+
+                if (!$existingLog) {
+                    MaintainanceCalibrationLog::create([
+                        'equipment_id' => $equipment->id,
+                        'type' => 'Calibration',
+                        'date' => $calDate,
+                        'notes' => 'Imported from Excel',
+                        'overseen_by' => $this->batch->user_id,
+                        'edit_by' => $this->batch->user_id,
+                        'certificate' => 'no-document',
+                    ]);
+                }
+            }
+
             $this->recordUpsert($transformedData['equipment_number'], 'inserted');
             return true;
         } catch (\Exception $e) {
             throw new \Exception("Failed to import equipment: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function nameKeys(): array
+    {
+        return [
+            'equipment_name',
+            'equipment_instrument',
+            'instrument',
+            'equipment',
+            'name',
+            'item',
+            'description',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function equipmentNumberKeys(): array
+    {
+        return [
+            'equipment_id',
+            'gcla_code',
+            'equipment_number',
+            'equipmentnumber',
+            'equipment_no',
+            'asset_number',
+            'code',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function serialKeys(): array
+    {
+        return [
+            'serial',
+            'serial_no',
+            'serial_number',
+            'serialnumber',
+            'sn',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function labKeys(): array
+    {
+        return ['lab_office_name', 'lab_name', 'office_name', 'lab', 'office'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function departmentKeys(): array
+    {
+        return ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section'];
+    }
+
+    protected function resolveCalibrationDate(array $row): ?string
+    {
+        $direct = $this->fuzzyGet($row, [
+            'calibration_date',
+            'previous_calibration_date',
+            'previouscalibrationdate',
+            'last_calibration',
+            'last_cal',
+            'last_calibration_date',
+        ]);
+
+        $parsed = $this->parseDate($direct);
+        if ($parsed) {
+            return $parsed;
+        }
+
+        $dueDate = $this->parseDate($this->fuzzyGet($row, [
+            'calibration_due_date',
+            'calibrationduedate',
+            'due_date',
+            'next_calibration_date',
+        ]));
+        $months = $this->fuzzyGet($row, [
+            'calibration_duration_months',
+            'calibration_duration_month',
+            'calibration_duration',
+            'calibration_interval_months',
+            'interval_months',
+        ]);
+
+        if ($dueDate && is_numeric($months) && (float) $months > 0) {
+            try {
+                return Carbon::parse($dueDate)->subMonthsNoOverflow((int) $months)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    protected function resolveCalibrationDays(array $row, ?string $calibrationDate): int
+    {
+        $months = $this->fuzzyGet($row, [
+            'calibration_duration_months',
+            'calibration_duration_month',
+            'calibration_duration',
+            'calibration_interval_months',
+            'interval_months',
+        ]);
+        if (is_numeric($months) && (float) $months > 0) {
+            return max(1, (int) round(((float) $months) * 365 / 12));
+        }
+
+        $days = $this->fuzzyGet($row, [
+            'calibration_interval_days',
+            'calibration_days',
+            'calibration_interval',
+            'interval_days',
+        ]);
+        if (is_numeric($days) && (float) $days > 0) {
+            return max(1, (int) $days);
+        }
+
+        $dueDate = $this->parseDate($this->fuzzyGet($row, [
+            'calibration_due_date',
+            'calibrationduedate',
+            'due_date',
+            'next_calibration_date',
+        ]));
+        if ($calibrationDate && $dueDate) {
+            try {
+                $diff = Carbon::parse($calibrationDate)->diffInDays(Carbon::parse($dueDate), false);
+                if ($diff > 0) {
+                    return (int) $diff;
+                }
+            } catch (\Exception $e) {
+            }
+        }
+
+        return 365;
+    }
+
+    protected function resolveMaintainanceDays(array $row, int $fallback): int
+    {
+        $days = $this->fuzzyGet($row, [
+            'intermediate_checks_interval_days',
+            'maintainance_days',
+            'maintenance_days',
+            'maintenance_interval_days',
+        ]);
+        if (is_numeric($days) && (float) $days > 0) {
+            return max(1, (int) $days);
+        }
+
+        return $fallback;
+    }
+
+    protected function normalizeOperationalStatus(?string $status): string
+    {
+        if ($status === null || trim($status) === '') {
+            return 'Active';
+        }
+
+        $normalized = strtolower(trim($status));
+        $map = [
+            'in use' => 'Active',
+            'in-use' => 'Active',
+            'working' => 'Active',
+            'active' => 'Active',
+            'calibrated' => 'Active',
+            'operational' => 'Active',
+            'out of service' => 'Out Of Service',
+            'out-of-service' => 'Out Of Service',
+            'oos' => 'Out Of Service',
+            'not in use' => 'Out Of Service',
+            'idle' => 'Out Of Service',
+            'obsolete' => 'Obsolete',
+            'retired' => 'Obsolete',
+            'disposed' => 'Obsolete',
+        ];
+
+        return $map[$normalized] ?? $status;
+    }
+
+    protected function parseDate($dateValue): ?string
+    {
+        if (empty($dateValue)) {
+            return null;
+        }
+
+        if ($dateValue instanceof \DateTime || $dateValue instanceof Carbon) {
+            return $dateValue->format('Y-m-d');
+        }
+
+        if (is_numeric($dateValue)) {
+            try {
+                return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue))->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        try {
+            return Carbon::parse((string) $dateValue)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
         }
     }
 }

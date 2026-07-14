@@ -2,10 +2,10 @@
 
 namespace App\Imports;
 
+use App\Models\BulkImportBatch;
 use App\Models\Equipments\Equipment;
 use App\Models\Equipments\MaintainanceCalibrationLog;
 use App\InventoryDepartment;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class EquipmentImport extends BaseImporter
@@ -16,8 +16,8 @@ class EquipmentImport extends BaseImporter
     {
         parent::__construct($batch);
         $this->selectedZoneId = $selectedZoneId;
-        if ($this->batch->module === 'generic') {
-            $this->batch->update(['module' => 'inventory', 'form_type' => 'equipment']);
+        if ($this->batch->module === 'generic' || $this->batch->module === 'inventory') {
+            $this->batch->update(['module' => 'equipment', 'form_type' => 'equipment']);
         }
     }
 
@@ -25,22 +25,22 @@ class EquipmentImport extends BaseImporter
     {
         $errors = [];
 
-        if (empty($this->fuzzyGet($row, ['equipment_instrument', 'instrument', 'name', 'equipment_name', 'item', 'description']))) {
+        if (empty($this->fuzzyGet($row, $this->nameKeys()))) {
             $errors[] = 'Equipment Name is required';
         }
 
-        if (empty($this->fuzzyGet($row, ['gcla_code', 'equipment_number', 'equipmentnumber', 'asset_number', 'code']))) {
-            $errors[] = 'Equipment Number is required';
+        if (empty($this->fuzzyGet($row, $this->equipmentNumberKeys()))) {
+            $errors[] = 'Equipment ID / Number is required';
         }
 
         if (empty($this->fuzzyGet($row, ['model']))) {
             $errors[] = 'Model is required';
         }
 
-        $labName = $this->fuzzyGet($row, ['lab_office_name', 'lab_name', 'office_name', 'lab', 'office']);
-        $departmentName = $this->fuzzyGet($row, ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section']);
+        $labName = $this->fuzzyGet($row, $this->labKeys());
+        $departmentName = $this->fuzzyGet($row, $this->departmentKeys());
         if (empty($labName) && empty($departmentName)) {
-            $errors[] = 'Lab/Office Name or Assigned Department is required';
+            $errors[] = 'Lab/Office Name or Department is required';
         }
 
         return $errors;
@@ -48,18 +48,18 @@ class EquipmentImport extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $equipmentNumber = $this->fuzzyGet($row, ['gcla_code', 'equipment_number', 'equipmentnumber', 'asset_number', 'code']);
-        
+        $equipmentNumber = $this->fuzzyGet($row, $this->equipmentNumberKeys());
+
         // Check for duplicates
         $existing = Equipment::where('equipment_number', $equipmentNumber)
             ->where('company_id', $this->batch->company_id)
             ->first();
-        
+
         if ($existing) {
             return false; // Skip duplicates or handle accordingly
         }
 
-        $name = $this->fuzzyGet($row, ['equipment_instrument', 'instrument', 'name', 'equipment_name', 'item', 'description']);
+        $name = $this->fuzzyGet($row, $this->nameKeys());
         if (empty($name)) {
             $name = 'Unnamed Equipment';
         }
@@ -67,8 +67,8 @@ class EquipmentImport extends BaseImporter
         if (empty($model)) {
             $model = 'Unknown';
         }
-        $serialNumber = $this->fuzzyGet($row, ['serial_no', 'serial_number', 'serialnumber', 'sn']);
-        if (empty($serialNumber) || strtolower($serialNumber) === 'nil') {
+        $serialNumber = $this->fuzzyGet($row, $this->serialKeys());
+        if (empty($serialNumber) || strtolower((string) $serialNumber) === 'nil') {
             $serialNumber = 'NIL';
         }
 
@@ -92,11 +92,21 @@ class EquipmentImport extends BaseImporter
         $manualAvailability = $this->fuzzyGet($row, ['manual_availability', 'manual']);
 
         $comments = [];
-        if (!empty($operatingSoftware)) $comments[] = "Software: " . $operatingSoftware;
-        if (!empty($countryOfOrigin)) $comments[] = "Country: " . $countryOfOrigin;
-        if (!empty($installationYear)) $comments[] = "Year: " . $installationYear;
-        if (!empty($powerRequirement)) $comments[] = "Power: " . $powerRequirement;
-        if (!empty($manualAvailability)) $comments[] = "Manual: " . $manualAvailability;
+        if (!empty($operatingSoftware)) {
+            $comments[] = "Software: " . $operatingSoftware;
+        }
+        if (!empty($countryOfOrigin)) {
+            $comments[] = "Country: " . $countryOfOrigin;
+        }
+        if (!empty($installationYear)) {
+            $comments[] = "Year: " . $installationYear;
+        }
+        if (!empty($powerRequirement)) {
+            $comments[] = "Power: " . $powerRequirement;
+        }
+        if (!empty($manualAvailability)) {
+            $comments[] = "Manual: " . $manualAvailability;
+        }
         $commentString = implode(' | ', $comments);
 
         // Parse date purchased from installation year or date_purchased
@@ -116,13 +126,13 @@ class EquipmentImport extends BaseImporter
         }
 
         // Resolve lab name / assigned department / locations
-        $labName = $this->fuzzyGet($row, ['lab_office_name', 'lab_name', 'office_name', 'lab', 'office']);
-        $departmentName = $this->fuzzyGet($row, ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section']);
+        $labName = $this->fuzzyGet($row, $this->labKeys());
+        $departmentName = $this->fuzzyGet($row, $this->departmentKeys());
         if (empty($labName) && empty($departmentName)) {
             $labName = 'Main Office';
             $departmentName = 'Main Office';
         }
-        
+
         $labId = null;
         $assetLocationId = null;
         $assignedDepartmentId = null;
@@ -135,7 +145,7 @@ class EquipmentImport extends BaseImporter
                 if ($lab->zone) {
                     $assetLocationId = $lab->zone->inventory_location_id;
                 }
-                
+
                 // Fall back department to Lab Name if none specified
                 if (empty($departmentName)) {
                     $departmentName = $labName;
@@ -158,7 +168,8 @@ class EquipmentImport extends BaseImporter
                             $loc = getCurrentUserLocation();
                             $locationId = $loc->id ?? null;
                         }
-                    } catch (\Throwable $t) {}
+                    } catch (\Throwable $t) {
+                    }
                 }
 
                 $department = InventoryDepartment::create([
@@ -228,15 +239,27 @@ class EquipmentImport extends BaseImporter
                     $defaultLocation->name = 'Default Location';
                     $defaultLocation->is_active = true;
                     $defaultLocation->save();
-                } catch (\Throwable $t) {}
+                } catch (\Throwable $t) {
+                }
             }
             $assetLocationId = $defaultLocation ? $defaultLocation->id : null;
         }
 
-        $prevCalDate = $this->fuzzyGet($row, ['previous_calibration_date', 'previouscalibrationdate', 'last_calibration', 'last_cal']);
-        $prevMaintDate = $this->fuzzyGet($row, ['previous_maintainance_date', 'previousmaintainancedate', 'previous_maintenance_date', 'last_maintenance', 'last_maint']);
-        
-        $status = $this->fuzzyGet($row, ['status']);
+        $calibrationDate = $this->resolveCalibrationDate($row);
+        $prevMaintDate = $this->fuzzyGet($row, [
+            'previous_maintainance_date',
+            'previousmaintainancedate',
+            'previous_maintenance_date',
+            'last_maintenance',
+            'last_maint',
+        ]);
+
+        $status = $this->normalizeOperationalStatus(
+            $this->fuzzyGet($row, ['operational_status', 'status', 'condition'])
+        );
+
+        $calibrationDays = $this->resolveCalibrationDays($row, $calibrationDate);
+        $maintainanceDays = $this->resolveMaintainanceDays($row, $calibrationDays);
 
         // Parse new optional fields
         $purchasePrice = $this->fuzzyGet($row, ['purchase_price', 'purchaseprice', 'price', 'cost']);
@@ -260,17 +283,17 @@ class EquipmentImport extends BaseImporter
             'manufacturer' => $make,
             'assigned_department' => $assignedDepartmentId,
             'date_purchased' => $datePurchased,
-            'calibration_days' => 365,
-            'maintainance_days' => 365,
-            'status' => $status ?? 'Active',
-            'condition' => $status ?? 'Active',
+            'calibration_days' => $calibrationDays,
+            'maintainance_days' => $maintainanceDays,
+            'status' => $status,
+            'condition' => $status,
             'comment' => $commentString,
             'active' => true,
             'company_id' => $this->batch->company_id,
             'is_disposal' => 0,
             'picture' => '/images/default-equipment.png',
             'asset_location_id' => $assetLocationId,
-            
+
             // New fields
             'purchase_price' => is_numeric($purchasePrice) ? (float) $purchasePrice : null,
             'supplier_name' => $supplierName ?: null,
@@ -283,7 +306,7 @@ class EquipmentImport extends BaseImporter
             'end_of_life' => $endOfLife ? $this->parseDate($endOfLife) : null,
             'end_of_service' => $endOfService ? $this->parseDate($endOfService) : null,
 
-            '_calibration_date' => $this->parseDate($prevCalDate),
+            '_calibration_date' => $calibrationDate,
             '_maintenance_date' => $this->parseDate($prevMaintDate),
             '_resolved_lab_id' => $labId,
         ];
@@ -294,7 +317,7 @@ class EquipmentImport extends BaseImporter
         $calDate = $transformedData['_calibration_date'] ?? null;
         $maintDate = $transformedData['_maintenance_date'] ?? null;
         $labId = $transformedData['_resolved_lab_id'] ?? null;
-        
+
         unset($transformedData['_calibration_date'], $transformedData['_maintenance_date'], $transformedData['_resolved_lab_id']);
 
         $equipment = Equipment::create($transformedData);
@@ -333,11 +356,210 @@ class EquipmentImport extends BaseImporter
     }
 
     /**
+     * @return array<int, string>
+     */
+    protected function nameKeys(): array
+    {
+        return [
+            'equipment_name',
+            'equipment_instrument',
+            'instrument',
+            'equipment',
+            'name',
+            'item',
+            'description',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function equipmentNumberKeys(): array
+    {
+        return [
+            'equipment_id',
+            'gcla_code',
+            'equipment_number',
+            'equipmentnumber',
+            'equipment_no',
+            'asset_number',
+            'code',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function serialKeys(): array
+    {
+        return [
+            'serial',
+            'serial_no',
+            'serial_number',
+            'serialnumber',
+            'sn',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function labKeys(): array
+    {
+        return ['lab_office_name', 'lab_name', 'office_name', 'lab', 'office'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function departmentKeys(): array
+    {
+        return ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section'];
+    }
+
+    /**
+     * Resolve last calibration date from AmSpec-style and legacy columns.
+     */
+    protected function resolveCalibrationDate(array $row): ?string
+    {
+        $direct = $this->fuzzyGet($row, [
+            'calibration_date',
+            'previous_calibration_date',
+            'previouscalibrationdate',
+            'last_calibration',
+            'last_cal',
+            'last_calibration_date',
+        ]);
+
+        $parsed = $this->parseDate($direct);
+        if ($parsed) {
+            return $parsed;
+        }
+
+        // Derive from due date + duration when calibration date is blank
+        $dueDate = $this->parseDate($this->fuzzyGet($row, [
+            'calibration_due_date',
+            'calibrationduedate',
+            'due_date',
+            'next_calibration_date',
+        ]));
+        $months = $this->fuzzyGet($row, [
+            'calibration_duration_months',
+            'calibration_duration_month',
+            'calibration_duration',
+            'calibration_interval_months',
+            'interval_months',
+        ]);
+
+        if ($dueDate && is_numeric($months) && (float) $months > 0) {
+            try {
+                return Carbon::parse($dueDate)->subMonthsNoOverflow((int) $months)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve calibration interval in days from months, days, or date span.
+     */
+    protected function resolveCalibrationDays(array $row, ?string $calibrationDate): int
+    {
+        $months = $this->fuzzyGet($row, [
+            'calibration_duration_months',
+            'calibration_duration_month',
+            'calibration_duration',
+            'calibration_interval_months',
+            'interval_months',
+        ]);
+        if (is_numeric($months) && (float) $months > 0) {
+            return max(1, (int) round(((float) $months) * 365 / 12));
+        }
+
+        $days = $this->fuzzyGet($row, [
+            'calibration_interval_days',
+            'calibration_days',
+            'calibration_interval',
+            'interval_days',
+        ]);
+        if (is_numeric($days) && (float) $days > 0) {
+            return max(1, (int) $days);
+        }
+
+        $dueDate = $this->parseDate($this->fuzzyGet($row, [
+            'calibration_due_date',
+            'calibrationduedate',
+            'due_date',
+            'next_calibration_date',
+        ]));
+        if ($calibrationDate && $dueDate) {
+            try {
+                $diff = Carbon::parse($calibrationDate)->diffInDays(Carbon::parse($dueDate), false);
+                if ($diff > 0) {
+                    return (int) $diff;
+                }
+            } catch (\Exception $e) {
+            }
+        }
+
+        return 365;
+    }
+
+    protected function resolveMaintainanceDays(array $row, int $fallback): int
+    {
+        $days = $this->fuzzyGet($row, [
+            'intermediate_checks_interval_days',
+            'maintainance_days',
+            'maintenance_days',
+            'maintenance_interval_days',
+        ]);
+        if (is_numeric($days) && (float) $days > 0) {
+            return max(1, (int) $days);
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * Map spreadsheet operational status values onto system statuses.
+     */
+    protected function normalizeOperationalStatus(?string $status): string
+    {
+        if ($status === null || trim($status) === '') {
+            return 'Active';
+        }
+
+        $normalized = strtolower(trim($status));
+        $map = [
+            'in use' => 'Active',
+            'in-use' => 'Active',
+            'working' => 'Active',
+            'active' => 'Active',
+            'calibrated' => 'Active',
+            'operational' => 'Active',
+            'out of service' => 'Out Of Service',
+            'out-of-service' => 'Out Of Service',
+            'oos' => 'Out Of Service',
+            'not in use' => 'Out Of Service',
+            'idle' => 'Out Of Service',
+            'obsolete' => 'Obsolete',
+            'retired' => 'Obsolete',
+            'disposed' => 'Obsolete',
+        ];
+
+        return $map[$normalized] ?? $status;
+    }
+
+    /**
      * Parse date from various formats.
      */
     protected function parseDate($dateValue): ?string
     {
-        if (empty($dateValue)) return null;
+        if (empty($dateValue)) {
+            return null;
+        }
 
         if ($dateValue instanceof \DateTime || $dateValue instanceof Carbon) {
             return $dateValue->format('Y-m-d');
@@ -352,7 +574,7 @@ class EquipmentImport extends BaseImporter
         }
 
         try {
-            return Carbon::parse((string)$dateValue)->format('Y-m-d');
+            return Carbon::parse((string) $dateValue)->format('Y-m-d');
         } catch (\Exception $e) {
             return null;
         }
