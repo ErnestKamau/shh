@@ -133,23 +133,7 @@ class PersonnelTableManager extends Component
     public function mount(bool $embedded = false): void
     {
         $this->embedded = $embedded;
-        $departmentRows = InventoryDepartment::query()
-            ->where('company_id', getUserCompany())
-            ->where('module', 'organizational')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        // Fallback: if module-scoped departments are empty, use company departments.
-        if ($departmentRows->isEmpty()) {
-            $departmentRows = InventoryDepartment::query()
-                ->where('company_id', getUserCompany())
-                ->orderBy('name')
-                ->get(['id', 'name']);
-        }
-
-        $this->departments = $departmentRows
-            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
-            ->toArray();
+        $this->reloadDepartments();
 
         $this->designations = ModulePreConfigs::query()
             ->where('type', 'Designation')
@@ -221,6 +205,13 @@ class PersonnelTableManager extends Component
         $this->primeAddModalDropdowns();
         $this->addPersonnelStep = 1;
         $this->showAddPersonnelModal = true;
+    }
+
+    #[On('personnel-departments-updated')]
+    public function handleDepartmentsUpdated(): void
+    {
+        $this->reloadDepartments();
+        $this->filteredDepartments = $this->departments;
     }
 
     public function closeAddPersonnelModal(): void
@@ -919,6 +910,7 @@ class PersonnelTableManager extends Component
 
     private function primeAddModalDropdowns(): void
     {
+        $this->reloadDepartments();
         $this->filteredDesignations = $this->designations;
         $this->filteredEducationLevels = $this->educationLevels;
         $this->filteredPositions = $this->positions;
@@ -926,6 +918,38 @@ class PersonnelTableManager extends Component
         $this->filteredLabSections = $this->stages;
         $this->filteredLabs = $this->labs;
         $this->showLabDropdown = false;
+    }
+
+    private function reloadDepartments(): void
+    {
+        $companyId = getUserCompany();
+
+        $query = InventoryDepartment::query()
+            ->where('module', 'organizational')
+            ->where(function ($builder) use ($companyId): void {
+                if ($companyId) {
+                    $builder->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                } else {
+                    $builder->whereNull('company_id');
+                }
+            })
+            ->orderBy('name');
+
+        $departmentRows = $query->get(['id', 'name']);
+
+        // Fallback: if organizational list is empty, use any company departments.
+        if ($departmentRows->isEmpty() && $companyId) {
+            $departmentRows = InventoryDepartment::query()
+                ->where('company_id', $companyId)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
+        $this->departments = $departmentRows
+            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
+            ->values()
+            ->toArray();
     }
 
     private function resetAddModalSearches(): void
