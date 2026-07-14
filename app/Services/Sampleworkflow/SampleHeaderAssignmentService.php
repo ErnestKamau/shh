@@ -5,11 +5,62 @@ namespace App\Services\Sampleworkflow;
 use App\Models\Sampleworkflow\SampleHeaderUserAssignment;
 use App\SampleHeader;
 use App\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SampleHeaderAssignmentService
 {
+    /**
+     * Request-scoped cache so bulk result saves only assign each batch once.
+     *
+     * @var array<string, SampleHeaderUserAssignment|null>
+     */
+    private static array $resultEntryAssignments = [];
+
+    /**
+     * Assign a batch to the user who just entered/saved results.
+     * Safe to call repeatedly for the same batch in one request.
+     */
+    public function assignOnResultEntry(SampleHeader|string|null $batch, ?User $actor = null): ?SampleHeaderUserAssignment
+    {
+        $actor = $actor ?? Auth::user();
+        if ($actor === null || ! $actor instanceof User) {
+            return null;
+        }
+
+        if ($batch === null || $batch === '') {
+            return null;
+        }
+
+        $batchId = $batch instanceof SampleHeader ? (string) $batch->id : trim((string) $batch);
+        if ($batchId === '') {
+            return null;
+        }
+
+        $cacheKey = $batchId.':'.(string) $actor->id;
+        if (array_key_exists($cacheKey, self::$resultEntryAssignments)) {
+            return self::$resultEntryAssignments[$cacheKey];
+        }
+
+        try {
+            $header = $batch instanceof SampleHeader
+                ? $batch
+                : $this->resolveBatch($batchId);
+
+            $assignment = $this->assignSingleBatch(
+                $header,
+                $actor,
+                null,
+                $actor,
+            );
+
+            return self::$resultEntryAssignments[$cacheKey] = $assignment;
+        } catch (ValidationException) {
+            return self::$resultEntryAssignments[$cacheKey] = null;
+        }
+    }
+
     /**
      * @param  array<int, string>  $batchIds
      * @return array{processed:int, skipped:int}

@@ -8,11 +8,13 @@ use App\InventorySubCategories;
 use App\Observers\ItemObserver;
 use App\Observers\PurchaseOrderObserver;
 use App\Observers\SupplierObserver;
+use App\Observers\TrackSampleResultObserver;
 use App\RequestEntity;
 use App\Supplier;
 use App\Models\CRM\Complaint;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\TrackSampleResult;
 use App\Observers\SampleSubmissionRequestObserver;
 use App\Observers\SubmissionFormInstanceObserver;
 use App\Observers\TicketObserver;
@@ -87,6 +89,7 @@ class AppServiceProvider extends ServiceProvider
         });
         
         CapturedResult::observe(CapturedObserver::class);
+        TrackSampleResult::observe(TrackSampleResultObserver::class);
         Supplier::observe(SupplierObserver::class);
         InventorySubCategories::observe(ItemObserver::class);
         RequestEntity::observe(PurchaseOrderObserver::class);

@@ -9,17 +9,16 @@ class EquipmentTemplateExporter extends ExcelTemplateGenerator
     protected function defineHeaders(): array
     {
         return [
-            'Equipment /Instrument*',
+            'Equipment Name*',
+            'Equipment ID*',
+            'Serial',
             'Model*',
-            'Serial No.',
-            'Operating Software',
-            'GCLA code*',
-            'Lab./Office Name*',
-            'Country of origin',
-            'Installation Year',
-            'Power requirement',
-            'Manual Availability',
-            'STATUS*',
+            'Manufacturer',
+            'Department*',
+            'Calibration Duration (Months)',
+            'Calibration Date',
+            'Calibration Due Date',
+            'Operational Status',
         ];
     }
 
@@ -27,30 +26,28 @@ class EquipmentTemplateExporter extends ExcelTemplateGenerator
     {
         return [
             [
-                '3500xl Genetic Analyzer',
-                'Applied Biosystems(622-0015)',
-                '31397-071',
-                '3500 Series Data Collection Software',
-                'TR242*0002028',
-                'DNA Lab',
-                'Japan',
-                '2019',
-                '100-240V',
-                'NO',
-                'Working'
+                'Example GC Analyzer',
+                'AMS/C/INS/000',
+                'SN-EXAMPLE-001',
+                'MODEL-001',
+                'Example Manufacturer',
+                'Chemistry',
+                '12',
+                '2025-01-15',
+                '2026-01-15',
+                'In Use',
             ],
             [
-                'Real Time PCR System',
-                '7500 AB-Applied Biosystems',
-                '275006291',
-                'HID Real time PCR analysis',
-                'TR242*0001855',
-                'DNA Lab',
-                'Singapore',
-                '2010',
-                '1080 W',
-                'NO',
-                'Working'
+                'Example Hot Air Oven',
+                'AMS/C/INS/001',
+                'SN-EXAMPLE-002',
+                'MODEL-002',
+                'Example Manufacturer',
+                'Microbiology',
+                '6',
+                '2025-06-01',
+                '2025-12-01',
+                'In Use',
             ],
         ];
     }

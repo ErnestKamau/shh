@@ -46,8 +46,6 @@ class EquipmentManager extends Component
 
     // Bulk Upload
     public $bulkFile = null;
-    public $selectedZoneId = null;
-    public $zones = [];
 
     // Equipment Form
     public $equipmentForm = [
@@ -150,7 +148,6 @@ class EquipmentManager extends Component
         $this->assetLocations = AssetLocation::where('is_active', 1)->get();
         $this->reportingUnits = ReportingUnit::orderBy('name')->get();
         $this->filteredReportingUnits = $this->reportingUnits;
-        $this->zones = \App\Zone::orderBy('value')->get();
     }
 
     public function getEquipmentProperty()
@@ -532,7 +529,6 @@ class EquipmentManager extends Component
     {
         $this->showBulkUploadModal = true;
         $this->bulkFile = null;
-        $this->selectedZoneId = null;
         $this->dispatch('bulk-upload-modal-opened');
     }
 
@@ -540,7 +536,6 @@ class EquipmentManager extends Component
     {
         $this->showBulkUploadModal = false;
         $this->bulkFile = null;
-        $this->selectedZoneId = null;
     }
 
     public function downloadTemplate()
@@ -549,28 +544,16 @@ class EquipmentManager extends Component
         
         $headers = [
             [
-                'Name',
-                'Equipment Number',
-                'Make',
+                'Equipment Name',
+                'Equipment ID',
+                'Serial',
                 'Model',
-                'Serial Number',
                 'Manufacturer',
-                'Assigned Department',
-                'Date Purchased',
-                'Previous Calibration Date',
-                'Calibration Interval (Days)',
-                'Previous Maintainance Date',
-                'Intermediate Checks Interval (Days)',
-                'Purchase Price',
-                'Installation Date',
-                'Commissioning Date',
-                'Detection Limit',
-                'Tolerance Limit',
-                'Supplier Name',
-                'Warranty',
-                'Environment',
-                'End of Life',
-                'End of Service'
+                'Department',
+                'Calibration Duration (Months)',
+                'Calibration Date',
+                'Calibration Due Date',
+                'Operational Status',
             ]
         ];
 
@@ -599,13 +582,13 @@ class EquipmentManager extends Component
             $batch = \App\Models\BulkImportBatch::create([
                 'company_id' => getUserCompany(),
                 'user_id' => auth()->id(),
-                'module' => 'inventory',
+                'module' => 'equipment',
                 'form_type' => 'equipment',
-                'status' => 'started',
+                'status' => 'processing',
                 'started_at' => now(),
             ]);
 
-            $import = new EquipmentImport($batch, $this->selectedZoneId);
+            $import = new EquipmentImport($batch);
             
             Excel::import($import, $this->bulkFile);
 
@@ -628,6 +611,13 @@ class EquipmentManager extends Component
 
         } catch (\Throwable $e) {
             \Log::error("Bulk Upload Error: " . $e->getMessage());
+            if (isset($batch) && $batch instanceof \App\Models\BulkImportBatch) {
+                try {
+                    $batch->markAsFailed($e->getMessage());
+                } catch (\Throwable $ignored) {
+                }
+            }
+            $this->closeBulkUploadModal();
             $this->message = 'Error processing file: ' . $e->getMessage();
             $this->messageType = 'danger';
         }

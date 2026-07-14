@@ -9,11 +9,13 @@ use App\SampleAnalysisDates;
 use App\SampleDate;
 use App\SampleHeader;
 use App\Services\Dashboards\Concerns\DashboardHelpers;
+use App\Services\Sampleworkflow\SampleHeaderAssignmentService;
 
 class CapturedObserver
 {
     public function __construct(
         protected CapturedResultWorksheetSyncService $worksheetSyncService,
+        protected SampleHeaderAssignmentService $assignmentService,
     ) {}
 
     /**
@@ -24,6 +26,8 @@ class CapturedObserver
      */
     public function created(CapturedResult $captured): void
     {
+        $this->assignBatchWhenResultEntered($captured, force: true);
+
         if (! $this->worksheetSyncService->sync($captured)) {
             return;
         }
@@ -44,6 +48,8 @@ class CapturedObserver
      */
     public function updated(CapturedResult $captured)
     {
+        $this->assignBatchWhenResultEntered($captured);
+
         $tat_exist     = TatCaptured::where('captured_result_id', $captured->id)->where('is_complete', 0)->first();
         $tat_complete  = TatCaptured::where('captured_result_id', $captured->id)->where('is_complete', 1)->first();
         $analysis_date = SampleAnalysisDates::where('sample_detail_id', $captured->sample_detail_id)
@@ -167,6 +173,23 @@ class CapturedObserver
     // -------------------------------------------------------------------------
     // Private Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * When a user saves a non-empty result, assign the parent batch to them
+     * so it appears on their personal dashboard.
+     */
+    private function assignBatchWhenResultEntered(CapturedResult $captured, bool $force = false): void
+    {
+        if (! $force && ! $captured->wasChanged('result')) {
+            return;
+        }
+
+        if (trim((string) ($captured->result ?? '')) === '') {
+            return;
+        }
+
+        $this->assignmentService->assignOnResultEntry($captured->sample_header_id);
+    }
 
     /**
      * Map a signed TAT offset to the legacy tat_remark code.
