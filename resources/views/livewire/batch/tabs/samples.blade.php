@@ -955,12 +955,15 @@
 
                 <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
                     @if(!empty($sampleParameters))
+                    @php
+                        $parameterColspan = ($uncertaintyRequired ? 16 : 15);
+                        $groupedParameters = $this->groupedParametersForm;
+                    @endphp
                     <div class="table-responsive sample-parameters-modal__table-wrap">
                         <table class="table table-sm sample-parameters-table mb-0">
                             <thead>
                                 <tr>
                                     <th style="min-width: 100px;">Sample</th>
-                                    <th style="min-width: 120px;">Analysis type</th>
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
                                     <th style="min-width: 100px;">Result</th>
@@ -975,16 +978,22 @@
                                     <th style="min-width: 120px;">Operator</th>
                                     <th style="min-width: 120px;">Method</th>
                                     <th style="min-width: 120px;">LTM</th>
-                                    <th style="min-width: 120px;">Equipment</th>
+                                    <th style="min-width: 160px;">Equipment</th>
                                     <th style="min-width: 80px; text-align: center;">Sub.</th>
                                     <th style="min-width: 80px; text-align: center;">Accr.</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($parametersForm as $id => $param)
+                                @foreach($groupedParameters as $analysisTypeName => $groupedParams)
+                                <tr class="sample-parameters-group-row" wire:key="param-group-{{ md5((string) $analysisTypeName) }}">
+                                    <td colspan="{{ $parameterColspan }}" class="sample-parameters-group-cell">
+                                        <span class="sample-parameters-group-label">{{ $analysisTypeName }}</span>
+                                        <span class="badge badge-light border ml-1">{{ count($groupedParams) }}</span>
+                                    </td>
+                                </tr>
+                                @foreach($groupedParams as $id => $param)
                                 <tr wire:key="param-{{ $id }}">
                                     <td><strong>{{ $param['sample_code'] }}</strong></td>
-                                    <td>{{ $param['analysis_type'] }}</td>
                                     <td class="sample-parameters-modal__analyte">
                                         <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
                                         @if(!empty($param['analyte_code']) && $param['analyte_code'] !== $param['analyte_name'])
@@ -1072,11 +1081,16 @@
                                         </select>
                                     </td>
                                     <td style="min-width: 120px;">
+                                        @php
+                                            $selectedUnitId = (string) ($parametersForm[$id]['reporting_unit'] ?? $param['reporting_unit'] ?? '');
+                                        @endphp
                                         <select class="form-control form-control-sm"
                                             wire:model.defer="parametersForm.{{ $id }}.reporting_unit">
                                             <option value="">- Unit -</option>
                                             @foreach($modalLists['units'] as $unit)
-                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                            <option value="{{ (string) $unit->id }}" @selected($selectedUnitId === (string) $unit->id)>
+                                                {{ $unit->name }}
+                                            </option>
                                             @endforeach
                                         </select>
                                     </td>
@@ -1096,14 +1110,27 @@
                                         </select>
                                     </td>
                                     <td><small>{{ $param['ltm_method_name'] }}</small></td>
-                                    <td style="min-width: 140px;">
-                                        <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.equipment_id">
-                                            <option value="">- Equipment -</option>
-                                            @foreach($modalLists['equipments'] as $eq)
-                                            <option value="{{ $eq->id }}">{{ $eq->name }}</option>
-                                            @endforeach
-                                        </select>
+                                    <td style="min-width: 200px;">
+                                        @php
+                                            $selectedEquipmentIds = array_values(array_map(
+                                                'strval',
+                                                $parametersForm[$id]['equipment_ids'] ?? ($param['equipment_ids'] ?? [])
+                                            ));
+                                        @endphp
+                                        <div wire:ignore
+                                            class="param-equipment-select2-wrap"
+                                            data-param-id="{{ $id }}"
+                                            data-initial='@json($selectedEquipmentIds)'>
+                                            <select class="form-control form-control-sm param-equipment-select2 no-select2"
+                                                multiple="multiple"
+                                                data-placeholder="Select equipment...">
+                                                @foreach($modalLists['equipments'] as $eq)
+                                                <option value="{{ $eq->id }}" @selected(in_array((string) $eq->id, $selectedEquipmentIds, true))>
+                                                    {{ $eq->name }}
+                                                </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="custom-control custom-checkbox text-center">
@@ -1120,6 +1147,7 @@
                                         </div>
                                     </td>
                                 </tr>
+                                @endforeach
                                 @endforeach
                             </tbody>
                         </table>
@@ -1204,10 +1232,23 @@
 
         .sample-parameters-modal__table-wrap {
             border-radius: 12px;
-            border: 1px solid #e9ecef;
+            border: 1px solid #e2e8f0;
             background: #fff;
             overflow: auto;
             max-height: 62vh;
+        }
+
+        .sample-parameters-group-cell {
+            background: #f1f5f9 !important;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.55rem 0.75rem !important;
+        }
+
+        .sample-parameters-group-label {
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: 0.01em;
         }
 
         .sample-parameters-table {
@@ -1262,6 +1303,21 @@
         .sample-parameters-table .form-control-sm:focus {
             border-color: #86b7fe;
             box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+        }
+
+        .param-equipment-select2-wrap .select2-container {
+            width: 100% !important;
+        }
+
+        .sample-parameters-table .select2-selection--multiple {
+            min-height: 31px;
+            border-radius: 8px;
+            border-color: #e2e8f0;
+        }
+
+        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            margin-top: 3px;
+            font-size: 0.75rem;
         }
     </style>
     @endif
@@ -2669,8 +2725,20 @@
                 }
             };
 
-            document.addEventListener('change', function (event) {
-                confirmResultInput(event.target);
+            document.addEventListener('focusout', function (event) {
+                const el = event.target;
+                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
+                    return;
+                }
+
+                const next = event.relatedTarget;
+                if (next instanceof Element) {
+                    if (next.id === 'js-result-confirm-input' || next.closest('#js-result-confirm-overlay')) {
+                        return;
+                    }
+                }
+
+                confirmResultInput(el);
             });
 
             document.addEventListener('keydown', function (event) {
@@ -2688,7 +2756,8 @@
             });
         }
 
-        // Select2 must not own Livewire selects (see .cursor/rules frontend ownership).
+        // Select2 must not own ordinary Livewire selects (see .cursor/rules frontend ownership).
+        // Equipment multi-select is an explicit Select2 (wire:ignore) exception.
         const releaseLivewireSelects = () => {
             if (!window.jQuery || !window.jQuery.fn.select2) {
                 return;
@@ -2698,6 +2767,10 @@
 
             window.jQuery('.batch-samples-panel select.no-select2').each(function () {
                 const $select = window.jQuery(this);
+
+                if ($select.hasClass('param-equipment-select2')) {
+                    return;
+                }
 
                 if ($select.hasClass('select2-hidden-accessible')) {
                     try {
@@ -2716,10 +2789,70 @@
             }
         };
 
-        releaseLivewireSelects();
-        document.addEventListener('livewire:navigated', releaseLivewireSelects);
+        const initParamEquipmentSelect2 = () => {
+            if (!window.jQuery || !window.jQuery.fn.select2) {
+                return;
+            }
+
+            const $modal = window.jQuery('.sample-parameters-modal');
+            if (!$modal.length) {
+                return;
+            }
+
+            $modal.find('select.param-equipment-select2').each(function () {
+                const $el = window.jQuery(this);
+                const $wrap = $el.closest('.param-equipment-select2-wrap');
+
+                if ($el.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+
+                $el.select2({
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || 'Select equipment...',
+                    allowClear: true,
+                    closeOnSelect: false,
+                    dropdownParent: $modal.find('.modal-content').first().length
+                        ? $modal.find('.modal-content').first()
+                        : $modal,
+                });
+
+                let initial = [];
+                try {
+                    initial = JSON.parse($wrap.attr('data-initial') || '[]');
+                } catch (e) {
+                    initial = [];
+                }
+
+                if (!Array.isArray(initial)) {
+                    initial = initial ? [String(initial)] : [];
+                }
+
+                if (initial.length) {
+                    $el.val(initial.map(String)).trigger('change.select2');
+                }
+
+                $el.off('change.paramEquipmentSelect2').on('change.paramEquipmentSelect2', function () {
+                    const paramId = String($wrap.data('param-id') || '');
+                    if (!paramId) {
+                        return;
+                    }
+
+                    const vals = $el.val() || [];
+                    $wire.set('parametersForm.' + paramId + '.equipment_ids', vals);
+                });
+            });
+        };
+
+        const syncParamSelectWidgets = () => {
+            releaseLivewireSelects();
+            queueMicrotask(initParamEquipmentSelect2);
+        };
+
+        syncParamSelectWidgets();
+        document.addEventListener('livewire:navigated', syncParamSelectWidgets);
         Livewire.hook('commit', ({ succeed }) => {
-            succeed(() => queueMicrotask(releaseLivewireSelects));
+            succeed(() => queueMicrotask(syncParamSelectWidgets));
         });
     </script>
     @endscript

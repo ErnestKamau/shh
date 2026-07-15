@@ -101,12 +101,7 @@ class DashboardRepository
             $query->whereNotNull('batch_report_url')
                 ->orWhereNotNull('batch_report_online_url');
         })->count();
-        $eligible = (clone $base)
-            ->where('status', $reportStatus)
-            ->where(function (Builder $query): void {
-                $query->whereNotNull('batch_report_url')
-                    ->orWhereNotNull('batch_report_online_url');
-            })->count();
+        $eligible = (clone $this->releasedReportsQuery($customerId))->count();
 
         Log::info('portal.dashboard.reports.query', [
             'customer_id' => $customerId,
@@ -311,13 +306,27 @@ class DashboardRepository
 
     private function releasedReportsQuery(string $customerId): Builder
     {
+        $reportStatus = (string) config('dashboard.report_status', 'Completed');
+
         return SampleHeader::query()
             ->with(['sample_type:id,name'])
             ->where('crm_customer_id', $customerId)
-            ->where('status', config('dashboard.report_status', 'Completed'))
             ->where(function (Builder $query): void {
                 $query->whereNotNull('batch_report_url')
                     ->orWhereNotNull('batch_report_online_url');
+            })
+            ->where(function (Builder $query) use ($reportStatus): void {
+                // Legacy batches completed via manual finish / older email flows.
+                $query->where('status', $reportStatus)
+                    // Portal delivery must not mutate workflow status; a successful
+                    // portal delivery record is the release signal for the dashboard.
+                    ->orWhereExists(function ($sub): void {
+                        $sub->select(DB::raw(1))
+                            ->from('test_request_report_deliveries')
+                            ->whereColumn('test_request_report_deliveries.batch_id', 'sample_headers.id')
+                            ->where('channel', 'portal')
+                            ->where('status', 'sent');
+                    });
             })
             ->orderByDesc('updated_at');
     }

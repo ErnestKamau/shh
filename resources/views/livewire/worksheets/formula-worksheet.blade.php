@@ -556,6 +556,7 @@
                 'title' => 'Mandatory Fields — Bottom of Form',
             ])
         @endif
+        @endif {{-- viewMode table/form --}}
     @else
         <div class="alert alert-info">
             <i class="mdi mdi-information"></i>

@@ -21,6 +21,19 @@ class TestRequestFormPdfService
         return 'test-request-forms/trf-sfi-'.$instance->id.'.pdf';
     }
 
+    /**
+     * Human-readable download / display name (storage path keeps the UUID basename).
+     */
+    public function resolveDisplayFilename(SubmissionFormInstance $instance): string
+    {
+        $formNumber = trim((string) ($instance->form_number ?? ''));
+        $suffix = $formNumber !== ''
+            ? (string) preg_replace('/[\/\\\\]+/', '-', $formNumber)
+            : (string) $instance->id;
+
+        return 'Test-Request-Form-'.$suffix.'.pdf';
+    }
+
     public function resolvePublicUrl(SubmissionFormInstance $instance): string
     {
         return '/storage/'.$this->resolveStoragePath($instance);
@@ -105,9 +118,7 @@ class TestRequestFormPdfService
         $pdf->loadView($viewName, $viewData);
         $this->applyPaperSettings($pdf, $viewData['variant']);
 
-        $filename = 'Test-Request-Form-'.($instance->form_number ?: $instance->id).'.pdf';
-
-        return $pdf->download($filename);
+        return $pdf->download($this->resolveDisplayFilename($instance));
     }
 
     public function download(SubmissionFormInstance $instance)

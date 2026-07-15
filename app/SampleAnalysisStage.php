@@ -30,7 +30,37 @@ class SampleAnalysisStage extends Model implements Auditable
     'is_system',
     'is_sample_stage',
     'title',
+    'requires_sample_preparation',
+    'does_environmental_analysis',
+    'equipment_id',
+    'expected_value_type',
+    'expected_value',
+    'expected_min',
+    'expected_max',
+    'optimum_level',
+    'result_nature',
+    'reading_frequency',
+    'reading_frequency_interval',
+    'reading_frequency_schedule',
+    'reporting_unit',
   ];
+
+  protected function casts(): array
+  {
+    return [
+      'active' => 'boolean',
+      'is_system' => 'boolean',
+      'is_sample_stage' => 'boolean',
+      'requires_sample_preparation' => 'boolean',
+      'does_environmental_analysis' => 'boolean',
+      'expected_value' => 'float',
+      'expected_min' => 'float',
+      'expected_max' => 'float',
+      'reading_frequency' => 'integer',
+      'reading_frequency_interval' => 'float',
+      'reading_frequency_schedule' => 'array',
+    ];
+  }
 
   public function sample_analysis_stage()
   {

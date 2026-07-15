@@ -2,10 +2,16 @@
 
 namespace Tests\Unit\Services;
 
+use App\Analyte;
+use App\AnalysisElements;
+use App\AnalysisType;
 use App\Models\SampleSubmissionRequest;
+use App\Models\SampleSubmissionRequestRequestedAnalysis;
+use App\SampleType;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -392,13 +398,14 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
 
         $stageId = (string) \Illuminate\Support\Str::uuid();
 
-        \Illuminate\Support\Facades\DB::table('lab_sections')->insert([
+        \Illuminate\Support\Facades\DB::table('sample_analysis_stages')->insert([
             'id' => $stageId,
             'lab_id' => $labId,
             'company_id' => $companyId,
             'name' => 'Test Section',
             'code' => 'TST',
             'active' => true,
+            'is_sample_stage' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -427,5 +434,84 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $resolved = $service->resolveLabSectionIdForAnalysisType($analysisType->id);
 
         $this->assertSame($stageId, $resolved);
+    }
+
+    public function test_remap_configs_to_current_hierarchy_maps_orphan_ids_by_analyte_label(): void
+    {
+        $oldSampleTypeId = (string) Str::uuid();
+        $oldAnalysisTypeId = (string) Str::uuid();
+        $orphanElementId = (string) Str::uuid();
+        $sampleTypeName = 'Food Remap '.Str::random(6);
+        $analysisTypeName = 'Feed Remap '.Str::random(6);
+        $analyteName = 'Barium Remap '.Str::random(6);
+
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => $sampleTypeName,
+            'code' => 'FOOD-REMAP-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => $analysisTypeName,
+            'code' => 'FF-REMAP-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'BA-'.Str::upper(Str::random(4)),
+            'name' => $analyteName,
+            'active' => 1,
+        ]);
+
+        $currentElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => (string) Str::uuid(),
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'portal',
+            'sample_lines' => [[
+                'sample_type_id' => $oldSampleTypeId,
+                'sample_type_name' => $sampleTypeName,
+                'analysis_type_id' => $oldAnalysisTypeId,
+                'analysis_type_name' => $analysisTypeName,
+                'analysis_element_id' => $orphanElementId,
+                'parameter_label' => $analyteName,
+                'number_of_samples' => 1,
+                'attributes' => [
+                    'analysis_element_ids' => [$orphanElementId],
+                ],
+            ]],
+        ]);
+
+        SampleSubmissionRequestRequestedAnalysis::query()->create([
+            'sample_submission_request_id' => $enquiry->id,
+            'sample_type_id' => $oldSampleTypeId,
+            'analysis_type_id' => $oldAnalysisTypeId,
+            'analysis_element_id' => $orphanElementId,
+            'analysis_key' => $orphanElementId,
+            'analysis_label' => $analyteName,
+            'number_of_samples' => 1,
+        ]);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = $oldSampleTypeId;
+        $config['analysis_type_id'] = $oldAnalysisTypeId;
+        $config['parameter_keys'] = [$orphanElementId];
+
+        $remapped = $service->remapConfigsToCurrentHierarchy([$config], $enquiry->fresh(['requestedAnalyses']));
+
+        $this->assertSame((string) $sampleType->id, $remapped[0]['sample_type_id']);
+        $this->assertSame((string) $analysisType->id, $remapped[0]['analysis_type_id']);
+        $this->assertSame([(string) $currentElement->id], $remapped[0]['parameter_keys']);
     }
 }

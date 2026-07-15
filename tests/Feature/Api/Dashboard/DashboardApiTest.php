@@ -134,6 +134,54 @@ class DashboardApiTest extends TestCase
             ->assertJsonPath('data.reports.0.download_url', url('/storage/reports/acme/BA-PORTAL-0001.pdf'));
     }
 
+    public function test_reports_are_visible_after_portal_delivery_without_completing_workflow_status(): void
+    {
+        $batch = SampleHeader::query()->create([
+            'batch_code' => 'BA-PORTAL-0002',
+            'receipt_date' => now()->toDateString(),
+            'date_collected' => now()->toDateString(),
+            'date_expected' => now()->addDay()->toDateString(),
+            'crm_customer_id' => self::CUSTOMER_ID,
+            'crm_unit_name' => 'Unit A',
+            'sample_type_id' => 1,
+            'status' => 'Sample Approval',
+            'batch_report_url' => '/reports/acme/BA-PORTAL-0002.pdf',
+            'batch_report_online_url' => url('/storage/reports/acme/BA-PORTAL-0002.pdf'),
+        ]);
+
+        \App\Models\TestRequestReportDelivery::query()->create([
+            'batch_id' => $batch->id,
+            'revision_no' => 1,
+            'channel' => 'portal',
+            'recipient_name' => 'Customer Portal',
+            'status' => 'sent',
+        ]);
+
+        $this->dashboardRequest('GET', '/api/v1/dashboard/'.self::CUSTOMER_ID.'/reports')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.reports.0.report_number', 'BA-PORTAL-0002');
+    }
+
+    public function test_generated_reports_are_hidden_until_portal_delivery_or_completed_status(): void
+    {
+        SampleHeader::query()->create([
+            'batch_code' => 'BA-PORTAL-0003',
+            'receipt_date' => now()->toDateString(),
+            'date_collected' => now()->toDateString(),
+            'date_expected' => now()->addDay()->toDateString(),
+            'crm_customer_id' => self::CUSTOMER_ID,
+            'crm_unit_name' => 'Unit A',
+            'sample_type_id' => 1,
+            'status' => 'Sample Approval',
+            'batch_report_url' => '/reports/acme/BA-PORTAL-0003.pdf',
+        ]);
+
+        $this->dashboardRequest('GET', '/api/v1/dashboard/'.self::CUSTOMER_ID.'/reports')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 0);
+    }
+
     /**
      * @param  array<string, string>  $headers
      */

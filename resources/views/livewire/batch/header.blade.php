@@ -751,7 +751,7 @@
                         @if($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
                             <div class="vw-info-banner">
                                 <i class="mdi mdi-account-multiple-check-outline"></i>
-                                <span>Select the technical reviewer and laboratory approvers for this batch before submitting to verification.</span>
+                                <span>Select the technical signatory for each lab section before submitting to verification.</span>
                             </div>
 
                             @if(session('error'))
@@ -766,7 +766,7 @@
                                 <div class="cf-card-header" style="border-left: 4px solid #2563eb;">
                                     <h6 class="cf-card-title">
                                         <i class="mdi mdi-account-group-outline text-primary" style="font-size: 18px;"></i>
-                                        Approver assignments
+                                        Section technical signatories
                                     </h6>
                                 </div>
                                 <div class="cf-card-body p-0">
@@ -774,47 +774,41 @@
                                         <table class="table table-sm mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th>Laboratory</th>
-                                                    <th style="min-width: 220px;">Assign Approver</th>
+                                                    <th>Lab Section</th>
+                                                    <th style="min-width: 220px;">Assign Signatory</th>
                                                     <th style="min-width: 180px;">Title</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <tr class="bg-light">
-                                                    <td class="align-middle">
-                                                        <strong>Technical Reviewer</strong>
-                                                        <br><small class="text-muted">Overall signatory</small>
-                                                    </td>
-                                                    <td>
-                                                        <select class="cf-form-control" wire:model="verificationData.technical_reviewer_id">
-                                                            <option value="">Select technical reviewer</option>
-                                                            @foreach($users as $user)
-                                                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="cf-form-control" value="Technical Signatory" readonly>
-                                                    </td>
-                                                </tr>
-                                                @foreach($this->getBatchLabs() as $lab)
+                                                @forelse($verificationSections as $section)
                                                     <tr>
-                                                        <td class="align-middle font-weight-bold">{{ $lab->name }}</td>
+                                                        <td class="align-middle font-weight-bold">
+                                                            {{ $section->name }}
+                                                            @if(!empty($section->code))
+                                                                <br><small class="text-muted">{{ $section->code }}</small>
+                                                            @endif
+                                                        </td>
                                                         <td>
-                                                            <select class="cf-form-control" wire:model="verificationData.approver_user.{{ $lab->id }}">
-                                                                <option value="">Select approver</option>
-                                                                @foreach($this->getLabManagersForLab($lab->id) as $user)
+                                                            <select class="cf-form-control" wire:model="verificationData.approver_user.{{ $section->id }}">
+                                                                <option value="">Select signatory</option>
+                                                                @foreach($this->getSectionVerifierUsers($section->id) as $user)
                                                                     <option value="{{ $user->id }}">{{ $user->name }}</option>
                                                                 @endforeach
                                                             </select>
                                                         </td>
                                                         <td>
                                                             <input type="text" class="cf-form-control"
-                                                                wire:model="verificationData.title.{{ $lab->id }}"
+                                                                wire:model="verificationData.title.{{ $section->id }}"
                                                                 placeholder="Verification title">
                                                         </td>
                                                     </tr>
-                                                @endforeach
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="3" class="text-muted small p-3">
+                                                            No lab sections on this batch. Ensure analysis types have a lab section assigned, then recreate or refresh sample setup.
+                                                        </td>
+                                                    </tr>
+                                                @endforelse
                                             </tbody>
                                         </table>
                                     </div>

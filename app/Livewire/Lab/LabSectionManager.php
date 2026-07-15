@@ -5,10 +5,14 @@ namespace App\Livewire\Lab;
 use App\Lab;
 use App\LabSectionApprover;
 use App\LabSectionApproverRelationShip;
+use App\Models\Equipments\Equipment;
 use App\Models\LabSectionReportConfig;
+use App\ReportingUnit;
 use App\ReportFormat;
 use App\SampleAnalysisStage;
 use App\User;
+use App\UserLabRelation;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -24,6 +28,19 @@ class LabSectionManager extends Component
         'section_head_id' => null,
         'lab_id' => null,
         'active' => true,
+        'requires_sample_preparation' => false,
+        'does_environmental_analysis' => false,
+        'equipment_id' => null,
+        'expected_value_type' => null,
+        'expected_value' => null,
+        'expected_min' => null,
+        'expected_max' => null,
+        'optimum_level' => '',
+        'result_nature' => null,
+        'reading_frequency' => 1,
+        'reading_frequency_interval' => null,
+        'reading_frequency_schedule' => [],
+        'reporting_unit' => null,
     ];
 
     // Sample Stage Form
@@ -79,6 +96,10 @@ class LabSectionManager extends Component
     public $showSectionHeadDropdown = false;
     public $labSearch = '';
     public $showLabDropdown = false;
+    public $equipmentSearch = '';
+    public $showEquipmentDropdown = false;
+    public $reportingUnitSearch = '';
+    public $showReportingUnitDropdown = false;
 
     // Searchable Dropdown States - Sample Stages
     // (none needed, uses standard select)
@@ -166,41 +187,129 @@ class LabSectionManager extends Component
             'section_head_id' => $labSection->section_head_id,
             'lab_id' => $labSection->lab_id,
             'active' => (bool) $labSection->active,
+            'requires_sample_preparation' => (bool) $labSection->requires_sample_preparation,
+            'does_environmental_analysis' => (bool) $labSection->does_environmental_analysis,
+            'equipment_id' => $labSection->equipment_id,
+            'expected_value_type' => $labSection->expected_value_type,
+            'expected_value' => $labSection->expected_value,
+            'expected_min' => $labSection->expected_min,
+            'expected_max' => $labSection->expected_max,
+            'optimum_level' => $labSection->optimum_level ?? '',
+            'result_nature' => $labSection->result_nature,
+            'reading_frequency' => $labSection->reading_frequency ?? 1,
+            'reading_frequency_interval' => $labSection->reading_frequency_interval,
+            'reading_frequency_schedule' => $this->scheduleFromSection($labSection),
+            'reporting_unit' => $labSection->reporting_unit,
         ];
+        if ($this->labSectionForm['does_environmental_analysis']) {
+            $this->syncReadingFrequencySchedule();
+        }
         $this->editingLabSection = $id;
         $this->showLabSectionModal = true;
     }
 
     public function saveLabSection()
     {
-        $this->validate([
+        $analysisOn = (bool) ($this->labSectionForm['does_environmental_analysis'] ?? false);
+        $valueType = $this->labSectionForm['expected_value_type'] ?? null;
+
+        $rules = [
             'labSectionForm.name' => 'required|string|max:255',
             'labSectionForm.code' => 'required|string|max:255',
-        ]);
+            'labSectionForm.lab_id' => 'required|exists:labs,id',
+            'labSectionForm.section_head_id' => 'nullable|exists:users,id',
+            'labSectionForm.does_environmental_analysis' => 'boolean',
+            'labSectionForm.active' => 'boolean',
+            'labSectionForm.requires_sample_preparation' => 'boolean',
+        ];
+
+        if ($analysisOn) {
+            $rules['labSectionForm.equipment_id'] = 'required|exists:equipment,id';
+            $rules['labSectionForm.expected_value_type'] = 'required|in:constant,range';
+            $rules['labSectionForm.result_nature'] = 'required|string|max:1000';
+            $rules['labSectionForm.reading_frequency'] = 'required|integer|min:1|max:5';
+            $rules['labSectionForm.reporting_unit'] = 'required|exists:reporting_units,id';
+
+            $frequencyCount = (int) ($this->labSectionForm['reading_frequency'] ?? 1);
+            $schedule = is_array($this->labSectionForm['reading_frequency_schedule'] ?? null)
+                ? $this->labSectionForm['reading_frequency_schedule']
+                : [];
+
+            for ($index = 0; $index < $frequencyCount; $index++) {
+                $prefix = "labSectionForm.reading_frequency_schedule.$index";
+                $rules["$prefix.label"] = 'required|string|max:255';
+                $rules["$prefix.interval"] = $index > 0 ? 'required|numeric|min:0.01' : 'nullable';
+            }
+
+            if ($valueType === 'constant') {
+                $rules['labSectionForm.expected_value'] = 'required|numeric';
+                $rules['labSectionForm.optimum_level'] = 'required|string|max:255';
+            }
+
+            if ($valueType === 'range') {
+                $rules['labSectionForm.expected_min'] = 'required|numeric';
+                $rules['labSectionForm.expected_max'] = 'required|numeric|gte:labSectionForm.expected_min';
+            }
+        }
+
+        $this->validate($rules);
+
+        if (! empty($this->labSectionForm['section_head_id'])
+            && ! $this->isEligibleSectionHead((string) $this->labSectionForm['section_head_id'])
+        ) {
+            $this->addError(
+                'labSectionForm.section_head_id',
+                $this->editingLabSection
+                    ? 'Section head must be assigned to the selected lab and this lab section.'
+                    : 'Section head must be assigned to the selected lab.'
+            );
+
+            return;
+        }
+
+        $frequencySchedule = $analysisOn
+            ? $this->normalizeReadingFrequencySchedule(
+                is_array($this->labSectionForm['reading_frequency_schedule'] ?? null)
+                    ? $this->labSectionForm['reading_frequency_schedule']
+                    : [],
+                (int) ($this->labSectionForm['reading_frequency'] ?? 1)
+            )
+            : [];
+
+        $payload = [
+            'name' => $this->labSectionForm['name'],
+            'code' => $this->labSectionForm['code'],
+            'section_head_id' => $this->labSectionForm['section_head_id'] ?: null,
+            'lab_id' => $this->labSectionForm['lab_id'],
+            'active' => (bool) $this->labSectionForm['active'],
+            'requires_sample_preparation' => (bool) $this->labSectionForm['requires_sample_preparation'],
+            'does_environmental_analysis' => $analysisOn,
+            'equipment_id' => $analysisOn ? ($this->labSectionForm['equipment_id'] ?: null) : null,
+            'expected_value_type' => $analysisOn ? $valueType : null,
+            'expected_value' => $analysisOn && $valueType === 'constant' ? $this->labSectionForm['expected_value'] : null,
+            'expected_min' => $analysisOn && $valueType === 'range' ? $this->labSectionForm['expected_min'] : null,
+            'expected_max' => $analysisOn && $valueType === 'range' ? $this->labSectionForm['expected_max'] : null,
+            'optimum_level' => $analysisOn && $valueType === 'constant' ? ($this->labSectionForm['optimum_level'] ?: null) : null,
+            'result_nature' => $analysisOn ? $this->labSectionForm['result_nature'] : null,
+            'reading_frequency' => $analysisOn ? (int) $this->labSectionForm['reading_frequency'] : null,
+            'reading_frequency_interval' => $analysisOn
+                ? $this->deriveReadingFrequencyInterval($frequencySchedule, (int) ($this->labSectionForm['reading_frequency'] ?? 1))
+                : null,
+            'reading_frequency_schedule' => $analysisOn ? $frequencySchedule : null,
+            'reporting_unit' => $analysisOn ? ($this->labSectionForm['reporting_unit'] ?: null) : null,
+        ];
 
         try {
             DB::beginTransaction();
 
             if ($this->editingLabSection) {
-                $labSection = SampleAnalysisStage::findOrFail($this->editingLabSection);
-                $labSection->update([
-                    'name' => $this->labSectionForm['name'],
-                    'code' => $this->labSectionForm['code'],
-                    'section_head_id' => $this->labSectionForm['section_head_id'],
-                    'lab_id' => $this->labSectionForm['lab_id'],
-                    'active' => $this->labSectionForm['active'],
-                ]);
+                SampleAnalysisStage::findOrFail($this->editingLabSection)->update($payload);
                 $this->message = 'Lab section updated successfully!';
             } else {
-                SampleAnalysisStage::create([
-                    'name' => $this->labSectionForm['name'],
-                    'code' => $this->labSectionForm['code'],
-                    'section_head_id' => $this->labSectionForm['section_head_id'],
-                    'lab_id' => $this->labSectionForm['lab_id'],
-                    'active' => $this->labSectionForm['active'],
+                SampleAnalysisStage::create(array_merge($payload, [
                     'is_sample_stage' => 0,
                     'company_id' => getUserCompany(),
-                ]);
+                ]));
                 $this->message = 'Lab section created successfully!';
             }
 
@@ -258,12 +367,29 @@ class LabSectionManager extends Component
             'section_head_id' => null,
             'lab_id' => null,
             'active' => true,
+            'requires_sample_preparation' => false,
+            'does_environmental_analysis' => false,
+            'equipment_id' => null,
+            'expected_value_type' => null,
+            'expected_value' => null,
+            'expected_min' => null,
+            'expected_max' => null,
+            'optimum_level' => '',
+            'result_nature' => null,
+            'reading_frequency' => 1,
+            'reading_frequency_interval' => null,
+            'reading_frequency_schedule' => [],
+            'reporting_unit' => null,
         ];
         $this->editingLabSection = null;
         $this->sectionHeadSearch = '';
         $this->showSectionHeadDropdown = false;
         $this->labSearch = '';
         $this->showLabDropdown = false;
+        $this->equipmentSearch = '';
+        $this->showEquipmentDropdown = false;
+        $this->reportingUnitSearch = '';
+        $this->showReportingUnitDropdown = false;
     }
 
     // ========================================
@@ -465,16 +591,25 @@ class LabSectionManager extends Component
             LabSectionApproverRelationShip::whereIn('lab_section_id', $this->verifierForm['section_ids'])->delete();
             LabSectionApproverRelationShip::where('parent_id', $approver->id)->delete();
 
-            $data = [];
+            $rows = [];
             foreach ($this->verifierForm['section_ids'] as $sectionId) {
-                $data[] = [
-                    'lab_section_id' => $sectionId,
-                    'user_id' => $this->verifierForm['user_id'],
+                if ($sectionId === null || $sectionId === '') {
+                    continue;
+                }
+
+                $rows[] = [
+                    'lab_section_id' => (string) $sectionId,
+                    'user_id' => (string) $this->verifierForm['user_id'],
                     'title' => $this->verifierForm['title'],
-                    'parent_id' => $approver->id,
+                    'parent_id' => (string) $approver->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
-            LabSectionApproverRelationShip::insert($data);
+
+            if ($rows !== []) {
+                LabSectionApproverRelationShip::insert($rows);
+            }
 
             DB::commit();
             $this->message = $this->editingVerifier
@@ -558,6 +693,10 @@ class LabSectionManager extends Component
     // Section Head Dropdown
     public function selectSectionHead($userId)
     {
+        if (! $this->isEligibleSectionHead((string) $userId)) {
+            return;
+        }
+
         $this->labSectionForm['section_head_id'] = $userId;
         $this->sectionHeadSearch = '';
         $this->showSectionHeadDropdown = false;
@@ -565,21 +704,48 @@ class LabSectionManager extends Component
 
     public function updatedSectionHeadSearch()
     {
-        $this->showSectionHeadDropdown = !empty($this->sectionHeadSearch);
+        $this->showSectionHeadDropdown = true;
     }
 
-    public function getFilteredSectionHeadsProperty()
+    public function getFilteredSectionHeadsProperty(): Collection
     {
-        if (empty($this->sectionHeadSearch)) {
-            return [];
+        if (empty($this->labSectionForm['lab_id'])) {
+            return collect();
         }
 
-        return User::where('is_client', 0)
+        $labUserIds = UserLabRelation::query()
+            ->where('lab_id', $this->labSectionForm['lab_id'])
+            ->pluck('user_id');
+
+        if ($labUserIds->isEmpty()) {
+            return collect();
+        }
+
+        $query = User::query()
+            ->whereIn('id', $labUserIds)
+            ->where('is_client', 0)
             ->whereNull('supplier_id')
-            ->where('active', 1)
-            ->where('name', 'like', '%' . $this->sectionHeadSearch . '%')
-            ->limit(10)
-            ->get();
+            ->where('active', 1);
+
+        if (! empty($this->sectionHeadSearch)) {
+            $query->where('name', 'like', '%' . $this->sectionHeadSearch . '%');
+        }
+
+        $users = $query->orderBy('name')->limit(25)->get();
+
+        if ($this->editingLabSection) {
+            $sectionId = (string) $this->editingLabSection;
+            $users = $users->filter(function (User $user) use ($sectionId): bool {
+                $assigned = collect(explode(',', (string) ($user->lab_section_id ?? '')))
+                    ->map(fn ($id): string => trim((string) $id))
+                    ->filter()
+                    ->all();
+
+                return in_array($sectionId, $assigned, true);
+            })->values();
+        }
+
+        return $users->take(10)->values();
     }
 
     public function getSelectedSectionHeadProperty()
@@ -594,26 +760,44 @@ class LabSectionManager extends Component
     // Lab Dropdown
     public function selectLab($labId)
     {
+        $previousLabId = $this->labSectionForm['lab_id'] ?? null;
         $this->labSectionForm['lab_id'] = $labId;
         $this->labSearch = '';
         $this->showLabDropdown = false;
+
+        if ((string) $previousLabId !== (string) $labId) {
+            $this->labSectionForm['section_head_id'] = null;
+            $this->sectionHeadSearch = '';
+        }
+    }
+
+    public function clearLabSelection(): void
+    {
+        $this->labSectionForm['lab_id'] = null;
+        $this->labSectionForm['section_head_id'] = null;
+        $this->labSearch = '';
+        $this->sectionHeadSearch = '';
+        $this->showLabDropdown = false;
+        $this->showSectionHeadDropdown = false;
     }
 
     public function updatedLabSearch()
     {
-        $this->showLabDropdown = !empty($this->labSearch);
+        $this->showLabDropdown = true;
     }
 
     public function getFilteredLabsProperty()
     {
-        if (empty($this->labSearch)) {
-            return [];
+        $query = Lab::where('active', 1);
+
+        if (! empty($this->labSearch)) {
+            $query->where(function ($q) {
+                $q->where('name', 'like', '%' . $this->labSearch . '%')
+                    ->orWhere('code', 'like', '%' . $this->labSearch . '%');
+            });
         }
 
-        return Lab::where('active', 1)
-            ->where('name', 'like', '%' . $this->labSearch . '%')
-            ->limit(10)
-            ->get();
+        return $query->orderBy('name')->limit(10)->get();
     }
 
     public function getSelectedLabProperty()
@@ -623,6 +807,244 @@ class LabSectionManager extends Component
         }
 
         return Lab::find($this->labSectionForm['lab_id']);
+    }
+
+    public function updatedLabSectionFormDoesEnvironmentalAnalysis($value): void
+    {
+        if ($value) {
+            if (empty($this->labSectionForm['reading_frequency'])) {
+                $this->labSectionForm['reading_frequency'] = 1;
+            }
+            $this->syncReadingFrequencySchedule();
+        }
+    }
+
+    public function updatedLabSectionFormReadingFrequency(): void
+    {
+        $this->syncReadingFrequencySchedule();
+    }
+
+    public function updatedLabSectionFormExpectedValueType($value): void
+    {
+        if ($value === 'constant') {
+            $this->labSectionForm['expected_min'] = null;
+            $this->labSectionForm['expected_max'] = null;
+        }
+
+        if ($value === 'range') {
+            $this->labSectionForm['expected_value'] = null;
+            $this->labSectionForm['optimum_level'] = '';
+        }
+    }
+
+    public function selectEquipment(string $equipmentId): void
+    {
+        $this->labSectionForm['equipment_id'] = $equipmentId;
+        $this->equipmentSearch = '';
+        $this->showEquipmentDropdown = false;
+    }
+
+    public function clearEquipment(): void
+    {
+        $this->labSectionForm['equipment_id'] = null;
+        $this->equipmentSearch = '';
+    }
+
+    public function updatedEquipmentSearch(): void
+    {
+        $this->showEquipmentDropdown = true;
+    }
+
+    public function getFilteredEquipmentsProperty(): Collection
+    {
+        $query = Equipment::query()->orderBy('name');
+
+        if (! empty($this->labSectionForm['lab_id'])) {
+            $query->where(function ($builder) {
+                $builder->where('lab_id', $this->labSectionForm['lab_id'])
+                    ->orWhereNull('lab_id');
+            });
+        }
+
+        if (! empty($this->equipmentSearch)) {
+            $search = $this->equipmentSearch;
+            $query->where(function ($builder) use ($search) {
+                $builder->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('equipment_number', 'like', '%' . $search . '%');
+            });
+        }
+
+        return $query->limit(10)->get(['id', 'name', 'equipment_number', 'lab_id']);
+    }
+
+    public function getSelectedEquipmentProperty(): ?Equipment
+    {
+        if (empty($this->labSectionForm['equipment_id'])) {
+            return null;
+        }
+
+        return Equipment::find($this->labSectionForm['equipment_id']);
+    }
+
+    public function selectReportingUnit(string $unitId): void
+    {
+        $this->labSectionForm['reporting_unit'] = $unitId;
+        $this->reportingUnitSearch = '';
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function clearReportingUnit(): void
+    {
+        $this->labSectionForm['reporting_unit'] = null;
+        $this->reportingUnitSearch = '';
+    }
+
+    public function updatedReportingUnitSearch(): void
+    {
+        $this->showReportingUnitDropdown = true;
+    }
+
+    public function getFilteredReportingUnitsProperty(): Collection
+    {
+        $query = ReportingUnit::query()->where('active', 1)->orderBy('name');
+
+        if (! empty($this->reportingUnitSearch)) {
+            $query->where('name', 'like', '%' . $this->reportingUnitSearch . '%');
+        }
+
+        return $query->limit(10)->get(['id', 'name']);
+    }
+
+    public function getSelectedReportingUnitProperty(): ?ReportingUnit
+    {
+        if (empty($this->labSectionForm['reporting_unit'])) {
+            return null;
+        }
+
+        return ReportingUnit::find($this->labSectionForm['reporting_unit']);
+    }
+
+    private function isEligibleSectionHead(string $userId): bool
+    {
+        if (empty($this->labSectionForm['lab_id'])) {
+            return false;
+        }
+
+        $assignedToLab = UserLabRelation::query()
+            ->where('lab_id', $this->labSectionForm['lab_id'])
+            ->where('user_id', $userId)
+            ->exists();
+
+        if (! $assignedToLab) {
+            return false;
+        }
+
+        if (! $this->editingLabSection) {
+            return true;
+        }
+
+        $user = User::find($userId);
+        if (! $user) {
+            return false;
+        }
+
+        $assigned = collect(explode(',', (string) ($user->lab_section_id ?? '')))
+            ->map(fn ($id): string => trim((string) $id))
+            ->filter()
+            ->all();
+
+        return in_array((string) $this->editingLabSection, $assigned, true);
+    }
+
+    private function syncReadingFrequencySchedule(): void
+    {
+        $count = max(1, min(5, (int) ($this->labSectionForm['reading_frequency'] ?? 1)));
+        $existing = is_array($this->labSectionForm['reading_frequency_schedule'] ?? null)
+            ? $this->labSectionForm['reading_frequency_schedule']
+            : [];
+        $legacyInterval = $this->labSectionForm['reading_frequency_interval'] ?? null;
+        $schedule = [];
+
+        for ($slot = 1; $slot <= $count; $slot++) {
+            $index = $slot - 1;
+            $row = $existing[$index] ?? [];
+            $schedule[] = [
+                'frequency' => $slot,
+                'interval' => $slot === 1
+                    ? null
+                    : ($row['interval'] ?? ($legacyInterval !== null && $legacyInterval !== '' ? (float) $legacyInterval : null)),
+                'label' => (string) ($row['label'] ?? ''),
+            ];
+        }
+
+        $this->labSectionForm['reading_frequency_schedule'] = $schedule;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $schedule
+     * @return list<array{frequency: int, interval: float|null, label: string}>
+     */
+    private function normalizeReadingFrequencySchedule(array $schedule, int $frequency): array
+    {
+        $count = max(1, min(5, $frequency));
+        $normalized = [];
+
+        for ($slot = 1; $slot <= $count; $slot++) {
+            $row = $schedule[$slot - 1] ?? [];
+            $interval = $row['interval'] ?? null;
+            $normalized[] = [
+                'frequency' => $slot,
+                'interval' => $slot > 1 && $interval !== null && $interval !== ''
+                    ? (float) $interval
+                    : null,
+                'label' => trim((string) ($row['label'] ?? '')),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param  list<array{frequency: int, interval: float|null, label: string}>  $schedule
+     */
+    private function deriveReadingFrequencyInterval(array $schedule, int $frequency): ?float
+    {
+        if ($frequency <= 1) {
+            return null;
+        }
+
+        foreach ($schedule as $row) {
+            if ((int) ($row['frequency'] ?? 0) === 2 && isset($row['interval']) && $row['interval'] !== null) {
+                return (float) $row['interval'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<array{frequency: int, interval: float|null, label: string}>
+     */
+    private function scheduleFromSection(SampleAnalysisStage $section): array
+    {
+        $stored = $section->reading_frequency_schedule;
+        if (is_array($stored) && $stored !== []) {
+            return $this->normalizeReadingFrequencySchedule($stored, (int) ($section->reading_frequency ?? count($stored)));
+        }
+
+        $count = max(1, min(5, (int) ($section->reading_frequency ?? 1)));
+        $legacyInterval = $section->reading_frequency_interval;
+        $schedule = [];
+
+        for ($slot = 1; $slot <= $count; $slot++) {
+            $schedule[] = [
+                'frequency' => $slot,
+                'interval' => $slot > 1 && $legacyInterval !== null ? (float) $legacyInterval : null,
+                'label' => '',
+            ];
+        }
+
+        return $schedule;
     }
 
     // Verifier User Dropdown
@@ -635,21 +1057,20 @@ class LabSectionManager extends Component
 
     public function updatedVerifierUserSearch()
     {
-        $this->showVerifierUserDropdown = !empty($this->verifierUserSearch);
+        $this->showVerifierUserDropdown = true;
     }
 
     public function getFilteredVerifierUsersProperty()
     {
-        if (empty($this->verifierUserSearch)) {
-            return [];
+        $query = User::where('is_client', 0)
+            ->whereNull('supplier_id')
+            ->where('active', 1);
+
+        if (! empty($this->verifierUserSearch)) {
+            $query->where('name', 'like', '%' . $this->verifierUserSearch . '%');
         }
 
-        return User::where('is_client', 0)
-            ->whereNull('supplier_id')
-            ->where('active', 1)
-            ->where('name', 'like', '%' . $this->verifierUserSearch . '%')
-            ->limit(10)
-            ->get();
+        return $query->orderBy('name')->limit(10)->get();
     }
 
     public function getSelectedVerifierUserProperty()
@@ -675,26 +1096,22 @@ class LabSectionManager extends Component
 
     public function updatedVerifierSectionsSearch()
     {
-        $this->showVerifierSectionsDropdown = !empty($this->verifierSectionsSearch);
+        $this->showVerifierSectionsDropdown = true;
     }
 
     public function getFilteredVerifierSectionsProperty()
     {
-        if (empty($this->verifierSectionsSearch)) {
-            return SampleAnalysisStage::where('is_sample_stage', 0)
-                ->where('active', 1)
-                ->limit(10)
-                ->get();
-        }
+        $query = SampleAnalysisStage::where('is_sample_stage', 0)
+            ->where('active', 1);
 
-        return SampleAnalysisStage::where('is_sample_stage', 0)
-            ->where('active', 1)
-            ->where(function ($q) {
+        if (! empty($this->verifierSectionsSearch)) {
+            $query->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->verifierSectionsSearch . '%')
                     ->orWhere('code', 'like', '%' . $this->verifierSectionsSearch . '%');
-            })
-            ->limit(10)
-            ->get();
+            });
+        }
+
+        return $query->orderBy('name')->limit(10)->get();
     }
 
     public function getSelectedVerifierSectionsProperty()

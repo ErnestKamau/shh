@@ -7,6 +7,7 @@ use App\Company;
 use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
+use App\Models\Billing\PricelistItemElement;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Currency;
 use App\SampleType;
@@ -103,48 +104,57 @@ trait SeedsAmSpecFoodPricelist
             ->where('active', true)
             ->orderBy('analysis_type_id')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->groupBy('analysis_type_id');
 
         $level = 1;
-        $defaultPrices = [
-            'MOISTURE AND VOLATILE MATTER' => ['cost' => 30, 'sell' => 55],
-        ];
 
-        foreach ($elements as $element) {
-            $analysisType = $element->analysis_type;
+        foreach ($elements as $analysisElements) {
+            $first = $analysisElements->first();
+            $analysisType = $first?->analysis_type;
             $sampleType = $analysisType?->sample_type;
 
             if ($analysisType === null || $sampleType === null) {
                 continue;
             }
 
-            $analyteCode = $element->analyte?->code ?? '';
-            $prices = $defaultPrices[$analyteCode] ?? ['cost' => 25, 'sell' => 50];
+            $parameterCount = $analysisElements->count();
+            $cost = 25 * $parameterCount;
+            $sell = 50 * $parameterCount;
 
-            PricelistItem::query()->create([
+            $item = PricelistItem::query()->create([
                 'id' => (string) Str::uuid(),
                 'pricelist_id' => $pricelist->id,
                 'sample_type_id' => $sampleType->id,
                 'analysis_id' => $analysisType->id,
-                'analysis_element_id' => $element->id,
-                'cost_price' => $prices['cost'],
-                'selling_price' => $prices['sell'],
-                'changed_price' => $prices['sell'],
+                'analysis_element_id' => null,
+                'cost_price' => $cost,
+                'selling_price' => $sell,
+                'changed_price' => $sell,
                 'vat' => false,
                 'internal_use' => false,
                 'external_view' => true,
                 'active' => true,
+                'is_package' => true,
                 'level' => $level,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            foreach ($analysisElements as $element) {
+                PricelistItemElement::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'pricelist_item_id' => $item->id,
+                    'analysis_element_id' => $element->id,
+                ]);
+            }
 
             $level++;
             $stats['items']++;
         }
 
         $this->command?->info(sprintf(
-            'Seeded food pricelist %s for %s with %d item(s), valid till %s.',
+            'Seeded food pricelist %s for %s with %d package item(s) (one per analysis type), valid till %s.',
             $pricelist->code,
             $customer->name,
             $stats['items'],

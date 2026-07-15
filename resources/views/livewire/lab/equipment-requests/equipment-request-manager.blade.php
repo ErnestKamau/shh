@@ -336,7 +336,7 @@
                         @endif
                     </div>
                 </div>
-                <p class="text-muted small mb-0 batch-subtitle">Request equipment usage time and track approvals in your zone.</p>
+                <p class="text-muted small mb-0 batch-subtitle">Request equipment usage time and track approvals.</p>
             </div>
         </div>
     </div>
@@ -474,28 +474,6 @@
                         <div class="workflow-filters-advanced">
                             <div class="row">
                                 <div class="col-md-4">
-                                    <div class="form-group mb-3 mb-md-0">
-                                        <label class="form-label small fw-bold">Zone</label>
-                                        <select wire:model.live="filterZoneId" class="form-control form-control-sm">
-                                            <option value="">All zones</option>
-                                            @foreach($this->filterZones as $zone)
-                                                <option value="{{ $zone->id }}">{{ $zone->value }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3 mb-md-0">
-                                        <label class="form-label small fw-bold">Directorate</label>
-                                        <select wire:model.live="filterDirectorateId" class="form-control form-control-sm">
-                                            <option value="">All directorates</option>
-                                            @foreach($this->filterDirectorates as $directorate)
-                                                <option value="{{ $directorate->id }}">{{ $directorate->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
                                     <div class="form-group mb-0">
                                         <label class="form-label small fw-bold">Lab</label>
                                         <select wire:model.live="filterLabId" class="form-control form-control-sm">
@@ -527,7 +505,7 @@
                     <div class="er-modal-header d-flex justify-content-between align-items-start">
                         <div>
                             <h5><i class="mdi mdi-plus-circle text-primary"></i> New equipment request</h5>
-                            <p>Select equipment in your zone, attach samples, and propose a usage window.</p>
+                            <p>Select equipment, attach samples, and propose a usage window.</p>
                         </div>
                         <button type="button" class="close" wire:click="closeCreateModal"><span>&times;</span></button>
                     </div>
@@ -553,7 +531,7 @@
                                                     {{ $equipment->name }} ({{ $equipment->equipment_number }})
                                                 </button>
                                             @empty
-                                                <div class="list-group-item text-muted small">No equipment found in your zone</div>
+                                                <div class="list-group-item text-muted small">No equipment found</div>
                                             @endforelse
                                         </div>
                                     @endif
@@ -595,7 +573,7 @@
                                             </label>
                                         </div>
                                     @empty
-                                        <p class="text-muted small mb-0 px-1">No samples found in your zone.</p>
+                                        <p class="text-muted small mb-0 px-1">No samples found.</p>
                                     @endforelse
                                 </div>
                             </div>
@@ -758,7 +736,7 @@
                                         <span class="er-selected-chip">{{ $analystSearch }}</span>
                                         <button type="button" class="btn btn-link btn-sm p-0 ml-2" wire:click="clearHelpingAnalyst">Clear</button>
                                     @else
-                                        <input type="text" class="form-control" wire:model.live.debounce.300ms="analystSearch" placeholder="Search analyst in zone...">
+                                        <input type="text" class="form-control" wire:model.live.debounce.300ms="analystSearch" placeholder="Search analyst...">
                                         @if(trim($analystSearch) !== '')
                                             <div class="er-search-dropdown list-group">
                                                 @forelse($this->filteredAnalysts as $analyst)

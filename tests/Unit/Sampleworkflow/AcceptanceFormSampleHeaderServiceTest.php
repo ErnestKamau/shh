@@ -251,4 +251,61 @@ class AcceptanceFormSampleHeaderServiceTest extends TestCase
         $this->assertSame('14:30', $attributes['radio_active_levels']);
         $this->assertSame('Express', $attributes['priority']);
     }
+
+    public function test_build_create_attributes_prefills_lab_section_ids_from_analysis_types(): void
+    {
+        SampleAnalysisStage::query()->create([
+            'name' => 'Request Review',
+            'code' => 'SRR-HDR4',
+            'active' => 1,
+            'sample_workflow' => 'Samples Request Review',
+            'level' => 1,
+        ]);
+
+        $section = SampleAnalysisStage::query()->create([
+            'name' => 'Chemistry',
+            'code' => 'CHEM-HDR',
+            'active' => 1,
+            'is_sample_stage' => 0,
+            'sample_workflow' => null,
+            'level' => 1,
+        ]);
+
+        $analysisType = \App\AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Chem Type Header',
+            'code' => 'CTH-'.Str::upper(Str::random(4)),
+            'lab_section_id' => $section->id,
+            'active' => 1,
+        ]);
+
+        $customer = CRMCustomer::query()->create([
+            'name' => 'Section Prefill Customer',
+            'code' => 'SPC001',
+        ]);
+
+        $acceptanceForm = AnalysisAcceptanceForm::query()->create([
+            'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+            'crm_customer_id' => $customer->id,
+            'customer_name' => 'Section Prefill Customer',
+            'request_date' => '2026-05-18',
+            'number_of_samples' => 1,
+            'mode_of_work' => 'Normal',
+            'sample_configuration_payload' => [
+                [
+                    'analysis_type_id' => $analysisType->id,
+                    'lab_section_id' => $section->id,
+                ],
+            ],
+        ]);
+
+        $attributes = app(AcceptanceFormSampleHeaderService::class)->buildCreateAttributes(
+            $acceptanceForm,
+            (string) Str::uuid(),
+            null,
+            null,
+        );
+
+        $this->assertSame($section->id, $attributes['lab_section_ids']);
+    }
 }

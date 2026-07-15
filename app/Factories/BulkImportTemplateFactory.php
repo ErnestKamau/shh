@@ -306,7 +306,7 @@ class BulkImportTemplateFactory
                     'headers' => [
                         'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
                         'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
-                        'lab_section_code*', 'equipment_code', 'lod', 'loq', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'lab_section_code*', 'equipment_code', 'lod', 'loq', 'level', 'method', 'method_sequence_name', 'procedure_worksheet_name',
                         'analyte_code', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
                         'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
                         'standard_value_code', 'standard_value_name', 'standard_value_type',
@@ -316,7 +316,7 @@ class BulkImportTemplateFactory
                         [
                             'Food & Feed', 'Food & Feed', '1', '30',
                             'General Foods', 'General Foods', 'AMSPEC', '0', '',
-                            'Microbiology', '', '', '10', '', '', '',
+                            'Microbiology', '', '', '10', '', 'ISO 4833-1', '', '',
                             '', 'Mesophilic Aerobic Plate Count in Food Samples', '1', '', 'CFU/g', '0', 'No',
                             '', '', '', '',
                             '', '', '', '', '', ''
@@ -338,6 +338,7 @@ class BulkImportTemplateFactory
                         'loq' => 'nullable|numeric|min:0',
                         'hod' => 'nullable|numeric|min:0',
                         'level' => 'nullable|string|max:50',
+                        'method' => 'nullable|string|max:255',
                         'method_sequence_name' => 'nullable|string|max:255',
                         'procedure_worksheet_name' => 'nullable|string|max:255',
                         'analyte_code' => 'nullable|string|max:100',

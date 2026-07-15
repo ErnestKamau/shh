@@ -172,41 +172,28 @@
                 <div class="row mb-2">
                     <div class="col-12">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-office-building"></i> Organization Structure</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-office-building"></i> Lab Assignments</h5>
                             @php
                                 $structureRows = $organizationStructure;
-                                $zoneCount = count($structureRows);
-                                $maxValue = max(1, collect($structureRows)->max(fn ($row) => max($row['labs'], $row['users'])) ?? 1);
+                                $labCount = count($structureRows);
+                                $maxValue = max(1, collect($structureRows)->max(fn ($row) => $row['users']) ?? 1);
 
                                 $leftPad = 36;
                                 $rightPad = 18;
                                 $topPad = 20;
                                 $chartHeight = 210;
                                 $baseY = $topPad + $chartHeight;
-                                $chartWidth = max(760, $leftPad + $rightPad + (max($zoneCount, 1) * 150));
+                                $chartWidth = max(760, $leftPad + $rightPad + (max($labCount, 1) * 150));
                                 $plotWidth = $chartWidth - $leftPad - $rightPad;
-                                $step = $plotWidth / max($zoneCount, 1);
+                                $step = $plotWidth / max($labCount, 1);
                                 $barWidth = 34;
-                                $linePoints = [];
-
-                                foreach ($structureRows as $i => $row) {
-                                    $x = $leftPad + ($i * $step) + ($step / 2);
-                                    $y = $baseY - (($row['users'] / $maxValue) * $chartHeight);
-                                    $linePoints[] = [$x, $y];
-                                }
-
-                                $linePointText = collect($linePoints)->map(fn ($pt) => $pt[0] . ',' . $pt[1])->implode(' ');
-                                $areaPointText = '';
-                                if (!empty($linePoints)) {
-                                    $areaPointText = $linePoints[0][0] . ',' . $baseY . ' ' . $linePointText . ' ' . end($linePoints)[0] . ',' . $baseY;
-                                }
                             @endphp
 
-                            @if($zoneCount === 0)
-                                <p class="text-muted mb-0">No zones available for the current location.</p>
+                            @if($labCount === 0)
+                                <p class="text-muted mb-0">No labs available for the current company.</p>
                             @else
                                 <div class="org-chart-wrap">
-                                    <svg class="org-structure-chart" viewBox="0 0 {{ $chartWidth }} {{ $baseY + 42 }}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Organization structure chart">
+                                    <svg class="org-structure-chart" viewBox="0 0 {{ $chartWidth }} {{ $baseY + 42 }}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Lab assignments chart">
                                         @for($i = 0; $i <= 4; $i++)
                                             @php
                                                 $lineY = $topPad + (($chartHeight / 4) * $i);
@@ -219,34 +206,20 @@
                                         @foreach($structureRows as $i => $row)
                                             @php
                                                 $x = $leftPad + ($i * $step) + ($step / 2);
-                                                $barHeight = ($row['labs'] / $maxValue) * $chartHeight;
+                                                $barHeight = ($row['users'] / $maxValue) * $chartHeight;
                                                 $barY = $baseY - $barHeight;
                                                 $barX = $x - ($barWidth / 2);
-                                                $zoneLabel = strlen($row['zone']) > 24 ? substr($row['zone'], 0, 24) . '...' : $row['zone'];
+                                                $labLabel = strlen($row['lab']) > 24 ? substr($row['lab'], 0, 24) . '...' : $row['lab'];
                                             @endphp
                                             <rect x="{{ $barX }}" y="{{ $barY }}" width="{{ $barWidth }}" height="{{ $barHeight }}" rx="6" class="org-bar" />
-                                            <text x="{{ $x }}" y="{{ max($barY - 6, 12) }}" text-anchor="middle" class="org-bar-value">{{ $row['labs'] }}</text>
-                                            <text x="{{ $x }}" y="{{ $baseY + 20 }}" text-anchor="middle" class="org-zone-label">{{ $zoneLabel }}</text>
+                                            <text x="{{ $x }}" y="{{ max($barY - 6, 12) }}" text-anchor="middle" class="org-bar-value">{{ $row['users'] }}</text>
+                                            <text x="{{ $x }}" y="{{ $baseY + 20 }}" text-anchor="middle" class="org-zone-label">{{ $labLabel }}</text>
                                         @endforeach
-
-                                        @if($areaPointText !== '')
-                                            <polygon points="{{ $areaPointText }}" class="org-area" />
-                                            <polyline points="{{ $linePointText }}" class="org-line" />
-                                            @foreach($structureRows as $i => $row)
-                                                @php
-                                                    $x = $leftPad + ($i * $step) + ($step / 2);
-                                                    $y = $baseY - (($row['users'] / $maxValue) * $chartHeight);
-                                                @endphp
-                                                <circle cx="{{ $x }}" cy="{{ $y }}" r="4" class="org-line-dot" />
-                                                <text x="{{ $x }}" y="{{ max($y - 8, 12) }}" text-anchor="middle" class="org-line-value">{{ $row['users'] }}</text>
-                                            @endforeach
-                                        @endif
                                     </svg>
                                 </div>
 
                                 <div class="org-chart-legend mt-2">
-                                    <span class="org-legend-item"><span class="org-legend-swatch org-legend-swatch--bar"></span> Labs per Zone (Bar)</span>
-                                    <span class="org-legend-item"><span class="org-legend-swatch org-legend-swatch--line"></span> Users per Zone (Area Line)</span>
+                                    <span class="org-legend-item"><span class="org-legend-swatch org-legend-swatch--bar"></span> Assigned users per lab</span>
                                 </div>
                             @endif
                         </div>

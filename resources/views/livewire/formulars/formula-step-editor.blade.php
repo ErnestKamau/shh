@@ -156,7 +156,7 @@
                                                         <code class="text-primary">{{ Str::limit($step['expression'], 50) }}</code>
                                                     @elseif($step['step_type'] === 'lookup')
                                                         <small class="text-muted">
-                                                            Table: {{ $step['lookup_config']['lookup_table_id'] ?? 'N/A' }}
+                                                            Table: {{ $step['lookup_table_display'] ?? 'N/A' }}
                                                         </small>
                                                     @elseif($step['step_type'] === 'parameter_result')
                                                         <small class="text-muted">
@@ -780,7 +780,7 @@
                                                                 <div class="timeline-details">
                                                                     <small class="text-muted">
                                                                         <i class="mdi mdi-information"></i>
-                                                                        Lookup Table: {{ $step->lookup_config['lookup_table_id'] ?? 'N/A' }}
+                                                                        Lookup Table: {{ $step->lookupTableDisplayName() }}
                                                                     </small>
                                                                 </div>
                                                             @endif

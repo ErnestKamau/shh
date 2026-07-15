@@ -446,20 +446,46 @@
                                     <div class="tag-select-input">
                                         @foreach($selectedLabIds as $selectedLabId)
                                             @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab('{{ $selectedLabId }}')"></i></span>
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab(@js($selectedLabId))"></i></span>
                                         @endforeach
                                         <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
                                     </div>
                                     @if($showLabDropdown)
                                         <div class="tag-dropdown">
                                             @foreach($this->labs->filter(fn($l)=>$labSearch===''||stripos($l->name,$labSearch)!==false) as $lab)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">{{ $lab->name }}</div>
+                                                <div class="tag-dropdown-item" wire:click.stop="selectLab(@js($lab->id))">{{ $lab->name }}</div>
                                             @endforeach
                                         </div>
                                     @endif
                                 </div>
                                 @error('selectedLabIds')<small class="text-danger">{{ $message }}</small>@enderror
                                 @error('selectedLabIds.*')<small class="text-danger">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.lab_sections') }}</label>
+                                <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @foreach($selectedLabSectionIds as $selectedSectionId)
+                                            @php $s = $this->labSections->firstWhere('id', $selectedSectionId); @endphp
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLabSection(@js($selectedSectionId))"></i></span>
+                                        @endforeach
+                                        <input class="tag-input" wire:model.live="labSectionSearch" wire:keyup="searchLabSection" placeholder="Search lab sections...">
+                                    </div>
+                                    @if($showLabSectionDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->labSections->filter(fn($l)=>$labSectionSearch===''||stripos($l->name,$labSectionSearch)!==false||stripos((string)($l->code ?? ''),$labSectionSearch)!==false) as $section)
+                                                <div class="tag-dropdown-item {{ in_array($section->id, $selectedLabSectionIds, true) ? 'tag-dropdown-item-selected' : '' }}"
+                                                     wire:click.stop="selectLabSection(@js($section->id))">
+                                                    {{ $section->code }} - {{ $section->name }}
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-item text-muted">No lab sections found. Create lab sections under Lab Sections management.</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('selectedLabSectionIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                @error('selectedLabSectionIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                         </div>
                     </div>

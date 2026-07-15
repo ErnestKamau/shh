@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Personnel;
 
+use App\Lab;
 use App\User;
-use App\Zone;
+use App\UserLabRelation;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class PersonnelDashboard extends Component
@@ -16,7 +19,7 @@ class PersonnelDashboard extends Component
     /** @var array<int, array{label: string, used: int, limit: int}> */
     public array $analystGazzettedMatrix = [];
 
-    /** @var array<int, array{zone: string, labs: int, users: int}> */
+    /** @var array<int, array{lab: string, users: int}> */
     public array $organizationStructure = [];
 
     /** @var array<int, array{name: string, count: int}> */
@@ -80,49 +83,35 @@ class PersonnelDashboard extends Component
             ],
         ];
 
-        $zones = Zone::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->orderBy('key')
-            ->get(['id', 'key', 'value']);
+        $labs = Lab::query()
+            ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
-        $zoneIds = $zones->pluck('id')->values();
-        $labCountsByZone = collect();
-        $userCountsByZone = collect();
-
-        if ($zoneIds->isNotEmpty()) {
-            $labCountsByZone = \DB::table('labs')
-                ->selectRaw('zone_id, COUNT(*) as total')
-                ->whereIn('zone_id', $zoneIds)
-                ->groupBy('zone_id')
-                ->pluck('total', 'zone_id');
-
-            $userCountsByZone = User::query()
-                ->where('company_id', $companyId)
-                ->whereIn('zone_id', $zoneIds)
-                ->selectRaw('zone_id, COUNT(*) as total')
-                ->groupBy('zone_id')
-                ->pluck('total', 'zone_id');
+        $userCountsByLab = collect();
+        if ($labs->isNotEmpty() && Schema::hasTable('user_lab_relation')) {
+            $userCountsByLab = UserLabRelation::query()
+                ->whereIn('lab_id', $labs->pluck('id'))
+                ->selectRaw('lab_id, COUNT(DISTINCT user_id) as total')
+                ->groupBy('lab_id')
+                ->pluck('total', 'lab_id');
         }
 
-        $this->organizationStructure = $zones
-            ->map(function (Zone $zone) use ($labCountsByZone, $userCountsByZone): array {
-                $zoneLabel = trim((string) $zone->key . ((string) $zone->value !== '' ? ' - ' . (string) $zone->value : ''));
-
-                return [
-                    'zone' => $zoneLabel,
-                    'labs' => (int) ($labCountsByZone[$zone->id] ?? 0),
-                    'users' => (int) ($userCountsByZone[$zone->id] ?? 0),
-                ];
-            })
+        $this->organizationStructure = $labs
+            ->map(fn (Lab $lab): array => [
+                'lab' => (string) $lab->name,
+                'users' => (int) ($userCountsByLab[$lab->id] ?? 0),
+            ])
             ->values()
             ->toArray();
 
         $this->departmentDistribution = User::query()
             ->from('users')
-            ->leftJoin('inventory_departments as departments', \DB::raw('departments.id::text'), '=', \DB::raw('users.department_id::text'))
+            ->leftJoin('inventory_departments as departments', DB::raw('departments.id::text'), '=', DB::raw('users.department_id::text'))
             ->where('users.company_id', $companyId)
             ->where('users.active', 1)
-            ->select(\DB::raw("COALESCE(departments.name, 'Unassigned') as dept_name"), \DB::raw('COUNT(users.id) as dept_count'))
+            ->select(DB::raw("COALESCE(departments.name, 'Unassigned') as dept_name"), DB::raw('COUNT(users.id) as dept_count'))
             ->groupBy('departments.name')
             ->orderByDesc('dept_count')
             ->limit(6)
@@ -141,7 +130,7 @@ class PersonnelDashboard extends Component
             })
             ->where('users.company_id', $companyId)
             ->where('users.active', 1)
-            ->select(\DB::raw("COALESCE(designation.name, 'Not Set') as desig_name"), \DB::raw('COUNT(users.id) as desig_count'))
+            ->select(DB::raw("COALESCE(designation.name, 'Not Set') as desig_name"), DB::raw('COUNT(users.id) as desig_count'))
             ->groupBy('designation.name')
             ->orderByDesc('desig_count')
             ->limit(6)
@@ -181,9 +170,9 @@ class PersonnelDashboard extends Component
 
         $this->recentJoiners = User::query()
             ->from('users')
-            ->leftJoin('inventory_departments as departments', \DB::raw('departments.id::text'), '=', \DB::raw('users.department_id::text'))
+            ->leftJoin('inventory_departments as departments', DB::raw('departments.id::text'), '=', DB::raw('users.department_id::text'))
             ->where('users.company_id', $companyId)
-            ->select('users.id', 'users.name', \DB::raw("COALESCE(departments.name, 'Unassigned') as department"), 'users.created_at')
+            ->select('users.id', 'users.name', DB::raw("COALESCE(departments.name, 'Unassigned') as department"), 'users.created_at')
             ->orderByDesc('users.created_at')
             ->limit(6)
             ->get()
@@ -201,4 +190,3 @@ class PersonnelDashboard extends Component
         return view('livewire.personnel.personnel-dashboard');
     }
 }
-

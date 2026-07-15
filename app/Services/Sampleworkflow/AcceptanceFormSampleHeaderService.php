@@ -2,6 +2,7 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\AnalysisType;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
@@ -57,7 +58,7 @@ class AcceptanceFormSampleHeaderService
         [$crmUnitId, $crmUnitName] = $this->resolveCrmUnit($form, $context, $crmContactId);
 
         $labId = $this->resolveLabId($context, $configLabIdFallback);
-        $labSectionIds = $this->resolveLabSectionIds($labId);
+        $labSectionIds = $this->resolveLabSectionIdsFromForm($form);
         $isQcBatch = $this->resolveIsQcBatch($context['instance'], $context['mappedRaw'], $context['mappedHeader']);
 
         $receivingOfficer = $this->resolveReceivingOfficer($context);
@@ -407,18 +408,56 @@ class AcceptanceFormSampleHeaderService
         return $labId !== null && $labId !== '' ? (string) $labId : null;
     }
 
-    private function resolveLabSectionIds(?string $labId): ?string
+    /**
+     * Prefill batch lab_section_ids from selected analysis types (and config overrides).
+     */
+    private function resolveLabSectionIdsFromForm(AnalysisAcceptanceForm $form): ?string
     {
-        if ($labId === null || $labId === '') {
-            return null;
+        $sectionIds = [];
+        $analysisTypeIds = [];
+
+        $payload = is_array($form->sample_configuration_payload)
+            ? $form->sample_configuration_payload
+            : [];
+
+        foreach ($payload as $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+
+            $configSectionId = trim((string) ($config['lab_section_id'] ?? ''));
+            if ($configSectionId !== '' && Str::isUuid($configSectionId)) {
+                $sectionIds[] = $configSectionId;
+            }
+
+            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            if ($analysisTypeId !== '') {
+                $analysisTypeIds[] = $analysisTypeId;
+            }
         }
 
-        $sectionIds = SampleAnalysisStage::query()
-            ->where('lab_id', $labId)
-            ->where('active', 1)
-            ->where('is_system', 0)
-            ->pluck('id')
-            ->all();
+        $form->loadMissing('lines');
+        foreach ($form->lines as $line) {
+            $analysisTypeId = trim((string) ($line->analysis_type_id ?? ''));
+            if ($analysisTypeId !== '') {
+                $analysisTypeIds[] = $analysisTypeId;
+            }
+        }
+
+        $analysisTypeIds = array_values(array_unique(array_filter($analysisTypeIds)));
+        if ($analysisTypeIds !== []) {
+            $fromTypes = AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->whereNotNull('lab_section_id')
+                ->pluck('lab_section_id')
+                ->map(fn ($id) => trim((string) $id))
+                ->filter(fn ($id) => $id !== '' && Str::isUuid($id))
+                ->all();
+
+            $sectionIds = array_merge($sectionIds, $fromTypes);
+        }
+
+        $sectionIds = array_values(array_unique(array_filter($sectionIds)));
 
         return $sectionIds !== [] ? implode(',', $sectionIds) : null;
     }

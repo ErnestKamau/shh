@@ -65,6 +65,8 @@ class ReceiveSampleRequest extends Component
 
     public int $walkInActiveStepIndex = 0;
 
+    public ?string $lastSelectedSampleTypeId = null;
+
     public function mount(array $selectedFormInstanceIds = [], array $selectedFormSummaries = []): void
     {
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
@@ -106,6 +108,7 @@ class ReceiveSampleRequest extends Component
         // If we found a sample type, set it and manually load the form data
         if ($sampleType) {
             $this->selectedSampleTypeId = $sampleType->id;
+            $this->lastSelectedSampleTypeId = (string) $sampleType->id;
             $this->initializeFormDataForSampleType($sampleType->id);
             $this->loadFormDataFromInstance($firstInstance);
         }
@@ -529,10 +532,18 @@ class ReceiveSampleRequest extends Component
 
     public function updatedSelectedSampleTypeId($value): void
     {
+        $normalizedValue = $value !== null && $value !== '' ? (string) $value : null;
+
+        if ($normalizedValue === $this->lastSelectedSampleTypeId) {
+            return;
+        }
+
+        $this->lastSelectedSampleTypeId = $normalizedValue;
         $this->formData = [];
         $this->walkInActiveStepIndex = 0;
-        if ($value) {
-            $this->initializeFormDataForSampleType((string) $value);
+
+        if ($normalizedValue !== null) {
+            $this->initializeFormDataForSampleType($normalizedValue);
 
             if (! empty($this->selectedFormInstanceIds)) {
                 $firstInstance = SubmissionFormInstance::with(['crmCustomer', 'values.element'])->find($this->selectedFormInstanceIds[0]);
@@ -892,14 +903,24 @@ class ReceiveSampleRequest extends Component
      */
     public function handleReceiveModalOpen(array $instanceIds, array $summaries): void
     {
-        $this->selectedFormInstanceIds = array_values(array_filter($instanceIds));
+        $normalizedInstanceIds = array_values(array_filter($instanceIds));
+        $walkInInProgress = $normalizedInstanceIds === []
+            && $this->selectedFormInstanceIds === []
+            && $this->selectedSampleTypeId !== null
+            && $this->walkInActiveStepIndex > 0;
+
+        if (! $walkInInProgress) {
+            $this->remarks = '';
+            $this->checkInTrfFields = [];
+            $this->selectedSampleTypeId = null;
+            $this->lastSelectedSampleTypeId = null;
+            $this->formData = [];
+            $this->walkInActiveStepIndex = 0;
+            $this->resetValidation();
+        }
+
+        $this->selectedFormInstanceIds = $normalizedInstanceIds;
         $this->selectedFormSummaries = $summaries;
-        $this->remarks = '';
-        $this->checkInTrfFields = [];
-        $this->selectedSampleTypeId = null;
-        $this->formData = [];
-        $this->walkInActiveStepIndex = 0;
-        $this->resetValidation();
         $this->refreshCheckInContexts();
 
         // Dispatched after state is set — JS listener shows the modal.
@@ -1314,13 +1335,22 @@ class ReceiveSampleRequest extends Component
         }
 
         if (! $hasFilledRow) {
-            $this->addError('formData.sample_description.0', 'Add at least one sample row with details in Test & sample information.');
-
-            return;
+            throw ValidationException::withMessages([
+                'formData.sample_description.0' => 'Add at least one sample row with details in Test & sample information.',
+            ]);
         }
 
         if ($rules !== []) {
             $this->validate($rules, $messages);
+        }
+
+        $this->throwIfWalkInValidationErrorsPresent();
+    }
+
+    private function throwIfWalkInValidationErrorsPresent(): void
+    {
+        if ($this->getErrorBag()->isNotEmpty()) {
+            throw ValidationException::withMessages($this->getErrorBag()->toArray());
         }
     }
 

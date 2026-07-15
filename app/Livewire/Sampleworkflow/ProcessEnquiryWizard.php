@@ -944,6 +944,7 @@ class ProcessEnquiryWizard extends Component
 
         if ($stored !== []) {
             $this->sampleConfigs = $configService->flattenToPerSampleConfigs($stored);
+            $this->sampleConfigs = $configService->remapConfigsToCurrentHierarchy($this->sampleConfigs, $enquiry);
             $this->reconcileSampleConfigParameterKeys();
             $this->normalizeSampleConfigs();
             $this->backfillLabSectionIdsOnConfigs();
@@ -955,6 +956,7 @@ class ProcessEnquiryWizard extends Component
         $prefillLines = $configService->buildPrefillLinesFromEnquiry($enquiry, $this->lines);
 
         $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
+        $this->sampleConfigs = $configService->remapConfigsToCurrentHierarchy($this->sampleConfigs, $enquiry);
         if ($this->crmCustomerId !== null && trim($this->crmCustomerId) !== '') {
             $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
                 $this->sampleConfigs,

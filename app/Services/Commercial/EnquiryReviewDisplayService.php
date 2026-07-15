@@ -498,18 +498,30 @@ final class EnquiryReviewDisplayService
                 $code = $this->resolveElementParameterCode($elementId);
                 if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
                     $codes[] = $code;
-                }
 
-                continue;
+                    continue;
+                }
             }
 
             $label = trim((string) ($analysis->analysis_label ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
             foreach ($this->referenceLabelResolver->extractTokens($label) as $token) {
-                $code = $this->resolveParameterCodeFromToken(
-                    $token,
-                    (string) ($analysis->analysis_type_id ?? ''),
-                );
-                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                if (Str::isUuid($token)) {
+                    $code = $this->resolveElementParameterCode($token);
+                } else {
+                    $code = $this->resolveParameterCodeFromToken(
+                        $token,
+                        (string) ($analysis->analysis_type_id ?? ''),
+                    );
+                    if ($code === '') {
+                        $code = strtoupper($token);
+                    }
+                }
+
+                if ($code !== '' && ! $this->isTestCategoryLabel($code) && ! Str::isUuid($code)) {
                     $codes[] = $code;
                 }
             }

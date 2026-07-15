@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Personnel;
 
-use App\Directorate;
 use App\Exports\ReportExporter;
 use App\InventoryDepartment;
 use App\Lab;
@@ -10,17 +9,12 @@ use App\Models\Auth\Role;
 use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
-use App\UserDirectorateRelation;
 use App\UserLabRelation;
-use App\UserZoneRelation;
-use App\Zone;
 use App\Mail\PersonnelWelcomeMail;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use App\Services\Personnel\PersonnelSignatureService;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -37,8 +31,6 @@ class PersonnelTableManager extends Component
 
     public string $search = '';
     public string $activeTab = 'all';
-    public string $zoneFilter = '';
-    public string $directorateFilter = '';
     public string $labFilter = '';
     public string $employmentDateFrom = '';
     public string $employmentDateTo = '';
@@ -63,13 +55,7 @@ class PersonnelTableManager extends Component
     public array $positions = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $educationLevels = [];
-    /** @var array<int, array{id:string,key:string,value:string}> */
-    public array $zones = [];
-    public bool $zonesTableAvailable = false;
-    /** @var array<int, array{id:string,name:string,zone_id:string}> */
-    public array $directorates = [];
-    public bool $directoratesTableAvailable = false;
-    /** @var array<int, array{id:string,name:string,directorate_id:string,zone_id:string}> */
+    /** @var array<int, array{id:string,name:string}> */
     public array $labs = [];
     public bool $labsTableAvailable = false;
     /** @var array<int, array{id:string,name:string}> */
@@ -158,44 +144,21 @@ class PersonnelTableManager extends Component
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
-        $this->zonesTableAvailable = Schema::hasTable('zones');
-        $this->zones = $this->zonesTableAvailable
-            ? Zone::query()
-                ->where('inventory_location_id', getCurrentUserLocation()->id)
-                ->orderBy('key')
-                ->get(['id', 'key', 'value'])
-                ->map(fn ($item): array => ['id' => (string) $item->id, 'key' => (string) $item->key, 'value' => (string) $item->value])
-                ->toArray()
-            : [];
-        $this->directoratesTableAvailable = Schema::hasTable('directorates');
-        $this->directorates = $this->directoratesTableAvailable
-            ? Directorate::query()
-                ->where('active', 1)
-                ->orderBy('name')
-                ->get(['id', 'name', 'zone_id'])
-                ->map(fn ($item): array => [
-                    'id' => (string) $item->id,
-                    'name' => (string) $item->name,
-                    'zone_id' => (string) ($item->zone_id ?? ''),
-                ])
-                ->toArray()
-            : [];
         $this->labsTableAvailable = Schema::hasTable('labs');
         $this->labs = $this->labsTableAvailable
             ? Lab::query()
                 ->where('active', 1)
                 ->orderBy('name')
-                ->get(['id', 'name', 'directorate_id', 'zone_id'])
+                ->get(['id', 'name'])
                 ->map(fn ($item): array => [
                     'id' => (string) $item->id,
                     'name' => (string) $item->name,
-                    'directorate_id' => (string) ($item->directorate_id ?? ''),
-                    'zone_id' => (string) ($item->zone_id ?? ''),
                 ])
                 ->toArray()
             : [];
         $this->stages = SampleAnalysisStage::query()
             ->where('active', 1)
+            ->where('is_sample_stage', 0)
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
@@ -334,32 +297,11 @@ class PersonnelTableManager extends Component
         $personnel->password              = bcrypt($plainPassword);
         $personnel->password_changed_at   = null; // force change on first login
 
-        if ($this->signatureUpload) {
-            $filename = Str::uuid()->toString() . '_' . time() . '.' . $this->signatureUpload->getClientOriginalExtension();
-            $storedPath = $this->signatureUpload->storeAs('personnel-signature', $filename, 'public');
-            $personnel->electronic_sig = '/storage/' . $storedPath;
-        }
-
-        if ($this->signatureData !== '' && str_starts_with($this->signatureData, 'data:image/')) {
-            if (preg_match('/^data:image\/(\w+);base64,/', $this->signatureData, $matches)) {
-                $extension = strtolower($matches[1]);
-                if ($extension === 'jpeg') {
-                    $extension = 'jpg';
-                }
-
-                if (in_array($extension, ['png', 'jpg', 'gif', 'webp'], true)) {
-                    $imageData = substr($this->signatureData, strpos($this->signatureData, ',') + 1);
-                    $decoded = base64_decode($imageData, true);
-
-                    if ($decoded !== false) {
-                        $filename = Str::uuid()->toString() . '_' . time() . '.' . $extension;
-                        $storagePath = 'personnel-signature/' . $filename;
-                        Storage::disk('public')->put($storagePath, $decoded);
-                        $personnel->electronic_sig = '/storage/' . $storagePath;
-                    }
-                }
-            }
-        }
+        app(PersonnelSignatureService::class)->applyToUser(
+            $personnel,
+            $this->signatureUpload,
+            $this->signatureData,
+        );
 
         $personnel->save();
 
@@ -371,7 +313,6 @@ class PersonnelTableManager extends Component
             $personnel->assignRole($selectedRole);
         }
 
-        // Sync labs; derive zone and directorate relationships from the assigned labs
         $selectedLabIds = array_values(array_unique(array_filter((array) ($this->personnelForm['lab_ids'] ?? []))));
 
         UserLabRelation::where('user_id', $personnel->id)->delete();
@@ -380,24 +321,6 @@ class PersonnelTableManager extends Component
                 'user_id' => $personnel->id,
                 'lab_id'  => (string) $labId,
             ]);
-        }
-
-        if (!empty($selectedLabIds) && $this->labsTableAvailable) {
-            $assignedLabs   = collect($this->labs)->whereIn('id', $selectedLabIds);
-            $derivedZoneIds = $assignedLabs->pluck('zone_id')->filter()->unique()->values()->all();
-            $derivedDirIds  = $assignedLabs->pluck('directorate_id')->filter()->unique()->values()->all();
-
-            UserZoneRelation::where('user_id', $personnel->id)->delete();
-            foreach ($derivedZoneIds as $zoneId) {
-                UserZoneRelation::create(['user_id' => $personnel->id, 'zone_id' => $zoneId]);
-            }
-            UserDirectorateRelation::where('user_id', $personnel->id)->delete();
-            foreach ($derivedDirIds as $dirId) {
-                UserDirectorateRelation::create(['user_id' => $personnel->id, 'directorate_id' => $dirId]);
-            }
-        } else {
-            UserZoneRelation::where('user_id', $personnel->id)->delete();
-            UserDirectorateRelation::where('user_id', $personnel->id)->delete();
         }
 
         $this->message = 'Personnel added successfully.';
@@ -495,16 +418,6 @@ class PersonnelTableManager extends Component
         $this->resetPage();
     }
 
-    public function updatingZoneFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatingDirectorateFilter(): void
-    {
-        $this->resetPage();
-    }
-
     public function updatingLabFilter(): void
     {
         $this->resetPage();
@@ -539,8 +452,6 @@ class PersonnelTableManager extends Component
     public function clearFilters(): void
     {
         $this->search = '';
-        $this->zoneFilter = '';
-        $this->directorateFilter = '';
         $this->labFilter = '';
         $this->employmentDateFrom = '';
         $this->employmentDateTo = '';
@@ -643,37 +554,10 @@ class PersonnelTableManager extends Component
             });
         }
 
-        if ($this->zoneFilter !== '') {
-            $zoneId = $this->zoneFilter;
-
-            $query->where(function ($builder) use ($zoneId): void {
-                $builder->where('users.zone_id', $zoneId);
-
-                if (Schema::hasTable('user_zone_relation')) {
-                    $builder->orWhereExists(function ($subQuery) use ($zoneId): void {
-                        $subQuery->select(DB::raw(1))
-                            ->from('user_zone_relation as uzr')
-                            ->whereColumn('uzr.user_id', 'users.id')
-                            ->where('uzr.zone_id', $zoneId);
-                    });
-                }
-            });
-        }
-
-        if ($this->directorateFilter !== '' && Schema::hasTable('user_directorate_relation')) {
-            $directorateId = $this->directorateFilter;
-            $query->whereExists(function ($subQuery) use ($directorateId): void {
-                $subQuery->select(DB::raw(1))
-                    ->from('user_directorate_relation as udr')
-                    ->whereColumn('udr.user_id', 'users.id')
-                    ->where('udr.directorate_id', $directorateId);
-            });
-        }
-
         if ($this->labFilter !== '' && Schema::hasTable('user_lab_relation')) {
             $labId = $this->labFilter;
             $query->whereExists(function ($subQuery) use ($labId): void {
-                $subQuery->select(DB::raw(1))
+                $subQuery->selectRaw('1')
                     ->from('user_lab_relation as ulr')
                     ->whereColumn('ulr.user_id', 'users.id')
                     ->where('ulr.lab_id', $labId);

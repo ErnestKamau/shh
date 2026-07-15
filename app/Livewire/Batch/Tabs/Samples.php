@@ -1170,45 +1170,37 @@ class Samples extends Component
 
     private function generateResultsForSample($sampleDetail, $analysisTypeIdsStr)
     {
-        $analysisTypeIds = explode(',', $analysisTypeIdsStr);
+        $analysisTypeIds = collect(explode(',', (string) $analysisTypeIdsStr))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($analysisTypeIds === []) {
+            return;
+        }
+
+        $setupService = app(\App\Services\Sampleworkflow\SampleAnalysisSetupService::class);
+        $header = \App\SampleHeader::query()->find($sampleDetail->sample_header_id);
+        if ($header) {
+            $setupService->syncAnalysisRelations($header, $sampleDetail, $analysisTypeIds);
+        }
+
         foreach ($analysisTypeIds as $atId) {
-            if (!$atId)
-                continue;
+            $setupService->createCapturedResultsForAnalysisType(
+                (string) $sampleDetail->sample_header_id,
+                (string) $sampleDetail->id,
+                $atId,
+                (string) $sampleDetail->sample_code,
+                auth()->id() ? (string) auth()->id() : null,
+            );
+        }
 
-            $elements = \App\AnalysisElements::where('analysis_type_id', $atId)->where('active', 1)->get();
-            foreach ($elements as $element) {
-                // Create CapturedResult and Result
-                // This is a minimal implementation to get it working, mirroring SampleCreationController
-                $analyteCode = $element->analyte->code ?? 'UNKNOWN';
-                $reportingUnit = \App\ReportingUnit::find($element->reporting_unit);
-                $reportingUnitName = $reportingUnit ? $reportingUnit->name : '';
-
-                $captured = new \App\CapturedResult();
-                $captured->fill([
-                    'sample_detail_code' => $sampleDetail->sample_code,
-                    'sample_detail_id' => $sampleDetail->id,
-                    'sample_header_id' => $sampleDetail->sample_header_id,
-                    'analyte_id' => $element->analyte_id,
-                    'analyte_code' => $analyteCode,
-                    'analysis_type_id' => $atId,
-                    'lab_section_id' => $element->lab_section_id,
-                    'user_id' => auth()->id(),
-                    'reporting_unit_id' => $reportingUnitName,
-                ]);
-                $captured->save();
-
-                $result = new \App\Result();
-                $result->fill([
-                    'captured_result_id' => $captured->id,
-                    'sample_detail_code' => $sampleDetail->sample_code,
-                    'sample_detail_id' => $sampleDetail->id,
-                    'sample_header_id' => $sampleDetail->sample_header_id,
-                    'analyte_id' => $element->analyte_id,
-                    'analyte_code' => $analyteCode,
-                    'analysis_type_id' => $atId,
-                    'reporting_unit_id' => $reportingUnitName,
-                ]);
-                $result->save();
+        if ($header) {
+            $setupService->syncBatchLabSectionIdsFromAnalysisTypes($header);
+            if ($this->batch && (string) $this->batch->id === (string) $header->id) {
+                $this->batch->refresh();
             }
         }
     }
@@ -2199,30 +2191,31 @@ class Samples extends Component
                 // Get operator - prefer stored, else current user (auto-assigned on save)
                 $operator = \App\User::find($result->operator_id) ?? auth()->user();
 
-                // Get method — fall back to analysis element when blank
-                $method = \App\AnalysisMethod::find($result->method_id);
-                if (! $method && $result->analysis_type_id && $result->analyte_id) {
-                    $element = \App\AnalysisElements::query()
-                        ->where('analysis_type_id', $result->analysis_type_id)
-                        ->where('analyte_id', $result->analyte_id)
-                        ->where('active', 1)
-                        ->first();
-                    if ($element?->method) {
-                        $method = \App\AnalysisMethod::find($element->method);
-                        if (! $result->method_id && $method) {
-                            $result->method_id = $method->id;
-                        }
-                        if (! $result->reporting_unit_id && $element->reporting_unit) {
-                            $result->reporting_unit_id = resolveReportingUnitIdFromName($element->reporting_unit);
-                        }
+                $element = $result->resolveAnalysisElement();
+                if ($element && ! $result->analysis_element_id) {
+                    $result->analysis_element_id = $element->id;
+                }
+
+                // Prefill blanks from analysis element; user can still change via full dropdowns
+                if ($element) {
+                    if (! $result->method_id && $element->method) {
+                        $result->method_id = $element->method;
+                    }
+                    if (! $result->equipment_id && $element->equipment_id) {
+                        $result->equipment_id = $element->equipment_id;
                     }
                 }
 
-                // Get LTM method (stored as simple value, not a model)
-                $ltmMethod = null;
-
-                // Get equipment
+                $method = \App\AnalysisMethod::find($result->method_id);
                 $equipment = \App\Models\Equipments\Equipment::find($result->equipment_id);
+                $defaultUnitId = $this->resolveDefaultReportingUnitId($result, $element);
+                $defaultMethodId = $result->method_id ?: ($element?->method ? (string) $element->method : null);
+                $defaultEquipmentIds = $this->normalizeEquipmentIds(
+                    Schema::hasColumn('captured_results', 'equipment_ids')
+                        ? ($result->equipment_ids ?? null)
+                        : null,
+                    $result->equipment_id ?: $element?->equipment_id
+                );
 
                 // Lab section (for Parameters modal column and change section)
                 $labSection = SampleAnalysisStage::find($result->lab_section_id);
@@ -2278,11 +2271,14 @@ class Samples extends Component
                         : '—';
                 }
 
+                $selectedEquipmentIds = $defaultEquipmentIds;
+
                 $parameters[$result->id] = [
                     'id' => $result->id,
                     'sample_code' => $result->sample_detail_code,
                     'analysis_type' => $analysisType->name ?? $analysisType->code ?? '-',
                     'analysis_type_id' => $result->analysis_type_id,
+                    'analysis_element_id' => $result->analysis_element_id ?? $element?->id,
                     'analyte_code' => is_string($analyteCode) && ! str_starts_with($analyteCode, 'eyJ') ? $analyteCode : ($analyte?->code ?? ''),
                     'analyte_id' => $result->analyte_id,
                     'analyte_name' => $analyteName,
@@ -2295,15 +2291,16 @@ class Samples extends Component
                     'sec_standard_id' => $effectiveSecStandardId,
                     'remark' => $result->remark ?: '',
                     'remark_is_manual' => $result->remark_is_manual,
-                    'reporting_unit' => $result->reporting_unit_id,
+                    'reporting_unit' => $defaultUnitId ?? '',
                     'operator_name' => $operator->name ?? '-',
                     'operator_id' => $result->operator_id,
                     'method_name' => $method->name ?? '-',
-                    'method_id' => $result->method_id,
+                    'method_id' => $defaultMethodId,
                     'ltm_method_name' => $result->ltm_method_id ? 'LTM-' . $result->ltm_method_id : '-',
                     'ltm_method_id' => $result->ltm_method_id,
                     'equipment_name' => $equipment->name ?? '-',
-                    'equipment_id' => $result->equipment_id,
+                    'equipment_id' => $selectedEquipmentIds[0] ?? $result->equipment_id,
+                    'equipment_ids' => $selectedEquipmentIds,
                     'lab_section_id' => $result->lab_section_id,
                     'lab_section_name' => $labSection ? ($labSection->name . ' - ' . $labSection->code) : '-',
                     'start_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['start_date']
@@ -2380,13 +2377,18 @@ class Samples extends Component
             // Populate form data for editing
             $this->parametersForm = $parameters;
 
-            // Load dropdown lists if empty
+            // Full dropdown lists — AE values are only used as defaults above
             if (empty($this->modalLists['operators'])) {
                 $this->modalLists['operators'] = \App\User::orderBy('name')->get();
-                $this->modalLists['methods'] = \App\AnalysisMethod::orderBy('name')->get();
-                $this->modalLists['equipments'] = \App\Models\Equipments\Equipment::orderBy('name')->get();
-                $this->modalLists['units'] = \App\ReportingUnit::all();
             }
+            if (empty($this->modalLists['methods'])) {
+                $this->modalLists['methods'] = \App\AnalysisMethod::orderBy('name')->get();
+            }
+            if (empty($this->modalLists['equipments'])) {
+                $this->modalLists['equipments'] = \App\Models\Equipments\Equipment::orderBy('name')->get();
+            }
+            // Always refresh units so names ensured from analysis elements appear in the dropdown.
+            $this->modalLists['units'] = ReportingUnit::query()->orderBy('name')->get();
 
             // Load standard values for edit modal
             if (empty($this->standardValueOptions)) {
@@ -2636,31 +2638,39 @@ class Samples extends Component
         // Update CapturedResult snapshot with the Display Value
         $updateField = $data['standard_level'] == 1 ? 'main_value' : 'secondary_value';
         $idField = $data['standard_level'] == 1 ? 'main_standard_id' : 'secondary_standard_id';
+        $capturedResultId = (string) $data['captured_result_id'];
 
         DB::table('captured_results')
-            ->where('id', $data['captured_result_id'])
+            ->where('id', $capturedResultId)
             ->update([
                 $updateField => $newValue,
                 $idField => $data['standard_id']
             ]);
 
-        // Refresh view
-        if ($this->selectedSampleCode) {
-            $this->viewParameters($this->selectedSampleCode);
-            // Also update the parametersForm used for editing if needed, 
-            // but viewParameters should rebuild it.
+        // Update only the edited row in-place so unsaved sibling parameter edits are preserved
+        if (isset($this->parametersForm[$capturedResultId])) {
+            if ((int) $data['standard_level'] === 1) {
+                $this->parametersForm[$capturedResultId]['standard_value'] = $newValue;
+                $this->parametersForm[$capturedResultId]['standard_id'] = $data['standard_id'];
+                $this->parametersForm[$capturedResultId]['limit_type'] = $stdAnalyte->standard_value_type;
+                $this->parametersForm[$capturedResultId]['limit_low'] = $stdAnalyte->low;
+                $this->parametersForm[$capturedResultId]['limit_high'] = $stdAnalyte->high;
+                $this->parametersForm[$capturedResultId]['value_limit_type'] = $stdAnalyte->value_type;
+                $this->parametersForm[$capturedResultId]['standard_limit_value'] = $stdAnalyte->standard_is_value;
+            } else {
+                $this->parametersForm[$capturedResultId]['sec_standard_value'] = $newValue;
+                $this->parametersForm[$capturedResultId]['sec_standard_id'] = $data['standard_id'];
+            }
+
+            if (isset($this->sampleParameters[$capturedResultId])) {
+                $this->sampleParameters[$capturedResultId] = $this->parametersForm[$capturedResultId];
+            }
         }
 
         $this->showEditStandardModal = false;
         $this->reset('editingStandardData');
 
-        // Re-evaluate current row result against new limits
-        // (Optional: Recalculate pass/fail based on new limits? 
-        //  The legacy code does not seem to trigger a full re-evaluation of ALL results, 
-        //  but the user might expect the "Remark" to update if they change the limit.
-        //  Legacy JS performs an ajax call to /fetch/results-remark. We should do similar.)
-
-        $this->evaluateResult($data['captured_result_id']);
+        $this->evaluateResult($capturedResultId);
     }
 
     /**
@@ -2692,17 +2702,32 @@ class Samples extends Component
                     continue;
                 }
 
-                app(\App\Services\Sampleworkflow\CapturedResultCaptureService::class)->applyOnSave($captured, [
+                $equipmentIds = $this->normalizeEquipmentIds(
+                    $data['equipment_ids'] ?? null,
+                    $data['equipment_id'] ?? null
+                );
+
+                $saveAttributes = [
                     'result' => $data['result'] ?: null,
                     'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
                     'remark' => $data['remark'] ?: null,
                     'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
                     'method_id' => $this->normalizeNullableForeignKey($data['method_id'] ?? null),
-                    'equipment_id' => $this->normalizeNullableForeignKey($data['equipment_id'] ?? null),
+                    'equipment_id' => $equipmentIds[0] ?? null,
                     'lab_section_id' => $this->normalizeNullableForeignKey($data['lab_section_id'] ?? null),
                     'analyte_status_contracted' => ! empty($data['subcontracted']) ? 1 : 0,
                     'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
-                ], auth()->id() ? (string) auth()->id() : null);
+                ];
+
+                if (Schema::hasColumn('captured_results', 'equipment_ids')) {
+                    $saveAttributes['equipment_ids'] = $equipmentIds !== [] ? $equipmentIds : null;
+                }
+
+                app(\App\Services\Sampleworkflow\CapturedResultCaptureService::class)->applyOnSave(
+                    $captured,
+                    $saveAttributes,
+                    auth()->id() ? (string) auth()->id() : null
+                );
             }
 
             $this->persistSampleAnalysisDateRange();
@@ -2727,6 +2752,53 @@ class Samples extends Component
         return (string) $value;
     }
 
+    /**
+     * @param  array<int, string|int>|string|null  $equipmentIds
+     * @return list<string>
+     */
+    protected function normalizeEquipmentIds(mixed $equipmentIds, mixed $fallbackEquipmentId = null): array
+    {
+        $ids = [];
+
+        if (is_string($equipmentIds) && $equipmentIds !== '') {
+            $decoded = json_decode($equipmentIds, true);
+            $equipmentIds = is_array($decoded) ? $decoded : (preg_split('/\s*,\s*/', $equipmentIds) ?: []);
+        }
+
+        if (is_array($equipmentIds)) {
+            foreach ($equipmentIds as $equipmentId) {
+                $normalized = $this->normalizeNullableForeignKey($equipmentId);
+                if ($normalized !== null) {
+                    $ids[] = $normalized;
+                }
+            }
+        }
+
+        if ($ids === []) {
+            $fallback = $this->normalizeNullableForeignKey($fallbackEquipmentId);
+            if ($fallback !== null) {
+                $ids[] = $fallback;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    public function getGroupedParametersFormProperty(): array
+    {
+        $grouped = [];
+
+        foreach ($this->parametersForm as $id => $param) {
+            $group = (string) ($param['analysis_type'] ?? 'Ungrouped');
+            $grouped[$group][$id] = $param;
+        }
+
+        return $grouped;
+    }
+
     private function resolveReportingUnitId(mixed $value): ?string
     {
         $normalized = $this->normalizeNullableForeignKey($value);
@@ -2735,10 +2807,37 @@ class Samples extends Component
         }
 
         if (Str::isUuid($normalized)) {
-            return $normalized;
+            $exists = ReportingUnit::query()->where('id', $normalized)->exists();
+
+            return $exists ? $normalized : null;
         }
 
-        return ReportingUnit::query()->where('name', $normalized)->value('id');
+        return ensureReportingUnitIdFromName($normalized);
+    }
+
+    /**
+     * Prefer a valid captured_results.reporting_unit_id, otherwise the analysis element unit name
+     * (creating the reporting_units row when the master list is missing it).
+     */
+    private function resolveDefaultReportingUnitId(CapturedResult $result, ?AnalysisElements $element): ?string
+    {
+        $fromCaptured = $this->resolveReportingUnitId($result->reporting_unit_id);
+        if ($fromCaptured !== null) {
+            return $fromCaptured;
+        }
+
+        if ($element?->reporting_unit) {
+            $fromElement = ensureReportingUnitIdFromName((string) $element->reporting_unit);
+            if ($fromElement !== null) {
+                return $fromElement;
+            }
+        }
+
+        return resolveReportingUnitIdFromAnalyte(
+            $result->analysis_type_id ? (string) $result->analysis_type_id : null,
+            $result->analyte_id ? (string) $result->analyte_id : null,
+            null,
+        );
     }
 
     /**
