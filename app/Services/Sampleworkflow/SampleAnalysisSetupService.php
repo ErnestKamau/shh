@@ -158,6 +158,14 @@ class SampleAnalysisSetupService
                 ?? $labSectionIdFromAnalysisType
                 ?? $this->resolveValidLabSectionId($element->lab_section_id);
 
+            if ($labSectionId === null) {
+                throw new \InvalidArgumentException(
+                    'Lab section is required to create captured results. Set lab_section_id on analysis type '
+                    . (string) $analysisTypeId
+                    . ' (or provide a valid lab section override).'
+                );
+            }
+
             $capturedResult = new CapturedResult();
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,

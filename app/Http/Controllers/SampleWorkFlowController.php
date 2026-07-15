@@ -47,6 +47,7 @@ use App\Models\System\SystemConfiguration;
 use App\Services\ResultRemarkService;
 use App\Services\Qc\QcBatchCompletionService;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\ProcessedResultSyncService;
 use App\Services\StandardLimitDisplayService;
 use App\Services\SubmissionFormPdfService;
@@ -2022,6 +2023,10 @@ class SampleWorkFlowController extends Controller
         // return response()->json($analaytesHolder);
         // ---------------------------------------
         $userLabSections = auth()->user()->labsectionids;
+        $labSectionAccess = app(LabSectionResultAccess::class);
+        $canEditLabSectionResults = $labSectionAccess->hasLabSectionAssignment(auth()->user());
+        $analaytesHolder = $labSectionAccess->filterAnalytesHolderForUser($analaytesHolder, auth()->user());
+        $analaytesHolderPesticide = $labSectionAccess->filterAnalytesHolderForUser($analaytesHolderPesticide, auth()->user());
         $customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
         $requestTypes = getRequestTypes();
         $notifiable_users = getNotifiableUsers();
@@ -2054,7 +2059,7 @@ class SampleWorkFlowController extends Controller
 
         $clients = $clients->sortBy('name')->values();
         // return response()->json($analaytesHolder);
-        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids', 'ltmethods', 'processed_results', 'raw_results', 'qc_schemes', 'qc_types', 'qc_config_perc', 'clientPageSize'));
+        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'canEditLabSectionResults', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids', 'ltmethods', 'processed_results', 'raw_results', 'qc_schemes', 'qc_types', 'qc_config_perc', 'clientPageSize'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -3219,10 +3224,24 @@ class SampleWorkFlowController extends Controller
     {
         $batchid = 0;
         $captureService = app(CapturedResultCaptureService::class);
+        $labSectionAccess = app(LabSectionResultAccess::class);
+        $actingUser = auth()->user();
         $actingUserId = auth()->id() ? (string) auth()->id() : null;
+
+        if (! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+            return redirect()->back()->with('error', 'Assign a lab section in your profile before capturing results.');
+        }
 
         foreach ($request->captured_result_id as $cID) {
             $captured = CapturedResult::find($cID);
+
+            if (! $captured) {
+                continue;
+            }
+
+            if (! $labSectionAccess->canEditCapturedResult($actingUser, $captured)) {
+                return redirect()->back()->with('error', 'You can only save parameters for your assigned lab section(s).');
+            }
 
             $batchid = $captured->sample_header_id;
             $batch = SampleHeader::find($batchid);
@@ -6719,8 +6738,12 @@ class SampleWorkFlowController extends Controller
                 }
             }
 
-            // Update batch status
-            $batch->status = $request->status;
+            // Update batch status and chain of custody
+            app(\App\Services\Sampleworkflow\BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+                $batch,
+                $request->status,
+                $request->comments ?? 'Moved to Sample Verification with assigned Technical Reviewer and Lab Manager.'
+            );
             $batch->report_status = '';
             $batch->prelim_report_status = 0;
             $batch->prelim_batch_status = '';
@@ -6745,7 +6768,11 @@ class SampleWorkFlowController extends Controller
         $approvers->batch_status = $request->status;
         $approvers->show_report = 1;
         $approvers->save();
-        $batch->status = $request->status;
+        app(\App\Services\Sampleworkflow\BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+            $batch,
+            $request->status,
+            $request->comments ?? null
+        );
         $batch->save();
         if (isset($request->notification)) {
             $user = User::find($request->user_id);
@@ -8314,10 +8341,25 @@ class SampleWorkFlowController extends Controller
                 return response()->json(['error' => 'No results to save'], 400);
             }
 
+            $labSectionAccess = app(LabSectionResultAccess::class);
+            $actingUser = auth()->user();
+
+            if (! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+                return response()->json([
+                    'error' => 'Assign a lab section in your profile before capturing results.',
+                ], 403);
+            }
+
             foreach ($captureResults as $resultData) {
                 $capturedResult = CapturedResult::find($resultData['parameter_id']);
 
                 if ($capturedResult) {
+                    if (! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
+                        return response()->json([
+                            'error' => 'You can only save parameters for your assigned lab section(s).',
+                        ], 403);
+                    }
+
                     $capturedResult->result = $resultData['result'];
                     $capturedResult->result_reporting_symbol = $resultData['reporting_symbol'] ?? '';
 
@@ -8390,6 +8432,23 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_id = $analyteRecord->id;
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
+            }
+
+            $labSectionAccess = app(LabSectionResultAccess::class);
+            $actingUser = auth()->user();
+            if ($capturedResult->exists && ! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $labSectionAccess->hasLabSectionAssignment($actingUser)
+                        ? 'You can only update parameters for your assigned lab section(s).'
+                        : 'Assign a lab section in your profile before capturing results.',
+                ], 403);
+            }
+            if (! $capturedResult->exists && ! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Assign a lab section in your profile before capturing results.',
+                ], 403);
             }
 
             $actingUserId = auth()->id() ? (string) auth()->id() : null;
@@ -8578,6 +8637,27 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_id = $analyteRecord->id;
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
+            }
+
+            if (! $capturedResult) {
+                return response()->json(['success' => false, 'message' => 'Result not found'], 404);
+            }
+
+            $labSectionAccess = app(LabSectionResultAccess::class);
+            $actingUser = auth()->user();
+            if ($capturedResult->exists && ! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $labSectionAccess->hasLabSectionAssignment($actingUser)
+                        ? 'You can only update parameters for your assigned lab section(s).'
+                        : 'Assign a lab section in your profile before capturing results.',
+                ], 403);
+            }
+            if (! $capturedResult->exists && ! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Assign a lab section in your profile before capturing results.',
+                ], 403);
             }
 
             $validationResult = null;

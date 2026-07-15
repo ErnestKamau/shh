@@ -27,6 +27,7 @@ use App\Models\Procedures\SampleProcedureStepTableInstance;
 use App\Models\Procedures\SampleProcedureStepTableRow;
 use App\Services\LogEntryWorksheets\LogEntryMandatoryFieldOptionsResolver;
 use App\Services\Procedures\ProcedureStepTableRowGeneratorService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\SampleHeader;
 use App\User;
 use App\SampleDetails;
@@ -602,6 +603,8 @@ class ProcedureWorksheetManager extends Component
         } else {
             $query->where('sample_header_id', $this->batchId);
         }
+
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
 
         $capturedResults = $query->with('sample')->get();
 
@@ -2377,6 +2380,22 @@ class ProcedureWorksheetManager extends Component
 
     public function save()
     {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        if (! $access->hasLabSectionAssignment($user)) {
+            session()->flash('error', $access->denyEditMessage($user));
+            return;
+        }
+
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        foreach ($selectedIds as $capturedResultId) {
+            $captured = CapturedResult::query()->find($capturedResultId);
+            if ($captured && ! $access->canEditCapturedResult($user, $captured)) {
+                session()->flash('error', $access->denyEditMessage($user));
+                return;
+            }
+        }
+
         $this->validate([
             'inputValues.*.*' => 'nullable', // string or array (per-measurand map)
             'configFieldValues.*.*' => 'nullable', // string or array (for dataset_multiselect)

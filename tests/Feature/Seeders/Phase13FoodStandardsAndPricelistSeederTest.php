@@ -9,8 +9,6 @@ use App\Company;
 use App\Country;
 use App\Lab;
 use App\Models\Billing\Pricelist;
-use App\Models\Billing\PricelistCustomer;
-use App\Models\Billing\PricelistItem;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Currency;
 use App\SampleType;
@@ -37,9 +35,9 @@ class Phase13FoodStandardsAndPricelistSeederTest extends TestCase
         config(['database.default' => 'pgsql']);
     }
 
-    public function test_seeder_creates_food_standard_limits_and_adnoc_pricelist(): void
+    public function test_seeder_creates_food_standard_limits_without_legacy_pricelist(): void
     {
-        $company = $this->seedPrerequisites();
+        $this->seedPrerequisites();
 
         $this->seed(
             Phase13FoodStandardsAndPricelistSeeder::class,
@@ -75,44 +73,12 @@ class Phase13FoodStandardsAndPricelistSeederTest extends TestCase
         $this->assertSame('min', $energyLimit->value_type);
         $this->assertSame('100', $energyLimit->standard_is_value);
 
-        $pricelist = Pricelist::query()
-            ->where('code', ClearsAmSpecFoodPricelistData::FOOD_PRICELIST_CODE)
-            ->first();
-
-        $this->assertNotNull($pricelist);
-        $this->assertNotNull($pricelist->valid_till);
-
-        $customer = CRMCustomer::query()
-            ->where('code', 'INT-ENRG-001')
-            ->first();
-
-        $this->assertTrue(
-            PricelistCustomer::query()
-                ->where('pricelist_id', $pricelist->id)
-                ->where('customer_id', $customer->id)
-                ->exists()
+        // Pricelists moved to Phase 14 (master + customer per-parameter + one package).
+        $this->assertNull(
+            Pricelist::query()
+                ->where('code', ClearsAmSpecFoodPricelistData::FOOD_PRICELIST_CODE)
+                ->first()
         );
-
-        $this->assertSame(
-            1,
-            PricelistItem::query()->where('pricelist_id', $pricelist->id)->count()
-        );
-
-        $packageItem = PricelistItem::query()
-            ->with('packageElements')
-            ->where('pricelist_id', $pricelist->id)
-            ->first();
-
-        $this->assertNotNull($packageItem);
-        $this->assertTrue((bool) $packageItem->is_package);
-        $this->assertNull($packageItem->analysis_element_id);
-        $this->assertCount(5, $packageItem->packageElements);
-
-        $analysisIds = PricelistItem::query()
-            ->where('pricelist_id', $pricelist->id)
-            ->pluck('analysis_id');
-
-        $this->assertSame($analysisIds->count(), $analysisIds->unique()->count());
 
         $this->assertSame(
             3,

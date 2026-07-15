@@ -10,7 +10,9 @@ use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\StageHeader;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -112,10 +114,10 @@ class WorksheetManager extends Component
 
     public function loadLogEntryWorksheetData(): void
     {
-        $ids = CapturedResult::where('sample_header_id', $this->batch->id)
-            ->whereNotNull('log_entry_worksheet_id')
-            ->distinct()
-            ->pluck('log_entry_worksheet_id');
+        $query = CapturedResult::where('sample_header_id', $this->batch->id)
+            ->whereNotNull('log_entry_worksheet_id');
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $ids = $query->distinct()->pluck('log_entry_worksheet_id');
 
         $this->logEntryWorksheets = LogEntryWorksheet::whereIn('id', $ids)
             ->where('is_active', true)
@@ -129,11 +131,11 @@ class WorksheetManager extends Component
 
     public function loadProcedureWorksheetData(): void
     {
-        $ids = CapturedResult::query()
+        $query = CapturedResult::query()
             ->where('sample_header_id', $this->batch->id)
-            ->whereNotNull('procedure_worksheet_id')
-            ->distinct()
-            ->pluck('procedure_worksheet_id');
+            ->whereNotNull('procedure_worksheet_id');
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $ids = $query->distinct()->pluck('procedure_worksheet_id');
 
         $this->procedureWorksheets = ProcedureWorksheet::query()
             ->whereIn('id', $ids)
@@ -153,6 +155,7 @@ class WorksheetManager extends Component
                 $q->whereHas('sample', function ($sq) {
                     $sq->where('sample_header_id', $this->batch->id);
                 });
+                app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($q, Auth::user());
             })
             ->with(['method', 'analyte', 'sampleType', 'testStages'])
             ->orderBy('name')
@@ -173,10 +176,11 @@ class WorksheetManager extends Component
 
     public function loadWorksheetData(): void
     {
-        $capturedResults = CapturedResult::where('sample_header_id', $this->batch->id)
+        $query = CapturedResult::where('sample_header_id', $this->batch->id)
             ->whereNotNull('formular_id')
-            ->with(['analysisElement', 'formular', 'sample'])
-            ->get();
+            ->with(['analysisElement', 'formular', 'sample']);
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $capturedResults = $query->get();
 
         $formulaIds = $capturedResults->whereNotNull('formular_id')
             ->pluck('formular_id')
@@ -192,10 +196,11 @@ class WorksheetManager extends Component
         }
 
         if (Schema::hasColumn('captured_results', 'has_no_result_capture')) {
-            $noCaptureResults = CapturedResult::where('sample_header_id', $this->batch->id)
+            $noCaptureQuery = CapturedResult::where('sample_header_id', $this->batch->id)
                 ->where('has_no_result_capture', 1)
-                ->with(['sample', 'analysis_type'])
-                ->get();
+                ->with(['sample', 'analysis_type']);
+            app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($noCaptureQuery, Auth::user());
+            $noCaptureResults = $noCaptureQuery->get();
 
             $this->groupedNoCaptureSamples = [];
 

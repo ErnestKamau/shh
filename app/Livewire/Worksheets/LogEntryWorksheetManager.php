@@ -15,7 +15,9 @@ use App\Services\LogEntryWorksheets\LogEntryColumnEvaluator;
 use App\Services\LogEntryWorksheets\LogEntryDatasetResolverService;
 use App\Services\LogEntryWorksheets\LogEntryMandatoryFieldOptionsResolver;
 use App\Services\LogEntryWorksheets\LogEntryRowGeneratorService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -54,12 +56,12 @@ class LogEntryWorksheetManager extends Component
 
     public function getAvailableWorksheetsProperty(): Collection
     {
-        $ids = CapturedResult::query()
+        $query = CapturedResult::query()
             ->where('sample_header_id', $this->batch->id)
             ->where('has_log_entry_worksheet', true)
-            ->whereNotNull('log_entry_worksheet_id')
-            ->distinct()
-            ->pluck('log_entry_worksheet_id');
+            ->whereNotNull('log_entry_worksheet_id');
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $ids = $query->distinct()->pluck('log_entry_worksheet_id');
 
         if ($this->selectedWorksheetId !== null && $this->selectedWorksheetId !== '') {
             $ids = $ids->push($this->selectedWorksheetId)->unique()->values();
@@ -225,6 +227,13 @@ class LogEntryWorksheetManager extends Component
 
     public function saveWorksheet(): void
     {
+        $access = app(LabSectionResultAccess::class);
+        if (! $access->hasLabSectionAssignment(Auth::user())) {
+            session()->flash('log_entry_error', $access->denyEditMessage(Auth::user()));
+
+            return;
+        }
+
         $this->saveMandatoryFields();
         $this->persistAllCells();
         session()->flash('log_entry_message', 'Worksheet saved.');
@@ -232,6 +241,13 @@ class LogEntryWorksheetManager extends Component
 
     public function postWorksheet(): void
     {
+        $access = app(LabSectionResultAccess::class);
+        if (! $access->hasLabSectionAssignment(Auth::user())) {
+            session()->flash('log_entry_error', $access->denyEditMessage(Auth::user()));
+
+            return;
+        }
+
         $this->validateBeforePost();
         $this->saveWorksheet();
 
@@ -272,16 +288,24 @@ class LogEntryWorksheetManager extends Component
                 ->orderBy('sample_code')
                 ->get()
                 ->map(fn ($s) => (object) ['id' => (string) $s->id, 'label' => $s->sample_code]),
-            'captured_results' => CapturedResult::where('sample_header_id', $this->batch->id)
-                ->when($this->selectedWorksheetId, fn ($q) => $q->where('log_entry_worksheet_id', $this->selectedWorksheetId))
-                ->with('analyte')
-                ->get()
-                ->map(fn ($cr) => (object) [
-                    'id' => (string) $cr->analyte_id,
-                    'label' => $cr->analyte?->name ?? $cr->sample_detail_code,
-                ]),
+            'captured_results' => $this->scopedCapturedResultsForLogEntryDataset(),
             default => collect(),
         };
+    }
+
+    protected function scopedCapturedResultsForLogEntryDataset(): Collection
+    {
+        $query = CapturedResult::where('sample_header_id', $this->batch->id)
+            ->when($this->selectedWorksheetId, fn ($q) => $q->where('log_entry_worksheet_id', $this->selectedWorksheetId));
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+
+        return $query
+            ->with('analyte')
+            ->get()
+            ->map(fn ($cr) => (object) [
+                'id' => (string) $cr->analyte_id,
+                'label' => $cr->analyte?->name ?? $cr->sample_detail_code,
+            ]);
     }
 
     protected function bootstrapSelection(): void

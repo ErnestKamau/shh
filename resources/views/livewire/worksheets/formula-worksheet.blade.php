@@ -7,6 +7,18 @@
         </div>
     @endif
 
+    @if($worksheetsReadOnly)
+        <div class="alert alert-warning border mb-3">
+            <i class="mdi mdi-lock-outline"></i>
+            Assign a lab section in your profile before capturing worksheet results. You can view data but cannot save or post.
+        </div>
+    @elseif($worksheetsSectionFiltered)
+        <div class="alert alert-light border mb-3">
+            <i class="mdi mdi-flask-outline text-primary"></i>
+            Showing worksheet rows for your lab section(s) only.
+        </div>
+    @endif
+
     <!-- Formula Info -->
     <div class="alert alert-light border mb-4">
         <div class="d-flex align-items-start">
@@ -92,6 +104,7 @@
                         <span class="font-weight-bold text-dark">Tabular Worksheet Entry</span>
                     </div>
                     <div>
+                        @if(! $worksheetsReadOnly)
                         <button type="button" class="btn btn-sm btn-outline-primary" wire:click="saveWorksheetLevel" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="saveWorksheetLevel">
                                 <i class="mdi mdi-content-save"></i> Save All
@@ -100,6 +113,7 @@
                                 <i class="mdi mdi-loading mdi-spin"></i> Saving...
                             </span>
                         </button>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -531,6 +545,7 @@
             @endif
 
         {{-- ── Section 3: Save button ───────────────────────────────────────────── --}}
+        @if(! $worksheetsReadOnly)
         <div class="d-flex justify-content-end mb-4">
             <button type="button" class="btn fws-save-btn"
                     wire:click="saveWorksheetLevel"
@@ -543,6 +558,7 @@
                 </span>
             </button>
         </div>
+        @endif
 
         @foreach($formulaSteps->where('step_type', 'custom_table')->sortBy('step_number') as $step)
             @include('livewire.worksheets.partials.formula-step-custom-table', ['step' => $step])
@@ -710,9 +726,10 @@
                                 </div>
                             </div>
 
-                            <div class="alert alert-light border">
-                                <i class="mdi mdi-clipboard-text-outline"></i>
-                                <strong>Results to be posted</strong>
+                            <div class="alert alert-info">
+                                <i class="mdi mdi-information"></i>
+                                <strong>Confirm or update standards</strong> for each result before posting.
+                                Changes update the shared sample standards and affect future results.
                             </div>
 
                             <div class="table-responsive">
@@ -722,8 +739,11 @@
                                             <th>Sample Code</th>
                                             <th>Analyte</th>
                                             <th>Result</th>
-                                            <th>Reporting Symbol</th>
-                                            <th>Standard</th>
+                                            <th style="min-width: 200px;">Main Standard</th>
+                                            <th style="min-width: 200px;">Secondary Standard</th>
+                                            @if($lookupStandardInfo)
+                                                <th>Use Lookup</th>
+                                            @endif
                                             <th>Standard Limits</th>
                                             <th>Remark</th>
                                             <th>Method</th>
@@ -732,25 +752,112 @@
                                     </thead>
                                     <tbody>
                                         @foreach($postResultsPreviewRows as $row)
+                                            @php
+                                                $sampleId = (string) ($row['sample_id'] ?? '');
+                                                $remark = strtoupper(trim((string) ($row['remark'] ?? '')));
+                                                $isPass = $remark === 'PASS' || $remark === 'COMPLIANT';
+                                                $isFail = $remark === 'FAIL' || $remark === 'NON-COMPLIANT';
+                                            @endphp
                                             <tr wire:key="post-preview-{{ $row['captured_result_id'] }}">
                                                 <td><strong>{{ $row['sample_code'] }}</strong></td>
-                                                <td>{{ $row['analyte'] }}</td>
-                                                <td>{{ $row['result'] }}</td>
-                                                <td>{{ $row['reporting_symbol'] ?: '—' }}</td>
-                                                <td>{{ $row['standard'] ?: '—' }}</td>
-                                                <td>{{ $row['standard_limits'] }}</td>
+                                                <td>{{ $row['analyte'] ?: '—' }}</td>
                                                 <td>
-                                                    @php
-                                                        $remark = strtoupper(trim((string) ($row['remark'] ?? '')));
-                                                        $isPass = $remark === 'PASS' || $remark === 'COMPLIANT';
-                                                        $isFail = $remark === 'FAIL' || $remark === 'NON-COMPLIANT';
-                                                    @endphp
+                                                    @if(!empty($row['reporting_symbol']))
+                                                        {{ $row['reporting_symbol'] }}
+                                                    @endif
+                                                    {{ $row['result'] !== '' ? $row['result'] : '—' }}
+                                                </td>
+                                                <td>
+                                                    <div class="tag-select-container" wire:click="toggleMainStandardDropdown(@js($sampleId))">
+                                                        <div class="tag-select-input">
+                                                            @if(!empty($row['main_standard']))
+                                                                <span class="tag-badge">
+                                                                    {{ $this->getSelectedStandardName($row['main_standard']) }}
+                                                                    <i class="mdi mdi-close-circle"
+                                                                       wire:click.stop="updateSampleStandard(@js($sampleId), 'main', null)"></i>
+                                                                </span>
+                                                            @endif
+                                                            <input type="text"
+                                                                   wire:model.live="mainStandardSearch.{{ $sampleId }}"
+                                                                   wire:keyup="searchMainStandards(@js($sampleId))"
+                                                                   class="tag-input"
+                                                                   placeholder="{{ !empty($row['main_standard']) ? '' : 'Not Set' }}"
+                                                                   autocomplete="off">
+                                                        </div>
+                                                        @if(!empty($showMainStandardDropdown[$sampleId]))
+                                                            <div class="tag-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 280px; max-width: 400px;">
+                                                                <div style="max-height: 200px; overflow-y: auto;">
+                                                                    <div class="tag-dropdown-item"
+                                                                         wire:click.stop="updateSampleStandard(@js($sampleId), 'main', null)">
+                                                                        <span class="text-muted">Not Set</span>
+                                                                    </div>
+                                                                    @foreach($filteredMainStandards[$sampleId] ?? $availableStandards as $standard)
+                                                                        <div class="tag-dropdown-item"
+                                                                             wire:click.stop="updateSampleStandard(@js($sampleId), 'main', @js($standard->id))">
+                                                                            {{ $standard->name }} ({{ $standard->code }})
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="tag-select-container" wire:click="toggleSecondaryStandardDropdown(@js($sampleId))">
+                                                        <div class="tag-select-input">
+                                                            @if(!empty($row['secondary_standard']))
+                                                                <span class="tag-badge">
+                                                                    {{ $this->getSelectedStandardName($row['secondary_standard']) }}
+                                                                    <i class="mdi mdi-close-circle"
+                                                                       wire:click.stop="updateSampleStandard(@js($sampleId), 'secondary', null)"></i>
+                                                                </span>
+                                                            @endif
+                                                            <input type="text"
+                                                                   wire:model.live="secondaryStandardSearch.{{ $sampleId }}"
+                                                                   wire:keyup="searchSecondaryStandards(@js($sampleId))"
+                                                                   class="tag-input"
+                                                                   placeholder="{{ !empty($row['secondary_standard']) ? '' : 'Not Set' }}"
+                                                                   autocomplete="off">
+                                                        </div>
+                                                        @if(!empty($showSecondaryStandardDropdown[$sampleId]))
+                                                            <div class="tag-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 280px; max-width: 400px;">
+                                                                <div style="max-height: 200px; overflow-y: auto;">
+                                                                    <div class="tag-dropdown-item"
+                                                                         wire:click.stop="updateSampleStandard(@js($sampleId), 'secondary', null)">
+                                                                        <span class="text-muted">Not Set</span>
+                                                                    </div>
+                                                                    @foreach($filteredSecondaryStandards[$sampleId] ?? $availableStandards as $standard)
+                                                                        <div class="tag-dropdown-item"
+                                                                             wire:click.stop="updateSampleStandard(@js($sampleId), 'secondary', @js($standard->id))">
+                                                                            {{ $standard->name }} ({{ $standard->code }})
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                @if($lookupStandardInfo)
+                                                    <td class="text-center">
+                                                        <div class="form-check d-inline-block">
+                                                            <input type="checkbox"
+                                                                   class="form-check-input"
+                                                                   wire:model.live="useLookupAsStandard.{{ $sampleId }}"
+                                                                   id="use-lookup-{{ $row['captured_result_id'] }}">
+                                                            <label class="form-check-label" for="use-lookup-{{ $row['captured_result_id'] }}">
+                                                                <small class="text-muted d-block">{{ $lookupStandardInfo['name'] ?? 'Lookup' }}</small>
+                                                            </label>
+                                                        </div>
+                                                    </td>
+                                                @endif
+                                                <td>{{ $row['standard_limits'] ?: '—' }}</td>
+                                                <td>
                                                     @if($isPass)
                                                         <span class="badge badge-success">{{ $remark }}</span>
                                                     @elseif($isFail)
                                                         <span class="badge badge-danger">{{ $remark }}</span>
                                                     @elseif($remark !== '' && $remark !== '-')
-                                                        <span class="badge badge-secondary">{{ $remark }}</span>
+                                                        <span class="badge badge-secondary">{{ $row['remark'] }}</span>
                                                     @else
                                                         —
                                                     @endif
@@ -761,6 +868,18 @@
                                         @endforeach
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <div class="alert alert-warning mt-3 mb-0">
+                                <i class="mdi mdi-alert"></i>
+                                <strong>Note:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Standard changes update the shared sample record and affect future results</li>
+                                    @if($lookupStandardInfo)
+                                        <li>When "Use Lookup" is checked, remark comes from the lookup table instead of standard-based PASS/FAIL</li>
+                                    @endif
+                                    <li>Posting will use the standards and remark mode shown above</li>
+                                </ul>
                             </div>
                         @else
                             <!-- Progress Tracking View -->

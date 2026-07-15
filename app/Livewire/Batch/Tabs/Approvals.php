@@ -4,6 +4,7 @@ namespace App\Livewire\Batch\Tabs;
 
 use App\BatchLabSectionApprover;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
 use App\Services\WorkflowService;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -191,19 +192,14 @@ class Approvals extends Component
             $new_ammendment->version_number = $this->batch->is_amendment + 1;
             $new_ammendment->save();
 
-            // Log Chain of Custody
-            $custody = new \App\ChainOfCustody();
-            $custody->sample_header_id = $this->batch->id;
-            $custody->workflow_stage = 'Samples In Lab';
-            $custody->tracking_stage_id = $this->batch->sample_tracking_stage;
-            $custody->moved_in_by = auth()->id();
-            $custody->comments = 'Sent back to lab for amendment by ' . auth()->user()->name . '. Reason: ' . $this->statusForm['remark'];
-            $custody->save();
-
-            // Revert batch
+            // Revert batch and close prior open custody before opening Samples In Lab
             $this->batch->is_amendment = $new_ammendment->version_number;
-            $this->batch->status = 'Samples In Lab';
             $this->batch->in_ammendment_proccess = 1;
+            app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+                $this->batch,
+                'Samples In Lab',
+                'Sent back to lab for amendment by ' . auth()->user()->name . '. Reason: ' . $this->statusForm['remark']
+            );
             $this->batch->save();
 
             $approver->status = $persistedStatus;

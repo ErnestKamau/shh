@@ -22,6 +22,7 @@ use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\Services\ResultRemarkService;
 use Livewire\Component;
@@ -116,6 +117,10 @@ class Samples extends Component
     public $showParametersModal = false;
     public $selectedSampleCode = null;
     public $sampleParameters = [];
+    /** True when the user has no lab section assignment (view-all, edit-none). */
+    public bool $parametersReadOnly = false;
+    /** True when rows were filtered to the user's assigned lab section(s). */
+    public bool $parametersSectionFiltered = false;
     public $activeField = '';
 
     public $activeRowIndex = null;
@@ -305,10 +310,16 @@ class Samples extends Component
     protected function loadIncompleteCapturedResults(): void
     {
         try {
-            $rows = CapturedResult::where('sample_header_id', $this->batchId)
+            $access = app(LabSectionResultAccess::class);
+            $user = auth()->user();
+
+            $query = CapturedResult::where('sample_header_id', $this->batchId)
                 ->whereValidUuidAnalyteId()
-                ->with(['sample', 'analysis_type', 'my_analyte'])
-                ->get();
+                ->with(['sample', 'analysis_type', 'my_analyte']);
+
+            $access->scopeVisibleCapturedResults($query, $user);
+
+            $rows = $query->get();
 
             $items = [];
             foreach ($rows as $cr) {
@@ -2155,12 +2166,19 @@ class Samples extends Component
 
             $this->uncertaintyRequired = $this->batch->require_mu == 1;
 
+            $access = app(LabSectionResultAccess::class);
+            $user = auth()->user();
+            $this->parametersReadOnly = ! $access->hasLabSectionAssignment($user);
+            $this->parametersSectionFiltered = $access->hasLabSectionAssignment($user);
+
             // Use Eloquent so SafeEncrypted casts decrypt analyte_code, result, remark, etc.
             $capturedResultsQuery = CapturedResult::query()
                 ->where('sample_detail_code', $sampleCode)
                 ->where('sample_header_id', $this->batch->id)
                 ->orderBy('analysis_type_order')
                 ->orderBy('parameters_order');
+
+            $access->scopeVisibleCapturedResults($capturedResultsQuery, $user);
 
             if ($hasAttachmentColumn) {
                 $capturedResultsQuery->with('batchAttachment');
@@ -2170,6 +2188,9 @@ class Samples extends Component
 
             if ($capturedResults->isEmpty()) {
                 $this->sampleParameters = [];
+                $this->parametersForm = [];
+                $this->parameterLabSections = [];
+                $this->dateOfAnalysisBySection = [];
                 $this->showParametersModal = true;
                 return;
             }
@@ -2323,7 +2344,7 @@ class Samples extends Component
                 ];
             }
 
-            // Unique lab sections for Date of Analysis row: from parameters, or fall back to batch's lab sections
+            // Unique lab sections for Date of Analysis row: from (already visibility-filtered) parameters
             $uniqueSectionIds = collect($parameters)->pluck('lab_section_id')->filter()->unique()->values();
             $this->parameterLabSections = [];
             foreach ($uniqueSectionIds as $sid) {
@@ -2332,8 +2353,10 @@ class Samples extends Component
                     $this->parameterLabSections[$sid] = $stage->name . ' - ' . $stage->code;
                 }
             }
-            // If no sections from parameters (e.g. not yet assigned), use batch's lab sections so Date row still shows
-            if (empty($this->parameterLabSections) && !empty($this->batch->lab_section_ids)) {
+
+            // Unassigned (view-all): if no sections on rows, fall back to batch sections so Date row still shows.
+            // Section-scoped users must not see foreign batch sections.
+            if (empty($this->parameterLabSections) && ! $this->parametersSectionFiltered && ! empty($this->batch->lab_section_ids)) {
                 $batchSectionIds = array_filter(explode(',', $this->batch->lab_section_ids));
                 foreach ($batchSectionIds as $sid) {
                     $stage = SampleAnalysisStage::find($sid);
@@ -2350,6 +2373,10 @@ class Samples extends Component
                     continue;
                 }
 
+                if ($this->parametersSectionFiltered && ! isset($this->parameterLabSections[$secId])) {
+                    continue;
+                }
+
                 $this->dateOfAnalysisBySection[$secId] = $range['start_date'] ?? '';
             }
             // Ensure every parameter section has an entry
@@ -2362,8 +2389,8 @@ class Samples extends Component
             // Lab sections for dropdown (Parameters modal)
             $this->modalLabSections = SampleAnalysisStage::where('active', 1)->where('is_system', 0)->orderBy('name')->get();
 
-            // If still no sections (batch has none), use all active sections so Date of Analysis row is always visible
-            if (empty($this->parameterLabSections) && $this->modalLabSections->isNotEmpty()) {
+            // If still no sections (batch has none), use all active sections only for unassigned view-all users
+            if (empty($this->parameterLabSections) && ! $this->parametersSectionFiltered && $this->modalLabSections->isNotEmpty()) {
                 foreach ($this->modalLabSections as $stage) {
                     $this->parameterLabSections[$stage->id] = $stage->name . ' - ' . $stage->code;
                 }
@@ -2412,6 +2439,10 @@ class Samples extends Component
             return;
         }
 
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
+            return;
+        }
+
         $result = trim($result);
         $this->parametersForm[$id]['result'] = $result;
         $this->parametersForm[$id]['result_confirmation'] = $result;
@@ -2424,6 +2455,10 @@ class Samples extends Component
     public function clearParameterResult(string $id): void
     {
         if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
             return;
         }
 
@@ -2511,6 +2546,11 @@ class Samples extends Component
 
     public function openEditStandardModal($id, $level = 1)
     {
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow((string) $id)) {
+            session()->flash('error', 'Assign a lab section in your profile before editing standards.');
+            return;
+        }
+
         if (!isset($this->parametersForm[$id])) {
             session()->flash('error', "Error: Parameter ID $id not found in form.");
             return;
@@ -2577,6 +2617,12 @@ class Samples extends Component
     public function saveStandardLimit()
     {
         $data = $this->editingStandardData;
+        $capturedId = (string) ($data['captured_result_id'] ?? '');
+
+        if ($this->parametersReadOnly || ($capturedId !== '' && ! $this->userCanEditParameterRow($capturedId))) {
+            session()->flash('error', 'You can only edit standards for your assigned lab section(s).');
+            return;
+        }
 
         // Find or create
         $stdAnalyte = \App\StandardAnalytes::where('standard_id', $data['standard_id'])
@@ -2679,6 +2725,22 @@ class Samples extends Component
     public function saveParameters(): void
     {
         try {
+            $access = app(LabSectionResultAccess::class);
+            $user = auth()->user();
+
+            if (! $access->hasLabSectionAssignment($user)) {
+                session()->flash('error', 'Assign a lab section in your profile before capturing results.');
+                return;
+            }
+
+            foreach (array_keys($this->parametersForm) as $id) {
+                $captured = CapturedResult::query()->find($id);
+                if (! $captured || ! $access->canEditCapturedResult($user, $captured)) {
+                    session()->flash('error', 'You can only save parameters for your assigned lab section(s).');
+                    return;
+                }
+            }
+
             foreach (array_keys($this->parametersForm) as $id) {
                 $this->evaluateResult($id);
             }
@@ -2702,11 +2764,16 @@ class Samples extends Component
                     continue;
                 }
 
+                if (! $access->canEditCapturedResult($user, $captured)) {
+                    continue;
+                }
+
                 $equipmentIds = $this->normalizeEquipmentIds(
                     $data['equipment_ids'] ?? null,
                     $data['equipment_id'] ?? null
                 );
 
+                // Keep persisted lab_section_id; do not trust form-posted section for auth.
                 $saveAttributes = [
                     'result' => $data['result'] ?: null,
                     'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
@@ -2714,7 +2781,7 @@ class Samples extends Component
                     'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
                     'method_id' => $this->normalizeNullableForeignKey($data['method_id'] ?? null),
                     'equipment_id' => $equipmentIds[0] ?? null,
-                    'lab_section_id' => $this->normalizeNullableForeignKey($data['lab_section_id'] ?? null),
+                    'lab_section_id' => $captured->lab_section_id,
                     'analyte_status_contracted' => ! empty($data['subcontracted']) ? 1 : 0,
                     'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
                 ];
@@ -3164,6 +3231,20 @@ class Samples extends Component
             return;
         }
 
+        $access = app(LabSectionResultAccess::class);
+        $user = auth()->user();
+
+        if (! $access->hasLabSectionAssignment($user)) {
+            session()->flash('error', 'Assign a lab section in your profile before changing sections.');
+            return;
+        }
+
+        $allowedSections = $access->allowedLabSectionIds($user);
+        if (! in_array((string) $this->changeSectionLabSectionId, $allowedSections, true)) {
+            session()->flash('error', 'You can only change parameters to your assigned lab section(s).');
+            return;
+        }
+
         $capturedIds = array_keys($this->parametersForm);
         if (empty($capturedIds)) {
             session()->flash('error', 'No parameters to update.');
@@ -3177,6 +3258,13 @@ class Samples extends Component
 
         try {
             $capturedResults = CapturedResult::whereIn('id', $capturedIds)->get();
+
+            foreach ($capturedResults as $cr) {
+                if (! $access->canEditCapturedResult($user, $cr)) {
+                    session()->flash('error', 'You can only change lab section for parameters in your assigned section(s).');
+                    return;
+                }
+            }
 
             foreach ($capturedResults as $cr) {
                 if ($this->changeSectionAffectBatch) {
@@ -3228,12 +3316,25 @@ class Samples extends Component
         $this->showParametersModal = false;
         $this->selectedSampleCode = null;
         $this->sampleParameters = [];
+        $this->parametersForm = [];
+        $this->parametersReadOnly = false;
+        $this->parametersSectionFiltered = false;
         $this->dateOfAnalysisBySection = [];
         $this->parameterLabSections = [];
         $this->showChangeSectionPanel = false;
         $this->changeSectionLabSectionId = '';
         $this->changeSectionAffectBatch = false;
         $this->changeSectionAffectAll = true;
+    }
+
+    private function userCanEditParameterRow(string $id): bool
+    {
+        $captured = CapturedResult::query()->find($id);
+        if (! $captured) {
+            return false;
+        }
+
+        return app(LabSectionResultAccess::class)->canEditCapturedResult(auth()->user(), $captured);
     }
 
     // ========== Comments & Interpretations Feature ==========

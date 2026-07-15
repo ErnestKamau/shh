@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use App\CapturedResult;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,10 +22,13 @@ trait HandlesStageHeaderMethodSequences
         }
 
         // Query captured results with stage_header_id not null
-        $capturedResults = $batch->captured_results()
+        $query = $batch->captured_results()
             ->whereNotNull('stage_header_id')
-            ->with(['stageHeader.testStages', 'stageHeader.method', 'stageHeader.analyte', 'stageHeader.sampleType'])
-            ->get();
+            ->with(['stageHeader.testStages', 'stageHeader.method', 'stageHeader.analyte', 'stageHeader.sampleType']);
+
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+
+        $capturedResults = $query->get();
 
         // Group by stage_header_id and get unique stage headers
         $stageHeaders = $capturedResults->groupBy('stage_header_id')
@@ -880,6 +884,15 @@ trait HandlesStageHeaderMethodSequences
                 'message' => 'This stage is completed and cannot be edited.',
             ], 422);
         }
+
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        if (! $access->hasLabSectionAssignment($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => $access->denyEditMessage($user),
+            ], 403);
+        }
         
         $sampleResults = $request->sample_results ?? [];
         $mediaResults = $request->media_results ?? [];
@@ -895,13 +908,17 @@ trait HandlesStageHeaderMethodSequences
         }
         
         try {
-            DB::transaction(function () use ($trackId, $sampleResults, $mediaResults, $controlResults, $diluentResults, $track) {
+            DB::transaction(function () use ($trackId, $sampleResults, $mediaResults, $controlResults, $diluentResults, $track, $access, $user) {
                 // *** SAVE SAMPLE RESULTS TO STAGING TABLE (TrackSampleResult) ***
                 // NOT to CapturedResult - that only happens on POST
                 foreach ($sampleResults as $result) {
                     $capturedResult = \App\CapturedResult::find($result['captured_result_id']);
                     if (!$capturedResult) {
                         continue;
+                    }
+
+                    if (! $access->canEditCapturedResult($user, $capturedResult)) {
+                        throw new \Exception($access->denyEditMessage($user));
                     }
 
                     // Find the correct track for this sample
@@ -1086,11 +1103,13 @@ trait HandlesStageHeaderMethodSequences
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
+            $status = str_contains(strtolower($e->getMessage()), 'lab section') ? 403 : 500;
             
             return response()->json([
                 'success' => false,
-                'message' => 'Error saving results: ' . $e->getMessage()
-            ], 500);
+                'message' => ($status === 403 ? '' : 'Error saving results: ') . $e->getMessage()
+            ], $status);
         }
     }
 
@@ -1809,13 +1828,23 @@ trait HandlesStageHeaderMethodSequences
         $trackingData = $request->tracking_data;
         $startAnalysisDate = $request->input('start_analysis_date');
         $endAnalysisDate = $request->input('end_analysis_date');
+
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        if (! $access->hasLabSectionAssignment($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => $access->denyEditMessage($user),
+            ], 403);
+        }
         
         // If batch_id provided and tracking_data is empty, fetch all result-stage tracks with saved results
         if ($batchId && (empty($trackingData) || !is_array($trackingData))) {
             try {
-                $trackIds = \App\Models\TrackSampleResult::query()
-                    ->whereHas('track.capturedResult', function ($q) use ($batchId) {
+                $trackIdsQuery = \App\Models\TrackSampleResult::query()
+                    ->whereHas('track.capturedResult', function ($q) use ($batchId, $access, $user) {
                         $q->where('sample_header_id', $batchId);
+                        $access->scopeVisibleCapturedResults($q, $user);
                     })
                     ->whereHas('track.testStage', function ($q) {
                         $q->where('is_result_stage', true)
@@ -1825,13 +1854,13 @@ trait HandlesStageHeaderMethodSequences
                     ->pluck('track_id')
                     ->toArray();
 
-                if (empty($trackIds)) {
+                if (empty($trackIdsQuery)) {
                     return response()->json(['success' => false, 'message' => 'No saved results found to post for this batch.'], 400);
                 }
 
                 // Build tracking data from saved results
                 $trackingData = [];
-                foreach ($trackIds as $trackId) {
+                foreach ($trackIdsQuery as $trackId) {
                     $trackingData[] = ['track_id' => $trackId];
                 }
             } catch (\Throwable $e) {
@@ -1842,7 +1871,7 @@ trait HandlesStageHeaderMethodSequences
         }
 
         try {
-            DB::transaction(function () use ($trackingData, $batchId, $startAnalysisDate, $endAnalysisDate) {
+            DB::transaction(function () use ($trackingData, $batchId, $startAnalysisDate, $endAnalysisDate, $access, $user) {
                 foreach ($trackingData as $data) {
                     $trackId = $data['track_id'] ?? null;
                     if (!$trackId) {
@@ -1864,6 +1893,10 @@ trait HandlesStageHeaderMethodSequences
                     $captured = $track->capturedResult;
                     if (!$captured) {
                         throw new \Exception("Captured result not found for track: {$trackId}");
+                    }
+
+                    if (! $access->canEditCapturedResult($user, $captured)) {
+                        throw new \Exception($access->denyEditMessage($user));
                     }
 
                     // *** KEY: Load from TrackSampleResult (if exists) or use data from request ***
@@ -2022,10 +2055,12 @@ trait HandlesStageHeaderMethodSequences
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            $status = str_contains(strtolower($e->getMessage() ?? ''), 'lab section') ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage() ?? 'Error posting results',
-            ], 500);
+            ], $status);
         }
     }
 
@@ -2043,8 +2078,12 @@ trait HandlesStageHeaderMethodSequences
             \Log::debug('getTrackSampleResults called', ['batch_id' => $batch]);
 
             // Get all SampleCapturedTestStagesTrack records with completed results for this batch
-            $trackingRecords = \App\Models\SampleCapturedTestStagesTrack::whereHas('capturedResult', function($q) use ($batch) {
+            $access = app(LabSectionResultAccess::class);
+            $user = Auth::user();
+
+            $trackingRecords = \App\Models\SampleCapturedTestStagesTrack::whereHas('capturedResult', function($q) use ($batch, $access, $user) {
                     $q->where('sample_header_id', $batch);
+                    $access->scopeVisibleCapturedResults($q, $user);
                 })
                 ->whereHas('testStage', function ($q) {
                     $q->where('is_result_stage', true)

@@ -443,7 +443,11 @@ class Header extends Component
         $status = 'Sample Verification';
 
         if ($level == '0') {
-            app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus($batch, $status);
+            app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+                $batch,
+                $status,
+                'Moved to Sample Verification from Samples In Lab.'
+            );
         }
         $batch->report_status = ($level == '0') ? (int) $level : $batch->report_status;
         $batch->prelim_report_status = ($level != '0') ? (int) $level : $batch->prelim_report_status;
@@ -675,8 +679,12 @@ class Header extends Component
         $approver->show_report = 1;
         $approver->save();
 
-        // Update batch status and keep tracking stage aligned with workflow
-        app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus($batch, 'Sample Approval');
+        // Update batch status, tracking stage, and chain of custody
+        app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+            $batch,
+            'Sample Approval',
+            $this->approvalData['comments'] ?: 'Moved to Sample Approval from Sample Verification.'
+        );
         $batch->save();
         $this->batch->refresh();
 

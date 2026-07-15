@@ -13,6 +13,7 @@ use App\Models\Formulars\SampleFormulaStepTableRow;
 use App\Models\Worksheets\SampleCapturedWorksheetFormula;
 use App\Services\Formulars\FormulaStepCheckboxOptionsResolver;
 use App\Services\Formulars\FormulaStepTableRowGeneratorService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
 use App\SampleHeader;
@@ -104,6 +105,12 @@ class FormulaWorksheet extends Component
     public $message = '';
     public $messageType = '';
 
+    /** True when the user has no lab section assignment (view-all, edit-none). */
+    public bool $worksheetsReadOnly = false;
+
+    /** True when rows were filtered to the user's assigned lab section(s). */
+    public bool $worksheetsSectionFiltered = false;
+
     // Post Results Modal & Status
     public $showPostResultsModal = false;
     public $samplesWithStandards = [];
@@ -154,6 +161,11 @@ class FormulaWorksheet extends Component
 
     public function loadData(): void
     {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        $this->worksheetsReadOnly = ! $access->hasLabSectionAssignment($user);
+        $this->worksheetsSectionFiltered = $access->hasLabSectionAssignment($user);
+
         $this->capturedResults = $this->loadCapturedResultsForWorksheet();
 
         // Get formula steps (input, derived, dataset, lookup)
@@ -186,6 +198,8 @@ class FormulaWorksheet extends Component
         } else {
             $query->where('formular_id', $this->formula->id);
         }
+
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
 
         return $query
             ->orderBy('analysis_type_order')
@@ -474,6 +488,12 @@ class FormulaWorksheet extends Component
     public function saveWorksheetLevel(): void
     {
         try {
+            $access = app(LabSectionResultAccess::class);
+            if (! $access->hasLabSectionAssignment(Auth::user())) {
+                $this->setMessage($access->denyEditMessage(Auth::user()), 'error');
+                return;
+            }
+
             DB::beginTransaction();
 
             foreach ($this->capturedResults as $captured) {
@@ -531,6 +551,11 @@ class FormulaWorksheet extends Component
 
             $captured = CapturedResult::with(['sample.sample_point', 'analysisElement.analyte'])
                 ->findOrFail($capturedResultId);
+
+            $access = app(LabSectionResultAccess::class);
+            if (! $access->canEditCapturedResult(Auth::user(), $captured)) {
+                throw new \Exception($access->denyEditMessage(Auth::user()));
+            }
 
             // Create or update worksheet
             $worksheet = SampleCapturedWorksheetFormula::updateOrCreate(
@@ -1465,6 +1490,12 @@ class FormulaWorksheet extends Component
     public function openPostResultsModal(): void
     {
         try {
+            $access = app(LabSectionResultAccess::class);
+            if (! $access->hasLabSectionAssignment(Auth::user())) {
+                $this->setMessage($access->denyEditMessage(Auth::user()), 'error');
+                return;
+            }
+
             // Load available standards for dropdowns
             $this->availableStandards = \App\Standards::where('status', 1)
                 ->orderBy('name')
@@ -1472,11 +1503,22 @@ class FormulaWorksheet extends Component
 
             // Get unique samples with analysis types
             $samples = [];
+            $this->useLookupAsStandard = [];
+            $this->showMainStandardDropdown = [];
+            $this->showSecondaryStandardDropdown = [];
+            $this->mainStandardSearch = [];
+            $this->secondaryStandardSearch = [];
+            $this->filteredMainStandards = [];
+            $this->filteredSecondaryStandards = [];
 
             foreach ($this->capturedResults as $captured) {
                 $sample = $captured->sample;
-                if (!isset($samples[$sample->id])) {
-                    // Get unique analysis types for this sample
+                if (! $sample) {
+                    continue;
+                }
+
+                $sampleId = (string) $sample->id;
+                if (! isset($samples[$sampleId])) {
                     $analysisTypeNames = $this->capturedResults
                         ->where('sample_detail_id', $sample->id)
                         ->map(function ($cr) {
@@ -1486,14 +1528,15 @@ class FormulaWorksheet extends Component
                         ->filter()
                         ->implode(', ');
 
-                    $samples[$sample->id] = [
-                        'id' => $sample->id,
+                    $samples[$sampleId] = [
+                        'id' => $sampleId,
                         'sample_code' => $sample->sample_code,
                         'analysis_types' => $analysisTypeNames ?: 'N/A',
-                        'main_standard' => $sample->main_standard,
-                        'secondary_standard' => $sample->secondary_standard,
-                        'third_standard_id' => $sample->third_standard_id,
+                        'main_standard' => $sample->main_standard ? (string) $sample->main_standard : null,
+                        'secondary_standard' => $sample->secondary_standard ? (string) $sample->secondary_standard : null,
+                        'third_standard_id' => $sample->third_standard_id ? (string) $sample->third_standard_id : null,
                     ];
+                    $this->useLookupAsStandard[$sampleId] = false;
                 }
             }
 
@@ -1543,27 +1586,20 @@ class FormulaWorksheet extends Component
             }
 
             $sample = $captured->sample;
+            $sampleId = $sample ? (string) $sample->id : '';
             $analyteName = $captured->analysisElement?->analyte?->name ?? '';
-            $methodName = '';
-            $methodId = $captured->analysisElement?->method;
-            if ($methodId) {
-                $methodName = (string) ($this->methods->firstWhere('id', (int) $methodId)?->name ?? '');
-            }
+            $methodName = $this->resolveAnalysisElementMethodName($captured);
 
-            $mainStandardName = '';
-            if ($sample?->main_standard) {
-                $std = \App\Standards::find($sample->main_standard);
-                $mainStandardName = $std ? ($std->name ?? '') : '';
-            }
+            $mainStandardId = $sample?->main_standard ? (string) $sample->main_standard : null;
+            $secondaryStandardId = $sample?->secondary_standard ? (string) $sample->secondary_standard : null;
 
             $standardLimits = $this->getStandardLimitsDisplay($captured, $sample);
 
             $remarkPreview = '-';
             if ($numericResult !== '') {
                 if (
-                    $sample &&
-                    isset($this->useLookupAsStandard[$sample->id]) &&
-                    $this->useLookupAsStandard[$sample->id] &&
+                    $sampleId !== '' &&
+                    ! empty($this->useLookupAsStandard[$sampleId]) &&
                     $this->lookupStandardInfo
                 ) {
                     $lookupStepId = $this->lookupStandardInfo['step_id'];
@@ -1575,19 +1611,49 @@ class FormulaWorksheet extends Component
 
             $rows[] = [
                 'captured_result_id' => (string) $captured->id,
+                'sample_id' => $sampleId,
                 'sample_code' => (string) ($sample?->sample_code ?? ''),
                 'analyte' => (string) $analyteName,
                 'result' => (string) $numericResult,
                 'reporting_symbol' => (string) $reportingSymbol,
-                'standard' => (string) $mainStandardName,
+                'main_standard' => $mainStandardId,
+                'secondary_standard' => $secondaryStandardId,
+                'standard' => $this->getSelectedStandardName($mainStandardId),
                 'standard_limits' => (string) $standardLimits,
                 'remark' => (string) $remarkPreview,
                 'method' => (string) $methodName,
-                'reporting_unit' => (string) ($captured->analysisElement?->reporting_unit ?? ''),
+                'reporting_unit' => (string) ($captured->analysisElement?->getAttribute('reporting_unit') ?? ''),
             ];
         }
 
         return $rows;
+    }
+
+    private function resolveAnalysisElementMethodName($captured): string
+    {
+        $element = $captured->analysisElement;
+        if (! $element) {
+            return '';
+        }
+
+        // AnalysisElements::method() is a helper that returns AnalysisMethod|null (not a relation).
+        $methodModel = $element->method();
+        if ($methodModel && ! empty($methodModel->name)) {
+            return (string) $methodModel->name;
+        }
+
+        $methodId = $element->getAttribute('method');
+        if ($methodId) {
+            $fromCollection = $this->methods instanceof \Illuminate\Support\Collection
+                ? $this->methods->firstWhere('id', (string) $methodId)
+                : null;
+
+            if ($fromCollection && ! empty($fromCollection->name)) {
+                return (string) $fromCollection->name;
+            }
+        }
+
+        return '';
     }
 
     private function getStandardLimitsDisplay($captured, $sample): string
@@ -1663,46 +1729,61 @@ class FormulaWorksheet extends Component
     /**
      * Update sample standard (persists to database)
      */
-    public function updateSampleStandard(int $sampleId, string $standardType, $standardId): void
+    public function updateSampleStandard(string $sampleId, string $standardType, $standardId = null): void
     {
         try {
             $sample = \App\SampleDetails::find($sampleId);
-            if (!$sample) {
+            if (! $sample) {
                 return;
             }
 
-            // Update the appropriate standard field
+            $standardId = $standardId !== null && $standardId !== '' ? (string) $standardId : null;
+
             if ($standardType === 'main') {
-                $sample->main_standard = $standardId ?: null;
+                $sample->main_standard = $standardId;
             } elseif ($standardType === 'secondary') {
-                $sample->secondary_standard = $standardId ?: null;
+                $sample->secondary_standard = $standardId;
             } elseif ($standardType === 'third') {
-                $sample->third_standard_id = $standardId ?: null;
+                $sample->third_standard_id = $standardId;
             }
 
             $sample->save();
+            $sample->refresh();
 
-            // Update the samplesWithStandards array
             foreach ($this->samplesWithStandards as $key => $s) {
-                if ($s['id'] == $sampleId) {
-                    $this->samplesWithStandards[$key][$standardType . '_standard'] = $standardId;
+                if ((string) $s['id'] === $sampleId) {
+                    if ($standardType === 'third') {
+                        $this->samplesWithStandards[$key]['third_standard_id'] = $standardId;
+                    } else {
+                        $this->samplesWithStandards[$key][$standardType.'_standard'] = $standardId;
+                    }
                     break;
                 }
             }
 
-            // Close the dropdown
-            if ($standardType === 'main') {
-                $this->showMainStandardDropdown[$sampleId] = false;
-            } else {
-                $this->showSecondaryStandardDropdown[$sampleId] = false;
+            foreach ($this->capturedResults as $captured) {
+                if ((string) $captured->sample_detail_id === $sampleId) {
+                    $captured->setRelation('sample', $sample);
+                }
             }
 
+            if ($standardType === 'main') {
+                $this->showMainStandardDropdown[$sampleId] = false;
+                $this->mainStandardSearch[$sampleId] = '';
+            } else {
+                $this->showSecondaryStandardDropdown[$sampleId] = false;
+                $this->secondaryStandardSearch[$sampleId] = '';
+            }
+
+            if ($this->showPostResultsModal && ! $this->postingInProgress) {
+                $this->postResultsPreviewRows = $this->buildPostResultsPreviewRows();
+            }
         } catch (\Exception $e) {
-            Log::error('Error updating sample standard: ' . $e->getMessage());
+            Log::error('Error updating sample standard: '.$e->getMessage());
         }
     }
 
-    public function searchMainStandards(int $sampleId): void
+    public function searchMainStandards(string $sampleId): void
     {
         $this->showMainStandardDropdown[$sampleId] = true;
 
@@ -1717,12 +1798,10 @@ class FormulaWorksheet extends Component
             });
         }
 
-
-        // Dispatch event for positioning
         $this->dispatch('dropdownOpened', ['sampleId' => $sampleId, 'type' => 'main']);
     }
 
-    public function searchSecondaryStandards(int $sampleId): void
+    public function searchSecondaryStandards(string $sampleId): void
     {
         $this->showSecondaryStandardDropdown[$sampleId] = true;
 
@@ -1737,40 +1816,39 @@ class FormulaWorksheet extends Component
             });
         }
 
-        // Dispatch event for positioning
         $this->dispatch('dropdownOpened', ['sampleId' => $sampleId, 'type' => 'secondary']);
     }
 
     public function getSelectedStandardName($standardId): string
     {
-        if (!$standardId) {
+        if (! $standardId) {
             return '';
         }
 
-        $standard = $this->availableStandards->firstWhere('id', $standardId);
-        return $standard ? $standard->name . ' (' . $standard->code . ')' : '';
+        $standard = $this->availableStandards->firstWhere('id', (string) $standardId);
+
+        return $standard ? $standard->name.' ('.$standard->code.')' : '';
     }
 
     /**
      * Toggle main standard dropdown for a sample
      */
-    public function toggleMainStandardDropdown(int $sampleId): void
+    public function toggleMainStandardDropdown(string $sampleId): void
     {
-        $this->showMainStandardDropdown[$sampleId] = !($this->showMainStandardDropdown[$sampleId] ?? false);
+        $this->showMainStandardDropdown[$sampleId] = ! ($this->showMainStandardDropdown[$sampleId] ?? false);
 
         if ($this->showMainStandardDropdown[$sampleId]) {
             $this->searchMainStandards($sampleId);
             $this->dispatch('dropdownOpened', ['sampleId' => $sampleId, 'type' => 'main']);
         }
-
     }
 
     /**
      * Toggle secondary standard dropdown for a sample
      */
-    public function toggleSecondaryStandardDropdown(int $sampleId): void
+    public function toggleSecondaryStandardDropdown(string $sampleId): void
     {
-        $this->showSecondaryStandardDropdown[$sampleId] = !($this->showSecondaryStandardDropdown[$sampleId] ?? false);
+        $this->showSecondaryStandardDropdown[$sampleId] = ! ($this->showSecondaryStandardDropdown[$sampleId] ?? false);
 
         if ($this->showSecondaryStandardDropdown[$sampleId]) {
             $this->searchSecondaryStandards($sampleId);
@@ -1793,6 +1871,20 @@ class FormulaWorksheet extends Component
     public function postResults(): void
     {
         try {
+            $access = app(LabSectionResultAccess::class);
+            $user = Auth::user();
+            if (! $access->hasLabSectionAssignment($user)) {
+                $this->setMessage($access->denyEditMessage($user), 'error');
+                return;
+            }
+
+            foreach ($this->capturedResults as $captured) {
+                if (! $access->canEditCapturedResult($user, $captured)) {
+                    $this->setMessage($access->denyEditMessage($user), 'error');
+                    return;
+                }
+            }
+
             $this->validate([
                 'startAnalysisDate' => ['required', 'date'],
                 'endAnalysisDate' => ['required', 'date', 'after_or_equal:startAnalysisDate'],
@@ -1846,63 +1938,54 @@ class FormulaWorksheet extends Component
                     $captured->applyAnalysisElementDefaults();
                 }
 
-                // Ensure analysis dates exist with proper lab section tracking
+                // Ensure analysis dates exist with proper lab section tracking.
+                // Schema only has start_analysis_date + analysis_dates JSON (no end_analysis_date column).
                 $analysis_date = SampleAnalysisDates::where('sample_header_id', $captured->sample_header_id)
                     ->where('sample_detail_id', $captured->sample_detail_id)
                     ->first() ?? new SampleAnalysisDates();
 
-                $currentDate = $wsData['date'] ?? now()->format('Y-m-d');
-                $startDate = $this->startAnalysisDate;
-                $endDate = $this->endAnalysisDate;
+                $startDate = $this->startAnalysisDate ?: ($wsData['date'] ?? now()->format('Y-m-d'));
+                $endDate = $this->endAnalysisDate ?: $startDate;
 
-                if (isset($analysis_date->id)) {
-                    // Update existing - merge lab section dates
-                    $decodedDates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
-                    $prev_dates = [];
-                    if (is_array($decodedDates)) {
-                        foreach ($decodedDates as $sectionId => $sectionValue) {
-                            if (is_array($sectionValue)) {
-                                $prev_dates[$sectionId] = [
-                                    'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
-                                    'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
-                                ];
-                                continue;
-                            }
-
+                $decodedDates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
+                $prev_dates = [];
+                if (is_array($decodedDates)) {
+                    foreach ($decodedDates as $sectionId => $sectionValue) {
+                        if (is_array($sectionValue)) {
                             $prev_dates[$sectionId] = [
-                                'start_date' => $sectionValue,
-                                'end_date' => null,
+                                'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
+                                'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
                             ];
+                            continue;
                         }
-                    }
 
-                    if ($captured->lab_section_id) {
-                        $sectionId = (string) $captured->lab_section_id;
                         $prev_dates[$sectionId] = [
-                            'start_date' => $currentDate,
-                            'end_date' => $prev_dates[$sectionId]['end_date'] ?? null,
-                        ];
-                    }
-
-                    $analysis_date->start_analysis_date = $startDate;
-                    $analysis_date->end_analysis_date = $endDate;
-                    $analysis_date->analysis_dates = json_encode($prev_dates);
-                } else {
-                    // Create new
-                    $prev_dates = [];
-                    if ($captured->lab_section_id) {
-                        $prev_dates[(string) $captured->lab_section_id] = [
-                            'start_date' => $currentDate,
+                            'start_date' => $sectionValue,
                             'end_date' => null,
                         ];
                     }
-                    $analysis_date->sample_header_id = $captured->sample_header_id;
-                    $analysis_date->sample_detail_id = $captured->sample_detail_id;
-                    $analysis_date->start_analysis_date = $startDate;
-                    $analysis_date->end_analysis_date = $endDate;
-                    $analysis_date->analysis_dates = json_encode($prev_dates);
                 }
 
+                if ($captured->lab_section_id) {
+                    $prev_dates[(string) $captured->lab_section_id] = [
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
+                    ];
+                }
+
+                // Keep table start_analysis_date as earliest section start
+                $earliestStart = $startDate;
+                foreach ($prev_dates as $val) {
+                    $sectionStartDate = is_array($val) ? ($val['start_date'] ?? '') : (string) $val;
+                    if ($sectionStartDate !== '' && $sectionStartDate < $earliestStart) {
+                        $earliestStart = $sectionStartDate;
+                    }
+                }
+
+                $analysis_date->sample_header_id = $captured->sample_header_id;
+                $analysis_date->sample_detail_id = $captured->sample_detail_id;
+                $analysis_date->start_analysis_date = $earliestStart;
+                $analysis_date->analysis_dates = json_encode($prev_dates);
                 $analysis_date->save();
 
                 $captured->save();
@@ -1934,8 +2017,8 @@ class FormulaWorksheet extends Component
 
                 // Check if user opted to use lookup table as standard
                 if (
-                    isset($this->useLookupAsStandard[$sample->id]) &&
-                    $this->useLookupAsStandard[$sample->id] &&
+                    $sample &&
+                    ! empty($this->useLookupAsStandard[(string) $sample->id]) &&
                     $this->lookupStandardInfo
                 ) {
 

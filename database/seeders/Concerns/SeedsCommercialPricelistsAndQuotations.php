@@ -22,41 +22,48 @@ use Illuminate\Support\Str;
 
 trait SeedsCommercialPricelistsAndQuotations
 {
+    use ClearsAmSpecFoodPricelistData;
     use ClearsSeedCommercialDemoData;
 
+    /** @var list<string> */
+    private const PER_PARAMETER_SAMPLE_TYPE_CODES = ['FOOD', 'WATER', 'FOOD FEED'];
+
+    /** @var list<string> */
+    private const PACKAGE_SAMPLE_TYPE_CODES = ['FOOD', 'WATER'];
+
     /**
-     * @return list<array{customer_code: string, pricelist_code: string, pricelist_name: string, sample_type_codes: list<string>}>
+     * @return list<array{customer_code: string, use_package_quote: bool}>
      */
     protected function commercialClientDefinitions(): array
     {
         return [
             [
                 'customer_code' => 'INT-ENRG-001',
-                'pricelist_code' => self::SEED_PRICELIST_CODE_PREFIX.'ADNOC',
-                'pricelist_name' => 'Seed ADNOC Multi-Matrix Pricelist',
-                'sample_type_codes' => ['FOOD FEED', 'WATER'],
+                'use_package_quote' => true,
             ],
             [
                 'customer_code' => 'EXT-ENRG-001',
-                'pricelist_code' => self::SEED_PRICELIST_CODE_PREFIX.'ENOC',
-                'pricelist_name' => 'Seed ENOC Water & Fuels Pricelist',
-                'sample_type_codes' => ['WATER'],
+                'use_package_quote' => false,
             ],
             [
                 'customer_code' => 'EXT-ENRG-002',
-                'pricelist_code' => self::SEED_PRICELIST_CODE_PREFIX.'SHELL',
-                'pricelist_name' => 'Seed Shell Trading Pricelist',
-                'sample_type_codes' => ['WATER', 'SMP WWTR'],
+                'use_package_quote' => false,
             ],
         ];
     }
 
     /**
+     * Seeds exactly three pricelists:
+     * - master per-parameter
+     * - customer per-parameter
+     * - one package pricelist
+     *
      * @return array{pricelists: int, items: int, assignments: int, quotations: int, lines: int}
      */
     protected function seedCommercialPricelistsAndQuotations(Company $company, User $preparedBy): array
     {
         $this->clearSeedCommercialDemoData();
+        $this->clearAmSpecFoodPricelistDataIfPresent();
 
         $stats = [
             'pricelists' => 0,
@@ -75,69 +82,139 @@ trait SeedsCommercialPricelistsAndQuotations
             return $stats;
         }
 
-        $reportService = app(QuotationReportService::class);
-        $quoteIndex = 1;
+        $elements = $this->resolveUniqueActiveElements($company, self::PER_PARAMETER_SAMPLE_TYPE_CODES);
 
+        if ($elements->isEmpty()) {
+            $this->command?->warn('No analysis elements found for seed sample types. Run taxonomy/parameter seeders first.');
+
+            return $stats;
+        }
+
+        $master = $this->createSeedPricelist(
+            $currency,
+            self::SEED_PRICELIST_CODE_MASTER,
+            'Seed Master Per-Parameter Pricelist',
+            isMaster: true,
+        );
+        $customer = $this->createSeedPricelist(
+            $currency,
+            self::SEED_PRICELIST_CODE_CUSTOMER,
+            'Seed Customer Contract Per-Parameter Pricelist',
+            isMaster: false,
+        );
+        $package = $this->createSeedPricelist(
+            $currency,
+            self::SEED_PRICELIST_CODE_PACKAGE,
+            'Seed Water & Food Package Pricelist',
+            isMaster: false,
+        );
+        $stats['pricelists'] = 3;
+
+        $stats['items'] += $this->seedPerParameterItems($master, $elements, priceMultiplier: 1.0);
+        $stats['items'] += $this->seedPerParameterItems($customer, $elements, priceMultiplier: 0.90);
+        $stats['items'] += $this->seedPackageItems(
+            $package,
+            $this->resolveUniqueActiveElements($company, self::PACKAGE_SAMPLE_TYPE_CODES),
+        );
+
+        $customersByCode = [];
         foreach ($this->commercialClientDefinitions() as $definition) {
-            $customer = CRMCustomer::query()
+            $crmCustomer = CRMCustomer::query()
                 ->where('company_id', $company->id)
                 ->where('code', $definition['customer_code'])
                 ->first();
 
-            if ($customer === null) {
-                $this->command?->warn("Skipping commercial demo for missing customer {$definition['customer_code']}.");
+            if ($crmCustomer === null) {
+                $this->command?->warn("Skipping assignment for missing customer {$definition['customer_code']}.");
 
                 continue;
             }
 
-            $pricelist = Pricelist::query()->create([
-                'id' => (string) Str::uuid(),
-                'code' => $definition['pricelist_code'],
-                'description' => $definition['pricelist_name'],
-                'currency_id' => $currency->id,
-                'is_master' => false,
-                'active' => true,
-                'document_no' => strtoupper(str_replace('PL-SEED-', 'DOC-', $definition['pricelist_code'])),
-                'revision_number' => '1',
-                'status' => 'no-changes',
-                'valid_till' => now()->addYear()->toDateString(),
-            ]);
-            $stats['pricelists']++;
+            $customersByCode[$definition['customer_code']] = [
+                'customer' => $crmCustomer,
+                'use_package_quote' => $definition['use_package_quote'],
+            ];
+        }
+
+        foreach ($customersByCode as $entry) {
+            /** @var CRMCustomer $crmCustomer */
+            $crmCustomer = $entry['customer'];
 
             PricelistCustomer::query()->create([
                 'id' => (string) Str::uuid(),
-                'pricelist_id' => $pricelist->id,
-                'customer_id' => $customer->id,
+                'pricelist_id' => $customer->id,
+                'customer_id' => $crmCustomer->id,
             ]);
             $stats['assignments']++;
 
-            $items = $this->seedPricelistItemsForCustomer(
-                $company,
-                $pricelist,
-                $definition['sample_type_codes'],
-            );
-            $stats['items'] += $items->count();
+            if ($entry['use_package_quote']) {
+                PricelistCustomer::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'pricelist_id' => $package->id,
+                    'customer_id' => $crmCustomer->id,
+                ]);
+                $stats['assignments']++;
+            }
+        }
+
+        // Keep master assigned to one client for demo discovery.
+        if (isset($customersByCode['EXT-ENRG-002'])) {
+            PricelistCustomer::query()->create([
+                'id' => (string) Str::uuid(),
+                'pricelist_id' => $master->id,
+                'customer_id' => $customersByCode['EXT-ENRG-002']['customer']->id,
+            ]);
+            $stats['assignments']++;
+        }
+
+        $reportService = app(QuotationReportService::class);
+        $quoteIndex = 1;
+        $customerItems = PricelistItem::query()
+            ->with(['analysisType', 'analysisElement.analyte', 'sampleType', 'packageElements'])
+            ->where('pricelist_id', $customer->id)
+            ->where('is_package', false)
+            ->orderBy('level')
+            ->get();
+        $packageItems = PricelistItem::query()
+            ->with(['analysisType', 'sampleType', 'packageElements'])
+            ->where('pricelist_id', $package->id)
+            ->where('is_package', true)
+            ->orderBy('level')
+            ->get();
+
+        foreach ($customersByCode as $entry) {
+            /** @var CRMCustomer $crmCustomer */
+            $crmCustomer = $entry['customer'];
 
             $contact = CustomerContact::query()
-                ->where('crm_customer_id', $customer->id)
+                ->where('crm_customer_id', $crmCustomer->id)
                 ->orderBy('created_at')
                 ->first();
 
             if ($contact === null) {
-                $this->command?->warn("No contact for {$customer->name}; skipping quotation.");
+                $this->command?->warn("No contact for {$crmCustomer->name}; skipping quotation.");
 
                 continue;
             }
 
+            $usePackage = (bool) $entry['use_package_quote'];
+            $quotePricelist = $usePackage ? $package : $customer;
+            $quoteItems = $usePackage ? $packageItems : $customerItems;
+
+            if ($quoteItems->isEmpty()) {
+                continue;
+            }
+
             $quoteStats = $this->seedCompleteQuotation(
-                $customer,
+                $crmCustomer,
                 $contact,
-                $pricelist,
-                $items,
+                $quotePricelist,
+                $quoteItems,
                 $preparedBy,
                 $currency,
                 $reportService,
                 $quoteIndex,
+                $usePackage,
             );
 
             $stats['quotations'] += $quoteStats['quotations'];
@@ -145,33 +222,66 @@ trait SeedsCommercialPricelistsAndQuotations
             $quoteIndex++;
 
             $this->command?->info(sprintf(
-                'Commercial demo for %s: pricelist %s (%d items), quotation %s.',
-                $customer->name,
-                $pricelist->code,
-                $items->count(),
+                'Commercial demo for %s: %s pricelist (%d items available), quotation %s.',
+                $crmCustomer->name,
+                $usePackage ? 'package' : 'per-parameter',
+                $quoteItems->count(),
                 $quoteStats['laboratory_ref'],
             ));
         }
 
+        $this->command?->info(sprintf(
+            'Seeded 3 pricelists: %s (master/per-parameter), %s (customer/per-parameter), %s (package).',
+            self::SEED_PRICELIST_CODE_MASTER,
+            self::SEED_PRICELIST_CODE_CUSTOMER,
+            self::SEED_PRICELIST_CODE_PACKAGE,
+        ));
+
         return $stats;
+    }
+
+    private function clearAmSpecFoodPricelistDataIfPresent(): void
+    {
+        if (self::FOOD_PRICELIST_CODE === self::SEED_PRICELIST_CODE_PACKAGE) {
+            return;
+        }
+
+        $this->clearAmSpecFoodPricelistData();
+    }
+
+    private function createSeedPricelist(
+        Currency $currency,
+        string $code,
+        string $description,
+        bool $isMaster,
+    ): Pricelist {
+        return Pricelist::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => $code,
+            'description' => $description,
+            'currency_id' => $currency->id,
+            'is_master' => $isMaster,
+            'active' => true,
+            'document_no' => strtoupper(str_replace('PL-SEED-', 'DOC-', $code)),
+            'revision_number' => '1',
+            'status' => 'no-changes',
+            'valid_till' => now()->addYear()->toDateString(),
+        ]);
     }
 
     /**
      * @param  list<string>  $sampleTypeCodes
-     * @return Collection<int, PricelistItem>
+     * @return Collection<int, AnalysisElements>
      */
-    private function seedPricelistItemsForCustomer(
-        Company $company,
-        Pricelist $pricelist,
-        array $sampleTypeCodes,
-    ): Collection {
-        $sampleTypeIds = $this->resolveSampleTypeIds($company, $sampleTypeCodes);
+    private function resolveUniqueActiveElements(Company $company, array $sampleTypeCodes): Collection
+    {
+        $sampleTypeIds = $this->resolveSampleTypeIdsExactly($company, $sampleTypeCodes);
 
         if ($sampleTypeIds->isEmpty()) {
             return collect();
         }
 
-        $groupedElements = AnalysisElements::query()
+        return AnalysisElements::query()
             ->with(['analysis_type.sample_type', 'analyte'])
             ->whereHas('analysis_type', function ($query) use ($company, $sampleTypeIds): void {
                 $query->where('company_id', $company->id)
@@ -181,13 +291,84 @@ trait SeedsCommercialPricelistsAndQuotations
             ->orderBy('analysis_type_id')
             ->orderBy('id')
             ->get()
-            ->groupBy('analysis_type_id')
-            ->take(8);
+            ->unique('id')
+            ->values();
+    }
 
+    /**
+     * One row per unique analysis element; never repeats the same parameter on a pricelist.
+     *
+     * @param  Collection<int, AnalysisElements>  $elements
+     */
+    private function seedPerParameterItems(
+        Pricelist $pricelist,
+        Collection $elements,
+        float $priceMultiplier,
+    ): int {
         $level = 1;
-        $created = collect();
+        $created = 0;
+        $seenElementIds = [];
 
-        foreach ($groupedElements as $analysisElements) {
+        foreach ($elements as $element) {
+            $elementId = (string) $element->id;
+            if (isset($seenElementIds[$elementId])) {
+                continue;
+            }
+
+            $analysisType = $element->analysis_type;
+            $sampleType = $analysisType?->sample_type;
+
+            if ($analysisType === null || $sampleType === null) {
+                continue;
+            }
+
+            $seenElementIds[$elementId] = true;
+
+            $cost = 35 + ((($level - 1) % 10) * 5);
+            $sell = round(($cost * 1.60) * $priceMultiplier, 2);
+
+            PricelistItem::query()->create([
+                'id' => (string) Str::uuid(),
+                'pricelist_id' => $pricelist->id,
+                'sample_type_id' => $sampleType->id,
+                'analysis_id' => $analysisType->id,
+                'analysis_element_id' => $element->id,
+                'cost_price' => $cost,
+                'selling_price' => $sell,
+                'changed_price' => $sell,
+                'vat' => false,
+                'internal_use' => false,
+                'external_view' => true,
+                'active' => true,
+                'is_package' => false,
+                'level' => $level,
+            ]);
+
+            $level++;
+            $created++;
+        }
+
+        return $created;
+    }
+
+    /**
+     * One package row per analysis type (never repeated) on the single package pricelist.
+     *
+     * @param  Collection<int, AnalysisElements>  $elements
+     */
+    private function seedPackageItems(Pricelist $pricelist, Collection $elements): int
+    {
+        $groups = $elements->groupBy('analysis_type_id');
+        $level = 1;
+        $created = 0;
+        $seenAnalysisTypeIds = [];
+
+        foreach ($groups as $analysisTypeId => $analysisElements) {
+            $analysisTypeKey = (string) $analysisTypeId;
+            if (isset($seenAnalysisTypeIds[$analysisTypeKey])) {
+                continue;
+            }
+
             $first = $analysisElements->first();
             $analysisType = $first?->analysis_type;
             $sampleType = $analysisType?->sample_type;
@@ -196,9 +377,16 @@ trait SeedsCommercialPricelistsAndQuotations
                 continue;
             }
 
-            $parameterCount = $analysisElements->count();
-            $sell = 45 + ($level * 5) + (($parameterCount - 1) * 15);
-            $cost = (int) round($sell * 0.55);
+            $seenAnalysisTypeIds[$analysisTypeKey] = true;
+            $uniqueElements = $analysisElements->unique('id')->values();
+            $parameterCount = $uniqueElements->count();
+
+            if ($parameterCount === 0) {
+                continue;
+            }
+
+            $cost = 25 * $parameterCount;
+            $sell = round($cost * 1.70, 2);
 
             $item = PricelistItem::query()->create([
                 'id' => (string) Str::uuid(),
@@ -217,7 +405,7 @@ trait SeedsCommercialPricelistsAndQuotations
                 'level' => $level,
             ]);
 
-            foreach ($analysisElements as $element) {
+            foreach ($uniqueElements as $element) {
                 PricelistItemElement::query()->create([
                     'id' => (string) Str::uuid(),
                     'pricelist_item_id' => $item->id,
@@ -225,8 +413,8 @@ trait SeedsCommercialPricelistsAndQuotations
                 ]);
             }
 
-            $created->push($item->load('packageElements'));
             $level++;
+            $created++;
         }
 
         return $created;
@@ -245,6 +433,7 @@ trait SeedsCommercialPricelistsAndQuotations
         Currency $currency,
         QuotationReportService $reportService,
         int $quoteIndex,
+        bool $asPackage,
     ): array {
         $laboratoryRef = self::SEED_QUOTATION_LAB_REF_PREFIX.str_pad((string) $quoteIndex, 3, '0', STR_PAD_LEFT);
         $quoteDate = now()->subDays(14 - $quoteIndex)->toDateString();
@@ -283,31 +472,47 @@ trait SeedsCommercialPricelistsAndQuotations
         $lineCount = 0;
 
         foreach ($items->take(8) as $item) {
-            $item->loadMissing(['analysisType', 'sampleType', 'packageElements']);
+            $item->loadMissing(['analysisType', 'analysisElement.analyte', 'sampleType', 'packageElements']);
             $unitPrice = (float) ($item->selling_price ?? $item->changed_price ?? 50);
             $quantity = 1;
-            $packageElementIds = $item->coveredElementIds();
-            $elementIdCsv = implode(',', $packageElementIds);
-            $analysisName = $item->analysisType?->name ?? 'Laboratory analysis';
-            $parameterCount = count($packageElementIds);
 
-            QuotationDetails::query()->create([
-                'id' => (string) Str::uuid(),
-                'quotation_header_id' => $header->id,
-                'analyte_id' => null,
-                'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-                'tax' => 0,
-                'sample_type' => $item->sample_type_id,
-                'part_no' => $item->analysis_id,
-                'item_name' => $parameterCount > 0
-                    ? "{$analysisName} package ({$parameterCount} parameters)"
-                    : $analysisName,
-                'description' => $analysisName,
-                'default_analytes' => $elementIdCsv,
-                'accredited_analytes' => $elementIdCsv,
-                'is_package' => true,
-            ]);
+            if ($asPackage || (bool) $item->is_package) {
+                $packageElementIds = $item->coveredElementIds();
+                $elementIdCsv = implode(',', $packageElementIds);
+                $analysisName = $item->analysisType?->name ?? 'Laboratory analysis';
+                $parameterCount = count($packageElementIds);
+
+                QuotationDetails::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'quotation_header_id' => $header->id,
+                    'analyte_id' => null,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'tax' => 0,
+                    'sample_type' => $item->sample_type_id,
+                    'part_no' => $item->analysis_id,
+                    'item_name' => $parameterCount > 0
+                        ? "{$analysisName} package ({$parameterCount} parameters)"
+                        : $analysisName,
+                    'description' => $analysisName,
+                    'default_analytes' => $elementIdCsv,
+                    'accredited_analytes' => $elementIdCsv,
+                    'is_package' => true,
+                ]);
+            } else {
+                QuotationDetails::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'quotation_header_id' => $header->id,
+                    'analyte_id' => $item->analysisElement?->analyte_id,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'tax' => 0,
+                    'sample_type' => $item->sample_type_id,
+                    'item_name' => $item->analysisElement?->analyte?->name ?? $item->analysisType?->name ?? 'Analysis parameter',
+                    'description' => $item->analysisType?->name ?? 'Laboratory analysis',
+                    'is_package' => false,
+                ]);
+            }
 
             $subTotal += $unitPrice * $quantity;
             $lineCount++;
@@ -330,23 +535,13 @@ trait SeedsCommercialPricelistsAndQuotations
      * @param  list<string>  $sampleTypeCodes
      * @return Collection<int, string>
      */
-    private function resolveSampleTypeIds(Company $company, array $sampleTypeCodes): Collection
+    private function resolveSampleTypeIdsExactly(Company $company, array $sampleTypeCodes): Collection
     {
-        $ids = collect();
-
-        foreach ($sampleTypeCodes as $code) {
-            $matches = SampleType::query()
-                ->where('company_id', $company->id)
-                ->where(function ($query) use ($code): void {
-                    $query->where('code', $code)
-                        ->orWhere('code', 'ilike', '%'.$code.'%')
-                        ->orWhere('name', 'ilike', '%'.$code.'%');
-                })
-                ->pluck('id');
-
-            $ids = $ids->merge($matches);
-        }
-
-        return $ids->unique()->values();
+        return SampleType::query()
+            ->where('company_id', $company->id)
+            ->whereIn('code', $sampleTypeCodes)
+            ->pluck('id')
+            ->unique()
+            ->values();
     }
 }

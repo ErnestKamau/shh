@@ -21,7 +21,7 @@ class Phase14CommercialDemoSeeder extends Seeder
 
         DB::connection('pgsql')->transaction(function (): void {
             $this->command?->info('====================================================');
-            $this->command?->info('STARTING PHASE 14 SEEDING: Pricelists + Quotations (3 clients)');
+            $this->command?->info('STARTING PHASE 14 SEEDING: Master + Customer + Package Pricelists + Quotations');
             $this->command?->info('====================================================');
 
             $company = $this->resolveAmSpecCompany();

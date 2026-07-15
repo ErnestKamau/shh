@@ -954,10 +954,23 @@
                 </div>
 
                 <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
+                    @if($parametersReadOnly)
+                    <div class="alert alert-warning border mb-3">
+                        <i class="mdi mdi-lock-outline"></i>
+                        Assign a lab section in your profile before capturing results. You can view parameters but cannot fill or save them.
+                    </div>
+                    @elseif($parametersSectionFiltered)
+                    <div class="alert alert-light border mb-3">
+                        <i class="mdi mdi-flask-outline text-primary"></i>
+                        Showing parameters for your lab section(s) only.
+                    </div>
+                    @endif
+
                     @if(!empty($sampleParameters))
                     @php
                         $parameterColspan = ($uncertaintyRequired ? 16 : 15);
                         $groupedParameters = $this->groupedParametersForm;
+                        $parametersDisabled = $parametersReadOnly;
                     @endphp
                     <div class="table-responsive sample-parameters-modal__table-wrap">
                         <table class="table table-sm sample-parameters-table mb-0">
@@ -1004,12 +1017,13 @@
                                     <td style="min-width: 160px;">
                                         <div class="input-group input-group-sm">
                                             <input type="text"
-                                                class="form-control form-control-sm js-confirm-result"
+                                                class="form-control form-control-sm {{ $parametersDisabled ? '' : 'js-confirm-result' }}"
                                                 value="{{ $param['result'] ?? '' }}"
                                                 placeholder="Result"
                                                 data-row-id="{{ $id }}"
                                                 data-analyte="{{ $param['analyte_name'] ?? 'analyte' }}"
-                                                data-sample="{{ $param['sample_code'] ?? '' }}">
+                                                data-sample="{{ $param['sample_code'] ?? '' }}"
+                                                @if($parametersDisabled) readonly disabled @endif>
                                             @if(!empty($param['batch_attachment_url']) && strcasecmp($param['result'] ?? '', 'as attached') === 0)
                                             <div class="input-group-append">
                                                 <a href="{{ $param['batch_attachment_url'] }}" target="_blank"
@@ -1025,24 +1039,27 @@
                                     <td style="min-width: 145px;">
                                         <input type="date"
                                             class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.start_analysis_date">
+                                            wire:model.defer="parametersForm.{{ $id }}.start_analysis_date"
+                                            @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     <td style="min-width: 145px;">
                                         <input type="date"
                                             class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.end_analysis_date">
+                                            wire:model.defer="parametersForm.{{ $id }}.end_analysis_date"
+                                            @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     @if($uncertaintyRequired)
                                     <td style="min-width: 80px;">
                                         <input type="text" class="form-control form-control-sm"
                                             wire:model.defer="parametersForm.{{ $id }}.measure_uncertanity"
-                                            placeholder="M.U.">
+                                            placeholder="M.U."
+                                            @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     @endif
                                     <td>
                                         <div class="d-flex align-items-center justify-content-between">
                                             <small>{{ $param['standard_value'] }}</small>
-                                            @if($param['standard_id'])
+                                            @if($param['standard_id'] && ! $parametersDisabled)
                                             <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 1)"
                                                 class="btn btn-sm btn-link p-0 text-secondary ml-1"
                                                 title="Edit Main Standard" style="line-height: 1;"
@@ -1057,7 +1074,7 @@
                                         @if($param['sec_standard_value'])
                                         <div class="d-flex align-items-center justify-content-between mt-1">
                                             <small class="text-muted">{{ $param['sec_standard_value'] }}</small>
-                                            @if($param['sec_standard_id'])
+                                            @if($param['sec_standard_id'] && ! $parametersDisabled)
                                             <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 2)"
                                                 class="btn btn-sm btn-link p-0 text-muted ml-1"
                                                 title="Edit Secondary Standard" style="line-height: 1;"
@@ -1074,7 +1091,8 @@
                                     <td style="min-width: 110px;">
                                         <select class="form-control form-control-sm"
                                             wire:model="parametersForm.{{ $id }}.remark"
-                                            style="pointer-events: none; background-color: #e9ecef;">
+                                            style="pointer-events: none; background-color: #e9ecef;"
+                                            @if($parametersDisabled) disabled @endif>
                                             <option value="">- Select -</option>
                                             <option value="PASS">PASS</option>
                                             <option value="FAIL">FAIL</option>
@@ -1085,7 +1103,8 @@
                                             $selectedUnitId = (string) ($parametersForm[$id]['reporting_unit'] ?? $param['reporting_unit'] ?? '');
                                         @endphp
                                         <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.reporting_unit">
+                                            wire:model.defer="parametersForm.{{ $id }}.reporting_unit"
+                                            @if($parametersDisabled) disabled @endif>
                                             <option value="">- Unit -</option>
                                             @foreach($modalLists['units'] as $unit)
                                             <option value="{{ (string) $unit->id }}" @selected($selectedUnitId === (string) $unit->id)>
@@ -1102,7 +1121,8 @@
                                     </td>
                                     <td style="min-width: 140px;">
                                         <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.method_id">
+                                            wire:model.defer="parametersForm.{{ $id }}.method_id"
+                                            @if($parametersDisabled) disabled @endif>
                                             <option value="">- Method -</option>
                                             @foreach($modalLists['methods'] as $method)
                                             <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -1123,7 +1143,8 @@
                                             data-initial='@json($selectedEquipmentIds)'>
                                             <select class="form-control form-control-sm param-equipment-select2 no-select2"
                                                 multiple="multiple"
-                                                data-placeholder="Select equipment...">
+                                                data-placeholder="Select equipment..."
+                                                @if($parametersDisabled) disabled @endif>
                                                 @foreach($modalLists['equipments'] as $eq)
                                                 <option value="{{ $eq->id }}" @selected(in_array((string) $eq->id, $selectedEquipmentIds, true))>
                                                     {{ $eq->name }}
@@ -1135,14 +1156,16 @@
                                     <td style="text-align: center;">
                                         <div class="custom-control custom-checkbox text-center">
                                             <input type="checkbox" class="custom-control-input" id="sub_{{ $id }}"
-                                                wire:model.defer="parametersForm.{{ $id }}.subcontracted">
+                                                wire:model.defer="parametersForm.{{ $id }}.subcontracted"
+                                                @if($parametersDisabled) disabled @endif>
                                             <label class="custom-control-label" for="sub_{{ $id }}"></label>
                                         </div>
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="custom-control custom-checkbox text-center">
                                             <input type="checkbox" class="custom-control-input" id="accr_{{ $id }}"
-                                                wire:model.defer="parametersForm.{{ $id }}.accredited">
+                                                wire:model.defer="parametersForm.{{ $id }}.accredited"
+                                                @if($parametersDisabled) disabled @endif>
                                             <label class="custom-control-label" for="accr_{{ $id }}"></label>
                                         </div>
                                     </td>
@@ -1155,7 +1178,13 @@
                     @else
                     <div class="alert alert-light border text-center py-5 mb-0">
                         <i class="mdi mdi-flask-empty-outline text-muted" style="font-size: 2.5rem;"></i>
-                        <p class="mb-0 mt-2 text-muted">No captured results found for this sample.</p>
+                        <p class="mb-0 mt-2 text-muted">
+                            @if($parametersSectionFiltered)
+                                No parameters for your lab section on this sample.
+                            @else
+                                No captured results found for this sample.
+                            @endif
+                        </p>
                     </div>
                     @endif
                 </div>
@@ -1163,6 +1192,7 @@
                     <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
                         <i class="mdi mdi-close"></i> Close
                     </button>
+                    @if(! $parametersReadOnly && ! empty($sampleParameters))
                     <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
                         wire:loading.attr="disabled" wire:target="saveParameters">
                         <span wire:loading.remove wire:target="saveParameters">
@@ -1173,6 +1203,7 @@
                             Saving…
                         </span>
                     </button>
+                    @endif
                 </div>
             </div>
         </div>
