@@ -414,7 +414,7 @@ $printed_pos = [];
                                 <td style="font-size: 8px !important;width:23%; position: relative">
                                     @if (in_array($approver->lab_section_ids, $sample['lab_sect_ids_arr']))
                                         <div class="dotted-lined text-align:center" style="text-align:center;">
-                                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
+                                            <img src="{{ signatureToDataUri($approver->getApproverDetails()->electronic_sig) }}"
                                                 style="height:48px;z-index:-10;position:relative;" alt="signature">
 
                                         </div>

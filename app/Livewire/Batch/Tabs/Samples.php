@@ -507,6 +507,9 @@ class Samples extends Component
                     'sample_type_id' => $sample->sample_type_id ? (string) $sample->sample_type_id : '',
                     'customer_sample_id' => $this->resolveCustomerSampleId($sample),
                     'comments' => $sample->comments ?? '',
+                    'header_body' => $sample->header_body ?? '',
+                    'main_body' => $sample->main_body ?? '',
+                    'notes_body' => $sample->notes_body ?? '',
                     'main_standard' => $sample->main_standard ? (string) $sample->main_standard : '',
                     'secondary_standard' => $sample->secondary_standard ? (string) $sample->secondary_standard : '',
                     'disposal_date' => $sample->disposal_date ?? '',
@@ -1666,6 +1669,9 @@ class Samples extends Component
             'sample_type_id' => '',
             'customer_sample_id' => '',
             'comments' => '',
+            'header_body' => '',
+            'main_body' => '',
+            'notes_body' => '',
             'main_standard' => '',
             'secondary_standard' => '',
             'disposal_date' => '',
@@ -3276,6 +3282,15 @@ class Samples extends Component
             $sample->header_body = $this->commentsForm['header_body'];
             $sample->notes_body = $this->commentsForm['notes_body'];
             $sample->save();
+
+            foreach ($this->sampleForms as $index => $form) {
+                if (($form['id'] ?? null) === $this->editingCommentsSampleId) {
+                    $this->sampleForms[$index]['header_body'] = $sample->header_body ?? '';
+                    $this->sampleForms[$index]['main_body'] = $sample->main_body ?? '';
+                    $this->sampleForms[$index]['notes_body'] = $sample->notes_body ?? '';
+                    break;
+                }
+            }
 
             $this->showCommentsModal = false;
             $this->reset('editingCommentsSampleId', 'commentsForm');

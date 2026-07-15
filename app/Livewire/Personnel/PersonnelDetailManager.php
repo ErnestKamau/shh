@@ -385,7 +385,7 @@ class PersonnelDetailManager extends Component
         $user->name = trim($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name);
         $user->email = trim($this->detailsEmail);
         $user->phone = trim($this->detailsPhone);
-        $user->id_number = trim($this->detailsIdNumber);
+        $user->id_number = trim($this->detailsIdNumber) !== '' ? trim($this->detailsIdNumber) : null;
         $user->date_of_birth = $this->detailsDateOfBirth ?: null;
         $user->employment_date = $this->detailsEmploymentDate ?: null;
         $user->designation = $this->selectedDesignationId ?: null;
@@ -422,6 +422,16 @@ class PersonnelDetailManager extends Component
             (new PersonnelWorkHistoryController())->updateWorkHistory($user->id, $user->department_id, $user->position);
         }
 
+        if ($this->selectedPositionId) {
+            $selectedRole = Role::query()
+                ->where('guard_name', 'web')
+                ->find($this->selectedPositionId);
+
+            if ($selectedRole && !$user->hasRole($selectedRole)) {
+                $user->assignRole($selectedRole);
+            }
+        }
+
         $this->detailsSignatureUpload = null;
         $this->detailsSignatureData = '';
         $this->message = 'User details saved.';
@@ -437,7 +447,7 @@ class PersonnelDetailManager extends Component
                 'detailsLastName' => 'nullable|string|max:255',
                 'detailsEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId, 'id')],
                 'detailsPhone' => 'nullable|string|max:255',
-                'detailsIdNumber' => 'required|string|max:255',
+                'detailsIdNumber' => 'nullable|string|max:255',
                 'detailsDateOfBirth' => 'nullable|date',
             ]);
             return;
@@ -446,9 +456,9 @@ class PersonnelDetailManager extends Component
         if ($step === 2) {
             $this->validate([
                 'detailsEmploymentDate' => 'nullable|date',
-                'selectedDesignationId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Designation'))],
+                'selectedDesignationId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description'))],
                 'selectedEducationId' => ['nullable', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Educational Levels'))],
-                'selectedPositionId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description'))],
+                'selectedPositionId' => ['required', 'string', Rule::exists('spatie_roles', 'id')],
                 'selectedDepartmentId' => 'required|string|exists:inventory_departments,id',
             ]);
             return;
@@ -758,7 +768,11 @@ class PersonnelDetailManager extends Component
 
     public function getDesignationsProperty()
     {
-        return ModulePreConfigs::query()->where('type', 'Designation')->orderBy('name')->get(['id', 'name']);
+        return ModulePreConfigs::query()
+            ->where('type', 'Job Description')
+            ->whereIn('module', ['Personnel-Management', 'Skills-Matrix'])
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function getEducationLevelsProperty()
@@ -768,7 +782,10 @@ class PersonnelDetailManager extends Component
 
     public function getPositionsProperty()
     {
-        return ModulePreConfigs::query()->where('type', 'Job Description')->orderBy('name')->get(['id', 'name']);
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function getDepartmentsProperty()

@@ -131,7 +131,7 @@ class MethodManager extends Component
         $this->dispatch('method-modal-opened');
     }
 
-    public function showEditMethodModal(int $methodId): void
+    public function showEditMethodModal(string $methodId): void
     {
         $this->editingMethod = AnalysisMethod::find($methodId);
         
@@ -186,7 +186,7 @@ class MethodManager extends Component
         }
     }
 
-    public function deleteMethod(int $methodId): void
+    public function deleteMethod(string $methodId): void
     {
         try {
             $method = AnalysisMethod::find($methodId);

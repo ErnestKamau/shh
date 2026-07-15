@@ -125,8 +125,8 @@ class PersonnelDashboard extends Component
         $this->designationDistribution = User::query()
             ->from('users')
             ->leftJoin('module_pre_configs as designation', function ($join): void {
-                $join->on(DB::raw('designation.id::text'), '=', DB::raw('users.designation::text'))
-                    ->where('designation.type', '=', 'Designation');
+                $join->on(\DB::raw('designation.id::text'), '=', \DB::raw('users.designation::text'))
+                    ->where('designation.type', '=', 'Job Description');
             })
             ->where('users.company_id', $companyId)
             ->where('users.active', 1)

@@ -292,7 +292,7 @@
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.last_name') }}</label><input wire:model.live="detailsLastName" class="form-control">@error('detailsLastName')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.email') }} *</label><input type="email" wire:model.live="detailsEmail" class="form-control" required>@error('detailsEmail')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.phone') }}</label><input wire:model.live="detailsPhone" class="form-control">@error('detailsPhone')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.id_number_passport') }} *</label><input wire:model.live="detailsIdNumber" class="form-control" required>@error('detailsIdNumber')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.id_number_passport') }}</label><input wire:model.live="detailsIdNumber" class="form-control">@error('detailsIdNumber')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.date_of_birth') }}</label><input type="date" wire:model.live="detailsDateOfBirth" class="form-control">@error('detailsDateOfBirth')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                         </div>
 

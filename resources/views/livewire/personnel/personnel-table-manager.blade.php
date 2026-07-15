@@ -116,7 +116,7 @@
                             <th>{{ __('personnel.middle_name') }}</th>
                             <th>{{ __('personnel.last_name') }}</th>
                             <th>{{ __('personnel.department') }}</th>
-                            <th>{{ __('personnel.jd') }}</th>
+                            <th>{{ __('personnel.position') }}</th>
                             <th>{{ __('personnel.lab_sections') }}</th>
                             <th>{{ __('personnel.email') }}</th>
                             <th>{{ __('personnel.employment_date') }}</th>
@@ -273,7 +273,7 @@
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="form-group">
-                                                    <label class="control-label">{{ __('personnel.id_number_passport') }} <span class="text-danger">*</span></label>
+                                                    <label class="control-label">{{ __('personnel.id_number_passport') }}</label>
                                                     <input type="text" class="form-control" wire:model="personnelForm.id_number" placeholder="{{ __('personnel.id_number_passport') }}..." />
                                                 </div>
                                             </div>

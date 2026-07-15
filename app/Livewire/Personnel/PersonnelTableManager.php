@@ -5,6 +5,7 @@ namespace App\Livewire\Personnel;
 use App\Exports\ReportExporter;
 use App\InventoryDepartment;
 use App\Lab;
+use App\Models\Auth\Role;
 use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
@@ -121,15 +122,18 @@ class PersonnelTableManager extends Component
         $this->embedded = $embedded;
         $this->reloadDepartments();
 
+        // Designation options come from Job Description configs (sidebar: Job Designation).
         $this->designations = ModulePreConfigs::query()
-            ->where('type', 'Designation')
+            ->where('type', 'Job Description')
+            ->whereIn('module', ['Personnel-Management', 'Skills-Matrix'])
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
 
-        $this->positions = ModulePreConfigs::query()
-            ->where('type', 'Job Description')
+        // Position options come from organizational Roles.
+        $this->positions = Role::query()
+            ->where('guard_name', 'web')
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
@@ -216,14 +220,14 @@ class PersonnelTableManager extends Component
             'personnelForm.designation' => [
                 'required',
                 'string',
-                Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Designation')),
+                Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
             ],
             'personnelForm.first_name' => 'required|string|max:255',
             'personnelForm.middle_name' => 'nullable|string|max:255',
             'personnelForm.last_name' => 'nullable|string|max:255',
             'personnelForm.email' => 'required|email|max:255|unique:users,email',
             'personnelForm.phone' => 'nullable|string|max:255',
-            'personnelForm.id_number' => 'required|string|max:255',
+            'personnelForm.id_number' => 'nullable|string|max:255',
             'personnelForm.date_of_birth' => 'nullable|date',
             'personnelForm.employment_date' => 'nullable|date',
             'personnelForm.educational_level' => [
@@ -234,7 +238,7 @@ class PersonnelTableManager extends Component
             'personnelForm.position' => [
                 'required',
                 'string',
-                Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
+                Rule::exists('spatie_roles', 'id'),
             ],
             'personnelForm.analyst_is_gazzetted' => 'boolean',
             'personnelForm.date_of_gazzette' => 'nullable|date',
@@ -278,7 +282,10 @@ class PersonnelTableManager extends Component
             ? trim((string) $this->personnelForm['gazzette_no'])
             : null;
         $personnel->start_of_career = $this->personnelForm['start_of_career'] !== '' ? (string) $this->personnelForm['start_of_career'] : null;
-        $personnel->id_number = (string) $this->personnelForm['id_number'];
+        $personnel->id_number = trim((string) $this->personnelForm['id_number']) !== ''
+            ? trim((string) $this->personnelForm['id_number'])
+            : null;
+        $personnel->zone_id = null;
         $personnel->active = $this->personnelForm['active'] ? 1 : 0;
         $personnel->is_technical = ($this->personnelForm['is_technical'] ?? false) ? 1 : 0;
         $personnel->lab_section_id = implode(',', $this->personnelForm['lab_section_id'] ?? []);
@@ -293,6 +300,14 @@ class PersonnelTableManager extends Component
         );
 
         $personnel->save();
+
+        $selectedRole = Role::query()
+            ->where('guard_name', 'web')
+            ->find($this->personnelForm['position']);
+
+        if ($selectedRole) {
+            $personnel->assignRole($selectedRole);
+        }
 
         $selectedLabIds = array_values(array_unique(array_filter((array) ($this->personnelForm['lab_ids'] ?? []))));
 
@@ -452,7 +467,7 @@ class PersonnelTableManager extends Component
                 'Middle Name' => (string) ($item->middle_name ?? ''),
                 'Last Name' => (string) ($item->last_name ?? ''),
                 'Department' => (string) ($item->department_name ?? ''),
-                'Job Description' => (string) ($item->position ?? ''),
+                'Position' => (string) ($item->position ?? ''),
                 'Lab Sections' => (string) ($item->labsectionname ?? ''),
                 'Email' => (string) ($item->email ?? ''),
                 'Employment Date' => (string) ($item->employment_date ?? ''),
@@ -466,7 +481,7 @@ class PersonnelTableManager extends Component
             'Middle Name',
             'Last Name',
             'Department',
-            'Job Description',
+            'Position',
             'Lab Sections',
             'Email',
             'Employment Date',
@@ -494,15 +509,14 @@ class PersonnelTableManager extends Component
             })
             ->leftJoin('module_pre_configs as de', function ($join): void {
                 $join->whereRaw('de.id::text = users.designation')
-                    ->where('de.type', '=', 'Designation');
+                    ->where('de.type', '=', 'Job Description');
             })
             ->leftJoin('module_pre_configs as e', function ($join): void {
                 $join->whereRaw('e.id::text = users.education_level')
                     ->where('e.type', '=', 'Educational Levels');
             })
-            ->leftJoin('module_pre_configs as p', function ($join): void {
-                $join->whereRaw('p.id::text = users.position::text')
-                    ->where('p.type', '=', 'Job Description');
+            ->leftJoin('spatie_roles as p', function ($join): void {
+                $join->whereRaw('p.id::text = users.position::text');
             })
             ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation');
 
@@ -852,7 +866,7 @@ class PersonnelTableManager extends Component
             $this->validate([
                 'personnelForm.first_name' => 'required|string|max:255',
                 'personnelForm.email' => 'required|email|max:255|unique:users,email',
-                'personnelForm.id_number' => 'required|string|max:255',
+                'personnelForm.id_number' => 'nullable|string|max:255',
                 'personnelForm.date_of_birth' => 'nullable|date',
             ]);
         }
@@ -862,12 +876,12 @@ class PersonnelTableManager extends Component
                 'personnelForm.designation' => [
                     'required',
                     'string',
-                    Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Designation')),
+                    Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
                 ],
                 'personnelForm.position' => [
                     'required',
                     'string',
-                    Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
+                    Rule::exists('spatie_roles', 'id'),
                 ],
                 'personnelForm.department' => 'required|string|exists:inventory_departments,id',
             ]);

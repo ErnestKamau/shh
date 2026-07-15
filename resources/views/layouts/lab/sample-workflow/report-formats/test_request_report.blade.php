@@ -632,7 +632,12 @@
             @endif
             @if($sample->main_body)
             <div style="font-size:10px;padding:4px 0;">
-                {!! $sample->main_body !!}
+                <strong>Recommendations / Interpretations:</strong> {!! $sample->main_body !!}
+            </div>
+            @endif
+            @if($sample->notes_body)
+            <div style="font-size:10px;padding:4px 0;">
+                <strong>Notes:</strong> {!! $sample->notes_body !!}
             </div>
             @endif
 

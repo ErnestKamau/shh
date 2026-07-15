@@ -3,27 +3,19 @@
 namespace App\Http\Controllers\QcModule;
 
 use App\AnalysisElements;
-use App\Analyte;
+use App\Models\QcModule\Configurations\Approvers;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
-use App\Models\QcModule\Data\QcResults;
-use App\Models\System\SystemConfiguration;
-use App\SampleDetails;
-use App\SampleHeader;
+use App\Models\QcModule\QCProcessedResults;
 use App\SamplesCategory;
-use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
 use App\AnalysisType;
-use App\Models\QcModule\Configurations\Approvers;
-use App\User;
+use App\Services\Qc\QcPassFailEvaluator;
+use App\Services\Qc\QcStatisticsService;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use App\Models\QcModule\QCProcessedResults;
-
-
-
 
 class QualityControlController extends Controller
 {
@@ -31,10 +23,13 @@ class QualityControlController extends Controller
      * Display a listing of the resource.
      * @return Renderable
      */
-    public function __construct()
-    {
+    public function __construct(
+        private readonly QcStatisticsService $qcStatisticsService,
+        private readonly QcPassFailEvaluator $qcPassFailEvaluator,
+    ) {
         $this->middleware('auth');
     }
+
     public function index()
     {
         return view('layouts.qcmodule.configurations.index');
@@ -46,256 +41,220 @@ class QualityControlController extends Controller
         $qc_type->name = $request->name;
         $qc_type->code = $request->code;
         $qc_type->has_standards = isset($request->has_standards) ? 1 : 0;
-        $qc_type->has_configured_samples = isset($request->has_configured_samples) ? 1 :0;
+        $qc_type->has_configured_samples = isset($request->has_configured_samples) ? 1 : 0;
         $qc_type->is_active = isset($request->is_active) ? 1 : 0;
         $qc_type->created_by = auth()->user()->id;
-        $qc_type->use_existing_sample = isset($request->use_existing_sample) ? 1 :0;
+        $qc_type->use_existing_sample = isset($request->use_existing_sample) ? 1 : 0;
         $qc_type->save();
-        return redirect()->back()->with('success','Qc Type record updated successfully');
+
+        return redirect()->back()->with('success', 'Qc Type record updated successfully');
     }
 
-    public function deleteQCTypes(Request $request){
+    public function deleteQCTypes(Request $request)
+    {
         $qc_type = QcTypes::find($request->qc_type_id);
         $qc_type->is_active = 0;
         $qc_type->save();
-        return redirect()->back()->with('success','Qc Type record updated successfully');
+
+        return redirect()->back()->with('success', 'Qc Type record updated successfully');
     }
 
-    public function configuration_index(){
+    public function configuration_index()
+    {
         return view('layouts.qcmodule.configurations.index');
     }
-    public function addQcStandard(Request $request){
+
+    public function addQcStandard(Request $request)
+    {
         $standard = Standards::find($request->standard_id) ?? new Standards();
         $standard->name = $request->name;
         $standard->code = $request->code;
         $standard->is_qc_standard = 1;
-        $standard->qc_type_id =  $request->qc_type_id;
-        $standard->status = isset($request->is_active)  ? 1 :0;
+        $standard->qc_type_id = $request->qc_type_id;
+        $standard->status = isset($request->is_active) ? 1 : 0;
         $standard->edited_by = auth()->user()->id;
-        $standard->qc_scheme_ids = implode(',',$request->qc_scheme_ids);
+        $standard->qc_scheme_ids = implode(',', $request->qc_scheme_ids);
         $standard->save();
-        return redirect()->back()->with('success','Qc standard added successfully!');
+
+        return redirect()->back()->with('success', 'Qc standard added successfully!');
     }
-    public function deleteQcStandard(Request $request){
+
+    public function deleteQcStandard(Request $request)
+    {
         $standard = Standards::find($request->standard_id);
         $standard->status = 0;
         $standard->save();
-        return redirect()->back()-with('success','Qc Standard deleted successfully!');
+
+        return redirect()->back()->with('success', 'Qc Standard deleted successfully!');
     }
-    
-    public function qcStandardShow($id){
+
+    public function qcStandardShow($id)
+    {
         $standard = Standards::find($id);
 
-        return view('layouts.qcmodule.configurations.show',compact('standard'));
+        return view('layouts.qcmodule.configurations.show', compact('standard'));
     }
 
-    public function addQcStandardAnalyte(Request $request){
+    public function addQcStandardAnalyte(Request $request)
+    {
         $analyte = StandardAnalytes::find($request->standard_analyte_id) ?? new StandardAnalytes();
         $analyte->standard_id = $request->standard_id;
         $analyte->analyte_id = $request->analyte_id;
         $analyte->absolute_tolerance = isset($request->use_absolute) ? 1 : 0;
         $analyte->tolerance_1 = $request->tolerance_1;
-        $analyte->low = isset($request->use_absolute) ? $request->tolerance_1 : $request->expected_value -  $request->tolerance_1 ;
-
         $analyte->tolerance_2 = $request->tolerance_2;
-        $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_1 ; 
 
+        $expected = (float) ($request->expected_value ?? 0);
+        $tolerance1 = (float) ($request->tolerance_1 ?? 0);
+        $tolerance2 = $request->tolerance_2 !== null && $request->tolerance_2 !== ''
+            ? (float) $request->tolerance_2
+            : $tolerance1;
+
+        $bands = $this->qcPassFailEvaluator->computeToleranceBands(
+            $expected,
+            $tolerance1,
+            $tolerance2,
+            isset($request->use_absolute)
+        );
+
+        $analyte->low = $bands['low'];
+        $analyte->high = $bands['high'];
         $analyte->recommendations = $request->recomendation;
         $analyte->comments = $request->comment;
-        $analyte->is_active = isset($request->is_active ) ? 1 : 0;
+        $analyte->is_active = isset($request->is_active) ? 1 : 0;
         $analyte->expected_value = $request->expected_value;
         $analyte->standard_value_id = 0;
         $analyte->standard_value_type = 'is_range';
         $analyte->save();
-        return redirect()->back()->with('success','Standard analyte record updated successfully!');
+
+        return redirect()->back()->with('success', 'Standard analyte record updated successfully!');
     }
-    public function deleteQcStandardAnalyte(Request $request){
+
+    public function deleteQcStandardAnalyte(Request $request)
+    {
         $analyte = StandardAnalytes::find($request->standard_analyte_id);
         $analyte->is_active = 0;
         $analyte->save();
-        return redirect()->back()->with('success','Standard analyte record deleted  successfully!');
+
+        return redirect()->back()->with('success', 'Standard analyte record deleted  successfully!');
     }
-    public function MaintainQcSchemes(Request $request){
+
+    public function MaintainQcSchemes(Request $request)
+    {
         $scheme = QcSchemes::find($request->scheme_id) ?? new QcSchemes();
         $scheme->name = $request->name;
         $scheme->code = $request->code;
         $scheme->is_active = isset($request->is_active) ? 1 : 0;
         $scheme->save();
-        return redirect()->back()->with('success','Qc Scheme records updated successfully!');
+
+        return redirect()->back()->with('success', 'Qc Scheme records updated successfully!');
     }
-    public function DeleteQcSchemes(Request $request){
+
+    public function DeleteQcSchemes(Request $request)
+    {
         $scheme = QcSchemes::find($request->scheme_id);
         $scheme->delete();
-        return redirect()->back()->with('success','Qc scheme deleted successfully!');
+
+        return redirect()->back()->with('success', 'Qc scheme deleted successfully!');
     }
-    public function qcWorkflowIndex(){
-		return view('layouts.qcmodule.qchistory.index');
+
+    public function qcWorkflowIndex()
+    {
+        return view('layouts.qcmodule.qchistory.index');
     }
-    public function getQcStandardsAjax($qc_type_id){
-        $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
+
+    public function getQcStandardsAjax($qc_type_id)
+    {
+        $standards = Standards::where('is_qc_standard', 1)->where('status', 1)->where('qc_type_id', $qc_type_id)->get();
+
         return response()->json($standards);
     }
-    public function getQcAnalysisTypesAjax($sample_type_id){
-        $analysis = AnalysisType::where('sample_type_id',$sample_type_id)->get();
+
+    public function getQcAnalysisTypesAjax($sample_type_id)
+    {
+        $analysis = AnalysisType::where('sample_type_id', $sample_type_id)->get();
+
         return response()->json($analysis);
     }
 
-    public function generateQCReport(Request $request){
+    public function generateQCReport(Request $request)
+    {
         return redirect()->route('qcWorkflowIndex');
     }
 
-    public function getQcTypeConfigAjax(Request $request, $id){
+    public function getQcTypeConfigAjax(Request $request, $id)
+    {
         $qc_type = QcTypes::find($id);
         $res = [
-            "data"=>$qc_type,
-            "samples"=>SamplesCategory::where('sample_type_id',$request->sample_type_id)->where('workflow_stage','Completed')->selectRaw('id,sample_code')->get()
+            'data' => $qc_type,
+            'samples' => SamplesCategory::where('sample_type_id', $request->sample_type_id)->where('workflow_stage', 'Completed')->selectRaw('id,sample_code')->get(),
         ];
+
         return response()->json($res);
     }
-    public function addQcApprovvers(Request $request){
-        $approver = Approvers::where('personnel_id',$request->personnel_id)->first();
-        if(!isset($approver->id)){
+
+    public function addQcApprovvers(Request $request)
+    {
+        $approver = Approvers::where('personnel_id', $request->personnel_id)->first();
+        if (! isset($approver->id)) {
             $approver = new Approvers();
             $approver->personnel_id = $request->personnel_id;
             $approver->created_by = auth()->user()->id;
             $approver->save();
-            return redirect()->back()->with('success','Approver Added Successfully');
+
+            return redirect()->back()->with('success', 'Approver Added Successfully');
         }
-        return redirect()->back()->with('error','Approver already exists');
-    }
-    public function editQcApprovers(Request $request){
-        Approvers::find($request->approver_id)->update(['personnel_id'=>$request->personnel_id]);
-        return redirect()->back()->with('success','Approver updated successfully!');
-    }
-    public function deleteQcApprovvers($id){
-        $approver = Approvers::find($id);
-        $approver->delete();
-       
-        return redirect()->back()->with('success','Approver deleted Successfully');
-       
+
+        return redirect()->back()->with('error', 'Approver already exists');
     }
 
-    public function getAnalysisElementsByTypeId($id){
-        $elements = AnalysisElements::where('analysis_type_id',$id)->get();
+    public function editQcApprovers(Request $request)
+    {
+        Approvers::find($request->approver_id)->update(['personnel_id' => $request->personnel_id]);
+
+        return redirect()->back()->with('success', 'Approver updated successfully!');
+    }
+
+    public function deleteQcApprovvers($id)
+    {
+        $approver = Approvers::find($id);
+        $approver->delete();
+
+        return redirect()->back()->with('success', 'Approver deleted Successfully');
+    }
+
+    public function getAnalysisElementsByTypeId($id)
+    {
+        $elements = AnalysisElements::where('analysis_type_id', $id)->get();
+
         return response()->json($elements);
     }
 
-    public function showUnProcessed(){
+    public function showUnProcessed()
+    {
         return view('layouts.qcmodule.qchistory.processing');
     }
 
-    public function showQcReport(){
+    public function showQcReport()
+    {
         return view('layouts.qcmodule.qchistory.reports');
     }
-    public function showQcReportGraph($result_id){
+
+    public function showQcReportGraph($result_id)
+    {
         $results = QCProcessedResults::find($result_id);
 
         return view('layouts.qcmodule.qchistory.reportshow', compact('results'));
     }
 
+    public function processResults(Request $request)
+    {
+        $processed = $this->qcStatisticsService->processAllUnprocessed();
 
-    // ---------------------------------------statistical methods -------------------------------
-    public function processResults(Request $request){
-        $unProcessedAnalyteIds = QcResults::where('is_qc_processed',0)->pluck('analyte_processed_id')->toArray();
-        $unprocessed = QCProcessedResults::whereIn('id',$unProcessedAnalyteIds)->get();
-        foreach ($unprocessed as $up) {
-            $raw_results = QcResults::where('analyte_processed_id', $up->id)
-                            ->pluck('result')
-                            ->filter(function ($value) {
-                                // Keep only numeric values
-                                return is_numeric($value);
-                            })
-                            ->map(function ($value) {
-                                // Convert to integer
-                                return (int) $value;
-                            })
-                            ->values() // Re-index the array
-                            ->toArray();
-            $statistical_results = $this->calculateRobustCV($raw_results);
-            $up->robust_standard_deviation = $statistical_results['rSD'];
-            $up->robust_median = $statistical_results['median'];
-            $up->robust_mean = $statistical_results['mean'];
-            $up->robust_cv = $statistical_results['rCV'];
-            $up->robust_cv_percentage = $statistical_results['percent_rCV'];
-            $up->save();
+        if ($processed === 0) {
+            return redirect()->back()->with('success', 'No unprocessed QC results were found.');
+        }
 
-            # code...
-        }
-        QcResults::where('is_qc_processed',0)->update(['is_qc_processed'=>1]);
-        return redirect()->back()->with('success','All qc results have been processed');
-
+        return redirect()->back()->with('success', 'All qc results have been processed');
     }
-
-    private function calculateMean(array $values): float {
-        if (count($values) === 0) {
-            return 0; // or throw exception if preferred
-        }
-    
-        return array_sum($values) / count($values);
-    }
-    private function calculateMedian(array $values): ?float {
-        $count = count($values);
-        if ($count === 0) {
-            return null; // No values
-        }
-    
-        sort($values);
-        $middle = (int) floor($count / 2);
-    
-        if ($count % 2) {
-            return $values[$middle]; // Odd
-        } else {
-            return ($values[$middle - 1] + $values[$middle]) / 2; // Even
-        }
-    }
-    
-    private function calculateRobustSD(array $values): ?float {
-        $count = count($values);
-        if ($count <= 1) {
-            return 0.0; // No variation with 1 or 0 values
-        }
-    
-        $median = $this->calculateMedian($values);
-    
-        // Absolute deviations from median
-        $deviations = array_map(fn($v) => abs($v - $median), $values);
-    
-        // Median absolute deviation (MAD)
-        $mad = $this->calculateMedian($deviations);
-    
-        return $mad * 1.4826;
-    }
-    
-    private function calculateRobustCV(array $values): ?array {
-        if (count($values) === 0) {
-            return null; // No values to calculate
-        }
-    
-        $median = $this->calculateMedian($values);
-    
-        if ($median == 0) {
-            return [
-                'mean' => 0,
-                'median' => $median,
-                'rSD' => 0.0,
-                'rCV' => null,
-                'percent_rCV' => null
-            ]; // Prevent division by zero
-        }
-    
-        $rSD = $this->calculateRobustSD($values);
-        $mean = $this->calculateMean($values);
-        $rCV = $rSD / $median;
-        $percentRCV = $rCV * 100;
-    
-        return [
-            'mean' => $mean,
-            'median' => $median,
-            'rSD' => $rSD,
-            'rCV' => $rCV,
-            'percent_rCV' => $percentRCV
-        ];
-    }
-    
-    
 }

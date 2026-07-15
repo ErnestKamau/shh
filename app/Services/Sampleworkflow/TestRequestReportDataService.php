@@ -268,16 +268,28 @@ class TestRequestReportDataService
             return '';
         }
 
+        if (function_exists('signatureToDataUri')) {
+            $dataUri = signatureToDataUri($electronicSig);
+            if ($dataUri !== '') {
+                return $dataUri;
+            }
+        }
+
+        $electronicSig = trim($electronicSig);
+
         if (str_starts_with($electronicSig, 'data:')) {
             return $electronicSig;
         }
 
-        if (str_starts_with($electronicSig, 'http')) {
+        if (str_starts_with($electronicSig, 'http://') || str_starts_with($electronicSig, 'https://')) {
             return $electronicSig;
         }
 
         if ($this->signatureFileIsReadable($electronicSig) && function_exists('imageTobase64')) {
-            return imageTobase64($electronicSig);
+            $encoded = imageTobase64($electronicSig);
+            if (is_string($encoded) && str_starts_with($encoded, 'data:')) {
+                return $encoded;
+            }
         }
 
         return '';
@@ -287,15 +299,25 @@ class TestRequestReportDataService
     {
         if (function_exists('getCoaApproverSignature')) {
             $path = getCoaApproverSignature($electronicSig);
-            if (is_readable($path)) {
+            if (is_string($path) && $path !== '' && ! str_starts_with($path, 'data:') && is_readable($path)) {
                 return true;
             }
         }
 
-        $parts = explode('/storage', $electronicSig);
-        $suffix = end($parts);
+        $decoded = urldecode($electronicSig);
+        $relative = ltrim((string) preg_replace('#^.*/storage/#', '', $decoded), '/');
 
-        return is_readable(storage_path('app'.$suffix));
+        foreach ([
+            storage_path('app/public/' . $relative),
+            storage_path('app/' . $relative),
+            public_path('storage/' . $relative),
+        ] as $candidate) {
+            if (is_readable($candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

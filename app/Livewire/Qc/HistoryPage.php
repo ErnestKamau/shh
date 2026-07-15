@@ -8,6 +8,7 @@ use App\Analyte;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
 use App\SampleType;
+use App\Services\Qc\QcPassFailEvaluator;
 use App\Standards;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +24,7 @@ class HistoryPage extends Component
     public string $sampleTypeId = '';
     public string $analysisTypeId = '';
     public string $analyteId = '';
-    public string $remark = '';
+    public string $statusCode = '';
     public string $groupBy = '1';
 
     public function updatedQcTypeId(): void
@@ -52,7 +53,7 @@ class HistoryPage extends Component
         $this->sampleTypeId = '';
         $this->analysisTypeId = '';
         $this->analyteId = '';
-        $this->remark = '';
+        $this->statusCode = '';
         $this->groupBy = '1';
     }
 
@@ -82,6 +83,7 @@ class HistoryPage extends Component
                     'qr.qc_scheme_id',
                     'qr.result',
                     'qr.remarks',
+                    'qr.status_code',
                 ])
                 ->addSelect(DB::raw('NULL as standard_id'))
                 ->addSelect(DB::raw('NULL as previous_result'))
@@ -122,8 +124,16 @@ class HistoryPage extends Component
             $query->where('standard_id', $this->standardId);
         }
 
-        if ($this->remark !== '' && strtolower($this->remark) !== 'all') {
-            $query->where('remarks', $this->remark);
+        if ($this->statusCode !== '' && strtolower($this->statusCode) !== 'all') {
+            $normalized = strtoupper($this->statusCode);
+            if ($normalized === 'PASS') {
+                $normalized = QcPassFailEvaluator::STATUS_PASSED;
+            }
+            if ($normalized === 'FAIL') {
+                $normalized = QcPassFailEvaluator::STATUS_FAILED;
+            }
+
+            $query->where('status_code', $normalized);
         }
 
         $results = $query->orderByDesc('receipt_date')->limit(1000)->get();

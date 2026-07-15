@@ -33,9 +33,9 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function map()
     {
+        // Web QC routes are owned by App routes/web.php. Do not register
+        // legacy module duplicates (previously unguarded /qualitycontrol/*).
         $this->mapApiRoutes();
-
-        $this->mapWebRoutes();
     }
 
     /**

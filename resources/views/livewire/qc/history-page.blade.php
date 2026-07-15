@@ -71,11 +71,11 @@
                     </select>
                 </div>
                 <div class="form-group col-md-2">
-                    <label>Remark</label>
-                    <select wire:model.live="remark" class="form-control form-control-sm">
+                    <label>Status</label>
+                    <select wire:model.live="statusCode" class="form-control form-control-sm">
                         <option value="">All</option>
-                        <option value="PASS">Pass</option>
-                        <option value="FAIL">Fail</option>
+                        <option value="PASSED">Passed</option>
+                        <option value="FAILED">Failed</option>
                     </select>
                 </div>
                 <div class="form-group col-md-2">
@@ -116,7 +116,7 @@
                         @if($groupBy === '1')
                             <th>Standard</th>
                         @endif
-                        <th>Remark</th>
+                        <th>Status</th>
                         <th>Analyst</th>
                     </tr>
                 </thead>
@@ -140,7 +140,7 @@
                             @if($groupBy === '1')
                                 <td>{{ $row->main_value }}</td>
                             @endif
-                            <td>{{ $row->remarks }}</td>
+                            <td>{{ $row->status_code ?? $row->remarks }}</td>
                             <td>{{ $row->analyst_name }}</td>
                         </tr>
                     @empty
