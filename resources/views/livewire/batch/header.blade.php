@@ -283,12 +283,31 @@
                                 @endif
 
                                 @if(isset($batch->status) && $batch->status == "Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
+                                    @can('laboratory.components.lab-reports.view')
+                                    <li>
+                                        <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                           class="dropdown-item">
+                                            <i class="mdi mdi-eye-outline mr-2"></i> Preview Test Report
+                                        </a>
+                                    </li>
+                                    @endcan
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)"
                                             style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample
                                             Data</span></li>
                                     <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
                                             style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                             Verification</span></li>
+                                @endif
+
+                                @if(isset($batch->status) && Auth::user()->is_client == 0 && $status == 'Sample Verification')
+                                    @can('laboratory.components.lab-reports.view')
+                                    <li>
+                                        <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                           class="dropdown-item">
+                                            <i class="mdi mdi-eye-outline mr-2"></i> Preview Test Report
+                                        </a>
+                                    </li>
+                                    @endcan
                                 @endif
 
                                 @if(isset($batch->status) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0 && $status == 'Sample Verification')
