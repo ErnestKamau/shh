@@ -195,11 +195,11 @@
                         @if ($selectedFormType === 'lab_hierarchy')
                             <div class="alert alert-danger mb-4">
                                 <strong>Replace existing lab data</strong>
-                                <p class="mb-2 small">When enabled, all sample types, analysis types, analysis elements, analytes, batches, samples, and captured results for your company will be permanently deleted before import. Standards are not deleted.</p>
+                                <p class="mb-2 small">When enabled, all sample types, analysis types, analysis elements, and analytes for your company will be permanently deleted before import, along with all workflow requests/enquiries, submission forms, batches, samples, captured results, and related quotations. Standards are not deleted.</p>
                                 <div class="form-check mb-3">
                                     <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_lab_hierarchy">
                                     <label class="form-check-label" for="replace_existing_lab_hierarchy">
-                                        Replace all existing lab data for this company (including batches, samples, and results)
+                                        Replace all existing lab data for this company (including requests/enquiries, batches, samples, and results)
                                     </label>
                                 </div>
                                 @if ($replaceExisting)

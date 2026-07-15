@@ -5,7 +5,9 @@ namespace App\Services\Lab;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Analyte;
+use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Models\SubmissionFormInstance;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
@@ -41,11 +43,14 @@ final class LabHierarchyPurgeService
                     ->whereIn('analysis_type_id', $analysisTypeIds)
                     ->pluck('id');
 
-            $sampleHeaderIds = $sampleTypeIds->isEmpty()
-                ? collect()
-                : SampleHeader::query()
-                    ->whereIn('sample_type_id', $sampleTypeIds)
-                    ->pluck('id');
+            $submissionFormInstanceIds = $this->resolveSubmissionFormInstanceIds();
+            $submissionRequestIds = $this->resolveSubmissionRequestIds($submissionFormInstanceIds);
+
+            $sampleHeaderIds = $this->resolveSampleHeaderIds(
+                $sampleTypeIds,
+                $submissionFormInstanceIds,
+                $submissionRequestIds
+            );
 
             $sampleDetailIds = $sampleHeaderIds->isEmpty()
                 ? collect()
@@ -59,8 +64,11 @@ final class LabHierarchyPurgeService
             $summary['analysis_elements'] = $analysisElementIds->count();
             $summary['sample_headers'] = $sampleHeaderIds->count();
             $summary['sample_details'] = $sampleDetailIds->count();
+            $summary['submission_form_instances'] = $submissionFormInstanceIds->count();
+            $summary['sample_submission_requests'] = $submissionRequestIds->count();
 
             $this->purgeBatchTrees($sampleHeaderIds, $sampleDetailIds, $summary);
+            $this->purgeRequestPipeline($submissionFormInstanceIds, $submissionRequestIds, $summary);
             $this->purgeConfigurationData(
                 $companyId,
                 $sampleTypeIds,
@@ -72,6 +80,97 @@ final class LabHierarchyPurgeService
         });
 
         return $summary;
+    }
+
+    /**
+     * Request/enquiry tables do not carry company_id; the replace-existing import is a
+     * destructive reset for the deployment's workflow pipeline, matching seeder behaviour.
+     *
+     * @return Collection<int, string>
+     */
+    private function resolveSubmissionFormInstanceIds(): Collection
+    {
+        if (! Schema::hasTable('submission_form_instances')) {
+            return collect();
+        }
+
+        return SubmissionFormInstance::query()->pluck('id');
+    }
+
+    /**
+     * @param  Collection<int, string>  $submissionFormInstanceIds
+     * @return Collection<int, string>
+     */
+    private function resolveSubmissionRequestIds(Collection $submissionFormInstanceIds): Collection
+    {
+        if (! Schema::hasTable('sample_submission_requests')) {
+            return collect();
+        }
+
+        $requestIds = SampleSubmissionRequest::query()->pluck('id');
+
+        if ($submissionFormInstanceIds->isEmpty()
+            || ! Schema::hasColumn('sample_submission_requests', 'submission_form_instance_id')) {
+            return $requestIds->unique()->values();
+        }
+
+        $linkedRequestIds = SampleSubmissionRequest::query()
+            ->whereIn('submission_form_instance_id', $submissionFormInstanceIds)
+            ->pluck('id');
+
+        return $requestIds->merge($linkedRequestIds)->unique()->values();
+    }
+
+    /**
+     * @param  Collection<int, string>  $sampleTypeIds
+     * @param  Collection<int, string>  $submissionFormInstanceIds
+     * @param  Collection<int, string>  $submissionRequestIds
+     * @return Collection<int, string>
+     */
+    private function resolveSampleHeaderIds(
+        Collection $sampleTypeIds,
+        Collection $submissionFormInstanceIds,
+        Collection $submissionRequestIds,
+    ): Collection {
+        $headerIds = collect();
+
+        if ($sampleTypeIds->isNotEmpty()) {
+            $headerIds = $headerIds->merge(
+                SampleHeader::query()
+                    ->whereIn('sample_type_id', $sampleTypeIds)
+                    ->pluck('id')
+            );
+        }
+
+        if ($submissionFormInstanceIds->isNotEmpty()
+            && Schema::hasColumn('sample_headers', 'submission_form_instance_id')) {
+            $headerIds = $headerIds->merge(
+                SampleHeader::query()
+                    ->whereIn('submission_form_instance_id', $submissionFormInstanceIds)
+                    ->pluck('id')
+            );
+        }
+
+        if ($submissionRequestIds->isNotEmpty()) {
+            if (Schema::hasColumn('sample_headers', 'sample_submission_request_id')) {
+                $headerIds = $headerIds->merge(
+                    SampleHeader::query()
+                        ->whereIn('sample_submission_request_id', $submissionRequestIds)
+                        ->pluck('id')
+                );
+            }
+
+            if (Schema::hasColumn('sample_submission_requests', 'sample_header_id')) {
+                $headerIds = $headerIds->merge(
+                    SampleSubmissionRequest::query()
+                        ->whereIn('id', $submissionRequestIds)
+                        ->whereNotNull('sample_header_id')
+                        ->pluck('sample_header_id')
+                );
+            }
+        }
+
+        return $headerIds->filter()->unique()->values();
     }
 
     /**
@@ -126,23 +225,345 @@ final class LabHierarchyPurgeService
                 $form->delete();
             });
 
-        if (Schema::hasTable('sample_submission_requests') && Schema::hasColumn('sample_submission_requests', 'sample_header_id')) {
-            DB::table('sample_submission_requests')
-                ->whereIn('sample_header_id', $headerIdList)
-                ->update(['sample_header_id' => null]);
-        }
-
-        if (Schema::hasTable('submission_form_instances') && Schema::hasColumn('submission_form_instances', 'sample_header_id')) {
-            DB::table('submission_form_instances')
-                ->whereIn('sample_header_id', $headerIdList)
-                ->update(['sample_header_id' => null]);
-        }
-
         if ($detailIdList !== []) {
             SampleDetails::query()->whereIn('id', $detailIdList)->delete();
         }
 
         $summary['sample_headers_deleted'] = SampleHeader::query()->whereIn('id', $headerIdList)->delete();
+    }
+
+    /**
+     * @param  Collection<int, string>  $submissionFormInstanceIds
+     * @param  Collection<int, string>  $submissionRequestIds
+     * @param  array<string, int>  $summary
+     */
+    private function purgeRequestPipeline(
+        Collection $submissionFormInstanceIds,
+        Collection $submissionRequestIds,
+        array &$summary,
+    ): void {
+        $instanceIdList = $this->expandSubmissionFormInstanceIds($submissionFormInstanceIds);
+        $requestIdList = $submissionRequestIds->all();
+
+        if ($instanceIdList === [] && $requestIdList === []) {
+            return;
+        }
+
+        $this->purgeAcceptanceFormsForRequests($instanceIdList, $requestIdList, $summary);
+        $this->purgeRejectionLogsForRequests($instanceIdList, $requestIdList, $summary);
+        $this->purgeRequestWorkflowForms($instanceIdList, $requestIdList, $summary);
+        $this->purgeInterzoneTransfersForInstances($instanceIdList, $summary);
+        $this->purgeQuotationsForRequests($requestIdList, $summary);
+        $this->purgeTestRequestFormInstances($instanceIdList, $requestIdList, $summary);
+        $this->purgeSupportingDocumentsForRequests($requestIdList, $summary);
+        $this->purgeEnquiryChildTables($requestIdList, $summary);
+        $this->purgeSubmissionFormInstanceChildTables($instanceIdList, $summary);
+
+        if ($requestIdList !== []) {
+            $summary['sample_submission_requests_deleted'] = SampleSubmissionRequest::query()
+                ->whereIn('id', $requestIdList)
+                ->delete();
+        }
+
+        if ($instanceIdList !== []) {
+            $summary['submission_form_instances_deleted'] = SubmissionFormInstance::query()
+                ->whereIn('id', $instanceIdList)
+                ->delete();
+        }
+    }
+
+    /**
+     * @param  Collection<int, string>  $submissionFormInstanceIds
+     * @return array<int, string>
+     */
+    private function expandSubmissionFormInstanceIds(Collection $submissionFormInstanceIds): array
+    {
+        $instanceIdList = $submissionFormInstanceIds->all();
+
+        if ($instanceIdList === []
+            || ! Schema::hasTable('submission_form_instances')
+            || ! Schema::hasColumn('submission_form_instances', 'portal_request_id')) {
+            return $instanceIdList;
+        }
+
+        $childIds = DB::table('submission_form_instances')
+            ->whereIn('portal_request_id', $instanceIdList)
+            ->pluck('id')
+            ->all();
+
+        return array_values(array_unique(array_merge($instanceIdList, $childIds)));
+    }
+
+    /**
+     * @param  array<int, string>  $instanceIdList
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeAcceptanceFormsForRequests(array $instanceIdList, array $requestIdList, array &$summary): void
+    {
+        if ($instanceIdList === [] && $requestIdList === []) {
+            return;
+        }
+
+        $query = AnalysisAcceptanceForm::query()->where(function ($builder) use ($instanceIdList, $requestIdList): void {
+            $hasFilter = false;
+
+            if ($instanceIdList !== []) {
+                $builder->whereIn('submission_form_instance_id', $instanceIdList);
+                $hasFilter = true;
+            }
+
+            if ($requestIdList !== []) {
+                if ($hasFilter) {
+                    $builder->orWhereIn('sample_submission_request_id', $requestIdList);
+                } else {
+                    $builder->whereIn('sample_submission_request_id', $requestIdList);
+                }
+            }
+        });
+
+        $summary['analysis_acceptance_forms'] = (clone $query)->count();
+
+        $query->each(function (AnalysisAcceptanceForm $form): void {
+            $form->lines()->delete();
+            $form->delete();
+        });
+    }
+
+    /**
+     * @param  array<int, string>  $instanceIdList
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeRejectionLogsForRequests(array $instanceIdList, array $requestIdList, array &$summary): void
+    {
+        if (! Schema::hasTable('sample_rejection_logs')) {
+            return;
+        }
+
+        $deleted = 0;
+
+        if ($instanceIdList !== [] && Schema::hasColumn('sample_rejection_logs', 'submission_form_instance_id')) {
+            $deleted += $this->deleteWhereIn('sample_rejection_logs', 'submission_form_instance_id', $instanceIdList);
+        }
+
+        if ($requestIdList !== [] && Schema::hasColumn('sample_rejection_logs', 'sample_submission_request_id')) {
+            $deleted += $this->deleteWhereIn('sample_rejection_logs', 'sample_submission_request_id', $requestIdList);
+        }
+
+        if ($deleted > 0) {
+            $summary['sample_rejection_logs'] = $deleted;
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $instanceIdList
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeRequestWorkflowForms(array $instanceIdList, array $requestIdList, array &$summary): void
+    {
+        if (! Schema::hasTable('request_workflow_forms')) {
+            return;
+        }
+
+        $deleted = 0;
+
+        if ($instanceIdList !== [] && Schema::hasColumn('request_workflow_forms', 'submission_form_instance_id')) {
+            $deleted += $this->deleteWhereIn('request_workflow_forms', 'submission_form_instance_id', $instanceIdList);
+        }
+
+        if ($requestIdList !== [] && Schema::hasColumn('request_workflow_forms', 'sample_submission_request_id')) {
+            $deleted += $this->deleteWhereIn('request_workflow_forms', 'sample_submission_request_id', $requestIdList);
+        }
+
+        if ($deleted > 0) {
+            $summary['request_workflow_forms'] = $deleted;
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $instanceIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeInterzoneTransfersForInstances(array $instanceIdList, array &$summary): void
+    {
+        if ($instanceIdList === []
+            || ! Schema::hasTable('interzone_transfers')
+            || ! Schema::hasColumn('interzone_transfers', 'submission_form_instance_id')) {
+            return;
+        }
+
+        $transferIds = DB::table('interzone_transfers')
+            ->whereIn('submission_form_instance_id', $instanceIdList)
+            ->pluck('id')
+            ->all();
+
+        if ($transferIds === []) {
+            return;
+        }
+
+        if (Schema::hasTable('interzone_transfer_samples')) {
+            $summary['interzone_transfer_samples'] = $this->deleteWhereIn(
+                'interzone_transfer_samples',
+                'interzone_transfer_id',
+                $transferIds
+            );
+        }
+
+        $summary['interzone_transfers'] = $this->deleteWhereIn('interzone_transfers', 'id', $transferIds);
+    }
+
+    /**
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeQuotationsForRequests(array $requestIdList, array &$summary): void
+    {
+        if ($requestIdList === []
+            || ! Schema::hasTable('quotation_headers')
+            || ! Schema::hasColumn('quotation_headers', 'sample_submission_request_id')) {
+            return;
+        }
+
+        $quotationHeaderIds = DB::table('quotation_headers')
+            ->whereIn('sample_submission_request_id', $requestIdList)
+            ->pluck('id')
+            ->all();
+
+        if ($quotationHeaderIds === []) {
+            return;
+        }
+
+        if (Schema::hasTable('quotation_details')) {
+            $summary['quotation_details'] = $this->deleteWhereIn(
+                'quotation_details',
+                'quotation_header_id',
+                $quotationHeaderIds
+            );
+        }
+
+        $summary['quotation_headers'] = $this->deleteWhereIn('quotation_headers', 'id', $quotationHeaderIds);
+    }
+
+    /**
+     * @param  array<int, string>  $instanceIdList
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeTestRequestFormInstances(array $instanceIdList, array $requestIdList, array &$summary): void
+    {
+        if (! Schema::hasTable('test_request_form_instances')) {
+            return;
+        }
+
+        $hasInstanceColumn = Schema::hasColumn('test_request_form_instances', 'submission_form_instance_id');
+        $hasRequestColumn = Schema::hasColumn('test_request_form_instances', 'sample_submission_request_id');
+
+        if (($instanceIdList === [] || ! $hasInstanceColumn) && ($requestIdList === [] || ! $hasRequestColumn)) {
+            return;
+        }
+
+        $query = DB::table('test_request_form_instances')->where(function ($builder) use (
+            $instanceIdList,
+            $requestIdList,
+            $hasInstanceColumn,
+            $hasRequestColumn
+        ): void {
+            if ($instanceIdList !== [] && $hasInstanceColumn) {
+                $builder->orWhereIn('submission_form_instance_id', $instanceIdList);
+            }
+
+            if ($requestIdList !== [] && $hasRequestColumn) {
+                $builder->orWhereIn('sample_submission_request_id', $requestIdList);
+            }
+        });
+
+        $summary['test_request_form_instances'] = (int) $query->delete();
+    }
+
+    /**
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeSupportingDocumentsForRequests(array $requestIdList, array &$summary): void
+    {
+        if ($requestIdList === []
+            || ! Schema::hasTable('supporting_document_instances')
+            || ! Schema::hasColumn('supporting_document_instances', 'sample_submission_request_id')) {
+            return;
+        }
+
+        $supportingDocumentIds = DB::table('supporting_document_instances')
+            ->whereIn('sample_submission_request_id', $requestIdList)
+            ->pluck('id')
+            ->all();
+
+        if ($supportingDocumentIds === []) {
+            return;
+        }
+
+        if (Schema::hasTable('supporting_document_instance_values')) {
+            $summary['supporting_document_instance_values'] = $this->deleteWhereIn(
+                'supporting_document_instance_values',
+                'supporting_document_instance_id',
+                $supportingDocumentIds
+            );
+        }
+
+        $summary['supporting_document_instances'] = $this->deleteWhereIn(
+            'supporting_document_instances',
+            'id',
+            $supportingDocumentIds
+        );
+    }
+
+    /**
+     * @param  array<int, string>  $requestIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeEnquiryChildTables(array $requestIdList, array &$summary): void
+    {
+        if ($requestIdList === []) {
+            return;
+        }
+
+        foreach ([
+            'sample_submission_request_requested_analyses',
+            'sample_submission_request_exhibits',
+            'sample_submission_request_suspects',
+            'sample_submission_request_supporting_document_templates',
+        ] as $table) {
+            $deleted = $this->deleteWhereIn($table, 'sample_submission_request_id', $requestIdList);
+
+            if ($deleted > 0) {
+                $summary[$table] = $deleted;
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $instanceIdList
+     * @param  array<string, int>  $summary
+     */
+    private function purgeSubmissionFormInstanceChildTables(array $instanceIdList, array &$summary): void
+    {
+        if ($instanceIdList === []) {
+            return;
+        }
+
+        foreach ([
+            'submission_form_instance_values',
+            'submission_form_instance_notes',
+            'submission_form_instance_attachments',
+            'submission_form_instance_intrays',
+        ] as $table) {
+            $deleted = $this->deleteWhereIn($table, 'submission_form_instance_id', $instanceIdList);
+
+            if ($deleted > 0) {
+                $summary[$table] = $deleted;
+            }
+        }
     }
 
     /**
