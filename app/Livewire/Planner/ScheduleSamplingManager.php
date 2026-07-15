@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
 use App\Services\Commercial\CommercialEnquirySyncService;
+use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
@@ -1424,40 +1425,26 @@ class ScheduleSamplingManager extends Component
             return;
         }
 
+        $this->formData = app(SamplingScheduleTrfSync::class)->mergeIntoFormData(
+            $this->formData,
+            $schedule,
+            (string) $this->selectedSampleTypeId,
+            $submissionForm,
+        );
+
         $matchingEntry = $this->matchingScheduleSampleEntry($schedule, (string) $this->selectedSampleTypeId);
-
-        if ($schedule->sampling_datetime) {
-            $this->assignFormValue('sampling_date', $schedule->sampling_datetime->format('Y-m-d'), $submissionForm);
-            $this->assignFormValue('sampling_time', $schedule->sampling_datetime->format('H:i'), $submissionForm);
-            $this->assignFormValue('date_received', $schedule->sampling_datetime->format('Y-m-d'), $submissionForm);
-        }
-
         $location = trim((string) ($schedule->location ?? ''));
-        if ($location !== '') {
-            // Free-text sample-row location fields — never overwrite UUID sample-point selects.
-            $this->assignFormValue('sampling_point', $location, $submissionForm, textOnly: true);
-            $this->assignFormValue('location', $location, $submissionForm, textOnly: true);
-        }
-
         $qty = max(1, (int) ($schedule->number_of_samples ?? 1));
-        $this->assignFormValue('sample_quantity', $qty, $submissionForm);
-        $this->assignFormValue('number_of_samples', $qty, $submissionForm);
-        $this->assignFormValue('qty', $qty, $submissionForm);
-
-        if ($matchingEntry !== null && ! empty($matchingEntry['analysis_type_id'])) {
-            $this->assignFormValue('analysis_type_id', (string) $matchingEntry['analysis_type_id'], $submissionForm);
-        }
-
         $parameterIds = is_array($matchingEntry['parameters'] ?? null) ? $matchingEntry['parameters'] : [];
         $parameterNames = $this->resolveParameterNames($parameterIds);
-        if ($parameterNames !== []) {
-            $this->assignFormValue('parameters', $parameterNames, $submissionForm);
-        }
 
         if ($this->isFood || $this->isWater || $this->isWasteWater) {
             $row = $this->getDefaultSampleRow();
             if ($parameterNames !== []) {
-                $row['parameters'] = implode(', ', $parameterNames);
+                $row['parameters'] = implode(', ', array_map(
+                    static fn ($name): string => is_array($name) ? implode(', ', $name) : (string) $name,
+                    $parameterNames,
+                ));
             }
             if ($matchingEntry !== null && ! empty($matchingEntry['analysis_type_id'])) {
                 $row['analysis_type_id'] = (string) $matchingEntry['analysis_type_id'];
@@ -1468,6 +1455,15 @@ class ScheduleSamplingManager extends Component
             }
             $row['qty'] = (string) $qty;
             $row['sample_quantity'] = $qty;
+
+            $scheduleDescription = $this->formData['sample_description'] ?? null;
+            if (is_array($scheduleDescription)) {
+                $scheduleDescription = $scheduleDescription[0] ?? null;
+            }
+            if (is_string($scheduleDescription) && trim($scheduleDescription) !== '' && empty($row['sample_description'])) {
+                $row['sample_description'] = $scheduleDescription;
+            }
+
             $this->formData['sample_rows'] = [$row];
 
             // Flatten sample_rows into indexed schema fields used by processFormData.
@@ -1485,11 +1481,38 @@ class ScheduleSamplingManager extends Component
      */
     private function buildScheduleSubmissionPayload(SubmissionForm $submissionForm): array
     {
+        // Final safety net: re-apply schedule values so lab receives collection/qty/tests
+        // even if Livewire state drifted after hydrate.
+        $this->hydrateFormDataFromSchedule($submissionForm);
+
         $normalizer = app(SubmissionFormValueNormalizer::class);
         $payload = array_merge(
             $this->formData,
             $normalizer->toRequestPayload($this->formData),
         );
+
+        // Prefer original formData scalars over normalized empties for schedule fields.
+        $schedule = SamplingSchedule::query()->find((string) $this->selectedScheduleId);
+        if ($schedule !== null) {
+            foreach (app(SamplingScheduleTrfSync::class)->fieldValuesFromSchedule(
+                $schedule,
+                (string) $this->selectedSampleTypeId,
+            ) as $name => $value) {
+                if ($value === null || $value === '' || $value === []) {
+                    continue;
+                }
+
+                $fromForm = $this->formData[$name] ?? $value;
+                if (is_array($fromForm) && array_keys($fromForm) === range(0, count($fromForm) - 1)) {
+                    // Keep indexed row arrays intact for processFormData.
+                    $payload[$name] = $fromForm;
+                } elseif (is_array($fromForm)) {
+                    $payload[$name] = $value;
+                } else {
+                    $payload[$name] = $fromForm;
+                }
+            }
+        }
 
         // Rows-section fields must stay as numerically indexed arrays so values
         // persist with array_index (lab request view groups by that).
@@ -1666,7 +1689,7 @@ class ScheduleSamplingManager extends Component
 
         $current = $this->formData[$name] ?? null;
         $isEmpty = $current === null || $current === '' || $current === [] || $current === false;
-        if ($isEmpty || in_array($name, ['sampling_date', 'sampling_time', 'date_received', 'sample_quantity', 'number_of_samples'], true)) {
+        if ($isEmpty || in_array($name, ['sampling_date', 'sampling_time', 'date_received', 'sample_quantity', 'number_of_samples', 'sampling_location', 'sampling_point', 'location'], true)) {
             $this->formData[$name] = $value;
         }
     }

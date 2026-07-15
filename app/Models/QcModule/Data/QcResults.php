@@ -20,7 +20,12 @@ class QcResults extends Model implements Auditable
 
 
     protected $guarded = ['id'];
-    protected $table = "qc_results"; 
-    
-    
+    protected $table = "qc_results";
+
+    protected function casts(): array
+    {
+        return [
+            'resolved_qc_rules' => 'array',
+        ];
+    }
 }

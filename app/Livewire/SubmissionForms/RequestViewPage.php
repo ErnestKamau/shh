@@ -17,6 +17,7 @@ use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationFromEnquiryService;
+use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
@@ -125,6 +126,12 @@ class RequestViewPage extends Component
                 ->with('currentQuotation')
                 ->where('submission_form_instance_id', $this->instance->id)
                 ->first();
+
+        // Scheduled TRFs created before schedule→form hydration may have empty
+        // collection/sample fields; fill only blank values from the linked schedule.
+        if ($this->instance->sampling_schedule_id) {
+            app(SamplingScheduleTrfSync::class)->fillEmptyInstanceValues($this->instance);
+        }
 
         if ($this->instance->batches()->exists()) {
             $this->linkedBatchesOutOfSyncWithForm = $batchSyncService
