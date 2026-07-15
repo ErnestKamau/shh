@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Casts\SafeEncrypted;
 
 class SamplesCategory extends Model implements Auditable
 {
@@ -16,6 +17,22 @@ class SamplesCategory extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'samples_by_category';
     protected $appends = ['analysisTypeNames'];
+
+    /**
+     * Encrypted columns inherited from sample_details via the samples_by_category view.
+     * Without these casts, report templates print ciphertext (eyJ...) instead of remarks text.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'barcode' => SafeEncrypted::class,
+        'comments' => SafeEncrypted::class,
+        'gps' => SafeEncrypted::class,
+        'main_body' => SafeEncrypted::class,
+        'header_body' => SafeEncrypted::class,
+        'notes_body' => SafeEncrypted::class,
+        'report_number' => SafeEncrypted::class,
+    ];
 
     public function samplePointArea()
     {

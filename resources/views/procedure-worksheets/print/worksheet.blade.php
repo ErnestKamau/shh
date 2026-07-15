@@ -256,7 +256,7 @@
                 <br>
                 @if(!empty($checker_signature))
                     <span>
-                        <img src="{{ getCoaApproverSignature($checker_signature) }}" alt="Checker signature" style="height:40px; position:relative; top:8px;">
+                        <img src="{{ signatureToDataUri($checker_signature) }}" alt="Checker signature" style="height:40px; position:relative; top:8px;">
                     </span>
                 @else
                     <span class="signature-line"></span>

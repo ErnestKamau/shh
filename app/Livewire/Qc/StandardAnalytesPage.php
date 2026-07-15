@@ -3,6 +3,7 @@
 namespace App\Livewire\Qc;
 
 use App\Analyte;
+use App\Services\Qc\QcPassFailEvaluator;
 use App\StandardAnalytes;
 use App\Standards;
 use Illuminate\Validation\Rule;
@@ -79,13 +80,14 @@ class StandardAnalytesPage extends Component
         $tol1 = (float) ($this->tolerance1 ?? 0);
         $tol2 = $this->tolerance2 !== null ? (float) $this->tolerance2 : $tol1;
 
-        if ($this->useAbsoluteTolerance) {
-            $low = $tol1;
-            $high = $tol2;
-        } else {
-            $low = $expected - $tol1;
-            $high = $expected + $tol2;
-        }
+        $bands = app(QcPassFailEvaluator::class)->computeToleranceBands(
+            $expected,
+            $tol1,
+            $tol2,
+            $this->useAbsoluteTolerance
+        );
+        $low = $bands['low'];
+        $high = $bands['high'];
 
         $record->standard_id = $this->standardId;
         $record->analyte_id = $this->analyteId;

@@ -77,7 +77,7 @@ class QualityControlController extends Controller
         $standard = Standards::find($request->standard_id);
         $standard->status = 0;
         $standard->save();
-        return redirect()->back()-with('success','Qc Standard deleted successfully!');
+        return redirect()->back()->with('success','Qc Standard deleted successfully!');
     }
     
     public function qcStandardShow($id){
@@ -97,7 +97,7 @@ class QualityControlController extends Controller
         $analyte->low = isset($request->use_absolute) ? $request->tolerance_1 : $request->expected_value -  $request->tolerance_1 ;
 
         $analyte->tolerance_2 = $request->tolerance_2;
-        $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_1 ; 
+        $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_2 ; 
 
         $analyte->recommendations = $request->recomendation;
         $analyte->comments = $request->comment;

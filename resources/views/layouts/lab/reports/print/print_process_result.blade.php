@@ -310,7 +310,7 @@
                 @foreach ($batch_approvers as $approvers)
                     <td style="font-size: 8px !important;">
                         <b>{{ $approver->title }}</b><br>
-                        <img src="{{ $approver->getApproverDetails()->electronic_sig }}" style="width:80px"
+                        <img src="{{ signatureToDataUri($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
                             alt=""><br>
                         <span>{{ $approver->getApproverDetails()->name }} -
                             {{ $approver->getApproverPositionDetails() }}</span>

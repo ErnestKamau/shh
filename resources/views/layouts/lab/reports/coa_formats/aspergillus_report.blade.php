@@ -637,7 +637,7 @@
             <div class="signature-block" style="width: {{ $signatureWidth }};">
                 <div class="signature-line">
                     @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
-                    <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" alt="signature">
+                    <img src="{{ signatureToDataUri($approver->getApproverDetails()->electronic_sig) }}" alt="signature">
                     @endif
                 </div>
                 <div class="signature-title">
