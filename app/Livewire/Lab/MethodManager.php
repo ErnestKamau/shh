@@ -3,9 +3,15 @@
 namespace App\Livewire\Lab;
 
 use App\AnalysisMethod;
+use App\Models\CRM\CRMCustomer;
+use App\Models\Equipments\Equipment;
+use App\Models\QcModule\Configurations\QcSchemes;
+use App\Models\QcModule\QcSchemeBinding;
 use App\Models\System\SystemConfiguration;
-use Illuminate\Support\Facades\Auth;
+use App\SampleType;
+use App\Standards;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -33,6 +39,13 @@ class MethodManager extends Component
         'description' => '',
         'method_type_id' => '',
         'reference_type_id' => '',
+        'based_on_standard_id' => '',
+        'qc_scheme_ids' => [],
+        'qc_scheme_mode' => 'override',
+        'qc_scheme_priority' => 100,
+        'qc_condition_equipment_id' => '',
+        'qc_condition_crm_customer_id' => '',
+        'qc_condition_sample_type_id' => '',
         'active' => true,
     ];
 
@@ -53,6 +66,18 @@ class MethodManager extends Component
             'methodForm.description' => 'required|string',
             'methodForm.method_type_id' => 'nullable|integer',
             'methodForm.reference_type_id' => 'nullable|integer',
+            'methodForm.based_on_standard_id' => ['nullable', 'string', Rule::exists('standards', 'id')],
+            'methodForm.qc_scheme_ids' => ['array'],
+            'methodForm.qc_scheme_ids.*' => ['string', Rule::exists('qc_scheme', 'id')],
+            'methodForm.qc_scheme_mode' => ['required', Rule::in([
+                QcSchemeBinding::MODE_OVERRIDE,
+                QcSchemeBinding::MODE_MERGE,
+                QcSchemeBinding::MODE_ADDITIVE,
+            ])],
+            'methodForm.qc_scheme_priority' => ['required', 'integer', 'min:1', 'max:1000'],
+            'methodForm.qc_condition_equipment_id' => ['nullable', 'string', Rule::exists('equipment', 'id')],
+            'methodForm.qc_condition_crm_customer_id' => ['nullable', 'string', Rule::exists('crm_customers', 'id')],
+            'methodForm.qc_condition_sample_type_id' => ['nullable', 'string', Rule::exists('sample_types', 'id')],
             'methodForm.active' => 'boolean',
         ];
     }
@@ -97,7 +122,7 @@ class MethodManager extends Component
 
     public function getMethodsProperty()
     {
-        $query = AnalysisMethod::with(['referencemethod', 'methodtype']);
+        $query = AnalysisMethod::with(['referencemethod', 'methodtype', 'basedOnStandard', 'qcSchemes']);
 
         // Apply search filter
         if ($this->search) {
@@ -127,21 +152,46 @@ class MethodManager extends Component
     {
         $this->reset(['methodForm', 'editingMethod', 'message']);
         $this->methodForm['active'] = true;
+        $this->methodForm['qc_scheme_ids'] = [];
+        $this->methodForm['qc_scheme_mode'] = QcSchemeBinding::MODE_OVERRIDE;
+        $this->methodForm['qc_scheme_priority'] = 100;
+        $this->methodForm['qc_condition_equipment_id'] = '';
+        $this->methodForm['qc_condition_crm_customer_id'] = '';
+        $this->methodForm['qc_condition_sample_type_id'] = '';
         $this->showMethodModal = true;
         $this->dispatch('method-modal-opened');
     }
 
     public function showEditMethodModal(string $methodId): void
     {
-        $this->editingMethod = AnalysisMethod::find($methodId);
+        $this->editingMethod = AnalysisMethod::with('qcSchemes')->find($methodId);
         
         if ($this->editingMethod) {
+            $binding = QcSchemeBinding::query()
+                ->where('method_id', $this->editingMethod->id)
+                ->whereNull('standard_id')
+                ->orderByDesc('priority')
+                ->first();
+
+            $conditions = is_array($binding?->conditions) ? $binding->conditions : [];
+
             $this->methodForm = [
                 'name' => $this->editingMethod->name,
                 'code' => $this->editingMethod->code,
                 'description' => $this->editingMethod->description,
                 'method_type_id' => $this->editingMethod->method_type_id,
                 'reference_type_id' => $this->editingMethod->reference_type_id,
+                'based_on_standard_id' => (string) ($this->editingMethod->based_on_standard_id ?? ''),
+                'qc_scheme_ids' => $this->editingMethod->qcSchemes
+                    ->pluck('id')
+                    ->map(static fn ($id) => (string) $id)
+                    ->values()
+                    ->all(),
+                'qc_scheme_mode' => $binding->mode ?? QcSchemeBinding::MODE_OVERRIDE,
+                'qc_scheme_priority' => $binding->priority ?? 100,
+                'qc_condition_equipment_id' => (string) ($conditions['equipment_id'] ?? ''),
+                'qc_condition_crm_customer_id' => (string) ($conditions['crm_customer_id'] ?? ''),
+                'qc_condition_sample_type_id' => (string) ($conditions['sample_type_id'] ?? ''),
                 'active' => (bool) $this->editingMethod->active,
             ];
             
@@ -163,17 +213,32 @@ class MethodManager extends Component
                 'description' => $this->methodForm['description'],
                 'method_type_id' => $this->methodForm['method_type_id'] ?: null,
                 'reference_type_id' => $this->methodForm['reference_type_id'] ?: null,
+                'based_on_standard_id' => $this->methodForm['based_on_standard_id'] ?: null,
                 'active' => $this->methodForm['active'] ? 1 : 0,
                 'company_id' => getUserCompany(),
             ];
 
             if ($this->editingMethod) {
                 $this->editingMethod->update($data);
+                $method = $this->editingMethod->fresh();
                 $message = 'Analysis Method updated successfully!';
             } else {
-                AnalysisMethod::create($data);
+                $method = AnalysisMethod::create($data);
                 $message = 'Analysis Method created successfully!';
             }
+
+            $method->syncQcSchemes(
+                is_array($this->methodForm['qc_scheme_ids'] ?? null) ? $this->methodForm['qc_scheme_ids'] : [],
+                [
+                    'mode' => $this->methodForm['qc_scheme_mode'] ?? QcSchemeBinding::MODE_OVERRIDE,
+                    'priority' => (int) ($this->methodForm['qc_scheme_priority'] ?? 100),
+                    'conditions' => [
+                        'equipment_id' => $this->methodForm['qc_condition_equipment_id'] ?? '',
+                        'crm_customer_id' => $this->methodForm['qc_condition_crm_customer_id'] ?? '',
+                        'sample_type_id' => $this->methodForm['qc_condition_sample_type_id'] ?? '',
+                    ],
+                ]
+            );
 
             DB::commit();
 
@@ -235,7 +300,41 @@ class MethodManager extends Component
 
     public function render()
     {
-        return view('livewire.lab.method-manager');
+        $standards = Standards::query()
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_qc_standard']);
+
+        $qcSchemes = QcSchemes::query()
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $equipmentItems = Equipment::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->limit(300)
+            ->get(['id', 'name', 'equipment_number']);
+
+        $customers = CRMCustomer::query()
+            ->orderBy('name')
+            ->limit(300)
+            ->get(['id', 'name', 'code']);
+
+        $sampleTypes = SampleType::query()
+            ->without(['analysis_types', 'sample_condition'])
+            ->where('active', 1)
+            ->orderBy('name')
+            ->limit(300)
+            ->get(['id', 'name']);
+
+        return view('livewire.lab.method-manager', [
+            'standards' => $standards,
+            'qcSchemes' => $qcSchemes,
+            'equipmentItems' => $equipmentItems,
+            'customers' => $customers,
+            'sampleTypes' => $sampleTypes,
+        ]);
     }
 }
 

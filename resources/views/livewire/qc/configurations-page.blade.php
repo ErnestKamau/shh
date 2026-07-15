@@ -4,7 +4,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h5 class="mb-0"><i class="mdi mdi-file-certificate-outline mr-1"></i> QC Configurations</h5>
-            <small class="text-muted">Manage standards, types, schemes, and approvers in one place.</small>
+            <small class="text-muted">Manage standards, types, schemes, company defaults, and approvers in one place.</small>
         </div>
         <div class="qc-config-search-wrap">
             <input type="text" wire:model.live.debounce.300ms="search" class="form-control form-control-sm" placeholder="Search name or code...">
@@ -15,10 +15,17 @@
         <div class="alert alert-success py-2">{{ session('success') }}</div>
     @endif
 
+    @if (! $companyDefaultsReady)
+        <div class="alert alert-warning py-2">
+            QC Customer is not set. Open <strong>Company defaults</strong> and pick the customer used for QC batches.
+        </div>
+    @endif
+
     <ul class="nav nav-pills mb-3 qc-config-tabs" role="tablist">
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'standards' ? 'active' : '' }}" wire:click="setTab('standards')" type="button">Standards</button></li>
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'types' ? 'active' : '' }}" wire:click="setTab('types')" type="button">QC Types</button></li>
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'schemes' ? 'active' : '' }}" wire:click="setTab('schemes')" type="button">QC Schemes</button></li>
+        <li class="nav-item"><button class="nav-link {{ $activeTab === 'company' ? 'active' : '' }}" wire:click="setTab('company')" type="button">Company defaults</button></li>
         <li class="nav-item"><button class="nav-link {{ $activeTab === 'approvals' ? 'active' : '' }}" wire:click="setTab('approvals')" type="button">Approvers</button></li>
     </ul>
 
@@ -45,22 +52,22 @@
                         </div>
                         <div class="form-group col-md-3">
                             <label>QC Type</label>
-                            <select wire:model="standardQcTypeId" class="form-control form-control-sm @error('standardQcTypeId') is-invalid @enderror">
+                            <select wire:model.live="standardQcTypeId" class="form-control form-control-sm no-select2 @error('standardQcTypeId') is-invalid @enderror">
                                 <option value="">Select type...</option>
                                 @foreach($qcTypes as $type)
                                     <option value="{{ $type->id }}">{{ $type->name }}</option>
                                 @endforeach
                             </select>
-                            @error('standardQcTypeId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            @error('standardQcTypeId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
                         <div class="form-group col-md-3">
                             <label>QC Schemes</label>
-                            <select wire:model="standardSchemeIds" multiple class="form-control form-control-sm @error('standardSchemeIds') is-invalid @enderror" style="min-height: 90px;">
+                            <select wire:model.live="standardSchemeIds" multiple class="form-control form-control-sm no-select2 @error('standardSchemeIds') is-invalid @enderror" style="min-height: 90px;">
                                 @foreach($qcSchemes as $scheme)
                                     <option value="{{ $scheme->id }}">{{ $scheme->name }}</option>
                                 @endforeach
                             </select>
-                            @error('standardSchemeIds') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            @error('standardSchemeIds') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
                     </div>
                     <div class="form-check mb-2">
@@ -181,12 +188,46 @@
                             <div class="form-check mb-2"><input class="form-check-input" type="checkbox" wire:model="schemeIsActive" id="schemeIsActive"><label class="form-check-label" for="schemeIsActive">Active</label></div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-sm btn-primary">Save Scheme</button>
+
+                    <div class="mt-3 mb-2">
+                        <strong class="d-block mb-1">Scheme rules</strong>
+                        <small class="text-muted d-block mb-2">Frequencies and numeric controls used by Merge/Additive resolution at Mark Complete. Enable a rule and set its value.</small>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th style="width: 80px;">Active</th>
+                                        <th>Rule</th>
+                                        <th style="width: 140px;">Value</th>
+                                        <th>Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($ruleTypeLabels as $type => $label)
+                                        <tr>
+                                            <td class="text-center align-middle">
+                                                <input type="checkbox" class="form-check-input m-0" wire:model="schemeRules.{{ $type }}.is_active">
+                                            </td>
+                                            <td class="align-middle">{{ $label }}</td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm" wire:model="schemeRules.{{ $type }}.value" placeholder="e.g. 20 or 5">
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm" wire:model="schemeRules.{{ $type }}.description" placeholder="Optional">
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-primary mt-3">Save Scheme</button>
                 </form>
 
                 <div class="table-responsive qc-table-wrap">
                     <table class="table table-sm table-bordered table-hover mb-0">
-                        <thead class="thead-light"><tr><th style="width: 140px;">Actions</th><th>Code</th><th>Name</th><th>Status</th></tr></thead>
+                        <thead class="thead-light"><tr><th style="width: 140px;">Actions</th><th>Code</th><th>Name</th><th>Rules</th><th>Status</th></tr></thead>
                         <tbody>
                             @forelse($qcSchemes as $scheme)
                                 <tr>
@@ -196,14 +237,59 @@
                                     </td>
                                     <td>{{ $scheme->code }}</td>
                                     <td>{{ $scheme->name }}</td>
+                                    <td>{{ $scheme->active_rules_count ?? 0 }} active</td>
                                     <td>{{ $scheme->is_active ? 'Active' : 'Inactive' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="text-center text-muted">No QC schemes found.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted">No QC schemes found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+            @endif
+
+            @if ($activeTab === 'company')
+                <form wire:submit.prevent="saveCompanyDefaults" class="mb-0 border rounded p-3 qc-inline-form">
+                    <div class="mb-2">
+                        <strong>Company QC defaults</strong>
+                        <small class="text-muted d-block">Used when creating QC batches (customer is assigned automatically). Still stored as system keys <code>qc_customer_id</code>, <code>qc_customer_unit</code>, and <code>qc_percentage_config</code>.</small>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-5">
+                            <label>QC Customer <span class="text-danger">*</span></label>
+                            <select wire:model.live="companyQcCustomerId" class="form-control form-control-sm no-select2 @error('companyQcCustomerId') is-invalid @enderror">
+                                <option value="">Select customer...</option>
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('companyQcCustomerId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>QC Unit <span class="text-muted">(optional)</span></label>
+                            <select wire:model="companyQcCustomerUnit" class="form-control form-control-sm no-select2 @error('companyQcCustomerUnit') is-invalid @enderror" @disabled($companyQcCustomerId === '')>
+                                <option value="">None</option>
+                                @if($companyQcCustomerUnit !== '' && $customerUnits->where('name', $companyQcCustomerUnit)->isEmpty())
+                                    <option value="{{ $companyQcCustomerUnit }}">{{ $companyQcCustomerUnit }} (saved)</option>
+                                @endif
+                                @foreach($customerUnits as $unit)
+                                    <option value="{{ $unit->name }}">{{ $unit->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('companyQcCustomerUnit') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            @if($companyQcCustomerId !== '' && $customerUnits->isEmpty())
+                                <small class="text-muted">No units for this customer — leave blank or add units in CRM.</small>
+                            @endif
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label>Repeat tolerance %</label>
+                            <input type="number" min="0" max="100" step="0.01" wire:model="companyQcPercentage" class="form-control form-control-sm @error('companyQcPercentage') is-invalid @enderror">
+                            @error('companyQcPercentage') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <small class="text-muted">Default ±% for repeat/duplicate QC when scheme rules do not override.</small>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary">Save company defaults</button>
+                </form>
             @endif
 
             @if ($activeTab === 'approvals')
@@ -217,13 +303,13 @@
                     <div class="form-row">
                         <div class="form-group col-md-6">
                             <label>Personnel</label>
-                            <select wire:model="approverPersonnelId" class="form-control form-control-sm @error('approverPersonnelId') is-invalid @enderror">
+                            <select wire:model.live="approverPersonnelId" class="form-control form-control-sm no-select2 @error('approverPersonnelId') is-invalid @enderror">
                                 <option value="">Select user...</option>
                                 @foreach($staffs as $staff)
                                     <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                 @endforeach
                             </select>
-                            @error('approverPersonnelId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            @error('approverPersonnelId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
                     </div>
                     <button type="submit" class="btn btn-sm btn-primary">Save Approver</button>

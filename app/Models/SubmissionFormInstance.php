@@ -123,6 +123,11 @@ class SubmissionFormInstance extends Model implements Auditable
         return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
     }
 
+    public function samplingSchedule(): BelongsTo
+    {
+        return $this->belongsTo(SamplingSchedule::class, 'sampling_schedule_id');
+    }
+
     public function sampleSubmissionRequest(): HasOne
     {
         return $this->uuidHasOne(SampleSubmissionRequest::class, 'submission_form_instance_id');

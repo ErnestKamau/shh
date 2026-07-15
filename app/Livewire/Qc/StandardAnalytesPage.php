@@ -40,6 +40,19 @@ class StandardAnalytesPage extends Component
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    protected function validationAttributes(): array
+    {
+        return [
+            'analyteId' => 'analyte',
+            'expectedValue' => 'expected value',
+            'tolerance1' => 'tolerance 1',
+            'tolerance2' => 'tolerance 2',
+        ];
+    }
+
     public function resetForm(): void
     {
         $this->editingAnalyteId = null;
@@ -100,7 +113,7 @@ class StandardAnalytesPage extends Component
         $record->comments = $this->comment;
         $record->recommendations = $this->recommendation;
         $record->is_active = $this->isActive ? 1 : 0;
-        $record->standard_value_id = 0;
+        $record->standard_value_id = null;
         $record->standard_value_type = 'is_range';
         $record->save();
 

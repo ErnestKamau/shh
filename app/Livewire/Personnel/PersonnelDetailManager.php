@@ -127,9 +127,20 @@ class PersonnelDetailManager extends Component
             ->values()
             ->all();
 
-        $this->detailsFirstName = (string) ($user->first_name ?? '');
-        $this->detailsMiddleName = (string) ($user->middle_name ?? '');
-        $this->detailsLastName = (string) ($user->last_name ?? '');
+        $this->detailsFirstName = $this->plainTextNamePart($user->first_name);
+        $this->detailsMiddleName = $this->plainTextNamePart($user->middle_name);
+        $this->detailsLastName = $this->plainTextNamePart($user->last_name);
+
+        if ($this->detailsFirstName === '' && $this->detailsMiddleName === '' && $this->detailsLastName === '') {
+            $displayName = $this->plainTextNamePart($user->name);
+            if ($displayName !== '') {
+                $parts = preg_split('/\s+/', $displayName) ?: [];
+                $this->detailsFirstName = (string) ($parts[0] ?? '');
+                $this->detailsLastName = count($parts) > 1 ? (string) array_pop($parts) : '';
+                $this->detailsMiddleName = count($parts) > 1 ? trim(implode(' ', array_slice($parts, 1))) : '';
+            }
+        }
+
         $this->detailsEmail = (string) ($user->email ?? '');
         $this->detailsPhone = (string) ($user->phone ?? '');
         $this->detailsIdNumber = (string) ($user->id_number ?? '');
@@ -139,6 +150,17 @@ class PersonnelDetailManager extends Component
         $this->detailsDateOfGazzette = !empty($user->date_of_gazzette) ? date('Y-m-d', strtotime((string) $user->date_of_gazzette)) : null;
         $this->detailsGazzetteNo = (string) ($user->gazzette_no ?? '');
         $this->detailsStartOfCareer = !empty($user->start_of_career) ? date('Y-m-d', strtotime((string) $user->start_of_career)) : null;
+    }
+
+    private function plainTextNamePart(mixed $value): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        if ($value === '' || str_starts_with($value, 'eyJ')) {
+            return '';
+        }
+
+        return $value;
     }
 
     public function setActiveTab(string $tab): void
@@ -382,7 +404,11 @@ class PersonnelDetailManager extends Component
         $user->first_name = trim($this->detailsFirstName);
         $user->middle_name = trim($this->detailsMiddleName);
         $user->last_name = trim($this->detailsLastName);
-        $user->name = trim($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name);
+        $user->name = trim(implode(' ', array_filter([
+            trim($this->detailsFirstName),
+            trim($this->detailsMiddleName),
+            trim($this->detailsLastName),
+        ], fn (string $part): bool => $part !== '')));
         $user->email = trim($this->detailsEmail);
         $user->phone = trim($this->detailsPhone);
         $user->id_number = trim($this->detailsIdNumber) !== '' ? trim($this->detailsIdNumber) : null;

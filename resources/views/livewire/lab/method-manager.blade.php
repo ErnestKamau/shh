@@ -112,6 +112,7 @@
                                         <th>Name</th>
                                         <th>Description</th>
                                         <th>Reference</th>
+                                        <th>Based On Standard</th>
                                         <th>Elements</th>
                                         <th>Type</th>
                                         <th>Status</th>
@@ -126,6 +127,7 @@
                                             <td>{{ $method->name }}</td>
                                             <td>{{ \Str::limit($method->description, 50) }}</td>
                                             <td>{{ $method->referencemethod->name ?? '-' }}</td>
+                                            <td>{{ $method->basedOnStandard->code ?? '-' }}</td>
                                             <td>
                                                 <span class="badge badge-info p-2">{{ number_format($method->analytes()->count()) }}</span>
                                             </td>
@@ -231,6 +233,94 @@
                                 @error('methodForm.description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">
+                                            <i class="mdi mdi-file-certificate-outline text-primary"></i> Based On Standard
+                                        </label>
+                                        <select wire:model.live="methodForm.based_on_standard_id" class="form-control no-select2 @error('methodForm.based_on_standard_id') is-invalid @enderror">
+                                            <option value="">None (optional)</option>
+                                            @foreach($standards as $standard)
+                                                <option value="{{ $standard->id }}">
+                                                    {{ $standard->code }} - {{ $standard->name }}{{ $standard->is_qc_standard ? ' (QC)' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">Catalogue/QC standard this method is based on. Separate from Reference Method.</small>
+                                        @error('methodForm.based_on_standard_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">QC Schemes (method binding)</label>
+                                        <select wire:model.live="methodForm.qc_scheme_ids" multiple class="form-control no-select2 @error('methodForm.qc_scheme_ids') is-invalid @enderror" style="min-height: 90px;">
+                                            @foreach($qcSchemes as $scheme)
+                                                <option value="{{ $scheme->id }}">{{ $scheme->name }} ({{ $scheme->code }})</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">Resolved with the mode below against the parent standard’s schemes at Mark Complete.</small>
+                                        @error('methodForm.qc_scheme_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Binding Mode</label>
+                                        <select wire:model="methodForm.qc_scheme_mode" class="form-control no-select2">
+                                            <option value="override">Override</option>
+                                            <option value="merge">Merge</option>
+                                            <option value="additive">Additive</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Priority</label>
+                                        <input type="number" min="1" max="1000" wire:model="methodForm.qc_scheme_priority" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Condition: Equipment</label>
+                                        <select wire:model="methodForm.qc_condition_equipment_id" class="form-control no-select2 @error('methodForm.qc_condition_equipment_id') is-invalid @enderror">
+                                            <option value="">Any (no filter)</option>
+                                            @foreach($equipmentItems as $item)
+                                                <option value="{{ $item->id }}">{{ $item->name }}@if($item->equipment_number) ({{ $item->equipment_number }})@endif</option>
+                                            @endforeach
+                                        </select>
+                                        @error('methodForm.qc_condition_equipment_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Condition: Client</label>
+                                        <select wire:model="methodForm.qc_condition_crm_customer_id" class="form-control no-select2 @error('methodForm.qc_condition_crm_customer_id') is-invalid @enderror">
+                                            <option value="">Any (no filter)</option>
+                                            @foreach($customers as $customer)
+                                                <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('methodForm.qc_condition_crm_customer_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Condition: Sample type</label>
+                                        <select wire:model="methodForm.qc_condition_sample_type_id" class="form-control no-select2 @error('methodForm.qc_condition_sample_type_id') is-invalid @enderror">
+                                            <option value="">Any (no filter)</option>
+                                            @foreach($sampleTypes as $sampleType)
+                                                <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">Bindings apply only when all set conditions match the captured result / batch.</small>
+                                        @error('methodForm.qc_condition_sample_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
                             <div class="row">
                                 @if($methodForm['method_type_id'] == $ltmMethodTypeId)
                                     <div class="col-md-6">

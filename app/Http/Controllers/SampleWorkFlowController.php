@@ -569,16 +569,25 @@ class SampleWorkFlowController extends Controller
     {
         Log::info(json_encode($request->all(), JSON_PRETTY_PRINT));
         if (isset($request->is_qc_batch)) {
-            $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-            if (!isset($qc_customer_id->id)) {
-                return redirect()->back()->with('error', 'Kindly set company QC Customer first');
+            $qcSettings = app(\App\Services\Qc\QcCompanySettings::class);
+            $selectedCustomer = $qcSettings->resolvedCustomer();
+            if ($selectedCustomer === null) {
+                return redirect()->back()->with(
+                    'error',
+                    'Set QC Customer under QC Configurations → Company defaults'
+                );
             }
-            $selectedCustomer = CRMCustomer::find($qc_customer_id->value);
             if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
                 $repeat_samples = SampleDetails::whereIn('id', $request->repeat_samples_id)->get();
             }
         } else {
-            $selectedCustomer = CRMCustomer::find($request->crm_customer_id);
+            $crmCustomerId = (string) ($request->crm_customer_id ?? '');
+            $selectedCustomer = Str::isUuid($crmCustomerId)
+                ? CRMCustomer::find($crmCustomerId)
+                : null;
+            if ($selectedCustomer === null) {
+                return redirect()->back()->with('error', 'Kindly select a valid customer');
+            }
         }
         $selectedSampleType = SampleType::find($request->sample_type_id);
         $batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
@@ -662,7 +671,7 @@ class SampleWorkFlowController extends Controller
             $header->batch_instructions = $request->batch_instructions;
             $header->reason_for_submission = $request->reason_for_submission;
             $header->sampling_method_id = $request->sampling_method_id;
-            $header->require_mu = $request->require_mu;
+            $header->require_mu = $request->filled('require_mu') ? $request->require_mu : null;
             $header->payment_done_by = $request->payment_done_by;
             $header->condition_quality_sample = $request->condition_quality_sample;
             // $header->invoice_amount = $request->invoice_amount;
@@ -676,7 +685,11 @@ class SampleWorkFlowController extends Controller
                     ->all();
                 $header->lab_section_ids = implode(',', $sectionIds);
             } else {
-                $header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
+                $labSectionIds = array_values(array_filter(
+                    (array) ($request->lab_section_ids ?? []),
+                    static fn ($id): bool => $id !== null && $id !== ''
+                ));
+                $header->lab_section_ids = $labSectionIds === [] ? null : implode(',', $labSectionIds);
             }
             if (strtolower((string) $request->batch_scope) === 'express') {
                 $header->priority = 'Express';
@@ -689,15 +702,18 @@ class SampleWorkFlowController extends Controller
             if ($isInReception) {
                 $header->sample_type_id = $request->sample_type_id;
                 if (isset($request->is_qc_batch)) {
-                    $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-                    $qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
+                    $qc_customer_unit = app(\App\Services\Qc\QcCompanySettings::class)->customerUnitName();
 
-                    $header->crm_customer_id = $qc_customer_id->value;
+                    $header->crm_customer_id = $selectedCustomer->id;
 
-                    $header->crm_unit_name = $qc_customer_unit->value;
+                    $header->crm_unit_name = $qc_customer_unit;
                     $header->qc_type_id = $request->qc_type_id;
                     $header->qc_scheme_id = $request->qc_scheme_id;
-                    $header->repeat_sample_id = implode(',', $request->repeat_samples_id) ?? '';
+                    $repeatSampleIds = array_values(array_filter(
+                        (array) ($request->repeat_samples_id ?? []),
+                        static fn ($id): bool => $id !== null && $id !== ''
+                    ));
+                    $header->repeat_sample_id = $repeatSampleIds === [] ? null : implode(',', $repeatSampleIds);
                 } else {
                     $header->crm_customer_id = $request->crm_customer_id;
 
@@ -719,9 +735,9 @@ class SampleWorkFlowController extends Controller
             $header->description = $request->description;
             $header->document_number = $request->document_number;
             $header->importer_address = $request->importer_address;
-            $header->date_expected = $request->date_expected;
-            $header->quote_id = $request->quote_id;
-            $header->sampling_method_id = $request->sampling_method_id;
+            $header->date_expected = $request->filled('date_expected') ? $request->date_expected : null;
+            $header->quote_id = $request->filled('quote_id') ? $request->quote_id : null;
+            $header->sampling_method_id = $request->filled('sampling_method_id') ? $request->sampling_method_id : null;
             $header->radio_active_levels = $request->radio_active_levels;
             $header->receiving_officer_name = $request->receive_by;
             $header->receiving_officer = $request->receive_by;
@@ -739,7 +755,7 @@ class SampleWorkFlowController extends Controller
         }
 
 
-        $header->sampling_method_id = $request->sampling_method_id;
+        $header->sampling_method_id = $request->filled('sampling_method_id') ? $request->sampling_method_id : null;
         $header->submit_by = $request->submit_by;
         $header->radio_active_levels = $request->radio_active_levels;
         $header->kra_office_ref = $request->kra_office_ref;

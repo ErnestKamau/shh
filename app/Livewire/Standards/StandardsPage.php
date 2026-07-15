@@ -159,14 +159,14 @@ class StandardsPage extends Component
 
     public function showEditStandardModal($id)
     {
-        $standard = Standards::findOrFail($id);
+        $standard = Standards::with('qcSchemes')->findOrFail($id);
         $this->standardForm = [
             'name' => $standard->name,
             'code' => $standard->code,
             'main_standard' => $standard->main_standard,
             'is_qc_standard' => $standard->is_qc_standard,
             'qc_type_id' => $standard->qc_type_id,
-            'qc_scheme_ids' => $standard->qc_scheme_ids,
+            'qc_scheme_ids' => $standard->qcSchemes->pluck('id')->implode(','),
             'status' => $standard->status
         ];
         $this->editingStandard = $id;
@@ -188,6 +188,11 @@ class StandardsPage extends Component
         try {
             DB::beginTransaction();
 
+            $schemeIds = array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) ($this->standardForm['qc_scheme_ids'] ?? ''))
+            )));
+
             if ($this->editingStandard) {
                 $standard = Standards::findOrFail($this->editingStandard);
                 $standard->update([
@@ -196,22 +201,22 @@ class StandardsPage extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
-                    'qc_scheme_ids' => $this->standardForm['qc_scheme_ids'],
                     'status' => $this->standardForm['status'],
                     'edited_by' => auth()->user()->id,
                 ]);
+                $standard->syncQcSchemes($schemeIds);
                 $this->message = 'Standard updated successfully!';
             } else {
-                Standards::create([
+                $standard = Standards::create([
                     'name' => $this->standardForm['name'],
                     'code' => $this->standardForm['code'],
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
-                    'qc_scheme_ids' => $this->standardForm['qc_scheme_ids'],
                     'status' => $this->standardForm['status'],
                     'edited_by' => auth()->user()->id,
                 ]);
+                $standard->syncQcSchemes($schemeIds);
                 $this->message = 'Standard created successfully!';
             }
 

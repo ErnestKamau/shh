@@ -14,10 +14,67 @@ Implemented:
 - **Shared services:** `App\Services\Qc\{QcStatisticsService,QcPassFailEvaluator,QcBatchCompletionService}` — MAD stats + pass/fail + batch completion.
 - **Bug fixes:** `deleteQcStandard` redirect; tolerance high band uses `tolerance_2`; History filters on `status_code` (`PASSED`/`FAILED`).
 - **Module route cleanup:** QualityControl module no longer registers duplicate unguarded `/qualitycontrol` web routes.
+- **Scheme pivots:** `standard_qc_scheme` and `method_qc_scheme` replace CSV `qc_scheme_ids` as the relational source of truth (`Standards::syncQcSchemes`).
+- **Method → standard:** `analysis_methods.based_on_standard_id` (nullable; separate from Reference Method).
+- **QC scheme bindings:** `qc_scheme_bindings` with mode/priority/conditions; Configurations + Method Manager write via `QcSchemeBindingSync` (mirrors pivots).
+- **Resolver:** `QcSchemeResolver` hooked into `QcBatchCompletionService` for effective scheme stamp, merged rules, and band-standard fallback.
+- **Scheme rules (Phase 2):** `qc_scheme_rules` edited on QC Configurations → Schemes.
+- **Merge / Additive (Phase 2):** `QcSchemeRuleMerger` combines standard vs method rule maps by binding mode.
+- **Conditions (Phase 2):** binding `conditions` (`equipment_id`, `crm_customer_id`, `sample_type_id`) via `QcBindingConditionEvaluator`.
+- **Company defaults:** QC Configurations → Company defaults writes `qc_customer_id` / `qc_customer_unit` / `qc_percentage_config` via `QcCompanySettings` (customer dropdown, no UUID paste).
 
 ---
 
-## How the QC workflow should work (end-to-end)
+## Method–standard bindings and resolver
+
+### Dual role of `standards` (unchanged)
+
+| Role | Flag | Used for |
+|------|------|----------|
+| Catalogue / main standard | `is_qc_standard = 0` (typical) | Spec reference; methods can set `based_on_standard_id` |
+| QC standard | `is_qc_standard = 1` | QC Configurations + `StandardAnalytes` tolerance bands |
+
+### Hierarchy
+
+```
+Standards ──based_on── AnalysisMethod
+    │                        │
+    │ standard bindings      │ method bindings (mode + conditions)
+    ▼                        ▼
+qc_scheme_bindings ──► qc_scheme ──► qc_scheme_rules
+    │
+    └── mirrors ► standard_qc_scheme / method_qc_scheme
+```
+
+### Resolution at Mark Complete (`QcSchemeResolver`)
+
+1. Load method-scoped bindings that match conditions (equipment / client / sample type); collect schemes + rules.
+2. Load standard-scoped bindings (via `based_on_standard_id`) that match conditions, or fall back to `standard_qc_scheme` pivot rules.
+3. Apply binding **mode** via `QcSchemeRuleMerger`:
+   - **override** — method rule map replaces the standard map (if method map empty, keep standard).
+   - **merge** — standard base + method keys overwrite same `rule_type`.
+   - **additive** — keep standard; add method-only types; same type kept as `type__additive`.
+4. If no method/standard schemes → fall back to the batch’s `qc_scheme_id` (no rule overlay).
+5. **Tolerance bands:** still from sample `main_standard` when set; if empty and `based_on_standard_id` is an active QC standard, use that for `StandardAnalytes`.
+6. **Repeat %:** use effective `repeat_tolerance_percent` when present; else system `qc_percentage_config`.
+
+Deploy-safe: no method bindings / no `based_on_standard_id` / empty conditions → same scheme fallback as Phase 1; no rules → system repeat % unchanged.
+
+### Scheme rule types (`qc_scheme_rules.rule_type`)
+
+| Type | Purpose |
+|------|---------|
+| `blank_frequency` | How often blanks are required |
+| `duplicate_frequency` | How often duplicates are required |
+| `spike_frequency` | How often spikes are required |
+| `crm_frequency` | How often CRM checks are required |
+| `repeat_tolerance_percent` | Repeat pass/fail ±% (consumed at Mark Complete) |
+| `control_limit_sd` | Control limit multiplier (stored for later consumers) |
+| `min_replicates` | Minimum replicates (stored for later consumers) |
+
+Frequency / SD / replicate values are snapshotted on `qc_results.resolved_qc_rules` for audit; enforcement beyond repeat % can be wired later.
+
+---
 
 This is the **intended** lab QC loop after the 2026-07-14 consolidation. Operators and implementers should treat this as the source of truth for “what happens when.”
 
@@ -59,14 +116,14 @@ Do this in **QC Configurations** (`qc_configuration_index` → Livewire `Configu
    - `has_standards` — operators should assign a main standard on samples
    - `use_existing_sample` — repeat/duplicate workflow (pick a prior completed sample)
    - `has_configured_samples` / `is_active` as needed
-3. **QC Standards** — Rows with `is_qc_standard = 1`, linked to a QC type and one or more schemes (`qc_scheme_ids`).
+3. **QC Standards** — Rows with `is_qc_standard = 1`, linked to a QC type and one or more schemes via `standard_qc_scheme` pivot.
 4. **Standard analytes** — For each standard × analyte: expected value and tolerances so **low/high** bands are correct:
    - Absolute mode → `low = tolerance_1`, `high = tolerance_2`
    - Relative mode → `low = expected − tolerance_1`, `high = expected + tolerance_2`
-5. **System config** — Key `qc_percentage_config` = allowed % difference for **repeat** QC (e.g. `5` means ±5% of the previous result).
+5. **Company defaults** — On QC Configurations → **Company defaults**: set QC Customer (`qc_customer_id`), optional QC Unit (`qc_customer_unit`), and default repeat tolerance % (`qc_percentage_config`). Required before creating QC batches.
 6. **Users** — At least one person with QC view/edit; analysis methods / sample types / analytes already exist in the lab catalogues.
 
-Without (3)–(5), mark-complete will still run, but pass/fail often defaults to **PASSED** (no band / no usable previous result).
+Without (3)–(5), mark-complete will still run, but pass/fail often defaults to **PASSED** (no band / no usable previous result). Without Company defaults QC Customer, QC batch creation is blocked.
 
 ---
 
@@ -124,12 +181,13 @@ Inside one DB transaction the system:
 4. For each captured result:
    - Finds or creates a `qc_processed_result` group keyed by  
      `analyte_id + analysis_type_id + sample_type_id + method_id`.
+   - Resolves effective schemes via `QcSchemeResolver` (method Override bindings → based-on standard → batch scheme) and stamps `qc_scheme_id`.
    - Evaluates status via `QcPassFailEvaluator`:
      - **Repeat** (`repeat_captured_id > 0`):  
        `PASSED` if current result is within ±`qc_percentage_config`% of the previous captured result; else `FAILED`.  
        Non-numeric pairs → `PASSED` (cannot evaluate).
      - **Standard path**:  
-       Loads `StandardAnalytes` for sample `main_standard` + analyte.  
+       Loads `StandardAnalytes` for sample `main_standard` + analyte (or method `based_on_standard_id` when it is an active QC standard and main_standard is empty).  
        `PASSED` if result ∈ `[low, high]`; else `FAILED`.  
        Missing standard / missing analyte band / non-numeric → `PASSED`.
    - Builds a `qc_results` row (`status_code`, remarks from capture, QC type/scheme, links to processed group, etc.) with a generated UUID.
@@ -280,10 +338,11 @@ For the **intended** day-to-day process, see **[How the QC workflow should work]
 ### 3.1 Domain model
 
 ```
-QcTypes ─────────┐
-                 ├── Standards (is_qc_standard=1, qc_type_id, qc_scheme_ids CSV)
-QcSchemes ───────┘         │
-                           └── StandardAnalytes (expected_value, low/high, tolerances)
+QcTypes ─── Standards (is_qc_standard=1, qc_type_id)
+                └── standard_qc_scheme ── QcSchemes
+                                         ▲
+AnalysisMethod ── method_qc_scheme ──────┘
+Standards ── StandardAnalytes (expected_value, low/high, tolerances)
 
 Approvers (qc_approvers_config) → users (configuration only)
 
@@ -300,7 +359,7 @@ qc_results_view — SQL view for history / reporting
 
 **Notable modeling choices:**
 
-- `qc_scheme_ids` on standards is a **comma-separated string**, not a pivot table.
+- Scheme links use pivots `standard_qc_scheme` and `method_qc_scheme` (legacy `standards.qc_scheme_ids` CSV is kept in sync for backward compatibility but is no longer the source of truth).
 - Most Qc models are thin (`$guarded = ['id']`) with few Eloquent relationships; `QCProcessedResults` is the exception (method, sample type, analysis type, analyte, results).
 - Schema has been UUID-migrated in places; older module migrations and `qc_report_header` still show legacy integer-era assumptions.
 
@@ -323,9 +382,10 @@ flowchart LR
 3. **On approve** (`SampleWorkFlowController::approve_batch`) — Lab approval only. Does **not** write `qc_results` (single write path).
 4. **Mark QC batch complete** (`markQCBatchComplete` → `QcBatchCompletionService`, permission `laboratory.components.qc sample.edit`):
    - Deletes existing `qc_results` for the batch
+   - Resolves effective schemes via `QcSchemeResolver` (method Override bindings → based-on standard → batch scheme)
    - Upserts `QCProcessedResults` keyed by analyte + analysis type + sample type + method
-   - Sets `PASSED`/`FAILED` via `QcPassFailEvaluator`
-   - Inserts `qc_results`, then auto-runs MAD robust stats via `QcStatisticsService` and marks processed
+   - Sets `PASSED`/`FAILED` via `QcPassFailEvaluator` using `main_standard` bands (or based-on QC standard fallback)
+   - Inserts `qc_results` (stamps resolved `qc_scheme_id`), then auto-runs MAD robust stats via `QcStatisticsService`
    - Sets batch `status = 'Completed'`
 5. **Review**
    - **QC History** — `HistoryPage` (filters by `status_code`; prefers `qc_results_view` when present)
@@ -388,7 +448,7 @@ Module web routes for `/qualitycontrol` are **no longer registered** (App `route
 
 | Area | Location |
 |------|----------|
-| Orchestration | `app/Services/Qc/QcBatchCompletionService.php`, `QcPassFailEvaluator.php`, `QcStatisticsService.php` |
+| Orchestration | `app/Services/Qc/QcBatchCompletionService.php`, `QcPassFailEvaluator.php`, `QcStatisticsService.php`, `QcSchemeResolver.php`, `QcSchemeBindingSync.php` |
 | Controllers | `SampleWorkFlowController` (`markQCBatchComplete`, lab-only `approve_batch`); `QcModule\QualityControlController` |
 | Livewire | `app/Livewire/Qc/{ConfigurationsPage,HistoryPage,ProcessingPage,ReportsPage,ReportShowPage,StandardAnalytesPage}.php` |
 | Models | `app/Models/QcModule/**` |
@@ -416,7 +476,7 @@ Module web routes for `/qualitycontrol` are **no longer registered** (App `route
 | **Working `generateQCReport`** | Redirects to history only. |
 | **Policies / fine-grained auth** | No QC policies; approvers unused for authorization. |
 | **Form Requests** | Mutations trust raw request input (App controller path). Livewire config has validation; controller CRUD largely does not. |
-| **Relational scheme linking** | CSV `qc_scheme_ids` instead of pivot. |
+| **Relational scheme linking** | Done — `standard_qc_scheme` + `method_qc_scheme` pivots (CSV column retained only as sync mirror). |
 | **Consistent statistics** | Ops MAD vs unfinished Algorithm A vs mart ISO views — no single source of truth. |
 | **API** | Module API route is an auth echo stub. |
 | **Meaningful tests** | Essentially only `tests/Unit/Standards/QcSchemeNamesAttributeTest.php`. Module test dirs are empty. |
@@ -493,7 +553,7 @@ Treat today’s QC module as an **operational control-chart + batch pass/fail to
 |-------|------|
 | **A — Stabilize** | Fix `deleteQcStandard` / tolerance / filter bugs; remove or protect module duplicate routes; document pass/fail + MAD as the official behavior |
 | **B — Consolidate** | Service extraction; deprecate module controllers/views; single Livewire-backed config CRUD; drop dead `generateQCReport` / empty command or implement |
-| **C — Product complete (if needed)** | Formal release report with real stats persistence + approver Gate; scheme pivot; feature tests for mark-complete happy/fail paths (SQLite-isolated suite) |
+| **C — Product complete (if needed)** | Formal release report with real stats persistence + approver Gate; feature tests for mark-complete happy/fail paths (SQLite-isolated suite) |
 | **D — Analytics** | Single definition of CV thresholds shared by Livewire charts, mart, and AI; wire documents QC stability into a clear route |
 
 ---

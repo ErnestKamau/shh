@@ -15,6 +15,7 @@ class QcBatchCompletionService
     public function __construct(
         private readonly QcPassFailEvaluator $passFailEvaluator,
         private readonly QcStatisticsService $statisticsService,
+        private readonly QcSchemeResolver $schemeResolver,
     ) {
     }
 
@@ -27,13 +28,13 @@ class QcBatchCompletionService
             $batch = SampleHeader::query()->with('qctype')->findOrFail($batchId);
 
             $capturedResults = CapturedResult::query()
-                ->with('sample')
+                ->with(['sample', 'method', 'sampleHeader'])
                 ->where('sample_header_id', $batchId)
                 ->get();
 
             QcResults::query()->where('sample_header_id', $batchId)->delete();
 
-            $tolerancePercent = (float) (
+            $systemTolerancePercent = (float) (
                 SystemConfiguration::query()
                     ->where('key', 'qc_percentage_config')
                     ->value('value') ?? 0
@@ -45,11 +46,18 @@ class QcBatchCompletionService
             foreach ($capturedResults as $capturedResult) {
                 $analyteProcessed = $this->findOrCreateProcessedGroup($capturedResult, $batch);
 
-                $mainStandardId = $capturedResult->sample->main_standard ?? null;
+                $resolved = $this->schemeResolver->resolve(
+                    $capturedResult,
+                    $batch->qc_scheme_id ? (string) $batch->qc_scheme_id : null,
+                    $batch
+                );
+
+                $tolerancePercent = $resolved['repeat_tolerance_percent'] ?? $systemTolerancePercent;
+
                 $status = $this->passFailEvaluator->evaluate(
                     $capturedResult,
                     $tolerancePercent,
-                    $mainStandardId
+                    $resolved['band_standard_id']
                 );
 
                 $qcResults[] = [
@@ -66,13 +74,16 @@ class QcBatchCompletionService
                     'remarks' => $capturedResult->remark,
                     'analyte_status_contracted' => $capturedResult->analyte_status_contracted,
                     'analyte_accredited' => $capturedResult->analyte_accredited,
-                    'qc_scheme_id' => $batch->qc_scheme_id,
+                    'qc_scheme_id' => $resolved['primary_scheme_id'] ?? $batch->qc_scheme_id,
                     'qc_type_id' => $batch->qc_type_id,
                     'method_id' => $capturedResult->method_id,
                     'sample_type_id' => $batch->sample_type_id,
                     'repeat_captured_id' => $capturedResult->repeat_captured_id,
                     'previous_result' => $capturedResult->repeatsampleresult,
                     'config_percentage' => $tolerancePercent,
+                    'resolved_qc_rules' => $resolved['rules'] !== []
+                        ? json_encode($resolved['rules'])
+                        : null,
                     'is_qc_processed' => 0,
                     'analyte_processed_id' => $analyteProcessed->id,
                     'created_at' => $now,

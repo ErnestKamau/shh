@@ -73,8 +73,8 @@ class QualityControlController extends Controller
         $standard->qc_type_id = $request->qc_type_id;
         $standard->status = isset($request->is_active) ? 1 : 0;
         $standard->edited_by = auth()->user()->id;
-        $standard->qc_scheme_ids = implode(',', $request->qc_scheme_ids);
         $standard->save();
+        $standard->syncQcSchemes(is_array($request->qc_scheme_ids) ? $request->qc_scheme_ids : []);
 
         return redirect()->back()->with('success', 'Qc standard added successfully!');
     }
@@ -123,7 +123,7 @@ class QualityControlController extends Controller
         $analyte->comments = $request->comment;
         $analyte->is_active = isset($request->is_active) ? 1 : 0;
         $analyte->expected_value = $request->expected_value;
-        $analyte->standard_value_id = 0;
+        $analyte->standard_value_id = null;
         $analyte->standard_value_type = 'is_range';
         $analyte->save();
 

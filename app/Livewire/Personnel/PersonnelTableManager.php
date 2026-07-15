@@ -263,7 +263,11 @@ class PersonnelTableManager extends Component
         $personnel->first_name = (string) $this->personnelForm['first_name'];
         $personnel->middle_name = (string) $this->personnelForm['middle_name'];
         $personnel->last_name = (string) $this->personnelForm['last_name'];
-        $personnel->name = trim($personnel->first_name . ' ' . $personnel->middle_name . ' ' . $personnel->last_name);
+        $personnel->name = trim(implode(' ', array_filter([
+            trim((string) $this->personnelForm['first_name']),
+            trim((string) $this->personnelForm['middle_name']),
+            trim((string) $this->personnelForm['last_name']),
+        ], fn (string $part): bool => $part !== '')));
         $personnel->email = (string) $this->personnelForm['email'];
         $personnel->phone = (string) $this->personnelForm['phone'];
         $personnel->company_id = getUserCompany();
