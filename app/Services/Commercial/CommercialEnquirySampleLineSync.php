@@ -197,6 +197,8 @@ final class CommercialEnquirySampleLineSync
             if ($element !== null) {
                 $label = (string) ($element->analyte->name ?? $label);
                 $analysisTypeId = $analysisTypeId !== '' ? $analysisTypeId : (string) $element->analysis_type_id;
+            } elseif ($this->looksLikeUuidList($label)) {
+                $label = 'Parameter';
             }
         }
 
@@ -243,5 +245,21 @@ final class CommercialEnquirySampleLineSync
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
             ]);
         }
+    }
+
+    private function looksLikeUuidList(string $label): bool
+    {
+        $tokens = array_values(array_filter(array_map('trim', preg_split('/\s*,\s*/', $label) ?: [])));
+        if ($tokens === []) {
+            return false;
+        }
+
+        foreach ($tokens as $token) {
+            if (! Str::isUuid($token)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

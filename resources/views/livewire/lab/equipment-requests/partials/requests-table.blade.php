@@ -63,7 +63,7 @@
                             @if($activeTab === 'submitted')
                                 <i class="mdi mdi-inbox-arrow-down d-block"></i>
                                 <h6 class="text-muted">No submitted requests</h6>
-                                <p class="small mb-0">There are no pending requests from other users in your zones.</p>
+                                <p class="small mb-0">There are no pending requests from other users.</p>
                             @elseif($activeTab === 'approved')
                                 <i class="mdi mdi-check-circle-outline d-block"></i>
                                 <h6 class="text-muted">No approved requests</h6>
@@ -75,7 +75,7 @@
                             @elseif($activeTab === 'rejected')
                                 <i class="mdi mdi-close-circle-outline d-block"></i>
                                 <h6 class="text-muted">No rejected requests</h6>
-                                <p class="small mb-0">Rejected or cancelled requests in your zones will appear here.</p>
+                                <p class="small mb-0">Rejected or cancelled requests will appear here.</p>
                             @else
                                 <i class="mdi mdi-tools d-block"></i>
                                 <h6 class="text-muted">No requests found</h6>

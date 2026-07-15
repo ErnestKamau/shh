@@ -17,7 +17,7 @@ class LabSectionApproverRelationShip extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
 
     protected $table = "lab_section_approver_relation";
-    protected $fillable = ['lab_section_id','user_id'];
+    protected $fillable = ['lab_section_id', 'user_id', 'title', 'parent_id'];
 
     protected $appends = ['username','labsection'];
     public function getUSerNameAttribute(){

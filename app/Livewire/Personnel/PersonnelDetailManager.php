@@ -2,23 +2,19 @@
 
 namespace App\Livewire\Personnel;
 
-use App\Directorate;
 use App\Http\Controllers\PersonnelWorkHistoryController;
 use App\InventoryDepartment;
 use App\Lab;
 use App\ModulePreConfigs;
+use App\SampleAnalysisStage;
 use App\User;
-use App\UserDirectorateRelation;
 use App\UserLabRelation;
-use App\UserZoneRelation;
-use App\Zone;
 use App\Models\Personnel\PersonelCertification;
 use App\Models\SkillsMatrix\SkillMarixRole;
 use App\Models\SkillsMatrix\SkillsMatrixDetail;
 use App\Models\SkillsMatrix\SkillsMatrixRoleRequirment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -26,6 +22,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use App\Models\Auth\Role;
+use App\Services\Personnel\PersonnelSignatureService;
 use Spatie\Permission\PermissionRegistrar;
 
 class PersonnelDetailManager extends Component
@@ -39,26 +36,22 @@ class PersonnelDetailManager extends Component
     public string $educationSearch = '';
     public string $positionSearch = '';
     public string $departmentSearch = '';
-    public string $zoneSearch = '';
-    public string $directorateSearch = '';
     public string $labSearch = '';
+    public string $labSectionSearch = '';
     public bool $showDesignationDropdown = false;
     public bool $showEducationDropdown = false;
     public bool $showPositionDropdown = false;
     public bool $showDepartmentDropdown = false;
-    public bool $showZoneDropdown = false;
-    public bool $showDirectorateDropdown = false;
     public bool $showLabDropdown = false;
+    public bool $showLabSectionDropdown = false;
     public ?string $selectedDesignationId = null;
     public ?string $selectedEducationId = null;
     public ?string $selectedPositionId = null;
     public ?string $selectedDepartmentId = null;
     /** @var array<int, string> */
-    public array $selectedZoneIds = [];
-    /** @var array<int, string> */
-    public array $selectedDirectorateIds = [];
-    /** @var array<int, string> */
     public array $selectedLabIds = [];
+    /** @var array<int, string> */
+    public array $selectedLabSectionIds = [];
 
     public bool $showAddRoleModal = false;
     public bool $showDeleteRoleModal = false;
@@ -120,33 +113,19 @@ class PersonnelDetailManager extends Component
         $this->selectedEducationId = $user->education_level ? (string) $user->education_level : null;
         $this->selectedPositionId = $user->position ? (string) $user->position : null;
         $this->selectedDepartmentId = $user->department_id ? (string) $user->department_id : null;
-        $this->selectedZoneIds = [];
-        $this->selectedDirectorateIds = [];
-        $this->selectedLabIds = [];
-
-        if (Schema::hasColumn('users', 'zone_id') && $user->zone_id) {
-            $this->selectedZoneIds[] = (string) $user->zone_id;
-        }
-
-        $zoneRelations = UserZoneRelation::where('user_id', $user->id)
-            ->pluck('zone_id')
-            ->map(fn ($id): string => (string) $id)
-            ->all();
-        $this->selectedZoneIds = array_merge($this->selectedZoneIds, $zoneRelations);
-
-        $this->selectedDirectorateIds = UserDirectorateRelation::where('user_id', $user->id)
-            ->pluck('directorate_id')
-            ->map(fn ($id): string => (string) $id)
-            ->all();
-
         $this->selectedLabIds = UserLabRelation::where('user_id', $user->id)
             ->pluck('lab_id')
             ->map(fn ($id): string => (string) $id)
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values()
             ->all();
-
-        $this->selectedZoneIds = array_values(array_unique(array_filter($this->selectedZoneIds, fn ($id): bool => (string) $id !== '')));
-        $this->selectedDirectorateIds = array_values(array_unique(array_filter($this->selectedDirectorateIds, fn ($id): bool => (string) $id !== '')));
-        $this->selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
+        $this->selectedLabSectionIds = collect(explode(',', (string) ($user->lab_section_id ?? '')))
+            ->map(fn ($id): string => trim((string) $id))
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
 
         $this->detailsFirstName = (string) ($user->first_name ?? '');
         $this->detailsMiddleName = (string) ($user->middle_name ?? '');
@@ -254,8 +233,6 @@ class PersonnelDetailManager extends Component
         $this->showEducationDropdown = false;
         $this->showPositionDropdown = false;
         $this->showDepartmentDropdown = false;
-        $this->showZoneDropdown = false;
-        $this->showDirectorateDropdown = false;
         $this->showLabDropdown = false;
         $this->showRoleDropdown = false;
     }
@@ -278,16 +255,6 @@ class PersonnelDetailManager extends Component
     public function searchDepartment(): void
     {
         $this->showDepartmentDropdown = true;
-    }
-
-    public function searchZone(): void
-    {
-        $this->showZoneDropdown = true;
-    }
-
-    public function searchDirectorate(): void
-    {
-        $this->showDirectorateDropdown = true;
     }
 
     public function searchLab(): void
@@ -343,60 +310,6 @@ class PersonnelDetailManager extends Component
         $this->selectedDepartmentId = null;
     }
 
-    public function selectZone(string $id): void
-    {
-        if (in_array($id, $this->selectedZoneIds, true)) {
-            $this->selectedZoneIds = array_values(array_filter($this->selectedZoneIds, fn (string $zoneId): bool => $zoneId !== $id));
-        } else {
-            $this->selectedZoneIds[] = $id;
-            $this->selectedZoneIds = array_values(array_unique($this->selectedZoneIds));
-        }
-
-        $this->zoneSearch = '';
-
-        $availableDirectorateIds = $this->directorates
-            ->pluck('id')
-            ->map(fn ($value): string => (string) $value)
-            ->all();
-
-        $this->selectedDirectorateIds = array_values(array_filter(
-            $this->selectedDirectorateIds,
-            fn (string $directorateId): bool => in_array($directorateId, $availableDirectorateIds, true)
-        ));
-
-        $availableLabIds = $this->labs
-            ->pluck('id')
-            ->map(fn ($value): string => (string) $value)
-            ->all();
-
-        $this->selectedLabIds = array_values(array_filter(
-            $this->selectedLabIds,
-            fn (string $labId): bool => in_array($labId, $availableLabIds, true)
-        ));
-    }
-
-    public function selectDirectorate(string $id): void
-    {
-        if (in_array($id, $this->selectedDirectorateIds, true)) {
-            $this->selectedDirectorateIds = array_values(array_filter($this->selectedDirectorateIds, fn (string $directorateId): bool => $directorateId !== $id));
-        } else {
-            $this->selectedDirectorateIds[] = $id;
-            $this->selectedDirectorateIds = array_values(array_unique($this->selectedDirectorateIds));
-        }
-
-        $this->directorateSearch = '';
-
-        $availableLabIds = $this->labs
-            ->pluck('id')
-            ->map(fn ($value): string => (string) $value)
-            ->all();
-
-        $this->selectedLabIds = array_values(array_filter(
-            $this->selectedLabIds,
-            fn (string $labId): bool => in_array($labId, $availableLabIds, true)
-        ));
-    }
-
     public function selectLab(string $id): void
     {
         if (in_array($id, $this->selectedLabIds, true)) {
@@ -409,59 +322,6 @@ class PersonnelDetailManager extends Component
         $this->labSearch = '';
     }
 
-    public function clearZone(?string $id = null): void
-    {
-        if ($id === null) {
-            $this->selectedZoneIds = [];
-            $this->selectedDirectorateIds = [];
-            $this->selectedLabIds = [];
-            return;
-        }
-
-        $this->selectedZoneIds = array_values(array_filter($this->selectedZoneIds, fn (string $zoneId): bool => $zoneId !== $id));
-
-        $availableDirectorateIds = $this->directorates
-            ->pluck('id')
-            ->map(fn ($value): string => (string) $value)
-            ->all();
-
-        $this->selectedDirectorateIds = array_values(array_filter(
-            $this->selectedDirectorateIds,
-            fn (string $directorateId): bool => in_array($directorateId, $availableDirectorateIds, true)
-        ));
-
-        $availableLabIds = $this->labs
-            ->pluck('id')
-            ->map(fn ($value): string => (string) $value)
-            ->all();
-
-        $this->selectedLabIds = array_values(array_filter(
-            $this->selectedLabIds,
-            fn (string $labId): bool => in_array($labId, $availableLabIds, true)
-        ));
-    }
-
-    public function clearDirectorate(?string $id = null): void
-    {
-        if ($id === null) {
-            $this->selectedDirectorateIds = [];
-            $this->selectedLabIds = [];
-            return;
-        }
-
-        $this->selectedDirectorateIds = array_values(array_filter($this->selectedDirectorateIds, fn (string $directorateId): bool => $directorateId !== $id));
-
-        $availableLabIds = $this->labs
-            ->pluck('id')
-            ->map(fn ($value): string => (string) $value)
-            ->all();
-
-        $this->selectedLabIds = array_values(array_filter(
-            $this->selectedLabIds,
-            fn (string $labId): bool => in_array($labId, $availableLabIds, true)
-        ));
-    }
-
     public function clearLab(?string $id = null): void
     {
         if ($id === null) {
@@ -470,6 +330,37 @@ class PersonnelDetailManager extends Component
         }
 
         $this->selectedLabIds = array_values(array_filter($this->selectedLabIds, fn (string $labId): bool => $labId !== $id));
+    }
+
+    public function selectLabSection(string $id): void
+    {
+        if (in_array($id, $this->selectedLabSectionIds, true)) {
+            $this->selectedLabSectionIds = array_values(
+                array_filter($this->selectedLabSectionIds, fn (string $sectionId): bool => $sectionId !== $id)
+            );
+        } else {
+            $this->selectedLabSectionIds[] = $id;
+            $this->selectedLabSectionIds = array_values(array_unique($this->selectedLabSectionIds));
+        }
+
+        $this->labSectionSearch = '';
+    }
+
+    public function clearLabSection(?string $id = null): void
+    {
+        if ($id === null) {
+            $this->selectedLabSectionIds = [];
+            return;
+        }
+
+        $this->selectedLabSectionIds = array_values(
+            array_filter($this->selectedLabSectionIds, fn (string $sectionId): bool => $sectionId !== $id)
+        );
+    }
+
+    public function searchLabSection(): void
+    {
+        $this->showLabSectionDropdown = true;
     }
 
     public function saveUserDetails(): void
@@ -506,38 +397,17 @@ class PersonnelDetailManager extends Component
         $user->gazzette_no = $this->detailsAnalystIsGazzetted ? (trim($this->detailsGazzetteNo) !== '' ? trim($this->detailsGazzetteNo) : null) : null;
         $user->start_of_career = $this->detailsStartOfCareer ?: null;
 
-        if ($this->detailsSignatureUpload) {
-            $filename = Str::uuid()->toString() . '_' . time() . '.' . $this->detailsSignatureUpload->getClientOriginalExtension();
-            $storedPath = $this->detailsSignatureUpload->storeAs('personnel-signature', $filename, 'public');
-            $user->electronic_sig = '/storage/' . $storedPath;
-        }
-
-        if ($this->detailsSignatureData !== '' && str_starts_with($this->detailsSignatureData, 'data:image/')) {
-            if (preg_match('/^data:image\/(\w+);base64,/', $this->detailsSignatureData, $matches)) {
-                $extension = strtolower($matches[1]);
-                if ($extension === 'jpeg') {
-                    $extension = 'jpg';
-                }
-
-                if (in_array($extension, ['png', 'jpg', 'gif', 'webp'], true)) {
-                    $imageData = substr($this->detailsSignatureData, strpos($this->detailsSignatureData, ',') + 1);
-                    $decoded = base64_decode($imageData, true);
-                    if ($decoded !== false) {
-                        $filename = Str::uuid()->toString() . '_' . time() . '.' . $extension;
-                        $storagePath = 'personnel-signature/' . $filename;
-                        Storage::disk('public')->put($storagePath, $decoded);
-                        $user->electronic_sig = '/storage/' . $storagePath;
-                    }
-                }
-            }
-        }
+        app(PersonnelSignatureService::class)->applyToUser(
+            $user,
+            $this->detailsSignatureUpload,
+            $this->detailsSignatureData,
+        );
 
         $selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
-        $assignedLabs = collect($this->labs)->whereIn('id', $selectedLabIds);
-        $derivedZoneIds = $assignedLabs->pluck('zone_id')->filter(fn ($id): bool => (string) $id !== '')->unique()->values()->all();
-        $derivedDirectorateIds = $assignedLabs->pluck('directorate_id')->filter(fn ($id): bool => (string) $id !== '')->unique()->values()->all();
+        $selectedLabSectionIds = array_values(array_unique(array_filter($this->selectedLabSectionIds, fn ($id): bool => (string) $id !== '')));
 
-        $user->zone_id = $derivedZoneIds[0] ?? null;
+        $user->lab_section_id = implode(',', $selectedLabSectionIds);
+
         $user->save();
 
         UserLabRelation::where('user_id', $user->id)->delete();
@@ -545,22 +415,6 @@ class PersonnelDetailManager extends Component
             UserLabRelation::create([
                 'user_id' => $user->id,
                 'lab_id' => (string) $labId,
-            ]);
-        }
-
-        UserZoneRelation::where('user_id', $user->id)->delete();
-        foreach ($derivedZoneIds as $zoneId) {
-            UserZoneRelation::create([
-                'user_id' => $user->id,
-                'zone_id' => (string) $zoneId,
-            ]);
-        }
-
-        UserDirectorateRelation::where('user_id', $user->id)->delete();
-        foreach ($derivedDirectorateIds as $directorateId) {
-            UserDirectorateRelation::create([
-                'user_id' => $user->id,
-                'directorate_id' => (string) $directorateId,
             ]);
         }
 
@@ -604,6 +458,8 @@ class PersonnelDetailManager extends Component
             $this->validate([
                 'selectedLabIds' => 'array',
                 'selectedLabIds.*' => 'string|exists:labs,id',
+                'selectedLabSectionIds' => 'array',
+                'selectedLabSectionIds.*' => 'string|exists:sample_analysis_stages,id',
                 'detailsAnalystIsGazzetted' => 'boolean',
                 'detailsDateOfGazzette' => 'nullable|date',
                 'detailsGazzetteNo' => 'nullable|string|max:255',
@@ -947,30 +803,28 @@ class PersonnelDetailManager extends Component
             ->get(['id', 'name']);
     }
 
-    public function getDirectoratesProperty()
-    {
-        $query = Directorate::query()->where('active', 1)->orderBy('name');
-
-        if (!empty($this->selectedZoneIds)) {
-            $query->whereIn('zone_id', $this->selectedZoneIds);
-        }
-
-        return $query->get(['id', 'name', 'zone_id']);
-    }
-
     public function getLabsProperty()
     {
-        $query = Lab::query()->where('active', 1)->orderBy('name');
+        return Lab::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
 
-        if (!empty($this->selectedDirectorateIds)) {
-            $query->whereIn('directorate_id', $this->selectedDirectorateIds);
+    public function getLabSectionsProperty()
+    {
+        $query = SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->where('is_sample_stage', 0);
+
+        if ($this->selectedLabIds !== []) {
+            $query->where(function ($builder) {
+                $builder->whereIn('lab_id', $this->selectedLabIds)
+                    ->orWhereNull('lab_id');
+            });
         }
 
-        if (!empty($this->selectedZoneIds)) {
-            $query->whereIn('zone_id', $this->selectedZoneIds);
-        }
-
-        return $query->get(['id', 'name', 'directorate_id', 'zone_id']);
+        return $query->orderBy('name')->get(['id', 'name', 'code', 'lab_id']);
     }
 
     public function getAllRolesProperty()
@@ -1122,18 +976,6 @@ class PersonnelDetailManager extends Component
             $row->proficiency_label = $row->proficiency_name ?: 'Not rated';
             return $row;
         });
-    }
-
-    public function getZonesProperty()
-    {
-        if (!Schema::hasTable('zones')) {
-            return collect();
-        }
-
-        return Zone::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->orderBy('key')
-            ->get(['id', 'key', 'value']);
     }
 
     public function render()

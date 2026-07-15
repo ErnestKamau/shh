@@ -343,12 +343,14 @@ class SampleAnalysisSetupService
             return $this->reportingUnitCache[$key];
         }
 
-        $isUuid = Str::isUuid($key);
-        $unit = $isUuid
-            ? ReportingUnit::where('id', $key)->orWhere('name', $key)->first()
-            : ReportingUnit::where('name', $key)->first();
+        $unitId = ensureReportingUnitIdFromName($key);
+        $unit = $unitId ? ReportingUnit::query()->find($unitId) : null;
 
         $this->reportingUnitCache[$key] = $unit;
+        if ($unit) {
+            $this->reportingUnitCache[(string) $unit->id] = $unit;
+            $this->reportingUnitCache[(string) $unit->name] = $unit;
+        }
 
         return $unit;
     }
@@ -437,5 +439,65 @@ class SampleAnalysisSetupService
         }
 
         return (int) ($lab?->is_external ?? 0);
+    }
+
+    /**
+     * Roll unique analysis-type lab sections onto the batch header (2/polucon style).
+     */
+    public function syncBatchLabSectionIdsFromAnalysisTypes(SampleHeader $header): ?string
+    {
+        $analysisTypeIds = SampleAnalysisTypeRelation::query()
+            ->where('batch_id', $header->id)
+            ->pluck('analysis_type_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($analysisTypeIds === []) {
+            $analysisTypeIds = SampleDetails::query()
+                ->where('sample_header_id', $header->id)
+                ->pluck('analysis_type_id')
+                ->flatMap(function ($raw) {
+                    return collect(explode(',', (string) $raw))
+                        ->map(fn ($id) => trim((string) $id))
+                        ->filter();
+                })
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if ($analysisTypeIds === []) {
+            return $header->lab_section_ids !== null && $header->lab_section_ids !== ''
+                ? (string) $header->lab_section_ids
+                : null;
+        }
+
+        $sectionIds = AnalysisType::query()
+            ->whereIn('id', $analysisTypeIds)
+            ->whereNotNull('lab_section_id')
+            ->pluck('lab_section_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '' && Str::isUuid($id))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($sectionIds === []) {
+            return $header->lab_section_ids !== null && $header->lab_section_ids !== ''
+                ? (string) $header->lab_section_ids
+                : null;
+        }
+
+        $csv = implode(',', $sectionIds);
+        if ((string) $header->lab_section_ids !== $csv) {
+            $header->lab_section_ids = $csv;
+            $header->save();
+        }
+
+        return $csv;
     }
 }

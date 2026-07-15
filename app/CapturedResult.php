@@ -34,6 +34,7 @@ class CapturedResult extends Model implements Auditable
         'supercsript_base' => \App\Casts\SafeEncrypted::class,
         'operator_id' => 'string',
         'method_id' => 'string',
+        'equipment_ids' => 'array',
         'main_standard_id' => 'string',
         'secondary_standard_id' => 'string',
         'lab_section_id' => 'string',
@@ -259,6 +260,15 @@ class CapturedResult extends Model implements Auditable
 
 		if (!$this->method_id && $element?->method) {
 			$this->method_id = $element->method;
+		}
+
+		if (!$this->equipment_id && $element?->equipment_id) {
+			$this->equipment_id = $element->equipment_id;
+		}
+
+		$equipmentIds = is_array($this->equipment_ids) ? array_values(array_filter($this->equipment_ids)) : [];
+		if ($equipmentIds === [] && $this->equipment_id) {
+			$this->equipment_ids = [(string) $this->equipment_id];
 		}
 	}
 

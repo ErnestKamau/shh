@@ -20,8 +20,6 @@ use Illuminate\Support\Facades\Hash;
 use Excel;
 use App\Imports\StandardsImport;
 use App\SampleAnalysisStage;
-use App\UserZoneRelation;
-use App\UserDirectorateRelation;
 use App\UserLabRelation;
 
 class PersonnelController extends Controller
@@ -287,7 +285,7 @@ class PersonnelController extends Controller
 
 		$personnel->save();
 
-		// Labs first, then derive zones/directorates from the assigned labs
+		// Labs assignment only (zones/directorates removed from Labs organization)
 		if (Schema::hasTable('user_lab_relation')) {
 			DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
 			foreach ($labIds as $labId) {
@@ -298,46 +296,12 @@ class PersonnelController extends Controller
 			}
 		}
 
-		// Derive zone and directorate relations from the assigned labs instead of using direct request inputs
-		if (!$labIds->isEmpty()) {
-			$derivedZones = DB::table('labs')
-				->whereIn('id', $labIds->toArray())
-				->whereNotNull('zone_id')
-				->where('zone_id', '!=', '')
-				->pluck('zone_id')
-				->unique()
-				->values();
-
-			$derivedDirectorates = DB::table('labs')
-				->whereIn('id', $labIds->toArray())
-				->whereNotNull('directorate_id')
-				->where('directorate_id', '!=', '')
-				->pluck('directorate_id')
-				->unique()
-				->values();
-		} else {
-			$derivedZones        = collect();
-			$derivedDirectorates = collect();
-		}
-
 		if (Schema::hasTable('user_zone_relation')) {
 			DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
-			foreach ($derivedZones as $zoneId) {
-				UserZoneRelation::query()->create([
-					'user_id' => $personnel->id,
-					'zone_id' => $zoneId,
-				]);
-			}
 		}
 
 		if (Schema::hasTable('user_directorate_relation')) {
 			DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
-			foreach ($derivedDirectorates as $directorateId) {
-				UserDirectorateRelation::query()->create([
-					'user_id' => $personnel->id,
-					'directorate_id' => $directorateId,
-				]);
-			}
 		}
 		// return response()->json($personnel);
 		if(isset($personnelWorkHistoryChanged)){
@@ -396,10 +360,9 @@ class PersonnelController extends Controller
 		return redirect()->back()->with('success', "Import completed. {$batch->imported_rows} users processed.");
 	}
 
-	public function user_profile(){
-		$user = Auth::user();
-		$stages = SampleAnalysisStage::where('active',1)->get();
-		return view('layouts.personnel.users.user_profile', compact('user','stages'));
+	public function user_profile()
+	{
+		return view('layouts.personnel.users.user_profile');
 	}
 
 	public function get_personnel_via_ajax($id=false){

@@ -621,57 +621,12 @@ class SampleCreationService
 
     private function resolveZoneCodesFromMappedLabs(array $formData): \Illuminate\Support\Collection
     {
-        $detailRows = $formData['sample_details'] ?? [];
-        if (! is_array($detailRows)) {
-            return collect();
-        }
-
-        $labIds = collect($detailRows)
-            ->map(function ($row) {
-                if (! is_array($row)) {
-                    return null;
-                }
-
-                $labId = $row['lab_id'] ?? null;
-                return !empty($labId) ? (string) $labId : null;
-            })
-            ->filter()
-            ->unique()
-            ->values();
-
-        if ($labIds->isEmpty()) {
-            return collect();
-        }
-
-        $zoneIds = Lab::query()
-            ->whereIn('id', $labIds)
-            ->whereNotNull('zone_id')
-            ->pluck('zone_id')
-            ->filter()
-            ->unique()
-            ->values();
-
-        return Zone::query()
-            ->whereIn('id', $zoneIds)
-            ->pluck('key')
-            ->map(fn ($key) => $this->normalizeZoneCode($key))
-            ->filter()
-            ->unique()
-            ->values();
+        return collect();
     }
 
     private function resolveZoneCodeFromZoneId($zoneId): ?string
     {
-        if (empty($zoneId)) {
-            return null;
-        }
-
-        $zone = Zone::query()->select('id', 'key')->find((string) $zoneId);
-        if (! $zone) {
-            return null;
-        }
-
-        return $this->normalizeZoneCode($zone->key);
+        return null;
     }
 
     private function normalizeZoneCode($zone): ?string

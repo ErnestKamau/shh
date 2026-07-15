@@ -3795,7 +3795,7 @@ class SampleWorkFlowController extends Controller
                 $notify = notify_user($body, $c->email, $subject, $file, $bcc);
             }
             $batch->email_date = getTodayDate();
-            $batch->status = 'Completed';
+            // Do not change workflow status here — only a manual move should advance the batch.
             $batch->save();
 
             $custodyDetails = [
@@ -3806,7 +3806,7 @@ class SampleWorkFlowController extends Controller
                     'tracking_stage' => $batch->sample_tracking_stage,
                 ],
                 'target' => [
-                    'status' => $batch->status,
+                    'status' => $previous,
                     'tracking_stage' => $batch->sample_tracking_stage,
                 ],
             ];
@@ -6209,8 +6209,7 @@ class SampleWorkFlowController extends Controller
                         $batch->batch_report_online_url = url($normalizedStoragePath);
                     }
 
-                    // Mark status as Completed so it passes the portal reports filter.
-                    $batch->status = config('dashboard.report_status', 'Completed');
+                    // Persist report URLs only — workflow stage must change via manual move.
                     $batch->save();
 
                     // Push a CustomerNotification (surfaces in portal notifications bell).

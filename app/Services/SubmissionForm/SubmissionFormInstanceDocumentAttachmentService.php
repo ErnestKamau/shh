@@ -47,7 +47,7 @@ final class SubmissionFormInstanceDocumentAttachmentService
             TestRequestFormPdfService::ATTACHMENT_TITLE,
             'Report',
             $storagePath,
-            basename($storagePath),
+            $pdfService->resolveDisplayFilename($instance),
             'Test request form PDF generated automatically.',
             $userId,
         );

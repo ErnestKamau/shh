@@ -392,7 +392,32 @@ class FormulaStepEditor extends Component
             $query->where('step_type', $this->typeFilter);
         }
 
-        $this->steps = $query->get()->toArray();
+        $steps = $query->get();
+
+        $lookupTableIds = $steps
+            ->filter(fn (FormulaStep $step) => $step->isLookup())
+            ->map(fn (FormulaStep $step) => $step->lookupTableId())
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $lookupTableNames = $lookupTableIds === []
+            ? collect()
+            : LookupTable::query()->whereIn('id', $lookupTableIds)->pluck('name', 'id');
+
+        $this->steps = $steps->map(function (FormulaStep $step) use ($lookupTableNames) {
+            $row = $step->toArray();
+
+            if ($step->isLookup()) {
+                $tableId = $step->lookupTableId();
+                $row['lookup_table_display'] = $tableId === null
+                    ? 'N/A'
+                    : ($lookupTableNames[$tableId] ?? '(missing)');
+            }
+
+            return $row;
+        })->all();
     }
 
     public function showCreateStepModalInit()
@@ -413,7 +438,7 @@ class FormulaStepEditor extends Component
         $this->showEditStepModal = false;
     }
 
-    public function showEditStepModalInit($stepId)
+    public function showEditStepModalInit(string $stepId): void
     {
         $step = FormulaStep::findOrFail($stepId);
         $this->editingStep = $step;

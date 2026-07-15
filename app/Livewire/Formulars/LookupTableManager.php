@@ -108,8 +108,10 @@ class LookupTableManager extends Component
         $this->showCreateModal = true;
     }
 
-    public function showEditTableModal(LookupTable $table)
+    public function showEditTableModal(string $tableId): void
     {
+        $table = LookupTable::findOrFail($tableId);
+
         $this->editingTable = $table;
         $this->tableName = $table->name;
         $this->tableDescription = $table->description;
@@ -126,9 +128,9 @@ class LookupTableManager extends Component
         $this->showEditModal = true;
     }
 
-    public function openImportModal(LookupTable $table)
+    public function openImportModal(string $tableId): void
     {
-        $this->editingTable = $table;
+        $this->editingTable = LookupTable::findOrFail($tableId);
         $this->importFile = null;
         $this->importPreview = [];
         $this->importErrors = [];
@@ -200,20 +202,21 @@ class LookupTableManager extends Component
         }
     }
 
-    public function deleteTable(LookupTable $table)
+    public function deleteTable(string $tableId): void
     {
         try {
-            $table->delete();
+            LookupTable::findOrFail($tableId)->delete();
             $this->setMessage('Lookup table deleted successfully!', 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error deleting lookup table: ' . $e->getMessage(), 'error');
         }
     }
 
-    public function toggleTableStatus(LookupTable $table)
+    public function toggleTableStatus(string $tableId): void
     {
         try {
-            $table->update(['is_active' => !$table->is_active]);
+            $table = LookupTable::findOrFail($tableId);
+            $table->update(['is_active' => ! $table->is_active]);
             $status = $table->is_active ? 'activated' : 'deactivated';
             $this->setMessage("Lookup table {$status} successfully!", 'success');
         } catch (\Exception $e) {
@@ -295,20 +298,22 @@ class LookupTableManager extends Component
         }
     }
 
-    public function downloadTemplate(LookupTable $table)
+    public function downloadTemplate(string $tableId): mixed
     {
         try {
+            $table = LookupTable::findOrFail($tableId);
+
             // Create header row with column names
             $headers = array_merge($table->key_columns, [$table->value_column]);
-            
+
             // Create sample data row (optional)
             $sampleData = [];
             foreach ($headers as $header) {
                 $sampleData[$header] = 'Sample ' . $header;
             }
-            
+
             $data = [$sampleData]; // Include one sample row
-            
+
             $filename = 'template_' . str_replace(' ', '_', $table->name) . '_' . now()->format('Y-m-d') . '.xlsx';
 
             return Excel::download(new class($data, $headers) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings {
@@ -325,7 +330,7 @@ class LookupTableManager extends Component
                 {
                     return $this->data;
                 }
-                
+
                 public function headings(): array
                 {
                     return $this->headers;
@@ -334,11 +339,14 @@ class LookupTableManager extends Component
         } catch (\Exception $e) {
             $this->setMessage('Error generating template: ' . $e->getMessage(), 'error');
         }
+
+        return null;
     }
 
-    public function exportTable(LookupTable $table)
+    public function exportTable(string $tableId): mixed
     {
         try {
+            $table = LookupTable::findOrFail($tableId);
             $lookupService = app(LookupService::class);
             $data = $lookupService->exportData($table->id);
 
@@ -361,7 +369,7 @@ class LookupTableManager extends Component
                 {
                     return $this->data;
                 }
-                
+
                 public function headings(): array
                 {
                     return $this->headers;
@@ -370,6 +378,8 @@ class LookupTableManager extends Component
         } catch (\Exception $e) {
             $this->setMessage('Error exporting table: ' . $e->getMessage(), 'error');
         }
+
+        return null;
     }
 
     public function selectRangeVariable($variable)

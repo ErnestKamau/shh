@@ -94,9 +94,25 @@ class Phase13FoodStandardsAndPricelistSeederTest extends TestCase
         );
 
         $this->assertSame(
-            9,
+            1,
             PricelistItem::query()->where('pricelist_id', $pricelist->id)->count()
         );
+
+        $packageItem = PricelistItem::query()
+            ->with('packageElements')
+            ->where('pricelist_id', $pricelist->id)
+            ->first();
+
+        $this->assertNotNull($packageItem);
+        $this->assertTrue((bool) $packageItem->is_package);
+        $this->assertNull($packageItem->analysis_element_id);
+        $this->assertCount(5, $packageItem->packageElements);
+
+        $analysisIds = PricelistItem::query()
+            ->where('pricelist_id', $pricelist->id)
+            ->pluck('analysis_id');
+
+        $this->assertSame($analysisIds->count(), $analysisIds->unique()->count());
 
         $this->assertSame(
             3,

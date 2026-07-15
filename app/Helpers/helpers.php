@@ -2955,15 +2955,54 @@ function getNCHotspotsByRiskLevel()
  */
 function resolveReportingUnitIdFromName(?string $unitName): ?string
 {
-	if (empty($unitName)) {
+	if ($unitName === null) {
+		return null;
+	}
+
+	$unitName = trim($unitName);
+	if ($unitName === '') {
 		return null;
 	}
 
 	if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $unitName)) {
-		return $unitName;
+		$byId = App\ReportingUnit::query()->where('id', $unitName)->value('id');
+
+		return $byId ? (string) $byId : null;
 	}
 
-	return App\ReportingUnit::query()->where('name', $unitName)->value('id');
+	$id = App\ReportingUnit::query()
+		->whereRaw('LOWER(name) = ?', [mb_strtolower($unitName)])
+		->value('id');
+
+	return $id ? (string) $id : null;
+}
+
+/**
+ * Resolve a reporting unit id, creating the master-list row when only a name exists.
+ * Analysis elements often store unit names (e.g. mg/kg) that were never seeded into reporting_units.
+ */
+function ensureReportingUnitIdFromName(?string $unitName): ?string
+{
+	$resolved = resolveReportingUnitIdFromName($unitName);
+	if ($resolved !== null) {
+		return $resolved;
+	}
+
+	if ($unitName === null) {
+		return null;
+	}
+
+	$trimmed = trim($unitName);
+	if ($trimmed === '' || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $trimmed)) {
+		return null;
+	}
+
+	$unit = App\ReportingUnit::query()->firstOrCreate(
+		['name' => $trimmed],
+		['active' => true],
+	);
+
+	return (string) $unit->id;
 }
 
 /**
@@ -3009,7 +3048,7 @@ function resolveReportingUnitIdFromAnalyte(?string $analysisTypeId, ?string $ana
 		$unitName = $analyte->reporting_unit ?? null;
 	}
 
-	return resolveReportingUnitIdFromName($unitName);
+	return ensureReportingUnitIdFromName($unitName);
 }
 
 require_once __DIR__.'/risk_helpers.php';

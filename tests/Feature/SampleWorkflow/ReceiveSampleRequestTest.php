@@ -438,6 +438,49 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertDispatched('receive-completed');
     }
 
+    public function test_walk_in_modal_open_preserves_wizard_progress_for_duplicate_walk_in_open(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR-PRESERVE');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $this->createWalkInCustomerDetailsSection($portalForm);
+        $this->createWalkInCollectionSection($portalForm);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData.customer_name', 'Walk-in Customer')
+            ->call('nextWalkInStep')
+            ->assertSet('walkInActiveStepIndex', 1)
+            ->call('handleReceiveModalOpen', [], [])
+            ->assertSet('walkInActiveStepIndex', 1)
+            ->assertSet('selectedSampleTypeId', $sampleType->id)
+            ->assertSet('formData.customer_name', 'Walk-in Customer');
+    }
+
+    public function test_walk_in_sample_type_reselect_with_same_value_does_not_reset_step(): void
+    {
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR-SAME');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $this->createWalkInCustomerDetailsSection($portalForm);
+        $this->createWalkInCollectionSection($portalForm);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData.customer_name', 'Walk-in Customer')
+            ->call('nextWalkInStep')
+            ->assertSet('walkInActiveStepIndex', 1)
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->assertSet('walkInActiveStepIndex', 1)
+            ->assertSet('formData.customer_name', 'Walk-in Customer');
+    }
+
     public function test_confirm_receive_applies_same_checklist_to_multiple_instances(): void
     {
         $form = $this->createTemplateForm();

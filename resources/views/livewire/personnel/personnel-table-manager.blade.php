@@ -85,25 +85,7 @@
 
             @if($showAdvancedFilters)
                 <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label class="small text-muted">{{ __('personnel.zone') }}</label>
-                        <select class="form-control" wire:model.live="zoneFilter">
-                            <option value="">{{ __('personnel.zones') }}</option>
-                            @foreach($zones as $zone)
-                                <option value="{{ $zone['id'] }}">{{ $zone['key'] }}{{ $zone['value'] ? ' - '.$zone['value'] : '' }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="small text-muted">{{ __('personnel.directorate') }}</label>
-                        <select class="form-control" wire:model.live="directorateFilter">
-                            <option value="">{{ __('personnel.directorates') }}</option>
-                            @foreach($directorates as $directorate)
-                                <option value="{{ $directorate['id'] }}">{{ $directorate['name'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.lab') }}</label>
                         <select class="form-control" wire:model.live="labFilter">
                             <option value="">{{ __('personnel.labs') }}</option>
@@ -112,11 +94,11 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.employed_from') }}</label>
                         <input type="date" class="form-control" wire:model.live="employmentDateFrom">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.employed_to') }}</label>
                         <input type="date" class="form-control" wire:model.live="employmentDateTo">
                     </div>
@@ -529,6 +511,44 @@
                                                             <span>Technical</span>
                                                         </label>
                                                     </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <div class="form-group">
+                                                    <label class="control-label">{{ __('personnel.lab_sections') }}</label>
+                                                    <div class="tag-select-container" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showLabSectionDropdown', true)">
+                                                            @foreach(($personnelForm['lab_section_id'] ?? []) as $__sectionId)
+                                                                @php($__sectionName = collect($stages)->firstWhere('id', $__sectionId)['name'] ?? $__sectionId)
+                                                                <span class="tag-badge">
+                                                                    {{ $__sectionName }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="removeLabSectionSelection(@js($__sectionId))"></i>
+                                                                </span>
+                                                            @endforeach
+                                                            <input type="text"
+                                                                wire:model.live="labSectionSearch"
+                                                                wire:keyup="searchLabSections"
+                                                                class="tag-input"
+                                                                placeholder="{{ empty($personnelForm['lab_section_id'] ?? []) ? 'Search lab sections...' : '' }}"
+                                                                autocomplete="off">
+                                                        </div>
+                                                        @if($showLabSectionDropdown)
+                                                            <div class="tag-dropdown">
+                                                                @forelse($filteredLabSections as $item)
+                                                                    <div class="tag-dropdown-item {{ in_array($item['id'], $personnelForm['lab_section_id'] ?? []) ? 'tag-dropdown-item-selected' : '' }}"
+                                                                         wire:click.stop="toggleLabSectionSelection(@js($item['id']))">
+                                                                        @if(in_array($item['id'], $personnelForm['lab_section_id'] ?? []))
+                                                                            <i class="mdi mdi-check-circle text-primary"></i>
+                                                                        @endif
+                                                                        {{ $item['name'] }}
+                                                                    </div>
+                                                                @empty
+                                                                    <div class="tag-dropdown-item text-muted">No lab sections found</div>
+                                                                @endforelse
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                    @error('personnelForm.lab_section_id') <span class="text-danger">{{ $message }}</span> @enderror
                                                 </div>
                                             </div>
                                         </div>

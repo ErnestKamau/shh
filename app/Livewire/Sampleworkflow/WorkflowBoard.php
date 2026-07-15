@@ -262,11 +262,6 @@ class WorkflowBoard extends Component
         $this->hydrateFiltersFromRequest();
         $this->submissionFormAttachmentTypeId = $this->resolveSubmissionFormAttachmentTypeId();
 
-        if ($this->status === 'Samples Receiving' && request()->boolean('open_receive_request')) {
-            $this->workflowSubTab = 'submitted';
-            $this->openReceiveRequestPending = true;
-        }
-
         $this->backfillDispatchedSubcontractJobs();
     }
 
@@ -398,12 +393,9 @@ class WorkflowBoard extends Component
 
     public function openPendingReceiveRequestIfNeeded(): void
     {
-        if (! $this->openReceiveRequestPending) {
-            return;
-        }
-
+        // Intentionally no-op: the Test Request modal must only open when the user
+        // presses Receive Request, never automatically on Samples Receiving load.
         $this->openReceiveRequestPending = false;
-        $this->openReceiveModal([]);
     }
 
     /**
@@ -3028,7 +3020,6 @@ class WorkflowBoard extends Component
             'request-additional-info-completed' => 'onRequestAdditionalInfoCompleted',
             'analyst-review-completed' => 'onAnalystReviewCompleted',
             'subcontract-dispatch-completed' => 'onSubcontractDispatchCompleted',
-            'interzone-transfer-completed' => '$refresh',
             'process-enquiry-completed' => '$refresh',
         ];
     }

@@ -95,4 +95,44 @@ class UnifiedLabHierarchyImporterTransformTest extends TestCase
         $this->assertTrue($transformed['analyte_code_explicit']);
         $this->assertSame('AN-PH', $transformed['analyte_code']);
     }
+
+    public function test_transform_humanizes_snake_and_kebab_names(): void
+    {
+        $importer = $this->importer();
+
+        $transformed = $this->invokeTransform($importer, [
+            'sample_type_code' => 'food_and_feed',
+            'sample_type_name' => 'food_and_feed',
+            'analysis_type_code' => 'general-foods',
+            'analysis_type_name' => 'general-foods',
+            'analyte_name' => 'moisture_and_water',
+            'lab_section_code' => 'chemistry',
+            'method' => 'iso-4833-1',
+            'unit' => 'CFU/g',
+        ]);
+
+        $this->assertSame('Food and Feed', $transformed['sample_type_name']);
+        $this->assertSame('General Foods', $transformed['analysis_type_name']);
+        $this->assertSame('Moisture and Water', $transformed['analyte_name']);
+        $this->assertSame('iso-4833-1', $transformed['method']);
+        $this->assertSame('CFU/g', $transformed['reporting_unit']);
+        $this->assertSame('MOISTURE_AND_WATER', $transformed['analyte_code']);
+    }
+
+    public function test_transform_maps_method_and_unit_aliases(): void
+    {
+        $importer = $this->importer();
+
+        $transformed = $this->invokeTransform($importer, [
+            'sample_type_code' => 'Food',
+            'analysis_type_code' => 'Dairy',
+            'analyte_name' => 'pH Level',
+            'lab_section_code' => 'Microbiology',
+            'test_method' => 'Electrometric Method',
+            'reporting_unit' => 'units',
+        ]);
+
+        $this->assertSame('Electrometric Method', $transformed['method']);
+        $this->assertSame('units', $transformed['reporting_unit']);
+    }
 }

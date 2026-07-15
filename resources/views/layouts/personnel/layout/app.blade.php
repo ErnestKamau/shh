@@ -113,7 +113,6 @@
 						array('config' => 'Educational Levels', 'label' => 'Educational Levels'),
 						array('config' => 'Job Description', 'label' => 'Job Description'),
 						array('config' => 'Designation', 'label' => 'Designation'),
-						array('config' => 'Zones', 'label' => 'Organization Structure'),
 					);
 				?>
 				@if($canModulePreConfigsRoute)

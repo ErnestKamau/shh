@@ -116,6 +116,7 @@ class AnalysisTypeManager extends Component
         'analysisTypeForm.code' => 'required|string|max:255',
         'analysisTypeForm.lab_ids' => 'required|array|min:1',
         'analysisTypeForm.lab_ids.*' => 'uuid|exists:labs,id',
+        'analysisTypeForm.lab_section_id' => 'required|uuid|exists:sample_analysis_stages,id',
         'elementForm.analyte_id' => 'required|exists:analytes,id',
         'elementForm.method' => 'nullable|exists:analysis_methods,id',
         'elementForm.equipment_id' => 'nullable|exists:equipment,id',
@@ -127,6 +128,8 @@ class AnalysisTypeManager extends Component
         'analysisTypeForm.code.required' => 'Analysis type code is required.',
         'analysisTypeForm.lab_ids.required' => 'At least one lab is required.',
         'analysisTypeForm.lab_ids.min' => 'At least one lab is required.',
+        'analysisTypeForm.lab_section_id.required' => 'Lab section is required.',
+        'analysisTypeForm.lab_section_id.exists' => 'Selected lab section is invalid.',
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
     ];
 
@@ -260,6 +263,7 @@ class AnalysisTypeManager extends Component
             'analysisTypeForm.code' => 'required|string|max:255',
             'analysisTypeForm.lab_ids' => 'required|array|min:1',
             'analysisTypeForm.lab_ids.*' => 'uuid|exists:labs,id',
+            'analysisTypeForm.lab_section_id' => 'required|uuid|exists:sample_analysis_stages,id',
             'analysisTypeForm.grouped_worksheet_holder_id' => 'nullable|uuid|exists:grouped_worksheet_holders,id',
             'analysisTypeForm.hybrid_worksheet_id' => 'nullable|uuid|exists:hybrid_worksheets,id',
             'analysisTypeForm.procedure_worksheet_id' => 'nullable|uuid|exists:procedure_worksheets,id',
@@ -330,6 +334,7 @@ class AnalysisTypeManager extends Component
                 // Update invoicable item mapping
                 $this->updateInvoicableItemMapping($analysisType);
                 $this->syncAnalysisTypeLabs($analysisType, $selectedLabIds);
+                $this->cascadeLabSectionToChildren($analysisType);
                 
                 $this->message = 'Analysis type updated successfully!';
             } else {
@@ -355,6 +360,7 @@ class AnalysisTypeManager extends Component
                 // Create invoicable item mapping
                 $this->updateInvoicableItemMapping($analysisType);
                 $this->syncAnalysisTypeLabs($analysisType, $selectedLabIds);
+                $this->cascadeLabSectionToChildren($analysisType);
                 
                 $this->message = 'Analysis type created successfully!';
             }
@@ -746,13 +752,32 @@ class AnalysisTypeManager extends Component
         $analysisType->labs()->sync($labIds);
     }
 
+    /**
+     * Analysis type owns the lab section; keep child tests/results in sync.
+     */
+    protected function cascadeLabSectionToChildren(AnalysisType $analysisType): void
+    {
+        $labSectionId = $analysisType->lab_section_id;
+        if (empty($labSectionId)) {
+            return;
+        }
+
+        AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])
+            ->update(['lab_section_id' => $labSectionId]);
+
+        \App\CapturedResult::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])
+            ->update(['lab_section_id' => $labSectionId]);
+
+        \App\Result::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])
+            ->update(['lab_section_id' => $labSectionId]);
+    }
+
     // Lab section searchable dropdown methods
     public function selectLabSection($labSectionId): void
     {
         $labSection = \App\SampleAnalysisStage::find($labSectionId);
         if ($labSection) {
             $this->analysisTypeForm['lab_section_id'] = $labSectionId;
-            $this->analysisTypeForm['lab_id'] = $labSection->lab_id;
             $this->labSectionSearch = '';
             $this->showLabSectionDropdown = false;
         }
@@ -761,27 +786,38 @@ class AnalysisTypeManager extends Component
     public function clearLabSectionSelection(): void
     {
         $this->analysisTypeForm['lab_section_id'] = null;
-        $this->analysisTypeForm['lab_id'] = null;
+        $this->labSectionSearch = '';
+        $this->showLabSectionDropdown = false;
     }
 
     public function updatedLabSectionSearch(): void
     {
-        $this->showLabSectionDropdown = !empty($this->labSectionSearch);
+        $this->showLabSectionDropdown = true;
     }
 
     public function getFilteredLabSectionsProperty()
     {
-        if (empty($this->labSectionSearch)) {
-            return [];
+        $query = \App\SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->where(function ($q): void {
+                $q->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+            });
+
+        $selectedLabIds = array_values(array_filter((array) ($this->analysisTypeForm['lab_ids'] ?? [])));
+        if ($selectedLabIds !== []) {
+            $query->where(function ($q) use ($selectedLabIds): void {
+                $q->whereIn('lab_id', $selectedLabIds)->orWhereNull('lab_id');
+            });
         }
-        
-        return \App\SampleAnalysisStage::where('active', 1)
-            ->where(function($q) {
+
+        if (! empty($this->labSectionSearch)) {
+            $query->where(function ($q): void {
                 $q->where('name', 'like', '%' . $this->labSectionSearch . '%')
-                  ->orWhere('code', 'like', '%' . $this->labSectionSearch . '%');
-            })
-            ->limit(10)
-            ->get();
+                    ->orWhere('code', 'like', '%' . $this->labSectionSearch . '%');
+            });
+        }
+
+        return $query->orderBy('name')->limit(20)->get();
     }
 
     public function getSelectedLabSectionProperty()
@@ -789,7 +825,7 @@ class AnalysisTypeManager extends Component
         if (empty($this->analysisTypeForm['lab_section_id'])) {
             return null;
         }
-        
+
         return \App\SampleAnalysisStage::find($this->analysisTypeForm['lab_section_id']);
     }
 

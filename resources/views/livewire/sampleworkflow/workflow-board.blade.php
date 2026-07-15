@@ -1,5 +1,4 @@
 <div class="container-fluid workflow-board-page lab-panel-theme workflow-theme"
-	wire:init="openPendingReceiveRequestIfNeeded"
 	x-data="{
 		selectedCount: 0,
 		selectedLabBatchCount: 0,
@@ -55,32 +54,6 @@
 					if (typeof window.rebuildEmailReportsSelection === 'function') {
 						window.rebuildEmailReportsSelection();
 					}
-				});
-			}
-		},
-		openInterzoneTransfer(scope, options = {}) {
-			if (scope === 'request') {
-				const ids = this.selectedInstanceIds();
-				if (!ids.length) {
-					alert('Select at least one request row first.');
-					return;
-				}
-				Livewire.dispatch('open-interzone-transfer', {
-					scope: 'request',
-					instanceIds: ids,
-					transferType: 'full',
-				});
-				return;
-			}
-			if (scope === 'batch') {
-				const batchId = options.batchId;
-				if (!batchId) {
-					return;
-				}
-				Livewire.dispatch('open-interzone-transfer', {
-					scope: 'batch',
-					batchId: batchId,
-					transferType: options.transferType === 'partial' ? 'partial' : 'full',
 				});
 			}
 		},
@@ -1065,6 +1038,7 @@
 									</li>
 								@endif
 								--}}
+								{{-- Interzone transfer removed with zones
 								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
 									<li>
 										<button type="button" class="dropdown-item"
@@ -1076,6 +1050,7 @@
 										</button>
 									</li>
 								@endif
+								--}}
 								@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
 									<li>
 										<button type="button" class="dropdown-item"
@@ -2327,6 +2302,7 @@
 																		</button>
 																	@endif
 																@endif
+																{{-- Interzone transfer removed with zones
 																@if($status === 'Samples Request Review' && $hasBatch)
 																	@foreach($instance->batches as $batch)
 																		<button type="button"
@@ -2337,6 +2313,7 @@
 																		</button>
 																	@endforeach
 																@endif
+																--}}
 															</div>
 														</td>
 
@@ -6202,7 +6179,7 @@
 					if (livewireModel && componentEl && window.Livewire) {
 						const component = Livewire.find(componentEl.getAttribute('wire:id'));
 						if (component) {
-							component.set(livewireModel, selected, false);
+							component.set(livewireModel, selected);
 						}
 					}
 				});
@@ -6233,7 +6210,7 @@
 					if (livewireModel && componentEl && window.Livewire) {
 						const component = Livewire.find(componentEl.getAttribute('wire:id'));
 						if (component) {
-							component.set(livewireModel, value, false);
+							component.set(livewireModel, value);
 						}
 					}
 
@@ -6954,16 +6931,6 @@
 				}
 				window.location.reload();
 			});
-			Livewire.on('interzone-transfer-completed', function () {
-				window.location.reload();
-			});
 		});
 	</script>
-
-	@if(!($status === 'Samples Receiving' && $workflowSubTab === 'interzone_transfers'))
-		@livewire('sampleworkflow.interzone-transfer-manager', [
-			'workflowStatus' => $status,
-			'workflowSubTab' => $workflowSubTab,
-		], key('interzone-transfer-modal'))
-	@endif
 </div>

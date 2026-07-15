@@ -7,6 +7,7 @@ use App\Company;
 use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
+use App\Models\Billing\PricelistItemElement;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\Currency;
@@ -170,7 +171,7 @@ trait SeedsCommercialPricelistsAndQuotations
             return collect();
         }
 
-        $elements = AnalysisElements::query()
+        $groupedElements = AnalysisElements::query()
             ->with(['analysis_type.sample_type', 'analyte'])
             ->whereHas('analysis_type', function ($query) use ($company, $sampleTypeIds): void {
                 $query->where('company_id', $company->id)
@@ -179,21 +180,24 @@ trait SeedsCommercialPricelistsAndQuotations
             ->where('active', true)
             ->orderBy('analysis_type_id')
             ->orderBy('id')
-            ->limit(12)
-            ->get();
+            ->get()
+            ->groupBy('analysis_type_id')
+            ->take(8);
 
         $level = 1;
         $created = collect();
 
-        foreach ($elements as $element) {
-            $analysisType = $element->analysis_type;
+        foreach ($groupedElements as $analysisElements) {
+            $first = $analysisElements->first();
+            $analysisType = $first?->analysis_type;
             $sampleType = $analysisType?->sample_type;
 
             if ($analysisType === null || $sampleType === null) {
                 continue;
             }
 
-            $sell = 45 + ($level * 5);
+            $parameterCount = $analysisElements->count();
+            $sell = 45 + ($level * 5) + (($parameterCount - 1) * 15);
             $cost = (int) round($sell * 0.55);
 
             $item = PricelistItem::query()->create([
@@ -201,7 +205,7 @@ trait SeedsCommercialPricelistsAndQuotations
                 'pricelist_id' => $pricelist->id,
                 'sample_type_id' => $sampleType->id,
                 'analysis_id' => $analysisType->id,
-                'analysis_element_id' => $element->id,
+                'analysis_element_id' => null,
                 'cost_price' => $cost,
                 'selling_price' => $sell,
                 'changed_price' => $sell,
@@ -209,10 +213,19 @@ trait SeedsCommercialPricelistsAndQuotations
                 'internal_use' => false,
                 'external_view' => true,
                 'active' => true,
+                'is_package' => true,
                 'level' => $level,
             ]);
 
-            $created->push($item);
+            foreach ($analysisElements as $element) {
+                PricelistItemElement::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'pricelist_item_id' => $item->id,
+                    'analysis_element_id' => $element->id,
+                ]);
+            }
+
+            $created->push($item->load('packageElements'));
             $level++;
         }
 
@@ -270,20 +283,30 @@ trait SeedsCommercialPricelistsAndQuotations
         $lineCount = 0;
 
         foreach ($items->take(8) as $item) {
-            $item->loadMissing(['analysisType', 'analysisElement.analyte', 'sampleType']);
+            $item->loadMissing(['analysisType', 'sampleType', 'packageElements']);
             $unitPrice = (float) ($item->selling_price ?? $item->changed_price ?? 50);
             $quantity = 1;
+            $packageElementIds = $item->coveredElementIds();
+            $elementIdCsv = implode(',', $packageElementIds);
+            $analysisName = $item->analysisType?->name ?? 'Laboratory analysis';
+            $parameterCount = count($packageElementIds);
 
             QuotationDetails::query()->create([
                 'id' => (string) Str::uuid(),
                 'quotation_header_id' => $header->id,
-                'analyte_id' => $item->analysisElement?->analyte_id,
+                'analyte_id' => null,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'tax' => 0,
                 'sample_type' => $item->sample_type_id,
-                'item_name' => $item->analysisElement?->analyte?->name ?? $item->analysisType?->name ?? 'Analysis parameter',
-                'description' => $item->analysisType?->name ?? 'Laboratory analysis',
+                'part_no' => $item->analysis_id,
+                'item_name' => $parameterCount > 0
+                    ? "{$analysisName} package ({$parameterCount} parameters)"
+                    : $analysisName,
+                'description' => $analysisName,
+                'default_analytes' => $elementIdCsv,
+                'accredited_analytes' => $elementIdCsv,
+                'is_package' => true,
             ]);
 
             $subTotal += $unitPrice * $quantity;

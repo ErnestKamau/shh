@@ -117,25 +117,25 @@
                                                        class="btn btn-sm btn-outline-secondary mr-2" title="Manage Entries">
                                                         <i class="mdi mdi-table-edit"></i>
                                                     </a>
-                                                    <button wire:click="showEditTableModal({{ $table->id }})" 
+                                                    <button wire:click="showEditTableModal(@js($table->id))"
                                                             class="btn btn-sm btn-outline-primary mr-2" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="openImportModal({{ $table->id }})" 
+                                                    <button wire:click="openImportModal(@js($table->id))"
                                                             class="btn btn-sm btn-outline-success mr-2" title="Import Data">
                                                         <i class="mdi mdi-upload"></i>
                                                     </button>
-                                                    <button wire:click="exportTable({{ $table->id }})" 
+                                                    <button wire:click="exportTable(@js($table->id))"
                                                             class="btn btn-sm btn-outline-info mr-2" title="Export Data">
                                                         <i class="mdi mdi-download"></i>
                                                     </button>
-                                                    <button wire:click="toggleTableStatus({{ $table->id }})" 
-                                                            class="btn btn-sm btn-outline-{{ $table->is_active ? 'warning' : 'success' }} mr-2" 
+                                                    <button wire:click="toggleTableStatus(@js($table->id))"
+                                                            class="btn btn-sm btn-outline-{{ $table->is_active ? 'warning' : 'success' }} mr-2"
                                                             title="{{ $table->is_active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $table->is_active ? 'pause' : 'play' }}"></i>
                                                     </button>
-                                                    <button wire:click="deleteTable({{ $table->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
+                                                    <button wire:click="deleteTable(@js($table->id))"
+                                                            class="btn btn-sm btn-outline-danger"
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this table?')">
                                                         <i class="mdi mdi-delete"></i>
@@ -802,7 +802,7 @@
                             </div>
                         </div>
                         <div class="d-grid gap-2">
-                            <button type="button" wire:click="downloadTemplate({{ $editingTable->id ?? 0 }})" class="btn btn-purple" wire:loading.attr="disabled">
+                            <button type="button" wire:click="downloadTemplate(@js($editingTable->id))" class="btn btn-purple" wire:loading.attr="disabled">
                                 <span wire:loading.remove wire:target="downloadTemplate">
                                     <i class="mdi mdi-download"></i> Download Excel Template
                                 </span>

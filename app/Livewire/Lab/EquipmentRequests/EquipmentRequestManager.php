@@ -2,16 +2,13 @@
 
 namespace App\Livewire\Lab\EquipmentRequests;
 
-use App\Directorate;
 use App\Lab;
 use App\Models\Equipments\Equipment;
 use App\Models\Lab\EquipmentUsageRequest;
 use App\Models\Lab\LabUserNotification;
 use App\Services\Lab\EquipmentUsageRequestService;
 use App\Services\Lab\SampleZoneQueryService;
-use App\Services\Lab\UserZoneResolver;
 use App\User;
-use App\Zone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
@@ -37,10 +34,6 @@ class EquipmentRequestManager extends Component
     public array $perPageOptions = [10, 15, 25, 50];
 
     public bool $showAdvancedFilters = false;
-
-    public string $filterZoneId = '';
-
-    public string $filterDirectorateId = '';
 
     public string $filterLabId = '';
 
@@ -128,17 +121,6 @@ class EquipmentRequestManager extends Component
 
     public function updatedPerPage(): void
     {
-        $this->resetPage('requestsPage');
-    }
-
-    public function updatedFilterZoneId(): void
-    {
-        $this->resetPage('requestsPage');
-    }
-
-    public function updatedFilterDirectorateId(): void
-    {
-        $this->filterLabId = '';
         $this->resetPage('requestsPage');
     }
 
@@ -417,14 +399,11 @@ class EquipmentRequestManager extends Component
 
     protected function availableEquipmentQuery()
     {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
-
         return Equipment::query()
             ->where('active', true)
             ->where(function ($q): void {
                 $q->where('is_disposal', false)->orWhereNull('is_disposal');
             })
-            ->inZones($zoneIds)
             ->orderBy('name');
     }
 
@@ -446,11 +425,10 @@ class EquipmentRequestManager extends Component
 
     public function getFilteredSamplesProperty()
     {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
         $search = trim($this->sampleSearch);
 
         $query = app(SampleZoneQueryService::class)
-            ->sampleDetailsInZonesQuery($zoneIds)
+            ->sampleDetailsInZonesQuery([])
             ->addSelect('sample_headers.batch_code')
             ->orderBy('sample_details.sample_code');
 
@@ -466,20 +444,9 @@ class EquipmentRequestManager extends Component
 
     public function getFilteredAnalystsProperty()
     {
-        if (! $this->selectedRequest?->zone_id) {
-            return collect();
-        }
-
-        $zoneId = $this->selectedRequest->zone_id;
         $search = trim($this->analystSearch);
 
-        $query = User::query()
-            ->where('active', 1)
-            ->where(function ($q) use ($zoneId): void {
-                $q->where('zone_id', $zoneId)
-                    ->orWhereHas('assignedZones', fn ($z) => $z->where('zones.id', $zoneId))
-                    ->orWhereHas('assignedLabs', fn ($l) => $l->where('labs.zone_id', $zoneId));
-            });
+        $query = User::query()->where('active', 1);
 
         if ($search !== '') {
             $query->where('name', 'like', '%'.$search.'%');
@@ -524,66 +491,14 @@ class EquipmentRequestManager extends Component
         ];
     }
 
-    public function getFilterZonesProperty()
-    {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
-
-        return Zone::query()
-            ->whereIn('id', $zoneIds)
-            ->orderBy('value')
-            ->get();
-    }
-
-    public function getFilterDirectoratesProperty()
-    {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
-
-        if ($zoneIds === []) {
-            return collect();
-        }
-
-        return Directorate::query()
-            ->whereIn('zone_id', $zoneIds)
-            ->orderBy('name')
-            ->get();
-    }
-
     public function getFilterLabsProperty()
     {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
-
-        if ($zoneIds === []) {
-            return collect();
-        }
-
-        $query = Lab::query()
-            ->whereIn('zone_id', $zoneIds)
-            ->orderBy('name');
-
-        if ($this->filterDirectorateId !== '') {
-            $query->where('directorate_id', $this->filterDirectorateId);
-        }
-
-        return $query->get();
+        return Lab::query()->orderBy('name')->get();
     }
 
     public function getZoneLabelProperty(): string
     {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
-
-        if ($zoneIds === []) {
-            return 'No zone assigned';
-        }
-
-        $zones = Zone::query()->whereIn('id', $zoneIds)->orderBy('value')->get();
-
-        if ($zones->count() === 1) {
-            $zone = $zones->first();
-
-            return trim(($zone->key ? $zone->key.' — ' : '').($zone->value ?? ''));
-        }
-
-        return $zones->count().' zones';
+        return 'All labs';
     }
 
     public function getUnreadNotificationCountProperty(): int
@@ -618,11 +533,10 @@ class EquipmentRequestManager extends Component
     {
         $query = EquipmentUsageRequest::query()
             ->with([
-                'equipment.lab.directorate',
-                'equipment.assetLocation.lab.directorate',
+                'equipment.lab',
+                'equipment.assetLocation.lab',
                 'requester',
                 'sampleDetails',
-                'zone',
             ]);
 
         $this->applyZoneScope($query);
@@ -634,15 +548,7 @@ class EquipmentRequestManager extends Component
 
     protected function applyZoneScope(Builder $query): void
     {
-        $zoneIds = app(UserZoneResolver::class)->zoneIdsForUser(Auth::user());
-
-        if ($zoneIds === []) {
-            $query->whereRaw('1 = 0');
-
-            return;
-        }
-
-        $query->whereIn('zone_id', $zoneIds);
+        // Zone scoping removed — list is permission-based only.
     }
 
     protected function applyTabScope(Builder $query, string $tab): void
@@ -689,23 +595,11 @@ class EquipmentRequestManager extends Component
             $query->whereDate('created_at', '<=', $this->dateTo);
         }
 
-        if ($this->filterZoneId !== '') {
-            $query->where('zone_id', $this->filterZoneId);
-        }
-
         if ($this->filterLabId !== '') {
             $labId = $this->filterLabId;
             $query->whereHas('equipment', function (Builder $equipment) use ($labId): void {
                 $equipment->where('lab_id', $labId)
                     ->orWhereHas('assetLocation', fn (Builder $location) => $location->where('lab_id', $labId));
-            });
-        }
-
-        if ($this->filterDirectorateId !== '') {
-            $directorateId = $this->filterDirectorateId;
-            $query->whereHas('equipment', function (Builder $equipment) use ($directorateId): void {
-                $equipment->whereHas('lab', fn (Builder $lab) => $lab->where('directorate_id', $directorateId))
-                    ->orWhereHas('assetLocation.lab', fn (Builder $lab) => $lab->where('directorate_id', $directorateId));
             });
         }
     }

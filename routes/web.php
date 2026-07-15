@@ -332,13 +332,10 @@ Route::get('/livewire/standard-manager', [LabAppController::class, 'standardMana
     ->name('livewire.standard-manager')
     ->middleware('can:laboratory.components.sample-types.view');
 
-Route::get('/livewire/labs', [LabAppController::class, 'labManager'])
-    ->name('livewire.labs')
-    ->middleware('can:laboratory.components.labs.view');
-
-Route::get('/livewire/labs/{lab}', [LabAppController::class, 'labProfile'])
-    ->name('livewire.labs.show')
-    ->middleware('can:laboratory.components.labs.view');
+Route::redirect('/livewire/labs', '/labs')->name('livewire.labs');
+Route::get('/livewire/labs/{lab}', function () {
+    return redirect()->route('labs');
+})->name('livewire.labs.show')->middleware('can:laboratory.components.labs.view');
 
 // Livewire Test Page
 Route::get('/livewire-test', function () {

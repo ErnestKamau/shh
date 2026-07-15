@@ -71,82 +71,6 @@
                     <div class="row g-3">
                         <div class="col-lg-4 col-md-6">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">{{ __('equipment.directorate') }}</label>
-                                <div class="tag-select-container"
-                                    wire:click="$set('showDirectorateDropdown', true)"
-                                    wire:click.outside="$set('showDirectorateDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($this->selectedDirectorate)
-                                            <span class="tag-badge">
-                                                <span class="tag-badge-label">{{ data_get($this->selectedDirectorate, 'name') }}</span>
-                                                <i class="mdi mdi-close-circle" wire:click.stop="clearDirectorateFilter"></i>
-                                            </span>
-                                        @endif
-
-                                        <input type="text"
-                                            wire:model.live="directorateSearch"
-                                            class="tag-input"
-                                            placeholder="{{ $this->selectedDirectorate ? '' : __('equipment.select_directorate') }}"
-                                            autocomplete="off">
-                                    </div>
-
-                                    @if($showDirectorateDropdown)
-                                        <div class="tag-dropdown">
-                                            @if(count($this->filteredDirectorates) > 0)
-                                                @foreach($this->filteredDirectorates as $directorate)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDirectorateFilter(@js(data_get($directorate, 'id')))">
-                                                        {{ data_get($directorate, 'name') }}
-                                                    </div>
-                                                @endforeach
-                                            @else
-                                                <div class="tag-dropdown-item text-muted">{{ __('equipment.no_directorates_found') }}</div>
-                                            @endif
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-4 col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">{{ __('equipment.zone') }}</label>
-                                <div class="tag-select-container"
-                                    wire:click="$set('showZoneDropdown', true)"
-                                    wire:click.outside="$set('showZoneDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($this->selectedZone)
-                                            <span class="tag-badge">
-                                                <span class="tag-badge-label">{{ data_get($this->selectedZone, 'value') ?: data_get($this->selectedZone, 'key') }}</span>
-                                                <i class="mdi mdi-close-circle" wire:click.stop="clearZoneFilter"></i>
-                                            </span>
-                                        @endif
-
-                                        <input type="text"
-                                            wire:model.live="zoneSearch"
-                                            class="tag-input"
-                                            placeholder="{{ $this->selectedZone ? '' : 'All' }}"
-                                            autocomplete="off">
-                                    </div>
-
-                                    @if($showZoneDropdown)
-                                        <div class="tag-dropdown">
-                                            @if(count($this->filteredZones) > 0)
-                                                @foreach($this->filteredZones as $zone)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectZoneFilter(@js(data_get($zone, 'id')))">
-                                                        {{ data_get($zone, 'value') ?: data_get($zone, 'key') }}
-                                                    </div>
-                                                @endforeach
-                                            @elseif(!empty($directorateFilter))
-                                                <div class="tag-dropdown-item text-muted">{{ __('equipment.no_zones_found') }}</div>
-                                            @endif
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-4 col-md-6">
-                            <div class="form-group mb-3">
                                 <label class="form-label fw-bold">{{ __('equipment.lab') ?? 'Lab' }}</label>
                                 <div class="tag-select-container"
                                     wire:click="$set('showLabDropdown', true)"
@@ -174,7 +98,7 @@
                                                         {{ data_get($labFilterOption, 'name') }}
                                                     </div>
                                                 @endforeach
-                                            @elseif(!empty($zoneFilter))
+                                            @else
                                                 <div class="tag-dropdown-item text-muted">{{ __('equipment.no_labs_found') }}</div>
                                             @endif
                                         </div>
