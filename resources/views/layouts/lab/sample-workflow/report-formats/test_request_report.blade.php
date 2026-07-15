@@ -18,6 +18,30 @@
     .trr-embedded-root .trr-page { margin-bottom: 0; }
     @endif
 
+    @if(!empty($hideScreenToolbar))
+    /* Compact preview-doc: less chrome around the A4 sheet */
+    body {
+        background: #eceff3 !important;
+        margin: 0;
+        padding: 12px 0 20px;
+    }
+    .trr-page {
+        margin: 0 auto !important;
+        padding: 18px 22px 16px !important;
+        max-width: 760px !important;
+        border-color: #cfd6de !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .pg-header {
+        margin-bottom: 10px !important;
+        padding-bottom: 8px !important;
+    }
+    .report-title-bar {
+        margin: 8px 0 10px !important;
+        padding: 6px 0 !important;
+    }
+    @endif
+
     /* Screen toolbar (hidden on print) */
     .trr-toolbar {
         max-width: 800px;
@@ -573,17 +597,10 @@
                 <div class="cert-no">{{ $labels['certificate_no'] }}: {{ $reportNumber }}</div>
                 <div class="page-of">{{ sprintf($labels['page_of'], 1, $totalPages) }}</div>
             </div>
-            {{-- Top-right logo slot (logo if assigned, else decorative hexagon) --}}
+            {{-- Top-right logo slot from System Settings → Companies → Report Logos --}}
             <div class="pg-header-right">
                 @if(!empty($reportLogos['top_right']))
                     <img src="{{ $reportLogos['top_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:80px;max-width:200px;object-fit:contain;">
-                @else
-                    <svg width="72" height="80" viewBox="0 0 72 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="36,2 43,6 43,14 36,18 29,14 29,6" fill="#8B1A1A"/>
-                        <polygon points="36,22 66,39 66,63 36,78 6,63 6,39" fill="none" stroke="#8B1A1A" stroke-width="2"/>
-                        <polygon points="36,28 60,43 60,59 36,72 12,59 12,43" fill="none" stroke="#8B1A1A" stroke-width="1.2" stroke-dasharray="4,3"/>
-                        <polygon points="36,34 54,45 54,57 36,66 18,57 18,45" fill="none" stroke="#8B1A1A" stroke-width="1" stroke-dasharray="3,3"/>
-                    </svg>
                 @endif
             </div>
         </div>

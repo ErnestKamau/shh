@@ -11,6 +11,7 @@ use App\SampleHeader;
 use App\SamplesCategory;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\User;
+use Illuminate\Support\Facades\Storage;
 
 class TestRequestReportDataService
 {
@@ -20,9 +21,10 @@ class TestRequestReportDataService
     ) {}
 
     /**
+     * @param  array{logoPublicUrlFallback?: bool}  $options
      * @return array<string, mixed>
      */
-    public function build(SampleHeader $batch, string $reportNumber): array
+    public function build(SampleHeader $batch, string $reportNumber, array $options = []): array
     {
         $batch->loadMissing(['customer', 'sample_type', 'samples', 'receivingofficer']);
 
@@ -157,7 +159,10 @@ class TestRequestReportDataService
         $company = getActiveCompany();
         $customer = $batch->customer;
 
-        [$reportLogos, $reportLogo, $companyLogo] = $this->resolveLogos($company);
+        [$reportLogos, $reportLogo, $companyLogo] = $this->resolveLogos(
+            $company,
+            (bool) ($options['logoPublicUrlFallback'] ?? false),
+        );
 
         [$approver, $approverUser, $approverRole, $approvalDate, $signatureSrc, $signatureWarning] = $this->resolveApproverSignature($batch);
 
@@ -399,9 +404,11 @@ class TestRequestReportDataService
     }
 
     /**
+     * Resolve logos configured for Laboratory Test Report in System Settings → Companies.
+     *
      * @return array{0: array<string, array{src: string, show_on_every_page: bool}>, 1: string, 2: string}
      */
-    private function resolveLogos(?object $company): array
+    private function resolveLogos(?object $company, bool $allowPublicUrlFallback = false): array
     {
         $reportLogos = [];
         $reportLogo = '';
@@ -412,12 +419,17 @@ class TestRequestReportDataService
         }
 
         if (! empty($company->logo)) {
-            $companyLogo = $this->pathToDataUri((string) $company->logo);
+            $companyLogo = $this->resolveLogoSrc((string) $company->logo, $allowPublicUrlFallback);
         }
 
         if (method_exists($company, 'reportLogos')) {
             $assignedLogos = $company->reportLogos()
-                ->where('report_type', 'test_request_report')
+                ->where(function ($query) {
+                    $query->where('report_type', 'test_request_report')
+                        ->orWhereNull('report_type')
+                        ->orWhere('report_type', '');
+                })
+                ->orderByRaw("CASE WHEN report_type = 'test_request_report' THEN 0 ELSE 1 END")
                 ->get();
 
             foreach ($assignedLogos as $logo) {
@@ -425,20 +437,36 @@ class TestRequestReportDataService
                     continue;
                 }
 
-                $dataUri = $this->pathToDataUri((string) $logo->logo_path);
-                if ($dataUri === '') {
+                $key = ($logo->position_vertical ?? 'top').'_'.($logo->position_horizontal ?? 'left');
+                $isExplicit = ($logo->report_type ?? '') === 'test_request_report';
+                if (! $isExplicit && isset($reportLogos[$key])) {
                     continue;
                 }
 
-                $key = ($logo->position_vertical ?? 'top').'_'.($logo->position_horizontal ?? 'left');
+                $src = $this->resolveLogoSrc((string) $logo->logo_path, $allowPublicUrlFallback);
+                if ($src === '') {
+                    continue;
+                }
+
                 $reportLogos[$key] = [
-                    'src' => $dataUri,
+                    'src' => $src,
                     'show_on_every_page' => (bool) ($logo->show_on_every_page ?? true),
                 ];
 
-                if ($reportLogo === '') {
-                    $reportLogo = $dataUri;
+                if ($reportLogo === '' || $isExplicit) {
+                    $reportLogo = $src;
                 }
+            }
+        }
+
+        if ($reportLogo === '' && ! empty($company->report_logo)) {
+            $src = $this->resolveLogoSrc((string) $company->report_logo, $allowPublicUrlFallback);
+            if ($src !== '') {
+                $reportLogo = $src;
+                $reportLogos['top_left'] = $reportLogos['top_left'] ?? [
+                    'src' => $src,
+                    'show_on_every_page' => true,
+                ];
             }
         }
 
@@ -448,19 +476,67 @@ class TestRequestReportDataService
                 'images/logo-report.png',
                 'images/company_logo.png',
             ]) as $candidate) {
-                $dataUri = $this->pathToDataUri((string) $candidate);
-                if ($dataUri !== '') {
-                    $reportLogo = $dataUri;
-                    $reportLogos['top_left'] = ['src' => $dataUri, 'show_on_every_page' => true];
+                $src = $this->resolveLogoSrc((string) $candidate, $allowPublicUrlFallback);
+                if ($src !== '') {
+                    $reportLogo = $src;
+                    $reportLogos['top_left'] = $reportLogos['top_left'] ?? [
+                        'src' => $src,
+                        'show_on_every_page' => true,
+                    ];
                     if ($companyLogo === '') {
-                        $companyLogo = $dataUri;
+                        $companyLogo = $src;
                     }
                     break;
                 }
             }
         }
 
+        if ($companyLogo === '' && $reportLogo !== '') {
+            $companyLogo = $reportLogo;
+        }
+
         return [$reportLogos, $reportLogo, $companyLogo];
+    }
+
+    private function resolveLogoSrc(string $path, bool $allowPublicUrlFallback = false): string
+    {
+        $dataUri = $this->pathToDataUri($path);
+        if ($dataUri !== '') {
+            return $dataUri;
+        }
+
+        if (! $allowPublicUrlFallback) {
+            return '';
+        }
+
+        return $this->pathToPublicUrl($path);
+    }
+
+    private function pathToPublicUrl(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        if (str_starts_with($path, 'data:') || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
+            return url('/'.ltrim($path, '/'));
+        }
+
+        if (str_starts_with($path, 'images/') || str_starts_with($path, '/images/')) {
+            return url('/'.ltrim($path, '/'));
+        }
+
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if ($relative !== '') {
+            return url('/storage/'.$relative);
+        }
+
+        return '';
     }
 
     /**
@@ -529,30 +605,68 @@ class TestRequestReportDataService
             return $path;
         }
 
-        $candidates = [];
-        if (! str_starts_with($path, 'http')) {
-            if (is_readable($path)) {
-                $candidates[] = $path;
-            }
-            $candidates[] = public_path($path);
-            $candidates[] = public_path('storage/'.ltrim($path, '/'));
-            $candidates[] = storage_path('app/public/'.ltrim(str_replace('/storage/', '', $path), '/'));
+        $absolute = $this->resolveReadableLogoPath($path);
+        if ($absolute === null) {
+            return '';
         }
 
-        foreach (array_unique($candidates) as $candidate) {
-            if (! is_readable($candidate)) {
-                continue;
-            }
-
-            $ext = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
-            $mime = in_array($ext, ['png'], true)
-                ? 'image/png'
-                : (in_array($ext, ['jpg', 'jpeg'], true) ? 'image/jpeg' : 'image/png');
-
-            return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($candidate));
+        $contents = @file_get_contents($absolute);
+        if ($contents === false || $contents === '') {
+            return '';
         }
 
-        return '';
+        $ext = strtolower(pathinfo($absolute, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            default => 'image/png',
+        };
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
+    }
+
+    private function resolveReadableLogoPath(string $path): ?string
+    {
+        $path = trim($path);
+        if ($path === '' || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return null;
+        }
+
+        if (is_readable($path)) {
+            return $path;
+        }
+
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if (str_starts_with($relative, 'storage/')) {
+            $relative = substr($relative, strlen('storage/'));
+        }
+
+        $candidates = [
+            public_path($path),
+            public_path(ltrim($path, '/')),
+            public_path('storage/'.$relative),
+            storage_path('app/public/'.$relative),
+            storage_path('app/'.$relative),
+            base_path('public/'.$relative),
+        ];
+
+        try {
+            if ($relative !== '' && Storage::disk('public')->exists($relative)) {
+                $candidates[] = Storage::disk('public')->path($relative);
+            }
+        } catch (\Throwable) {
+            // continue with filesystem candidates
+        }
+
+        foreach (array_unique(array_filter($candidates)) as $candidate) {
+            if (is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function formatReportDate(mixed ...$candidates): string

@@ -6437,7 +6437,9 @@ class SampleWorkFlowController extends Controller
         $reportNumber = $jobNumber . '-R' . str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
 
         $reportData = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
-            ->build($batch, $reportNumber);
+            ->build($batch, $reportNumber, [
+                'logoPublicUrlFallback' => ! $isPdfMode,
+            ]);
 
         if (! empty($reportData['signatureWarning'])) {
             session()->flash('warning', $reportData['signatureWarning']);

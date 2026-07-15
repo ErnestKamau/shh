@@ -114,11 +114,14 @@ class CompanyManager extends Component
         $this->existingFavicon = $company->favicon;
         
         $this->reportLogos = $company->reportLogos->map(function ($logo) {
+            $path = (string) ($logo->logo_path ?? '');
+
             return [
                 'id' => $logo->id,
                 'name' => $logo->name,
-                'existing_path' => $logo->logo_path,
+                'existing_path' => $path,
                 'file' => null,
+                'file_missing' => $path !== '' && ! $this->publicLogoExists($path),
                 'position_vertical' => $logo->position_vertical ?? 'top',
                 'position_horizontal' => $logo->position_horizontal ?? 'left',
                 'show_on_every_page' => $logo->show_on_every_page ?? true,
@@ -211,7 +214,13 @@ class CompanyManager extends Component
         foreach ($this->reportLogos as $index => $logoData) {
             $logoPath = $logoData['existing_path'] ?? null;
             if (isset($logoData['file']) && $logoData['file']) {
-                $logoPath = '/storage/' . $logoData['file']->store('companies', 'public');
+                $stored = $logoData['file']->store('companies', 'public');
+                if (! \Illuminate\Support\Facades\Storage::disk('public')->exists($stored)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "reportLogos.{$index}.file" => 'Failed to store the report logo. Please try uploading again.',
+                    ]);
+                }
+                $logoPath = '/storage/'.$stored;
             }
 
             if ($logoPath) {
@@ -222,7 +231,9 @@ class CompanyManager extends Component
                     'position_vertical'   => $logoData['position_vertical'] ?? 'top',
                     'position_horizontal' => $logoData['position_horizontal'] ?? 'left',
                     'show_on_every_page'  => isset($logoData['show_on_every_page']) ? (bool) $logoData['show_on_every_page'] : true,
-                    'report_type'         => $logoData['report_type'] ?? null,
+                    'report_type'         => ($logoData['report_type'] ?? null) !== ''
+                        ? ($logoData['report_type'] ?? null)
+                        : null,
                 ];
                 if (empty($logoData['id'])) {
                     \App\CompanyReportLogo::create($placement);
@@ -359,6 +370,40 @@ class CompanyManager extends Component
         $this->maintenanceStartMonth = null;
         $this->maintenanceEndYear = null;
         $this->maintenanceEndMonth = null;
+    }
+
+    private function publicLogoExists(string $path): bool
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return false;
+        }
+
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if (str_starts_with($relative, 'storage/')) {
+            $relative = substr($relative, strlen('storage/'));
+        }
+
+        try {
+            if ($relative !== '' && \Illuminate\Support\Facades\Storage::disk('public')->exists($relative)) {
+                return true;
+            }
+        } catch (\Throwable) {
+            // fall through to filesystem checks
+        }
+
+        foreach ([
+            public_path($path),
+            public_path(ltrim($path, '/')),
+            public_path('storage/'.$relative),
+            storage_path('app/public/'.$relative),
+        ] as $candidate) {
+            if (is_readable($candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function authorizeAction(string $permission): void

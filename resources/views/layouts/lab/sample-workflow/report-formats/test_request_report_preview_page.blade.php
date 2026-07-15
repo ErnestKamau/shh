@@ -3,92 +3,175 @@
 @section('title2')
 <title>Preview Test Report — {{ $reportNumber }}</title>
 <style>
+    /*
+     * Compact in-app preview: maximize report viewport, keep chrome quiet.
+     */
     .trr-system-preview-page {
-        padding: 0 4px 24px;
+        --trr-preview-ink: #1c2430;
+        --trr-preview-muted: #6b7280;
+        --trr-preview-line: #e5e7eb;
+        --trr-preview-surface: #f3f4f6;
+        display: flex;
+        flex-direction: column;
+        /* Top app bar (~56px) + page pad; leave most of the screen for the report */
+        height: calc(100vh - 72px);
+        min-height: 0;
+        padding: 0 8px 10px;
+        overflow: hidden;
     }
+
+    .trr-system-preview-page .content-header,
+    .trr-system-preview-page .breadcrumbs-top {
+        margin-bottom: 6px !important;
+        padding-bottom: 0 !important;
+        flex-shrink: 0;
+    }
+
     .trr-system-preview-chrome {
-        background: #0f172a;
-        color: #f8fafc;
-        border-radius: 12px;
-        padding: 14px 18px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 16px;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+        gap: 12px;
+        padding: 6px 0 10px;
+        margin: 0 0 8px;
+        border-bottom: 1px solid var(--trr-preview-line);
     }
-    .trr-system-preview-chrome .trr-preview-badge {
-        display: inline-block;
+
+    .trr-system-preview-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .trr-preview-badge {
+        display: inline-flex;
+        align-items: center;
         font-size: 10px;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        font-weight: 700;
-        background: #f59e0b;
-        color: #111827;
-        border-radius: 999px;
-        padding: 3px 10px;
-        margin-bottom: 6px;
-    }
-    .trr-system-preview-chrome h1 {
-        font-size: 17px;
         font-weight: 650;
-        margin: 0 0 4px;
-        color: #fff;
-        font-family: Georgia, 'Times New Roman', serif;
+        color: #9a3412;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 4px;
+        padding: 2px 7px;
+        line-height: 1.4;
+        white-space: nowrap;
     }
-    .trr-system-preview-chrome p {
+
+    .trr-system-preview-chrome h1 {
         margin: 0;
-        font-size: 12px;
-        color: #cbd5e1;
-        line-height: 1.45;
-        max-width: 52rem;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--trr-preview-ink);
+        font-family: inherit;
+        line-height: 1.2;
+        white-space: nowrap;
     }
+
+    .trr-preview-sep {
+        width: 1px;
+        height: 14px;
+        background: var(--trr-preview-line);
+        flex-shrink: 0;
+    }
+
+    .trr-preview-number {
+        font-size: 12px;
+        color: var(--trr-preview-muted);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .trr-preview-number strong {
+        color: var(--trr-preview-ink);
+        font-weight: 600;
+    }
+
     .trr-system-preview-actions {
         display: flex;
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
     }
+
     .trr-system-preview-actions a,
     .trr-system-preview-actions button {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        border-radius: 8px;
+        gap: 5px;
+        border-radius: 6px;
         font-size: 12px;
-        font-weight: 600;
-        padding: 8px 12px;
+        font-weight: 550;
+        padding: 6px 11px;
         text-decoration: none;
         cursor: pointer;
         border: 1px solid transparent;
         font-family: inherit;
+        line-height: 1.2;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
+
     .trr-system-preview-actions .btn-print {
-        background: #fff;
-        color: #0f172a;
-        border: none;
+        background: var(--trr-preview-ink);
+        color: #fff;
+        border-color: var(--trr-preview-ink);
     }
+
+    .trr-system-preview-actions .btn-print:hover {
+        background: #111827;
+    }
+
     .trr-system-preview-actions .btn-back {
-        background: transparent;
-        color: #e2e8f0;
-        border-color: #475569;
+        background: #fff;
+        color: #374151;
+        border-color: #d1d5db;
     }
+
+    .trr-system-preview-actions .btn-back:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+
     .trr-system-preview-frame-wrap {
-        background: #e8eef5;
-        border: 1px solid #d5dee8;
-        border-radius: 12px;
+        flex: 1 1 auto;
+        min-height: 0;
+        background: var(--trr-preview-surface);
+        border: 1px solid var(--trr-preview-line);
+        border-radius: 8px;
         overflow: hidden;
-        min-height: calc(100vh - 220px);
     }
+
     .trr-system-preview-frame-wrap iframe {
         display: block;
         width: 100%;
-        min-height: calc(100vh - 220px);
-        height: 85vh;
+        height: 100%;
         border: 0;
-        background: #e9ecef;
+        background: var(--trr-preview-surface);
     }
+
+    @media (max-width: 768px) {
+        .trr-system-preview-page {
+            height: auto;
+            overflow: visible;
+            min-height: calc(100vh - 72px);
+        }
+
+        .trr-system-preview-chrome {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .trr-system-preview-frame-wrap {
+            min-height: 70vh;
+            height: 70vh;
+        }
+    }
+
     @media print {
         .trr-system-preview-chrome,
         .breadcrumbs-top,
@@ -97,13 +180,22 @@
         .header-navbar {
             display: none !important;
         }
+
+        .trr-system-preview-page {
+            height: auto;
+            overflow: visible;
+            padding: 0;
+        }
+
         .trr-system-preview-frame-wrap {
             border: none;
             background: #fff;
-        }
-        .trr-system-preview-frame-wrap iframe {
             height: auto;
-            min-height: 100vh;
+            overflow: visible;
+        }
+
+        .trr-system-preview-frame-wrap iframe {
+            height: 100vh;
         }
     }
 </style>
@@ -116,7 +208,7 @@
             ['link' => route('dashboard-lab'), 'name' => 'Dashboard', 'icon' => null],
             ['link' => route('sample-workflow', ['status' => $batch->status ?? 'Samples In Lab']), 'name' => 'Sample Workflow', 'icon' => null],
             ['link' => $batchBackUrl ?? route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status]), 'name' => $batch->batch_code ?? 'Batch', 'icon' => null],
-            ['link' => '#', 'name' => 'Preview Test Report', 'icon' => null],
+            ['link' => '#', 'name' => 'Preview', 'icon' => null],
         ];
         $frameUrl = route('generateTestRequestReport', [
             'batch_id' => $batch->id,
@@ -128,18 +220,15 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
     <div class="trr-system-preview-chrome">
-        <div>
-            <span class="trr-preview-badge">Draft preview</span>
+        <div class="trr-system-preview-meta">
+            <span class="trr-preview-badge">Draft</span>
             <h1>Test Request Report</h1>
-            <p>
-                This is how the final report will look with the current results and comments.
-                It does not issue a revision and is not saved as an official PDF.
-                Provisional number: <strong style="color:#fff;">{{ $reportNumber }}</strong>
-            </p>
+            <span class="trr-preview-sep" aria-hidden="true"></span>
+            <span class="trr-preview-number">{{ $reportNumber }}</span>
         </div>
         <div class="trr-system-preview-actions">
             <button type="button" class="btn-print" onclick="document.getElementById('trr-preview-frame')?.contentWindow?.print()">Print</button>
-            <a href="{{ $batchBackUrl }}" class="btn-back">← Back to Batch</a>
+            <a href="{{ $batchBackUrl }}" class="btn-back">Back to Batch</a>
         </div>
     </div>
 
