@@ -254,12 +254,65 @@ class TestRequestReportDataService
             ? date('d/m/Y', strtotime((string) $approver->approval_date))
             : date('d/m/Y');
 
-        $signatureSrc = $this->resolveSignatureDataUri($approverUser?->electronic_sig);
-        $signatureWarning = ($approverUser !== null && ($signatureSrc === '' || $signatureSrc === null))
+        $signatureSrc = $this->resolveUserSignatureDataUri($approverUser);
+
+        // Keep primary approver identity; fall back only for the signature image.
+        if ($signatureSrc === '') {
+            foreach ([$batch->approve_user_id ?? null, $batch->verify_user_id ?? null] as $fallbackUserId) {
+                if ($fallbackUserId === null || $fallbackUserId === '' || ($approverUser && (string) $fallbackUserId === (string) $approverUser->id)) {
+                    continue;
+                }
+
+                $fallbackUser = User::find($fallbackUserId);
+                $signatureSrc = $this->resolveUserSignatureDataUri($fallbackUser);
+                if ($signatureSrc !== '') {
+                    break;
+                }
+            }
+        }
+
+        $signatureWarning = ($approverUser !== null && $signatureSrc === '')
             ? 'Approver has no electronic signature on file.'
             : null;
 
         return [$approver, $approverUser, $approverRole, $approvalDate, $signatureSrc, $signatureWarning];
+    }
+
+    private function resolveUserSignatureDataUri(?User $user): string
+    {
+        if ($user === null) {
+            return '';
+        }
+
+        $fromElectronicSig = $this->resolveSignatureDataUri($user->electronic_sig ?? null);
+        if ($fromElectronicSig !== '') {
+            return $fromElectronicSig;
+        }
+
+        if (method_exists($user, 'getSignaturePath')) {
+            $path = $user->getSignaturePath();
+            if (is_string($path) && $path !== '') {
+                if (str_starts_with($path, 'data:')) {
+                    return $path;
+                }
+
+                if (is_readable($path)) {
+                    $contents = @file_get_contents($path);
+                    if ($contents !== false && $contents !== '') {
+                        $mime = @mime_content_type($path) ?: 'image/png';
+
+                        return 'data:'.$mime.';base64,'.base64_encode($contents);
+                    }
+                }
+
+                $fromPath = $this->resolveSignatureDataUri($path);
+                if ($fromPath !== '') {
+                    return $fromPath;
+                }
+            }
+        }
+
+        return '';
     }
 
     private function resolveSignatureDataUri(?string $electronicSig): string
@@ -283,6 +336,31 @@ class TestRequestReportDataService
 
         if (str_starts_with($electronicSig, 'http://') || str_starts_with($electronicSig, 'https://')) {
             return $electronicSig;
+        }
+
+        // Direct filesystem candidates for personnel-signature uploads/pads
+        $decoded = urldecode($electronicSig);
+        $relative = ltrim((string) preg_replace('#^.*/storage/#', '', $decoded), '/');
+        if ($relative !== '') {
+            foreach ([
+                storage_path('app/public/'.$relative),
+                storage_path('app/'.$relative),
+                public_path('storage/'.$relative),
+                public_path($relative),
+            ] as $candidate) {
+                if (! is_readable($candidate)) {
+                    continue;
+                }
+
+                $contents = @file_get_contents($candidate);
+                if ($contents === false || $contents === '') {
+                    continue;
+                }
+
+                $mime = @mime_content_type($candidate) ?: 'image/png';
+
+                return 'data:'.$mime.';base64,'.base64_encode($contents);
+            }
         }
 
         if ($this->signatureFileIsReadable($electronicSig) && function_exists('imageTobase64')) {

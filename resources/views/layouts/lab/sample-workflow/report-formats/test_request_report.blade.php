@@ -596,10 +596,7 @@
                             @php $hasRows = true; @endphp
                             <tr>
                                 <td>
-                                    @if(isset($cr->analyte_accredited) && $cr->analyte_accredited == 1)
-                                        <span title="Accredited">*</span>
-                                    @endif
-                                    {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}
+                                    {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
                                 </td>
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
@@ -626,7 +623,6 @@
 
             @if($sample->header_body)
             <div style="font-size:10px;padding:4px 0;border-top:1px solid #eee;margin-bottom:6px;">
-                <em>*Accredited Analysis</em><br>
                 <strong>Remarks:</strong> {!! $sample->header_body !!}
             </div>
             @endif

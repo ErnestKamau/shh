@@ -21,6 +21,7 @@ use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\Sampleworkflow\CommentsInterpretationsDefaultsService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
@@ -3355,12 +3356,28 @@ class Samples extends Component
     {
         try {
             $sample = SampleDetails::findOrFail($sampleId);
+            $defaultsService = app(CommentsInterpretationsDefaultsService::class);
+
+            $headerBody = $sample->header_body ?? '';
+            $notesBody = $sample->notes_body ?? '';
+
+            if ($defaultsService->isHtmlEmpty($headerBody) || $defaultsService->isHtmlEmpty($notesBody)) {
+                $batch = SampleHeader::find($sample->sample_header_id);
+                $defaults = $defaultsService->generate($sample, $batch);
+
+                if ($defaultsService->isHtmlEmpty($headerBody)) {
+                    $headerBody = $defaults['header_body'];
+                }
+                if ($defaultsService->isHtmlEmpty($notesBody)) {
+                    $notesBody = $defaults['notes_body'];
+                }
+            }
 
             $this->editingCommentsSampleId = $sampleId;
             $this->commentsForm = [
-                'header_body' => $sample->header_body ?? '',
+                'header_body' => $headerBody,
                 'main_body' => $sample->main_body ?? '',
-                'notes_body' => $sample->notes_body ?? '',
+                'notes_body' => $notesBody,
                 'batch_comment_scope' => '1',
             ];
 
@@ -3368,6 +3385,34 @@ class Samples extends Component
         } catch (\Exception $e) {
             Log::error('Error loading comments: ' . $e->getMessage());
             session()->flash('error', 'Failed to load sample comments');
+        }
+    }
+
+    /**
+     * Regenerate Remarks and Notes from current sample results (leaves Recommendations untouched).
+     */
+    public function applyCommentDefaults(): void
+    {
+        if (! $this->editingCommentsSampleId) {
+            return;
+        }
+
+        try {
+            $sample = SampleDetails::findOrFail($this->editingCommentsSampleId);
+            $batch = SampleHeader::find($sample->sample_header_id);
+            $defaults = app(CommentsInterpretationsDefaultsService::class)->generate($sample, $batch);
+
+            $this->commentsForm['header_body'] = $defaults['header_body'];
+            $this->commentsForm['notes_body'] = $defaults['notes_body'];
+
+            $this->dispatch(
+                'comments-defaults-applied',
+                headerBody: $defaults['header_body'],
+                notesBody: $defaults['notes_body'],
+            );
+        } catch (\Exception $e) {
+            Log::error('Error applying comment defaults: ' . $e->getMessage());
+            session()->flash('error', 'Failed to apply default comments');
         }
     }
 

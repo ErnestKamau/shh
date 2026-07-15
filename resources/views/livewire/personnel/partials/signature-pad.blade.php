@@ -23,11 +23,11 @@
         <div class="col-md-6 mb-3">
             <div class="signature-card h-100">
                 <label class="signature-label d-block">{{ __('personnel.sign_using_pad') ?? 'Sign using pad' }}</label>
-                <div class="signature-canvas-wrap" id="{{ $wrapId }}">
+                <div class="signature-canvas-wrap" id="{{ $wrapId }}" wire:ignore>
                     <canvas id="{{ $canvasId }}" width="620" height="190"></canvas>
                     <span class="signature-canvas-placeholder" id="{{ $placeholderId }}">{{ __('personnel.sign_here') ?? 'Sign here' }}</span>
                 </div>
-                <input type="hidden" id="{{ $hiddenId }}" wire:model.live="{{ $signatureDataProperty }}">
+                <input type="hidden" id="{{ $hiddenId }}" wire:model="{{ $signatureDataProperty }}">
                 <div class="d-flex justify-content-between align-items-center mt-2">
                     <div class="d-flex align-items-center" style="gap: 8px;">
                         <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') ?? 'Drawn signature overrides upload.' }}</small>

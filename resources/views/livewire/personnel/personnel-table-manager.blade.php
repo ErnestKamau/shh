@@ -580,11 +580,11 @@
                                             <div class="col-md-6 mb-3">
                                                 <div class="ptm-signature-card h-100">
                                                     <label class="control-label d-block">{{ __('personnel.sign_using_pad') }}</label>
-                                                    <div class="ptm-signature-canvas-wrap" id="addPersonnelSignatureCanvasWrap">
+                                                    <div class="ptm-signature-canvas-wrap" id="addPersonnelSignatureCanvasWrap" wire:ignore>
                                                         <canvas id="addPersonnelSignatureCanvas" width="620" height="190"></canvas>
                                                         <span class="ptm-signature-placeholder" id="addPersonnelSignaturePlaceholder">{{ __('personnel.sign_here') }}</span>
                                                     </div>
-                                                    <input type="hidden" id="addPersonnelSignatureData" value="{{ $signatureData }}">
+                                                    <input type="hidden" id="addPersonnelSignatureData" wire:model="signatureData" value="{{ $signatureData }}">
                                                     <div class="d-flex justify-content-between align-items-center mt-2">
                                                         <div class="d-flex align-items-center" style="gap: 8px;">
                                                             <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') }}</small>
@@ -1202,6 +1202,24 @@
                 statusBadge.classList.toggle('is-signed', isSigned);
             }
 
+            function pushSignatureToLivewire(value, canvas) {
+                const { hiddenInput } = getPadNodes();
+                const root = (canvas && canvas.closest('[wire\\:id]'))
+                    || (hiddenInput && hiddenInput.closest('[wire\\:id]'));
+
+                if (!root || !window.Livewire || typeof Livewire.find !== 'function') {
+                    return;
+                }
+
+                const component = Livewire.find(root.getAttribute('wire:id'));
+                if (!component || typeof component.set !== 'function') {
+                    return;
+                }
+
+                // false = update client snapshot only; included on the next save request (avoids race)
+                component.set('signatureData', value, false);
+            }
+
             function syncHiddenSignature(canvas) {
                 const { hiddenInput, placeholder } = getPadNodes();
                 if (!hiddenInput || !canvas) {
@@ -1211,17 +1229,17 @@
                 if (hasSignatureStroke) {
                     const data = canvas.toDataURL('image/png');
                     hiddenInput.value = data;
-                    if (window.Livewire && typeof window.Livewire.find === 'function') {
-                        $wire.set('signatureData', data);
-                    }
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    pushSignatureToLivewire(data, canvas);
                     if (placeholder) {
                         placeholder.style.display = 'none';
                     }
                 } else {
                     hiddenInput.value = '';
-                    if (window.Livewire && typeof window.Livewire.find === 'function') {
-                        $wire.set('signatureData', '');
-                    }
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    pushSignatureToLivewire('', canvas);
                     if (placeholder) {
                         placeholder.style.display = 'block';
                     }
@@ -1333,6 +1351,18 @@
             document.addEventListener('livewire:load', bindPad);
             document.addEventListener('livewire:navigated', bindPad);
             document.addEventListener('livewire:update', bindPad);
+
+            // Ensure pad data is in Livewire state before save / next-step clicks
+            document.addEventListener('click', function (event) {
+                const trigger = event.target.closest('[wire\\:click="savePersonnel"], [wire\\:click="nextAddPersonnelStep"]');
+                if (!trigger) {
+                    return;
+                }
+                const { canvas } = getPadNodes();
+                if (canvas) {
+                    syncHiddenSignature(canvas);
+                }
+            }, true);
 
             const observer = new MutationObserver(function () {
                 const canvas = document.getElementById('addPersonnelSignatureCanvas');
