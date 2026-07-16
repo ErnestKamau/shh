@@ -644,8 +644,7 @@
                     <button
                         type="button"
                         class="btn btn-primary"
-                        onclick="if (typeof window.syncScheduleTrfBeforeSubmit === 'function') { window.syncScheduleTrfBeforeSubmit(); }"
-                        wire:click="saveScheduleForm"
+                        onclick="if (typeof window.syncScheduleTrfBeforeSubmitAndSave === 'function') { window.syncScheduleTrfBeforeSubmitAndSave(); }"
                         wire:loading.attr="disabled"
                         wire:target="saveScheduleForm"
                         @if(!$selectedSampleTypeId) disabled @endif
@@ -1077,6 +1076,62 @@
 
                     syncSignatureValue(canvas, input, pad);
                 });
+            };
+
+            window.syncScheduleTrfBeforeSubmitAndSave = async function () {
+                const modal = getModal();
+                if (!modal || !window.Livewire) {
+                    return;
+                }
+
+                const componentEl = modal.closest('[wire\\:id]');
+                if (!componentEl) {
+                    return;
+                }
+
+                const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                if (!component) {
+                    return;
+                }
+
+                const syncTasks = [];
+
+                modal.querySelectorAll('.walk-in-trf-parameters-wrap').forEach(function (wrap) {
+                    const $select = $(wrap).find('.walk-in-trf-parameters-select');
+                    if ($select.length === 0) {
+                        return;
+                    }
+
+                    const livewireModel = $(wrap).data('livewire-model') || $select.data('livewire-model');
+                    const selected = $select.val() || [];
+
+                    if (livewireModel) {
+                        syncTasks.push(component.set(livewireModel, selected));
+                    }
+                });
+
+                if (typeof SignaturePad !== 'undefined') {
+                    modal.querySelectorAll('.trf-signature-canvas').forEach(function (canvas) {
+                        const pad = canvas._trfSignaturePad;
+                        const fieldId = canvas.getAttribute('data-field');
+                        if (!pad || !fieldId) {
+                            return;
+                        }
+
+                        const input = document.getElementById('field_' + fieldId);
+                        if (!input) {
+                            return;
+                        }
+
+                        syncSignatureValue(canvas, input, pad);
+                    });
+                }
+
+                if (syncTasks.length > 0) {
+                    await Promise.all(syncTasks);
+                }
+
+                component.call('saveScheduleForm');
             };
 
             function reinitScheduleTrfWidgets() {

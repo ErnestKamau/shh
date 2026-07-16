@@ -85,7 +85,6 @@ class BulkImportService
         }
 
         $resolvedCompanyId ??= Auth::user()?->company_id;
-        $resolvedCompanyId ??= Auth::user()?->inventory_location_id;
 
         if (empty($resolvedCompanyId)) {
             throw new \RuntimeException('Unable to resolve company context for bulk import.');
