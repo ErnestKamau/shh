@@ -198,12 +198,12 @@
                 <div class="col-md-3">
                     <div class="form-group mb-3">
                         <label class="control-label">Sample Type</label>
-                        <select wire:model="sampleTypeId" class="form-control">
-                            <option value="">All</option>
-                            @foreach($sampleTypes as $sampleType)
-                                <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            wire:model="sampleTypeId"
+                            :options="collect($sampleTypes)->map(fn($sampleType) => ['id' => $sampleType->id, 'name' => $sampleType->name])"
+                            placeholder="Search sample types..."
+                            empty-label="All"
+                        />
                     </div>
                 </div>
 
@@ -211,12 +211,12 @@
                     <div class="col-md-3">
                         <div class="form-group mb-3">
                             <label class="control-label">Workflow Stage</label>
-                            <select wire:model.defer="workflowStage" class="form-control">
-                                <option value="">All</option>
-                                @foreach($workflowStages as $stage)
-                                    <option value="{{ $stage }}">{{ $stage }}</option>
-                                @endforeach
-                            </select>
+                            <x-searchable-select
+                                wire:model.defer="workflowStage"
+                                :options="collect($workflowStages)->map(fn($stage) => ['id' => $stage, 'name' => $stage])"
+                                placeholder="Search workflow stages..."
+                                empty-label="All"
+                            />
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -235,34 +235,36 @@
                     <div class="col-md-3">
                         <div class="form-group mb-3">
                             <label class="control-label">Analyst</label>
-                            <select wire:model.defer="userId" class="form-control">
-                                <option value="">All</option>
-                                @foreach($analysts as $analyst)
-                                    <option value="{{ $analyst->id }}">{{ $analyst->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-searchable-select
+                                wire:model.defer="userId"
+                                :options="collect($analysts)->map(fn($analyst) => ['id' => $analyst->id, 'name' => $analyst->name])"
+                                placeholder="Search analysts..."
+                                empty-label="All"
+                            />
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group mb-3">
                             <label class="control-label">Analysis Type</label>
-                            <select wire:model="analysisTypeId" class="form-control" @disabled(empty($analysisTypes))>
-                                <option value="">All</option>
-                                @foreach($analysisTypes as $analysisType)
-                                    <option value="{{ $analysisType['id'] }}">{{ $analysisType['name'] }}</option>
-                                @endforeach
-                            </select>
+                            <x-searchable-select
+                                wire:model="analysisTypeId"
+                                :options="collect($analysisTypes)->map(fn($analysisType) => ['id' => $analysisType['id'], 'name' => $analysisType['name']])"
+                                placeholder="Search analysis types..."
+                                empty-label="All"
+                                :disabled="empty($analysisTypes)"
+                            />
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group mb-3">
                             <label class="control-label">Analyte</label>
-                            <select wire:model.defer="analyteId" class="form-control" @disabled(empty($analytes))>
-                                <option value="">All</option>
-                                @foreach($analytes as $analyte)
-                                    <option value="{{ $analyte['id'] }}">{{ $analyte['name'] }}@if(!empty($analyte['code'])) - {{ $analyte['code'] }}@endif</option>
-                                @endforeach
-                            </select>
+                            <x-searchable-select
+                                wire:model.defer="analyteId"
+                                :options="collect($analytes)->map(fn($analyte) => ['id' => $analyte['id'], 'name' => trim(($analyte['name'] ?? '') . (!empty($analyte['code']) ? ' - ' . $analyte['code'] : ''))])"
+                                placeholder="Search analytes..."
+                                empty-label="All"
+                                :disabled="empty($analytes)"
+                            />
                         </div>
                     </div>
                     <div class="col-md-3">

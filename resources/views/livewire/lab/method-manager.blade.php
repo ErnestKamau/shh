@@ -239,14 +239,13 @@
                                         <label class="form-label fw-bold">
                                             <i class="mdi mdi-file-certificate-outline text-primary"></i> Based On Standard
                                         </label>
-                                        <select wire:model.live="methodForm.based_on_standard_id" class="form-control no-select2 @error('methodForm.based_on_standard_id') is-invalid @enderror">
-                                            <option value="">None (optional)</option>
-                                            @foreach($standards as $standard)
-                                                <option value="{{ $standard->id }}">
-                                                    {{ $standard->code }} - {{ $standard->name }}{{ $standard->is_qc_standard ? ' (QC)' : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model.live="methodForm.based_on_standard_id"
+                                            :options="collect($standards)->map(fn($standard) => ['id' => $standard->id, 'name' => trim($standard->code . ' - ' . $standard->name . ($standard->is_qc_standard ? ' (QC)' : ''))])"
+                                            placeholder="Search standards..."
+                                            empty-label="None (optional)"
+                                            class="@error('methodForm.based_on_standard_id') is-invalid @enderror"
+                                        />
                                         <small class="text-muted">Catalogue/QC standard this method is based on. Separate from Reference Method.</small>
                                         @error('methodForm.based_on_standard_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
@@ -254,11 +253,12 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">QC Schemes (method binding)</label>
-                                        <select wire:model.live="methodForm.qc_scheme_ids" multiple class="form-control no-select2 @error('methodForm.qc_scheme_ids') is-invalid @enderror" style="min-height: 90px;">
-                                            @foreach($qcSchemes as $scheme)
-                                                <option value="{{ $scheme->id }}">{{ $scheme->name }} ({{ $scheme->code }})</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-multi-select
+                                            wire:model.live="methodForm.qc_scheme_ids"
+                                            :options="collect($qcSchemes)->map(fn($scheme) => ['id' => $scheme->id, 'name' => $scheme->name . ' (' . $scheme->code . ')'])"
+                                            placeholder="Search QC schemes..."
+                                            class="@error('methodForm.qc_scheme_ids') is-invalid @enderror"
+                                        />
                                         <small class="text-muted">Resolved with the mode below against the parent standard’s schemes at Mark Complete.</small>
                                         @error('methodForm.qc_scheme_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
@@ -286,36 +286,39 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Condition: Equipment</label>
-                                        <select wire:model="methodForm.qc_condition_equipment_id" class="form-control no-select2 @error('methodForm.qc_condition_equipment_id') is-invalid @enderror">
-                                            <option value="">Any (no filter)</option>
-                                            @foreach($equipmentItems as $item)
-                                                <option value="{{ $item->id }}">{{ $item->name }}@if($item->equipment_number) ({{ $item->equipment_number }})@endif</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model="methodForm.qc_condition_equipment_id"
+                                            :options="collect($equipmentItems)->map(fn($item) => ['id' => $item->id, 'name' => $item->name . ($item->equipment_number ? ' (' . $item->equipment_number . ')' : '')])"
+                                            placeholder="Search equipment..."
+                                            empty-label="Any (no filter)"
+                                            class="@error('methodForm.qc_condition_equipment_id') is-invalid @enderror"
+                                        />
                                         @error('methodForm.qc_condition_equipment_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Condition: Client</label>
-                                        <select wire:model="methodForm.qc_condition_crm_customer_id" class="form-control no-select2 @error('methodForm.qc_condition_crm_customer_id') is-invalid @enderror">
-                                            <option value="">Any (no filter)</option>
-                                            @foreach($customers as $customer)
-                                                <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model="methodForm.qc_condition_crm_customer_id"
+                                            :options="collect($customers)->map(fn($customer) => ['id' => $customer->id, 'name' => $customer->name])"
+                                            placeholder="Search clients..."
+                                            empty-label="Any (no filter)"
+                                            class="@error('methodForm.qc_condition_crm_customer_id') is-invalid @enderror"
+                                        />
                                         @error('methodForm.qc_condition_crm_customer_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Condition: Sample type</label>
-                                        <select wire:model="methodForm.qc_condition_sample_type_id" class="form-control no-select2 @error('methodForm.qc_condition_sample_type_id') is-invalid @enderror">
-                                            <option value="">Any (no filter)</option>
-                                            @foreach($sampleTypes as $sampleType)
-                                                <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model="methodForm.qc_condition_sample_type_id"
+                                            :options="collect($sampleTypes)->map(fn($sampleType) => ['id' => $sampleType->id, 'name' => $sampleType->name])"
+                                            placeholder="Search sample types..."
+                                            empty-label="Any (no filter)"
+                                            class="@error('methodForm.qc_condition_sample_type_id') is-invalid @enderror"
+                                        />
                                         <small class="text-muted">Bindings apply only when all set conditions match the captured result / batch.</small>
                                         @error('methodForm.qc_condition_sample_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
@@ -326,63 +329,12 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold"><i class="mdi mdi-book-open-variant text-info"></i> Reference Method</label>
-                                            <div x-data="{
-                                                open: false,
-                                                search: '',
-                                                selected: @entangle('methodForm.reference_type_id').live,
-                                                references: {{ json_encode($referenceMethods->map(fn($r) => ['id' => $r->id, 'name' => $r->name])->values()) }},
-                                                get filteredReferences() {
-                                                    if (!this.search) return this.references.slice(0, 50);
-                                                    return this.references.filter(ref => 
-                                                        ref.name.toLowerCase().includes(this.search.toLowerCase())
-                                                    );
-                                                },
-                                                selectReference(refId) {
-                                                    this.selected = refId;
-                                                    this.open = false;
-                                                    this.search = '';
-                                                },
-                                                getSelectedName() {
-                                                    const ref = this.references.find(r => r.id == this.selected);
-                                                    return ref ? ref.name : '';
-                                                }
-                                            }" class="searchable-dropdown-wrapper">
-                                                <div class="single-select-container" @click="open = !open">
-                                                    <input 
-                                                        type="text" 
-                                                        x-model="search"
-                                                        :placeholder="selected ? getSelectedName() : 'Search reference methods...'"
-                                                        @focus="open = true"
-                                                        class="form-control searchable-input-single"
-                                                        autocomplete="off"
-                                                    >
-                                                    <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
-                                                </div>
-
-                                                <div x-show="open" 
-                                                     @click.away="open = false"
-                                                     x-transition
-                                                     class="dropdown-list">
-                                                    <template x-if="filteredReferences.length > 0">
-                                                        <div class="options-list">
-                                                            <template x-for="ref in filteredReferences" :key="ref.id">
-                                                                <div @click="selectReference(ref.id)" 
-                                                                     class="option-item"
-                                                                     :class="{ 'selected': selected == ref.id }">
-                                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == ref.id"></i>
-                                                                    <span x-text="ref.name"></span>
-                                                                </div>
-                                                            </template>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="filteredReferences.length === 0">
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No references found</span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
+                                            <x-searchable-select
+                                                wire:model.live="methodForm.reference_type_id"
+                                                :options="collect($referenceMethods)->map(fn($ref) => ['id' => $ref->id, 'name' => $ref->name])"
+                                                placeholder="Search reference methods..."
+                                                empty-label="Select reference method..."
+                                            />
                                             @error('methodForm.reference_type_id') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
@@ -515,73 +467,6 @@
             box-shadow: none;
             background-color: transparent;
             outline: none;
-        }
-
-        /* Single-Select Searchable Dropdown Styling */
-        .searchable-input-single {
-            border: none;
-            outline: none;
-            box-shadow: none !important;
-            padding: 4px 0;
-            width: 100%;
-        }
-    
-        .searchable-input-single:focus {
-            border: none !important;
-            box-shadow: none !important;
-        }
-    
-        .single-select-container {
-            position: relative;
-            min-height: 45px;
-            border: 1px solid #ced4da;
-            border-radius: 12px;
-            padding: 8px 40px 8px 12px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-        }
-    
-        .single-select-container:hover {
-            border-color: #007bff;
-            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-        }
-    
-        .single-select-container:has(.searchable-input-single:focus) {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-    
-        .options-list {
-            padding: 8px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-    
-        .option-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 14px;
-        }
-    
-        .option-item:hover {
-            background: #f8f9fa;
-        }
-    
-        .option-item.selected {
-            background: rgba(0, 123, 255, 0.08);
-            font-weight: 500;
-        }
-    
-        .option-item i {
-            font-size: 18px;
         }
     </style>
 </div>

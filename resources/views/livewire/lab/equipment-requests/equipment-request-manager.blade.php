@@ -476,12 +476,13 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-0">
                                         <label class="form-label small fw-bold">Lab</label>
-                                        <select wire:model.live="filterLabId" class="form-control form-control-sm">
-                                            <option value="">All labs</option>
-                                            @foreach($this->filterLabs as $lab)
-                                                <option value="{{ $lab->id }}">{{ $lab->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model.live="filterLabId"
+                                            :options="$this->filterLabs->map(fn($lab) => ['id' => $lab->id, 'name' => $lab->name])"
+                                            placeholder="Search labs..."
+                                            empty-label="All labs"
+                                            size="sm"
+                                        />
                                     </div>
                                 </div>
                             </div>

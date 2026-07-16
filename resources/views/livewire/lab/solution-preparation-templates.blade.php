@@ -352,23 +352,22 @@
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <label class="spt-label">Sample type</label>
-                                            <select wire:model.live="templateForm.sample_type_id" class="form-select spt-input">
-                                                <option value="">Select sample type...</option>
-                                                @foreach($sampleTypes as $st)
-                                                    <option value="{{ $st->id }}">{{ $st->name }}</option>
-                                                @endforeach
-                                            </select>
+                                            <x-searchable-select
+                                                wire:model.live="templateForm.sample_type_id"
+                                                :options="collect($sampleTypes)->map(fn($st) => ['id' => $st->id, 'name' => $st->name])"
+                                                placeholder="Search sample types..."
+                                                empty-label="Select sample type..."
+                                            />
                                         </div>
                                         <div class="col-md-6">
                                             <label class="spt-label">Analysis type</label>
-                                            <select wire:model.live="templateForm.analysis_type_id"
-                                                    class="form-select spt-input"
-                                                    @disabled(! $templateForm['sample_type_id'])>
-                                                <option value="">Select analysis type...</option>
-                                                @foreach($analysisTypes as $at)
-                                                    <option value="{{ $at->id }}">{{ $at->name }}</option>
-                                                @endforeach
-                                            </select>
+                                            <x-searchable-select
+                                                wire:model.live="templateForm.analysis_type_id"
+                                                :options="collect($analysisTypes)->map(fn($at) => ['id' => $at->id, 'name' => $at->name])"
+                                                placeholder="Search analysis types..."
+                                                empty-label="Select analysis type..."
+                                                :disabled="! $templateForm['sample_type_id']"
+                                            />
                                         </div>
                                     </div>
 
@@ -400,12 +399,13 @@
                                         </div>
                                         @forelse($templateControls as $i => $ctrl)
                                             <div class="spt-control-row" wire:key="control-row-{{ $i }}">
-                                                <select wire:model="templateControls.{{ $i }}.control_solution_id" class="form-select spt-input">
-                                                    <option value="">Control solution...</option>
-                                                    @foreach($controlSolutions as $sol)
-                                                        <option value="{{ $sol->id }}">{{ $sol->name }}</option>
-                                                    @endforeach
-                                                </select>
+                                                <x-searchable-select
+                                                    wire:model="templateControls.{{ $i }}.control_solution_id"
+                                                    :options="collect($controlSolutions)->map(fn($sol) => ['id' => $sol->id, 'name' => $sol->name])"
+                                                    placeholder="Search control solutions..."
+                                                    empty-label="Control solution..."
+                                                    size="sm"
+                                                />
                                                 <input type="text"
                                                        wire:model="templateControls.{{ $i }}.label"
                                                        class="form-control spt-input"

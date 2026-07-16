@@ -49,12 +49,12 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Sample Type</label>
-                                <select wire:model.live="sampleTypeFilter" class="form-control" style="border-radius: 10px;">
-                                    <option value="">All Sample Types</option>
-                                    @foreach($sampleTypes as $sampleType)
-                                        <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select
+                                    wire:model.live="sampleTypeFilter"
+                                    :options="collect($sampleTypes)->map(fn($sampleType) => ['id' => $sampleType->id, 'name' => $sampleType->name])"
+                                    placeholder="Search sample types..."
+                                    empty-label="All Sample Types"
+                                />
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -172,12 +172,12 @@
                         <form wire:submit.prevent="save">
                             <div class="form-group mb-3">
                                 <label class="form-label">Sample Type <span class="text-danger">*</span></label>
-                                <select wire:model="sampleTypeId" class="form-control">
-                                    <option value="">Select sample type...</option>
-                                    @foreach($sampleTypes as $sampleType)
-                                        <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select
+                                    wire:model="sampleTypeId"
+                                    :options="collect($sampleTypes)->map(fn($sampleType) => ['id' => $sampleType->id, 'name' => $sampleType->name])"
+                                    placeholder="Search sample types..."
+                                    empty-label="Select sample type..."
+                                />
                                 @error('sampleTypeId') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 

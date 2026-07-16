@@ -23,6 +23,7 @@ class AmspecParametersTemplateExporter extends ExcelTemplateGenerator
             'non_accredited',
             'equipment_name',
             'equipment_number',
+            'method',
         ];
     }
 
@@ -44,6 +45,7 @@ class AmspecParametersTemplateExporter extends ExcelTemplateGenerator
                 'FALSE',
                 'Incubator, Biosafety Cabinet, Colony counter',
                 'AMS/M/INS/037, AMS/M/INS/051, AMS/M/INS/034',
+                'AMS/M/SOP/023',
             ],
             [
                 'FOOD',
@@ -60,6 +62,7 @@ class AmspecParametersTemplateExporter extends ExcelTemplateGenerator
                 'FALSE',
                 'Incubator, Biosafety Cabinet',
                 'AMS/M/INS/038, AMS/M/INS/052',
+                'AMS/M/SOP/021',
             ],
             [
                 'FOOD',
@@ -76,6 +79,7 @@ class AmspecParametersTemplateExporter extends ExcelTemplateGenerator
                 'FALSE',
                 'Incubator, Biosafety Cabinet, REAL TIME PCR',
                 'AMS/M/INS/039, AMS/M/INS/051, AMS/M/INS/049',
+                '',
             ],
         ];
     }

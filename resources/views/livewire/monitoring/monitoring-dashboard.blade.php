@@ -460,14 +460,12 @@
 
                             <div class="form-group">
                                 <label>Equipment (optional)</label>
-                                <select class="form-control" wire:model.live="executionInputs.equipment_id">
-                                    <option value="">-- Select equipment --</option>
-                                    @foreach($this->executionEquipments as $eq)
-                                        <option value="{{ $eq->id }}">
-                                            {{ $eq->name }}{{ $eq->equipment_number ? ' (' . $eq->equipment_number . ')' : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select
+                                    wire:model.live="executionInputs.equipment_id"
+                                    :options="$this->executionEquipments->map(fn($eq) => ['id' => $eq->id, 'name' => $eq->name . ($eq->equipment_number ? ' (' . $eq->equipment_number . ')' : '')])"
+                                    placeholder="Search equipment..."
+                                    empty-label="-- Select equipment --"
+                                />
                             </div>
 
                             @if($activeSection === 'environmental' && count($this->executionFrequencyOptions) > 0)

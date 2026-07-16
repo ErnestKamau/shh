@@ -377,6 +377,7 @@ class BulkImportTemplateFactory
                         'non_accredited',
                         'equipment_name',
                         'equipment_number',
+                        'method',
                     ],
                     'examples' => [
                         [
@@ -394,6 +395,7 @@ class BulkImportTemplateFactory
                             'FALSE',
                             'Incubator, Biosafety Cabinet, Colony counter',
                             'AMS/M/INS/037, AMS/M/INS/051, AMS/M/INS/034',
+                            'AMS/M/SOP/023',
                         ],
                     ],
                     'rules' => [
@@ -411,6 +413,7 @@ class BulkImportTemplateFactory
                         'non_accredited' => 'nullable|boolean',
                         'equipment_name' => 'nullable|string|max:500',
                         'equipment_number' => 'nullable|string|max:500',
+                        'method' => 'nullable|string|max:255',
                     ],
                 ],
             ],

@@ -651,8 +651,8 @@ class AmspecParametersImporter extends BaseImporter
                 if ($updateData !== []) {
                     $existingAE->update($updateData);
                     $this->recordUpsert("{$transformedData['analysis_type_code']}/{$transformedData['analyte_code']}", 'updated');
+                    $hasImportedAny = true;
                 }
-                $hasImportedAny = true;
             }
         }
 
