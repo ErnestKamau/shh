@@ -54,6 +54,23 @@ class MethodManager extends Component
     public $referenceMethods = [];
     public $ltmMethodTypeId = null;
 
+    protected function normalizeReferenceMethods(): void
+    {
+        if ($this->referenceMethods instanceof \Illuminate\Support\Collection) {
+            return;
+        }
+
+        $items = is_array($this->referenceMethods) ? $this->referenceMethods : [];
+
+        $this->referenceMethods = collect($items)
+            ->filter(fn ($item) => is_array($item) || is_object($item))
+            ->map(fn ($item) => [
+                'id' => data_get($item, 'id'),
+                'name' => data_get($item, 'name', ''),
+            ])
+            ->values();
+    }
+
     // Messages
     public $message = '';
     public $messageType = '';
@@ -85,6 +102,11 @@ class MethodManager extends Component
     public function mount(): void
     {
         $this->loadStaticData();
+    }
+
+    public function hydrate(): void
+    {
+        $this->normalizeReferenceMethods();
     }
 
     protected function loadStaticData(): void
@@ -300,6 +322,8 @@ class MethodManager extends Component
 
     public function render()
     {
+        $this->normalizeReferenceMethods();
+
         $standards = Standards::query()
             ->where('status', 1)
             ->orderBy('name')

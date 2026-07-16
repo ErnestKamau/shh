@@ -283,7 +283,11 @@ class WorksheetManager extends Component
      */
     public function stageHeadersPayload(): array
     {
-        return $this->stageHeaders->map(function ($stageHeader) {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        $batchSampleIds = $this->batch->samples()->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        return $this->stageHeaders->map(function ($stageHeader) use ($access, $user, $batchSampleIds) {
             return [
                 'id' => $stageHeader->id,
                 'name' => $stageHeader->name,
@@ -292,6 +296,11 @@ class WorksheetManager extends Component
                 'sample_type_name' => $stageHeader->sampleType ? $stageHeader->sampleType->name : 'All',
                 'total_days' => $stageHeader->total_days,
                 'stages_count' => $stageHeader->testStages->count(),
+                'can_edit' => $access->canEditStageHeaderResults(
+                    $user,
+                    (string) $stageHeader->id,
+                    $batchSampleIds
+                ),
             ];
         })->values()->all();
     }

@@ -111,6 +111,29 @@ class LabSectionResultAccessTest extends TestCase
         );
     }
 
+    #[Test]
+    public function can_edit_all_requires_every_row_to_match_user_section(): void
+    {
+        $micro = (string) Str::uuid();
+        $chem = (string) Str::uuid();
+        $user = $this->userWithSections([$micro]);
+
+        $this->assertFalse($this->access->canEditAllCapturedResults($user, []));
+        $this->assertFalse($this->access->canEditAllCapturedResults($user, [null]));
+        $this->assertTrue(
+            $this->access->canEditAllCapturedResults($user, [
+                $this->capturedResultWithSection($micro),
+                $this->capturedResultWithSection($micro),
+            ])
+        );
+        $this->assertFalse(
+            $this->access->canEditAllCapturedResults($user, [
+                $this->capturedResultWithSection($micro),
+                $this->capturedResultWithSection($chem),
+            ])
+        );
+    }
+
     /**
      * @param  list<string>  $sectionIds
      */

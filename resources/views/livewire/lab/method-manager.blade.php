@@ -330,7 +330,7 @@
                                                 open: false,
                                                 search: '',
                                                 selected: @entangle('methodForm.reference_type_id').live,
-                                                references: {{ json_encode($referenceMethods->map(fn($r) => ['id' => $r->id, 'name' => $r->name])->values()) }},
+                                                references: {{ json_encode(collect($referenceMethods)->map(fn($r) => ['id' => data_get($r, 'id'), 'name' => data_get($r, 'name', '')])->values()) }},
                                                 get filteredReferences() {
                                                     if (!this.search) return this.references.slice(0, 50);
                                                     return this.references.filter(ref => 
