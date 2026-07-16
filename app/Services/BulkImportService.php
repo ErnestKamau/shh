@@ -80,8 +80,19 @@ class BulkImportService
      */
     public function createBatch(string $module, string $formType): BulkImportBatch
     {
+        $resolvedCompanyId = null;
+        if (function_exists('getUserCompany')) {
+            $resolvedCompanyId = getUserCompany();
+        }
+
+        $resolvedCompanyId ??= Auth::user()?->company_id;
+
+        if (empty($resolvedCompanyId)) {
+            throw new \RuntimeException('Unable to resolve company context for bulk import.');
+        }
+
         $batch = new BulkImportBatch();
-        $batch->company_id = Auth::user()->company_id ?? Auth::user()->inventory_location_id;
+        $batch->company_id = (string) $resolvedCompanyId;
         $batch->user_id = Auth::id();
         $batch->module = $module;
         $batch->form_type = $formType;
@@ -151,6 +162,7 @@ class BulkImportService
                     'imported_rows' => $batch->imported_rows,
                     'error_rows' => $batch->error_rows,
                     'errors' => $batch->getErrorSummary(),
+                    'warnings' => $batch->getWarningSummary(),
                     'upserted' => $batch->getUpsertSummary(),
                     'purge_summary' => $purgeSummary,
                 ],

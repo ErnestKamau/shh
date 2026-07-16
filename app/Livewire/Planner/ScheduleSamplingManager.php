@@ -1439,40 +1439,38 @@ class ScheduleSamplingManager extends Component
         $parameterNames = $this->resolveParameterNames($parameterIds);
 
         if ($this->isFood || $this->isWater || $this->isWasteWater) {
-            $row = $this->getDefaultSampleRow();
+            $scheduleRowValues = [];
+
             if ($parameterNames !== []) {
-                $row['parameters'] = implode(', ', array_map(
-                    static fn ($name): string => is_array($name) ? implode(', ', $name) : (string) $name,
-                    $parameterNames,
-                ));
+                $scheduleRowValues['parameters'] = $parameterNames;
             }
             if ($matchingEntry !== null && ! empty($matchingEntry['analysis_type_id'])) {
-                $row['analysis_type_id'] = (string) $matchingEntry['analysis_type_id'];
+                $scheduleRowValues['analysis_type_id'] = (string) $matchingEntry['analysis_type_id'];
             }
             if ($location !== '') {
-                $row['sampling_point'] = $location;
-                $row['location'] = $location;
+                $scheduleRowValues['sampling_point'] = $location;
+                $scheduleRowValues['location'] = $location;
             }
-            $row['qty'] = (string) $qty;
-            $row['sample_quantity'] = $qty;
+            $scheduleRowValues['qty'] = (string) $qty;
+            $scheduleRowValues['sample_quantity'] = $qty;
 
             $scheduleDescription = $this->formData['sample_description'] ?? null;
             if (is_array($scheduleDescription)) {
                 $scheduleDescription = $scheduleDescription[0] ?? null;
             }
-            if (is_string($scheduleDescription) && trim($scheduleDescription) !== '' && empty($row['sample_description'])) {
-                $row['sample_description'] = $scheduleDescription;
+            if (is_string($scheduleDescription) && trim($scheduleDescription) !== '') {
+                $currentDescription = $this->formData['sample_description'][0] ?? null;
+                if ($this->isEmptyFormValue($currentDescription)) {
+                    $scheduleRowValues['sample_description'] = $scheduleDescription;
+                }
             }
 
-            $this->formData['sample_rows'] = [$row];
-
-            // Flatten sample_rows into indexed schema fields used by processFormData.
-            foreach ($row as $key => $value) {
-                if ($key === 'parameters' && is_string($value) && $value !== '') {
-                    $value = array_values(array_filter(array_map('trim', explode(',', $value))));
-                }
+            foreach ($scheduleRowValues as $key => $value) {
                 $this->assignFormValue((string) $key, $value, $submissionForm);
             }
+
+            // Keep sample_rows aligned with indexed TRF fields (expiration_date, batch_number, etc.).
+            $this->syncSampleRowsFromIndexedFields($submissionForm);
         }
     }
 
@@ -1484,12 +1482,22 @@ class ScheduleSamplingManager extends Component
         // Final safety net: re-apply schedule values so lab receives collection/qty/tests
         // even if Livewire state drifted after hydrate.
         $this->hydrateFormDataFromSchedule($submissionForm);
+        $this->syncSampleRowsFromIndexedFields($submissionForm);
 
         $normalizer = app(SubmissionFormValueNormalizer::class);
         $payload = array_merge(
             $this->formData,
             $normalizer->toRequestPayload($this->formData),
         );
+
+        // Indexed row fields are the source of truth for processFormData persistence.
+        foreach ($this->rowElementNames($submissionForm) as $name) {
+            if (! array_key_exists($name, $this->formData) || ! is_array($this->formData[$name])) {
+                continue;
+            }
+
+            $payload[$name] = $this->formData[$name];
+        }
 
         // Prefer original formData scalars over normalized empties for schedule fields.
         $schedule = SamplingSchedule::query()->find((string) $this->selectedScheduleId);
@@ -1640,6 +1648,14 @@ class ScheduleSamplingManager extends Component
 
     private function assignFormValue(string $name, mixed $value, SubmissionForm $submissionForm, bool $textOnly = false): void
     {
+        if ($this->isEmptyFormValue($value)) {
+            return;
+        }
+
+        if ($name === 'parameters' && is_string($value) && $value !== '') {
+            $value = array_values(array_filter(array_map('trim', explode(',', $value))));
+        }
+
         $element = null;
         $sectionType = null;
 
@@ -1671,6 +1687,8 @@ class ScheduleSamplingManager extends Component
             return;
         }
 
+        $forceRowFields = ['analysis_type_id', 'parameters', 'sample_quantity', 'number_of_samples', 'sampling_point', 'location'];
+        $forceScalarFields = ['sampling_date', 'sampling_time', 'date_received', 'sample_quantity', 'number_of_samples', 'sampling_location', 'sampling_point', 'location'];
         $isRowField = $sectionType === 'rows_section';
 
         if ($isRowField) {
@@ -1679,8 +1697,8 @@ class ScheduleSamplingManager extends Component
             }
 
             $current = $this->formData[$name][0] ?? null;
-            $isEmpty = $current === null || $current === '' || $current === [] || $current === false;
-            if ($isEmpty || in_array($name, ['analysis_type_id', 'parameters', 'sample_quantity', 'number_of_samples', 'sampling_point', 'location'], true)) {
+            $isEmpty = $this->isEmptyFormValue($current);
+            if ($isEmpty || in_array($name, $forceRowFields, true)) {
                 $this->formData[$name][0] = $value;
             }
 
@@ -1688,10 +1706,60 @@ class ScheduleSamplingManager extends Component
         }
 
         $current = $this->formData[$name] ?? null;
-        $isEmpty = $current === null || $current === '' || $current === [] || $current === false;
-        if ($isEmpty || in_array($name, ['sampling_date', 'sampling_time', 'date_received', 'sample_quantity', 'number_of_samples', 'sampling_location', 'sampling_point', 'location'], true)) {
+        $isEmpty = $this->isEmptyFormValue($current);
+        if ($isEmpty || in_array($name, $forceScalarFields, true)) {
             $this->formData[$name] = $value;
         }
+    }
+
+    /**
+     * Mirror indexed TRF row fields into sample_rows for enquiry/PDF normalizers.
+     */
+    private function syncSampleRowsFromIndexedFields(SubmissionForm $submissionForm): void
+    {
+        $rowCount = $this->schemaRowCount($submissionForm);
+        if ($rowCount < 1) {
+            return;
+        }
+
+        $rows = [];
+        foreach (range(0, $rowCount - 1) as $rowIndex) {
+            $row = [];
+            foreach ($this->rowElementNames($submissionForm) as $name) {
+                if (! isset($this->formData[$name]) || ! is_array($this->formData[$name])) {
+                    continue;
+                }
+
+                if (array_key_exists($rowIndex, $this->formData[$name])) {
+                    $row[$name] = $this->formData[$name][$rowIndex];
+                }
+            }
+
+            if ($row !== []) {
+                $rows[] = $row;
+            }
+        }
+
+        if ($rows !== []) {
+            $this->formData['sample_rows'] = $rows;
+        }
+    }
+
+    private function schemaRowCount(SubmissionForm $submissionForm): int
+    {
+        $count = 0;
+        foreach ($this->rowElementNames($submissionForm) as $name) {
+            if (isset($this->formData[$name]) && is_array($this->formData[$name])) {
+                $count = max($count, count($this->formData[$name]));
+            }
+        }
+
+        return max(1, $count);
+    }
+
+    private function isEmptyFormValue(mixed $value): bool
+    {
+        return $value === null || $value === '' || $value === [] || $value === false;
     }
 
     public function getSubmissionFormProperty(): ?SubmissionForm

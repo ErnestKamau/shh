@@ -40,7 +40,11 @@ class PersonnelTableManager extends Component
     public bool $showAdvancedFilters = false;
     public bool $showAddPersonnelModal = false;
     public bool $showStateModal = false;
+    public bool $showBulkDeactivateModal = false;
     public bool $showResetPasswordModal = false;
+    /** @var array<int, string> */
+    public array $selectedPersonnel = [];
+    public bool $selectAll = false;
     public ?string $selectedPersonnelId = null;
     public string $selectedPersonnelName = '';
     public string $stateAction = 'active';
@@ -344,6 +348,13 @@ class PersonnelTableManager extends Component
 
     public function openStateModal(string $personnelId): void
     {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
         $personnel = User::query()->findOrFail($personnelId);
         $this->selectedPersonnelId = $personnel->id;
         $this->selectedPersonnelName = (string) $personnel->name;
@@ -358,6 +369,13 @@ class PersonnelTableManager extends Component
 
     public function savePersonnelState(): void
     {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
         $this->validate([
             'selectedPersonnelId' => 'required|string|exists:users,id',
             'stateAction' => 'required|in:active,deactive',
@@ -370,6 +388,87 @@ class PersonnelTableManager extends Component
         $this->showStateModal = false;
         $this->message = 'Personnel state updated successfully.';
         $this->messageType = 'success';
+    }
+
+    public function updatedSelectAll(bool $value): void
+    {
+        if ($value) {
+            $this->selectedPersonnel = $this->personnel->pluck('id')->map(fn ($id): string => (string) $id)->toArray();
+        } else {
+            $this->selectedPersonnel = [];
+        }
+    }
+
+    public function updatedSelectedPersonnel(): void
+    {
+        $this->selectAll = count($this->selectedPersonnel) === $this->personnel->count()
+            && $this->personnel->count() > 0;
+    }
+
+    public function openBulkDeactivateModal(): void
+    {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        if ($this->selectedPersonnel === []) {
+            $this->message = __('personnel.select_personnel_first');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $this->showBulkDeactivateModal = true;
+    }
+
+    public function closeBulkDeactivateModal(): void
+    {
+        $this->showBulkDeactivateModal = false;
+    }
+
+    public function bulkDeactivate(): void
+    {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $ids = array_values(array_filter($this->selectedPersonnel));
+
+        if ($ids === []) {
+            $this->message = __('personnel.select_personnel_first');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $ids = array_values(array_diff($ids, [(string) auth()->id()]));
+
+        if ($ids === []) {
+            $this->message = __('personnel.cannot_deactivate_self');
+            $this->messageType = 'error';
+            $this->showBulkDeactivateModal = false;
+
+            return;
+        }
+
+        $updatedCount = User::query()
+            ->whereIn('id', $ids)
+            ->where('active', 1)
+            ->update(['active' => 0]);
+
+        $this->selectedPersonnel = [];
+        $this->selectAll = false;
+        $this->showBulkDeactivateModal = false;
+        $this->message = $updatedCount > 0
+            ? __('personnel.bulk_deactivated_success', ['count' => $updatedCount])
+            : __('personnel.bulk_deactivated_none');
+        $this->messageType = $updatedCount > 0 ? 'success' : 'error';
     }
 
     public function openResetPasswordModal(string $personnelId): void
@@ -415,33 +514,56 @@ class PersonnelTableManager extends Component
 
     public function updatingSearch(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingLabFilter(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingEmploymentDateFrom(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingEmploymentDateTo(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingPerPage(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function setActiveTab(string $tab): void
     {
         $this->activeTab = in_array($tab, ['all', 'active', 'deactive', 'dormant'], true) ? $tab : 'all';
+        $this->clearSelection();
         $this->resetPage();
+    }
+
+    private function clearSelection(): void
+    {
+        $this->selectedPersonnel = [];
+        $this->selectAll = false;
+    }
+
+    private function canDeactivatePersonnel(): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('personnel.personnel.edit') || $user->CheckDeactivatePersonnel();
     }
 
     public function toggleAdvancedFilters(): void
@@ -455,6 +577,7 @@ class PersonnelTableManager extends Component
         $this->labFilter = '';
         $this->employmentDateFrom = '';
         $this->employmentDateTo = '';
+        $this->clearSelection();
         $this->resetPage();
     }
 
@@ -524,11 +647,12 @@ class PersonnelTableManager extends Component
             })
             ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation');
 
-        if ($this->activeTab === 'active') {
-            $query->where('users.active', 1);
-        } elseif ($this->activeTab === 'deactive') {
+        if ($this->activeTab === 'deactive') {
             $query->where('users.active', 0);
         } elseif ($this->activeTab === 'dormant') {
+            // Dormant accounts are a subset of active accounts.
+            $query->where('users.active', 1);
+
             $ninetyDaysAgo = now()->subDays(90);
             
             $activeUserIds = \App\Models\Audit::where('created_at', '>=', $ninetyDaysAgo)
@@ -538,6 +662,9 @@ class PersonnelTableManager extends Component
 
             $query->whereNotIn('users.id', $activeUserIds)
                 ->where('users.created_at', '<', $ninetyDaysAgo);
+        } else {
+            // "All" and "Active" must exclude deactivated accounts.
+            $query->where('users.active', 1);
         }
 
         if ($this->search !== '') {

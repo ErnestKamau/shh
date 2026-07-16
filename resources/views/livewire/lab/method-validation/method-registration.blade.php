@@ -171,12 +171,12 @@
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label for="method_type" class="form-label fw-bold">Method Type</label>
-                        <select wire:model.live="filters.method_type" class="form-select form-select-lg" id="method_type">
-                            <option value="">All Types</option>
-                            @foreach($methodTypes as $id => $type)
-                                <option value="{{ $id }}">{{ $type }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            wire:model.live="filters.method_type"
+                            :options="collect($methodTypes)->map(fn($type, $id) => ['id' => $id, 'name' => $type])"
+                            placeholder="Search method types..."
+                            empty-label="All Types"
+                        />
                     </div>
                     <div class="col-md-3">
                         <label for="active_status" class="form-label fw-bold">Status</label>
@@ -196,12 +196,12 @@
                     </div>
                     <div class="col-md-3">
                         <label for="company" class="form-label fw-bold">Company</label>
-                        <select wire:model.live="filters.company" class="form-select form-select-lg" id="company">
-                            <option value="">All Companies</option>
-                            @foreach($companies as $id => $name)
-                                <option value="{{ $id }}">{{ $name }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            wire:model.live="filters.company"
+                            :options="collect($companies)->map(fn($name, $id) => ['id' => $id, 'name' => $name])"
+                            placeholder="Search companies..."
+                            empty-label="All Companies"
+                        />
                     </div>
                 </div>
 

@@ -263,15 +263,15 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="smt-label">Unit of measure <span class="text-danger">*</span></label>
-                                        <select wire:model="movementForm.uom_id"
-                                                class="form-select smt-input @error('movementForm.uom_id') is-invalid @enderror">
-                                            <option value="">Select unit</option>
-                                            @foreach($reportingUnits as $unit)
-                                                <option value="{{ $unit->id }}">{{ $unit->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model="movementForm.uom_id"
+                                            :options="collect($reportingUnits)->map(fn($unit) => ['id' => $unit->id, 'name' => $unit->name])"
+                                            placeholder="Search units..."
+                                            empty-label="Select unit"
+                                            class="{{ $errors->has('movementForm.uom_id') ? 'is-invalid' : '' }}"
+                                        />
                                         @error('movementForm.uom_id')
-                                            <div class="invalid-feedback">{{ $message }}</div>
+                                            <div class="invalid-feedback d-block">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>

@@ -133,7 +133,7 @@
                                             <i class="mdi mdi-eye-outline"></i>
                                         </a>
 
-                                        @if(auth()->user()->CheckDeactivatePersonnel())
+                                        @if(auth()->user()->can('personnel.personnel.edit') || auth()->user()->CheckDeactivatePersonnel())
                                             <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="openStateModal('{{ $item->id }}')" title="{{ (int) $item->active === 1 ? __('personnel.deactivate_personnel') : __('personnel.activate_personnel') }}">
                                                 <i class="mdi {{ (int) $item->active === 1 ? 'mdi-account-lock' : 'mdi-lock-open-variant' }}"></i>
                                             </button>

@@ -20,6 +20,15 @@ class AmspecParametersImporter extends BaseImporter
     protected $lastAnalysisType = null;
     protected ?string $lastParameterCategory = null;
 
+    /** @var array<string, array{model: mixed, match: string, created: bool, input_code: string, input_name: string}> */
+    protected array $sampleTypeResolutionCache = [];
+
+    /** @var array<string, array{model: mixed, match: string, created: bool, input_code: string, input_name: string}> */
+    protected array $analysisTypeResolutionCache = [];
+
+    /** @var array<string, bool> */
+    protected array $loggedResolutionKeys = [];
+
     /** @var array<string, string> */
     protected const SECTION_LAB_CODE_MAP = [
         'chemical' => 'LAB-CHM',
@@ -71,6 +80,9 @@ class AmspecParametersImporter extends BaseImporter
         $this->lastSampleType = null;
         $this->lastAnalysisType = null;
         $this->lastParameterCategory = null;
+        $this->sampleTypeResolutionCache = [];
+        $this->analysisTypeResolutionCache = [];
+        $this->loggedResolutionKeys = [];
     }
 
     /**
@@ -283,9 +295,10 @@ class AmspecParametersImporter extends BaseImporter
         ], 'matrix_category');
         $explicitSampleTypeCode = $this->resolveFieldFromRow($row, ['sample_type_code']);
         $subMatrix = $this->resolveFieldFromRow($row, [
-            'sub_matrix', 'analysis_type_name', 'analysis_type', 'matrixsubcategory', 'matrix_sub_category',
+            'sub_matrix', 'matrixsubcategory', 'matrix_sub_category',
         ], 'matrix_sub_category');
         $explicitAnalysisTypeCode = $this->resolveFieldFromRow($row, ['analysis_type_code']);
+        $explicitAnalysisTypeName = $this->resolveFieldFromRow($row, ['analysis_type_name', 'analysis_type']);
         $parameterCategory = $this->resolveFieldFromRow($row, [
             'parameter_category',
         ], 'parameter_category');
@@ -343,20 +356,25 @@ class AmspecParametersImporter extends BaseImporter
 
         $subMatrix = $this->normalizeSubMatrixValue($subMatrix);
 
-        if (($subMatrix === null || $subMatrix === '') && ! empty($explicitAnalysisTypeCode)) {
-            $subMatrix = $explicitAnalysisTypeCode;
+        $analysisTypeName = $this->normalizeSubMatrixValue($explicitAnalysisTypeName);
+        if (($analysisTypeName === null || $analysisTypeName === '') && $subMatrix !== null && $subMatrix !== '') {
+            $analysisTypeName = $subMatrix;
         }
 
-        if ($subMatrix === null || $subMatrix === '') {
+        if (($analysisTypeName === null || $analysisTypeName === '') && ! empty($explicitAnalysisTypeCode)) {
+            $analysisTypeName = $explicitAnalysisTypeCode;
+        }
+
+        if ($analysisTypeName === null || $analysisTypeName === '') {
             if (! empty($parameterCategory)) {
-                $subMatrix = $parameterCategory;
+                $analysisTypeName = $parameterCategory;
             } elseif ($this->lastAnalysisType) {
-                $subMatrix = $this->lastAnalysisType;
+                $analysisTypeName = $this->lastAnalysisType;
             } else {
-                $subMatrix = 'Default Analysis Type';
+                $analysisTypeName = 'Default Analysis Type';
             }
         } else {
-            $this->lastAnalysisType = $subMatrix;
+            $this->lastAnalysisType = $analysisTypeName;
         }
 
         // Prefer explicit codes from arranged templates; otherwise generate from names
@@ -365,7 +383,7 @@ class AmspecParametersImporter extends BaseImporter
             : (! empty($matrixCategory) ? $this->generateCode($matrixCategory) : null);
         $analysisTypeCode = ! empty($explicitAnalysisTypeCode)
             ? $this->normalizeExplicitCode($explicitAnalysisTypeCode)
-            : (! empty($subMatrix) ? $this->generateCode($subMatrix) : null);
+            : (! empty($analysisTypeName) ? $this->generateCode($analysisTypeName) : null);
         $analyteCode = ! empty($explicitAnalyteCode)
             ? $this->normalizeExplicitCode($explicitAnalyteCode)
             : (! empty($parameterName) ? $this->generateCode($parameterName) : null);
@@ -391,7 +409,7 @@ class AmspecParametersImporter extends BaseImporter
         return [
             'section_department' => $sectionDepartment,
             'matrix_category' => $matrixCategory,
-            'sub_matrix' => $subMatrix,
+            'sub_matrix' => $analysisTypeName,
             'parameter_name' => $parameterName,
             'method' => $method,
             'unit' => $unit,
@@ -404,7 +422,7 @@ class AmspecParametersImporter extends BaseImporter
             'sample_type_code' => $sampleTypeCode,
             'sample_type_name' => $matrixCategory,
             'analysis_type_code' => $analysisTypeCode,
-            'analysis_type_name' => $subMatrix,
+            'analysis_type_name' => $analysisTypeName,
             'analyte_code' => $analyteCode,
             'analyte_name' => $parameterName,
             'lab_section_code' => $labSectionCode,
@@ -427,23 +445,17 @@ class AmspecParametersImporter extends BaseImporter
             return false;
         }
 
-        // 1. Process SampleType
-        $sampleType = SampleType::where('code', $transformedData['sample_type_code'])
-            ->where('company_id', $this->batch->company_id)
-            ->first();
-
-        if (!$sampleType) {
-            $sampleType = SampleType::create([
-                'code' => $transformedData['sample_type_code'],
-                'company_id' => $this->batch->company_id,
-                'name' => $transformedData['sample_type_name'],
-                'is_results_attachable' => 1,
-                'disposal_count' => 30,
-                'active' => 1
-            ]);
+        // 1. Resolve SampleType (code -> name -> normalized name)
+        $sampleTypeResult = $this->resolveSampleType(
+            (string) $transformedData['sample_type_code'],
+            (string) $transformedData['sample_type_name']
+        );
+        $sampleType = $sampleTypeResult['model'];
+        if ($sampleTypeResult['created']) {
             $this->recordUpsert($sampleType->code, 'inserted');
             $hasImportedAny = true;
         }
+        $this->logEntityResolution('sample_type', $sampleTypeResult);
 
         // 2. Resolve Lab by code and/or name, else section mapping
         $lab = $this->resolveLabForSection(
@@ -453,37 +465,33 @@ class AmspecParametersImporter extends BaseImporter
         );
         $labId = $lab->id;
 
-        // 3. Process AnalysisType (only if we have the data)
-        if (!empty($transformedData['analysis_type_code']) && !empty($transformedData['analysis_type_name'])) {
-            $analysisType = AnalysisType::where('code', $transformedData['analysis_type_code'])
-                ->where('sample_type_id', $sampleType->id)
-                ->where('company_id', $this->batch->company_id)
-                ->first();
+        // 3. Resolve AnalysisType (code -> name -> normalized name -> generated code)
+        $analysisTypeResult = $this->resolveAnalysisType(
+            $sampleType,
+            $transformedData['analysis_type_code'] ?? null,
+            $transformedData['analysis_type_name'] ?? null,
+            $labId
+        );
+        $analysisType = $analysisTypeResult['model'] ?? null;
 
-            if (!$analysisType) {
-                $analysisType = AnalysisType::create([
-                    'code' => $transformedData['analysis_type_code'],
-                    'company_id' => $this->batch->company_id,
-                    'name' => $transformedData['analysis_type_name'],
-                    'sample_type_id' => $sampleType->id,
-                    'lab_id' => $labId,
-                    'has_no_result' => 0,
-                    'active' => 1
-                ]);
-                $this->recordUpsert($analysisType->code, 'inserted');
-                $hasImportedAny = true;
-            }
-        } else {
-            // Try to find existing analysis type for this sample type
-            $analysisType = AnalysisType::where('sample_type_id', $sampleType->id)
-                ->where('company_id', $this->batch->company_id)
-                ->first();
-            
-            if (!$analysisType) {
-                // If no analysis type exists, we can't proceed with the rest
-                return $hasImportedAny;
-            }
+        if ($analysisType === null) {
+            \Log::warning('AmSpec import row missing analysis type identifiers and no fallback type found', [
+                'row' => $this->rowNumber,
+                'batch_id' => $this->batch->id ?? null,
+                'company_id' => $this->batch->company_id ?? null,
+                'sample_type_id' => $sampleType->id ?? null,
+                'analysis_type_code' => $transformedData['analysis_type_code'] ?? null,
+                'analysis_type_name' => $transformedData['analysis_type_name'] ?? null,
+            ]);
+
+            return $hasImportedAny;
         }
+
+        if ($analysisTypeResult['created']) {
+            $this->recordUpsert($analysisType->code, 'inserted');
+            $hasImportedAny = true;
+        }
+        $this->logEntityResolution('analysis_type', $analysisTypeResult, $sampleType);
 
         // 4. Process Lab Section (name and/or code)
         $labSectionId = null;
@@ -651,8 +659,8 @@ class AmspecParametersImporter extends BaseImporter
                 if ($updateData !== []) {
                     $existingAE->update($updateData);
                     $this->recordUpsert("{$transformedData['analysis_type_code']}/{$transformedData['analyte_code']}", 'updated');
+                    $hasImportedAny = true;
                 }
-                $hasImportedAny = true;
             }
         }
 
@@ -1092,6 +1100,396 @@ class AmspecParametersImporter extends BaseImporter
         }
 
         return null;
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    protected function companyScopedQuery($query)
+    {
+        $companyId = $this->batch->company_id;
+
+        return $query->where(function ($scopedQuery) use ($companyId) {
+            $scopedQuery->where('company_id', $companyId)->orWhereNull('company_id');
+        });
+    }
+
+    protected function normalizeMatchKey(?string $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $value = strtolower(trim($value));
+        $value = str_replace(['&', '＆'], ' and ', $value);
+        $value = preg_replace('/\band\b/', ' and ', $value) ?? $value;
+        $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? $value;
+
+        return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+    }
+
+    protected function codesEquivalent(?string $left, ?string $right): bool
+    {
+        if ($left === null || $right === null || trim($left) === '' || trim($right) === '') {
+            return false;
+        }
+
+        $leftUpper = strtoupper(trim($left));
+        $rightUpper = strtoupper(trim($right));
+
+        if ($leftUpper === $rightUpper) {
+            return true;
+        }
+
+        return $this->generateCode($left) === $this->generateCode($right)
+            || $this->normalizeMatchKey($left) === $this->normalizeMatchKey($right);
+    }
+
+    protected function namesEquivalent(?string $left, ?string $right): bool
+    {
+        if ($left === null || $right === null || trim($left) === '' || trim($right) === '') {
+            return false;
+        }
+
+        if (strtolower(trim($left)) === strtolower(trim($right))) {
+            return true;
+        }
+
+        return $this->normalizeMatchKey($left) === $this->normalizeMatchKey($right);
+    }
+
+    /**
+     * @return array{model: SampleType, match: string, created: bool, input_code: string, input_name: string}
+     */
+    protected function resolveSampleType(string $code, string $name): array
+    {
+        $code = trim($code);
+        $name = trim($name);
+        $cacheKey = $this->entityCacheKey('sample_type', $code, $name);
+
+        if (isset($this->sampleTypeResolutionCache[$cacheKey])) {
+            return $this->sampleTypeResolutionCache[$cacheKey];
+        }
+
+        $matched = $this->findSampleTypeMatch($code, $name);
+        if ($matched !== null) {
+            $this->sampleTypeResolutionCache[$cacheKey] = $matched;
+
+            return $matched;
+        }
+
+        $sampleType = SampleType::create([
+            'code' => $code,
+            'company_id' => $this->batch->company_id,
+            'name' => $name,
+            'is_results_attachable' => 1,
+            'disposal_count' => 30,
+            'active' => 1,
+        ]);
+
+        $result = $this->entityResolutionResult($sampleType, 'created', true, $code, $name);
+        $this->sampleTypeResolutionCache[$cacheKey] = $result;
+
+        return $result;
+    }
+
+    /**
+     * @return array{model: SampleType, match: string, created: bool, input_code: string, input_name: string}|null
+     */
+    protected function findSampleTypeMatch(string $code, string $name): ?array
+    {
+        foreach ([true, false] as $companyScoped) {
+            if ($code !== '') {
+                $query = SampleType::query();
+                if ($companyScoped) {
+                    $query = $this->companyScopedQuery($query);
+                }
+
+                $matches = $query->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($code)])->get();
+                $sampleType = $this->pickPreferredCompanyMatch($matches);
+                if ($sampleType) {
+                    return $this->entityResolutionResult(
+                        $sampleType,
+                        $companyScoped ? 'code' : 'global_code',
+                        false,
+                        $code,
+                        $name
+                    );
+                }
+            }
+
+            if ($name !== '') {
+                $query = SampleType::query();
+                if ($companyScoped) {
+                    $query = $this->companyScopedQuery($query);
+                }
+
+                $matches = $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)])->get();
+                $sampleType = $this->pickPreferredCompanyMatch($matches);
+                if ($sampleType) {
+                    return $this->entityResolutionResult(
+                        $sampleType,
+                        $companyScoped ? 'name' : 'global_name',
+                        false,
+                        $code,
+                        $name
+                    );
+                }
+            }
+
+            $normalizedName = $this->normalizeMatchKey($name);
+            if ($normalizedName !== '' || $code !== '') {
+                $query = SampleType::query();
+                if ($companyScoped) {
+                    $query = $this->companyScopedQuery($query);
+                }
+
+                $sampleType = $query->get()->first(function (SampleType $candidate) use ($code, $name, $normalizedName) {
+                    return $this->namesEquivalent($name, (string) $candidate->name)
+                        || ($code !== '' && $this->codesEquivalent($code, (string) $candidate->code))
+                        || ($code !== '' && $this->codesEquivalent($code, (string) $candidate->name))
+                        || ($normalizedName !== '' && $this->normalizeMatchKey((string) $candidate->code) === $normalizedName);
+                });
+
+                if ($sampleType) {
+                    return $this->entityResolutionResult(
+                        $sampleType,
+                        $companyScoped ? 'normalized_name' : 'global_normalized_name',
+                        false,
+                        $code,
+                        $name
+                    );
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{model: ?AnalysisType, match: string, created: bool, input_code: string, input_name: string}
+     */
+    protected function resolveAnalysisType(SampleType $sampleType, ?string $code, ?string $name, string $labId): array
+    {
+        $code = trim((string) $code);
+        $name = trim((string) $name);
+        $cacheKey = $this->entityCacheKey('analysis_type', $code, $name, (string) $sampleType->id);
+
+        if (isset($this->analysisTypeResolutionCache[$cacheKey])) {
+            return $this->analysisTypeResolutionCache[$cacheKey];
+        }
+
+        if ($code === '' && $name === '') {
+            $analysisType = $this->analysisTypeCandidatesQuery($sampleType)->first();
+            if ($analysisType) {
+                $result = $this->entityResolutionResult($analysisType, 'sample_type_default', false, $code, $name);
+                $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+                return $result;
+            }
+
+            $result = $this->entityResolutionResult(null, 'missing', false, $code, $name);
+            $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+            return $result;
+        }
+
+        if ($code !== '') {
+            $analysisType = $this->analysisTypeCandidatesQuery($sampleType)
+                ->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($code)])
+                ->first();
+
+            if ($analysisType) {
+                $result = $this->entityResolutionResult($analysisType, 'code', false, $code, $name);
+                $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+                return $result;
+            }
+        }
+
+        if ($name !== '') {
+            $analysisType = $this->analysisTypeCandidatesQuery($sampleType)
+                ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)])
+                ->first();
+
+            if ($analysisType) {
+                $result = $this->entityResolutionResult($analysisType, 'name', false, $code, $name);
+                $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+                return $result;
+            }
+
+            $normalizedName = $this->normalizeMatchKey($name);
+            if ($normalizedName !== '') {
+                $analysisType = $this->analysisTypeCandidatesQuery($sampleType)
+                    ->get()
+                    ->first(function (AnalysisType $candidate) use ($name, $normalizedName, $code) {
+                        return $this->namesEquivalent($name, (string) $candidate->name)
+                            || ($code !== '' && $this->codesEquivalent($code, (string) $candidate->name))
+                            || $this->codesEquivalent($name, (string) $candidate->code)
+                            || $this->normalizeMatchKey((string) $candidate->code) === $normalizedName;
+                    });
+
+                if ($analysisType) {
+                    $result = $this->entityResolutionResult($analysisType, 'normalized_name', false, $code, $name);
+                    $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+                    return $result;
+                }
+            }
+
+            $generatedCode = $this->generateCode($name);
+            $analysisType = $this->analysisTypeCandidatesQuery($sampleType)
+                ->whereRaw('UPPER(TRIM(code)) = ?', [$generatedCode])
+                ->first();
+
+            if ($analysisType) {
+                $result = $this->entityResolutionResult($analysisType, 'generated_code', false, $code, $name);
+                $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+                return $result;
+            }
+        }
+
+        $analysisType = AnalysisType::create([
+            'code' => $code !== '' ? $code : $this->generateCode($name),
+            'company_id' => $this->batch->company_id,
+            'name' => $name !== '' ? $name : ($this->humanizeLabel($code) ?? $code),
+            'sample_type_id' => $sampleType->id,
+            'lab_id' => $labId,
+            'has_no_result' => 0,
+            'active' => 1,
+        ]);
+
+        $result = $this->entityResolutionResult($analysisType, 'created', true, $code, $name);
+        $this->analysisTypeResolutionCache[$cacheKey] = $result;
+
+        return $result;
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<AnalysisType>
+     */
+    protected function analysisTypeCandidatesQuery(SampleType $sampleType)
+    {
+        return AnalysisType::query()->where('sample_type_id', $sampleType->id);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, SampleType>|\Illuminate\Support\Collection<int, AnalysisType>  $matches
+     */
+    protected function pickPreferredCompanyMatch($matches): mixed
+    {
+        if ($matches->isEmpty()) {
+            return null;
+        }
+
+        if ($matches->count() === 1) {
+            return $matches->first();
+        }
+
+        return $matches->firstWhere('company_id', $this->batch->company_id) ?? $matches->first();
+    }
+
+    protected function entityCacheKey(string $prefix, string $code, string $name, ?string $parentId = null): string
+    {
+        return implode('|', array_filter([
+            $prefix,
+            $parentId,
+            strtoupper(trim($code)),
+            $this->normalizeMatchKey($name),
+        ]));
+    }
+
+    /**
+     * @param  array{model: mixed, match: string, created: bool, input_code: string, input_name: string}  $result
+     */
+    protected function logEntityResolution(string $entityType, array $result, ?SampleType $sampleType = null): void
+    {
+        $model = $result['model'];
+        if ($model === null) {
+            return;
+        }
+
+        $logKey = $entityType.'|'.$result['match'].'|'.($model->id ?? 'none');
+        if (isset($this->loggedResolutionKeys[$logKey])) {
+            return;
+        }
+        $this->loggedResolutionKeys[$logKey] = true;
+
+        $companyMismatch = (string) ($model->company_id ?? '') !== ''
+            && (string) $model->company_id !== (string) $this->batch->company_id;
+
+        $diagnostics = [
+            'entity' => $entityType,
+            'match_strategy' => $result['match'],
+            'input_code' => $result['input_code'],
+            'input_name' => $result['input_name'],
+            'resolved_id' => $model->id,
+            'resolved_code' => $model->code,
+            'resolved_name' => $model->name,
+            'resolved_company_id' => $model->company_id ?? null,
+            'batch_company_id' => $this->batch->company_id,
+            'company_mismatch' => $companyMismatch,
+            'sample_type_id' => $sampleType?->id,
+            'sample_type_code' => $sampleType?->code,
+            'sample_type_name' => $sampleType?->name,
+        ];
+
+        \Log::info('AmSpec import entity resolution', array_merge([
+            'row' => $this->rowNumber,
+            'batch_id' => $this->batch->id ?? null,
+        ], $diagnostics));
+
+        if ($result['match'] === 'created') {
+            $siblingSummary = '';
+            if ($entityType === 'analysis_type' && $sampleType) {
+                $siblings = $this->analysisTypeCandidatesQuery($sampleType)
+                    ->where('id', '!=', $model->id)
+                    ->orderBy('name')
+                    ->limit(8)
+                    ->get(['code', 'name'])
+                    ->map(fn (AnalysisType $type) => "{$type->name} ({$type->code})")
+                    ->implode(', ');
+
+                if ($siblings !== '') {
+                    $siblingSummary = " Existing analysis types under this sample type: {$siblings}.";
+                }
+            }
+
+            $this->batch->addWarning(
+                $this->rowNumber,
+                "Row {$this->rowNumber}: created new {$entityType} '{$model->name}' ({$model->code}). Data was saved here, not under an existing record.{$siblingSummary}",
+                $diagnostics
+            );
+
+            return;
+        }
+
+        if ($result['match'] !== 'code') {
+            $inputCode = $result['input_code'] !== '' ? $result['input_code'] : 'n/a';
+            $companyNote = $companyMismatch ? ' Record belongs to a different company context than this import batch.' : '';
+            $this->batch->addWarning(
+                $this->rowNumber,
+                "Row {$this->rowNumber}: {$entityType} code '{$inputCode}' not found in current company/sample type. Matched existing '{$model->name}' ({$model->code}) by {$result['match']}.{$companyNote}",
+                $diagnostics
+            );
+        }
+    }
+
+    /**
+     * @return array{model: mixed, match: string, created: bool, input_code: string, input_name: string}
+     */
+    protected function entityResolutionResult(mixed $model, string $match, bool $created, string $inputCode, string $inputName): array
+    {
+        return [
+            'model' => $model,
+            'match' => $match,
+            'created' => $created,
+            'input_code' => $inputCode,
+            'input_name' => $inputName,
+        ];
     }
 
     protected function normalizeSubMatrixValue(?string $value): ?string

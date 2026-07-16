@@ -49,12 +49,12 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Lab</label>
-                                <select wire:model.live="labFilter" class="form-select modern-select">
-                                    <option value="">All Labs</option>
-                                    @foreach($labs as $lab)
-                                        <option value="{{ $lab->id }}">{{ $lab->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select
+                                    wire:model.live="labFilter"
+                                    :options="collect($labs)->map(fn($lab) => ['id' => $lab->id, 'name' => $lab->name])"
+                                    placeholder="Search labs..."
+                                    empty-label="All Labs"
+                                />
                             </div>
                         </div>
                         <div class="col-md-3">

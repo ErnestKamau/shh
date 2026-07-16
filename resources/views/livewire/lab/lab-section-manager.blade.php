@@ -824,14 +824,14 @@
                         <div class="col-md-8">
                             <div class="form-group mb-3">
                                 <label class="form-label">Sample Workflow <span class="text-danger">*</span></label>
-                                <select wire:model="sampleStageForm.sample_workflow"
-                                    class="form-control no-select2 @error('sampleStageForm.sample_workflow') is-invalid @enderror">
-                                    <option value="">Select Sample Workflow...</option>
-                                    @foreach($workflows as $workflow)
-                                    <option value="{{ $workflow }}">{{ $workflow }}</option>
-                                    @endforeach
-                                </select>
-                                @error('sampleStageForm.sample_workflow') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <x-searchable-select
+                                    wire:model="sampleStageForm.sample_workflow"
+                                    :options="collect($workflows)->map(fn($workflow) => ['id' => $workflow, 'name' => $workflow])"
+                                    placeholder="Search workflows..."
+                                    empty-label="Select Sample Workflow..."
+                                    class="{{ $errors->has('sampleStageForm.sample_workflow') ? 'is-invalid' : '' }}"
+                                />
+                                @error('sampleStageForm.sample_workflow') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -998,14 +998,14 @@
                     {{-- Lab Section --}}
                     <div class="form-group mb-3">
                         <label class="form-label"><i class="mdi mdi-sitemap text-primary"></i> Lab Section <span class="text-danger">*</span></label>
-                        <select wire:model="reportConfigForm.sample_analysis_stage_id"
-                            class="form-control no-select2 @error('reportConfigForm.sample_analysis_stage_id') is-invalid @enderror">
-                            <option value="">Select Lab Section...</option>
-                            @foreach($this->labSections as $section)
-                            <option value="{{ $section->id }}">{{ $section->code }} - {{ $section->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('reportConfigForm.sample_analysis_stage_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <x-searchable-select
+                            wire:model="reportConfigForm.sample_analysis_stage_id"
+                            :options="$this->labSections->map(fn($section) => ['id' => $section->id, 'name' => $section->code . ' - ' . $section->name])"
+                            placeholder="Search lab sections..."
+                            empty-label="Select Lab Section..."
+                            class="{{ $errors->has('reportConfigForm.sample_analysis_stage_id') ? 'is-invalid' : '' }}"
+                        />
+                        @error('reportConfigForm.sample_analysis_stage_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
 
                     {{-- Report Format --}}
@@ -1032,14 +1032,14 @@
                             </div>
                         </div>
                         @else
-                        <select wire:model="reportConfigForm.report_format_id"
-                            class="form-control no-select2 @error('reportConfigForm.report_format_id') is-invalid @enderror">
-                            <option value="">Select Report Format...</option>
-                            @foreach($reportFormats as $format)
-                            <option value="{{ $format->id }}">{{ $format->report_name }} ({{ $format->report_code }})</option>
-                            @endforeach
-                        </select>
-                        @error('reportConfigForm.report_format_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <x-searchable-select
+                            wire:model="reportConfigForm.report_format_id"
+                            :options="collect($reportFormats)->map(fn($format) => ['id' => $format->id, 'name' => $format->report_name . ' (' . $format->report_code . ')'])"
+                            placeholder="Search report formats..."
+                            empty-label="Select Report Format..."
+                            class="{{ $errors->has('reportConfigForm.report_format_id') ? 'is-invalid' : '' }}"
+                        />
+                        @error('reportConfigForm.report_format_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         @endif
                     </div>
 

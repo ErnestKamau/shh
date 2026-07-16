@@ -232,11 +232,12 @@
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Approvals</h5>
                     <div class="form-group mb-0">
-                        <select wire:model.live="stageNameFilter" class="form-select acm-stage-select" data-select2-id="false" wire:key="stage-filter-{{ md5($stageNameFilter) }}" style="border: 2px solid #e9ecef !important; border-radius: 12px !important; padding: 12px 16px !important; font-size: 14px !important; font-weight: 500 !important; color: #495057 !important;">
-                            @foreach ($stageOptions as $stage)
-                                <option value="{{ $stage }}">{{ $stage }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            wire:model.live="stageNameFilter"
+                            :options="collect($stageOptions)->map(fn($stage) => ['id' => $stage, 'name' => $stage])"
+                            placeholder="Search stages..."
+                            wire:key="stage-filter-{{ md5($stageNameFilter) }}"
+                        />
                     </div>
                 </div>
                 <div class="card-body acm-approvals-body" wire:key="approval-list-{{ md5($stageNameFilter) }}">
@@ -403,12 +404,13 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Stage Name</label>
-                                    <select wire:model="approvalForm.stage_name" class="form-control @error('approvalForm.stage_name') is-invalid @enderror">
-                                        @foreach ($stageOptions as $stage)
-                                            <option value="{{ $stage }}">{{ $stage }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('approvalForm.stage_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    <x-searchable-select
+                                        wire:model="approvalForm.stage_name"
+                                        :options="collect($stageOptions)->map(fn($stage) => ['id' => $stage, 'name' => $stage])"
+                                        placeholder="Search stages..."
+                                        class="{{ $errors->has('approvalForm.stage_name') ? 'is-invalid' : '' }}"
+                                    />
+                                    @error('approvalForm.stage_name') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -510,30 +512,4 @@
             </div>
         </div>
     @endif
-</div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Prevent Select2 from initializing on the workflow dropdown
-        const acmSelect = document.querySelector('.acm-stage-select');
-        if (acmSelect && $.fn.select2) {
-            // Destroy if already initialized
-            if (acmSelect.classList.contains('select2-hidden-accessible')) {
-                $(acmSelect).select2('destroy');
-            }
-        }
-    });
-    
-    // Also listen for Livewire updates to prevent re-initialization
-    if (window.Livewire) {
-        window.Livewire.on('*', function() {
-            setTimeout(function() {
-                const acmSelect = document.querySelector('.acm-stage-select');
-                if (acmSelect && $.fn.select2 && acmSelect.classList.contains('select2-hidden-accessible')) {
-                    $(acmSelect).select2('destroy');
-                }
-            }, 100);
-        });
-    }
-</script>
 </div>
