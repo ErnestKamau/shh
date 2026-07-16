@@ -1397,6 +1397,26 @@
                         $wire.set('commentsForm.main_body', tinymce.get('comments-main-editor')?.getContent() ?? '');
                         $wire.set('commentsForm.notes_body', tinymce.get('comments-notes-editor')?.getContent() ?? '');
                     },
+                    isEditorEmpty(editorId) {
+                        if (typeof tinymce === 'undefined') {
+                            return true;
+                        }
+                        const editor = tinymce.get(editorId);
+                        if (!editor) {
+                            return true;
+                        }
+                        const text = (editor.getContent({ format: 'text' }) || '').trim();
+                        return text === '';
+                    },
+                    applyDefaults() {
+                        this.syncToWire();
+                        const hasContent = !this.isEditorEmpty('comments-header-editor')
+                            || !this.isEditorEmpty('comments-notes-editor');
+                        if (hasContent && !confirm('Replace current Remarks and Notes with generated defaults? Recommendations will not be changed.')) {
+                            return;
+                        }
+                        $wire.applyCommentDefaults();
+                    },
                     destroyEditors() {
                         if (typeof tinymce !== 'undefined') {
                             tinymce.remove('#comments-header-editor, #comments-main-editor, #comments-notes-editor');
@@ -1411,7 +1431,25 @@
                         $wire.cancelComments();
                     }
                 }"
-                x-init="setTimeout(() => initAll(), 150)">
+                x-init="
+                    setTimeout(() => initAll(), 150);
+                    const stopListening = Livewire.on('comments-defaults-applied', (payload) => {
+                        const data = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+                        if (typeof tinymce === 'undefined') {
+                            return;
+                        }
+                        tinymce.get('comments-header-editor')?.setContent(data.headerBody ?? '');
+                        tinymce.get('comments-notes-editor')?.setContent(data.notesBody ?? '');
+                        $wire.set('commentsForm.header_body', data.headerBody ?? '');
+                        $wire.set('commentsForm.notes_body', data.notesBody ?? '');
+                    });
+                    return () => {
+                        if (typeof stopListening === 'function') {
+                            stopListening();
+                        }
+                        destroyEditors();
+                    };
+                ">
                 <div class="modal-header">
                     <h5 class="modal-title">
                         <i class="mdi mdi-file-document-edit"></i> Comments & Interpretations
@@ -1429,9 +1467,9 @@
                     </style>
                     <div class="comments-interpretations-modal" wire:ignore>
                         <div class="form-group">
-                            <label>Comments</label>
+                            <label>Remarks</label>
                             <textarea id="comments-header-editor" class="form-control" rows="3"
-                                placeholder="Comments..."></textarea>
+                                placeholder="Remarks..."></textarea>
                         </div>
                         <div class="form-group">
                             <label>Recommendations / Interpretations</label>
@@ -1444,15 +1482,18 @@
                                 placeholder="Notes..."></textarea>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="comments-batch-scope" class="control-label">Scope</label>
-                        <select id="comments-batch-scope" wire:model.defer="commentsForm.batch_comment_scope" class="form-control">
-                            <option value="1">Concatenate</option>
-                            <option value="2">Overwrite</option>
-                        </select>
-                    </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" wire:loading.attr="disabled"
+                        wire:target="applyCommentDefaults"
+                        @click="applyDefaults()">
+                        <span wire:loading.remove wire:target="applyCommentDefaults">
+                            <i class="mdi mdi-auto-fix"></i> Apply defaults
+                        </span>
+                        <span wire:loading wire:target="applyCommentDefaults">
+                            <i class="mdi mdi-loading mdi-spin"></i> Applying...
+                        </span>
+                    </button>
                     <button type="button" class="btn btn-info btn-sm" wire:loading.attr="disabled"
                         @click="saveComments()">
                         <span wire:loading.remove wire:target="saveComments"><i class="mdi mdi-content-save"></i> Save</span>

@@ -321,11 +321,11 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="signature-card h-100">
                                         <label class="signature-label d-block">{{ __('personnel.sign_using_pad') }}</label>
-                                        <div class="signature-canvas-wrap" id="personnelSignatureCanvasWrap">
+                                        <div class="signature-canvas-wrap" id="personnelSignatureCanvasWrap" wire:ignore>
                                             <canvas id="personnelSignatureCanvas" width="620" height="190"></canvas>
                                             <span class="signature-canvas-placeholder" id="personnelSignaturePlaceholder">{{ __('personnel.sign_here') }}</span>
                                         </div>
-                                        <input type="hidden" id="personnelSignatureData" wire:model.live="detailsSignatureData">
+                                        <input type="hidden" id="personnelSignatureData" wire:model="detailsSignatureData">
                                         <div class="d-flex justify-content-between align-items-center mt-2">
                                             <div class="d-flex align-items-center" style="gap: 8px;">
                                                 <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') }}</small>
@@ -1507,6 +1507,25 @@
                 };
             }
 
+            function pushSignatureToLivewire(value) {
+                const { canvas, hiddenInput } = getPadNodes();
+                const root = (canvas && canvas.closest('[wire\\:id]'))
+                    || (hiddenInput && hiddenInput.closest('[wire\\:id]'))
+                    || document.querySelector('[wire\\:id]');
+
+                if (!root || !window.Livewire || typeof Livewire.find !== 'function') {
+                    return;
+                }
+
+                const component = Livewire.find(root.getAttribute('wire:id'));
+                if (!component || typeof component.set !== 'function') {
+                    return;
+                }
+
+                // false = update client snapshot only; included on the next save request (avoids race)
+                component.set('detailsSignatureData', value, false);
+            }
+
             function syncHiddenSignature() {
                 const { canvas, hiddenInput } = getPadNodes();
                 if (!canvas || !hiddenInput) {
@@ -1519,9 +1538,9 @@
                     hiddenInput.value = '';
                 }
 
-                if (typeof $wire !== 'undefined' && $wire && typeof $wire.set === 'function') {
-                    $wire.set('detailsSignatureData', hiddenInput.value);
-                }
+                hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                pushSignatureToLivewire(hiddenInput.value);
 
                 setSignatureStatus(hasSignatureStroke);
             }
@@ -1630,7 +1649,19 @@
                     form.dataset.signatureSubmitBound = '1';
                     form.addEventListener('submit', function () {
                         syncHiddenSignature();
-                    });
+                    }, true);
+                }
+
+                // Also sync before any save button that targets this form / Livewire method
+                if (!window.__personnelSignatureSaveSyncBound) {
+                    window.__personnelSignatureSaveSyncBound = true;
+                    document.addEventListener('click', function (event) {
+                        const trigger = event.target.closest('#userDetailsForm [type="submit"], [wire\\:click="saveUserDetails"], .detail-save-btn');
+                        if (!trigger) {
+                            return;
+                        }
+                        syncHiddenSignature();
+                    }, true);
                 }
 
                 setSignatureStatus(hasSignatureStroke);

@@ -6413,18 +6413,33 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Batch not found.');
         }
 
-        // Only increment if not coming from processTestRequestReport (which already bumped it)
-        if (!$request->has('seq')) {
+        $mode = strtolower((string) $request->query('mode', 'view'));
+        $isPreviewMode = $mode === 'preview';
+        $isPreviewDoc = $mode === 'preview-doc';
+        $isPdfMode = $mode === 'pdf';
+        $skipSequenceBump = $isPreviewMode || $isPreviewDoc;
+
+        // Preview never bumps revision. Official generate only bumps when seq is absent
+        // (processTestRequestReport already bumps and passes seq).
+        if (! $skipSequenceBump && ! $request->has('seq')) {
             $batch->test_request_report_sequence = ($batch->test_request_report_sequence ?? 0) + 1;
             $batch->save();
         }
 
-        $sequence     = $batch->test_request_report_sequence ?: 1;
+        if ($skipSequenceBump) {
+            // Show the next provisional revision without persisting a bump
+            $sequence = max(1, (int) ($batch->test_request_report_sequence ?? 0) + 1);
+        } else {
+            $sequence = $batch->test_request_report_sequence ?: 1;
+        }
+
         $jobNumber    = $batch->batch_code;
-        $reportNumber = $jobNumber . '-R' . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+        $reportNumber = $jobNumber . '-R' . str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
 
         $reportData = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
-            ->build($batch, $reportNumber);
+            ->build($batch, $reportNumber, [
+                'logoPublicUrlFallback' => ! $isPdfMode,
+            ]);
 
         if (! empty($reportData['signatureWarning'])) {
             session()->flash('warning', $reportData['signatureWarning']);
@@ -6589,17 +6604,24 @@ class SampleWorkFlowController extends Controller
             ->orderByDesc('revision_no')
             ->get();
 
-        $mode = strtolower((string) $request->query('mode', 'view'));
-        $isPdfMode = $mode === 'pdf';
-        if ($mode === 'pdf') {
+        $batchBackUrl = route('view-batch-details', [
+            'batch' => $batch->id,
+            'client' => 0,
+            'portal' => 0,
+            'status' => $batch->status ?? 'Samples In Lab',
+        ]);
+
+        if ($isPdfMode) {
             $viewData = array_merge($reportData, compact(
                 'language',
                 'labels',
                 'revisions',
                 'isRTL',
                 'isPdfMode',
+                'isPreviewMode',
                 'footerQrCode',
-                'verificationUrl'
+                'verificationUrl',
+                'batchBackUrl'
             ));
 
             $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
@@ -6627,15 +6649,44 @@ class SampleWorkFlowController extends Controller
             ]);
         }
 
-        return view('layouts.lab.sample-workflow.report-formats.test_request_report', array_merge($reportData, compact(
+        $reportViewData = array_merge($reportData, compact(
             'language',
             'labels',
             'revisions',
             'isRTL',
             'isPdfMode',
+            'isPreviewMode',
             'footerQrCode',
-            'verificationUrl'
-        )));
+            'verificationUrl',
+            'batchBackUrl',
+            'reportNumber',
+            'batch'
+        ));
+
+        // Shell page with sidebar; iframe loads preview-doc for isolated report CSS
+        if ($isPreviewMode) {
+            return view('layouts.lab.sample-workflow.report-formats.test_request_report_preview_page', [
+                'batch' => $batch,
+                'reportNumber' => $reportNumber,
+                'batchBackUrl' => $batchBackUrl,
+                'language' => $language,
+            ]);
+        }
+
+        // Bare report document for the in-app preview iframe (no revision bump)
+        if ($isPreviewDoc) {
+            return view(
+                'layouts.lab.sample-workflow.report-formats.test_request_report',
+                array_merge($reportViewData, [
+                    'isPreviewMode' => false,
+                    'isEmbedded' => false,
+                    'isPdfMode' => false,
+                    'hideScreenToolbar' => true,
+                ])
+            );
+        }
+
+        return view('layouts.lab.sample-workflow.report-formats.test_request_report', $reportViewData);
     }
 
     public function moveToVerificationApprovalLevel(Request $request)

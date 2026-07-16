@@ -260,8 +260,12 @@
                                             </div>
                                         </div>
                                         <div class="col-md-2 text-center">
-                                            @if($logo['existing_path'] && !$logo['file'])
+                                            @if(!empty($logo['file']))
+                                                <small class="text-success d-block">New file selected</small>
+                                            @elseif(!empty($logo['existing_path']) && empty($logo['file_missing']))
                                                 <img src="{{ $logo['existing_path'] }}" alt="Logo" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">
+                                            @elseif(!empty($logo['file_missing']))
+                                                <small class="text-danger d-block">File missing — re-upload</small>
                                             @endif
                                         </div>
                                         <div class="col-md-1 text-right">

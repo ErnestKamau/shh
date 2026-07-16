@@ -462,11 +462,15 @@
                     return;
                 }
                 hiddenInput.value = hasSignatureStroke ? canvas.toDataURL('image/png') : '';
-                const root = canvas.closest('[wire\\:id]');
-                if (root && window.Livewire) {
+                hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const root = canvas.closest('[wire\\:id]') || hiddenInput.closest('[wire\\:id]');
+                if (root && window.Livewire && typeof Livewire.find === 'function') {
                     const component = Livewire.find(root.getAttribute('wire:id'));
-                    if (component) {
-                        component.set('detailsSignatureData', hiddenInput.value);
+                    if (component && typeof component.set === 'function') {
+                        // false = update client snapshot only; included on the next save request (avoids race)
+                        component.set('detailsSignatureData', hiddenInput.value, false);
                     }
                 }
                 setSignatureStatus(hasSignatureStroke);
@@ -553,7 +557,18 @@
                 }
                 if (form && form.dataset.signatureSubmitBound !== '1') {
                     form.dataset.signatureSubmitBound = '1';
-                    form.addEventListener('submit', syncHiddenSignature);
+                    form.addEventListener('submit', syncHiddenSignature, true);
+                }
+
+                if (!window.__personnelUserSignatureSaveSyncBound) {
+                    window.__personnelUserSignatureSaveSyncBound = true;
+                    document.addEventListener('click', function (event) {
+                        const trigger = event.target.closest('#userProfileForm [type="submit"], [wire\\:click="saveProfile"], [form="userProfileForm"]');
+                        if (!trigger) {
+                            return;
+                        }
+                        syncHiddenSignature();
+                    }, true);
                 }
                 setSignatureStatus(hasSignatureStroke);
             }

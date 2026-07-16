@@ -355,13 +355,6 @@
 
                             {{-- Delivery result area --}}
                             <div id="ptrr-delivery-result" style="display:none;"></div>
-
-                            <div class="d-flex justify-content-end">
-                                <button type="button" id="ptrr-send-btn"
-                                        style="background:#1a6b1a;color:#fff;border:none;border-radius:6px;padding:7px 20px;font-size:13px;font-weight:700;cursor:pointer;">
-                                    <i class="mdi mdi-send mr-1"></i> Send Now
-                                </button>
-                            </div>
                         @endif
                     </div>
                 </div>
@@ -540,8 +533,13 @@
                         });
                     });
 
-                    var sendBtn = document.getElementById('ptrr-send-btn');
-                    if (sendBtn) {
+                    // Footer button is rendered after this script; bind once it exists.
+                    setTimeout(function() {
+                        var sendBtn = document.getElementById('ptrr-send-btn');
+                        if (!sendBtn) {
+                            return;
+                        }
+
                         sendBtn.addEventListener('click', function() {
                             var contactIds = [];
                             document.querySelectorAll('.ptrr-contact-check:checked').forEach(function(c) {
@@ -618,7 +616,7 @@
                                     sendBtn.innerHTML = '<i class="mdi mdi-send mr-1"></i> Send Now';
                                 });
                         });
-                    }
+                    }, 0);
                 })();
                 </script>
 
@@ -633,6 +631,12 @@
                             style="background:#8B1A1A;color:#fff;border-radius:6px;padding:6px 20px;">
                         <i class="mdi mdi-file-check-outline mr-1"></i> Generate Report
                     </button>
+                    @if($batchContacts->isNotEmpty() && $companyUnitOptions->isNotEmpty())
+                        <button type="button" id="ptrr-send-btn"
+                                style="background:#1a6b1a;color:#fff;border:none;border-radius:6px;padding:7px 20px;font-size:13px;font-weight:700;cursor:pointer;">
+                            <i class="mdi mdi-send mr-1"></i> Send Now
+                        </button>
+                    @endif
                 </div>
             </form>
 

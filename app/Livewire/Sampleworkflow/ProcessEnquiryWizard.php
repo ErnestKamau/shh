@@ -215,7 +215,19 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        if ($enquiry->submissionFormInstance !== null) {
+        // Once lab has saved sample configuration (or moved past Requested), do not
+        // overwrite parameter selections from the original portal form instance.
+        $hasLabSampleConfig = is_array($enquiry->enquiry_sample_configuration)
+            && $enquiry->enquiry_sample_configuration !== [];
+        $shouldResyncFromPortalForm = $enquiry->submissionFormInstance !== null
+            && ! $hasLabSampleConfig
+            && in_array((string) $enquiry->status, [
+                SampleSubmissionRequest::STATUS_REQUESTED,
+                SampleSubmissionRequest::STATUS_DRAFT,
+                SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+            ], true);
+
+        if ($shouldResyncFromPortalForm) {
             app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
                 ->resyncSampleDataFromInstance($enquiry->submissionFormInstance);
             $enquiry = SampleSubmissionRequest::query()
@@ -594,6 +606,8 @@ class ProcessEnquiryWizard extends Component
     public function openAddQuotationLineModal(): void
     {
         if (! $this->crmCustomerId) {
+            $this->setStatus('error', 'Customer is required before adding parameters.');
+
             return;
         }
 
@@ -673,6 +687,7 @@ class ProcessEnquiryWizard extends Component
         }
 
         $this->appendQuotationLineFromParameter($parameter);
+        $this->addParameterToSampleConfigs($parameter);
         $this->refreshAddLineParameterOptions();
 
         if ($this->addLineAllParametersSelected) {
@@ -688,9 +703,11 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        $removedLine = $this->lines[$index];
         unset($this->lines[$index]);
         $this->lines = array_values($this->lines);
         $this->reindexQuotationLines();
+        $this->removeParameterFromSampleConfigs($removedLine);
         $this->finalizeQuotationLineMutation();
 
         if ($this->showAddLineModal && $this->addLineAnalysisTypeId) {
@@ -907,6 +924,16 @@ class ProcessEnquiryWizard extends Component
             }
             $enquiry->save();
         }
+
+        app(\App\Services\Commercial\CommercialEnquirySampleLineSync::class)
+            ->syncFromSampleConfigs($enquiry, $this->sampleConfigs);
+
+        $enquiry = $enquiry->fresh(['requestedAnalyses']);
+        if ($enquiry !== null) {
+            $this->sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+            $this->requestedTests = app(\App\Services\Commercial\EnquiryReviewDisplayService::class)
+                ->requestedTests($enquiry);
+        }
     }
 
     private function enquiryQuotationWasSent(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): bool
@@ -1087,6 +1114,102 @@ class ProcessEnquiryWizard extends Component
         }
 
         $this->refreshLineLabMetrics();
+        $this->persistSampleConfiguration();
+    }
+
+    /**
+     * @param  array<string, mixed>  $parameter
+     */
+    private function addParameterToSampleConfigs(array $parameter): void
+    {
+        $elementId = trim((string) ($parameter['analysis_element_id'] ?? $parameter['id'] ?? ''));
+        $sampleTypeId = trim((string) ($parameter['sample_type_id'] ?? $this->addLineSampleTypeId ?? ''));
+        $analysisTypeId = trim((string) ($parameter['analysis_type_id'] ?? $this->addLineAnalysisTypeId ?? ''));
+
+        if ($elementId === '' || $analysisTypeId === '') {
+            return;
+        }
+
+        $matched = false;
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            $configSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
+            $configAnalysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+
+            if ($configAnalysisTypeId !== $analysisTypeId) {
+                continue;
+            }
+
+            if ($sampleTypeId !== '' && $configSampleTypeId !== '' && $configSampleTypeId !== $sampleTypeId) {
+                continue;
+            }
+
+            $keys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '')
+                ->values()
+                ->all();
+
+            if (! in_array($elementId, $keys, true)) {
+                $keys[] = $elementId;
+                $this->sampleConfigs[$index]['parameter_keys'] = $keys;
+            }
+
+            $matched = true;
+        }
+
+        if ($matched) {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $empty = $configService->emptyConfig();
+        $empty['sample_type_id'] = $sampleTypeId !== '' ? $sampleTypeId : null;
+        $empty['analysis_type_id'] = $analysisTypeId;
+        $empty['parameter_keys'] = [$elementId];
+        $empty['lab_section_id'] = $configService->resolveLabSectionIdForAnalysisType($analysisTypeId);
+        $empty['zone_id'] = $configService->resolveZoneIdFromInstance(
+            $this->submissionFormInstanceId
+                ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
+                : null
+        );
+
+        $this->sampleConfigs[] = $empty;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function removeParameterFromSampleConfigs(array $line): void
+    {
+        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+        $sampleTypeId = trim((string) ($line['sample_type_id'] ?? ''));
+        $analysisTypeId = trim((string) ($line['analysis_type_id'] ?? ''));
+
+        if ($elementId === '') {
+            return;
+        }
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            $configSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
+            $configAnalysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+
+            if ($analysisTypeId !== '' && $configAnalysisTypeId !== '' && $configAnalysisTypeId !== $analysisTypeId) {
+                continue;
+            }
+
+            if ($sampleTypeId !== '' && $configSampleTypeId !== '' && $configSampleTypeId !== $sampleTypeId) {
+                continue;
+            }
+
+            $keys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '' && $key !== $elementId)
+                ->values()
+                ->all();
+
+            $this->sampleConfigs[$index]['parameter_keys'] = $keys;
+        }
     }
 
     private function refreshLineLabMetrics(): void
@@ -1265,6 +1388,7 @@ class ProcessEnquiryWizard extends Component
             }
 
             $this->appendQuotationLineFromParameter($parameter);
+            $this->addParameterToSampleConfigs($parameter);
         }
     }
 
