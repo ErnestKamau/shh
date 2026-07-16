@@ -239,7 +239,7 @@
                                         <label class="form-label fw-bold">
                                             <i class="mdi mdi-file-certificate-outline text-primary"></i> Based On Standard
                                         </label>
-                                        <select wire:model.live="methodForm.based_on_standard_id" class="form-control no-select2 @error('methodForm.based_on_standard_id') is-invalid @enderror">
+                                        <select wire:model.live="methodForm.based_on_standard_id" class="form-control livewire-select2 @error('methodForm.based_on_standard_id') is-invalid @enderror">
                                             <option value="">None (optional)</option>
                                             @foreach($standards as $standard)
                                                 <option value="{{ $standard->id }}">
@@ -254,7 +254,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">QC Schemes (method binding)</label>
-                                        <select wire:model.live="methodForm.qc_scheme_ids" multiple class="form-control no-select2 @error('methodForm.qc_scheme_ids') is-invalid @enderror" style="min-height: 90px;">
+                                        <select wire:model.live="methodForm.qc_scheme_ids" multiple class="form-control livewire-select2 @error('methodForm.qc_scheme_ids') is-invalid @enderror" style="min-height: 90px;">
                                             @foreach($qcSchemes as $scheme)
                                                 <option value="{{ $scheme->id }}">{{ $scheme->name }} ({{ $scheme->code }})</option>
                                             @endforeach
@@ -268,7 +268,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Binding Mode</label>
-                                        <select wire:model="methodForm.qc_scheme_mode" class="form-control no-select2">
+                                        <select wire:model="methodForm.qc_scheme_mode" class="form-control livewire-select2">
                                             <option value="override">Override</option>
                                             <option value="merge">Merge</option>
                                             <option value="additive">Additive</option>
@@ -286,7 +286,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Condition: Equipment</label>
-                                        <select wire:model="methodForm.qc_condition_equipment_id" class="form-control no-select2 @error('methodForm.qc_condition_equipment_id') is-invalid @enderror">
+                                        <select wire:model="methodForm.qc_condition_equipment_id" class="form-control livewire-select2 @error('methodForm.qc_condition_equipment_id') is-invalid @enderror">
                                             <option value="">Any (no filter)</option>
                                             @foreach($equipmentItems as $item)
                                                 <option value="{{ $item->id }}">{{ $item->name }}@if($item->equipment_number) ({{ $item->equipment_number }})@endif</option>
@@ -298,7 +298,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Condition: Client</label>
-                                        <select wire:model="methodForm.qc_condition_crm_customer_id" class="form-control no-select2 @error('methodForm.qc_condition_crm_customer_id') is-invalid @enderror">
+                                        <select wire:model="methodForm.qc_condition_crm_customer_id" class="form-control livewire-select2 @error('methodForm.qc_condition_crm_customer_id') is-invalid @enderror">
                                             <option value="">Any (no filter)</option>
                                             @foreach($customers as $customer)
                                                 <option value="{{ $customer->id }}">{{ $customer->name }}</option>
@@ -310,7 +310,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Condition: Sample type</label>
-                                        <select wire:model="methodForm.qc_condition_sample_type_id" class="form-control no-select2 @error('methodForm.qc_condition_sample_type_id') is-invalid @enderror">
+                                        <select wire:model="methodForm.qc_condition_sample_type_id" class="form-control livewire-select2 @error('methodForm.qc_condition_sample_type_id') is-invalid @enderror">
                                             <option value="">Any (no filter)</option>
                                             @foreach($sampleTypes as $sampleType)
                                                 <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
@@ -333,34 +333,53 @@
                                                 references: {{ json_encode(collect($referenceMethods)->map(fn($r) => ['id' => data_get($r, 'id'), 'name' => data_get($r, 'name', '')])->values()) }},
                                                 get filteredReferences() {
                                                     if (!this.search) return this.references.slice(0, 50);
-                                                    return this.references.filter(ref => 
+                                                    return this.references.filter(ref =>
                                                         ref.name.toLowerCase().includes(this.search.toLowerCase())
                                                     );
                                                 },
-                                                selectReference(refId) {
-                                                    this.selected = refId;
+                                                openDropdown() {
+                                                    this.open = true;
+                                                    this.$nextTick(() => this.$refs.searchInput?.focus());
+                                                },
+                                                closeDropdown() {
                                                     this.open = false;
                                                     this.search = '';
+                                                },
+                                                toggleDropdown() {
+                                                    if (this.open) {
+                                                        this.closeDropdown();
+                                                        return;
+                                                    }
+
+                                                    this.openDropdown();
+                                                },
+                                                selectReference(refId) {
+                                                    this.selected = refId;
+                                                    this.closeDropdown();
                                                 },
                                                 getSelectedName() {
                                                     const ref = this.references.find(r => r.id == this.selected);
                                                     return ref ? ref.name : '';
                                                 }
-                                            }" class="searchable-dropdown-wrapper">
-                                                <div class="single-select-container" @click="open = !open">
-                                                    <input 
-                                                        type="text" 
+                                            }" class="searchable-dropdown-wrapper" wire:ignore>
+                                                <div class="single-select-container" @click.stop="toggleDropdown()">
+                                                    <input
+                                                        x-ref="searchInput"
+                                                        type="text"
                                                         x-model="search"
                                                         :placeholder="selected ? getSelectedName() : 'Search reference methods...'"
-                                                        @focus="open = true"
+                                                        @focus="openDropdown()"
+                                                        @click.stop="openDropdown()"
+                                                        @keydown.escape.window="closeDropdown()"
                                                         class="form-control searchable-input-single"
                                                         autocomplete="off"
                                                     >
                                                     <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
                                                 </div>
 
-                                                <div x-show="open" 
-                                                     @click.away="open = false"
+                                                <div x-show="open"
+                                                     @click.away="closeDropdown()"
+                                                     @click.stop
                                                      x-transition
                                                      class="dropdown-list">
                                                     <template x-if="filteredReferences.length > 0">
@@ -518,6 +537,10 @@
         }
 
         /* Single-Select Searchable Dropdown Styling */
+        .searchable-dropdown-wrapper {
+            position: relative;
+        }
+
         .searchable-input-single {
             border: none;
             outline: none;
@@ -554,6 +577,19 @@
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
     
+        .dropdown-list {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 1060;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+
         .options-list {
             padding: 8px;
             max-height: 300px;

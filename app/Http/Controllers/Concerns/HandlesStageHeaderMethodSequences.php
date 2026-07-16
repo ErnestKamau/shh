@@ -332,11 +332,6 @@ trait HandlesStageHeaderMethodSequences
             return;
         }
 
-        // Do not auto-create runs for users who cannot edit this lab section's work.
-        if (! app(LabSectionResultAccess::class)->canEditAllCapturedResults(Auth::user(), $capturedResults)) {
-            return;
-        }
-
         $run = \App\Models\StageHeaderRun::create([
             'stage_header_id' => $stageHeaderId,
             'user_id' => Auth::id(),
