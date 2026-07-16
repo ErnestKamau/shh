@@ -12,6 +12,7 @@ use App\LabSection;
 use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AmspecParametersImporter extends BaseImporter
 {
@@ -83,6 +84,16 @@ class AmspecParametersImporter extends BaseImporter
         $this->sampleTypeResolutionCache = [];
         $this->analysisTypeResolutionCache = [];
         $this->loggedResolutionKeys = [];
+    }
+
+    /**
+     * A rolled-back row may have created sample/analysis types that no longer exist in the
+     * database. Drop the resolution caches so later rows re-resolve instead of reusing phantom ids.
+     */
+    protected function onRowFailed(array $row, \Throwable $exception): void
+    {
+        $this->sampleTypeResolutionCache = [];
+        $this->analysisTypeResolutionCache = [];
     }
 
     /**
@@ -521,13 +532,14 @@ class AmspecParametersImporter extends BaseImporter
 
             if (! $labSection) {
                 try {
-                    $labSection = LabSection::create([
+                    // Savepoint keeps a failed insert from poisoning the row transaction (PostgreSQL).
+                    $labSection = DB::transaction(fn () => LabSection::create([
                         'code' => $sectionCode,
                         'company_id' => $this->batch->company_id,
                         'name' => $sectionName,
                         'lab_id' => $labId,
                         'active' => 1,
-                    ]);
+                    ]));
                     $labSectionId = $labSection->id;
                 } catch (\Exception $e) {
                     \Log::warning('Could not create lab section: '.$e->getMessage());
@@ -612,10 +624,11 @@ class AmspecParametersImporter extends BaseImporter
 
             if (!$existingAE) {
                 try {
-                    AnalysisElements::create(array_merge([
+                    // Savepoint keeps a failed insert from poisoning the row transaction (PostgreSQL).
+                    DB::transaction(fn () => AnalysisElements::create(array_merge([
                         'analysis_type_id' => $analysisType->id,
                         'analyte_id' => $analyte->id,
-                    ], $elementAttributes));
+                    ], $elementAttributes)));
                     $this->recordUpsert("{$transformedData['analysis_type_code']}/{$transformedData['analyte_code']}", 'inserted');
                     $hasImportedAny = true;
                 } catch (\Exception $e) {
@@ -623,10 +636,10 @@ class AmspecParametersImporter extends BaseImporter
                     try {
                         $fallback = $elementAttributes;
                         unset($fallback['lab_section_id']);
-                        AnalysisElements::create(array_merge([
+                        DB::transaction(fn () => AnalysisElements::create(array_merge([
                             'analysis_type_id' => $analysisType->id,
                             'analyte_id' => $analyte->id,
-                        ], $fallback));
+                        ], $fallback)));
                         $this->recordUpsert("{$transformedData['analysis_type_code']}/{$transformedData['analyte_code']}", 'inserted');
                         $hasImportedAny = true;
                     } catch (\Exception $e2) {

@@ -27,7 +27,7 @@
                                     <i class="mdi mdi-upload"></i> Post Results
                                 </button>
                             @endif
-                            <a href="{{ route('view-batch-details', ['batch' => $batch->id]) }}" class="btn btn-outline-secondary">
+                            <a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status]) }}" class="btn btn-outline-secondary">
                                 <i class="mdi mdi-arrow-left"></i> Back to Batch
                             </a>
                         </div>

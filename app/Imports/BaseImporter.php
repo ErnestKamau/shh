@@ -342,6 +342,7 @@ abstract class BaseImporter implements
                 } catch (\Throwable $e) {
                     \Log::error("Error processing row {$this->rowNumber}: " . $e->getMessage());
                     $this->batch->addError($this->rowNumber, $e->getMessage(), $rowData);
+                    $this->onRowFailed($rowData, $e);
                 }
             }
 
@@ -564,6 +565,15 @@ abstract class BaseImporter implements
      * Hook after import processing. Override in subclass if needed.
      */
     protected function afterImport(array $row, bool $success): void
+    {
+        // Override in subclass
+    }
+
+    /**
+     * Hook called when a row's transaction failed and was rolled back.
+     * Override to invalidate any caches holding models created inside the rolled-back transaction.
+     */
+    protected function onRowFailed(array $row, \Throwable $exception): void
     {
         // Override in subclass
     }
