@@ -453,18 +453,65 @@ class AmspecParametersImporter extends BaseImporter
         );
         $labId = $lab->id;
 
-        // 3. Process AnalysisType (only if we have the data)
+        // 3. Process AnalysisType (with code->name fallback diagnostics)
         if (!empty($transformedData['analysis_type_code']) && !empty($transformedData['analysis_type_name'])) {
-            $analysisType = AnalysisType::where('code', $transformedData['analysis_type_code'])
+            $analysisTypeCode = trim((string) $transformedData['analysis_type_code']);
+            $analysisTypeName = trim((string) $transformedData['analysis_type_name']);
+
+            $analysisType = AnalysisType::where('code', $analysisTypeCode)
                 ->where('sample_type_id', $sampleType->id)
                 ->where('company_id', $this->batch->company_id)
                 ->first();
 
-            if (!$analysisType) {
+            if (! $analysisType) {
+                $warning = "Row {$this->rowNumber}: analysis type code not found in current company/sample type ({$analysisTypeCode}). Trying analysis_type_name '{$analysisTypeName}'.";
+                $this->batch->addError($this->rowNumber, $warning, [
+                    'analysis_type_code' => $analysisTypeCode,
+                    'analysis_type_name' => $analysisTypeName,
+                    'sample_type_code' => $transformedData['sample_type_code'] ?? null,
+                    'sample_type_id' => $sampleType->id ?? null,
+                ]);
+                \Log::warning('AmSpec import analysis_type code miss; attempting name fallback', [
+                    'row' => $this->rowNumber,
+                    'batch_id' => $this->batch->id ?? null,
+                    'company_id' => $this->batch->company_id ?? null,
+                    'sample_type_code' => $transformedData['sample_type_code'] ?? null,
+                    'sample_type_id' => $sampleType->id ?? null,
+                    'analysis_type_code' => $analysisTypeCode,
+                    'analysis_type_name' => $analysisTypeName,
+                ]);
+
+                $analysisType = AnalysisType::whereRaw('LOWER(TRIM(name)) = ?', [strtolower($analysisTypeName)])
+                    ->where('sample_type_id', $sampleType->id)
+                    ->where('company_id', $this->batch->company_id)
+                    ->first();
+
+                if ($analysisType) {
+                    \Log::info('AmSpec import analysis_type matched by name fallback', [
+                        'row' => $this->rowNumber,
+                        'batch_id' => $this->batch->id ?? null,
+                        'analysis_type_id' => $analysisType->id,
+                        'analysis_type_code' => $analysisType->code,
+                        'analysis_type_name' => $analysisType->name,
+                    ]);
+                }
+            }
+
+            if (! $analysisType) {
+                \Log::warning('AmSpec import creating new analysis type after code/name miss', [
+                    'row' => $this->rowNumber,
+                    'batch_id' => $this->batch->id ?? null,
+                    'company_id' => $this->batch->company_id ?? null,
+                    'sample_type_id' => $sampleType->id ?? null,
+                    'analysis_type_code' => $analysisTypeCode,
+                    'analysis_type_name' => $analysisTypeName,
+                    'lab_id' => $labId,
+                ]);
+
                 $analysisType = AnalysisType::create([
-                    'code' => $transformedData['analysis_type_code'],
+                    'code' => $analysisTypeCode,
                     'company_id' => $this->batch->company_id,
-                    'name' => $transformedData['analysis_type_name'],
+                    'name' => $analysisTypeName,
                     'sample_type_id' => $sampleType->id,
                     'lab_id' => $labId,
                     'has_no_result' => 0,
@@ -480,6 +527,14 @@ class AmspecParametersImporter extends BaseImporter
                 ->first();
             
             if (!$analysisType) {
+                \Log::warning('AmSpec import row missing analysis type identifiers and no fallback type found', [
+                    'row' => $this->rowNumber,
+                    'batch_id' => $this->batch->id ?? null,
+                    'company_id' => $this->batch->company_id ?? null,
+                    'sample_type_id' => $sampleType->id ?? null,
+                    'analysis_type_code' => $transformedData['analysis_type_code'] ?? null,
+                    'analysis_type_name' => $transformedData['analysis_type_name'] ?? null,
+                ]);
                 // If no analysis type exists, we can't proceed with the rest
                 return $hasImportedAny;
             }
