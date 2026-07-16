@@ -7,6 +7,7 @@ use App\User;
 use App\UserLabRelation;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class PersonnelProfileService
 {
@@ -110,12 +111,14 @@ class PersonnelProfileService
             fn ($id): bool => (string) $id !== ''
         )));
 
-        UserLabRelation::where('user_id', $user->id)->delete();
-        foreach ($labIds as $labId) {
-            UserLabRelation::create([
-                'user_id' => $user->id,
-                'lab_id' => (string) $labId,
-            ]);
+        if (Schema::hasTable('user_lab_relation')) {
+            UserLabRelation::where('user_id', $user->id)->delete();
+            foreach ($labIds as $labId) {
+                UserLabRelation::create([
+                    'user_id' => $user->id,
+                    'lab_id' => (string) $labId,
+                ]);
+            }
         }
 
         if ($originalDepartment !== (string) ($user->department_id ?? '') || $originalPosition !== (string) ($user->position ?? '')) {

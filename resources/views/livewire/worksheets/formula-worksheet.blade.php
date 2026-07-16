@@ -246,7 +246,8 @@
                                                         wire:change="saveWorksheet('{{ $crId }}')"
                                                         value="1">
                                                 @else
-                                                    <input type="text" class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                    <input type="text" class="form-control form-control-sm fws-input text-center"
+                                                        placeholder="—"
                                                         wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.mandatory.{{ $fieldId }}"
                                                         wire:blur="saveWorksheet('{{ $crId }}')">
                                                 @endif
@@ -261,7 +262,8 @@
                                             @endphp
                                             <td class="align-middle">
                                                 @if(in_array($stepType, ['input', 'dataset']))
-                                                    <input type="text" class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                    <input type="text" class="form-control form-control-sm fws-input text-center"
+                                                        placeholder="—"
                                                         wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.steps.{{ $stepId }}"
                                                         wire:blur="saveWorksheet('{{ $crId }}')">
                                                 @elseif($stepType === 'checkbox')

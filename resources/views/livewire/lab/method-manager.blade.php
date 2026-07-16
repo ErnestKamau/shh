@@ -40,13 +40,13 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
                                 <input type="text" wire:model.live="search" class="form-control" placeholder="Search by name, code, or description...">
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Status</label>
                                 <div class="tag-select-container status-filter-container">
@@ -61,6 +61,17 @@
                             </div>
                         </div>
                         <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Method Type</label>
+                                <select wire:model.live="methodTypeFilter" class="form-control tag-select-native no-select2">
+                                    <option value="">All Types</option>
+                                    @foreach($methodTypes as $type)
+                                        <option value="{{ $type->id }}">{{ $type->value }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
                             <div class="form-group mb-3">
                                 <label for="perPage" class="form-label fw-bold">Show</label>
                                 <div class="tag-select-container show-filter-container">
@@ -232,6 +243,20 @@
                                           placeholder="Description..."></textarea>
                                 @error('methodForm.description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">
+                                    Method Type <span class="text-danger">*</span>
+                                </label>
+                                <select wire:model.live="methodForm.method_type_id"
+                                        class="form-control livewire-select2 @error('methodForm.method_type_id') is-invalid @enderror">
+                                    <option value="">Select method type...</option>
+                                    @foreach($methodTypes as $type)
+                                        <option value="{{ $type->id }}">{{ $type->value }}</option>
+                                    @endforeach
+                                </select>
+                                @error('methodForm.method_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            </div>
                             
                             <div class="row">
                                 <div class="col-md-6">
@@ -254,7 +279,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">QC Schemes (method binding)</label>
-                                        <select wire:model.live="methodForm.qc_scheme_ids" multiple class="form-control livewire-select2 @error('methodForm.qc_scheme_ids') is-invalid @enderror" style="min-height: 90px;">
+                                        <select wire:model.live="methodForm.qc_scheme_ids" multiple class="form-control livewire-select2 @error('methodForm.qc_scheme_ids') is-invalid @enderror" data-placeholder="Select QC schemes...">
                                             @foreach($qcSchemes as $scheme)
                                                 <option value="{{ $scheme->id }}">{{ $scheme->name }} ({{ $scheme->code }})</option>
                                             @endforeach
@@ -322,7 +347,7 @@
                                 </div>
                             </div>
                             <div class="row">
-                                @if($methodForm['method_type_id'] == $ltmMethodTypeId)
+                                @if((string) ($methodForm['method_type_id'] ?? '') === (string) ($ltmMethodTypeId ?? ''))
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold"><i class="mdi mdi-book-open-variant text-info"></i> Reference Method</label>
@@ -465,11 +490,38 @@
     
     <script>
         document.addEventListener('livewire:init', () => {
+            const initMethodModalSelect2 = () => {
+                if (!$.fn.select2) {
+                    return;
+                }
+
+                const $modal = $('.modal.show');
+                if (!$modal.length) {
+                    return;
+                }
+
+                $modal.find('select.livewire-select2').each(function() {
+                    const $el = $(this);
+
+                    if ($el.data('select2')) {
+                        $el.select2('destroy');
+                    }
+
+                    $el.select2({
+                        placeholder: $el.data('placeholder') || $el.attr('placeholder') || 'Select an option',
+                        width: '100%',
+                        allowClear: !$el.prop('multiple'),
+                        dropdownParent: $modal,
+                    });
+                });
+            };
+
             Livewire.on('method-modal-opened', () => {
                 document.body.classList.add('modal-open');
                 document.body.style.overflow = 'hidden';
+                setTimeout(initMethodModalSelect2, 50);
             });
-            
+
             Livewire.on('method-modal-closed', () => {
                 document.body.classList.remove('modal-open');
                 document.body.style.overflow = '';

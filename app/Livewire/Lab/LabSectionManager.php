@@ -1070,7 +1070,7 @@ class LabSectionManager extends Component
             $query->where('name', 'like', '%' . $this->verifierUserSearch . '%');
         }
 
-        return $query->orderBy('name')->limit(10)->get();
+        return $query->orderBy('name')->get();
     }
 
     public function getSelectedVerifierUserProperty()

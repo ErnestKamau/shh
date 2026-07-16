@@ -8,7 +8,9 @@ use App\Models\Equipments\Equipment;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\QcSchemeBinding;
 use App\Models\System\SystemConfiguration;
+use App\Models\System\SystemConfigurationsType;
 use App\SampleType;
+use App\Services\Lab\MethodConfigurationResolver;
 use App\Standards;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -81,8 +83,8 @@ class MethodManager extends Component
             'methodForm.name' => 'required|string|max:255',
             'methodForm.code' => 'required|string|max:255',
             'methodForm.description' => 'required|string',
-            'methodForm.method_type_id' => 'nullable|integer',
-            'methodForm.reference_type_id' => 'nullable|integer',
+            'methodForm.method_type_id' => ['required', Rule::exists('system_configurations', 'id')],
+            'methodForm.reference_type_id' => ['nullable', 'string', Rule::exists('analysis_methods', 'id')],
             'methodForm.based_on_standard_id' => ['nullable', 'string', Rule::exists('standards', 'id')],
             'methodForm.qc_scheme_ids' => ['array'],
             'methodForm.qc_scheme_ids.*' => ['string', Rule::exists('qc_scheme', 'id')],
@@ -111,19 +113,39 @@ class MethodManager extends Component
 
     protected function loadStaticData(): void
     {
-        // Load method types from system configuration
-        $this->methodTypes = SystemConfiguration::where('key', 'method_type')->get();
-        
-        // Get LTM method type ID
-        $ltmConfig = SystemConfiguration::where('key', 'method_ltm_id')->first();
-        $this->ltmMethodTypeId = $ltmConfig ? $ltmConfig->value : null;
-        
-        // Load reference methods
-        $referenceConfig = SystemConfiguration::where('key', 'method_reference_id')->first();
-        if ($referenceConfig) {
-            $this->referenceMethods = AnalysisMethod::where('method_type_id', $referenceConfig->value)
+        $resolver = app(MethodConfigurationResolver::class);
+        $resolver->ensurePointerConfigurations();
+
+        $methodTypeConfig = SystemConfigurationsType::query()
+            ->whereIn('configuration_type', ['Method Types', 'Methods Types'])
+            ->first();
+
+        $this->methodTypes = $methodTypeConfig
+            ? SystemConfiguration::query()
+                ->where('configuration_type_id', $methodTypeConfig->id)
+                ->where('key', 'method_type')
+                ->orderBy('value')
+                ->get()
+            : collect();
+
+        $this->ltmMethodTypeId = $resolver->resolvePointerConfigValue('method_ltm_id');
+
+        $referenceTypeId = $resolver->resolvePointerConfigValue('method_reference_id');
+        if ($referenceTypeId) {
+            $this->referenceMethods = AnalysisMethod::query()
+                ->where('method_type_id', $referenceTypeId)
                 ->where('active', 1)
+                ->orderBy('name')
                 ->get();
+        } else {
+            $this->referenceMethods = collect();
+        }
+    }
+
+    public function updatedMethodFormMethodTypeId(): void
+    {
+        if (! app(MethodConfigurationResolver::class)->isLaboratoryTestTypeId($this->methodForm['method_type_id'] ?? null)) {
+            $this->methodForm['reference_type_id'] = '';
         }
     }
 
@@ -180,6 +202,7 @@ class MethodManager extends Component
         $this->methodForm['qc_condition_equipment_id'] = '';
         $this->methodForm['qc_condition_crm_customer_id'] = '';
         $this->methodForm['qc_condition_sample_type_id'] = '';
+        $this->loadStaticData();
         $this->showMethodModal = true;
         $this->dispatch('method-modal-opened');
     }
@@ -201,8 +224,8 @@ class MethodManager extends Component
                 'name' => $this->editingMethod->name,
                 'code' => $this->editingMethod->code,
                 'description' => $this->editingMethod->description,
-                'method_type_id' => $this->editingMethod->method_type_id,
-                'reference_type_id' => $this->editingMethod->reference_type_id,
+                'method_type_id' => (string) ($this->editingMethod->method_type_id ?? ''),
+                'reference_type_id' => (string) ($this->editingMethod->reference_type_id ?? ''),
                 'based_on_standard_id' => (string) ($this->editingMethod->based_on_standard_id ?? ''),
                 'qc_scheme_ids' => $this->editingMethod->qcSchemes
                     ->pluck('id')
@@ -216,7 +239,8 @@ class MethodManager extends Component
                 'qc_condition_sample_type_id' => (string) ($conditions['sample_type_id'] ?? ''),
                 'active' => (bool) $this->editingMethod->active,
             ];
-            
+
+            $this->loadStaticData();
             $this->showMethodModal = true;
             $this->dispatch('method-modal-opened');
         }
@@ -229,14 +253,23 @@ class MethodManager extends Component
         try {
             DB::beginTransaction();
 
+            $resolver = app(MethodConfigurationResolver::class);
+            $methodTypeId = (string) $this->methodForm['method_type_id'];
+            $flags = $resolver->legacyFlagsForTypeId($methodTypeId);
+            $referenceTypeId = $resolver->isLaboratoryTestTypeId($methodTypeId)
+                ? ($this->methodForm['reference_type_id'] ?: null)
+                : null;
+
             $data = [
                 'name' => $this->methodForm['name'],
                 'code' => $this->methodForm['code'],
                 'description' => $this->methodForm['description'],
-                'method_type_id' => $this->methodForm['method_type_id'] ?: null,
-                'reference_type_id' => $this->methodForm['reference_type_id'] ?: null,
+                'method_type_id' => $methodTypeId,
+                'reference_type_id' => $referenceTypeId,
                 'based_on_standard_id' => $this->methodForm['based_on_standard_id'] ?: null,
                 'active' => $this->methodForm['active'] ? 1 : 0,
+                'is_ltm' => $flags['is_ltm'],
+                'is_sampling_method' => $flags['is_sampling_method'],
                 'company_id' => getUserCompany(),
             ];
 
@@ -361,4 +394,3 @@ class MethodManager extends Component
         ]);
     }
 }
-

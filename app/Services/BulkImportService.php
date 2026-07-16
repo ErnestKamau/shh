@@ -29,6 +29,7 @@ class BulkImportService
                     'sample_condition' => 'Sample Condition',
                     'lab_hierarchy' => 'Unified Lab Hierarchy (Sample Type -> Analysis Type -> Analysis Elements -> Analytes & Standards)',
                     'amspec_parameters' => 'Amspec Parameters (Sample Types, Analysis Types, Parameters)',
+                    'analysis_method' => 'Analysis Methods (Reference + Laboratory Test)',
                 ],
             ],
             'equipment' => [
@@ -109,6 +110,11 @@ class BulkImportService
                     ->purgeForCompany((string) $batch->company_id);
             }
 
+            if ($replaceExisting && $batch->module === 'lab' && $batch->form_type === 'analysis_method') {
+                $purgeSummary = app(\App\Services\Lab\AnalysisMethodPurgeService::class)
+                    ->purgeForCompany((string) $batch->company_id);
+            }
+
             $importerClass = $this->getImporterClass($batch->module, $batch->form_type);
             
             if (!class_exists($importerClass)) {
@@ -177,6 +183,7 @@ class BulkImportService
                 'sample_condition' => 'App\Imports\Lab\SampleConditionImporter',
                 'lab_hierarchy' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
                 'amspec_parameters' => 'App\Imports\Lab\AmspecParametersImporter',
+                'analysis_method' => 'App\Imports\Lab\AnalysisMethodImporter',
             ],
             'equipment' => [
                 'asset_type' => 'App\Imports\Equipment\AssetTypeImporter',

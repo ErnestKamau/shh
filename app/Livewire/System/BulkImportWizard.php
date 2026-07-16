@@ -51,6 +51,8 @@ class BulkImportWizard extends Component
     public function selectFormType(string $formType): void
     {
         $this->selectedFormType = $formType;
+        $this->replaceExisting = $formType === 'analysis_method';
+        $this->purgeConfirmation = '';
         $this->currentStep = 3;
         $this->message = '';
     }
@@ -82,9 +84,7 @@ class BulkImportWizard extends Component
 
     public function uploadFile(): void
     {
-        $rules = [
-            'uploadedFile' => 'required|file|mimes:xlsx,xls,csv|max:5120',
-        ];
+        $rules = [];
 
         if ($this->selectedFormType === 'lab_hierarchy' && $this->replaceExisting) {
             $companyName = $this->resolveCompanyName();
@@ -95,8 +95,22 @@ class BulkImportWizard extends Component
             ];
         }
 
+        if ($this->selectedFormType === 'analysis_method' && $this->replaceExisting) {
+            $companyName = $this->resolveCompanyName();
+            $rules['purgeConfirmation'] = [
+                'required',
+                'string',
+                Rule::in(['DELETE ALL METHODS', $companyName]),
+            ];
+        }
+
+        $maxUploadKilobytes = $this->selectedFormType === 'analysis_method' ? 15360 : 5120;
+        $rules['uploadedFile'] = 'required|file|mimes:xlsx,xls,csv|max:'.$maxUploadKilobytes;
+
         $this->validate($rules, [
-            'purgeConfirmation.in' => 'Type DELETE ALL LAB DATA or your company name exactly to confirm.',
+            'purgeConfirmation.in' => $this->selectedFormType === 'analysis_method'
+                ? 'Type DELETE ALL METHODS or your company name exactly to confirm.'
+                : 'Type DELETE ALL LAB DATA or your company name exactly to confirm.',
         ]);
 
         try {
@@ -105,11 +119,13 @@ class BulkImportWizard extends Component
                 $this->selectedFormType
             );
 
+            $shouldReplaceExisting = $this->replaceExisting && in_array($this->selectedFormType, ['lab_hierarchy', 'analysis_method'], true);
+
             $results = $this->bulkImportService()->processImport(
                 $this->currentBatch,
                 $this->uploadedFile,
                 $this->selectedZoneId,
-                $this->selectedFormType === 'lab_hierarchy' && $this->replaceExisting
+                $shouldReplaceExisting
             );
 
             if ($results['success']) {

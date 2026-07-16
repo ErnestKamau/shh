@@ -6,7 +6,9 @@ use App\AnalysisElements;
 use App\AnalysisType;
 use App\Lab;
 use App\Models\SampleSubmissionRequest;
+use App\Models\SampleSubmissionRequestRequestedAnalysis;
 use App\Models\SubmissionFormInstance;
+use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\SampleAnalysisStage;
 use App\SampleCondition;
 use App\SampleType;
@@ -125,8 +127,10 @@ class AcceptanceFormSampleConfigService
     public function buildPrefillLinesFromEnquiry(
         SampleSubmissionRequest $enquiry,
         array $quotationLines = [],
+        ?SubmissionFormInstance $instance = null,
     ): array {
-        $sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        // Linked TRF instance is the source of truth for requested samples/tests.
+        $sampleLines = $this->resolveTrfSampleLines($enquiry, $instance);
 
         if ($sampleLines !== []) {
             return $this->buildPrefillLinesFromTrfSampleLines($enquiry, $sampleLines, $quotationLines);
@@ -137,6 +141,26 @@ class AcceptanceFormSampleConfigService
         }
 
         return [];
+    }
+
+    /**
+     * Resolve sample lines from the linked TRF instance when present; otherwise enquiry sample_lines.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function resolveTrfSampleLines(
+        SampleSubmissionRequest $enquiry,
+        ?SubmissionFormInstance $instance = null,
+    ): array {
+        $instance ??= $enquiry->submissionFormInstance;
+        if ($instance !== null) {
+            $fromInstance = app(SubmissionRequestSampleLineService::class)->linesForInstance($instance);
+            if ($fromInstance !== []) {
+                return $fromInstance;
+            }
+        }
+
+        return is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
     }
 
     /**
@@ -483,6 +507,168 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * Merge requested-analysis element ids onto sample configs so Process Enquiry
+     * step 2 pre-selects the same parameters shown in step 1.
+     *
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array<string, mixed>>
+     */
+    public function applyRequestedParameterKeysFromEnquiry(array $configs, SampleSubmissionRequest $enquiry): array
+    {
+        $enquiry->loadMissing(['requestedAnalyses', 'submissionFormInstance']);
+
+        if ($configs === []) {
+            return $configs;
+        }
+
+        $trfLines = $this->resolveTrfSampleLines($enquiry);
+        $trfIdsByTypeKey = $this->elementIdsByTypeKeyFromSampleLines($trfLines);
+        $allTrfIds = $this->flattenElementIdsFromSampleLines($trfLines);
+
+        $byTypeKey = $enquiry->requestedAnalyses->groupBy(
+            fn (SampleSubmissionRequestRequestedAnalysis $analysis): string => $this->configGroupingKey(
+                $analysis->sample_type_id ? (string) $analysis->sample_type_id : null,
+                $analysis->analysis_type_id ? (string) $analysis->analysis_type_id : null,
+            )
+        );
+
+        $allRequestedIds = $this->resolveElementIdsFromRequestedAnalyses(
+            $enquiry->requestedAnalyses->all(),
+            '',
+        );
+
+        $labelHints = $this->parameterLabelHintsFromEnquiry($enquiry);
+
+        return array_values(array_map(function (array $config) use (
+            $byTypeKey,
+            $allRequestedIds,
+            $allTrfIds,
+            $trfIdsByTypeKey,
+            $labelHints,
+            $configs,
+        ): array {
+            $existingKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '')
+                ->values()
+                ->all();
+
+            // Preserve intentional lab selections; only fill empty keys from TRF.
+            if ($existingKeys !== []) {
+                return $config;
+            }
+
+            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            $typeKey = $this->configGroupingKey(
+                $config['sample_type_id'] ?? null,
+                $config['analysis_type_id'] ?? null,
+            );
+
+            $requestedIds = $trfIdsByTypeKey[$typeKey] ?? [];
+            if ($requestedIds !== []) {
+                $requestedIds = $this->resolveElementIdsForAnalysisType($requestedIds, $analysisTypeId);
+            }
+
+            if ($requestedIds === [] && count($configs) === 1 && $allTrfIds !== []) {
+                $requestedIds = $this->resolveElementIdsForAnalysisType($allTrfIds, $analysisTypeId);
+            }
+
+            if ($requestedIds === [] && $byTypeKey->has($typeKey)) {
+                $requestedIds = $this->resolveElementIdsFromRequestedAnalyses(
+                    $byTypeKey->get($typeKey)->all(),
+                    $analysisTypeId,
+                );
+            }
+
+            if ($requestedIds === [] && count($configs) === 1 && $allRequestedIds !== []) {
+                $requestedIds = $this->resolveElementIdsForAnalysisType($allRequestedIds, $analysisTypeId);
+            }
+
+            if ($requestedIds === []) {
+                foreach (array_unique(array_filter(array_values($labelHints))) as $label) {
+                    $resolved = $this->resolveSingleElementId($label, $analysisTypeId);
+                    if ($resolved !== null) {
+                        $requestedIds[] = $resolved;
+                    }
+                }
+            }
+
+            $config['parameter_keys'] = array_values(array_unique($requestedIds));
+
+            return $config;
+        }, $configs));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @return array<string, list<string>>
+     */
+    private function elementIdsByTypeKeyFromSampleLines(array $sampleLines): array
+    {
+        $byTypeKey = [];
+
+        foreach ($sampleLines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $typeKey = $this->configGroupingKey(
+                $line['sample_type_id'] ?? null,
+                $line['analysis_type_id'] ?? null,
+            );
+            $ids = $this->extractElementIdsFromSampleLine($line);
+            if ($ids === []) {
+                continue;
+            }
+
+            $byTypeKey[$typeKey] = array_values(array_unique(array_merge(
+                $byTypeKey[$typeKey] ?? [],
+                $ids,
+            )));
+        }
+
+        return $byTypeKey;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @return list<string>
+     */
+    private function flattenElementIdsFromSampleLines(array $sampleLines): array
+    {
+        $ids = [];
+        foreach ($sampleLines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+            $ids = array_merge($ids, $this->extractElementIdsFromSampleLine($line));
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function extractElementIdsFromSampleLine(array $line): array
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $fromAttributes = $attributes['analysis_element_ids'] ?? [];
+
+        if (is_array($fromAttributes) && $fromAttributes !== []) {
+            return array_values(array_filter(array_map(
+                static fn (mixed $id): string => trim((string) $id),
+                $fromAttributes,
+            )));
+        }
+
+        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+
+        return $elementId !== '' ? [$elementId] : [];
+    }
+
+    /**
      * @param  array<string, mixed>  $config
      * @return array<string, mixed>
      */
@@ -575,18 +761,13 @@ class AcceptanceFormSampleConfigService
             }
         }
 
-        foreach (is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [] as $line) {
+        foreach ($this->resolveTrfSampleLines($enquiry) as $line) {
             if (! is_array($line)) {
                 continue;
             }
 
             $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
-            $elementIds = is_array($attributes['analysis_element_ids'] ?? null)
-                ? array_values(array_filter(array_map('strval', $attributes['analysis_element_ids'])))
-                : [];
-            if ($elementIds === [] && ! empty($line['analysis_element_id'])) {
-                $elementIds = [(string) $line['analysis_element_id']];
-            }
+            $elementIds = $this->extractElementIdsFromSampleLine($line);
 
             $labelTokens = [];
             foreach ([$line['parameter_label'] ?? null, $attributes['parameters'] ?? null] as $raw) {
@@ -1470,13 +1651,17 @@ class AcceptanceFormSampleConfigService
                 : [];
 
             if ($elementIds === [] && $parametersByTypeKey->has($typeKey)) {
-                $elementIds = $parametersByTypeKey->get($typeKey)
-                    ->pluck('analysis_element_id')
-                    ->filter()
-                    ->map(fn ($id): string => (string) $id)
-                    ->unique()
-                    ->values()
-                    ->all();
+                $elementIds = $this->resolveElementIdsFromRequestedAnalyses(
+                    $parametersByTypeKey->get($typeKey)->all(),
+                    (string) ($analysisTypeId ?? ''),
+                );
+            }
+
+            if ($elementIds === [] && count($sampleLines) === 1 && $enquiry->requestedAnalyses->isNotEmpty()) {
+                $elementIds = $this->resolveElementIdsFromRequestedAnalyses(
+                    $enquiry->requestedAnalyses->all(),
+                    (string) ($analysisTypeId ?? ''),
+                );
             }
 
             if ($elementIds === [] && count($sampleLines) === 1 && $quotationLines !== []) {
@@ -1650,6 +1835,50 @@ class AcceptanceFormSampleConfigService
         }
 
         return $configs;
+    }
+
+    /**
+     * @param  list<SampleSubmissionRequestRequestedAnalysis>  $analyses
+     * @return list<string>
+     */
+    private function resolveElementIdsFromRequestedAnalyses(array $analyses, string $analysisTypeId): array
+    {
+        $ids = [];
+
+        foreach ($analyses as $analysis) {
+            $elementId = trim((string) ($analysis->analysis_element_id ?? ''));
+            if ($elementId === '') {
+                $elementId = trim((string) ($analysis->analysis_key ?? ''));
+            }
+
+            if ($elementId !== '') {
+                $resolved = $this->resolveSingleElementId($elementId, $analysisTypeId);
+                if ($resolved !== null) {
+                    $ids[] = $resolved;
+
+                    continue;
+                }
+            }
+
+            $label = trim((string) ($analysis->analysis_label ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            foreach (preg_split('/\s*,\s*/', $label) ?: [] as $token) {
+                $token = trim((string) $token);
+                if ($token === '') {
+                    continue;
+                }
+
+                $resolved = $this->resolveSingleElementId($token, $analysisTypeId);
+                if ($resolved !== null) {
+                    $ids[] = $resolved;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**

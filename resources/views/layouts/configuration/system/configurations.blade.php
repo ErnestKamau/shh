@@ -139,10 +139,7 @@
                                     <input type="text" name="value" value=""  placeholder="{{ __('system.configuration_value') }}" class="form-control" required>
                                 </div>
                                 @endif
-                                <div class="form-group hidden">
-                                    <label class="control-label">{{ __('system.config_id') }}</label>
-                                    <input type="number" name="config_id" value="{{$configuration->id}}" class="form-control">
-                                </div>
+                                <input type="hidden" name="config_id" value="{{ $configuration->id }}">
                             </div>
                             <div class="modal-footer">
                                 <button type="submit" class="btn btn-outline-primary"> <i class="mdi mdi-content-save"></i> {{ __('system.save') }}</button>

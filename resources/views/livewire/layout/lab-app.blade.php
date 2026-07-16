@@ -1,4 +1,6 @@
-@extends('layouts.lab.layout.app')
+@extends('layouts.lab.layout.app', [
+    'select2' => in_array($componentType ?? '', ['methods'], true),
+])
 
 @section('title2')
 <title>{{ $pageTitle ?? 'Lab Management' }}</title>
