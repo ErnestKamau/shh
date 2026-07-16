@@ -614,6 +614,7 @@ Route::get('/method-sequences/tracks/{track}/edit-data', 'SampleWorkFlowControll
 Route::get('/method-sequence-runs/tracks/{track}/solution-results', 'SampleWorkFlowController@getSolutionResultsForStep6')->name('method-sequence-runs.solution-results')->middleware('auth');
 Route::get('/method-sequence-runs/tracks/{track}/sample-results', 'SampleWorkFlowController@getSampleResultsForStep6')->name('method-sequence-runs.sample-results')->middleware('auth');
 Route::post('/method-sequence-runs/tracks/{track}/step6-remark', 'SampleWorkFlowController@calculateStep6SampleRemark')->name('method-sequence-runs.step6-remark')->middleware('auth');
+Route::post('/method-sequence-runs/tracks/{track}/step6-standard-limit', 'SampleWorkFlowController@updateStep6TrackStandardLimit')->name('method-sequence-runs.step6-standard-limit')->middleware('auth');
 // Temporary design route for procedure worksheet PDF template preview.
 Route::get(
     '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',

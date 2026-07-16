@@ -268,7 +268,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Binding Mode</label>
-                                        <select wire:model="methodForm.qc_scheme_mode" class="form-control no-select2">
+                                        <select wire:model="methodForm.qc_scheme_mode" class="form-control livewire-select2">
                                             <option value="override">Override</option>
                                             <option value="merge">Merge</option>
                                             <option value="additive">Additive</option>

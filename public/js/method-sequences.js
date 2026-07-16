@@ -99,6 +99,14 @@
         renderSequenceInfo: function(sh) {
             // Calculate total duration
             const totalHours = sh.stages_count * 24; // Assuming average, or calculate from actual stages
+            const canEdit = sh.can_edit === true;
+            const createRunButton = canEdit
+                ? `<button class="btn btn-primary create-run-btn" data-stage-header-id="${sh.id}">
+                                <i class="mdi mdi-plus"></i> Create Run
+                            </button>`
+                : `<span class="badge badge-light border text-muted" title="You can view this sequence but only your assigned lab section can create runs or start stages.">
+                                <i class="mdi mdi-eye-outline"></i> View only
+                            </span>`;
             
             return `
                 <div class="sequence-info-card-modern">
@@ -135,9 +143,7 @@
                             </div>
                         </div>
                         <div class="mt-2 mt-md-0 ml-md-auto">
-                            <button class="btn btn-primary create-run-btn" data-stage-header-id="${sh.id}">
-                                <i class="mdi mdi-plus"></i> Create Run
-                            </button>
+                            ${createRunButton}
                         </div>
                     </div>
                 </div>
@@ -154,6 +160,8 @@
 
             console.log('[METHOD-SEQUENCES] bindEvents() called');
 
+            this.initEditStandardLimitModal();
+
             $(document).off('.methodSequences');
             
             // Tab switch
@@ -166,6 +174,10 @@
             // Create run button
             $(document).on('click.methodSequences', '.create-run-btn', function() {
                 const stageHeaderId = $(this).data('stage-header-id');
+                if (!self.canEditStageHeader(stageHeaderId)) {
+                    toastr.error('You can only create runs for your assigned lab section(s).');
+                    return;
+                }
                 self.showCreateRunModal(stageHeaderId);
             });
             
@@ -185,18 +197,30 @@
             // Start stage
             $(document).on('click.methodSequences', '.start-stage-btn', function() {
                 const trackId = $(this).data('track-id');
+                if (!self.canEditActiveStageHeader()) {
+                    toastr.error('You can only start stages for your assigned lab section(s).');
+                    return;
+                }
                 self.startStage(trackId);
             });
             
             // End stage
             $(document).on('click.methodSequences', '.end-stage-btn', function() {
                 const trackId = $(this).data('track-id');
+                if (!self.canEditActiveStageHeader()) {
+                    toastr.error('You can only end stages for your assigned lab section(s).');
+                    return;
+                }
                 self.endStage(trackId);
             });
             
             // Edit stage
             $(document).on('click.methodSequences', '.edit-stage-btn', function() {
                 const trackId = $(this).data('track-id');
+                if (!self.canEditActiveStageHeader()) {
+                    toastr.error('You can only edit stages for your assigned lab section(s).');
+                    return;
+                }
                 self.showEditStageModal(trackId);
             });
             
@@ -291,7 +315,7 @@
                 const capturedResultId = $input.data('captured-result-id');
                 const trackId = $input.data('track-id');
                 const result = $input.val();
-                const standardLimit = $input.data('standard-limit') || null;
+                const standardLimit = self.getStep6StandardLimit($row);
 
                 if (!capturedResultId || !trackId) {
                     console.warn('Missing required data attributes for remark calculation');
@@ -318,7 +342,7 @@
                 // Get the current result value
                 const $resultInput = $row.find('.sample-result-input');
                 const result = $resultInput.val();
-                const standardLimit = $resultInput.data('standard-limit') || null;
+                const standardLimit = self.getStep6StandardLimit($row);
 
                 if (!capturedResultId || !trackId || !result) {
                     return; // Don't recalculate if no result entered yet
@@ -961,7 +985,10 @@
             const container = $(`#runs-${stageHeaderId}`);
             
             if (runs.length === 0) {
-                container.html('<div class="alert alert-info">No runs created yet. Click "Create Run" to get started.</div>');
+                const emptyMessage = this.canEditStageHeader(stageHeaderId)
+                    ? 'No runs created yet. Click "Create Run" to get started.'
+                    : 'No runs created yet. Only analysts from the assigned lab section can create runs.';
+                container.html(`<div class="alert alert-info">${emptyMessage}</div>`);
                 return;
             }
             
@@ -1339,6 +1366,17 @@
         },
         
         renderStageActions: function(track) {
+            const canEdit = this.canEditActiveStageHeader();
+            const toggleDetails = `
+                    <button class="btn btn-sm btn-outline-secondary toggle-stage-details" data-track-id="${track.id}">
+                        <i class="mdi mdi-chevron-down"></i>
+                    </button>
+                `;
+
+            if (!canEdit) {
+                return toggleDetails;
+            }
+
             if (track.status === 'pending') {
                 return `
                     <button class="btn btn-sm btn-success start-stage-btn" data-track-id="${track.id}">
@@ -1347,9 +1385,7 @@
                     <button class="btn btn-sm btn-outline-primary edit-stage-btn" data-track-id="${track.id}">
                         <i class="mdi mdi-pencil"></i> Edit
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary toggle-stage-details" data-track-id="${track.id}">
-                        <i class="mdi mdi-chevron-down"></i>
-                    </button>
+                    ${toggleDetails}
                 `;
             } else if (track.status === 'running') {
                 return `
@@ -1359,17 +1395,23 @@
                     <button class="btn btn-sm btn-outline-primary edit-stage-btn" data-track-id="${track.id}">
                         <i class="mdi mdi-pencil"></i> Edit
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary toggle-stage-details" data-track-id="${track.id}">
-                        <i class="mdi mdi-chevron-down"></i>
-                    </button>
+                    ${toggleDetails}
                 `;
             } else {
-                return `
-                    <button class="btn btn-sm btn-outline-secondary toggle-stage-details" data-track-id="${track.id}">
-                        <i class="mdi mdi-chevron-down"></i>
-                    </button>
-                `;
+                return toggleDetails;
             }
+        },
+
+        canEditStageHeader: function(stageHeaderId) {
+            const stageHeader = (this.stageHeaders || []).find(function(sh) {
+                return String(sh.id) === String(stageHeaderId);
+            });
+
+            return !!(stageHeader && stageHeader.can_edit === true);
+        },
+
+        canEditActiveStageHeader: function() {
+            return this.canEditStageHeader(this.activeStageHeaderId);
         },
         
         renderStageDetails: function(track) {
@@ -1927,6 +1969,11 @@
         saveRun: function() {
             const self = this;
             console.log('[METHOD-SEQUENCES] saveRun() called');
+            const stageHeaderId = $('#run-stage-header-id').val();
+            if (!this.canEditStageHeader(stageHeaderId)) {
+                toastr.error('You can only create runs for your assigned lab section(s).');
+                return;
+            }
             const currentIds = $('#run-samples-select').val() || [];
             const otherIds = $('#run-other-samples-select').val() || [];
             const allSampleIds = [...currentIds, ...otherIds];
@@ -2964,6 +3011,10 @@
         },
 
         isTrackLocked: function(track) {
+            if (!this.canEditActiveStageHeader()) {
+                return true;
+            }
+
             return track && (track.status === 'completed' || !!track.ended_at);
         },
         
@@ -3734,10 +3785,323 @@
                 method: 'GET',
                 success: function(response) {
                     sampleContainer.html(response);
+                    self.applyStep6ViewOnlyState(trackId);
                 },
                 error: function() {
                     sampleContainer.html('<div class="alert alert-warning"><i class="mdi mdi-alert-circle"></i> Error loading sample results</div>');
                 }
+            });
+        },
+
+        getStep6StandardLimit: function($row) {
+            const hiddenValue = $row.find('.step6-standard-limit-value').val();
+            if (hiddenValue !== undefined && hiddenValue !== null && String(hiddenValue).trim() !== '') {
+                return String(hiddenValue).trim();
+            }
+
+            const textValue = $row.find('.standard-limit-text').text().trim();
+            if (textValue && textValue !== '-') {
+                return textValue;
+            }
+
+            const inputValue = $row.find('.sample-result-input').data('standard-limit');
+            return inputValue || null;
+        },
+
+        setStep6StandardLimit: function($row, standardLimit) {
+            const value = standardLimit || '';
+            $row.find('.standard-limit-text').text(value || '-');
+            $row.find('.step6-standard-limit-value').val(value);
+            $row.find('.sample-result-input').data('standard-limit', value).attr('data-standard-limit', value);
+        },
+
+        applyStep6ViewOnlyState: function(trackId) {
+            if (this.canEditActiveStageHeader()) {
+                return;
+            }
+
+            const $container = $(`#sample-results-container-${trackId}`);
+            $container.find('.step6-edit-standard-btn').remove();
+            $container.find('.sample-result-input, .reporting-symbol-select, .sample-remark-dropdown').prop('disabled', true);
+        },
+
+        initEditStandardLimitModal: function() {
+            const self = this;
+
+            if (this.editStandardModalInitialized) {
+                return;
+            }
+            this.editStandardModalInitialized = true;
+
+            const syncEditStandardModalSections = function() {
+                const valueType = $('#edit-standard-form input[name="value_type"]:checked').val() || 'use_value';
+                const isRange = valueType === 'range';
+                $('#esl-range-section').toggle(isRange);
+                $('#esl-use-value-section').toggle(!isRange);
+
+                const selectedCode = $('#esl_standard_value_id option:selected').data('code') || '';
+                const showIsValueFields = !isRange && selectedCode === 'IsValue';
+                $('#esl-is-value-fields').toggle(showIsValueFields);
+
+                if (!showIsValueFields) {
+                    $('#esl_matrix_operator').val('');
+                    $('#esl_matrix_value').val('');
+                }
+            };
+
+            const resetEditStandardFormFields = function() {
+                $('#esl_value_type_use_value').prop('checked', true);
+                $('#esl_range_low').val('');
+                $('#esl_range_high').val('');
+                $('#esl_standard_value_id').val('');
+                $('#esl_matrix_operator').val('');
+                $('#esl_matrix_value').val('');
+                syncEditStandardModalSections();
+            };
+
+            const populateEditStandardForm = function(existingText) {
+                resetEditStandardFormFields();
+
+                if (!existingText || existingText === 'No limit set' || existingText === '-') {
+                    return;
+                }
+
+                const typedMatch = existingText.match(/^(min|max)\s+(\d+(?:\.\d+)?)$/i);
+                if (typedMatch) {
+                    $('#esl_value_type_use_value').prop('checked', true);
+                    const isValueOption = $('#esl_standard_value_id option').filter(function () {
+                        return String($(this).data('code')) === 'IsValue';
+                    }).first();
+                    if (isValueOption.length) {
+                        $('#esl_standard_value_id').val(isValueOption.val());
+                    }
+                    $('#esl_matrix_operator').val(typedMatch[1].toLowerCase());
+                    $('#esl_matrix_value').val(typedMatch[2]);
+                    syncEditStandardModalSections();
+                    return;
+                }
+
+                const reversedMatch = existingText.match(/^(\d+(?:\.\d+)?)\s+(min|max)$/i);
+                if (reversedMatch) {
+                    $('#esl_value_type_use_value').prop('checked', true);
+                    const isValueOptionReversed = $('#esl_standard_value_id option').filter(function () {
+                        return String($(this).data('code')) === 'IsValue';
+                    }).first();
+                    if (isValueOptionReversed.length) {
+                        $('#esl_standard_value_id').val(isValueOptionReversed.val());
+                    }
+                    $('#esl_matrix_operator').val(reversedMatch[2].toLowerCase());
+                    $('#esl_matrix_value').val(reversedMatch[1]);
+                    syncEditStandardModalSections();
+                    return;
+                }
+
+                const compareMatch = existingText.match(/^([<>])\s*(\d+(?:\.\d+)?)$/);
+                if (compareMatch) {
+                    $('#esl_value_type_use_value').prop('checked', true);
+                    const isValueOptionCompare = $('#esl_standard_value_id option').filter(function () {
+                        return String($(this).data('code')) === 'IsValue';
+                    }).first();
+                    if (isValueOptionCompare.length) {
+                        $('#esl_standard_value_id').val(isValueOptionCompare.val());
+                    }
+                    $('#esl_matrix_operator').val(compareMatch[1] === '<' ? 'less_than' : 'greater_than');
+                    $('#esl_matrix_value').val(compareMatch[2]);
+                    syncEditStandardModalSections();
+                    return;
+                }
+
+                if (/^\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?$/i.test(existingText)) {
+                    const parts = existingText.split(/\s*-\s*/);
+                    $('#esl_value_type_range').prop('checked', true);
+                    $('#esl_range_low').val(parts[0] || '');
+                    $('#esl_range_high').val(parts[1] || '');
+                    syncEditStandardModalSections();
+                    return;
+                }
+
+                const codeOption = $('#esl_standard_value_id option').filter(function () {
+                    const code = String($(this).data('code') || '');
+                    const name = String($(this).text() || '');
+                    return code.toLowerCase() === existingText.toLowerCase()
+                        || name.toLowerCase().indexOf(existingText.toLowerCase()) !== -1;
+                }).first();
+
+                if (codeOption.length) {
+                    $('#esl_value_type_use_value').prop('checked', true);
+                    $('#esl_standard_value_id').val(codeOption.val());
+                    syncEditStandardModalSections();
+                }
+            };
+
+            const applyEditStandardSettings = function(data) {
+                if (!data) {
+                    return;
+                }
+
+                const valueType = data.value_type || 'use_value';
+                if (valueType === 'range') {
+                    $('#esl_value_type_range').prop('checked', true);
+                    $('#esl_range_low').val(data.range_low || '');
+                    $('#esl_range_high').val(data.range_high || '');
+                } else {
+                    $('#esl_value_type_use_value').prop('checked', true);
+                    $('#esl_standard_value_id').val(data.standard_value_id || '');
+                    $('#esl_matrix_operator').val(data.matrix_operator || '');
+                    $('#esl_matrix_value').val(data.matrix_value || '');
+                }
+
+                syncEditStandardModalSections();
+            };
+
+            $(document).on('change.methodSequences', '#edit-standard-form .esl-value-type, #esl_standard_value_id', function () {
+                syncEditStandardModalSections();
+            });
+
+            $(document).on('click.methodSequences', '.step6-edit-standard-btn', function(event) {
+                if (!self.canEditActiveStageHeader()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toastr.error('You can only edit standard limits for your assigned lab section(s).');
+                    return false;
+                }
+
+                const $btn = $(this);
+                const $row = $btn.closest('tr.sample-result-row');
+                const resultId = $btn.attr('data-result-id') || $btn.data('result-id');
+                const sampleCode = $btn.data('sample-code') || '';
+                const analyte = $btn.data('analyte') || '';
+                const trackId = $btn.data('track-id') || '';
+
+                $('#edit-standard-form')[0].reset();
+                $('#standard_result_id').val(resultId || '');
+                $('#standard_sample_code').val(sampleCode || '');
+                $('#standard_analyte').val(analyte || '');
+                $('#standard_step6_track_id').val(trackId || '');
+                resetEditStandardFormFields();
+
+                const existingText = $row.find('.standard-limit-text').text().trim();
+                populateEditStandardForm(existingText);
+
+                if (resultId) {
+                    $.ajax({
+                        url: `/captured-results/get-standard-settings/${resultId}`,
+                        method: 'GET',
+                        success: function(response) {
+                            if (response.success && response.data) {
+                                applyEditStandardSettings(response.data);
+                            }
+                        }
+                    });
+                }
+
+                const $modal = $('#edit-standard-modal');
+                if ($modal.length) {
+                    $modal.appendTo('body').modal('show');
+                }
+            });
+
+            $('#edit-standard-modal').on('shown.bs.modal', function () {
+                const $modal = $(this);
+                $modal.find('select.no-select2').each(function () {
+                    const $select = $(this);
+                    if ($.fn.select2) {
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            $select.select2('destroy');
+                        }
+                        $select.select2({
+                            width: '100%',
+                            dropdownParent: $modal,
+                            minimumResultsForSearch: $select.is('#esl_standard_value_id') ? 0 : Infinity,
+                        });
+                    }
+                });
+                syncEditStandardModalSections();
+            });
+
+            $('#edit-standard-form').on('submit.methodSequences', function(e) {
+                e.preventDefault();
+                const $form = $(this);
+                const valueType = $form.find('input[name="value_type"]:checked').val() || 'use_value';
+
+                if (valueType === 'range') {
+                    if (!$('#esl_range_low').val() || !$('#esl_range_high').val()) {
+                        alert('Please enter both low and high values for the range.');
+                        return;
+                    }
+                } else if (!$('#esl_standard_value_id').val()) {
+                    alert('Please select a standard value.');
+                    return;
+                } else {
+                    const selectedCode = $('#esl_standard_value_id option:selected').data('code') || '';
+                    if (selectedCode === 'IsValue') {
+                        if (!$('#esl_matrix_operator').val() || !$('#esl_matrix_value').val()) {
+                            alert('Please enter Matrix Operator and Actual Value for IsValue.');
+                            return;
+                        }
+                    }
+                }
+
+                const submitBtn = $form.find('button[type="submit"]');
+                const trackId = $('#standard_step6_track_id').val();
+                const capturedResultId = $('#standard_result_id').val();
+                submitBtn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
+
+                $.ajax({
+                    url: '/captured-results/update-standard-limit',
+                    method: 'POST',
+                    data: $form.serialize(),
+                    success: function(response) {
+                        submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Standard');
+
+                        if (!response.success) {
+                            alert('Error: ' + (response.message || 'Unable to save standard limit.'));
+                            return;
+                        }
+
+                        $('#edit-standard-modal').modal('hide');
+
+                        const $row = $(`.sample-result-row[data-captured-result-id="${capturedResultId}"]`);
+                        if (response.standard_limit && $row.length) {
+                            self.setStep6StandardLimit($row, response.standard_limit);
+
+                            const result = $row.find('.sample-result-input').val();
+                            const reportingSymbol = $row.find('.reporting-symbol-select').val();
+                            const sampleId = $row.data('sample-id');
+
+                            if (trackId && result) {
+                                self.calculateAndUpdateRemark(
+                                    trackId,
+                                    capturedResultId,
+                                    result,
+                                    response.standard_limit,
+                                    reportingSymbol,
+                                    sampleId
+                                );
+                            }
+                        }
+
+                        if (trackId && capturedResultId) {
+                            $.ajax({
+                                url: `/method-sequence-runs/tracks/${trackId}/step6-standard-limit`,
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                                    'Content-Type': 'application/json',
+                                },
+                                data: JSON.stringify({
+                                    captured_result_id: capturedResultId,
+                                    standard_limit: response.standard_limit || null,
+                                }),
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Standard');
+                        const message = (xhr.responseJSON && xhr.responseJSON.message) || xhr.responseText;
+                        alert('Failed to save standard limit: ' + message);
+                    }
+                });
             });
         },
 
@@ -3773,7 +4137,7 @@
                     const capturedResultId = $row.data('captured-result-id');
                     const result = $row.find('.sample-result-input').val();
                     const reportingSymbol = $row.find('.reporting-symbol-select').val();
-                    const standardLimit = $row.data('standard-limit');
+                    const standardLimit = self.getStep6StandardLimit($row);
                     const rawNumericResult = $row.find('.sample-raw-numeric-result').val(); // Extract from hidden field
                     const $remarkContainer = $row.find('[class*="remark-"][class*="-container"]');
                     const $remarkInput = $remarkContainer.find('input, select');

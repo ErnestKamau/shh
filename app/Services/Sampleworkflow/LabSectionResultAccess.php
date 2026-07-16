@@ -60,6 +60,48 @@ class LabSectionResultAccess
     }
 
     /**
+     * True when every provided captured result is editable by the user.
+     * Empty collections are not editable (no matching section work to perform).
+     *
+     * @param  iterable<int, CapturedResult|null>  $rows
+     */
+    public function canEditAllCapturedResults(?User $user, iterable $rows): bool
+    {
+        $hasRow = false;
+
+        foreach ($rows as $row) {
+            if (! $row instanceof CapturedResult) {
+                return false;
+            }
+
+            $hasRow = true;
+
+            if (! $this->canEditCapturedResult($user, $row)) {
+                return false;
+            }
+        }
+
+        return $hasRow;
+    }
+
+    /**
+     * Whether the user may mutate method-sequence work for this stage header
+     * (create runs / start / end stages) based on captured results in scope.
+     *
+     * @param  list<string>|null  $sampleDetailIds
+     */
+    public function canEditStageHeaderResults(?User $user, string $stageHeaderId, ?array $sampleDetailIds = null): bool
+    {
+        $query = CapturedResult::query()->where('stage_header_id', $stageHeaderId);
+
+        if ($sampleDetailIds !== null) {
+            $query->whereIn('sample_detail_id', $sampleDetailIds);
+        }
+
+        return $this->canEditAllCapturedResults($user, $query->get());
+    }
+
+    /**
      * Listing/query visibility is not restricted by lab section.
      * Assigned users can see other sections' worksheets but cannot edit them.
      *

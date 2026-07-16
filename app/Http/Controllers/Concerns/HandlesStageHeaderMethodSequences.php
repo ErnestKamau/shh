@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Concerns;
 use App\CapturedResult;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
+use App\Services\StandardLimitDisplayService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -272,6 +273,25 @@ trait HandlesStageHeaderMethodSequences
     }
 
     /**
+     * @param  iterable<int, CapturedResult|null>  $capturedResults
+     * @return \Illuminate\Http\JsonResponse|null
+     */
+    protected function denyUnlessCanEditCapturedResults(iterable $capturedResults)
+    {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+
+        if (! $access->canEditAllCapturedResults($user, $capturedResults)) {
+            return response()->json([
+                'success' => false,
+                'message' => $access->denyEditMessage($user),
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
      * Ensure a run and stage track records exist for this stage header and batch.
      */
     protected function ensureStageTracks(string $stageHeaderId, string $batchId): void
@@ -298,8 +318,11 @@ trait HandlesStageHeaderMethodSequences
             return;
         }
 
-        $sampleIds = CapturedResult::where('stage_header_id', $stageHeaderId)
+        $capturedResults = CapturedResult::where('stage_header_id', $stageHeaderId)
             ->whereIn('sample_detail_id', $batchSampleIds)
+            ->get();
+
+        $sampleIds = $capturedResults
             ->pluck('sample_detail_id')
             ->unique()
             ->values()
@@ -480,6 +503,38 @@ trait HandlesStageHeaderMethodSequences
             'sample_ids.*' => 'exists:sample_details,id',
         ]);
 
+        $existingCapturedResults = CapturedResult::query()
+            ->where('stage_header_id', $request->stage_header_id)
+            ->whereIn('sample_detail_id', $request->sample_ids)
+            ->get();
+
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+
+        if ($existingCapturedResults->isNotEmpty()) {
+            $denied = $this->denyUnlessCanEditCapturedResults($existingCapturedResults);
+            if ($denied) {
+                return $denied;
+            }
+        } else {
+            // Selected samples have no CRs yet — authorize against other CRs for this stage header.
+            $stageHeaderResults = CapturedResult::query()
+                ->where('stage_header_id', $request->stage_header_id)
+                ->get();
+
+            if ($stageHeaderResults->isNotEmpty()) {
+                $denied = $this->denyUnlessCanEditCapturedResults($stageHeaderResults);
+                if ($denied) {
+                    return $denied;
+                }
+            } elseif (! $access->hasLabSectionAssignment($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $access->denyEditMessage($user),
+                ], 403);
+            }
+        }
+
         DB::beginTransaction();
         try {
             // Create the run
@@ -546,7 +601,15 @@ trait HandlesStageHeaderMethodSequences
     public function deleteMethodSequenceRun(Request $request, $runId)
     {
         try {
-            $run = \App\Models\StageHeaderRun::findOrFail($runId);
+            $run = \App\Models\StageHeaderRun::with('trackRecords.capturedResult')->findOrFail($runId);
+
+            $denied = $this->denyUnlessCanEditCapturedResults(
+                $run->trackRecords->pluck('capturedResult')->filter()
+            );
+            if ($denied) {
+                return $denied;
+            }
+
             $run->delete();
 
             return response()->json(['success' => true]);
@@ -581,6 +644,20 @@ trait HandlesStageHeaderMethodSequences
             $track = \App\Models\SampleCapturedTestStagesTrack::findOrFail($trackId);
             $testStageId = $track->test_stage_id;
             $runId = $track->stage_header_run_id;
+
+            $relatedCapturedResults = \App\Models\SampleCapturedTestStagesTrack::query()
+                ->where('stage_header_run_id', $runId)
+                ->where('test_stage_id', $testStageId)
+                ->where('status', 'pending')
+                ->with('capturedResult')
+                ->get()
+                ->pluck('capturedResult')
+                ->filter();
+
+            $denied = $this->denyUnlessCanEditCapturedResults($relatedCapturedResults);
+            if ($denied) {
+                return $denied;
+            }
 
             // Use direct DB update to avoid Eloquent events and serialization issues
             // Only update columns that exist in the database
@@ -657,6 +734,20 @@ trait HandlesStageHeaderMethodSequences
             $testStageId = $track->test_stage_id;
             $runId = $track->stage_header_run_id;
 
+            $relatedCapturedResults = \App\Models\SampleCapturedTestStagesTrack::query()
+                ->where('stage_header_run_id', $runId)
+                ->where('test_stage_id', $testStageId)
+                ->whereIn('status', ['running', 'overdue'])
+                ->with('capturedResult')
+                ->get()
+                ->pluck('capturedResult')
+                ->filter();
+
+            $denied = $this->denyUnlessCanEditCapturedResults($relatedCapturedResults);
+            if ($denied) {
+                return $denied;
+            }
+
             // Use direct DB update to avoid Eloquent events and serialization issues
             // Only update columns that exist in the database
             // End ALL running tracks for this stage in this run (all samples together)
@@ -713,7 +804,14 @@ trait HandlesStageHeaderMethodSequences
      */
     public function updateMethodSequenceStageData(Request $request, $trackId)
     {
-        $track = \App\Models\SampleCapturedTestStagesTrack::findOrFail($trackId);
+        $track = \App\Models\SampleCapturedTestStagesTrack::with('capturedResult')->findOrFail($trackId);
+
+        $denied = $this->denyUnlessCanEditCapturedResults(
+            collect([$track->capturedResult])->filter()
+        );
+        if ($denied) {
+            return $denied;
+        }
 
         if (in_array($track->status, ['completed'], true) || $track->ended_at) {
             return response()->json([
@@ -876,7 +974,14 @@ trait HandlesStageHeaderMethodSequences
      */
     public function saveMethodSequenceResults(Request $request, $trackId)
     {
-        $track = \App\Models\SampleCapturedTestStagesTrack::findOrFail($trackId);
+        $track = \App\Models\SampleCapturedTestStagesTrack::with('capturedResult')->findOrFail($trackId);
+
+        $denied = $this->denyUnlessCanEditCapturedResults(
+            collect([$track->capturedResult])->filter()
+        );
+        if ($denied) {
+            return $denied;
+        }
 
         if (in_array($track->status, ['completed'], true) || $track->ended_at) {
             return response()->json([
@@ -887,12 +992,6 @@ trait HandlesStageHeaderMethodSequences
 
         $access = app(LabSectionResultAccess::class);
         $user = Auth::user();
-        if (! $access->hasLabSectionAssignment($user)) {
-            return response()->json([
-                'success' => false,
-                'message' => $access->denyEditMessage($user),
-            ], 403);
-        }
         
         $sampleResults = $request->sample_results ?? [];
         $mediaResults = $request->media_results ?? [];
@@ -1631,7 +1730,15 @@ trait HandlesStageHeaderMethodSequences
             'remarks' => 'nullable|string',
         ]);
 
-        $track = \App\Models\SampleCapturedTestStagesTrack::findOrFail($trackId);
+        $track = \App\Models\SampleCapturedTestStagesTrack::with('capturedResult')->findOrFail($trackId);
+
+        $denied = $this->denyUnlessCanEditCapturedResults(
+            collect([$track->capturedResult])->filter()
+        );
+        if ($denied) {
+            return $denied;
+        }
+
         $track->updateResult($request->result, $request->remarks, auth()->id());
 
         return response()->json(['success' => true, 'track' => $track->fresh()]);
@@ -2354,23 +2461,33 @@ trait HandlesStageHeaderMethodSequences
                 'reporting_unit' => $unit,
             ]);
 
+            $defaultStandardLimit = app(StandardLimitDisplayService::class)->forCapturedResult($cr, $mainStandardId)
+                ?? $standardLimitText;
+
             if (! $trackSampleResult->exists || $trackSampleResult->standard_limit === null) {
-                $trackSampleResult->standard_limit = $standardLimitText;
+                $trackSampleResult->standard_limit = $defaultStandardLimit;
             }
 
             $trackSampleResult->save();
+
+            $effectiveStandardLimit = $trackSampleResult->standard_limit
+                ?? $cr->main_value
+                ?? $defaultStandardLimit
+                ?? '-';
 
             $samples[] = [
                 'id' => $cr->id,
                 'sample_code' => $sampleCode,
                 'sample_type' => $sampleType,
                 'analyte_name' => $analyteName,
+                'analyte_code' => $cr->analyte_code ?? '',
                 'method_name' => $method,
                 'unit' => $unit,
                 'reporting_symbol' => $trackSampleResult->reporting_symbol ?? '',
                 'standard_name' => $standardAnalyte?->standard?->name ?? 'N/A',
                 'standard_limit_type' => $standardAnalyte?->standard_value_type ?? 'value',
-                'standard_limit_text' => $standardLimitText ?? '-',
+                'standard_limit' => $effectiveStandardLimit,
+                'standard_limit_text' => $effectiveStandardLimit,
                 'limit_low' => $standardAnalyte?->low,
                 'limit_high' => $standardAnalyte?->high,
                 'limit_value' => $standardValue?->code ?? null,
@@ -2387,6 +2504,54 @@ trait HandlesStageHeaderMethodSequences
         ])->render();
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
+     * Step 6: Sync standard limit on track staging row after modal edit.
+     */
+    public function updateStep6TrackStandardLimit(Request $request, string $trackId): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'captured_result_id' => 'required|uuid|exists:captured_results,id',
+            'standard_limit' => 'nullable|string|max:255',
+        ]);
+
+        $track = \App\Models\SampleCapturedTestStagesTrack::findOrFail($trackId);
+        $capturedResult = CapturedResult::findOrFail($validated['captured_result_id']);
+
+        $denied = $this->denyUnlessCanEditCapturedResults(collect([$capturedResult]));
+        if ($denied) {
+            return $denied;
+        }
+
+        $belongsToRun = $track->stageHeaderRun
+            ->trackRecords()
+            ->where('captured_result_id', $capturedResult->id)
+            ->exists();
+
+        if (! $belongsToRun) {
+            abort(403, 'Captured result does not belong to this run');
+        }
+
+        $runTrack = $track->stageHeaderRun
+            ->trackRecords()
+            ->where('captured_result_id', $capturedResult->id)
+            ->firstOrFail();
+
+        \App\Models\TrackSampleResult::updateOrCreate(
+            [
+                'track_id' => $runTrack->id,
+                'captured_result_id' => $capturedResult->id,
+            ],
+            [
+                'standard_limit' => $validated['standard_limit'] ?? null,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'standard_limit' => $validated['standard_limit'] ?? null,
+        ]);
     }
 
     /**
