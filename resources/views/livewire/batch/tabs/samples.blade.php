@@ -1210,6 +1210,11 @@
     </div>
 
     <style>
+        /* modal-xl caps at 800px below 1200px viewports; the parameters table needs the full screen. */
+        .sample-parameters-modal .modal-dialog.modal-xl {
+            max-width: min(96vw, 1500px);
+        }
+
         .sample-parameters-modal__content {
             border: none;
             border-radius: 16px;
@@ -1257,6 +1262,9 @@
         .sample-parameters-modal__body {
             max-height: 70vh;
             overflow-y: auto;
+            /* Only the table wrap may scroll horizontally; otherwise the alerts
+               and table scroll together and content gets clipped at the modal edge. */
+            overflow-x: hidden;
             padding: 0 1.5rem 1rem;
             background: #f8fafc;
         }
@@ -1267,6 +1275,7 @@
             background: #fff;
             overflow: auto;
             max-height: 62vh;
+            max-width: 100%;
         }
 
         .sample-parameters-group-cell {
