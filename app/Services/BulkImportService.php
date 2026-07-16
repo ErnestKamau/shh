@@ -157,6 +157,7 @@ class BulkImportService
                     'imported_rows' => $batch->imported_rows,
                     'error_rows' => $batch->error_rows,
                     'errors' => $batch->getErrorSummary(),
+                    'warnings' => $batch->getWarningSummary(),
                     'upserted' => $batch->getUpsertSummary(),
                     'purge_summary' => $purgeSummary,
                 ],

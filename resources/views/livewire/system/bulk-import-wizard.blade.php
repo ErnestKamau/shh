@@ -456,6 +456,25 @@
                                 </div>
                             @endif
 
+                            <!-- Warning Details -->
+                            @if (!empty($importResults['warnings']))
+                                <div class="card border-warning mb-4">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h6 class="mb-0">Import Warnings</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        @foreach ($importResults['warnings'] as $warning)
+                                            <div class="mb-3 pb-3 border-bottom">
+                                                <strong class="text-warning">{{ $warning['message'] }}</strong>
+                                                <p class="text-muted small mb-0">
+                                                    Affected rows: {{ implode(', ', $warning['rows']) }}
+                                                </p>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Error Details -->
                             @if (!empty($importResults['errors']))
                                 <div class="card border-danger mb-4">

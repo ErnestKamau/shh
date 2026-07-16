@@ -56,9 +56,22 @@ class BulkImportBatch extends Model
      */
     public function addError(int $rowNumber, string $message, array $rowData = []): void
     {
-        $errors = $this->errors_json ?? [];
+        $this->appendBatchMessage($rowNumber, $message, $rowData, 'error');
         $this->error_rows++;
-        
+    }
+
+    public function addWarning(int $rowNumber, string $message, array $rowData = []): void
+    {
+        $this->appendBatchMessage($rowNumber, $message, $rowData, 'warning');
+    }
+
+    /**
+     * @param  array<string, mixed>  $rowData
+     */
+    protected function appendBatchMessage(int $rowNumber, string $message, array $rowData, string $level): void
+    {
+        $errors = $this->errors_json ?? [];
+
         // Limit the number of detailed errors stored to prevent memory/storage issues
         if (count($errors) >= 500) {
             if (count($errors) === 500) {
@@ -66,9 +79,11 @@ class BulkImportBatch extends Model
                     'row' => 0,
                     'message' => 'Further error details suppressed to save memory. Total error count continues to increment.',
                     'data' => [],
+                    'level' => $level,
                 ];
                 $this->errors_json = $errors;
             }
+
             return;
         }
 
@@ -76,8 +91,9 @@ class BulkImportBatch extends Model
             'row' => $rowNumber,
             'message' => $this->cleanDataForJson($message),
             'data' => $this->cleanDataForJson($rowData),
+            'level' => $level,
         ];
-        
+
         $this->errors_json = $errors;
     }
 
@@ -125,6 +141,14 @@ class BulkImportBatch extends Model
     }
 
     /**
+     * @return array<int, array{message: string, rows: array<int, int>, count: int}>
+     */
+    public function getWarningSummary(): array
+    {
+        return $this->summarizeMessagesByLevel('warning');
+    }
+
+    /**
      * Mark batch as failed.
      */
     public function markAsFailed(string $reason): void
@@ -140,16 +164,29 @@ class BulkImportBatch extends Model
      */
     public function getErrorSummary(): array
     {
+        return $this->summarizeMessagesByLevel('error');
+    }
+
+    /**
+     * @return array<int, array{message: string, rows: array<int, int>, count: int}>
+     */
+    protected function summarizeMessagesByLevel(string $level): array
+    {
         $errors = $this->errors_json ?? [];
         $grouped = [];
-        
+
         foreach ($errors as $error) {
-            if (!isset($grouped[$error['message']])) {
+            $entryLevel = $error['level'] ?? 'error';
+            if ($entryLevel !== $level) {
+                continue;
+            }
+
+            if (! isset($grouped[$error['message']])) {
                 $grouped[$error['message']] = [];
             }
             $grouped[$error['message']][] = $error['row'];
         }
-        
+
         return array_map(function ($rows, $message) {
             return [
                 'message' => $message,
