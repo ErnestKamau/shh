@@ -193,9 +193,30 @@ final class EnquiryReviewDisplayService
      */
     public function requestedTests(SampleSubmissionRequest $enquiry): array
     {
-        $enquiry->loadMissing('requestedAnalyses');
+        $enquiry->loadMissing([
+            'requestedAnalyses',
+            'submissionFormInstance',
+        ]);
 
         $tests = [];
+
+        // Linked TRF instance is the source of truth for requested tests when present.
+        if ($enquiry->submissionFormInstance !== null) {
+            $lines = $this->sampleLineService->linesForInstance($enquiry->submissionFormInstance);
+            if ($lines !== []) {
+                $fromTrf = $this->resolveTestsRequestedParameters($lines);
+                if ($fromTrf['label'] !== '—') {
+                    foreach (explode(', ', $fromTrf['label']) as $code) {
+                        $code = trim($code);
+                        if ($code !== '') {
+                            $tests[] = ['label' => $code];
+                        }
+                    }
+
+                    return $this->uniqueTestLabels($tests);
+                }
+            }
+        }
 
         foreach ($enquiry->requestedAnalyses as $analysis) {
             $elementId = trim((string) ($analysis->analysis_element_id ?? ''));
@@ -231,6 +252,15 @@ final class EnquiryReviewDisplayService
             }
         }
 
+        return $this->uniqueTestLabels($tests);
+    }
+
+    /**
+     * @param  list<array{label: string}>  $tests
+     * @return list<array{label: string}>
+     */
+    private function uniqueTestLabels(array $tests): array
+    {
         $seen = [];
         $unique = [];
         foreach ($tests as $test) {

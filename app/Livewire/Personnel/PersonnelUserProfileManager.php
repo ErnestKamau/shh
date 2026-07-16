@@ -4,6 +4,7 @@ namespace App\Livewire\Personnel;
 
 use App\InventoryDepartment;
 use App\Lab;
+use App\Models\Auth\Role;
 use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\Services\Personnel\PersonnelProfileService;
@@ -338,7 +339,11 @@ class PersonnelUserProfileManager extends Component
 
     public function getDesignationsProperty()
     {
-        return ModulePreConfigs::query()->where('type', 'Designation')->orderBy('name')->get(['id', 'name']);
+        return ModulePreConfigs::query()
+            ->where('type', 'Job Description')
+            ->whereIn('module', ['Personnel-Management', 'Skills-Matrix'])
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function getEducationLevelsProperty()
@@ -348,7 +353,10 @@ class PersonnelUserProfileManager extends Component
 
     public function getPositionsProperty()
     {
-        return ModulePreConfigs::query()->where('type', 'Job Description')->orderBy('name')->get(['id', 'name']);
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function getDepartmentsProperty()
@@ -456,9 +464,25 @@ class PersonnelUserProfileManager extends Component
         if ($step === 2) {
             $this->validate([
                 'detailsEmploymentDate' => 'nullable|date',
-                'selectedDesignationId' => 'required|string|exists:module_pre_configs,id',
-                'selectedEducationId' => 'nullable|string|exists:module_pre_configs,id',
-                'selectedPositionId' => 'nullable|string|exists:module_pre_configs,id',
+                'selectedDesignationId' => [
+                    'required',
+                    'string',
+                    Rule::exists('module_pre_configs', 'id')->where(
+                        fn ($query) => $query->where('type', 'Job Description')
+                    ),
+                ],
+                'selectedEducationId' => [
+                    'nullable',
+                    'string',
+                    Rule::exists('module_pre_configs', 'id')->where(
+                        fn ($query) => $query->where('type', 'Educational Levels')
+                    ),
+                ],
+                'selectedPositionId' => [
+                    'nullable',
+                    'string',
+                    Rule::exists('spatie_roles', 'id'),
+                ],
                 'selectedDepartmentId' => 'nullable|string|exists:inventory_departments,id',
                 'selectedLabIds' => 'array',
                 'selectedLabIds.*' => 'string|exists:labs,id',

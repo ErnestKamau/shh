@@ -71,30 +71,78 @@ class WorksheetManager extends Component
             $this->pipeline = $this->activeGroupedHolderId;
         }
 
-        $requestedTab = request()->query('tab', $this->groupedHolders->isNotEmpty() ? 'grouped-pipelines' : 'formulas');
-        if (in_array($requestedTab, ['grouped-pipelines', 'method-sequences', 'procedures', 'ser', 'formulas', 'log-entry'], true)) {
-            $this->activeTab = $requestedTab;
-            if ($requestedTab === 'method-sequences') {
-                $this->queueMethodSequencesInit();
-            }
-        }
+        // Load all worksheet types up front so tabs can be gated to active ones only.
+        $this->loadProcedureWorksheetData();
+        $this->loadLogEntryWorksheetData();
+        $this->loadFormulaWorksheetData();
+        $this->loadStageHeaders();
+
+        $tabResolved = false;
 
         $requestedPipeline = request()->query('pipeline');
         if ($requestedPipeline && $this->groupedHolders->contains('id', $requestedPipeline)) {
             $this->activeTab = 'grouped-pipelines';
             $this->activeGroupedHolderId = (string) $requestedPipeline;
             $this->pipeline = (string) $requestedPipeline;
+            $tabResolved = true;
         }
 
         $requestedFormulaId = request()->query('formula');
-        if ($requestedFormulaId) {
+        if ($requestedFormulaId && $this->formulas->contains('id', $requestedFormulaId)) {
             $this->activeTab = 'formulas';
             $this->activeFormulaId = $requestedFormulaId;
+            $tabResolved = true;
         }
 
-        $this->loadProcedureWorksheetData();
-        $this->loadLogEntryWorksheetData();
-        $this->ensureTabDataLoaded();
+        if (! $tabResolved) {
+            $requestedTab = request()->query('tab', $this->resolveDefaultTab());
+            $this->activeTab = $this->isTabAvailable($requestedTab)
+                ? $requestedTab
+                : $this->resolveDefaultTab();
+        }
+
+        if ($this->activeTab === 'method-sequences') {
+            $this->queueMethodSequencesInit();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function availableTabs(): array
+    {
+        $tabs = [];
+
+        if ($this->groupedHolders->isNotEmpty()) {
+            $tabs[] = 'grouped-pipelines';
+        }
+        if ($this->formulas->isNotEmpty()) {
+            $tabs[] = 'formulas';
+        }
+        if ($this->stageHeaders->isNotEmpty()) {
+            $tabs[] = 'method-sequences';
+        }
+        if ($this->logEntryWorksheets->isNotEmpty()) {
+            $tabs[] = 'log-entry';
+        }
+        if ($this->procedureWorksheets->isNotEmpty()) {
+            $tabs[] = 'procedures';
+        }
+        if ($this->hasNoCaptureSamples) {
+            $tabs[] = 'ser';
+        }
+
+        return $tabs;
+    }
+
+    protected function isTabAvailable(string $tab): bool
+    {
+        return in_array($tab, $this->availableTabs(), true);
+    }
+
+    protected function resolveDefaultTab(): string
+    {
+        return $this->availableTabs()[0] ?? 'formulas';
     }
 
     protected function ensureTabDataLoaded(): void
@@ -230,7 +278,7 @@ class WorksheetManager extends Component
 
     public function switchTab(string $tab): void
     {
-        if (! in_array($tab, ['grouped-pipelines', 'formulas', 'method-sequences', 'procedures', 'ser', 'log-entry'], true)) {
+        if (! $this->isTabAvailable($tab)) {
             return;
         }
 

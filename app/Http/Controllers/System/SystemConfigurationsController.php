@@ -18,7 +18,7 @@ class SystemConfigurationsController extends Controller
     public function add(Request $request,$id){
         $configuration_type = SystemConfigurationsType::find($id);
         
-        if(isset($configuration_type->configuration_type) && $configuration_type->id == $request->config_id){
+        if(isset($configuration_type->configuration_type) && (string) $configuration_type->id === (string) $request->config_id){
             if($configuration_type->configuration_type == 'Personnel to Recieve Feedback and Complaint Notification'){
                 $user = getUserById($request->name);
                 if(!isset($user->id)){

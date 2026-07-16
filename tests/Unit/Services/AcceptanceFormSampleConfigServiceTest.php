@@ -7,12 +7,15 @@ use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SampleSubmissionRequestRequestedAnalysis;
+use App\Models\SubmissionFormInstance;
 use App\SampleType;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Mockery;
 use Tests\TestCase;
 
 class AcceptanceFormSampleConfigServiceTest extends TestCase
@@ -513,5 +516,350 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame((string) $sampleType->id, $remapped[0]['sample_type_id']);
         $this->assertSame((string) $analysisType->id, $remapped[0]['analysis_type_id']);
         $this->assertSame([(string) $currentElement->id], $remapped[0]['parameter_keys']);
+    }
+
+    public function test_build_prefill_from_enquiry_uses_instance_when_sample_lines_empty(): void
+    {
+        $instance = Mockery::mock(SubmissionFormInstance::class);
+        $enquiry = new SampleSubmissionRequest([
+            'sample_lines' => [],
+            'sample_type_id' => 'st-1',
+            'matrix_id' => 'at-1',
+            'number_of_samples' => 1,
+        ]);
+
+        $lineService = Mockery::mock(SubmissionRequestSampleLineService::class);
+        $lineService->shouldReceive('linesForInstance')
+            ->once()
+            ->with($instance)
+            ->andReturn([[
+                'row_index' => 0,
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'attributes' => ['analysis_element_ids' => ['el-1']],
+                'parameter_label' => 'Test parameter',
+                'number_of_samples' => 1,
+            ]]);
+
+        $this->app->instance(SubmissionRequestSampleLineService::class, $lineService);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $prefill = $service->buildPrefillLinesFromEnquiry($enquiry, [], $instance);
+
+        $this->assertCount(1, $prefill);
+        $this->assertSame(['el-1'], $prefill[0]['attributes']['analysis_element_ids']);
+    }
+
+    public function test_build_prefill_from_enquiry_prefers_instance_over_stale_sample_lines(): void
+    {
+        $instance = Mockery::mock(SubmissionFormInstance::class);
+        $enquiry = new SampleSubmissionRequest([
+            'sample_lines' => [[
+                'row_index' => 0,
+                'sample_type_id' => 'st-stale',
+                'analysis_type_id' => 'at-stale',
+                'attributes' => ['analysis_element_ids' => ['el-stale']],
+                'number_of_samples' => 1,
+            ]],
+            'sample_type_id' => 'st-stale',
+            'matrix_id' => 'at-stale',
+            'number_of_samples' => 1,
+        ]);
+
+        $lineService = Mockery::mock(SubmissionRequestSampleLineService::class);
+        $lineService->shouldReceive('linesForInstance')
+            ->once()
+            ->with($instance)
+            ->andReturn([[
+                'row_index' => 0,
+                'sample_type_id' => 'st-trf',
+                'analysis_type_id' => 'at-trf',
+                'attributes' => ['analysis_element_ids' => ['el-trf-a', 'el-trf-b']],
+                'parameter_label' => 'TRF parameters',
+                'number_of_samples' => 1,
+            ]]);
+
+        $this->app->instance(SubmissionRequestSampleLineService::class, $lineService);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $prefill = $service->buildPrefillLinesFromEnquiry($enquiry, [], $instance);
+        $configs = $service->buildConfigsFromPrefill($prefill);
+
+        $this->assertCount(1, $prefill);
+        $this->assertSame('st-trf', $prefill[0]['sample_type_id']);
+        $this->assertSame('at-trf', $prefill[0]['analysis_type_id']);
+        $this->assertSame(['el-trf-a', 'el-trf-b'], $configs[0]['parameter_keys']);
+    }
+
+    public function test_apply_requested_parameter_keys_prefers_trf_instance_lines_over_stale_analyses(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Food Trf Prefer '.Str::random(6),
+            'code' => 'FOOD-TRF-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Cooked Trf Prefer '.Str::random(6),
+            'code' => 'CKD-TRF-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $trfAnalyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'TRF-'.Str::upper(Str::random(4)),
+            'name' => 'TRF Param '.Str::random(6),
+            'active' => 1,
+        ]);
+
+        $staleAnalyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'STL-'.Str::upper(Str::random(4)),
+            'name' => 'Stale Param '.Str::random(6),
+            'active' => 1,
+        ]);
+
+        $trfElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $trfAnalyte->id,
+            'active' => 1,
+        ]);
+
+        $staleElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $staleAnalyte->id,
+            'active' => 1,
+        ]);
+
+        $instance = Mockery::mock(SubmissionFormInstance::class);
+        $enquiry = new SampleSubmissionRequest([
+            'sample_type_id' => (string) $sampleType->id,
+            'matrix_id' => (string) $analysisType->id,
+            'sample_lines' => [[
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'attributes' => ['analysis_element_ids' => [(string) $staleElement->id]],
+            ]],
+        ]);
+        $enquiry->setRelation('submissionFormInstance', $instance);
+        $enquiry->setRelation('requestedAnalyses', collect([
+            new SampleSubmissionRequestRequestedAnalysis([
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'analysis_element_id' => (string) $staleElement->id,
+                'analysis_key' => (string) $staleElement->id,
+                'analysis_label' => $staleAnalyte->name,
+            ]),
+        ]));
+
+        $lineService = Mockery::mock(SubmissionRequestSampleLineService::class);
+        $lineService->shouldReceive('linesForInstance')
+            ->atLeast()
+            ->once()
+            ->with($instance)
+            ->andReturn([[
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'attributes' => ['analysis_element_ids' => [(string) $trfElement->id]],
+            ]]);
+        $this->app->instance(SubmissionRequestSampleLineService::class, $lineService);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = (string) $sampleType->id;
+        $config['analysis_type_id'] = (string) $analysisType->id;
+        $config['parameter_keys'] = [];
+
+        $updated = $service->applyRequestedParameterKeysFromEnquiry([$config], $enquiry);
+
+        $this->assertSame([(string) $trfElement->id], $updated[0]['parameter_keys']);
+    }
+
+    public function test_apply_requested_parameter_keys_preserves_non_empty_lab_selections(): void
+    {
+        $sampleTypeId = (string) Str::uuid();
+        $analysisTypeId = (string) Str::uuid();
+        $labElementId = (string) Str::uuid();
+        $trfElementId = (string) Str::uuid();
+
+        $instance = Mockery::mock(SubmissionFormInstance::class);
+        $enquiry = new SampleSubmissionRequest([
+            'sample_type_id' => $sampleTypeId,
+            'matrix_id' => $analysisTypeId,
+        ]);
+        $enquiry->setRelation('submissionFormInstance', $instance);
+        $enquiry->setRelation('requestedAnalyses', collect());
+
+        $lineService = Mockery::mock(SubmissionRequestSampleLineService::class);
+        $lineService->shouldReceive('linesForInstance')
+            ->atLeast()
+            ->once()
+            ->with($instance)
+            ->andReturn([[
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'attributes' => ['analysis_element_ids' => [$trfElementId]],
+            ]]);
+        $this->app->instance(SubmissionRequestSampleLineService::class, $lineService);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = $sampleTypeId;
+        $config['analysis_type_id'] = $analysisTypeId;
+        $config['parameter_keys'] = [$labElementId];
+
+        $updated = $service->applyRequestedParameterKeysFromEnquiry([$config], $enquiry);
+
+        $this->assertSame([$labElementId], $updated[0]['parameter_keys']);
+    }
+
+    public function test_apply_requested_parameter_keys_from_enquiry_resolves_label_only_requested_analysis(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Food Apply '.Str::random(6),
+            'code' => 'FOOD-APPLY-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'General Foods Apply '.Str::random(6),
+            'code' => 'GF-APPLY-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyteName = 'Enumeration of Enterobacteriaceae '.Str::random(6);
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'ENT-'.Str::upper(Str::random(4)),
+            'name' => $analyteName,
+            'active' => 1,
+        ]);
+
+        $element = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => (string) Str::uuid(),
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'portal',
+            'sample_lines' => [[
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'number_of_samples' => 1,
+            ]],
+        ]);
+
+        SampleSubmissionRequestRequestedAnalysis::query()->create([
+            'sample_submission_request_id' => $enquiry->id,
+            'sample_type_id' => (string) $sampleType->id,
+            'analysis_type_id' => (string) $analysisType->id,
+            'analysis_element_id' => null,
+            'analysis_key' => $analyteName,
+            'analysis_label' => $analyteName,
+            'number_of_samples' => 1,
+        ]);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = (string) $sampleType->id;
+        $config['analysis_type_id'] = (string) $analysisType->id;
+        $config['parameter_keys'] = [];
+
+        $updated = $service->applyRequestedParameterKeysFromEnquiry([$config], $enquiry->fresh(['requestedAnalyses']));
+
+        $this->assertSame([(string) $element->id], $updated[0]['parameter_keys']);
+    }
+
+    public function test_remap_and_apply_requested_parameter_keys_restores_orphan_element_ids(): void
+    {
+        $oldSampleTypeId = (string) Str::uuid();
+        $oldAnalysisTypeId = (string) Str::uuid();
+        $orphanElementId = (string) Str::uuid();
+        $sampleTypeName = 'Food Remap Apply '.Str::random(6);
+        $analysisTypeName = 'Feed Remap Apply '.Str::random(6);
+        $analyteName = 'Barium Remap Apply '.Str::random(6);
+
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => $sampleTypeName,
+            'code' => 'FOOD-RAP-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => $analysisTypeName,
+            'code' => 'FF-RAP-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'BA-RAP-'.Str::upper(Str::random(4)),
+            'name' => $analyteName,
+            'active' => 1,
+        ]);
+
+        $currentElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => (string) Str::uuid(),
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'portal',
+            'sample_lines' => [[
+                'sample_type_id' => $oldSampleTypeId,
+                'sample_type_name' => $sampleTypeName,
+                'analysis_type_id' => $oldAnalysisTypeId,
+                'analysis_type_name' => $analysisTypeName,
+                'analysis_element_id' => $orphanElementId,
+                'parameter_label' => $analyteName,
+                'number_of_samples' => 1,
+                'attributes' => [
+                    'analysis_element_ids' => [$orphanElementId],
+                ],
+            ]],
+        ]);
+
+        SampleSubmissionRequestRequestedAnalysis::query()->create([
+            'sample_submission_request_id' => $enquiry->id,
+            'sample_type_id' => $oldSampleTypeId,
+            'analysis_type_id' => $oldAnalysisTypeId,
+            'analysis_element_id' => $orphanElementId,
+            'analysis_key' => $orphanElementId,
+            'analysis_label' => $analyteName,
+            'number_of_samples' => 1,
+        ]);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = $oldSampleTypeId;
+        $config['analysis_type_id'] = $oldAnalysisTypeId;
+        $config['parameter_keys'] = [];
+
+        $enquiry = $enquiry->fresh(['requestedAnalyses']);
+        $configs = $service->applyRequestedParameterKeysFromEnquiry([$config], $enquiry);
+        $configs = $service->remapConfigsToCurrentHierarchy($configs, $enquiry);
+
+        $this->assertSame((string) $sampleType->id, $configs[0]['sample_type_id']);
+        $this->assertSame((string) $analysisType->id, $configs[0]['analysis_type_id']);
+        $this->assertSame([(string) $currentElement->id], $configs[0]['parameter_keys']);
     }
 }

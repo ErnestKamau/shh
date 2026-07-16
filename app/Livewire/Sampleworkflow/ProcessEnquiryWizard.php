@@ -215,17 +215,10 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        // Once lab has saved sample configuration (or moved past Requested), do not
-        // overwrite parameter selections from the original portal form instance.
-        $hasLabSampleConfig = is_array($enquiry->enquiry_sample_configuration)
-            && $enquiry->enquiry_sample_configuration !== [];
+        // TRF instance is source of truth for requested tests/params until the lab
+        // intentionally saves enquiry_sample_configuration with parameter selections.
         $shouldResyncFromPortalForm = $enquiry->submissionFormInstance !== null
-            && ! $hasLabSampleConfig
-            && in_array((string) $enquiry->status, [
-                SampleSubmissionRequest::STATUS_REQUESTED,
-                SampleSubmissionRequest::STATUS_DRAFT,
-                SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
-            ], true);
+            && ! $this->enquiryHasLabSavedParameterSelections($enquiry);
 
         if ($shouldResyncFromPortalForm) {
             app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
@@ -278,7 +271,8 @@ class ProcessEnquiryWizard extends Component
         $this->requestedTests = $display->requestedTests($enquiry);
         $this->submissionFormInstanceId = $enquiry->submission_form_instance_id;
         $this->submissionFormId = $enquiry->submissionFormInstance?->submission_form_id;
-        $this->sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $this->sampleLines = app(AcceptanceFormSampleConfigService::class)
+            ->resolveTrfSampleLines($enquiry);
         $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
         $this->crmCustomerId = (string) ($enquiry->crm_customer_id ?? '');
         $this->customerName = $display->customerName($enquiry);
@@ -345,6 +339,26 @@ class ProcessEnquiryWizard extends Component
 
         if ($step === 'sample_config') {
             $this->quotationManuallyEdited = false;
+            if ($this->enquiryId !== null) {
+                $enquiry = SampleSubmissionRequest::query()
+                    ->with(['requestedAnalyses', 'submissionFormInstance'])
+                    ->find($this->enquiryId);
+                if ($enquiry !== null) {
+                    if ($enquiry->submissionFormInstance !== null
+                        && ! $this->enquiryHasLabSavedParameterSelections($enquiry)) {
+                        app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
+                            ->resyncSampleDataFromInstance($enquiry->submissionFormInstance);
+                        $enquiry = SampleSubmissionRequest::query()
+                            ->with(['requestedAnalyses', 'submissionFormInstance'])
+                            ->find($this->enquiryId) ?? $enquiry;
+                        $this->requestedTests = app(EnquiryReviewDisplayService::class)
+                            ->requestedTests($enquiry);
+                        $this->displaySampleRows = app(EnquiryReviewDisplayService::class)
+                            ->sampleRows($enquiry);
+                    }
+                    $this->ensureRequestedParametersSelected($enquiry);
+                }
+            }
             $this->reconcileSampleConfigParameterKeys();
             $this->normalizeSampleConfigs();
             $this->setStatus('info', '');
@@ -384,6 +398,7 @@ class ProcessEnquiryWizard extends Component
 
         $enquiry->save();
 
+        $this->ensureRequestedParametersSelected($enquiry);
         $this->normalizeSampleConfigs();
         $this->activeStep = 'sample_config';
         $this->setStatus('info', '');
@@ -964,14 +979,58 @@ class ProcessEnquiryWizard extends Component
         return 'review';
     }
 
+    /**
+     * True when the lab has intentionally saved sample configuration with parameter selections.
+     * Empty configs or rows with empty parameter_keys are not treated as lab-authored — TRF wins.
+     */
+    private function enquiryHasLabSavedParameterSelections(SampleSubmissionRequest $enquiry): bool
+    {
+        $stored = is_array($enquiry->enquiry_sample_configuration)
+            ? $enquiry->enquiry_sample_configuration
+            : [];
+
+        if ($stored === []) {
+            return false;
+        }
+
+        foreach ($stored as $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+
+            $keys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '')
+                ->values()
+                ->all();
+
+            if ($keys !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function loadSampleConfigs(SampleSubmissionRequest $enquiry): void
     {
         $configService = app(AcceptanceFormSampleConfigService::class);
         $stored = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        $hasLabParameterSelections = $this->enquiryHasLabSavedParameterSelections($enquiry);
 
         if ($stored !== []) {
             $this->sampleConfigs = $configService->flattenToPerSampleConfigs($stored);
             $this->sampleConfigs = $configService->remapConfigsToCurrentHierarchy($this->sampleConfigs, $enquiry);
+            // Only fill from TRF when lab has not yet saved parameter selections.
+            if (! $hasLabParameterSelections) {
+                $this->sampleConfigs = $configService->applyRequestedParameterKeysFromEnquiry($this->sampleConfigs, $enquiry);
+            }
+            if ($this->crmCustomerId !== null && trim($this->crmCustomerId) !== '') {
+                $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
+                    $this->sampleConfigs,
+                    $this->crmCustomerId,
+                );
+            }
             $this->reconcileSampleConfigParameterKeys();
             $this->normalizeSampleConfigs();
             $this->backfillLabSectionIdsOnConfigs();
@@ -980,10 +1039,11 @@ class ProcessEnquiryWizard extends Component
         }
 
         $instance = $enquiry->submissionFormInstance;
-        $prefillLines = $configService->buildPrefillLinesFromEnquiry($enquiry, $this->lines);
+        $prefillLines = $configService->buildPrefillLinesFromEnquiry($enquiry, $this->lines, $instance);
 
         $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
         $this->sampleConfigs = $configService->remapConfigsToCurrentHierarchy($this->sampleConfigs, $enquiry);
+        $this->sampleConfigs = $configService->applyRequestedParameterKeysFromEnquiry($this->sampleConfigs, $enquiry);
         if ($this->crmCustomerId !== null && trim($this->crmCustomerId) !== '') {
             $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
                 $this->sampleConfigs,
@@ -1225,6 +1285,26 @@ class ProcessEnquiryWizard extends Component
 
         $this->sampleConfigs = app(AcceptanceFormSampleConfigService::class)
             ->reconcileConfigsParameterKeys($this->sampleConfigs, $this->crmCustomerId);
+    }
+
+    private function ensureRequestedParametersSelected(SampleSubmissionRequest $enquiry): void
+    {
+        if ($this->sampleConfigs === []) {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->applyRequestedParameterKeysFromEnquiry($this->sampleConfigs, $enquiry);
+        $this->sampleConfigs = $configService->remapConfigsToCurrentHierarchy($this->sampleConfigs, $enquiry);
+
+        if ($this->crmCustomerId !== null && trim($this->crmCustomerId) !== '') {
+            $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
+                $this->sampleConfigs,
+                $this->crmCustomerId,
+            );
+        }
+
+        $this->reconcileSampleConfigParameterKeys();
     }
 
     private function rebuildQuotationLinesFromSampleConfigs(): void

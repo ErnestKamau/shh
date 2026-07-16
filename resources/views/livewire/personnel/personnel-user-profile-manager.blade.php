@@ -190,6 +190,7 @@
                                             <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                         @endif
                                     </div>
+                                    @error('selectedPositionId')<small class="text-danger">{{ $message }}</small>@enderror
                                 </div>
                                 <div class="col-md-4">
                                     <label>{{ __('personnel.department') ?? 'Department' }}</label>
@@ -224,6 +225,8 @@
                                             </div>
                                         @endif
                                     </div>
+                                    @error('selectedLabIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                    @error('selectedLabIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                                 </div>
                                 <div class="col-lg-4 col-md-6">
                                     <label>{{ __('personnel.lab_sections') ?? 'Lab Sections' }}</label>
@@ -245,6 +248,8 @@
                                             </div>
                                         @endif
                                     </div>
+                                    @error('selectedLabSectionIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                    @error('selectedLabSectionIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                                 </div>
                             </div>
                         </div>

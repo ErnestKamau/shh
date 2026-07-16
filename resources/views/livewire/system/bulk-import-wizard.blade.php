@@ -121,6 +121,9 @@
                             <strong>Instructions:</strong>
                             <ol class="mb-0">
                                 <li>Download the template for <strong>{{ $formTypes[$selectedFormType] ?? $selectedFormType }}</strong></li>
+                                @if ($selectedFormType === 'analysis_method')
+                                    <li>Or upload your AmSpec Parameters workbook directly (Reference Method + Test Method SOP columns are extracted)</li>
+                                @endif
                                 <li>Enter your data starting from row 2 (just below the header row)</li>
                                 <li>Fields marked with <strong>*</strong> are required</li>
                                 <li>Save the file and come back to upload</li>
@@ -206,6 +209,26 @@
                                     <div class="mb-0">
                                         <label class="form-label" for="purge_confirmation">Type <code>DELETE ALL LAB DATA</code> or your company name to confirm</label>
                                         <input type="text" id="purge_confirmation" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL LAB DATA">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
+                        @if ($selectedFormType === 'analysis_method')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing analysis methods</strong>
+                                <p class="mb-2 small">When enabled, all analysis methods for your company will be permanently deleted before import. Other data (stage headers, samples, analysis elements, results) is left unchanged. You can upload the dedicated template or your AmSpec Parameters workbook (methods-only extraction).</p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_analysis_methods" checked>
+                                    <label class="form-check-label" for="replace_existing_analysis_methods">
+                                        Replace all existing analysis methods for this company before import
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation_methods">Type <code>DELETE ALL METHODS</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_methods" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL METHODS">
                                         @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 @endif
