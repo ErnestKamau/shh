@@ -8,7 +8,7 @@ use App\AnalysisType;
 use App\Analyte;
 use App\AnalysisElements;
 use App\Lab;
-use App\LabSection;
+use App\SampleAnalysisStage;
 use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
 use Illuminate\Support\Collection;
@@ -326,11 +326,11 @@ class AmspecParametersImporter extends BaseImporter
             'test_method_sop', 'testmethodsop', 'method',
         ], 'test_method');
         $unit = $this->resolveFieldFromRow($row, ['unit', 'reporting_unit', 'reporting_unit_code']);
-        $decimalPlaces = $this->resolveFieldFromRow($row, ['decimal_places', 'decimalplaces']) ?? 2;
+        $decimalPlaces = $this->resolveFieldFromRow($row, ['decimal_places', 'decimalplaces']);
         $accreditationScope = $this->resolveFieldFromRow($row, [
             'accreditation_scope', 'accreditationscopeaccreditednonaccredited',
             'accreditation', 'accredited_nonaccredited', 'non_accredited',
-        ], 'accreditation') ?? 'Accredited';
+        ], 'accreditation');
         $instrument = $this->resolveFieldFromRow($row, [
             'equipment_name', 'instrument', 'instrumentused', 'instrument_used',
             'equipment', 'equipment_code',
@@ -405,16 +405,15 @@ class AmspecParametersImporter extends BaseImporter
             ? $sectionDepartment
             : (! empty($explicitLabSectionCode) ? $this->humanizeLabel($explicitLabSectionCode) : null);
 
-        // Handle non-accredited flag (supports Accreditation Scope or non_accredited boolean)
-        $nonAccredited = 0;
+        // Handle non-accredited flag (supports Accreditation Scope or non_accredited boolean).
+        // Stays null when the file provides no value, so existing records are not clobbered.
+        $nonAccredited = null;
         if (array_key_exists('non_accredited', $row) && $row['non_accredited'] !== null && $row['non_accredited'] !== '') {
             $flag = strtolower(trim((string) $row['non_accredited']));
             $nonAccredited = in_array($flag, ['1', 'yes', 'y', 'true', 'on'], true) ? 1 : 0;
-        } else {
-            $accreditationNormalized = strtolower(trim((string) $accreditationScope));
-            if (in_array($accreditationNormalized, ['non-accredited', 'non accredited', 'no', 'false'], true)) {
-                $nonAccredited = 1;
-            }
+        } elseif ($accreditationScope !== null && trim($accreditationScope) !== '') {
+            $accreditationNormalized = strtolower(trim($accreditationScope));
+            $nonAccredited = in_array($accreditationNormalized, ['non-accredited', 'non accredited', 'no', 'false'], true) ? 1 : 0;
         }
 
         return [
@@ -424,7 +423,7 @@ class AmspecParametersImporter extends BaseImporter
             'parameter_name' => $parameterName,
             'method' => $method,
             'unit' => $unit,
-            'decimal_places' => is_numeric($decimalPlaces) ? (int) $decimalPlaces : 2,
+            'decimal_places' => is_numeric($decimalPlaces) ? (int) $decimalPlaces : null,
             'non_accredited' => $nonAccredited,
             'instrument' => $instrument,
             'lab_code' => $explicitLabCode,
@@ -517,27 +516,26 @@ class AmspecParametersImporter extends BaseImporter
                 $sectionName = $this->humanizeLabel($sectionCode);
             }
 
-            $labSection = LabSection::query()
+            // analysis_elements.lab_section_id references sample_analysis_stages (operational
+            // departments, is_sample_stage = 0), not the Monitoring module's lab_sections table.
+            $labSection = SampleAnalysisStage::query()
                 ->where('company_id', $this->batch->company_id)
-                ->where(function ($q) use ($sectionCode, $sectionName, $labId) {
+                ->where('is_sample_stage', 0)
+                ->where(function ($q) use ($sectionCode, $sectionName) {
                     $q->where('code', $sectionCode)
                         ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower((string) $sectionName)]);
-                    if ($labId) {
-                        $q->orWhere(function ($inner) use ($sectionCode, $labId) {
-                            $inner->where('lab_id', $labId)->where('code', $sectionCode);
-                        });
-                    }
                 })
                 ->first();
 
             if (! $labSection) {
                 try {
                     // Savepoint keeps a failed insert from poisoning the row transaction (PostgreSQL).
-                    $labSection = DB::transaction(fn () => LabSection::create([
+                    $labSection = DB::transaction(fn () => SampleAnalysisStage::create([
                         'code' => $sectionCode,
                         'company_id' => $this->batch->company_id,
                         'name' => $sectionName,
                         'lab_id' => $labId,
+                        'is_sample_stage' => 0,
                         'active' => 1,
                     ]));
                     $labSectionId = $labSection->id;
@@ -546,7 +544,7 @@ class AmspecParametersImporter extends BaseImporter
                 }
             } else {
                 $labSectionId = $labSection->id;
-                if ($labId && $labSection->lab_id !== $labId) {
+                if ($labId && empty($labSection->lab_id)) {
                     $labSection->update(['lab_id' => $labId]);
                 }
             }
@@ -563,15 +561,35 @@ class AmspecParametersImporter extends BaseImporter
                     'code' => $transformedData['analyte_code'],
                     'company_id' => $this->batch->company_id,
                     'name' => $transformedData['analyte_name'],
-                    'decimal_places' => $transformedData['decimal_places'],
+                    'decimal_places' => $transformedData['decimal_places'] ?? 2,
                     'reporting_unit' => $transformedData['reporting_unit'],
-                    'non_accredited' => $transformedData['non_accredited'],
+                    'non_accredited' => $transformedData['non_accredited'] ?? 0,
                     'non_detectable' => 0,
                     'show_on_report' => 1,
                     'active' => 1
                 ]);
                 $this->recordUpsert($analyte->code, 'inserted');
                 $hasImportedAny = true;
+            } else {
+                // Refresh only the columns the upload actually provides; blank cells leave existing values intact.
+                $analyteUpdates = [];
+                if (($transformedData['reporting_unit'] ?? null) !== null
+                    && $analyte->reporting_unit !== $transformedData['reporting_unit']) {
+                    $analyteUpdates['reporting_unit'] = $transformedData['reporting_unit'];
+                }
+                if ($transformedData['decimal_places'] !== null
+                    && (int) $analyte->decimal_places !== $transformedData['decimal_places']) {
+                    $analyteUpdates['decimal_places'] = $transformedData['decimal_places'];
+                }
+                if ($transformedData['non_accredited'] !== null
+                    && (int) $analyte->non_accredited !== $transformedData['non_accredited']) {
+                    $analyteUpdates['non_accredited'] = $transformedData['non_accredited'];
+                }
+                if ($analyteUpdates !== []) {
+                    $analyte->update($analyteUpdates);
+                    $this->recordUpsert($analyte->code, 'updated');
+                    $hasImportedAny = true;
+                }
             }
 
             // 6. Process Method (only if we have the data)
@@ -614,10 +632,10 @@ class AmspecParametersImporter extends BaseImporter
                 'method' => $methodId,
                 'equipment_id' => $equipmentId,
                 'reporting_unit' => $transformedData['reporting_unit'],
-                'decimal_places' => $transformedData['decimal_places'],
+                'decimal_places' => $transformedData['decimal_places'] ?? 2,
                 'lod' => $transformedData['lod'] ?? null,
                 'hod' => $transformedData['hod'] ?? null,
-                'non_accredited' => $transformedData['non_accredited'],
+                'non_accredited' => $transformedData['non_accredited'] ?? 0,
                 'show_on_report' => 1,
                 'active' => 1,
             ];
@@ -668,6 +686,14 @@ class AmspecParametersImporter extends BaseImporter
                 if (array_key_exists('hod', $transformedData) && $transformedData['hod'] !== null
                     && (float) $existingAE->hod !== (float) $transformedData['hod']) {
                     $updateData['hod'] = $transformedData['hod'];
+                }
+                if ($transformedData['decimal_places'] !== null
+                    && (int) $existingAE->decimal_places !== $transformedData['decimal_places']) {
+                    $updateData['decimal_places'] = $transformedData['decimal_places'];
+                }
+                if ($transformedData['non_accredited'] !== null
+                    && (int) $existingAE->non_accredited !== $transformedData['non_accredited']) {
+                    $updateData['non_accredited'] = $transformedData['non_accredited'];
                 }
                 if ($updateData !== []) {
                     $existingAE->update($updateData);
