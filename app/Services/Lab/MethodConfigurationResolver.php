@@ -5,6 +5,7 @@ namespace App\Services\Lab;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 final class MethodConfigurationResolver
 {
@@ -13,6 +14,17 @@ final class MethodConfigurationResolver
     public const CATEGORY_LTM = 'Laboratory Test Method';
 
     public const CATEGORY_SAMPLING = 'Sampling Method';
+
+    /**
+     * Required method categories for import / UI classification.
+     *
+     * @var list<string>
+     */
+    private const REQUIRED_METHOD_TYPES = [
+        self::CATEGORY_SAMPLING,
+        self::CATEGORY_REFERENCE,
+        self::CATEGORY_LTM,
+    ];
 
     /**
      * @return Collection<int, SystemConfiguration>
@@ -41,8 +53,20 @@ final class MethodConfigurationResolver
 
     public function generalConfigurationType(): ?SystemConfigurationsType
     {
+        $pointerTypeId = SystemConfiguration::query()
+            ->whereIn('key', ['method_ltm_id', 'method_reference_id', 'sampling_method_type_id'])
+            ->value('configuration_type_id');
+
+        if ($pointerTypeId) {
+            $existing = SystemConfigurationsType::query()->find($pointerTypeId);
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         return SystemConfigurationsType::query()
-            ->whereIn('configuration_type', ['General Configuration', 'General Settings'])
+            ->whereIn('configuration_type', ['General Settings', 'General Configuration'])
+            ->orderByRaw("CASE configuration_type WHEN 'General Settings' THEN 0 ELSE 1 END")
             ->first();
     }
 
@@ -56,31 +80,47 @@ final class MethodConfigurationResolver
 
         $value = trim((string) ($config->value ?? ''));
 
-        return $value !== '' ? $value : null;
+        if ($value === '' || ! $this->isValidMethodTypeId($value)) {
+            return null;
+        }
+
+        return $value;
     }
 
     public function resolveTypeIdForCategory(string $categoryLabel): ?string
     {
+        $this->ensurePointerConfigurations();
+
         $normalized = $this->normalizeCategoryLabel($categoryLabel);
 
-        return match ($normalized) {
-            'reference' => $this->resolvePointerConfigValue('method_reference_id')
-                ?? $this->methodTypeOptions()->firstWhere('value', self::CATEGORY_REFERENCE)?->id,
-            'ltm' => $this->resolvePointerConfigValue('method_ltm_id')
-                ?? $this->methodTypeOptions()->firstWhere('value', self::CATEGORY_LTM)?->id,
-            'sampling' => $this->resolvePointerConfigValue('sampling_method_type_id')
-                ?? $this->methodTypeOptions()->firstWhere('value', self::CATEGORY_SAMPLING)?->id,
-            default => $this->methodTypeOptions()->first(
-                fn (SystemConfiguration $type) => strcasecmp((string) $type->value, $categoryLabel) === 0
-            )?->id,
+        $fromPointer = match ($normalized) {
+            'reference' => $this->resolvePointerConfigValue('method_reference_id'),
+            'ltm' => $this->resolvePointerConfigValue('method_ltm_id'),
+            'sampling' => $this->resolvePointerConfigValue('sampling_method_type_id'),
+            default => null,
         };
+
+        if ($fromPointer !== null) {
+            return $fromPointer;
+        }
+
+        $label = match ($normalized) {
+            'reference' => self::CATEGORY_REFERENCE,
+            'ltm' => self::CATEGORY_LTM,
+            'sampling' => self::CATEGORY_SAMPLING,
+            default => $categoryLabel,
+        };
+
+        return $this->findMethodTypeIdByValue($label);
     }
 
     /**
-     * Ensure method_reference_id exists when method types and sibling pointers are present.
+     * Ensure Method Types rows and pointer configs exist with valid UUID IDs.
      */
     public function ensurePointerConfigurations(): void
     {
+        $this->ensureRequiredMethodTypes();
+
         $generalType = $this->generalConfigurationType();
         $methodTypes = $this->methodTypeOptions();
 
@@ -88,28 +128,20 @@ final class MethodConfigurationResolver
             return;
         }
 
-        $referenceTypeId = $methodTypes->first(
-            fn (SystemConfiguration $type) => strcasecmp((string) $type->value, self::CATEGORY_REFERENCE) === 0
-        )?->id;
-
-        $ltmTypeId = $methodTypes->first(
-            fn (SystemConfiguration $type) => strcasecmp((string) $type->value, self::CATEGORY_LTM) === 0
-        )?->id;
-
-        $samplingTypeId = $methodTypes->first(
-            fn (SystemConfiguration $type) => strcasecmp((string) $type->value, self::CATEGORY_SAMPLING) === 0
-        )?->id;
+        $referenceTypeId = $this->findMethodTypeIdByValue(self::CATEGORY_REFERENCE);
+        $ltmTypeId = $this->findMethodTypeIdByValue(self::CATEGORY_LTM);
+        $samplingTypeId = $this->findMethodTypeIdByValue(self::CATEGORY_SAMPLING);
 
         if ($referenceTypeId) {
-            $this->upsertPointer('method_reference_id', (string) $referenceTypeId, $generalType->id);
+            $this->upsertPointer('method_reference_id', $referenceTypeId, (string) $generalType->id);
         }
 
         if ($ltmTypeId) {
-            $this->upsertPointer('method_ltm_id', (string) $ltmTypeId, $generalType->id);
+            $this->upsertPointer('method_ltm_id', $ltmTypeId, (string) $generalType->id);
         }
 
         if ($samplingTypeId) {
-            $this->upsertPointer('sampling_method_type_id', (string) $samplingTypeId, $generalType->id);
+            $this->upsertPointer('sampling_method_type_id', $samplingTypeId, (string) $generalType->id);
         }
     }
 
@@ -158,6 +190,59 @@ final class MethodConfigurationResolver
         $ltmTypeId = $this->resolvePointerConfigValue('method_ltm_id');
 
         return $ltmTypeId !== null && (string) $methodTypeId === (string) $ltmTypeId;
+    }
+
+    private function ensureRequiredMethodTypes(): void
+    {
+        $type = $this->methodTypesConfigurationType();
+
+        if (! $type) {
+            $type = SystemConfigurationsType::query()->create([
+                'configuration_type' => 'Method Types',
+                'description' => 'Analysis method categories',
+                'status' => true,
+            ]);
+        }
+
+        $existingValues = $this->methodTypeOptions()
+            ->map(fn (SystemConfiguration $row) => strtolower(trim((string) $row->value)))
+            ->filter()
+            ->values()
+            ->all();
+
+        foreach (self::REQUIRED_METHOD_TYPES as $categoryName) {
+            if (in_array(strtolower($categoryName), $existingValues, true)) {
+                continue;
+            }
+
+            SystemConfiguration::query()->create([
+                'configuration_type_id' => $type->id,
+                'key' => 'method_type',
+                'value' => $categoryName,
+                'status' => true,
+            ]);
+        }
+    }
+
+    private function findMethodTypeIdByValue(string $value): ?string
+    {
+        $match = $this->methodTypeOptions()->first(
+            fn (SystemConfiguration $type) => strcasecmp(trim((string) $type->value), $value) === 0
+        );
+
+        return $match ? (string) $match->id : null;
+    }
+
+    private function isValidMethodTypeId(string $value): bool
+    {
+        if (! Str::isUuid($value)) {
+            return false;
+        }
+
+        return SystemConfiguration::query()
+            ->where('id', $value)
+            ->where('key', 'method_type')
+            ->exists();
     }
 
     private function upsertPointer(string $key, string $value, string $configurationTypeId): void

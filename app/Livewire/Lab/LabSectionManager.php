@@ -14,6 +14,7 @@ use App\User;
 use App\UserLabRelation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class LabSectionManager extends Component
@@ -598,6 +599,7 @@ class LabSectionManager extends Component
                 }
 
                 $rows[] = [
+                    'id' => (string) Str::uuid7(),
                     'lab_section_id' => (string) $sectionId,
                     'user_id' => (string) $this->verifierForm['user_id'],
                     'title' => $this->verifierForm['title'],
