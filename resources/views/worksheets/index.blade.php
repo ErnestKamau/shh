@@ -21,7 +21,7 @@
           'icon' => null,
         ],
         [
-          'link' => route('view-batch-details', ['batch' => $batch->id]),
+          'link' => route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status]),
           'name' => $batch->batch_code,
           'icon' => null,
         ],

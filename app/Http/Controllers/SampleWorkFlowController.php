@@ -1687,6 +1687,11 @@ class SampleWorkFlowController extends Controller
         $batch = Str::isUuid($batchLookup)
             ? $batchQuery->find($batchLookup)
             : $batchQuery->where('batch_code', $batchLookup)->first();
+
+        if (!$status && isset($batch->id)) {
+            $status = $batch->status;
+        }
+
         if (isset($batch->id) && $batch->crm_unit_id < 1) {
             $crm_unit = CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)->where('name', $batch->crm_unit_name)->first();
             $batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;
