@@ -164,6 +164,9 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
                                             <i class="mdi mdi-sync"></i> Sync from pricelist
                                         </button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" wire:click="openAddQuotationLineModal" wire:loading.attr="disabled">
+                                            <i class="mdi mdi-plus"></i> Add parameter
+                                        </button>
                                         <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
                                             <i class="mdi mdi-file-document-check-outline"></i> Build quotation
                                         </button>
