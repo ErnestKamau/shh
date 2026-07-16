@@ -408,7 +408,7 @@
                                         wire:model="approvalForm.stage_name"
                                         :options="collect($stageOptions)->map(fn($stage) => ['id' => $stage, 'name' => $stage])"
                                         placeholder="Search stages..."
-                                        class="@error('approvalForm.stage_name') is-invalid @enderror"
+                                        class="{{ $errors->has('approvalForm.stage_name') ? 'is-invalid' : '' }}"
                                     />
                                     @error('approvalForm.stage_name') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                 </div>

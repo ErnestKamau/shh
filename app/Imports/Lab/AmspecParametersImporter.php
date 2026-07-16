@@ -1270,7 +1270,7 @@ class AmspecParametersImporter extends BaseImporter
     /**
      * @return array{model: ?AnalysisType, match: string, created: bool, input_code: string, input_name: string}
      */
-    protected function resolveAnalysisType(SampleType $sampleType, ?string $code, ?string $name, int $labId): array
+    protected function resolveAnalysisType(SampleType $sampleType, ?string $code, ?string $name, string $labId): array
     {
         $code = trim((string) $code);
         $name = trim((string) $name);
@@ -1458,7 +1458,7 @@ class AmspecParametersImporter extends BaseImporter
                 }
             }
 
-            $this->batch->addError(
+            $this->batch->addWarning(
                 $this->rowNumber,
                 "Row {$this->rowNumber}: created new {$entityType} '{$model->name}' ({$model->code}). Data was saved here, not under an existing record.{$siblingSummary}",
                 $diagnostics

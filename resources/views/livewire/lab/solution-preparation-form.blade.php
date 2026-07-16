@@ -22,7 +22,7 @@
                             :options="$this->solutions->map(fn($sol) => ['id' => $sol->id, 'name' => $sol->name])"
                             placeholder="Search solutions..."
                             empty-label="Select solution..."
-                            class="@error('form.solution_id') is-invalid @enderror"
+                            class="{{ $errors->has('form.solution_id') ? 'is-invalid' : '' }}"
                         />
                         @error('form.solution_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>

@@ -829,7 +829,7 @@
                                     :options="collect($workflows)->map(fn($workflow) => ['id' => $workflow, 'name' => $workflow])"
                                     placeholder="Search workflows..."
                                     empty-label="Select Sample Workflow..."
-                                    class="@error('sampleStageForm.sample_workflow') is-invalid @enderror"
+                                    class="{{ $errors->has('sampleStageForm.sample_workflow') ? 'is-invalid' : '' }}"
                                 />
                                 @error('sampleStageForm.sample_workflow') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
@@ -1003,7 +1003,7 @@
                             :options="$this->labSections->map(fn($section) => ['id' => $section->id, 'name' => $section->code . ' - ' . $section->name])"
                             placeholder="Search lab sections..."
                             empty-label="Select Lab Section..."
-                            class="@error('reportConfigForm.sample_analysis_stage_id') is-invalid @enderror"
+                            class="{{ $errors->has('reportConfigForm.sample_analysis_stage_id') ? 'is-invalid' : '' }}"
                         />
                         @error('reportConfigForm.sample_analysis_stage_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
@@ -1037,7 +1037,7 @@
                             :options="collect($reportFormats)->map(fn($format) => ['id' => $format->id, 'name' => $format->report_name . ' (' . $format->report_code . ')'])"
                             placeholder="Search report formats..."
                             empty-label="Select Report Format..."
-                            class="@error('reportConfigForm.report_format_id') is-invalid @enderror"
+                            class="{{ $errors->has('reportConfigForm.report_format_id') ? 'is-invalid' : '' }}"
                         />
                         @error('reportConfigForm.report_format_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         @endif

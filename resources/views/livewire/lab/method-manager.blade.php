@@ -244,7 +244,7 @@
                                             :options="collect($standards)->map(fn($standard) => ['id' => $standard->id, 'name' => trim($standard->code . ' - ' . $standard->name . ($standard->is_qc_standard ? ' (QC)' : ''))])"
                                             placeholder="Search standards..."
                                             empty-label="None (optional)"
-                                            class="@error('methodForm.based_on_standard_id') is-invalid @enderror"
+                                            class="{{ $errors->has('methodForm.based_on_standard_id') ? 'is-invalid' : '' }}"
                                         />
                                         <small class="text-muted">Catalogue/QC standard this method is based on. Separate from Reference Method.</small>
                                         @error('methodForm.based_on_standard_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -257,7 +257,7 @@
                                             wire:model.live="methodForm.qc_scheme_ids"
                                             :options="collect($qcSchemes)->map(fn($scheme) => ['id' => $scheme->id, 'name' => $scheme->name . ' (' . $scheme->code . ')'])"
                                             placeholder="Search QC schemes..."
-                                            class="@error('methodForm.qc_scheme_ids') is-invalid @enderror"
+                                            class="{{ $errors->has('methodForm.qc_scheme_ids') ? 'is-invalid' : '' }}"
                                         />
                                         <small class="text-muted">Resolved with the mode below against the parent standard’s schemes at Mark Complete.</small>
                                         @error('methodForm.qc_scheme_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -291,7 +291,7 @@
                                             :options="collect($equipmentItems)->map(fn($item) => ['id' => $item->id, 'name' => $item->name . ($item->equipment_number ? ' (' . $item->equipment_number . ')' : '')])"
                                             placeholder="Search equipment..."
                                             empty-label="Any (no filter)"
-                                            class="@error('methodForm.qc_condition_equipment_id') is-invalid @enderror"
+                                            class="{{ $errors->has('methodForm.qc_condition_equipment_id') ? 'is-invalid' : '' }}"
                                         />
                                         @error('methodForm.qc_condition_equipment_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
@@ -304,7 +304,7 @@
                                             :options="collect($customers)->map(fn($customer) => ['id' => $customer->id, 'name' => $customer->name])"
                                             placeholder="Search clients..."
                                             empty-label="Any (no filter)"
-                                            class="@error('methodForm.qc_condition_crm_customer_id') is-invalid @enderror"
+                                            class="{{ $errors->has('methodForm.qc_condition_crm_customer_id') ? 'is-invalid' : '' }}"
                                         />
                                         @error('methodForm.qc_condition_crm_customer_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
@@ -317,7 +317,7 @@
                                             :options="collect($sampleTypes)->map(fn($sampleType) => ['id' => $sampleType->id, 'name' => $sampleType->name])"
                                             placeholder="Search sample types..."
                                             empty-label="Any (no filter)"
-                                            class="@error('methodForm.qc_condition_sample_type_id') is-invalid @enderror"
+                                            class="{{ $errors->has('methodForm.qc_condition_sample_type_id') ? 'is-invalid' : '' }}"
                                         />
                                         <small class="text-muted">Bindings apply only when all set conditions match the captured result / batch.</small>
                                         @error('methodForm.qc_condition_sample_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror

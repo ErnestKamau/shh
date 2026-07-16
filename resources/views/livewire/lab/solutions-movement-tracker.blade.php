@@ -268,7 +268,7 @@
                                             :options="collect($reportingUnits)->map(fn($unit) => ['id' => $unit->id, 'name' => $unit->name])"
                                             placeholder="Search units..."
                                             empty-label="Select unit"
-                                            class="@error('movementForm.uom_id') is-invalid @enderror"
+                                            class="{{ $errors->has('movementForm.uom_id') ? 'is-invalid' : '' }}"
                                         />
                                         @error('movementForm.uom_id')
                                             <div class="invalid-feedback d-block">{{ $message }}</div>

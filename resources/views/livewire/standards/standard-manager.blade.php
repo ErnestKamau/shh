@@ -369,7 +369,7 @@
                                             :options="collect($analytes)->map(fn($analyte) => ['id' => $analyte->id, 'name' => $analyte->name . ' (' . $analyte->code . ')'])"
                                             placeholder="Search analytes..."
                                             empty-label="Select Analyte"
-                                            class="@error('standardAnalyteForm.analyte_id') is-invalid @enderror"
+                                            class="{{ $errors->has('standardAnalyteForm.analyte_id') ? 'is-invalid' : '' }}"
                                         />
                                         @error('standardAnalyteForm.analyte_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
