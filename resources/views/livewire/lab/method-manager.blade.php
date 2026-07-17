@@ -436,7 +436,11 @@
                     const $el = $(this);
 
                     if ($el.data('select2')) {
-                        $el.select2('destroy');
+                        try {
+                            $el.select2('destroy');
+                        } catch (e) {
+                            // Livewire morph may have removed select2 markup already.
+                        }
                     }
 
                     $el.select2({
@@ -445,6 +449,13 @@
                         allowClear: !$el.prop('multiple'),
                         dropdownParent: $modal,
                     });
+
+                    // select2 only fires jQuery events; dispatch a native change
+                    // event so Livewire's wire:model picks up the new value.
+                    $el.off('select2:select.livewireSync select2:unselect.livewireSync select2:clear.livewireSync')
+                        .on('select2:select.livewireSync select2:unselect.livewireSync select2:clear.livewireSync', function () {
+                            this.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
                 });
             };
 
@@ -452,6 +463,12 @@
                 document.body.classList.add('modal-open');
                 document.body.style.overflow = 'hidden';
                 setTimeout(initMethodModalSelect2, 50);
+            });
+
+            Livewire.hook('commit', ({ succeed }) => {
+                succeed(() => {
+                    setTimeout(initMethodModalSelect2, 50);
+                });
             });
 
             Livewire.on('method-modal-closed', () => {
