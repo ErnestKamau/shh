@@ -52,8 +52,10 @@ class LabSectionResultAccess
 
         $sectionId = $this->normalizeSectionId($row->lab_section_id);
 
+        // Legacy / incomplete rows with no section: allow assigned analysts to capture.
+        // A section is persisted on save (from the analysis element or the user's assignment).
         if ($sectionId === null) {
-            return false;
+            return true;
         }
 
         return in_array($sectionId, $this->allowedLabSectionIds($user), true);

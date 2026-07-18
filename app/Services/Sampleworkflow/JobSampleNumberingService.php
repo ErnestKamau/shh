@@ -23,6 +23,12 @@ class JobSampleNumberingService
     public const PREFIX_CHEMISTRY = 'C';
 
     /**
+     * Shared sequence key for numeric sample codes (no category letter in the code).
+     * Category prefixes (C/M/L) remain for classification elsewhere but are not embedded.
+     */
+    public const SEQUENCE_KEY = '';
+
+    /**
      * Generate job/batch number: YYMMDD + 3-digit daily sequence (resets each calendar day).
      * Example: 260428001
      */
@@ -120,33 +126,44 @@ class JobSampleNumberingService
     }
 
     /**
-     * Next lab sample code for a job and category prefix.
-     * Example: 260428001-M001
+     * Next lab sample code for a job.
+     * Example: 260428001-001 (category letter is not included).
+     *
+     * @param  string  $prefix  Retained for API compatibility; not embedded in the code.
      */
-    public function nextSampleCode(string $jobNumber, string $prefix): string
+    public function nextSampleCode(string $jobNumber, string $prefix = self::PREFIX_CHEMISTRY): string
     {
         $this->assertValidJobNumber($jobNumber);
-        $prefix = strtoupper(trim($prefix));
 
-        if (! in_array($prefix, [self::PREFIX_MICROBIOLOGY, self::PREFIX_LEGIONELLA, self::PREFIX_CHEMISTRY], true)) {
-            throw new InvalidArgumentException("Invalid sample code prefix: {$prefix}");
-        }
+        $sequenceNo = SampleSequence::getNextSampleSequence($jobNumber, self::SEQUENCE_KEY);
 
-        $sequenceNo = SampleSequence::getNextSampleSequence($jobNumber, $prefix);
-
-        return $jobNumber . '-' . $prefix . str_pad((string) $sequenceNo, 3, '0', STR_PAD_LEFT);
+        return $jobNumber . '-' . str_pad((string) $sequenceNo, 3, '0', STR_PAD_LEFT);
     }
 
     /**
      * Numeric suffix only (e.g. 001) from a generated sample code.
+     * Accepts both legacy (260428001-C001) and current (260428001-001) formats.
      */
     public function sampleNumberFromCode(string $sampleCode): string
     {
-        if (preg_match('/-([MLC])(\d{3})$/', $sampleCode, $matches)) {
-            return $matches[2];
+        if (preg_match('/-(?:[MLC])?(\d{3})$/', $sampleCode, $matches)) {
+            return $matches[1];
         }
 
         throw new InvalidArgumentException("Cannot parse sample number from code: {$sampleCode}");
+    }
+
+    /**
+     * Display helper: strip legacy category letter (C/M/L) from job sample codes.
+     * 260716003-C001 → 260716003-001
+     */
+    public function stripCategoryPrefixFromSampleCode(string $sampleCode): string
+    {
+        if (preg_match('/^(\d{9})-([MLC])(\d{3})$/', $sampleCode, $matches)) {
+            return $matches[1] . '-' . $matches[3];
+        }
+
+        return $sampleCode;
     }
 
     /**

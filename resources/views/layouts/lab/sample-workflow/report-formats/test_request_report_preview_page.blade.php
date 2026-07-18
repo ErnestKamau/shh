@@ -214,6 +214,7 @@
             'batch_id' => $batch->id,
             'mode' => 'preview-doc',
             'lang' => $language ?? 'en',
+            'include_reference_method' => !empty($includeReferenceMethod) ? 1 : 0,
         ]);
     @endphp
 

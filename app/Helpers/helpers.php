@@ -2188,6 +2188,20 @@ function getBatchSampleCodes($id){
 	return implode(',',$sample_codes);
 }
 
+/**
+ * Format a job sample code for display without the legacy category letter.
+ * 260716003-C001 → 260716003-001
+ */
+function format_sample_code(?string $sampleCode): string
+{
+	if ($sampleCode === null || $sampleCode === '') {
+		return '';
+	}
+
+	return app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+		->stripCategoryPrefixFromSampleCode($sampleCode);
+}
+
 function split_emails($sep, $str){
 	$emails = explode($sep, $str);
 

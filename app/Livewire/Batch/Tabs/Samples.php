@@ -2240,6 +2240,16 @@ class Samples extends Component
                 );
 
                 // Lab section (for Parameters modal column and change section)
+                if (! $result->lab_section_id && $element?->lab_section_id) {
+                    // Prefer element section only when the current user can edit that section;
+                    // otherwise leave null so assigned analysts can still capture (claimed on save).
+                    $candidateSection = (string) $element->lab_section_id;
+                    if (in_array($candidateSection, $access->allowedLabSectionIds($user), true)) {
+                        $result->lab_section_id = $candidateSection;
+                        $result->saveQuietly();
+                    }
+                }
+
                 $labSection = SampleAnalysisStage::find($result->lab_section_id);
 
                 // Get analyte for reporting unit
@@ -2295,6 +2305,24 @@ class Samples extends Component
 
                 $selectedEquipmentIds = $defaultEquipmentIds;
 
+                $startAnalysisDate = $analysisDatesBySection['captured_result:' . $result->id]['start_date']
+                    ?? $analysisDatesBySection[$result->lab_section_id]['start_date']
+                    ?? null;
+                $endAnalysisDate = $analysisDatesBySection['captured_result:' . $result->id]['end_date']
+                    ?? $analysisDatesBySection[$result->lab_section_id]['end_date']
+                    ?? null;
+
+                // Start date defaults to receipt/acceptance date when the job has been received.
+                if ($startAnalysisDate === null || $startAnalysisDate === '') {
+                    $startAnalysisDate = $this->defaultStartAnalysisDateFromReceipt();
+                }
+
+                // Previously filed results with no saved end date: use when the result was last updated.
+                if (($endAnalysisDate === null || $endAnalysisDate === '')
+                    && trim((string) ($result->result ?? '')) !== '') {
+                    $endAnalysisDate = $this->normalizeDateOnly($result->updated_at);
+                }
+
                 $parameters[$result->id] = [
                     'id' => $result->id,
                     'sample_code' => $result->sample_detail_code,
@@ -2325,12 +2353,8 @@ class Samples extends Component
                     'equipment_ids' => $selectedEquipmentIds,
                     'lab_section_id' => $result->lab_section_id,
                     'lab_section_name' => $labSection ? ($labSection->name . ' - ' . $labSection->code) : '-',
-                    'start_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['start_date']
-                        ?? $analysisDatesBySection[$result->lab_section_id]['start_date']
-                        ?? '',
-                    'end_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['end_date']
-                        ?? $analysisDatesBySection[$result->lab_section_id]['end_date']
-                        ?? '',
+                    'start_analysis_date' => $startAnalysisDate ?? '',
+                    'end_analysis_date' => $endAnalysisDate ?? '',
                     'subcontracted' => $result->analyte_status_contracted,
                     'accredited' => $result->analyte_accredited,
                     'result_confirmation' => $result->result, // Initialize with same value
@@ -2380,10 +2404,11 @@ class Samples extends Component
 
                 $this->dateOfAnalysisBySection[$secId] = $range['start_date'] ?? '';
             }
-            // Ensure every parameter section has an entry
+            // Ensure every parameter section has an entry (default to receipt/acceptance date)
+            $defaultStartDate = $this->defaultStartAnalysisDateFromReceipt() ?? '';
             foreach (array_keys($this->parameterLabSections) as $sid) {
-                if (!isset($this->dateOfAnalysisBySection[$sid])) {
-                    $this->dateOfAnalysisBySection[$sid] = '';
+                if (! isset($this->dateOfAnalysisBySection[$sid]) || $this->dateOfAnalysisBySection[$sid] === '') {
+                    $this->dateOfAnalysisBySection[$sid] = $defaultStartDate;
                 }
             }
 
@@ -2395,9 +2420,10 @@ class Samples extends Component
                 foreach ($this->modalLabSections as $stage) {
                     $this->parameterLabSections[$stage->id] = $stage->name . ' - ' . $stage->code;
                 }
+                $defaultStartDate = $this->defaultStartAnalysisDateFromReceipt() ?? '';
                 foreach (array_keys($this->parameterLabSections) as $sid) {
-                    if (!isset($this->dateOfAnalysisBySection[$sid])) {
-                        $this->dateOfAnalysisBySection[$sid] = '';
+                    if (! isset($this->dateOfAnalysisBySection[$sid]) || $this->dateOfAnalysisBySection[$sid] === '') {
+                        $this->dateOfAnalysisBySection[$sid] = $defaultStartDate;
                     }
                 }
             }
@@ -2441,12 +2467,14 @@ class Samples extends Component
         }
 
         if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
+            session()->flash('error', app(LabSectionResultAccess::class)->denyEditMessage(auth()->user()));
             return;
         }
 
         $result = trim($result);
         $this->parametersForm[$id]['result'] = $result;
         $this->parametersForm[$id]['result_confirmation'] = $result;
+        $this->autofillAnalysisDatesForFiledResult($id);
         $this->evaluateResult($id);
     }
 
@@ -2746,6 +2774,21 @@ class Samples extends Component
                 $this->evaluateResult($id);
             }
 
+            // Persist receipt-based start dates even when no result is filed yet.
+            // When a result is present, also autofill end date if still empty.
+            foreach (array_keys($this->parametersForm) as $id) {
+                if (empty($this->parametersForm[$id]['start_analysis_date'])) {
+                    $receiptDate = $this->defaultStartAnalysisDateFromReceipt();
+                    if ($receiptDate !== null) {
+                        $this->parametersForm[$id]['start_analysis_date'] = $receiptDate;
+                    }
+                }
+
+                if (trim((string) ($this->parametersForm[$id]['result'] ?? '')) !== '') {
+                    $this->autofillAnalysisDatesForFiledResult($id);
+                }
+            }
+
             foreach ($this->parametersForm as $data) {
                 $startDate = $this->normalizeDateOnly($data['start_analysis_date'] ?? null);
                 $endDate = $this->normalizeDateOnly($data['end_analysis_date'] ?? null);
@@ -2774,15 +2817,17 @@ class Samples extends Component
                     $data['equipment_id'] ?? null
                 );
 
-                // Keep persisted lab_section_id; do not trust form-posted section for auth.
+                $labSectionId = $this->resolveLabSectionIdForSave($captured, $user, $access);
+
+                // Keep resolved lab_section_id; do not trust form-posted section for auth.
                 $saveAttributes = [
-                    'result' => $data['result'] ?: null,
+                    'result' => ($data['result'] ?? '') === '' || $data['result'] === null ? null : (string) $data['result'],
                     'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
                     'remark' => $data['remark'] ?: null,
                     'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
                     'method_id' => $this->normalizeNullableForeignKey($data['method_id'] ?? null),
                     'equipment_id' => $equipmentIds[0] ?? null,
-                    'lab_section_id' => $captured->lab_section_id,
+                    'lab_section_id' => $labSectionId,
                     'analyte_status_contracted' => ! empty($data['subcontracted']) ? 1 : 0,
                     'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
                 ];
@@ -2796,6 +2841,10 @@ class Samples extends Component
                     $saveAttributes,
                     auth()->id() ? (string) auth()->id() : null
                 );
+
+                if (isset($this->parametersForm[$id])) {
+                    $this->parametersForm[$id]['lab_section_id'] = $labSectionId;
+                }
             }
 
             $this->persistSampleAnalysisDateRange();
@@ -2952,6 +3001,67 @@ class Samples extends Component
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Receipt/acceptance date for the batch — used as the default start analysis date.
+     */
+    private function defaultStartAnalysisDateFromReceipt(): ?string
+    {
+        return $this->normalizeDateOnly($this->batch->receipt_date ?? null);
+    }
+
+    /**
+     * When a result is filed: ensure start date comes from receipt (if empty),
+     * and end date defaults to today (if empty). Does not overwrite user-entered dates.
+     */
+    private function autofillAnalysisDatesForFiledResult(string $id): void
+    {
+        if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        if (empty($this->parametersForm[$id]['start_analysis_date'])) {
+            $receiptDate = $this->defaultStartAnalysisDateFromReceipt();
+            if ($receiptDate !== null) {
+                $this->parametersForm[$id]['start_analysis_date'] = $receiptDate;
+            }
+        }
+
+        if (empty($this->parametersForm[$id]['end_analysis_date'])) {
+            $this->parametersForm[$id]['end_analysis_date'] = now()->format('Y-m-d');
+        }
+    }
+
+    /**
+     * Resolve a lab section for save when the captured row is missing one.
+     * Prefer the analysis element's section when the user is assigned to it;
+     * otherwise use the user's first assigned section so they can keep editing.
+     */
+    private function resolveLabSectionIdForSave(
+        CapturedResult $captured,
+        mixed $user,
+        LabSectionResultAccess $access
+    ): ?string {
+        $existing = $this->normalizeNullableForeignKey($captured->lab_section_id);
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $fromElement = $this->normalizeNullableForeignKey(
+            $captured->resolveAnalysisElement()?->lab_section_id
+        );
+        $userSections = $access->allowedLabSectionIds($user instanceof \App\User ? $user : null);
+
+        if ($fromElement !== null && in_array($fromElement, $userSections, true)) {
+            return $fromElement;
+        }
+
+        if ($userSections !== []) {
+            return $userSections[0];
+        }
+
+        return $fromElement;
     }
 
     private function findEarliestDate(array $dates): ?string

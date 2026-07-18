@@ -99,6 +99,25 @@
                         });
                     </script>
 
+                    {{-- Report column options --}}
+                    <div class="form-group mb-4">
+                        <label class="font-weight-bold d-block mb-2" style="font-size:14px;">
+                            <i class="mdi mdi-table-column mr-1"></i> Result Table Options
+                        </label>
+                        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;background:#fafafa;">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="ptrr-include-reference-method"
+                                       name="include_reference_method" value="1">
+                                <label class="custom-control-label" for="ptrr-include-reference-method" style="font-size:13px;">
+                                    Include <strong>Reference Method</strong> column
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1" style="font-size:11px;">
+                                Adds the linked reference method next to Method of Analysis for each result row.
+                            </small>
+                        </div>
+                    </div>
+
                     {{-- Revision notes --}}
                     <div class="form-group mb-2">
                         <label class="font-weight-bold" for="ptrr-notes" style="font-size:14px;">

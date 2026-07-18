@@ -530,7 +530,7 @@ trait SeedsTrfWorkflowSamples
             throw new \RuntimeException("No sample detail created for batch {$header->batch_code}.");
         }
 
-        if (! preg_match('/^\d{9}-[MLC]\d{3}$/', (string) $detail->sample_code)) {
+        if (! preg_match('/^\d{9}-\d{3}$/', (string) $detail->sample_code)) {
             throw new \RuntimeException("Seeded sample_code {$detail->sample_code} has an invalid format.");
         }
 

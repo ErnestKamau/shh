@@ -6664,8 +6664,8 @@
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
 						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual no-select2">
 							<option value="" ${!data.remark || data.remark === '' ? 'selected' : ''}>- Select -</option>
-							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Pass</option>
-							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Fail</option>
+							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Conforming</option>
+							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Non-conforming</option>
 							<option value="-" ${data.remark == '-' ? 'selected' : ''}>-</option>
 						</select>
 					</div>

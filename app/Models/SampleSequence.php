@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Sampleworkflow\JobSampleNumberingService;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -30,13 +31,31 @@ class SampleSequence extends Model implements Auditable
      */
     public static function getOrCreateSequence(string $jobNumber, string $prefix): self
     {
-        return self::firstOrCreate(
-            [
-                'batch_code' => $jobNumber,
-                'prefix' => strtoupper($prefix),
-            ],
-            ['sample_sequence' => 0],
-        );
+        $prefix = strtoupper($prefix);
+
+        $existing = self::query()
+            ->where('batch_code', $jobNumber)
+            ->where('prefix', $prefix)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        // Unified numeric codes share one counter; seed from the highest legacy
+        // category sequence so new -001 style codes do not collide with -C001 etc.
+        $seed = 0;
+        if ($prefix === JobSampleNumberingService::SEQUENCE_KEY) {
+            $seed = (int) self::query()
+                ->where('batch_code', $jobNumber)
+                ->max('sample_sequence');
+        }
+
+        return self::query()->create([
+            'batch_code' => $jobNumber,
+            'prefix' => $prefix,
+            'sample_sequence' => $seed,
+        ]);
     }
 
     /**

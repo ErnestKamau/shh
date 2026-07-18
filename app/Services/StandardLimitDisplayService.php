@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\CapturedResult;
 use App\StandardAnalytes;
+use App\Standards;
 use App\StandardValue;
 
 class StandardLimitDisplayService
@@ -29,6 +30,34 @@ class StandardLimitDisplayService
         }
 
         return $fromStandard;
+    }
+
+    /**
+     * Resolve the standard name (or code) for a captured result.
+     */
+    public function standardNameForCapturedResult(CapturedResult $captured, string|int|null $fallbackStandardId = null): ?string
+    {
+        $standardId = $captured->main_standard_id
+            ?: $fallbackStandardId
+            ?: $captured->sample?->main_standard;
+
+        if (! $standardId) {
+            return null;
+        }
+
+        $standard = Standards::query()->find($standardId);
+        if (! $standard) {
+            return null;
+        }
+
+        $name = trim((string) ($standard->name ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        $code = trim((string) ($standard->code ?? ''));
+
+        return $code !== '' ? $code : null;
     }
 
     /**

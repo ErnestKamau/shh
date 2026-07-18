@@ -250,6 +250,10 @@ class CapturedResult extends Model implements Auditable
 	{
 		$element = $this->resolveAnalysisElement();
 
+		if (! $this->lab_section_id && $element?->lab_section_id) {
+			$this->lab_section_id = (string) $element->lab_section_id;
+		}
+
 		if (!$this->reporting_unit_id) {
 			$this->reporting_unit_id = resolveReportingUnitIdFromAnalyte(
 				$this->analysis_type_id,

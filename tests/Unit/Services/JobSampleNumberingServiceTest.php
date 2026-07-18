@@ -69,17 +69,30 @@ class JobSampleNumberingServiceTest extends TestCase
     }
 
     /** @test */
-    public function it_generates_prefixed_sample_codes_per_job_and_category(): void
+    public function it_generates_numeric_sample_codes_per_job_without_category_letter(): void
     {
         $job = '260428001';
 
-        $microOne = $this->service->nextSampleCode($job, JobSampleNumberingService::PREFIX_MICROBIOLOGY);
-        $microTwo = $this->service->nextSampleCode($job, JobSampleNumberingService::PREFIX_MICROBIOLOGY);
-        $chemOne = $this->service->nextSampleCode($job, JobSampleNumberingService::PREFIX_CHEMISTRY);
+        $first = $this->service->nextSampleCode($job, JobSampleNumberingService::PREFIX_MICROBIOLOGY);
+        $second = $this->service->nextSampleCode($job, JobSampleNumberingService::PREFIX_MICROBIOLOGY);
+        $third = $this->service->nextSampleCode($job, JobSampleNumberingService::PREFIX_CHEMISTRY);
 
-        $this->assertSame('260428001-M001', $microOne);
-        $this->assertSame('260428001-M002', $microTwo);
-        $this->assertSame('260428001-C001', $chemOne);
+        $this->assertSame('260428001-001', $first);
+        $this->assertSame('260428001-002', $second);
+        $this->assertSame('260428001-003', $third);
+    }
+
+    /** @test */
+    public function it_strips_legacy_category_letter_from_sample_codes(): void
+    {
+        $this->assertSame(
+            '260716003-001',
+            $this->service->stripCategoryPrefixFromSampleCode('260716003-C001')
+        );
+        $this->assertSame(
+            '260716003-001',
+            $this->service->stripCategoryPrefixFromSampleCode('260716003-001')
+        );
     }
 
     /** @test */

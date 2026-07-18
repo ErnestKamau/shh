@@ -221,7 +221,7 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d{9}$/', (string) $header->batch_code);
         foreach ($details as $detail) {
             $this->assertMatchesRegularExpression(
-                '/^' . preg_quote((string) $header->batch_code, '/') . '-[MLC]\d{3}$/',
+                '/^' . preg_quote((string) $header->batch_code, '/') . '-\d{3}$/',
                 (string) $detail->sample_code,
             );
             $this->assertSame($header->batch_code . '-R01', $detail->report_number);
@@ -318,7 +318,7 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         $jobNumber = (string) SampleHeader::query()->find($form->fresh()->sample_header_id)?->batch_code;
         $this->assertMatchesRegularExpression('/^\d{9}$/', $jobNumber);
         $this->assertSame(
-            ['-M001', '-M002', '-M003'],
+            ['-001', '-002', '-003'],
             $details->sortBy('sample_code')->pluck('sample_code')->map(
                 fn (string $code) => substr($code, strlen($jobNumber))
             )->all(),
@@ -407,7 +407,7 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         $header = SampleHeader::query()->find($form->fresh()->sample_header_id);
         $detail = SampleDetails::query()->where('sample_header_id', $header->id)->sole();
 
-        $this->assertSame($header->batch_code . '-M001', $detail->sample_code);
+        $this->assertSame($header->batch_code . '-001', $detail->sample_code);
         $this->assertSame('CUST-SAMPLE-99', $detail->customer_sample_id);
         $this->assertSame($header->batch_code . '-R01', $detail->report_number);
     }

@@ -201,7 +201,7 @@
                     <div class="modal-body">
                         @forelse($this->incompleteCapturedResultsGrouped as $sampleCode => $items)
                             <div class="mb-3">
-                                <h6 class="font-weight-bold mb-2">{{ $sampleCode }}</h6>
+                                <h6 class="font-weight-bold mb-2">{{ format_sample_code($sampleCode) }}</h6>
                                 <ul class="mb-0 pl-3 small">
                                     @foreach($items as $item)
                                         <li>
@@ -373,7 +373,7 @@
                         {{-- Sample Code (readonly) --}}
                         <td>
                             <input type="text" class="form-control form-control-sm"
-                                value="{{ $sampleForm['sample_code'] }}" readonly
+                                value="{{ format_sample_code($sampleForm['sample_code']) }}" readonly
                                 style="background: #f5f5f5; font-weight: bold;">
                         </td>
 
@@ -655,7 +655,7 @@
                                     @if($interpretationHeader !== '')
                                     <div class="col-md-4 mb-2 mb-md-0">
                                         <div class="small font-weight-bold text-muted mb-1">Comments</div>
-                                        <div class="sample-interpretation-content">{!! $sampleForm['header_body'] !!}</div>
+                                        <div class="sample-interpretation-content">{!! str_ireplace('not conforming', 'non-conforming', $sampleForm['header_body']) !!}</div>
                                     </div>
                                     @endif
                                     @if($interpretationMain !== '')
@@ -934,7 +934,7 @@
                             Parameters for sample
                         </h5>
                         <p class="text-muted small mb-0">
-                            <span class="badge badge-light border font-weight-normal">{{ $selectedSampleCode }}</span>
+                            <span class="badge badge-light border font-weight-normal">{{ format_sample_code($selectedSampleCode) }}</span>
                             @if(!empty($sampleParameters))
                                 <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
                             @endif
@@ -954,6 +954,16 @@
                 </div>
 
                 <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
+                    @if (session()->has('error'))
+                    <div class="alert alert-danger border mb-3">
+                        <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
+                    </div>
+                    @endif
+                    @if (session()->has('message'))
+                    <div class="alert alert-success border mb-3">
+                        <i class="mdi mdi-check-circle"></i> {{ session('message') }}
+                    </div>
+                    @endif
                     @if($parametersReadOnly)
                     <div class="alert alert-warning border mb-3">
                         <i class="mdi mdi-lock-outline"></i>
@@ -1006,7 +1016,7 @@
                                 </tr>
                                 @foreach($groupedParams as $id => $param)
                                 <tr wire:key="param-{{ $id }}">
-                                    <td><strong>{{ $param['sample_code'] }}</strong></td>
+                                    <td><strong>{{ format_sample_code($param['sample_code']) }}</strong></td>
                                     <td class="sample-parameters-modal__analyte">
                                         <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
                                         @if(!empty($param['analyte_code']) && $param['analyte_code'] !== $param['analyte_name'])
@@ -1018,7 +1028,7 @@
                                         <div class="input-group input-group-sm">
                                             <input type="text"
                                                 class="form-control form-control-sm {{ $parametersDisabled ? '' : 'js-confirm-result' }}"
-                                                value="{{ $param['result'] ?? '' }}"
+                                                wire:model="parametersForm.{{ $id }}.result"
                                                 placeholder="Result"
                                                 data-row-id="{{ $id }}"
                                                 data-analyte="{{ $param['analyte_name'] ?? 'analyte' }}"
@@ -1094,8 +1104,8 @@
                                             style="pointer-events: none; background-color: #e9ecef;"
                                             @if($parametersDisabled) disabled @endif>
                                             <option value="">- Select -</option>
-                                            <option value="PASS">PASS</option>
-                                            <option value="FAIL">FAIL</option>
+                                            <option value="PASS">Conforming</option>
+                                            <option value="FAIL">Non-conforming</option>
                                         </select>
                                     </td>
                                     <td style="min-width: 120px;">
@@ -2777,7 +2787,7 @@
 
                 if (current === '') {
                     delete el.dataset.confirmedValue;
-                    component.call('clearParameterResult', rowId);
+                    await component.call('clearParameterResult', rowId);
                     return;
                 }
 
@@ -2795,11 +2805,11 @@
 
                     if (confirmation !== null && confirmation.trim() === current) {
                         el.dataset.confirmedValue = current;
-                        component.call('applyConfirmedResult', rowId, current);
+                        await component.call('applyConfirmedResult', rowId, current);
                     } else {
                         el.value = '';
                         delete el.dataset.confirmedValue;
-                        component.call('clearParameterResult', rowId);
+                        await component.call('clearParameterResult', rowId);
                     }
                 } finally {
                     delete el.dataset.confirming;

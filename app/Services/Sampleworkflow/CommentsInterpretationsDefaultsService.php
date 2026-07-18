@@ -127,7 +127,7 @@ class CommentsInterpretationsDefaultsService
                 return 'The above test result is conforming to "'.$name.'"';
             }
 
-            return 'The above test result is not conforming to "'.$name.'"';
+            return 'The above test result is non-conforming to "'.$name.'"';
         }
 
         if ($count === 2) {
@@ -139,19 +139,19 @@ class CommentsInterpretationsDefaultsService
             }
 
             if (! $first['passed'] && ! $second['passed']) {
-                return 'The above test result is not conforming to "'.$first['name'].'" & "'.$second['name'].'"';
+                return 'The above test result is non-conforming to "'.$first['name'].'" & "'.$second['name'].'"';
             }
 
             if ($first['passed'] && ! $second['passed']) {
-                return 'The above test result is conforming to "'.$first['name'].'" & not conforming to "'.$second['name'].'"';
+                return 'The above test result is conforming to "'.$first['name'].'" & non-conforming to "'.$second['name'].'"';
             }
 
-            return 'The above test result is not conforming to "'.$first['name'].'" & conforming to "'.$second['name'].'"';
+            return 'The above test result is non-conforming to "'.$first['name'].'" & conforming to "'.$second['name'].'"';
         }
 
         $parts = [];
         foreach ($outcomes as $outcome) {
-            $parts[] = ($outcome['passed'] ? 'conforming to' : 'not conforming to').' "'.$outcome['name'].'"';
+            $parts[] = ($outcome['passed'] ? 'conforming to' : 'non-conforming to').' "'.$outcome['name'].'"';
         }
 
         return 'The above test result is '.implode(' & ', $parts);
