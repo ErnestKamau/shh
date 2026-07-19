@@ -1,5 +1,5 @@
 {{-- ═══════════════════════════════════════════════════════════════
-     Process Test Request Report Modal
+     Process Test Report Modal
      Variables expected: $batch
      ═══════════════════════════════════════════════════════════════ --}}
 <div class="modal fade" id="process-test-request-report-modal" tabindex="-1" role="dialog"
@@ -11,7 +11,7 @@
             <div class="modal-header" style="background:#8B1A1A;color:#fff;border-bottom:none;padding:18px 24px;">
                 <h5 class="modal-title font-weight-bold" id="ptrr-modal-label">
                     <i class="mdi mdi-file-document-edit-outline mr-2"></i>
-                    Process Laboratory Test Report
+                    Process Test Report
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"
                         style="color:#fff;opacity:1;font-size:1.4rem;">

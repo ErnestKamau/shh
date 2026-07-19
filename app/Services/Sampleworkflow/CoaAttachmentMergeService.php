@@ -17,7 +17,7 @@ class CoaAttachmentMergeService
             }
         }
 
-        Log::warning('Test Request Report PDF is not available for attachment merge', [
+        Log::warning('Test Report PDF is not available for attachment merge', [
             'batch_id' => $batch->id,
             'batch_report_url' => $batch->batch_report_url,
         ]);

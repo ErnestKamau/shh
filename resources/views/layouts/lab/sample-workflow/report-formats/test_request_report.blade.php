@@ -4,12 +4,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>@if(!empty($isPreviewMode))Preview — @endif Test Request Report &mdash; {{ $reportNumber }}</title>
+<title>@if(!empty($isPreviewMode))Preview — @endif Test Report &mdash; {{ $reportNumber }}</title>
 @endif
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     /* ═══════════════════════════════════════════
-       AmSpec Test Request Report — matches PDF
+       AmSpec Test Report — matches PDF
        ═══════════════════════════════════════════ */
     @if(empty($isEmbedded))
     body { background: #e9ecef; }
@@ -647,7 +647,7 @@
             <div class="trr-preview-chrome">
                 <div class="trr-preview-copy">
                     <span class="trr-preview-badge">Draft preview</span>
-                    <h1>Test Request Report</h1>
+                    <h1>Test Report</h1>
                     <p>
                         This is how the final report will look with the current results and comments.
                         It does not issue a revision and is not saved as an official PDF.

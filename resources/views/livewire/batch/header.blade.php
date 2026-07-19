@@ -378,7 +378,7 @@
                                         @endif
                                     @endif
                                     @if($batch->status == "Sample Approval")
-                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" data-next-modal="#process-test-request-report-modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span></li>
+                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" data-next-modal="#process-test-request-report-modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Report</span></li>
                                         @if(in_array($batch->status, ["Sample Approval", "Reports for Collection", "Reports In Payment"]))
                                             {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                                     data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process

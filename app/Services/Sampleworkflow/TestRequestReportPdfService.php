@@ -137,7 +137,7 @@ class TestRequestReportPdfService
 
         return match ($language) {
             'ar' => [
-                'report_title' => 'تقرير الاختبار المعملي',
+                'report_title' => 'تقرير الاختبار',
                 'certificate_no' => 'رقم الشهادة',
                 'page_of' => 'صفحة %d من %d',
                 'attention' => 'إلى عناية',
@@ -189,7 +189,7 @@ class TestRequestReportPdfService
                 'disclaimer' => 'إخلاء المسؤولية: تمت اختبار جميع العينات في مختبر طرف ثالث',
             ],
             'pt' => [
-                'report_title' => 'RELATÓRIO DE ENSAIO LABORATORIAL',
+                'report_title' => 'RELATÓRIO DE ENSAIO',
                 'certificate_no' => 'Certificado n.º',
                 'page_of' => 'Página %d de %d',
                 'attention' => 'À atenção de',
@@ -241,7 +241,7 @@ class TestRequestReportPdfService
                 'disclaimer' => 'AVISO: TODAS AS AMOSTRAS FORAM ENSAIADAS NUM LABORATÓRIO EXTERNO',
             ],
             default => [
-                'report_title' => 'LABORATORY TEST REPORT',
+                'report_title' => 'TEST REPORT',
                 'certificate_no' => 'Certificate no.',
                 'page_of' => 'Page %d of %d',
                 'attention' => 'Attention',

@@ -577,7 +577,7 @@
                         <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa" value="1">
                             <label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa">
-                                Include in Test Request Report (merge report first, then your PDF file(s))
+                                Include in Test Report (merge report first, then your PDF file(s))
                             </label>
                         </div>
                     </div>
@@ -587,12 +587,12 @@
                             Merge Order
                         </label>
                         <p class="text-muted small mb-2">
-                            The <strong>Test Request Report</strong> is always placed first. Drag the uploaded files below to set their order.
+                            The <strong>Test Report</strong> is always placed first. Drag the uploaded files below to set their order.
                         </p>
                         <ul id="coa-merge-sortable" class="list-group mb-2">
                             <li class="list-group-item py-2 d-flex align-items-center" data-locked="1">
                                 <i class="mdi mdi-lock text-muted mr-2"></i>
-                                <span class="font-weight-bold">Test Request Report</span>
+                                <span class="font-weight-bold">Test Report</span>
                                 <span class="badge badge-light border ml-auto">First</span>
                             </li>
                         </ul>
@@ -1809,7 +1809,7 @@
 
                 if (!customFile || !customFile.files || customFile.files.length === 0) {
                     e.preventDefault();
-                    window.alert('Please select at least one PDF file to merge with the Test Request Report.');
+                    window.alert('Please select at least one PDF file to merge with the Test Report.');
                     return;
                 }
 
@@ -1819,7 +1819,7 @@
 
                 if (!hasPdf) {
                     e.preventDefault();
-                    window.alert('Test Request Report merge only supports PDF files.');
+                    window.alert('Test Report merge only supports PDF files.');
                     return;
                 }
             }
