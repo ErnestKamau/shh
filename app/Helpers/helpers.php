@@ -991,6 +991,21 @@ function getSystemModules()
 			'route' => '/matrix',
 			'default_visible' => false,
 		),
+		'ai' => array(
+			'name' => 'ImaraChat AI',
+			'route' => '/imara/ai/index',
+			'default_visible' => true,
+		),
+		'ai_analytics' => array(
+			'name' => 'AI Analytics',
+			'route' => '/mas',
+			'default_visible' => true,
+		),
+		'registry' => array(
+			'name' => 'Registry',
+			'route' => '/registry',
+			'default_visible' => true,
+		),
 		'risk' => array(
 			'name' => 'Risk Management',
 			'route' => '/risk/dashboard',
@@ -1056,11 +1071,6 @@ function getSystemModuleVisibilityMap()
 }
 function isSystemModuleVisible($moduleKey)
 {
-	$hiddenModules = ['ai', 'ai_analytics', 'registry'];
-	if (in_array($moduleKey, $hiddenModules, true)) {
-		return false;
-	}
-
 	$visibility = getSystemModuleVisibilityMap();
 	return isset($visibility[$moduleKey]) ? (bool) $visibility[$moduleKey] : true;
 }

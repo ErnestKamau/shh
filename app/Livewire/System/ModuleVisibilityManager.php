@@ -99,7 +99,6 @@ class ModuleVisibilityManager extends Component
             }
 
             session()->flash('success', $message);
-            $this->dispatch('module-visibility-saved');
         } catch (Throwable $e) {
             report($e);
             $message = 'Failed to save module settings. Please try again. Error: '.$e->getMessage();
