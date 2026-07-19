@@ -58,10 +58,16 @@
 </div>
 
 <script>
-    document.addEventListener('livewire:init', () => {
+    document.addEventListener('livewire:load', () => {
         Livewire.on('module-visibility-save-failed', (payload) => {
             const message = payload?.message ?? 'Module visibility save failed (no message provided).';
             console.error('[ModuleVisibility] Save failed:', message);
+        });
+
+        Livewire.on('module-visibility-saved', () => {
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
         });
     });
 </script>
