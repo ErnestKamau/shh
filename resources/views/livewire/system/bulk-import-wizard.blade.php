@@ -121,6 +121,9 @@
                             <strong>Instructions:</strong>
                             <ol class="mb-0">
                                 <li>Download the template for <strong>{{ $formTypes[$selectedFormType] ?? $selectedFormType }}</strong></li>
+                                @if ($selectedFormType === 'analysis_method')
+                                    <li>Or upload your AmSpec Parameters workbook directly (Reference Method + Test Method SOP columns are extracted)</li>
+                                @endif
                                 <li>Enter your data starting from row 2 (just below the header row)</li>
                                 <li>Fields marked with <strong>*</strong> are required</li>
                                 <li>Save the file and come back to upload</li>
@@ -195,17 +198,37 @@
                         @if ($selectedFormType === 'lab_hierarchy')
                             <div class="alert alert-danger mb-4">
                                 <strong>Replace existing lab data</strong>
-                                <p class="mb-2 small">When enabled, all sample types, analysis types, analysis elements, analytes, batches, samples, and captured results for your company will be permanently deleted before import. Standards are not deleted.</p>
+                                <p class="mb-2 small">When enabled, all sample types, analysis types, analysis elements, and analytes for your company will be permanently deleted before import, along with all workflow requests/enquiries, submission forms, batches, samples, captured results, and related quotations. Standards are not deleted.</p>
                                 <div class="form-check mb-3">
                                     <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_lab_hierarchy">
                                     <label class="form-check-label" for="replace_existing_lab_hierarchy">
-                                        Replace all existing lab data for this company (including batches, samples, and results)
+                                        Replace all existing lab data for this company (including requests/enquiries, batches, samples, and results)
                                     </label>
                                 </div>
                                 @if ($replaceExisting)
                                     <div class="mb-0">
                                         <label class="form-label" for="purge_confirmation">Type <code>DELETE ALL LAB DATA</code> or your company name to confirm</label>
                                         <input type="text" id="purge_confirmation" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL LAB DATA">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
+                        @if ($selectedFormType === 'analysis_method')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing analysis methods</strong>
+                                <p class="mb-2 small">When enabled, all analysis methods for your company will be permanently deleted before import. Other data (stage headers, samples, analysis elements, results) is left unchanged. You can upload the dedicated template or your AmSpec Parameters workbook (methods-only extraction).</p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_analysis_methods" checked>
+                                    <label class="form-check-label" for="replace_existing_analysis_methods">
+                                        Replace all existing analysis methods for this company before import
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation_methods">Type <code>DELETE ALL METHODS</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_methods" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL METHODS">
                                         @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 @endif
@@ -453,6 +476,25 @@
                                             <li><strong>{{ str_replace('_', ' ', $label) }}:</strong> {{ $count }}</li>
                                         @endforeach
                                     </ul>
+                                </div>
+                            @endif
+
+                            <!-- Warning Details -->
+                            @if (!empty($importResults['warnings']))
+                                <div class="card border-warning mb-4">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h6 class="mb-0">Import Warnings</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        @foreach ($importResults['warnings'] as $warning)
+                                            <div class="mb-3 pb-3 border-bottom">
+                                                <strong class="text-warning">{{ $warning['message'] }}</strong>
+                                                <p class="text-muted small mb-0">
+                                                    Affected rows: {{ implode(', ', $warning['rows']) }}
+                                                </p>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 </div>
                             @endif
 

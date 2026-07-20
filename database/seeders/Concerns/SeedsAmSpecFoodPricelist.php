@@ -2,26 +2,17 @@
 
 namespace Database\Seeders\Concerns;
 
-use App\AnalysisElements;
 use App\Company;
-use App\Models\Billing\Pricelist;
-use App\Models\Billing\PricelistCustomer;
-use App\Models\Billing\PricelistItem;
-use App\Models\CRM\CRMCustomer;
-use App\Models\Currency;
-use App\SampleType;
-use Illuminate\Support\Str;
 
+/**
+ * Food pricelist seeding is owned by Phase 14 (three-pricelist model):
+ * master per-parameter, customer per-parameter, and one package pricelist.
+ *
+ * Kept for backward-compatible Phase 13 wiring.
+ */
 trait SeedsAmSpecFoodPricelist
 {
     use ClearsAmSpecFoodPricelistData;
-
-    public const ADNOC_CUSTOMER_CODE = 'INT-ENRG-001';
-
-    public const ADNOC_CUSTOMER_NAME = 'ADNOC Group';
-
-    /** @var list<string> */
-    private const FOOD_SAMPLE_TYPE_CODES = ['FOOD'];
 
     /**
      * @return array{pricelist: int, items: int, assignment: int}
@@ -30,7 +21,11 @@ trait SeedsAmSpecFoodPricelist
     {
         $this->clearAmSpecFoodPricelistData();
 
-        $stats = [
+        $this->command?->info(
+            'Skipping Phase 13 food pricelist. Phase 14 seeds master, customer (per-parameter), and one package pricelist.'
+        );
+
+        return [
             'pricelist' => 0,
             'items' => 0,
             'assignment' => 0,

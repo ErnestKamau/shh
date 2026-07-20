@@ -3,9 +3,17 @@
 namespace App\Livewire\Lab;
 
 use App\AnalysisMethod;
+use App\Models\CRM\CRMCustomer;
+use App\Models\Equipments\Equipment;
+use App\Models\QcModule\Configurations\QcSchemes;
+use App\Models\QcModule\QcSchemeBinding;
 use App\Models\System\SystemConfiguration;
-use Illuminate\Support\Facades\Auth;
+use App\Models\System\SystemConfigurationsType;
+use App\SampleType;
+use App\Services\Lab\MethodConfigurationResolver;
+use App\Standards;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -33,6 +41,13 @@ class MethodManager extends Component
         'description' => '',
         'method_type_id' => '',
         'reference_type_id' => '',
+        'based_on_standard_id' => '',
+        'qc_scheme_ids' => [],
+        'qc_scheme_mode' => 'override',
+        'qc_scheme_priority' => 100,
+        'qc_condition_equipment_id' => '',
+        'qc_condition_crm_customer_id' => '',
+        'qc_condition_sample_type_id' => '',
         'active' => true,
     ];
 
@@ -40,6 +55,23 @@ class MethodManager extends Component
     public $methodTypes = [];
     public $referenceMethods = [];
     public $ltmMethodTypeId = null;
+
+    protected function normalizeReferenceMethods(): void
+    {
+        if ($this->referenceMethods instanceof \Illuminate\Support\Collection) {
+            return;
+        }
+
+        $items = is_array($this->referenceMethods) ? $this->referenceMethods : [];
+
+        $this->referenceMethods = collect($items)
+            ->filter(fn ($item) => is_array($item) || is_object($item))
+            ->map(fn ($item) => [
+                'id' => data_get($item, 'id'),
+                'name' => data_get($item, 'name', ''),
+            ])
+            ->values();
+    }
 
     // Messages
     public $message = '';
@@ -51,8 +83,20 @@ class MethodManager extends Component
             'methodForm.name' => 'required|string|max:255',
             'methodForm.code' => 'required|string|max:255',
             'methodForm.description' => 'required|string',
-            'methodForm.method_type_id' => 'nullable|integer',
-            'methodForm.reference_type_id' => 'nullable|integer',
+            'methodForm.method_type_id' => ['required', Rule::exists('system_configurations', 'id')],
+            'methodForm.reference_type_id' => ['nullable', 'string', Rule::exists('analysis_methods', 'id')],
+            'methodForm.based_on_standard_id' => ['nullable', 'string', Rule::exists('standards', 'id')],
+            'methodForm.qc_scheme_ids' => ['array'],
+            'methodForm.qc_scheme_ids.*' => ['string', Rule::exists('qc_scheme', 'id')],
+            'methodForm.qc_scheme_mode' => ['required', Rule::in([
+                QcSchemeBinding::MODE_OVERRIDE,
+                QcSchemeBinding::MODE_MERGE,
+                QcSchemeBinding::MODE_ADDITIVE,
+            ])],
+            'methodForm.qc_scheme_priority' => ['required', 'integer', 'min:1', 'max:1000'],
+            'methodForm.qc_condition_equipment_id' => ['nullable', 'string', Rule::exists('equipment', 'id')],
+            'methodForm.qc_condition_crm_customer_id' => ['nullable', 'string', Rule::exists('crm_customers', 'id')],
+            'methodForm.qc_condition_sample_type_id' => ['nullable', 'string', Rule::exists('sample_types', 'id')],
             'methodForm.active' => 'boolean',
         ];
     }
@@ -62,21 +106,46 @@ class MethodManager extends Component
         $this->loadStaticData();
     }
 
+    public function hydrate(): void
+    {
+        $this->normalizeReferenceMethods();
+    }
+
     protected function loadStaticData(): void
     {
-        // Load method types from system configuration
-        $this->methodTypes = SystemConfiguration::where('key', 'method_type')->get();
-        
-        // Get LTM method type ID
-        $ltmConfig = SystemConfiguration::where('key', 'method_ltm_id')->first();
-        $this->ltmMethodTypeId = $ltmConfig ? $ltmConfig->value : null;
-        
-        // Load reference methods
-        $referenceConfig = SystemConfiguration::where('key', 'method_reference_id')->first();
-        if ($referenceConfig) {
-            $this->referenceMethods = AnalysisMethod::where('method_type_id', $referenceConfig->value)
+        $resolver = app(MethodConfigurationResolver::class);
+        $resolver->ensurePointerConfigurations();
+
+        $methodTypeConfig = SystemConfigurationsType::query()
+            ->whereIn('configuration_type', ['Method Types', 'Methods Types'])
+            ->first();
+
+        $this->methodTypes = $methodTypeConfig
+            ? SystemConfiguration::query()
+                ->where('configuration_type_id', $methodTypeConfig->id)
+                ->where('key', 'method_type')
+                ->orderBy('value')
+                ->get()
+            : collect();
+
+        $this->ltmMethodTypeId = $resolver->resolvePointerConfigValue('method_ltm_id');
+
+        $referenceTypeId = $resolver->resolvePointerConfigValue('method_reference_id');
+        if ($referenceTypeId) {
+            $this->referenceMethods = AnalysisMethod::query()
+                ->where('method_type_id', $referenceTypeId)
                 ->where('active', 1)
+                ->orderBy('name')
                 ->get();
+        } else {
+            $this->referenceMethods = collect();
+        }
+    }
+
+    public function updatedMethodFormMethodTypeId(): void
+    {
+        if (! app(MethodConfigurationResolver::class)->isLaboratoryTestTypeId($this->methodForm['method_type_id'] ?? null)) {
+            $this->methodForm['reference_type_id'] = '';
         }
     }
 
@@ -97,7 +166,7 @@ class MethodManager extends Component
 
     public function getMethodsProperty()
     {
-        $query = AnalysisMethod::with(['referencemethod', 'methodtype']);
+        $query = AnalysisMethod::with(['referencemethod', 'methodtype', 'basedOnStandard', 'qcSchemes']);
 
         // Apply search filter
         if ($this->search) {
@@ -127,24 +196,51 @@ class MethodManager extends Component
     {
         $this->reset(['methodForm', 'editingMethod', 'message']);
         $this->methodForm['active'] = true;
+        $this->methodForm['qc_scheme_ids'] = [];
+        $this->methodForm['qc_scheme_mode'] = QcSchemeBinding::MODE_OVERRIDE;
+        $this->methodForm['qc_scheme_priority'] = 100;
+        $this->methodForm['qc_condition_equipment_id'] = '';
+        $this->methodForm['qc_condition_crm_customer_id'] = '';
+        $this->methodForm['qc_condition_sample_type_id'] = '';
+        $this->loadStaticData();
         $this->showMethodModal = true;
         $this->dispatch('method-modal-opened');
     }
 
-    public function showEditMethodModal(int $methodId): void
+    public function showEditMethodModal(string $methodId): void
     {
-        $this->editingMethod = AnalysisMethod::find($methodId);
+        $this->editingMethod = AnalysisMethod::with('qcSchemes')->find($methodId);
         
         if ($this->editingMethod) {
+            $binding = QcSchemeBinding::query()
+                ->where('method_id', $this->editingMethod->id)
+                ->whereNull('standard_id')
+                ->orderByDesc('priority')
+                ->first();
+
+            $conditions = is_array($binding?->conditions) ? $binding->conditions : [];
+
             $this->methodForm = [
                 'name' => $this->editingMethod->name,
                 'code' => $this->editingMethod->code,
                 'description' => $this->editingMethod->description,
-                'method_type_id' => $this->editingMethod->method_type_id,
-                'reference_type_id' => $this->editingMethod->reference_type_id,
+                'method_type_id' => (string) ($this->editingMethod->method_type_id ?? ''),
+                'reference_type_id' => (string) ($this->editingMethod->reference_type_id ?? ''),
+                'based_on_standard_id' => (string) ($this->editingMethod->based_on_standard_id ?? ''),
+                'qc_scheme_ids' => $this->editingMethod->qcSchemes
+                    ->pluck('id')
+                    ->map(static fn ($id) => (string) $id)
+                    ->values()
+                    ->all(),
+                'qc_scheme_mode' => $binding->mode ?? QcSchemeBinding::MODE_OVERRIDE,
+                'qc_scheme_priority' => $binding->priority ?? 100,
+                'qc_condition_equipment_id' => (string) ($conditions['equipment_id'] ?? ''),
+                'qc_condition_crm_customer_id' => (string) ($conditions['crm_customer_id'] ?? ''),
+                'qc_condition_sample_type_id' => (string) ($conditions['sample_type_id'] ?? ''),
                 'active' => (bool) $this->editingMethod->active,
             ];
-            
+
+            $this->loadStaticData();
             $this->showMethodModal = true;
             $this->dispatch('method-modal-opened');
         }
@@ -157,23 +253,47 @@ class MethodManager extends Component
         try {
             DB::beginTransaction();
 
+            $resolver = app(MethodConfigurationResolver::class);
+            $methodTypeId = (string) $this->methodForm['method_type_id'];
+            $flags = $resolver->legacyFlagsForTypeId($methodTypeId);
+            $referenceTypeId = $resolver->isLaboratoryTestTypeId($methodTypeId)
+                ? ($this->methodForm['reference_type_id'] ?: null)
+                : null;
+
             $data = [
                 'name' => $this->methodForm['name'],
                 'code' => $this->methodForm['code'],
                 'description' => $this->methodForm['description'],
-                'method_type_id' => $this->methodForm['method_type_id'] ?: null,
-                'reference_type_id' => $this->methodForm['reference_type_id'] ?: null,
+                'method_type_id' => $methodTypeId,
+                'reference_type_id' => $referenceTypeId,
+                'based_on_standard_id' => $this->methodForm['based_on_standard_id'] ?: null,
                 'active' => $this->methodForm['active'] ? 1 : 0,
+                'is_ltm' => $flags['is_ltm'],
+                'is_sampling_method' => $flags['is_sampling_method'],
                 'company_id' => getUserCompany(),
             ];
 
             if ($this->editingMethod) {
                 $this->editingMethod->update($data);
+                $method = $this->editingMethod->fresh();
                 $message = 'Analysis Method updated successfully!';
             } else {
-                AnalysisMethod::create($data);
+                $method = AnalysisMethod::create($data);
                 $message = 'Analysis Method created successfully!';
             }
+
+            $method->syncQcSchemes(
+                is_array($this->methodForm['qc_scheme_ids'] ?? null) ? $this->methodForm['qc_scheme_ids'] : [],
+                [
+                    'mode' => $this->methodForm['qc_scheme_mode'] ?? QcSchemeBinding::MODE_OVERRIDE,
+                    'priority' => (int) ($this->methodForm['qc_scheme_priority'] ?? 100),
+                    'conditions' => [
+                        'equipment_id' => $this->methodForm['qc_condition_equipment_id'] ?? '',
+                        'crm_customer_id' => $this->methodForm['qc_condition_crm_customer_id'] ?? '',
+                        'sample_type_id' => $this->methodForm['qc_condition_sample_type_id'] ?? '',
+                    ],
+                ]
+            );
 
             DB::commit();
 
@@ -186,7 +306,7 @@ class MethodManager extends Component
         }
     }
 
-    public function deleteMethod(int $methodId): void
+    public function deleteMethod(string $methodId): void
     {
         try {
             $method = AnalysisMethod::find($methodId);
@@ -235,7 +355,42 @@ class MethodManager extends Component
 
     public function render()
     {
-        return view('livewire.lab.method-manager');
+        $this->normalizeReferenceMethods();
+
+        $standards = Standards::query()
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_qc_standard']);
+
+        $qcSchemes = QcSchemes::query()
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $equipmentItems = Equipment::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->limit(300)
+            ->get(['id', 'name', 'equipment_number']);
+
+        $customers = CRMCustomer::query()
+            ->orderBy('name')
+            ->limit(300)
+            ->get(['id', 'name', 'code']);
+
+        $sampleTypes = SampleType::query()
+            ->without(['analysis_types', 'sample_condition'])
+            ->where('active', 1)
+            ->orderBy('name')
+            ->limit(300)
+            ->get(['id', 'name']);
+
+        return view('livewire.lab.method-manager', [
+            'standards' => $standards,
+            'qcSchemes' => $qcSchemes,
+            'equipmentItems' => $equipmentItems,
+            'customers' => $customers,
+            'sampleTypes' => $sampleTypes,
+        ]);
     }
 }
-

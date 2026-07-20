@@ -607,14 +607,15 @@
                             @forelse($inoculatedRows as $i => $row)
                                 <div class="col-md-6 col-lg-4" wire:key="inoc-{{ $i }}">
                                     <div class="spw-inoc-row h-100 p-3 border rounded">
-                                        <select wire:model="inoculatedRows.{{ $i }}.lab_category_item_id"
-                                                class="form-select form-select-sm spw-input mb-2"
-                                                @disabled(!$prep->isInProgress())>
-                                            <option value="">Media ingredient...</option>
-                                            @foreach($this->ingredients as $ing)
-                                                <option value="{{ $ing->id }}">{{ $ing->reagent?->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model="inoculatedRows.{{ $i }}.lab_category_item_id"
+                                            :options="$this->ingredients->map(fn($ing) => ['id' => $ing->id, 'name' => $ing->reagent?->name ?? 'Unknown'])"
+                                            placeholder="Search ingredients..."
+                                            empty-label="Media ingredient..."
+                                            size="sm"
+                                            :disabled="!$prep->isInProgress()"
+                                            class="mb-2"
+                                        />
                                         <input type="text"
                                                wire:model="inoculatedRows.{{ $i }}.result"
                                                class="form-control form-control-sm spw-input mb-2"
@@ -754,12 +755,13 @@
                             </select>
                             @if($adHocForm['step_type'] === $stepTypeRegular)
                                 <label class="spw-label">Ingredient</label>
-                                <select wire:model="adHocForm.ingredient_id" class="form-select spw-input mb-3">
-                                    <option value="">Select ingredient...</option>
-                                    @foreach($this->ingredients as $ing)
-                                        <option value="{{ $ing->id }}">{{ $ing->reagent?->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select
+                                    wire:model="adHocForm.ingredient_id"
+                                    :options="$this->ingredients->map(fn($ing) => ['id' => $ing->id, 'name' => $ing->reagent?->name ?? 'Unknown'])"
+                                    placeholder="Search ingredients..."
+                                    empty-label="Select ingredient..."
+                                    class="mb-3"
+                                />
                             @endif
                             <div class="form-check mb-3">
                                 <input type="checkbox" wire:model="adHocForm.save_to_template" class="form-check-input" id="save_tpl">

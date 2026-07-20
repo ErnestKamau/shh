@@ -50,6 +50,15 @@ class AnalysisTypeController extends Controller
 	}
   public function add(Request $request)
   {
+    $request->validate([
+      'lab_section_id' => 'required|uuid|exists:sample_analysis_stages,id',
+      'name' => 'required|string',
+      'lab_id' => 'required',
+    ], [
+      'lab_section_id.required' => 'Lab section is required.',
+      'lab_section_id.exists' => 'Selected lab section is invalid.',
+    ]);
+
     $lab = Lab::find($request->lab_id);
 
     $analysis_type = new AnalysisType;
@@ -82,6 +91,15 @@ class AnalysisTypeController extends Controller
 
   public function edit(Request $request, $id)
   {
+    $request->validate([
+      'lab_section_id' => 'required|uuid|exists:sample_analysis_stages,id',
+      'name' => 'required|string',
+      'lab_id' => 'required',
+    ], [
+      'lab_section_id.required' => 'Lab section is required.',
+      'lab_section_id.exists' => 'Selected lab section is invalid.',
+    ]);
+
     $lab = Lab::find($request->lab_id);
 
     $analysis_type = AnalysisType::find($id);

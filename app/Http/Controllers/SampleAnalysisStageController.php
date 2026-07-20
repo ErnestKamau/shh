@@ -7,6 +7,7 @@ use App\LabSectionApprover;
 use App\LabSectionApproverRelationShip;
 use App\SampleAnalysisStage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use App\User;
 
 class SampleAnalysisStageController extends Controller
@@ -105,6 +106,7 @@ class SampleAnalysisStageController extends Controller
 		$data = [];
 		foreach($request->section_ids as $id){
 			$data[]=[
+				"id"=>(string) Str::uuid7(),
 				"lab_section_id"=>$id,
 				"user_id"=>$request->user_id,
 				"title"=>$request->title,

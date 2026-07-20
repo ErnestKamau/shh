@@ -2518,15 +2518,45 @@
         }
 
         @if(isset($select2))
-        $('select').not('.hidden').each(function(i, e) {
-            if (!$(e).hasClass('no-select2')) {
-                $(e).select2({
-                    placeHolder: $(e).attr('placeholder') || $(e).data('placeholder')
+        function initializeSelect2Elements(scope) {
+            var $scope = $(scope || document);
+
+            $scope.find('select').not('.hidden').each(function(i, e) {
+                var $el = $(e);
+
+                if ($el.hasClass('no-select2') || !$el.hasClass('livewire-select2')) {
+                    return;
+                }
+
+                if ($el.data('select2')) {
+                    $el.select2('destroy');
+                }
+
+                $el.select2({
+                    placeholder: $el.attr('placeholder') || $el.data('placeholder') || 'Select an option',
+                    width: '100%',
+                    dropdownParent: $el.closest('.modal').length ? $el.closest('.modal') : undefined
                 });
 
-                $(e).attr('style', 'width: 100%');
-            }
-        })
+                $el.attr('style', 'width: 100%');
+            });
+        }
+
+        initializeSelect2Elements();
+
+        $(document).on('shown.bs.modal', '.modal', function() {
+            initializeSelect2Elements($(this));
+        });
+
+        document.addEventListener('livewire:navigated', function() {
+            initializeSelect2Elements();
+        });
+
+        if (typeof Livewire !== 'undefined') {
+            Livewire.hook('message.processed', function() {
+                initializeSelect2Elements();
+            });
+        }
         @endif
 
         @if(isset($datePicker))

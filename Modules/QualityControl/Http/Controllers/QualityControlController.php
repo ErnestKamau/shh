@@ -69,15 +69,15 @@ class QualityControlController extends Controller
         $standard->qc_type_id =  $request->qc_type_id;
         $standard->status = isset($request->is_active)  ? 1 :0;
         $standard->edited_by = auth()->user()->id;
-        $standard->qc_scheme_ids = implode(',',$request->qc_scheme_ids);
         $standard->save();
+        $standard->syncQcSchemes(is_array($request->qc_scheme_ids) ? $request->qc_scheme_ids : []);
         return redirect()->back()->with('success','Qc standard added successfully!');
     }
     public function deleteQcStandard(Request $request){
         $standard = Standards::find($request->standard_id);
         $standard->status = 0;
         $standard->save();
-        return redirect()->back()-with('success','Qc Standard deleted successfully!');
+        return redirect()->back()->with('success','Qc Standard deleted successfully!');
     }
     
     public function qcStandardShow($id){
@@ -97,13 +97,13 @@ class QualityControlController extends Controller
         $analyte->low = isset($request->use_absolute) ? $request->tolerance_1 : $request->expected_value -  $request->tolerance_1 ;
 
         $analyte->tolerance_2 = $request->tolerance_2;
-        $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_1 ; 
+        $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_2 ; 
 
         $analyte->recommendations = $request->recomendation;
         $analyte->comments = $request->comment;
         $analyte->is_active = isset($request->is_active ) ? 1 : 0;
         $analyte->expected_value = $request->expected_value;
-        $analyte->standard_value_id = 0;
+        $analyte->standard_value_id = null;
         $analyte->standard_value_type = 'is_range';
         $analyte->save();
         return redirect()->back()->with('success','Standard analyte record updated successfully!');

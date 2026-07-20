@@ -2195,6 +2195,20 @@ function getBatchSampleCodes($id){
 	return implode(',',$sample_codes);
 }
 
+/**
+ * Format a job sample code for display without the legacy category letter.
+ * 260716003-C001 → 260716003-001
+ */
+function format_sample_code(?string $sampleCode): string
+{
+	if ($sampleCode === null || $sampleCode === '') {
+		return '';
+	}
+
+	return app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+		->stripCategoryPrefixFromSampleCode($sampleCode);
+}
+
 function split_emails($sep, $str){
 	$emails = explode($sep, $str);
 
@@ -2252,12 +2266,112 @@ function getBacthSampleCodes($batch_id){
 	return implode(', ',App\SampleDetails::where('sample_header_id',$batch_id)->pluck('sample_code')->toArray());
 }
 
-function getCoaApproverSignature($signature){
-	$verify_sig_arr = explode('/',$signature);
-	$verify_sig_arr[1] = "app";
-	$verify_sig = implode('/',$verify_sig_arr);
-	return storage_path().$verify_sig;
+/**
+ * Resolve a stored electronic signature path to a readable filesystem path.
+ *
+ * Signatures may live on the local disk (storage/app/...) or public disk
+ * (storage/app/public/...), and filenames may be URL-encoded in the DB.
+ */
+function getCoaApproverSignature($signature): string
+{
+	if ($signature === null || trim((string) $signature) === '') {
+		return '';
+	}
+
+	$signature = trim((string) $signature);
+
+	if (str_starts_with($signature, 'data:')) {
+		return $signature;
+	}
+
+	if (is_readable($signature)) {
+		return $signature;
+	}
+
+	$decoded = urldecode($signature);
+	$relative = $decoded;
+
+	if (str_contains($decoded, '/storage/')) {
+		$parts = explode('/storage/', $decoded, 2);
+		$relative = $parts[1] ?? $decoded;
+	} elseif (str_starts_with($decoded, 'storage/')) {
+		$relative = substr($decoded, strlen('storage/'));
+	}
+
+	$relative = ltrim(str_replace('\\', '/', (string) $relative), '/');
+	if ($relative === '') {
+		return '';
+	}
+
+	$candidates = [
+		storage_path('app/public/' . $relative),
+		storage_path('app/' . $relative),
+		public_path('storage/' . $relative),
+		public_path($relative),
+		storage_path($relative),
+	];
+
+	// Legacy helper behaviour: /storage/foo -> storage_path()/app/foo
+	$legacyParts = explode('/', $decoded);
+	if (isset($legacyParts[1])) {
+		$legacyParts[1] = 'app';
+		$candidates[] = storage_path() . implode('/', $legacyParts);
+	}
+
+	foreach (array_unique($candidates) as $candidate) {
+		if (is_readable($candidate)) {
+			return $candidate;
+		}
+	}
+
+	// Prefer public-disk path as default for newly uploaded Livewire signatures.
+	return storage_path('app/public/' . $relative);
 }
+
+/**
+ * Convert an electronic signature (path or data URI) into a base64 data URI for PDF/HTML reports.
+ */
+function signatureToDataUri(?string $signature): string
+{
+	if ($signature === null || trim($signature) === '') {
+		return '';
+	}
+
+	$signature = trim($signature);
+
+	if (str_starts_with($signature, 'data:')) {
+		return $signature;
+	}
+
+	if (str_starts_with($signature, 'http://') || str_starts_with($signature, 'https://')) {
+		return $signature;
+	}
+
+	$path = getCoaApproverSignature($signature);
+	if ($path === '' || str_starts_with($path, 'data:') || ! is_readable($path)) {
+		return '';
+	}
+
+	$contents = @file_get_contents($path);
+	if ($contents === false || $contents === '') {
+		return '';
+	}
+
+	$mime = @mime_content_type($path) ?: null;
+	if (! is_string($mime) || $mime === '') {
+		$extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+		$mime = match ($extension) {
+			'jpg', 'jpeg' => 'image/jpeg',
+			'gif' => 'image/gif',
+			'webp' => 'image/webp',
+			'svg' => 'image/svg+xml',
+			default => 'image/png',
+		};
+	}
+
+	return 'data:' . $mime . ';base64,' . base64_encode($contents);
+}
+
 function convertDateFormatReports($date,$format){
 	if($format == 'dateShortMonth'){
 		$raw_date = \Carbon\Carbon::parse($date);
@@ -2962,15 +3076,54 @@ function getNCHotspotsByRiskLevel()
  */
 function resolveReportingUnitIdFromName(?string $unitName): ?string
 {
-	if (empty($unitName)) {
+	if ($unitName === null) {
+		return null;
+	}
+
+	$unitName = trim($unitName);
+	if ($unitName === '') {
 		return null;
 	}
 
 	if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $unitName)) {
-		return $unitName;
+		$byId = App\ReportingUnit::query()->where('id', $unitName)->value('id');
+
+		return $byId ? (string) $byId : null;
 	}
 
-	return App\ReportingUnit::query()->where('name', $unitName)->value('id');
+	$id = App\ReportingUnit::query()
+		->whereRaw('LOWER(name) = ?', [mb_strtolower($unitName)])
+		->value('id');
+
+	return $id ? (string) $id : null;
+}
+
+/**
+ * Resolve a reporting unit id, creating the master-list row when only a name exists.
+ * Analysis elements often store unit names (e.g. mg/kg) that were never seeded into reporting_units.
+ */
+function ensureReportingUnitIdFromName(?string $unitName): ?string
+{
+	$resolved = resolveReportingUnitIdFromName($unitName);
+	if ($resolved !== null) {
+		return $resolved;
+	}
+
+	if ($unitName === null) {
+		return null;
+	}
+
+	$trimmed = trim($unitName);
+	if ($trimmed === '' || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $trimmed)) {
+		return null;
+	}
+
+	$unit = App\ReportingUnit::query()->firstOrCreate(
+		['name' => $trimmed],
+		['active' => true],
+	);
+
+	return (string) $unit->id;
 }
 
 /**
@@ -3016,7 +3169,7 @@ function resolveReportingUnitIdFromAnalyte(?string $analysisTypeId, ?string $ana
 		$unitName = $analyte->reporting_unit ?? null;
 	}
 
-	return resolveReportingUnitIdFromName($unitName);
+	return ensureReportingUnitIdFromName($unitName);
 }
 
 require_once __DIR__.'/risk_helpers.php';

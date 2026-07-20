@@ -59,6 +59,9 @@ class SeedPricelistsCommand extends Command
             ],
         );
 
+        $this->line('Limits:');
+        $this->line('  Master / customer per-parameter → max 5 parameters');
+        $this->line('  Package pricelist → 4 parameters per Water/Food package');
         $this->newLine();
         $this->line('Assignments:');
         $this->line('  ADNOC Group → customer per-parameter + package');

@@ -110,7 +110,7 @@
                 <td style="width:10%"></td>
                     <td style="font-size: 8px !important;">
                         <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
-                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
+                            <img src="{{ signatureToDataUri($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
                             alt="signature">
                         </div>
                     </td>

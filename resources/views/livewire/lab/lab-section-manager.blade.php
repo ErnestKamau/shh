@@ -79,7 +79,7 @@
                             placeholder="Search lab sections...">
                     </div>
                     <div class="col-md-3">
-                        <select wire:model.live="labSectionStatusFilter" class="form-control">
+                        <select wire:model.live="labSectionStatusFilter" class="form-control no-select2">
                             <option value="">All Status</option>
                             <option value="1">Active</option>
                             <option value="0">Inactive</option>
@@ -123,12 +123,12 @@
                                 </td>
                                 <td>
                                     <div class="d-flex">
-                                        <button wire:click="showEditLabSectionModal({{ $section->id }})"
+                                        <button wire:click="showEditLabSectionModal(@js($section->id))"
                                             class="btn btn-sm btn-outline-warning mr-1"
                                             title="Edit">
                                             <i class="mdi mdi-pencil"></i>
                                         </button>
-                                        <button wire:click="confirmDeleteLabSection({{ $section->id }})"
+                                        <button wire:click="confirmDeleteLabSection(@js($section->id))"
                                             class="btn btn-sm btn-outline-danger"
                                             title="Delete">
                                             <i class="mdi mdi-delete"></i>
@@ -168,7 +168,7 @@
                             placeholder="Search sample stages...">
                     </div>
                     <div class="col-md-3">
-                        <select wire:model.live="sampleStageStatusFilter" class="form-control">
+                        <select wire:model.live="sampleStageStatusFilter" class="form-control no-select2">
                             <option value="">All Status</option>
                             <option value="1">Active</option>
                             <option value="0">Inactive</option>
@@ -224,12 +224,12 @@
                                 </td>
                                 <td>
                                     <div class="d-flex">
-                                        <button wire:click="showEditSampleStageModal({{ $stage->id }})"
+                                        <button wire:click="showEditSampleStageModal(@js($stage->id))"
                                             class="btn btn-sm btn-outline-warning mr-1"
                                             title="Edit">
                                             <i class="mdi mdi-pencil"></i>
                                         </button>
-                                        <button wire:click="confirmDeleteSampleStage({{ $stage->id }})"
+                                        <button wire:click="confirmDeleteSampleStage(@js($stage->id))"
                                             class="btn btn-sm btn-outline-danger"
                                             title="Delete">
                                             <i class="mdi mdi-delete"></i>
@@ -298,12 +298,12 @@
                                 <td>{{ $verifier->sectionname }}</td>
                                 <td>
                                     <div class="d-flex">
-                                        <button wire:click="showEditVerifierModal({{ $verifier->id }})"
+                                        <button wire:click="showEditVerifierModal(@js($verifier->id))"
                                             class="btn btn-sm btn-outline-warning mr-1"
                                             title="Edit">
                                             <i class="mdi mdi-pencil"></i>
                                         </button>
-                                        <button wire:click="confirmDeleteVerifier({{ $verifier->id }})"
+                                        <button wire:click="confirmDeleteVerifier(@js($verifier->id))"
                                             class="btn btn-sm btn-outline-danger"
                                             title="Delete">
                                             <i class="mdi mdi-delete"></i>
@@ -375,11 +375,11 @@
                                             class="btn btn-sm btn-outline-info mr-1" title="Builder">
                                             <i class="mdi mdi-table-cog"></i>
                                         </a>
-                                        <button wire:click="showEditReportConfigModal({{ $config->id }})"
+                                        <button wire:click="showEditReportConfigModal(@js($config->id))"
                                             class="btn btn-sm btn-outline-warning mr-1" title="Edit">
                                             <i class="mdi mdi-pencil"></i>
                                         </button>
-                                        <button wire:click="deleteReportConfig({{ $config->id }})"
+                                        <button wire:click="deleteReportConfig(@js($config->id))"
                                             class="btn btn-sm btn-outline-danger" title="Remove"
                                             wire:confirm="Remove this report configuration?">
                                             <i class="mdi mdi-delete"></i>
@@ -407,7 +407,7 @@
     <!-- LAB SECTION MODAL -->
     @if($showLabSectionModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -436,43 +436,15 @@
                     </div>
 
                     <div class="form-group mb-3">
-                        <label class="form-label"><i class="mdi mdi-account text-primary"></i> Section Head</label>
-                        <div class="tag-select-container" wire:click="$set('showSectionHeadDropdown', true)">
-                            <div class="tag-select-input">
-                                @if($this->selectedSectionHead)
-                                <span class="tag-badge">
-                                    {{ $this->selectedSectionHead->name }}
-                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForm.section_head_id', null)"></i>
-                                </span>
-                                @endif
-
-                                <input type="text"
-                                    wire:model.live="sectionHeadSearch"
-                                    class="tag-input"
-                                    placeholder="{{ $this->selectedSectionHead ? '' : 'Search section heads...' }}"
-                                    autocomplete="off">
-                            </div>
-
-                            @if($showSectionHeadDropdown && count($this->filteredSectionHeads) > 0)
-                            <div class="tag-dropdown">
-                                @foreach($this->filteredSectionHeads as $user)
-                                <div class="tag-dropdown-item" wire:click.stop="selectSectionHead({{ $user->id }})">
-                                    {{ $user->name }}
-                                </div>
-                                @endforeach
-                            </div>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab</label>
-                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
+                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span></label>
+                        <div class="tag-select-container"
+                            wire:click="$set('showLabDropdown', true)"
+                            wire:click.outside="$set('showLabDropdown', false)">
                             <div class="tag-select-input">
                                 @if($this->selectedLab)
                                 <span class="tag-badge">
                                     {{ $this->selectedLab->name }}
-                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForm.lab_id', null)"></i>
+                                    <i class="mdi mdi-close-circle" wire:click.stop="clearLabSelection"></i>
                                 </span>
                                 @endif
 
@@ -486,13 +458,58 @@
                             @if($showLabDropdown && count($this->filteredLabs) > 0)
                             <div class="tag-dropdown">
                                 @foreach($this->filteredLabs as $lab)
-                                <div class="tag-dropdown-item" wire:click.stop="selectLab({{ $lab->id }})">
+                                <div class="tag-dropdown-item" wire:click.stop="selectLab(@js($lab->id))">
                                     {{ $lab->code }} - {{ $lab->name }}
                                 </div>
                                 @endforeach
                             </div>
                             @endif
                         </div>
+                        @error('labSectionForm.lab_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        <small class="text-muted">Select a lab first. Section heads are limited to users assigned to that lab.</small>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label"><i class="mdi mdi-account text-primary"></i> Section Head</label>
+                        <div class="tag-select-container"
+                            @if(!empty($labSectionForm['lab_id'])) wire:click="$set('showSectionHeadDropdown', true)" @endif
+                            wire:click.outside="$set('showSectionHeadDropdown', false)">
+                            <div class="tag-select-input {{ empty($labSectionForm['lab_id']) ? 'bg-light' : '' }}">
+                                @if($this->selectedSectionHead)
+                                <span class="tag-badge">
+                                    {{ $this->selectedSectionHead->name }}
+                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForm.section_head_id', null)"></i>
+                                </span>
+                                @endif
+
+                                <input type="text"
+                                    wire:model.live="sectionHeadSearch"
+                                    class="tag-input"
+                                    @disabled(empty($labSectionForm['lab_id']))
+                                    placeholder="{{ empty($labSectionForm['lab_id']) ? 'Select a lab first...' : ($this->selectedSectionHead ? '' : 'Search section heads...') }}"
+                                    autocomplete="off">
+                            </div>
+
+                            @if($showSectionHeadDropdown && $labSectionForm['lab_id'])
+                            <div class="tag-dropdown">
+                                @forelse($this->filteredSectionHeads as $user)
+                                <div class="tag-dropdown-item" wire:click.stop="selectSectionHead(@js($user->id))">
+                                    {{ $user->name }}
+                                </div>
+                                @empty
+                                <div class="tag-dropdown-item text-muted">
+                                    {{ $editingLabSection
+                                        ? 'No eligible users. Assign personnel to this lab and lab section first.'
+                                        : 'No users assigned to this lab.' }}
+                                </div>
+                                @endforelse
+                            </div>
+                            @endif
+                        </div>
+                        @error('labSectionForm.section_head_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        @if($editingLabSection)
+                        <small class="text-muted">Editing: only users assigned to this lab section can be selected.</small>
+                        @endif
                     </div>
 
                     <div class="form-check form-switch">
@@ -502,6 +519,264 @@
                             id="labSectionActive">
                         <label class="form-check-label" for="labSectionActive">Active</label>
                     </div>
+
+                    <div class="form-check form-switch mt-2">
+                        <input type="checkbox"
+                            wire:model="labSectionForm.requires_sample_preparation"
+                            class="form-check-input"
+                            id="labSectionRequiresPrep">
+                        <label class="form-check-label" for="labSectionRequiresPrep">
+                            Requires sample preparation
+                            <small class="d-block text-muted">Analysts must complete a sample preparation form when assigning samples for this section (e.g. Serology).</small>
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch mt-2">
+                        <input type="checkbox"
+                            wire:model.live="labSectionForm.does_environmental_analysis"
+                            class="form-check-input"
+                            id="labSectionEnvMonitoring">
+                        <label class="form-check-label" for="labSectionEnvMonitoring">
+                            Environmental Monitoring
+                            <small class="d-block text-muted">Mark this lab section as performing environmental monitoring.</small>
+                        </label>
+                    </div>
+
+                    @if($labSectionForm['does_environmental_analysis'])
+                    <div class="border rounded p-3 mt-3 bg-light">
+                        <h6 class="mb-3"><i class="mdi mdi-leaf text-success"></i> Environmental Monitoring Settings</h6>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group mb-3">
+                                <label class="form-label">Monitoring Equipment <span class="text-danger">*</span></label>
+                                <div class="tag-select-container"
+                                    wire:click="$set('showEquipmentDropdown', true)"
+                                    wire:click.outside="$set('showEquipmentDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedEquipment)
+                                        <span class="tag-badge">
+                                            {{ $this->selectedEquipment->name }}{{ $this->selectedEquipment->equipment_number ? ' ('.$this->selectedEquipment->equipment_number.')' : '' }}
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearEquipment"></i>
+                                        </span>
+                                        @endif
+                                        <input type="text"
+                                            wire:model.live="equipmentSearch"
+                                            class="tag-input"
+                                            placeholder="{{ $this->selectedEquipment ? '' : 'Search equipment...' }}"
+                                            autocomplete="off">
+                                    </div>
+                                    @if($showEquipmentDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredEquipments as $equipment)
+                                        <div class="tag-dropdown-item" wire:click.stop="selectEquipment(@js($equipment->id))">
+                                            {{ $equipment->name }}{{ $equipment->equipment_number ? ' ('.$equipment->equipment_number.')' : '' }}
+                                        </div>
+                                        @empty
+                                        <div class="tag-dropdown-item text-muted">No equipment found</div>
+                                        @endforelse
+                                    </div>
+                                    @endif
+                                </div>
+                                @error('labSectionForm.equipment_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div class="col-md-6 form-group mb-3">
+                                <label class="form-label">Expected Value Type <span class="text-danger">*</span></label>
+                                <select wire:model.live="labSectionForm.expected_value_type"
+                                    class="form-control no-select2 @error('labSectionForm.expected_value_type') is-invalid @enderror">
+                                    <option value="">Select type...</option>
+                                    <option value="constant">Constant</option>
+                                    <option value="range">Range</option>
+                                </select>
+                                @error('labSectionForm.expected_value_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+
+                        @if(($labSectionForm['expected_value_type'] ?? null) === 'constant')
+                        <div class="row">
+                            <div class="col-md-4 form-group mb-3">
+                                <label class="form-label">Expected Constant <span class="text-danger">*</span></label>
+                                <input type="number" step="0.0001"
+                                    wire:model="labSectionForm.expected_value"
+                                    class="form-control @error('labSectionForm.expected_value') is-invalid @enderror"
+                                    placeholder="e.g. 7.0000">
+                                @error('labSectionForm.expected_value') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-4 form-group mb-3">
+                                <label class="form-label">Optimum Level <span class="text-danger">*</span></label>
+                                <input type="text"
+                                    wire:model="labSectionForm.optimum_level"
+                                    class="form-control @error('labSectionForm.optimum_level') is-invalid @enderror"
+                                    placeholder="e.g. Preferred Band">
+                                @error('labSectionForm.optimum_level') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-4 form-group mb-3">
+                                <label class="form-label">Reporting Unit <span class="text-danger">*</span></label>
+                                <div class="tag-select-container"
+                                    wire:click="$set('showReportingUnitDropdown', true)"
+                                    wire:click.outside="$set('showReportingUnitDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedReportingUnit)
+                                        <span class="tag-badge">
+                                            {{ $this->selectedReportingUnit->name }}
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearReportingUnit"></i>
+                                        </span>
+                                        @endif
+                                        <input type="text"
+                                            wire:model.live="reportingUnitSearch"
+                                            class="tag-input"
+                                            placeholder="{{ $this->selectedReportingUnit ? '' : 'Search units...' }}"
+                                            autocomplete="off">
+                                    </div>
+                                    @if($showReportingUnitDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredReportingUnits as $unit)
+                                        <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit(@js($unit->id))">
+                                            {{ $unit->name }}
+                                        </div>
+                                        @empty
+                                        <div class="tag-dropdown-item text-muted">No units found</div>
+                                        @endforelse
+                                    </div>
+                                    @endif
+                                </div>
+                                @error('labSectionForm.reporting_unit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+                        @elseif(($labSectionForm['expected_value_type'] ?? null) === 'range')
+                        <div class="row">
+                            <div class="col-md-4 form-group mb-3">
+                                <label class="form-label">Expected Min <span class="text-danger">*</span></label>
+                                <input type="number" step="0.0001"
+                                    wire:model="labSectionForm.expected_min"
+                                    class="form-control @error('labSectionForm.expected_min') is-invalid @enderror">
+                                @error('labSectionForm.expected_min') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-4 form-group mb-3">
+                                <label class="form-label">Expected Max <span class="text-danger">*</span></label>
+                                <input type="number" step="0.0001"
+                                    wire:model="labSectionForm.expected_max"
+                                    class="form-control @error('labSectionForm.expected_max') is-invalid @enderror">
+                                @error('labSectionForm.expected_max') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-4 form-group mb-3">
+                                <label class="form-label">Reporting Unit <span class="text-danger">*</span></label>
+                                <div class="tag-select-container"
+                                    wire:click="$set('showReportingUnitDropdown', true)"
+                                    wire:click.outside="$set('showReportingUnitDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedReportingUnit)
+                                        <span class="tag-badge">
+                                            {{ $this->selectedReportingUnit->name }}
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearReportingUnit"></i>
+                                        </span>
+                                        @endif
+                                        <input type="text"
+                                            wire:model.live="reportingUnitSearch"
+                                            class="tag-input"
+                                            placeholder="{{ $this->selectedReportingUnit ? '' : 'Search units...' }}"
+                                            autocomplete="off">
+                                    </div>
+                                    @if($showReportingUnitDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredReportingUnits as $unit)
+                                        <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit(@js($unit->id))">
+                                            {{ $unit->name }}
+                                        </div>
+                                        @empty
+                                        <div class="tag-dropdown-item text-muted">No units found</div>
+                                        @endforelse
+                                    </div>
+                                    @endif
+                                </div>
+                                @error('labSectionForm.reporting_unit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+                        @endif
+
+                        <div class="row">
+                            <div class="col-md-6 form-group mb-3">
+                                <label class="form-label">Result Nature <span class="text-danger">*</span></label>
+                                <select wire:model="labSectionForm.result_nature"
+                                    class="form-control no-select2 @error('labSectionForm.result_nature') is-invalid @enderror">
+                                    <option value="">Select nature...</option>
+                                    <option value="Qualitative">Qualitative</option>
+                                    <option value="Quantitative">Quantitative</option>
+                                </select>
+                                @error('labSectionForm.result_nature') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-6 form-group mb-3">
+                                <label class="form-label">Reading Frequency <span class="text-danger">*</span></label>
+                                <select wire:model.live="labSectionForm.reading_frequency"
+                                    class="form-control no-select2 @error('labSectionForm.reading_frequency') is-invalid @enderror">
+                                    @for($freq = 1; $freq <= 5; $freq++)
+                                    <option value="{{ $freq }}">
+                                        @switch($freq)
+                                            @case(1) Once daily @break
+                                            @case(2) Twice daily @break
+                                            @case(3) Three times daily @break
+                                            @case(4) Four times daily @break
+                                            @case(5) Five times daily @break
+                                        @endswitch
+                                    </option>
+                                    @endfor
+                                </select>
+                                @error('labSectionForm.reading_frequency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+
+                        @php
+                            $frequencySchedule = $labSectionForm['reading_frequency_schedule'] ?? [];
+                        @endphp
+                        @if(is_array($frequencySchedule) && count($frequencySchedule) > 0)
+                        <div class="form-group mb-0">
+                            <label class="form-label">Reading Frequency Schedule</label>
+                            <div class="table-responsive border rounded bg-white">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 110px;">Frequency</th>
+                                            <th style="width: 160px;">Interval (h)</th>
+                                            <th>Label</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($frequencySchedule as $index => $row)
+                                        @php $slot = (int) ($row['frequency'] ?? ($index + 1)); @endphp
+                                        <tr wire:key="lab-section-frequency-{{ $slot }}">
+                                            <td><span class="badge bg-secondary" style="color: white;">{{ $slot }}</span></td>
+                                            <td>
+                                                @if($slot === 1)
+                                                <span class="text-muted">—</span>
+                                                @else
+                                                <input type="number" step="0.01" min="0.01"
+                                                    wire:model.live="labSectionForm.reading_frequency_schedule.{{ $index }}.interval"
+                                                    class="form-control form-control-sm"
+                                                    placeholder="e.g. 4">
+                                                @error('labSectionForm.reading_frequency_schedule.'.$index.'.interval')
+                                                <div class="text-danger small mt-1">{{ $message }}</div>
+                                                @enderror
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <input type="text"
+                                                    wire:model.live="labSectionForm.reading_frequency_schedule.{{ $index }}.label"
+                                                    class="form-control form-control-sm"
+                                                    placeholder="e.g. Morning check">
+                                                @error('labSectionForm.reading_frequency_schedule.'.$index.'.label')
+                                                <div class="text-danger small mt-1">{{ $message }}</div>
+                                                @enderror
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <small class="text-muted d-block mt-2">Label each reading. After the first, set the interval in hours since the previous reading.</small>
+                        </div>
+                        @endif
+                    </div>
+                    @endif
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" wire:click="closeLabSectionModal">Cancel</button>
@@ -549,14 +824,14 @@
                         <div class="col-md-8">
                             <div class="form-group mb-3">
                                 <label class="form-label">Sample Workflow <span class="text-danger">*</span></label>
-                                <select wire:model="sampleStageForm.sample_workflow"
-                                    class="form-control @error('sampleStageForm.sample_workflow') is-invalid @enderror">
-                                    <option value="">Select Sample Workflow...</option>
-                                    @foreach($workflows as $workflow)
-                                    <option value="{{ $workflow }}">{{ $workflow }}</option>
-                                    @endforeach
-                                </select>
-                                @error('sampleStageForm.sample_workflow') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <x-searchable-select
+                                    wire:model="sampleStageForm.sample_workflow"
+                                    :options="collect($workflows)->map(fn($workflow) => ['id' => $workflow, 'name' => $workflow])"
+                                    placeholder="Search workflows..."
+                                    empty-label="Select Sample Workflow..."
+                                    class="{{ $errors->has('sampleStageForm.sample_workflow') ? 'is-invalid' : '' }}"
+                                />
+                                @error('sampleStageForm.sample_workflow') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -623,7 +898,9 @@
 
                     <div class="form-group mb-3">
                         <label class="form-label"><i class="mdi mdi-account text-primary"></i> Approver <span class="text-danger">*</span></label>
-                        <div class="tag-select-container" wire:click="$set('showVerifierUserDropdown', true)">
+                        <div class="tag-select-container"
+                            wire:click="$set('showVerifierUserDropdown', true)"
+                            wire:click.outside="$set('showVerifierUserDropdown', false)">
                             <div class="tag-select-input">
                                 @if($this->selectedVerifierUser)
                                 <span class="tag-badge">
@@ -642,7 +919,7 @@
                             @if($showVerifierUserDropdown && count($this->filteredVerifierUsers) > 0)
                             <div class="tag-dropdown">
                                 @foreach($this->filteredVerifierUsers as $user)
-                                <div class="tag-dropdown-item" wire:click.stop="selectVerifierUser({{ $user->id }})">
+                                <div class="tag-dropdown-item" wire:click.stop="selectVerifierUser(@js($user->id))">
                                     {{ $user->name }}
                                 </div>
                                 @endforeach
@@ -654,12 +931,14 @@
 
                     <div class="form-group mb-3">
                         <label class="form-label"><i class="mdi mdi-layers text-primary"></i> Lab Sections <span class="text-danger">*</span></label>
-                        <div class="tag-select-container" wire:click="$set('showVerifierSectionsDropdown', true)">
+                        <div class="tag-select-container"
+                            wire:click="$set('showVerifierSectionsDropdown', true)"
+                            wire:click.outside="$set('showVerifierSectionsDropdown', false)">
                             <div class="tag-select-input">
                                 @foreach($this->selectedVerifierSections as $section)
                                 <span class="tag-badge">
                                     {{ $section->code }} - {{ $section->name }}
-                                    <i class="mdi mdi-close-circle" wire:click.stop="toggleVerifierSection({{ $section->id }})"></i>
+                                    <i class="mdi mdi-close-circle" wire:click.stop="toggleVerifierSection(@js($section->id))"></i>
                                 </span>
                                 @endforeach
 
@@ -674,7 +953,7 @@
                             <div class="tag-dropdown">
                                 @foreach($this->filteredVerifierSections as $section)
                                 <div class="tag-dropdown-item"
-                                    wire:click.stop="toggleVerifierSection({{ $section->id }})"
+                                    wire:click.stop="toggleVerifierSection(@js($section->id))"
                                     style="{{ in_array($section->id, $verifierForm['section_ids']) ? 'background-color: #e7f3ff;' : '' }}">
                                     @if(in_array($section->id, $verifierForm['section_ids']))
                                     <i class="mdi mdi-check-circle text-primary"></i>
@@ -719,14 +998,14 @@
                     {{-- Lab Section --}}
                     <div class="form-group mb-3">
                         <label class="form-label"><i class="mdi mdi-sitemap text-primary"></i> Lab Section <span class="text-danger">*</span></label>
-                        <select wire:model="reportConfigForm.sample_analysis_stage_id"
-                            class="form-control @error('reportConfigForm.sample_analysis_stage_id') is-invalid @enderror">
-                            <option value="">Select Lab Section...</option>
-                            @foreach($this->labSections as $section)
-                            <option value="{{ $section->id }}">{{ $section->code }} - {{ $section->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('reportConfigForm.sample_analysis_stage_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <x-searchable-select
+                            wire:model="reportConfigForm.sample_analysis_stage_id"
+                            :options="$this->labSections->map(fn($section) => ['id' => $section->id, 'name' => $section->code . ' - ' . $section->name])"
+                            placeholder="Search lab sections..."
+                            empty-label="Select Lab Section..."
+                            class="{{ $errors->has('reportConfigForm.sample_analysis_stage_id') ? 'is-invalid' : '' }}"
+                        />
+                        @error('reportConfigForm.sample_analysis_stage_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
 
                     {{-- Report Format --}}
@@ -753,14 +1032,14 @@
                             </div>
                         </div>
                         @else
-                        <select wire:model="reportConfigForm.report_format_id"
-                            class="form-control @error('reportConfigForm.report_format_id') is-invalid @enderror">
-                            <option value="">Select Report Format...</option>
-                            @foreach($reportFormats as $format)
-                            <option value="{{ $format->id }}">{{ $format->report_name }} ({{ $format->report_code }})</option>
-                            @endforeach
-                        </select>
-                        @error('reportConfigForm.report_format_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <x-searchable-select
+                            wire:model="reportConfigForm.report_format_id"
+                            :options="collect($reportFormats)->map(fn($format) => ['id' => $format->id, 'name' => $format->report_name . ' (' . $format->report_code . ')'])"
+                            placeholder="Search report formats..."
+                            empty-label="Select Report Format..."
+                            class="{{ $errors->has('reportConfigForm.report_format_id') ? 'is-invalid' : '' }}"
+                        />
+                        @error('reportConfigForm.report_format_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         @endif
                     </div>
 
@@ -1044,18 +1323,4 @@
             cursor: pointer;
         }
     </style>
-
-    @script
-    <script>
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.tag-select-container')) {
-                $wire.set('showSectionHeadDropdown', false);
-                $wire.set('showLabDropdown', false);
-                $wire.set('showVerifierUserDropdown', false);
-                $wire.set('showVerifierSectionsDropdown', false);
-            }
-        });
-    </script>
-    @endscript
 </div>

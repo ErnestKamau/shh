@@ -26,6 +26,7 @@ class AnalysisMethod extends Model implements Auditable
 		'method_type_id',
 		'validation_status',
 		'sample_header_id',
+		'based_on_standard_id',
 	];
 
 	const STATUS_PENDING = 'pending';
@@ -59,6 +60,12 @@ class AnalysisMethod extends Model implements Auditable
 	public function referencemethod(){
 		return $this->belongsTo(AnalysisMethod::class,'reference_type_id');
 	}
+
+	public function basedOnStandard()
+	{
+		return $this->belongsTo(Standards::class, 'based_on_standard_id');
+	}
+
 	public function methodtype(){
 		return $this->belongsTo(SystemConfiguration::class,'method_type_id');
 	}
@@ -81,5 +88,24 @@ class AnalysisMethod extends Model implements Auditable
 	public function latestValidationRequest()
 	{
 		return $this->hasOne('App\MethodValidationRequest', 'method_id')->latest();
+	}
+
+	public function qcSchemes()
+	{
+		return $this->belongsToMany(
+			\App\Models\QcModule\Configurations\QcSchemes::class,
+			'method_qc_scheme',
+			'method_id',
+			'qc_scheme_id'
+		)->withTimestamps();
+	}
+
+	/**
+	 * @param  array<int, string|int|null>  $schemeIds
+	 * @param  array{mode?: string, priority?: int}  $options
+	 */
+	public function syncQcSchemes(array $schemeIds, array $options = []): void
+	{
+		app(\App\Services\Qc\QcSchemeBindingSync::class)->syncForMethod($this, $schemeIds, $options);
 	}
 }

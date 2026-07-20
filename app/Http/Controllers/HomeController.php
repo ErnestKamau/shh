@@ -193,11 +193,18 @@ class HomeController extends Controller
 			$link = end($link);
 		}
 
-		// return $link;
 		// Add folder path here instead of storing in the database.
 		$path = $public ? public_path($link) : storage_path('app'.$link);
 		if (!PILE::exists($path)) {
-			$path = \public_path('images/no-logo.png');
+			// Livewire uploads store under the public disk (storage/app/public/...).
+			$publicDiskPath = $public
+				? storage_path('app/public/' . ltrim((string) $link, '/'))
+				: storage_path('app/public' . $link);
+			if (PILE::exists($publicDiskPath)) {
+				$path = $publicDiskPath;
+			} else {
+				$path = \public_path('images/no-logo.png');
+			}
 		}
 
 		// return $path;

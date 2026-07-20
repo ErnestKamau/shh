@@ -323,11 +323,15 @@ class Phase11QcAnalyticsSeeder extends Seeder
                     'status' => true,
                     'is_qc_standard' => true,
                     'qc_type_id' => $crmType->id,
-                    'qc_scheme_ids' => $isoScheme->code,
+                    'qc_scheme_ids' => $isoScheme->id,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]
             );
+            $seededStandard = DB::connection('pgsql')->table('standards')->where('code', 'STD-QC-REF')->first();
+            if ($seededStandard) {
+                \App\Standards::query()->find($seededStandard->id)?->syncQcSchemes([(string) $isoScheme->id]);
+            }
             $this->command?->info('Seeded QC Standard: Certified Reference Material Standard 102');
 
             $isValueRow = DB::connection('pgsql')->table('standard_values')

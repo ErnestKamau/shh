@@ -4,20 +4,28 @@ namespace App\Imports\Lab;
 
 use App\Analyte;
 use App\AnalysisElements;
+use App\AnalysisMethod;
 use App\AnalysisType;
 use App\Imports\BaseImporter;
 use App\Lab;
 use App\LabSection;
 use App\Models\Equipments\Equipment;
+use App\Models\MethodSequences\MethodSequence;
+use App\Models\Procedures\ProcedureWorksheet;
+use App\ReportingUnit;
 use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
 use App\StandardValue;
+use Illuminate\Support\Str;
 
 class UnifiedLabHierarchyImporter extends BaseImporter
 {
     /** @var array<string, string> */
     protected array $resolvedLabCache = [];
+
+    /** @var list<string> */
+    private const SMALL_WORDS = ['and', 'or', 'of', 'the', 'in', 'on', 'for', 'to', 'a', 'an', 'at', 'by', 'via', 'with'];
 
     protected function validateRow(array $row): array
     {
@@ -61,11 +69,93 @@ class UnifiedLabHierarchyImporter extends BaseImporter
 
     protected function resolveCodeFromName(string $name): string
     {
-        $slug = preg_replace('/[^A-Za-z0-9]/', '_', $name);
+        $slug = preg_replace('/[^A-Za-z0-9]+/', '_', $name);
         $slug = preg_replace('/_+/', '_', $slug);
         $slug = trim($slug, '_');
 
         return strtoupper(substr($slug, 0, 100));
+    }
+
+    /**
+     * Turn snake/kebab labels into readable multi-word names.
+     * e.g. moisture_and_water / moisture-and-water → Moisture and Water
+     */
+    protected function humanizeLabel(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return $value;
+        }
+
+        // Keep compact technical units as-entered after light trim.
+        if (preg_match('/^[A-Za-z0-9.%µμ°\/±²³⁻⁺]+$/', $value) === 1 && ! str_contains($value, '_') && ! str_contains($value, '-')) {
+            return $value;
+        }
+
+        $normalized = str_replace(['_', '-'], ' ', $value);
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+        $normalized = trim($normalized);
+
+        if ($normalized === '') {
+            return $value;
+        }
+
+        $words = preg_split('/\s+/', strtolower($normalized)) ?: [];
+        $out = [];
+
+        foreach ($words as $index => $word) {
+            if ($word === '') {
+                continue;
+            }
+
+            if ($index > 0 && in_array($word, self::SMALL_WORDS, true)) {
+                $out[] = $word;
+
+                continue;
+            }
+
+            if (preg_match('/^[a-z]+$/', $word) !== 1) {
+                $out[] = $word;
+
+                continue;
+            }
+
+            $out[] = Str::ucfirst($word);
+        }
+
+        return implode(' ', $out);
+    }
+
+    /**
+     * Methods often use standard codes (ISO-4833-1). Expand underscores to spaces
+     * but keep hyphens/case for technical identifiers.
+     */
+    protected function normalizeMethodLabel(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return $value;
+        }
+
+        $normalized = trim(preg_replace('/\s+/', ' ', str_replace('_', ' ', $value)) ?? $value);
+        if ($normalized === '') {
+            return $value;
+        }
+
+        // Technical codes / already cased labels: keep as entered (after underscore expand).
+        if (preg_match('/[A-Z0-9\-\\/]/', $normalized) === 1) {
+            return $normalized;
+        }
+
+        return $this->humanizeLabel($normalized);
     }
 
     protected function parseBooleanCell(mixed $value, int $default = 0): int
@@ -98,54 +188,107 @@ class UnifiedLabHierarchyImporter extends BaseImporter
     protected function cellProvided(array $row, array $keys): bool
     {
         foreach ($keys as $key) {
-            if (! array_key_exists($key, $row)) {
-                continue;
-            }
+            $normalizedKey = $this->normalizeHeaderName((string) $key);
+            foreach ([$key, $normalizedKey] as $candidate) {
+                if (! array_key_exists($candidate, $row)) {
+                    continue;
+                }
 
-            $value = $row[$key];
-            if ($value !== null && trim((string) $value) !== '') {
-                return true;
+                $value = $row[$candidate];
+                if ($value !== null && trim((string) $value) !== '') {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    protected function transformRow(array $row): mixed
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function normalizeImporterRowKeys(array $row): array
     {
         $normalizedRow = [];
+
         foreach ($row as $key => $value) {
-            $cleanKey = preg_replace('/[^a-z0-9_]/', '', strtolower(trim((string) $key)));
+            $cleanKey = $this->normalizeHeaderName((string) $key);
+            if ($cleanKey === '') {
+                continue;
+            }
+
             $normalizedRow[$cleanKey] = is_string($value) ? trim($value) : $value;
         }
-        $row = $normalizedRow;
 
-        $sampleTypeCode = $row['sample_type_code'] ?? $row['sample_code'] ?? null;
-        $sampleTypeName = $row['sample_type_name'] ?? $row['sample_name'] ?? null;
+        return $normalizedRow;
+    }
 
-        $analysisTypeCode = $row['analysis_type_code'] ?? $row['analysis_type_cod'] ?? $row['analysis_code'] ?? null;
-        $analysisTypeName = $row['analysis_type_name'] ?? $row['analysis_name'] ?? null;
+    protected function firstFilled(array $row, array $keys): mixed
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
 
-        $rawAnalyteCode = $row['analyte_code'] ?? $row['code'] ?? $row['analysis_element_code'] ?? null;
-        $analyteCode = $rawAnalyteCode;
-        $analyteName = $row['analyte_name'] ?? $row['name'] ?? $row['analysis_element_name'] ?? null;
+            $value = $row[$key];
+            if ($value === null) {
+                continue;
+            }
 
-        $labSectionCode = $row['lab_section_code'] ?? $row['section'] ?? null;
-        if (empty($labSectionCode)) {
-            $labSectionCode = $row['analysis_element_name'] ?? $row['analysis_element_code'] ?? null;
+            if (is_string($value) && trim($value) === '') {
+                continue;
+            }
+
+            return is_string($value) ? trim($value) : $value;
         }
 
-        $standardCode = $row['standard_code'] ?? null;
-        $standardName = $row['standard_name'] ?? null;
+        return null;
+    }
 
-        $stdValTypeCode = $row['standard_value_code'] ?? null;
-        $stdValTypeName = $row['standard_value_name'] ?? null;
-        $stdValType = $row['standard_value_type'] ?? null;
+    protected function transformRow(array $row): mixed
+    {
+        $row = $this->normalizeImporterRowKeys($row);
 
-        $low = $row['standard_low'] ?? $row['low'] ?? null;
-        $high = $row['standard_high'] ?? $row['high'] ?? null;
-        $matrixOperator = $row['standard_matrix_operator'] ?? $row['matrix_operator'] ?? $row['operator'] ?? null;
-        $matrixValue = $row['standard_value'] ?? $row['value'] ?? $row['expected_value'] ?? null;
+        $sampleTypeCode = $this->firstFilled($row, ['sample_type_code', 'sample_code']);
+        $sampleTypeName = $this->humanizeLabel($this->firstFilled($row, ['sample_type_name', 'sample_name']));
+
+        $analysisTypeCode = $this->firstFilled($row, ['analysis_type_code', 'analysis_type_cod', 'analysis_code']);
+        $analysisTypeName = $this->humanizeLabel($this->firstFilled($row, ['analysis_type_name', 'analysis_name']));
+
+        $rawAnalyteCode = $this->firstFilled($row, ['analyte_code', 'code', 'analysis_element_code']);
+        $analyteCode = $rawAnalyteCode;
+        $analyteName = $this->humanizeLabel($this->firstFilled($row, ['analyte_name', 'name', 'analysis_element_name', 'parameter', 'parameter_name']));
+
+        $labSectionCode = $this->firstFilled($row, ['lab_section_code', 'section', 'lab_section']);
+        if (empty($labSectionCode)) {
+            $labSectionCode = $this->firstFilled($row, ['analysis_element_name', 'analysis_element_code']);
+        }
+
+        $methodName = $this->normalizeMethodLabel($this->firstFilled($row, [
+            'method',
+            'method_name',
+            'test_method',
+            'test_method_sop',
+            'reference_method',
+        ]));
+
+        $reportingUnit = $this->firstFilled($row, ['reporting_unit', 'unit', 'units', 'reporting_units']);
+        if (is_string($reportingUnit)) {
+            $reportingUnit = trim($reportingUnit);
+        }
+
+        $standardCode = $this->firstFilled($row, ['standard_code']);
+        $standardName = $this->humanizeLabel($this->firstFilled($row, ['standard_name']));
+
+        $stdValTypeCode = $this->firstFilled($row, ['standard_value_code']);
+        $stdValTypeName = $this->humanizeLabel($this->firstFilled($row, ['standard_value_name']));
+        $stdValType = $this->firstFilled($row, ['standard_value_type']);
+
+        $low = $this->firstFilled($row, ['standard_low', 'low']);
+        $high = $this->firstFilled($row, ['standard_high', 'high']);
+        $matrixOperator = $this->firstFilled($row, ['standard_matrix_operator', 'matrix_operator', 'operator']);
+        $matrixValue = $this->firstFilled($row, ['standard_value', 'value', 'expected_value']);
 
         if (empty($sampleTypeCode) && ! empty($sampleTypeName)) {
             $sampleTypeCode = $this->resolveCodeFromName($sampleTypeName);
@@ -169,6 +312,19 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             }
         }
 
+        if (empty($sampleTypeName) && ! empty($sampleTypeCode)) {
+            $sampleTypeName = $this->humanizeLabel((string) $sampleTypeCode);
+        }
+        if (empty($analysisTypeName) && ! empty($analysisTypeCode)) {
+            $analysisTypeName = $this->humanizeLabel((string) $analysisTypeCode);
+        }
+        if (empty($analyteName) && ! empty($analyteCode)) {
+            $analyteName = $this->humanizeLabel((string) $analyteCode);
+        }
+        if (empty($standardName) && ! empty($standardCode)) {
+            $standardName = $this->humanizeLabel((string) $standardCode);
+        }
+
         return [
             'sample_type_code' => $sampleTypeCode,
             'sample_type_name' => $sampleTypeName,
@@ -177,24 +333,25 @@ class UnifiedLabHierarchyImporter extends BaseImporter
 
             'analysis_type_code' => $analysisTypeCode,
             'analysis_type_name' => $analysisTypeName,
-            'lab_code' => $row['lab_code'] ?? null,
+            'lab_code' => $this->firstFilled($row, ['lab_code']),
             'has_no_result' => $this->parseBooleanCell($row['has_no_result'] ?? null, 0),
-            'reporting_time' => $row['reporting_time'] ?? null,
+            'reporting_time' => $this->firstFilled($row, ['reporting_time']),
 
             'lab_section_code' => $labSectionCode,
-            'equipment_code' => $row['equipment_code'] ?? null,
-            'lod' => $row['lod'] ?? null,
-            'hod' => $row['loq'] ?? $row['hod'] ?? null,
-            'level' => $row['level'] ?? null,
-            'method_sequence_name' => $row['method_sequence_name'] ?? null,
-            'procedure_worksheet_name' => $row['procedure_worksheet_name'] ?? null,
+            'equipment_code' => $this->firstFilled($row, ['equipment_code', 'equipment']),
+            'lod' => $this->firstFilled($row, ['lod']),
+            'hod' => $this->firstFilled($row, ['loq', 'hod']),
+            'level' => $this->firstFilled($row, ['level']),
+            'method' => $methodName,
+            'method_sequence_name' => $this->humanizeLabel($this->firstFilled($row, ['method_sequence_name', 'method_sequence'])),
+            'procedure_worksheet_name' => $this->humanizeLabel($this->firstFilled($row, ['procedure_worksheet_name', 'procedure_worksheet'])),
 
             'analyte_code' => $analyteCode,
             'analyte_name' => $analyteName,
             'analyte_code_explicit' => $rawAnalyteCode !== null && trim((string) $rawAnalyteCode) !== '',
             'decimal_places' => isset($row['decimal_places']) && $row['decimal_places'] !== '' ? (int) $row['decimal_places'] : 2,
-            'reporting_symbol' => $row['reporting_symbol'] ?? null,
-            'reporting_unit' => $row['reporting_unit'] ?? null,
+            'reporting_symbol' => $this->firstFilled($row, ['reporting_symbol']),
+            'reporting_unit' => $reportingUnit,
             'non_detectable' => $this->parseBooleanCell($row['non_detectable'] ?? null, 0),
             'non_accredited' => $this->parseBooleanCell($row['non_accredited'] ?? null, 0),
             'show_on_report' => $this->parseBooleanCell($row['show_on_report'] ?? $row['show_on_reports'] ?? null, 1),
@@ -202,7 +359,7 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             'standard_code' => $standardCode,
             'standard_name' => $standardName,
             'is_qc_standard' => $this->parseBooleanCell($row['is_qc_standard'] ?? null, 0),
-            'qc_type' => $row['qc_type'] ?? null,
+            'qc_type' => $this->firstFilled($row, ['qc_type']),
 
             'standard_value_code' => $stdValTypeCode,
             'standard_value_name' => $stdValTypeName,
@@ -296,14 +453,20 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             ->first();
 
         if ($analyte) {
-            if ($transformedData['analyte_code_explicit']) {
-                $updateData = [];
-                if (! empty($transformedData['analyte_name']) && $analyte->name !== $transformedData['analyte_name']) {
-                    $updateData['name'] = $transformedData['analyte_name'];
-                }
-                if (! empty($updateData)) {
-                    $analyte->update($updateData);
-                }
+            $updateData = [];
+            if (! empty($transformedData['analyte_name']) && $analyte->name !== $transformedData['analyte_name']) {
+                $updateData['name'] = $transformedData['analyte_name'];
+            }
+            if ($transformedData['reporting_unit'] !== null && $transformedData['reporting_unit'] !== ''
+                && $analyte->reporting_unit !== $transformedData['reporting_unit']) {
+                $updateData['reporting_unit'] = $transformedData['reporting_unit'];
+            }
+            if ($transformedData['reporting_symbol'] !== null && $transformedData['reporting_symbol'] !== ''
+                && $analyte->reporting_symbol !== $transformedData['reporting_symbol']) {
+                $updateData['reporting_symbol'] = $transformedData['reporting_symbol'];
+            }
+            if (! empty($updateData)) {
+                $analyte->update($updateData);
             }
 
             return $analyte;
@@ -312,7 +475,7 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         return Analyte::create([
             'code' => $transformedData['analyte_code'],
             'company_id' => $companyId,
-            'name' => $transformedData['analyte_name'] ?: 'Analyte '.$transformedData['analyte_code'],
+            'name' => $transformedData['analyte_name'] ?: $this->humanizeLabel((string) $transformedData['analyte_code']),
             'decimal_places' => $transformedData['decimal_places'],
             'reporting_symbol' => $transformedData['reporting_symbol'],
             'reporting_unit' => $transformedData['reporting_unit'],
@@ -323,14 +486,105 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         ]);
     }
 
+    protected function resolveAnalysisMethod(?string $methodName): ?string
+    {
+        $methodName = trim((string) $methodName);
+        if ($methodName === '') {
+            return null;
+        }
+
+        $companyId = $this->batch->company_id;
+
+        $analysisMethod = AnalysisMethod::query()
+            ->where('company_id', $companyId)
+            ->where(function ($query) use ($methodName): void {
+                $query->where('name', $methodName)
+                    ->orWhere('code', $methodName);
+            })
+            ->first();
+
+        if ($analysisMethod) {
+            if ($analysisMethod->name !== $methodName) {
+                $analysisMethod->update(['name' => $methodName]);
+            }
+
+            return (string) $analysisMethod->id;
+        }
+
+        $analysisMethod = AnalysisMethod::create([
+            'code' => $this->resolveCodeFromName($methodName),
+            'company_id' => $companyId,
+            'name' => $methodName,
+            'description' => $methodName,
+            'active' => 1,
+        ]);
+
+        return (string) $analysisMethod->id;
+    }
+
+    protected function resolveReportingUnit(?string $unit): ?string
+    {
+        $unit = trim((string) $unit);
+        if ($unit === '') {
+            return null;
+        }
+
+        $reportingUnit = ReportingUnit::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($unit)])
+            ->first();
+
+        if (! $reportingUnit) {
+            $reportingUnit = ReportingUnit::create([
+                'name' => $unit,
+                'active' => 1,
+            ]);
+        }
+
+        return (string) $reportingUnit->name;
+    }
+
+    protected function resolveMethodSequenceId(?string $name): ?string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $sequence = MethodSequence::query()->where('name', $name)->first();
+
+        return $sequence?->id ? (string) $sequence->id : null;
+    }
+
+    protected function resolveProcedureWorksheetId(?string $name): ?string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $worksheet = ProcedureWorksheet::query()->where('name', $name)->first();
+
+        return $worksheet?->id ? (string) $worksheet->id : null;
+    }
+
     /**
      * @return array<string, mixed>
      */
-    protected function buildElementPayload(array $transformedData, ?string $labSectionId, ?string $equipmentId): array
-    {
+    protected function buildElementPayload(
+        array $transformedData,
+        ?string $labSectionId,
+        ?string $equipmentId,
+        ?string $methodId,
+        ?string $methodSequenceId,
+        ?string $procedureWorksheetId,
+    ): array {
         return [
             'lab_section_id' => $labSectionId,
             'equipment_id' => $equipmentId,
+            'method' => $methodId,
+            'method_sequence_id' => $methodSequenceId,
+            'has_method_sequence' => $methodSequenceId !== null,
+            'procedure_worksheet_id' => $procedureWorksheetId,
             'lod' => $transformedData['lod'],
             'hod' => $transformedData['hod'],
             'level' => $transformedData['level'],
@@ -344,6 +598,7 @@ class UnifiedLabHierarchyImporter extends BaseImporter
 
     protected function importRow(array $transformedData, array $originalRow): bool
     {
+        $originalRow = $this->normalizeImporterRowKeys($originalRow);
         $hasImportedAny = false;
 
         $sampleType = null;
@@ -369,7 +624,8 @@ class UnifiedLabHierarchyImporter extends BaseImporter
                 $sampleType = SampleType::create([
                     'code' => $transformedData['sample_type_code'],
                     'company_id' => $this->batch->company_id,
-                    'name' => $transformedData['sample_type_name'] ?: 'Sample Type '.$transformedData['sample_type_code'],
+                    'name' => $transformedData['sample_type_name']
+                        ?: $this->humanizeLabel((string) $transformedData['sample_type_code']),
                     'is_results_attachable' => $transformedData['is_results_attachable'],
                     'disposal_count' => $transformedData['disposal_count'],
                     'active' => 1,
@@ -432,7 +688,8 @@ class UnifiedLabHierarchyImporter extends BaseImporter
                 $analysisType = AnalysisType::create([
                     'code' => $transformedData['analysis_type_code'],
                     'company_id' => $this->batch->company_id,
-                    'name' => $transformedData['analysis_type_name'] ?: 'Analysis Type '.$transformedData['analysis_type_code'],
+                    'name' => $transformedData['analysis_type_name']
+                        ?: $this->humanizeLabel((string) $transformedData['analysis_type_code']),
                     'sample_type_id' => $resolvedSampleTypeId,
                     'lab_id' => $labId,
                     'has_no_result' => $transformedData['has_no_result'],
@@ -453,6 +710,10 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             $hasImportedAny = true;
         }
 
+        $transformedData['reporting_unit'] = $this->resolveReportingUnit(
+            is_string($transformedData['reporting_unit'] ?? null) ? $transformedData['reporting_unit'] : null
+        );
+
         $analyte = $this->resolveAnalyte($transformedData);
         if ($analyte) {
             $this->recordUpsert($analyte->code, 'upserted');
@@ -462,19 +723,27 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         if ($analysisType && $analyte) {
             $labSectionId = null;
             if (! empty($transformedData['lab_section_code'])) {
+                $sectionLabel = $this->humanizeLabel((string) $transformedData['lab_section_code'])
+                    ?: (string) $transformedData['lab_section_code'];
+                $sectionCode = $this->resolveCodeFromName($sectionLabel);
+
                 $section = LabSection::where('lab_id', $labId)
-                    ->where(function ($q) use ($transformedData) {
+                    ->where(function ($q) use ($transformedData, $sectionCode, $sectionLabel) {
                         $q->where('code', $transformedData['lab_section_code'])
-                            ->orWhere('name', $transformedData['lab_section_code']);
+                            ->orWhere('code', $sectionCode)
+                            ->orWhere('name', $transformedData['lab_section_code'])
+                            ->orWhere('name', $sectionLabel);
                     })->first();
                 if (! $section) {
                     $section = LabSection::create([
                         'lab_id' => $labId,
-                        'code' => $this->resolveCodeFromName($transformedData['lab_section_code']),
-                        'name' => $transformedData['lab_section_code'],
+                        'code' => $sectionCode,
+                        'name' => $sectionLabel,
                         'active' => 1,
                         'company_id' => $this->batch->company_id,
                     ]);
+                } elseif ($section->name !== $sectionLabel) {
+                    $section->update(['name' => $sectionLabel]);
                 }
                 $labSectionId = $section->id;
             }
@@ -496,13 +765,26 @@ class UnifiedLabHierarchyImporter extends BaseImporter
 
             $equipmentId = null;
             if (! empty($transformedData['equipment_code'])) {
-                $equip = Equipment::where('equipment_number', $transformedData['equipment_code'])->first();
+                $equip = Equipment::where('equipment_number', $transformedData['equipment_code'])
+                    ->orWhere('name', $transformedData['equipment_code'])
+                    ->first();
                 if ($equip) {
                     $equipmentId = $equip->id;
                 }
             }
 
-            $elementPayload = $this->buildElementPayload($transformedData, $labSectionId, $equipmentId);
+            $methodId = $this->resolveAnalysisMethod($transformedData['method'] ?? null);
+            $methodSequenceId = $this->resolveMethodSequenceId($transformedData['method_sequence_name'] ?? null);
+            $procedureWorksheetId = $this->resolveProcedureWorksheetId($transformedData['procedure_worksheet_name'] ?? null);
+
+            $elementPayload = $this->buildElementPayload(
+                $transformedData,
+                $labSectionId,
+                $equipmentId,
+                $methodId,
+                $methodSequenceId,
+                $procedureWorksheetId,
+            );
 
             $existingAE = AnalysisElements::where('analysis_type_id', $analysisType->id)
                 ->where('analyte_id', $analyte->id)
@@ -515,9 +797,19 @@ class UnifiedLabHierarchyImporter extends BaseImporter
                         continue;
                     }
 
-                    if (in_array($field, ['lod', 'hod', 'level', 'reporting_unit', 'decimal_places', 'non_detectable', 'non_accredited'], true)) {
-                        $keys = $field === 'hod' ? ['hod', 'loq'] : [$field];
-                        if (! $this->cellProvided($originalRow, $keys)) {
+                    if (in_array($field, ['lod', 'hod', 'level', 'reporting_unit', 'decimal_places', 'non_detectable', 'non_accredited', 'method', 'method_sequence_id', 'procedure_worksheet_id', 'has_method_sequence'], true)) {
+                        $keys = match ($field) {
+                            'hod' => ['hod', 'loq'],
+                            'reporting_unit' => ['reporting_unit', 'unit', 'units', 'reporting_units'],
+                            'method' => ['method', 'method_name', 'test_method', 'test_method_sop', 'reference_method'],
+                            'method_sequence_id', 'has_method_sequence' => ['method_sequence_name', 'method_sequence'],
+                            'procedure_worksheet_id' => ['procedure_worksheet_name', 'procedure_worksheet'],
+                            default => [$field],
+                        };
+                        if (! $this->cellProvided($originalRow, $keys) && $value === null) {
+                            continue;
+                        }
+                        if (! $this->cellProvided($originalRow, $keys) && in_array($field, ['lod', 'hod', 'level', 'reporting_unit', 'decimal_places', 'non_detectable', 'non_accredited'], true)) {
                             continue;
                         }
                     }
@@ -566,7 +858,8 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             } else {
                 $standard = Standards::create([
                     'code' => $transformedData['standard_code'],
-                    'name' => $transformedData['standard_name'] ?: 'Standard '.$transformedData['standard_code'],
+                    'name' => $transformedData['standard_name']
+                        ?: $this->humanizeLabel((string) $transformedData['standard_code']),
                     'main_standard' => ! $isQcBool,
                     'is_qc_standard' => $isQcBool,
                     'status' => 1,
@@ -592,7 +885,8 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             } else {
                 $standardValue = StandardValue::create([
                     'code' => $transformedData['standard_value_code'],
-                    'name' => $transformedData['standard_value_name'] ?: 'Standard Value '.$transformedData['standard_value_code'],
+                    'name' => $transformedData['standard_value_name']
+                        ?: $this->humanizeLabel((string) $transformedData['standard_value_code']),
                     'status' => 1,
                     'edited_by' => $this->batch->user_id,
                 ]);

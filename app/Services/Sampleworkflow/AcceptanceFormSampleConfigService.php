@@ -6,12 +6,13 @@ use App\AnalysisElements;
 use App\AnalysisType;
 use App\Lab;
 use App\Models\SampleSubmissionRequest;
+use App\Models\SampleSubmissionRequestRequestedAnalysis;
 use App\Models\SubmissionFormInstance;
+use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
+use App\SampleAnalysisStage;
 use App\SampleCondition;
 use App\SampleType;
 use App\Standards;
-use App\Zone;
-use App\LabSection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -126,8 +127,10 @@ class AcceptanceFormSampleConfigService
     public function buildPrefillLinesFromEnquiry(
         SampleSubmissionRequest $enquiry,
         array $quotationLines = [],
+        ?SubmissionFormInstance $instance = null,
     ): array {
-        $sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        // Linked TRF instance is the source of truth for requested samples/tests.
+        $sampleLines = $this->resolveTrfSampleLines($enquiry, $instance);
 
         if ($sampleLines !== []) {
             return $this->buildPrefillLinesFromTrfSampleLines($enquiry, $sampleLines, $quotationLines);
@@ -138,6 +141,26 @@ class AcceptanceFormSampleConfigService
         }
 
         return [];
+    }
+
+    /**
+     * Resolve sample lines from the linked TRF instance when present; otherwise enquiry sample_lines.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function resolveTrfSampleLines(
+        SampleSubmissionRequest $enquiry,
+        ?SubmissionFormInstance $instance = null,
+    ): array {
+        $instance ??= $enquiry->submissionFormInstance;
+        if ($instance !== null) {
+            $fromInstance = app(SubmissionRequestSampleLineService::class)->linesForInstance($instance);
+            if ($fromInstance !== []) {
+                return $fromInstance;
+            }
+        }
+
+        return is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
     }
 
     /**
@@ -233,7 +256,7 @@ class AcceptanceFormSampleConfigService
 
             $keys = $group
                 ->slice($sampleSlot * $paramsPerSample, $paramsPerSample)
-                ->map(fn (array $line): ?string => $this->resolveQuotationLineElementId($line))
+                ->flatMap(fn (array $line): array => $this->elementIdsFromQuotationLine($line))
                 ->filter()
                 ->unique()
                 ->values()
@@ -277,6 +300,28 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    public function elementIdsFromQuotationLine(array $line): array
+    {
+        if (! empty($line['is_package']) && is_array($line['package_element_ids'] ?? null)) {
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+
+            return collect($line['package_element_ids'])
+                ->map(fn (mixed $id): ?string => $this->resolveSingleElementId(trim((string) $id), $analysisTypeId))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $resolved = $this->resolveQuotationLineElementId($line);
+
+        return $resolved !== null ? [$resolved] : [];
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $quotationLines
      * @return list<array<string, mixed>>
      */
@@ -292,7 +337,7 @@ class AcceptanceFormSampleConfigService
 
         foreach ($linesByKey as $key => $group) {
             $uniqueElements = $group
-                ->map(fn (array $line): ?string => $this->resolveQuotationLineElementId($line))
+                ->flatMap(fn (array $line): array => $this->elementIdsFromQuotationLine($line))
                 ->filter()
                 ->unique()
                 ->count();
@@ -382,6 +427,8 @@ class AcceptanceFormSampleConfigService
             if ($exists) {
                 return $candidate;
             }
+
+            return null;
         }
 
         $query = AnalysisElements::query()->where('active', 1);
@@ -397,11 +444,413 @@ class AcceptanceFormSampleConfigService
             return (string) $element->id;
         }
 
-        if (Str::isUuid($candidate)) {
-            return null;
+        return null;
+    }
+
+    /**
+     * After lab-hierarchy replace imports, portal/walk-in enquiries still hold deleted
+     * sample-type / analysis-type / analysis-element UUIDs. Remap them onto the current
+     * hierarchy using stored type names and analyte labels so Process Enquiry step 2
+     * keeps the same requested tests.
+     *
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array<string, mixed>>
+     */
+    public function remapConfigsToCurrentHierarchy(array $configs, SampleSubmissionRequest $enquiry): array
+    {
+        $enquiry->loadMissing('requestedAnalyses');
+        $labelHintsByOrphanId = $this->parameterLabelHintsFromEnquiry($enquiry);
+        $fallbackLabels = array_values(array_unique(array_filter(array_values($labelHintsByOrphanId))));
+
+        return array_values(array_map(function (array $config) use ($enquiry, $labelHintsByOrphanId, $fallbackLabels): array {
+            $config = $this->remapConfigSampleAndAnalysisTypes($config, $enquiry);
+            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+
+            $resolvedKeys = [];
+            foreach (is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [] as $key) {
+                $key = trim((string) $key);
+                if ($key === '') {
+                    continue;
+                }
+
+                $resolved = $this->resolveSingleElementId($key, $analysisTypeId);
+                if ($resolved !== null) {
+                    $resolvedKeys[] = $resolved;
+
+                    continue;
+                }
+
+                $label = trim((string) ($labelHintsByOrphanId[$key] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+
+                $resolved = $this->resolveSingleElementId($label, $analysisTypeId);
+                if ($resolved !== null) {
+                    $resolvedKeys[] = $resolved;
+                }
+            }
+
+            if ($resolvedKeys === [] && $fallbackLabels !== []) {
+                foreach ($fallbackLabels as $label) {
+                    $resolved = $this->resolveSingleElementId($label, $analysisTypeId);
+                    if ($resolved !== null) {
+                        $resolvedKeys[] = $resolved;
+                    }
+                }
+            }
+
+            $config['parameter_keys'] = array_values(array_unique($resolvedKeys));
+
+            return $config;
+        }, $configs));
+    }
+
+    /**
+     * Merge requested-analysis element ids onto sample configs so Process Enquiry
+     * step 2 pre-selects the same parameters shown in step 1.
+     *
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array<string, mixed>>
+     */
+    public function applyRequestedParameterKeysFromEnquiry(array $configs, SampleSubmissionRequest $enquiry): array
+    {
+        $enquiry->loadMissing(['requestedAnalyses', 'submissionFormInstance']);
+
+        if ($configs === []) {
+            return $configs;
         }
 
-        return null;
+        $trfLines = $this->resolveTrfSampleLines($enquiry);
+        $trfIdsByTypeKey = $this->elementIdsByTypeKeyFromSampleLines($trfLines);
+        $allTrfIds = $this->flattenElementIdsFromSampleLines($trfLines);
+
+        $byTypeKey = $enquiry->requestedAnalyses->groupBy(
+            fn (SampleSubmissionRequestRequestedAnalysis $analysis): string => $this->configGroupingKey(
+                $analysis->sample_type_id ? (string) $analysis->sample_type_id : null,
+                $analysis->analysis_type_id ? (string) $analysis->analysis_type_id : null,
+            )
+        );
+
+        $allRequestedIds = $this->resolveElementIdsFromRequestedAnalyses(
+            $enquiry->requestedAnalyses->all(),
+            '',
+        );
+
+        $labelHints = $this->parameterLabelHintsFromEnquiry($enquiry);
+
+        return array_values(array_map(function (array $config) use (
+            $byTypeKey,
+            $allRequestedIds,
+            $allTrfIds,
+            $trfIdsByTypeKey,
+            $labelHints,
+            $configs,
+        ): array {
+            $existingKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '')
+                ->values()
+                ->all();
+
+            // Preserve intentional lab selections; only fill empty keys from TRF.
+            if ($existingKeys !== []) {
+                return $config;
+            }
+
+            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            $typeKey = $this->configGroupingKey(
+                $config['sample_type_id'] ?? null,
+                $config['analysis_type_id'] ?? null,
+            );
+
+            $requestedIds = $trfIdsByTypeKey[$typeKey] ?? [];
+            if ($requestedIds !== []) {
+                $requestedIds = $this->resolveElementIdsForAnalysisType($requestedIds, $analysisTypeId);
+            }
+
+            if ($requestedIds === [] && count($configs) === 1 && $allTrfIds !== []) {
+                $requestedIds = $this->resolveElementIdsForAnalysisType($allTrfIds, $analysisTypeId);
+            }
+
+            if ($requestedIds === [] && $byTypeKey->has($typeKey)) {
+                $requestedIds = $this->resolveElementIdsFromRequestedAnalyses(
+                    $byTypeKey->get($typeKey)->all(),
+                    $analysisTypeId,
+                );
+            }
+
+            if ($requestedIds === [] && count($configs) === 1 && $allRequestedIds !== []) {
+                $requestedIds = $this->resolveElementIdsForAnalysisType($allRequestedIds, $analysisTypeId);
+            }
+
+            if ($requestedIds === []) {
+                foreach (array_unique(array_filter(array_values($labelHints))) as $label) {
+                    $resolved = $this->resolveSingleElementId($label, $analysisTypeId);
+                    if ($resolved !== null) {
+                        $requestedIds[] = $resolved;
+                    }
+                }
+            }
+
+            $config['parameter_keys'] = array_values(array_unique($requestedIds));
+
+            return $config;
+        }, $configs));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @return array<string, list<string>>
+     */
+    private function elementIdsByTypeKeyFromSampleLines(array $sampleLines): array
+    {
+        $byTypeKey = [];
+
+        foreach ($sampleLines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $typeKey = $this->configGroupingKey(
+                $line['sample_type_id'] ?? null,
+                $line['analysis_type_id'] ?? null,
+            );
+            $ids = $this->extractElementIdsFromSampleLine($line);
+            if ($ids === []) {
+                continue;
+            }
+
+            $byTypeKey[$typeKey] = array_values(array_unique(array_merge(
+                $byTypeKey[$typeKey] ?? [],
+                $ids,
+            )));
+        }
+
+        return $byTypeKey;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @return list<string>
+     */
+    private function flattenElementIdsFromSampleLines(array $sampleLines): array
+    {
+        $ids = [];
+        foreach ($sampleLines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+            $ids = array_merge($ids, $this->extractElementIdsFromSampleLine($line));
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function extractElementIdsFromSampleLine(array $line): array
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $fromAttributes = $attributes['analysis_element_ids'] ?? [];
+
+        if (is_array($fromAttributes) && $fromAttributes !== []) {
+            return array_values(array_filter(array_map(
+                static fn (mixed $id): string => trim((string) $id),
+                $fromAttributes,
+            )));
+        }
+
+        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
+
+        return $elementId !== '' ? [$elementId] : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    private function remapConfigSampleAndAnalysisTypes(array $config, SampleSubmissionRequest $enquiry): array
+    {
+        $sampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
+        if ($sampleTypeId === '' || SampleType::query()->whereKey($sampleTypeId)->doesntExist()) {
+            $sampleTypeName = $this->firstSampleTypeNameHint($enquiry);
+            if ($sampleTypeName !== '') {
+                $match = SampleType::query()
+                    ->whereRaw('LOWER(name) = ?', [strtolower($sampleTypeName)])
+                    ->first();
+
+                if ($match === null) {
+                    $match = SampleType::query()
+                        ->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($sampleTypeName).'%'])
+                        ->orderBy('name')
+                        ->first();
+                }
+
+                if ($match !== null) {
+                    $config['sample_type_id'] = (string) $match->id;
+                }
+            }
+        }
+
+        $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+        $remappedSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
+        if ($analysisTypeId === '' || AnalysisType::query()->whereKey($analysisTypeId)->doesntExist()) {
+            $analysisTypeName = $this->firstAnalysisTypeNameHint($enquiry);
+            $query = AnalysisType::query();
+            if ($remappedSampleTypeId !== '') {
+                $query->where('sample_type_id', $remappedSampleTypeId);
+            }
+
+            $match = null;
+            if ($analysisTypeName !== '') {
+                $match = (clone $query)
+                    ->whereRaw('LOWER(name) = ?', [strtolower($analysisTypeName)])
+                    ->first();
+            }
+
+            if ($match === null && $remappedSampleTypeId !== '') {
+                $match = AnalysisType::query()
+                    ->where('sample_type_id', $remappedSampleTypeId)
+                    ->orderBy('name')
+                    ->first();
+            }
+
+            if ($match !== null) {
+                $config['analysis_type_id'] = (string) $match->id;
+                if (empty($config['lab_section_id'])) {
+                    $config['lab_section_id'] = $this->resolveLabSectionIdForAnalysisType((string) $match->id);
+                }
+            }
+        }
+
+        return $config;
+    }
+
+    /**
+     * @return array<string, string> orphanElementId => analyte label
+     */
+    private function parameterLabelHintsFromEnquiry(SampleSubmissionRequest $enquiry): array
+    {
+        $hints = [];
+
+        foreach ($enquiry->requestedAnalyses as $analysis) {
+            $elementId = trim((string) ($analysis->analysis_element_id ?? $analysis->analysis_key ?? ''));
+            $label = trim((string) ($analysis->analysis_label ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            if (! str_contains($label, ',') && ! Str::isUuid($label)) {
+                if ($elementId !== '') {
+                    $hints[$elementId] = $label;
+                }
+                $hints[strtolower($label)] = $label;
+
+                continue;
+            }
+
+            foreach (preg_split('/\s*,\s*/', $label) ?: [] as $token) {
+                $token = trim((string) $token);
+                if ($token === '' || Str::isUuid($token)) {
+                    continue;
+                }
+                $hints[strtolower($token)] = $token;
+            }
+        }
+
+        foreach ($this->resolveTrfSampleLines($enquiry) as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $elementIds = $this->extractElementIdsFromSampleLine($line);
+
+            $labelTokens = [];
+            foreach ([$line['parameter_label'] ?? null, $attributes['parameters'] ?? null] as $raw) {
+                if ($raw === null || $raw === '') {
+                    continue;
+                }
+
+                foreach (preg_split('/\s*,\s*/', (string) $raw) ?: [] as $token) {
+                    $token = trim($token);
+                    if ($token === '' || Str::isUuid($token)) {
+                        continue;
+                    }
+                    $labelTokens[] = $token;
+                    $hints[strtolower($token)] = $token;
+                }
+            }
+
+            foreach ($elementIds as $index => $elementId) {
+                $elementId = trim((string) $elementId);
+                if ($elementId === '' || isset($hints[$elementId])) {
+                    continue;
+                }
+
+                if (isset($labelTokens[$index])) {
+                    $hints[$elementId] = $labelTokens[$index];
+                }
+            }
+        }
+
+        return $hints;
+    }
+
+    private function firstSampleTypeNameHint(SampleSubmissionRequest $enquiry): string
+    {
+        foreach (is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [] as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+            $name = trim((string) ($line['sample_type_name'] ?? ''));
+            if ($name !== '') {
+                if (str_contains($name, ' — ')) {
+                    $name = trim((string) Str::before($name, ' — '));
+                }
+
+                return $name;
+            }
+        }
+
+        $enquiry->loadMissing('submissionFormInstance.submissionForm.sampleTypes');
+        $linked = $enquiry->submissionFormInstance?->submissionForm?->sampleTypes?->first();
+        if ($linked !== null && trim((string) $linked->name) !== '') {
+            return trim((string) $linked->name);
+        }
+
+        $formName = trim((string) ($enquiry->submissionFormInstance?->submissionForm?->name ?? ''));
+        if (preg_match('/test request form\s*[-–:]\s*(.+)$/i', $formName, $matches) === 1) {
+            return trim($matches[1]);
+        }
+
+        $documentCode = strtoupper(trim((string) ($enquiry->submissionFormInstance?->submissionForm?->document_code ?? '')));
+        if (preg_match('/^TRF-([A-Z0-9]+)/', $documentCode, $matches) === 1) {
+            $token = str_replace('_', ' ', $matches[1]);
+            if (! in_array($token, ['001', 'GENERAL'], true)) {
+                return Str::title(strtolower($token));
+            }
+        }
+
+        return '';
+    }
+
+    private function firstAnalysisTypeNameHint(SampleSubmissionRequest $enquiry): string
+    {
+        foreach (is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [] as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+            $name = trim((string) ($line['analysis_type_name'] ?? ''));
+            if ($name !== '') {
+                return $name;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -562,21 +1011,13 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
-     * @return list<array{id: string, name: string}>
-     */
-    /**
+     * Zones removed from Labs organization — picker returns empty list.
+     *
      * @return list<array{id: string, name: string}>
      */
     public function zonesForPicker(): array
     {
-        return Zone::query()
-            ->orderBy('value')
-            ->get(['id', 'key', 'value'])
-            ->map(fn (Zone $zone) => [
-                'id' => (string) $zone->id,
-                'name' => trim(($zone->key ? $zone->key . ' — ' : '') . $zone->value),
-            ])
-            ->all();
+        return [];
     }
 
     /**
@@ -584,13 +1025,14 @@ class AcceptanceFormSampleConfigService
      */
     public function labSectionsForPicker(): array
     {
-        return LabSection::query()
+        return SampleAnalysisStage::query()
+            ->where('is_sample_stage', 0)
             ->where('active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code'])
-            ->map(fn (LabSection $section) => [
+            ->map(fn (SampleAnalysisStage $section) => [
                 'id' => (string) $section->id,
-                'name' => trim($section->name . ($section->code ? ' — ' . $section->code : '')),
+                'name' => trim($section->name.($section->code ? ' — '.$section->code : '')),
             ])
             ->values()
             ->all();
@@ -610,7 +1052,6 @@ class AcceptanceFormSampleConfigService
         $candidate = $analysisType->lab_section_id;
 
         if (empty($candidate)) {
-            // Fallback to first active analysis element's lab section
             $candidate = \Illuminate\Support\Facades\DB::table('analysis_elements')
                 ->where('analysis_type_id', $analysisType->id)
                 ->where('active', 1)
@@ -622,14 +1063,12 @@ class AcceptanceFormSampleConfigService
             return null;
         }
 
-        return LabSection::query()->whereKey($candidate)->exists() ? $candidate : null;
+        return SampleAnalysisStage::query()->whereKey($candidate)->exists() ? $candidate : null;
     }
 
     private function resolveZoneIdFromConfig(array $config): ?string
     {
-        $zoneId = $config['zone_id'] ?? $config['lab_id'] ?? null;
-
-        return $zoneId !== null && (string) $zoneId !== '' ? (string) $zoneId : null;
+        return null;
     }
 
     private function resolveSampleConditionId(
@@ -1212,13 +1651,17 @@ class AcceptanceFormSampleConfigService
                 : [];
 
             if ($elementIds === [] && $parametersByTypeKey->has($typeKey)) {
-                $elementIds = $parametersByTypeKey->get($typeKey)
-                    ->pluck('analysis_element_id')
-                    ->filter()
-                    ->map(fn ($id): string => (string) $id)
-                    ->unique()
-                    ->values()
-                    ->all();
+                $elementIds = $this->resolveElementIdsFromRequestedAnalyses(
+                    $parametersByTypeKey->get($typeKey)->all(),
+                    (string) ($analysisTypeId ?? ''),
+                );
+            }
+
+            if ($elementIds === [] && count($sampleLines) === 1 && $enquiry->requestedAnalyses->isNotEmpty()) {
+                $elementIds = $this->resolveElementIdsFromRequestedAnalyses(
+                    $enquiry->requestedAnalyses->all(),
+                    (string) ($analysisTypeId ?? ''),
+                );
             }
 
             if ($elementIds === [] && count($sampleLines) === 1 && $quotationLines !== []) {
@@ -1392,6 +1835,50 @@ class AcceptanceFormSampleConfigService
         }
 
         return $configs;
+    }
+
+    /**
+     * @param  list<SampleSubmissionRequestRequestedAnalysis>  $analyses
+     * @return list<string>
+     */
+    private function resolveElementIdsFromRequestedAnalyses(array $analyses, string $analysisTypeId): array
+    {
+        $ids = [];
+
+        foreach ($analyses as $analysis) {
+            $elementId = trim((string) ($analysis->analysis_element_id ?? ''));
+            if ($elementId === '') {
+                $elementId = trim((string) ($analysis->analysis_key ?? ''));
+            }
+
+            if ($elementId !== '') {
+                $resolved = $this->resolveSingleElementId($elementId, $analysisTypeId);
+                if ($resolved !== null) {
+                    $ids[] = $resolved;
+
+                    continue;
+                }
+            }
+
+            $label = trim((string) ($analysis->analysis_label ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            foreach (preg_split('/\s*,\s*/', $label) ?: [] as $token) {
+                $token = trim((string) $token);
+                if ($token === '') {
+                    continue;
+                }
+
+                $resolved = $this->resolveSingleElementId($token, $analysisTypeId);
+                if ($resolved !== null) {
+                    $ids[] = $resolved;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**

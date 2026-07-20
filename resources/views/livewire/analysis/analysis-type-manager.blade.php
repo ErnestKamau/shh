@@ -49,12 +49,12 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Lab</label>
-                                <select wire:model.live="labFilter" class="form-select modern-select">
-                                    <option value="">All Labs</option>
-                                    @foreach($labs as $lab)
-                                        <option value="{{ $lab->id }}">{{ $lab->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select
+                                    wire:model.live="labFilter"
+                                    :options="collect($labs)->map(fn($lab) => ['id' => $lab->id, 'name' => $lab->name])"
+                                    placeholder="Search labs..."
+                                    empty-label="All Labs"
+                                />
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -98,6 +98,7 @@
                                         <th>Code</th>
                                         <th>Name</th>
                                         <th>Labs</th>
+                                        <th>Lab Section</th>
                                         <th>Elements</th>
                                         <th>Level</th>
                                         <th>Has Attachable Result</th>
@@ -148,6 +149,13 @@
                                                     @endforeach
                                                 @elseif($analysisType->lab)
                                                     <span class="badge bg-light text-dark p-2 border">{{ $analysisType->lab->name }}</span>
+                                                @else
+                                                    <span class="text-muted">N/A</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($analysisType->labsectionname)
+                                                    <span class="badge bg-light text-dark p-2 border">{{ $analysisType->labsectionname }}</span>
                                                 @else
                                                     <span class="text-muted">N/A</span>
                                                 @endif
@@ -280,20 +288,58 @@
                                                 </div>
                                             @endif
                                         </div>
+                                        @error('analysisTypeForm.lab_ids') <span class="text-danger">{{ $message }}</span> @enderror
                                         @error('analysisTypeForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
+                                        <label class="form-label"><i class="mdi mdi-view-grid-outline text-primary"></i> Lab Section <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                            <div class="tag-select-input">
+                                                @if($this->selectedLabSection)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedLabSection->name }}{{ $this->selectedLabSection->code ? ' — '.$this->selectedLabSection->code : '' }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearLabSectionSelection"></i>
+                                                    </span>
+                                                @endif
+
+                                                <input type="text"
+                                                       wire:model.live="labSectionSearch"
+                                                       class="tag-input"
+                                                       placeholder="Search lab sections..."
+                                                       autocomplete="off"
+                                                       @if($this->selectedLabSection) style="min-width: 8rem;" @endif>
+                                            </div>
+
+                                            @if($showLabSectionDropdown && count($this->filteredLabSections) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredLabSections as $section)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLabSection('{{ $section->id }}')">
+                                                            {{ $section->code ? $section->code.' — ' : '' }}{{ $section->name }}
+                                                            @if((string) ($analysisTypeForm['lab_section_id'] ?? '') === (string) $section->id)
+                                                                <span class="badge bg-success float-end">Selected</span>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">All tests under this type belong to this section (e.g. MICRO / CHEM).</small>
+                                        @error('analysisTypeForm.lab_section_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group mb-3">
                                         <label class="form-label">Level</label>
                                         <input type="number" wire:model="analysisTypeForm.level" class="form-control" min="1">
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-2">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Reporting Time (days)</label>
                                         <input type="number" wire:model="analysisTypeForm.reporting_time" class="form-control" min="0" placeholder="e.g., 7">
-                                        <small class="form-text text-muted">Expected time to complete analysis in days</small>
+                                        <small class="form-text text-muted">Days to complete</small>
                                     </div>
                                 </div>
                             </div>

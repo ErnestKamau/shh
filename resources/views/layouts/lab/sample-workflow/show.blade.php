@@ -2361,7 +2361,7 @@
 	});
 </script>
 
-<div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections)}}"></div>
+<div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections ?? [])}}" data-caneditlabsectionresults="{{ !empty($canEditLabSectionResults) ? '1' : '0' }}"></div>
 
 <div class="modal fade" id="add-customer-contact" role="dialog">
 	<div class="modal-dialog modal-lg">
@@ -4377,7 +4377,8 @@
 
 	};
 
-	const userLabSection = $('.carry_data').data('userlabsection');
+	const userLabSection = $('.carry_data').data('userlabsection') || [];
+	const canEditLabSectionResults = String($('.carry_data').data('caneditlabsectionresults') || '0') === '1';
 	var thebatch = $('#sample-detail-rows').data('batch');
 	$(function() {
 		var getCustomerUnits = (id, callback) => {
@@ -6596,7 +6597,7 @@
 
 
 		var $oGRow = $(`
-			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
+			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${Array.isArray(userLabSection) && userLabSection.length > 0 && !userLabSection.includes(data.lab_section_id) ? 'hiddens' : ''}" id="row-${loop}" >
 				@if(isset($batch->status) && Auth::user()->is_client == 0)
 				<td class="" style="display:flex !important">
 				<input type="checkbox" name="parameter_check[]" class="mr-3 ${data.pesticide == 0 ? 'parameter_check' : 'pesticide_check'}" value="${data.id}" id="parameter-check">
@@ -6609,10 +6610,10 @@
 				<td  nowrap>${data.analysis_type.code}</td>
 				<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
 				@if(Auth::user()->is_client == 0)
-				<td data-toggle="tooltip" title="${data.analyte_name}"><input type="text" {{isset($batch->status) && !in_array($batch->status,['Samples In Lab','Sample Approval']) ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
+				<td data-toggle="tooltip" title="${data.analyte_name}"><input type="text" {{isset($batch->status) && !in_array($batch->status,['Samples In Lab','Sample Approval']) ? 'disabled' : ''}} ${!canEditLabSectionResults ? 'disabled' : ''} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="form-group">
-						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
+						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} ${!canEditLabSectionResults ? 'disabled' : ''} id="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''} ${data.pesticide == 1 ? 'pest-result': '' }" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
@@ -6663,8 +6664,8 @@
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
 						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual no-select2">
 							<option value="" ${!data.remark || data.remark === '' ? 'selected' : ''}>- Select -</option>
-							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Pass</option>
-							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Fail</option>
+							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Conforming</option>
+							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Non-conforming</option>
 							<option value="-" ${data.remark == '-' ? 'selected' : ''}>-</option>
 						</select>
 					</div>

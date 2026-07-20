@@ -22,7 +22,7 @@
         <div class="signature-title">Analyst</div>
         @if($analyst->getApproverDetails() && $analyst->getApproverDetails()->electronic_sig)
             <div class="signature-line" style="border-bottom: none; height: auto; margin: 8px 0 4px 0; justify-content: flex-start;">
-                <img src="{{ getCoaApproverSignature($analyst->getApproverDetails()->electronic_sig) }}"
+                <img src="{{ signatureToDataUri($analyst->getApproverDetails()->electronic_sig) }}"
                      style="height:48px;z-index:-10;position:relative;" alt="Analyst signature">
             </div>
         @endif
@@ -43,7 +43,7 @@
         </div>
         @if($finalApprover->getApproverDetails() && $finalApprover->getApproverDetails()->electronic_sig)
             <div class="signature-line" style="border-bottom: none; height: auto; margin: 8px 0 4px 0; justify-content: flex-end;">
-                <img src="{{ getCoaApproverSignature($finalApprover->getApproverDetails()->electronic_sig) }}"
+                <img src="{{ signatureToDataUri($finalApprover->getApproverDetails()->electronic_sig) }}"
                      style="height:48px;z-index:-10;position:relative;" alt="Approver signature">
             </div>
         @endif

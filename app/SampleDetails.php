@@ -30,6 +30,10 @@ class SampleDetails extends Model implements Auditable
         'store_id' => 'string',
         'store_slot_id' => 'string',
         'sample_type_id' => 'string',
+        'lab_id' => 'string',
+        'sample_condition_id' => 'string',
+        'sample_point_id' => 'string',
+        'reporting_unit_id' => 'string',
     ];
 
 	use \OwenIt\Auditing\Auditable;

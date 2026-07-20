@@ -3,7 +3,6 @@
 namespace App\Policies\Lab;
 
 use App\Models\Lab\EquipmentUsageRequest;
-use App\Services\Lab\UserZoneResolver;
 use App\User;
 
 class EquipmentUsageRequestPolicy
@@ -27,7 +26,7 @@ class EquipmentUsageRequestPolicy
             return true;
         }
 
-        return app(UserZoneResolver::class)->userHasZone($user, $request->zone_id);
+        return $user->can('laboratory.components.equipment-requests.approve');
     }
 
     public function create(User $user): bool

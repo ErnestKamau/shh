@@ -22,7 +22,7 @@ class Phase13FoodStandardsAndPricelistSeeder extends Seeder
 
         DB::connection('pgsql')->transaction(function (): void {
             $this->command?->info('====================================================');
-            $this->command?->info('STARTING PHASE 13 SEEDING: Food Standards + ADNOC Pricelist');
+            $this->command?->info('STARTING PHASE 13 SEEDING: Food Standards');
             $this->command?->info('====================================================');
 
             $company = $this->resolveAmSpecCompany();
@@ -42,13 +42,8 @@ class Phase13FoodStandardsAndPricelistSeeder extends Seeder
                 $standardStats['skipped'],
             ));
 
-            $pricelistStats = $this->seedAmSpecFoodPricelist($company);
-            $this->command?->info(sprintf(
-                'Food pricelist: %d pricelist(s), %d item(s), %d customer assignment(s).',
-                $pricelistStats['pricelist'],
-                $pricelistStats['items'],
-                $pricelistStats['assignment'],
-            ));
+            // Pricelists (master / customer per-parameter / one package) are seeded in Phase 14.
+            $this->seedAmSpecFoodPricelist($company);
 
             $this->command?->info('====================================================');
             $this->command?->info('PHASE 13 SEEDING COMPLETED SUCCESSFULLY!');

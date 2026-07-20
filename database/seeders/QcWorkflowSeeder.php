@@ -139,6 +139,11 @@ class QcWorkflowSeeder extends Seeder
             }
 
             $standards[$code] = DB::connection('pgsql')->table('standards')->where('code', $code)->first();
+            if ($standards[$code]) {
+                \App\Standards::query()->find($standards[$code]->id)?->syncQcSchemes([
+                    (string) $definition['scheme']->id,
+                ]);
+            }
             $this->command?->info("Seeded QC standard: {$definition['name']} ({$code})");
         }
 

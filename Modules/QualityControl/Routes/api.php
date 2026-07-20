@@ -4,15 +4,14 @@ use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes (deprecated stub)
 |--------------------------------------------------------------------------
 |
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
+| No public QC API is exposed from this module. Keep this file empty of
+| meaningful routes until a real versioned API is designed in App.
 |
 */
 
 Route::middleware('auth:api')->get('/qualitycontrol', function (Request $request) {
-    return $request->user();
+    abort(404);
 });

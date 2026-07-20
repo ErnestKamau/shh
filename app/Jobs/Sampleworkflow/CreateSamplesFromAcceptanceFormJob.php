@@ -141,6 +141,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     $elementFlagOverrides,
                 );
 
+                $analysisSetupService->syncBatchLabSectionIdsFromAnalysisTypes($header->fresh());
+
                 $targetDate = SampleDate::query()
                     ->where('sample_header_id', $header->id)
                     ->where('name', 'Target Date')

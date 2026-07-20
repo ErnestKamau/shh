@@ -17,13 +17,14 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="scd-label">Solution <span class="text-danger">*</span></label>
-                        <select wire:model.live="form.solution_id" class="form-control scd-input @error('form.solution_id') is-invalid @enderror">
-                            <option value="">Select solution...</option>
-                            @foreach($this->solutions as $sol)
-                                <option value="{{ $sol->id }}">{{ $sol->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('form.solution_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <x-searchable-select
+                            wire:model.live="form.solution_id"
+                            :options="$this->solutions->map(fn($sol) => ['id' => $sol->id, 'name' => $sol->name])"
+                            placeholder="Search solutions..."
+                            empty-label="Select solution..."
+                            class="{{ $errors->has('form.solution_id') ? 'is-invalid' : '' }}"
+                        />
+                        @error('form.solution_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-3">
                         <label class="scd-label">Quantity <span class="text-danger">*</span></label>
@@ -32,11 +33,12 @@
                     </div>
                     <div class="col-md-3">
                         <label class="scd-label">UOM <span class="text-danger">*</span></label>
-                        <select wire:model="form.uom_id" class="form-control scd-input">
-                            @foreach($this->reportingUnits as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            wire:model="form.uom_id"
+                            :options="$this->reportingUnits->map(fn($u) => ['id' => $u->id, 'name' => $u->name])"
+                            placeholder="Search units..."
+                            empty-label="Select unit..."
+                        />
                     </div>
                     <div class="col-md-4">
                         <div class="form-check mt-4">

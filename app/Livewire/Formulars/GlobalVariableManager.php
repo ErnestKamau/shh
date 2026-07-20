@@ -5,21 +5,26 @@ namespace App\Livewire\Formulars;
 use App\Models\Formulars\GlobalVariable;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\Url;
 
 class GlobalVariableManager extends Component
 {
     use WithPagination;
 
     public $search = '';
+
     public $statusFilter = '';
+
     public $perPage = 10;
+
     public $perPageOptions = [10, 25, 50, 100];
 
     // Variable creation/editing
     public $showCreateModal = false;
+
     public $showEditModal = false;
+
     public $editingVariable = null;
+
     public $closingModal = false;
 
     // Form fields
@@ -31,17 +36,10 @@ class GlobalVariableManager extends Component
 
     // Messages
     public $message = '';
+
     public $messageType = '';
 
-    protected $rules = [
-        'variableName' => 'required|string|max:255|unique:global_variables,name',
-        'variableValue' => 'required|string',
-        'dataType' => 'required|in:string,number,boolean',
-        'variableDescription' => 'nullable|string',
-        'isActive' => 'boolean',
-    ];
-
-    public function mount()
+    public function mount(): void
     {
         $this->perPage = 10;
     }
@@ -79,20 +77,22 @@ class GlobalVariableManager extends Component
         $this->showCreateModal = true;
     }
 
-    public function showEditVariableModal(GlobalVariable $variable)
+    public function showEditVariableModal(string $variableId): void
     {
+        $variable = GlobalVariable::findOrFail($variableId);
+
         $this->editingVariable = $variable;
         $this->variableName = $variable->name;
         $this->variableValue = $variable->value;
         $this->dataType = $variable->data_type;
-        $this->variableDescription = $variable->description;
+        $this->variableDescription = $variable->description ?? '';
         $this->isActive = $variable->is_active;
         $this->showEditModal = true;
     }
 
-    public function createVariable()
+    public function createVariable(): void
     {
-        $this->validate();
+        $this->validate($this->variableValidationRules());
 
         try {
             GlobalVariable::create([
@@ -111,10 +111,9 @@ class GlobalVariableManager extends Component
         }
     }
 
-    public function updateVariable()
+    public function updateVariable(): void
     {
-        $this->rules['variableName'] = 'required|string|max:255|unique:global_variables,name,' . $this->editingVariable->id;
-        $this->validate();
+        $this->validate($this->variableValidationRules($this->editingVariable->id));
 
         try {
             $this->editingVariable->update([
@@ -133,20 +132,21 @@ class GlobalVariableManager extends Component
         }
     }
 
-    public function deleteVariable(GlobalVariable $variable)
+    public function deleteVariable(string $variableId): void
     {
         try {
-            $variable->delete();
+            GlobalVariable::findOrFail($variableId)->delete();
             $this->setMessage('Global variable deleted successfully!', 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error deleting global variable: ' . $e->getMessage(), 'error');
         }
     }
 
-    public function toggleVariableStatus(GlobalVariable $variable)
+    public function toggleVariableStatus(string $variableId): void
     {
         try {
-            $variable->update(['is_active' => !$variable->is_active]);
+            $variable = GlobalVariable::findOrFail($variableId);
+            $variable->update(['is_active' => ! $variable->is_active]);
             $status = $variable->is_active ? 'activated' : 'deactivated';
             $this->setMessage("Global variable {$status} successfully!", 'success');
         } catch (\Exception $e) {
@@ -193,13 +193,24 @@ class GlobalVariableManager extends Component
         $this->messageType = '';
     }
 
-    public function updatedDataType()
+    protected function variableValidationRules(?string $ignoreId = null): array
     {
-        // Reset value when data type changes
-        $this->variableValue = '';
+        $nameRule = 'required|string|max:255|unique:global_variables,name';
+
+        if ($ignoreId !== null) {
+            $nameRule .= ','.$ignoreId;
+        }
+
+        return [
+            'variableName' => $nameRule,
+            'variableValue' => 'required|string',
+            'dataType' => 'required|in:string,number,boolean',
+            'variableDescription' => 'nullable|string',
+            'isActive' => 'boolean',
+        ];
     }
 
-    protected function resetForm()
+    protected function resetForm(): void
     {
         $this->variableName = '';
         $this->variableValue = '';
@@ -209,7 +220,7 @@ class GlobalVariableManager extends Component
         $this->editingVariable = null;
     }
 
-    protected function setMessage(string $message, string $type)
+    protected function setMessage(string $message, string $type): void
     {
         $this->message = $message;
         $this->messageType = $type;

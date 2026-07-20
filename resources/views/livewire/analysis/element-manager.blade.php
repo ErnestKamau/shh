@@ -648,15 +648,13 @@
                                             @if($elementForm['has_method_sequence'] ?? false)
                                                 <div class="form-group mb-3">
                                                     <label class="form-label" for="element-stage-header-select">Stage header</label>
-                                                    <select id="element-stage-header-select"
-                                                            class="form-control form-select no-select2"
-                                                            wire:key="stage-headers-{{ $elementForm['analyte_id'] ?? '0' }}-{{ $elementForm['method'] ?? '0' }}-{{ count($stageHeaders ?? []) }}"
-                                                            wire:model.live="elementForm.stage_header_id">
-                                                        <option value="">Select stage header...</option>
-                                                        @foreach($stageHeaders as $stageHeader)
-                                                            <option value="{{ $stageHeader->id }}">{{ $stageHeader->name }}</option>
-                                                        @endforeach
-                                                    </select>
+                                                    <x-searchable-select
+                                                        wire:model.live="elementForm.stage_header_id"
+                                                        :options="collect($stageHeaders)->map(fn($stageHeader) => ['id' => $stageHeader->id, 'name' => $stageHeader->name])"
+                                                        placeholder="Search stage headers..."
+                                                        empty-label="Select stage header..."
+                                                        wire:key="stage-headers-{{ $elementForm['analyte_id'] ?? '0' }}-{{ $elementForm['method'] ?? '0' }}-{{ count($stageHeaders ?? []) }}"
+                                                    />
                                                     @error('elementForm.stage_header_id')
                                                         <span class="text-danger d-block">{{ $message }}</span>
                                                     @enderror

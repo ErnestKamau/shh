@@ -2,18 +2,14 @@
 
 namespace App\Livewire\Lab;
 
-use App\Directorate;
 use App\Lab;
-use App\LabSection;
-use App\Livewire\Lab\Concerns\InteractsWithLabSections;
-use App\Zone;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class LabManager extends Component
 {
-    use InteractsWithLabSections;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -36,17 +32,7 @@ class LabManager extends Component
 
     public $search = '';
 
-    public $zoneFilter = '';
-
-    public $directorateFilter = '';
-
-    public string $zoneFilterSearch = '';
-
-    public string $directorateFilterSearch = '';
-
-    public bool $showZoneFilterDropdown = false;
-
-    public bool $showDirectorateFilterDropdown = false;
+    public string $statusFilter = '1';
 
     public $showLabModal = false;
 
@@ -55,8 +41,6 @@ class LabManager extends Component
     public $deleteId = null;
 
     public $deleteDetails = [];
-
-    public string $deleteType = 'lab';
 
     public $editingLab = null;
 
@@ -68,8 +52,6 @@ class LabManager extends Component
 
     public $perPageOptions = [10, 25, 50, 100];
 
-    public array $expandedLabs = [];
-
     public function mount(): void
     {
         //
@@ -77,13 +59,7 @@ class LabManager extends Component
 
     public function getLabsProperty()
     {
-        $query = Lab::query()->with([
-            'zone',
-            'directorate',
-            'labSections' => function ($q): void {
-                $q->with(['equipment', 'reportingUnit'])->orderBy('name');
-            },
-        ]);
+        $query = Lab::query();
 
         if (! empty($this->search)) {
             $query->where(function ($q) {
@@ -93,30 +69,16 @@ class LabManager extends Component
             });
         }
 
-        if ($this->zoneFilter !== '') {
-            $query->where('zone_id', $this->zoneFilter);
-        }
-
-        if ($this->directorateFilter !== '') {
-            $query->where('directorate_id', $this->directorateFilter);
+        if ($this->statusFilter !== '') {
+            $query->where('active', $this->statusFilter);
         }
 
         return $query->orderBy('name')->paginate($this->perPage);
     }
 
-    public function toggleLabRow(string $labId): void
+    protected function authorizeLabEdit(): void
     {
-        if (in_array($labId, $this->expandedLabs, true)) {
-            $this->expandedLabs = array_values(array_filter(
-                $this->expandedLabs,
-                fn ($id) => $id !== $labId
-            ));
-
-            return;
-        }
-
-        $this->expandedLabs[] = $labId;
-        $this->initializeLabSectionForm($labId);
+        abort_unless(Auth::user()?->can('laboratory.components.labs.edit') ?? false, 403);
     }
 
     public function showCreateLabModal(): void
@@ -239,7 +201,6 @@ class LabManager extends Component
 
         $lab = Lab::findOrFail($id);
 
-        $this->deleteType = 'lab';
         $this->deleteId = $id;
         $this->deleteDetails = [
             'name' => $lab->name,
@@ -260,33 +221,12 @@ class LabManager extends Component
         $this->authorizeLabEdit();
 
         try {
-            if ($this->deleteType === 'lab_section') {
-                $section = LabSection::findOrFail($this->deleteId);
-                $labId = (string) $section->lab_id;
-
-                if ($section->decontaminationAreas()->exists()) {
-                    throw new \RuntimeException('Remove decontamination areas linked to this section before deleting it.');
-                }
-
-                $section->delete();
-
-                if ($this->editingLabSection === $this->deleteId) {
-                    $this->editingLabSection = null;
-                    $this->closeLabSectionModal();
-                    $this->initializeLabSectionForm($labId);
-                }
-
-                $this->message = 'Lab section deleted successfully!';
-                $this->afterLabSectionMutated($labId);
-            } else {
-                Lab::findOrFail($this->deleteId)->delete();
-                $this->message = 'Lab deleted successfully!';
-            }
-
+            Lab::findOrFail($this->deleteId)->delete();
+            $this->message = 'Lab deleted successfully!';
             $this->messageType = 'success';
             $this->closeDeleteModal();
         } catch (\Exception $e) {
-            $this->message = 'Error deleting '.str_replace('_', ' ', $this->deleteType).': '.$e->getMessage();
+            $this->message = 'Error deleting lab: '.$e->getMessage();
             $this->messageType = 'error';
             $this->closeDeleteModal();
         }
@@ -296,108 +236,14 @@ class LabManager extends Component
     {
         $this->showDeleteModal = false;
         $this->deleteId = null;
-        $this->deleteType = 'lab';
         $this->deleteDetails = [];
     }
 
     public function clearFilters(): void
     {
         $this->search = '';
-        $this->zoneFilter = '';
-        $this->directorateFilter = '';
-        $this->zoneFilterSearch = '';
-        $this->directorateFilterSearch = '';
-        $this->showZoneFilterDropdown = false;
-        $this->showDirectorateFilterDropdown = false;
+        $this->statusFilter = '';
         $this->resetPage();
-    }
-
-    public function selectZoneFilter(string $zoneId): void
-    {
-        $this->zoneFilter = $zoneId;
-        $this->zoneFilterSearch = '';
-        $this->showZoneFilterDropdown = false;
-
-        if ($this->directorateFilter !== '' && ! Directorate::whereKey($this->directorateFilter)->where('zone_id', $zoneId)->exists()) {
-            $this->directorateFilter = '';
-            $this->directorateFilterSearch = '';
-        }
-
-        $this->resetPage();
-    }
-
-    public function clearZoneFilter(): void
-    {
-        $this->zoneFilter = '';
-        $this->zoneFilterSearch = '';
-        $this->showZoneFilterDropdown = false;
-        $this->resetPage();
-    }
-
-    public function selectDirectorateFilter(string $directorateId): void
-    {
-        $this->directorateFilter = $directorateId;
-        $this->directorateFilterSearch = '';
-        $this->showDirectorateFilterDropdown = false;
-        $this->resetPage();
-    }
-
-    public function clearDirectorateFilter(): void
-    {
-        $this->directorateFilter = '';
-        $this->directorateFilterSearch = '';
-        $this->showDirectorateFilterDropdown = false;
-        $this->resetPage();
-    }
-
-    public function getFilteredZonesProperty()
-    {
-        $search = trim($this->zoneFilterSearch);
-
-        return Zone::query()
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($builder) use ($search): void {
-                    $builder->where('key', 'like', '%'.$search.'%')
-                        ->orWhere('value', 'like', '%'.$search.'%');
-                });
-            })
-            ->orderBy('key')
-            ->limit(50)
-            ->get();
-    }
-
-    public function getFilteredDirectoratesProperty()
-    {
-        $search = trim($this->directorateFilterSearch);
-
-        return Directorate::query()
-            ->when($this->zoneFilter !== '', function ($query): void {
-                $query->where('zone_id', $this->zoneFilter);
-            })
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where('name', 'like', '%'.$search.'%');
-            })
-            ->orderBy('name')
-            ->limit(50)
-            ->get();
-    }
-
-    public function getSelectedZoneFilterProperty(): ?Zone
-    {
-        if ($this->zoneFilter === '') {
-            return null;
-        }
-
-        return Zone::find($this->zoneFilter);
-    }
-
-    public function getSelectedDirectorateFilterProperty(): ?Directorate
-    {
-        if ($this->directorateFilter === '') {
-            return null;
-        }
-
-        return Directorate::find($this->directorateFilter);
     }
 
     public function dismissMessage(): void
@@ -411,12 +257,7 @@ class LabManager extends Component
         $this->resetPage();
     }
 
-    public function updatingZoneFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatingDirectorateFilter(): void
+    public function updatingStatusFilter(): void
     {
         $this->resetPage();
     }

@@ -246,6 +246,10 @@
                     'walkInActiveStepIndex' => $walkInActiveStepIndex,
                 ])
             </div>
+        @elseif($selectedSampleTypeId)
+            <div class="alert alert-warning py-2 px-3 mb-0 small">
+                No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+            </div>
         @endif
         @endunless
 
@@ -409,6 +413,7 @@
                     class="btn btn-sm btn-primary receive-sample-submit-btn"
                     wire:click="confirmReceive"
                     wire:loading.attr="disabled"
+                    wire:target="confirmReceive"
                     onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
                     @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
                 >

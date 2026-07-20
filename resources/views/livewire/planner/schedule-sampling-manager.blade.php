@@ -559,7 +559,7 @@
                                         <tr style="border-top: 1px solid #eee;">
                                             <td class="px-3 py-2">
                                                 <div class="font-weight-bold" style="font-size:13px;color:#333;">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
-                                                <small class="text-muted">{{ $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
+                                                <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
                                             </td>
                                             <td class="px-3 py-2" style="font-size:12px;vertical-align:middle;color:#555;">
                                                 {{ $instance->submittedBy?->name ?? 'N/A' }}
@@ -644,8 +644,7 @@
                     <button
                         type="button"
                         class="btn btn-primary"
-                        onclick="if (typeof window.syncScheduleTrfBeforeSubmit === 'function') { window.syncScheduleTrfBeforeSubmit(); }"
-                        wire:click="saveScheduleForm"
+                        onclick="if (typeof window.syncScheduleTrfBeforeSubmitAndSave === 'function') { window.syncScheduleTrfBeforeSubmitAndSave(); }"
                         wire:loading.attr="disabled"
                         wire:target="saveScheduleForm"
                         @if(!$selectedSampleTypeId) disabled @endif
@@ -707,9 +706,11 @@
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    @script
     <script>
         (function () {
             const modalSelector = '#schedule-sampling-form-modal';
+            let listenersBound = false;
 
             function getModal() {
                 return document.querySelector(modalSelector);
@@ -921,69 +922,116 @@
                 }
 
                 input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            window.initScheduleTrfSignaturePads = function (forceReinit) {
+            function resolveCanvasSize(canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const width = Math.max(rect.width, canvas.clientWidth, canvas.offsetWidth, 0);
+                const height = Math.max(rect.height, canvas.clientHeight, canvas.offsetHeight, 120);
+
+                return {
+                    width: width > 10 ? width : (canvas.parentElement?.clientWidth || 0),
+                    height: height > 10 ? height : 120,
+                };
+            }
+
+            function setupCanvas(canvas, forceReinit) {
+                if (forceReinit) {
+                    if (canvas._trfSignaturePad) {
+                        try {
+                            canvas._trfSignaturePad.off();
+                        } catch (e) {}
+                        canvas._trfSignaturePad = null;
+                    }
+                    delete canvas.dataset.signatureInitialized;
+                }
+
+                const fieldId = canvas.getAttribute('data-field');
+                const input = document.getElementById('field_' + fieldId);
+                if (!input || !canvas.parentElement) {
+                    return false;
+                }
+
+                const size = resolveCanvasSize(canvas);
+                if (size.width < 10 || size.height < 10) {
+                    delete canvas.dataset.signatureInitialized;
+                    return false;
+                }
+
+                if (canvas.dataset.signatureInitialized === '1' && canvas._trfSignaturePad) {
+                    return true;
+                }
+
+                if (typeof SignaturePad === 'undefined') {
+                    return false;
+                }
+
+                canvas.dataset.signatureInitialized = '1';
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = size.width * ratio;
+                canvas.height = size.height * ratio;
+                canvas.style.width = size.width + 'px';
+                canvas.style.height = size.height + 'px';
+                const context = canvas.getContext('2d');
+                context.setTransform(1, 0, 0, 1, 0, 0);
+                context.scale(ratio, ratio);
+
+                const pad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgb(255,255,255)',
+                    penColor: 'rgb(0,0,0)',
+                });
+                canvas._trfSignaturePad = pad;
+
+                if (input.value) {
+                    try {
+                        pad.fromDataURL(input.value);
+                    } catch (error) {}
+                }
+
+                pad.addEventListener('endStroke', function () {
+                    syncSignatureValue(canvas, input, pad);
+                });
+
+                const clearBtn = canvas.parentElement.querySelector('.trf-signature-clear[data-canvas="' + canvas.id + '"]');
+                if (clearBtn) {
+                    clearBtn.onclick = function (event) {
+                        event.preventDefault();
+                        pad.clear();
+                        syncSignatureValue(canvas, input, pad);
+                    };
+                }
+
+                return true;
+            }
+
+            window.initScheduleTrfSignaturePads = function (forceReinit, attempt) {
                 const modal = getModal();
-                if (!modal || typeof SignaturePad === 'undefined') {
+                if (!modal) {
                     return;
                 }
 
-                function setupCanvas(canvas) {
-                    if (forceReinit) {
-                        delete canvas.dataset.signatureInitialized;
-                        canvas._trfSignaturePad = null;
+                if (typeof SignaturePad === 'undefined') {
+                    if ((attempt || 0) < 8) {
+                        setTimeout(function () {
+                            window.initScheduleTrfSignaturePads(forceReinit, (attempt || 0) + 1);
+                        }, 200);
                     }
-
-                    const fieldId = canvas.getAttribute('data-field');
-                    const input = document.getElementById('field_' + fieldId);
-                    if (!input || !canvas.parentElement) {
-                        return;
-                    }
-
-                    const rect = canvas.getBoundingClientRect();
-                    const width = rect.width > 10 ? rect.width : canvas.offsetWidth;
-                    const height = rect.height > 10 ? rect.height : canvas.offsetHeight;
-                    if (width < 10 || height < 10) {
-                        delete canvas.dataset.signatureInitialized;
-                        return;
-                    }
-
-                    if (canvas.dataset.signatureInitialized === '1' && canvas._trfSignaturePad) {
-                        return;
-                    }
-
-                    canvas.dataset.signatureInitialized = '1';
-                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                    canvas.width = width * ratio;
-                    canvas.height = height * ratio;
-                    const context = canvas.getContext('2d');
-                    context.setTransform(1, 0, 0, 1, 0, 0);
-                    context.scale(ratio, ratio);
-
-                    const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
-                    canvas._trfSignaturePad = pad;
-
-                    if (input.value) {
-                        try {
-                            pad.fromDataURL(input.value);
-                        } catch (error) {}
-                    }
-
-                    pad.addEventListener('endStroke', function () {
-                        syncSignatureValue(canvas, input, pad);
-                    });
-
-                    const clearBtn = canvas.parentElement.querySelector('.trf-signature-clear[data-canvas="' + canvas.id + '"]');
-                    if (clearBtn) {
-                        clearBtn.onclick = function () {
-                            pad.clear();
-                            syncSignatureValue(canvas, input, pad);
-                        };
-                    }
+                    return;
                 }
 
-                modal.querySelectorAll('.trf-signature-canvas').forEach(setupCanvas);
+                let pending = false;
+                modal.querySelectorAll('.trf-signature-canvas').forEach(function (canvas) {
+                    if (!setupCanvas(canvas, !!forceReinit)) {
+                        pending = true;
+                    }
+                });
+
+                if (pending && (attempt || 0) < 10) {
+                    setTimeout(function () {
+                        window.initScheduleTrfSignaturePads(true, (attempt || 0) + 1);
+                    }, 150);
+                }
             };
 
             window.syncScheduleTrfBeforeSubmit = function () {
@@ -1030,39 +1078,133 @@
                 });
             };
 
+            window.syncScheduleTrfBeforeSubmitAndSave = async function () {
+                const modal = getModal();
+                if (!modal || !window.Livewire) {
+                    return;
+                }
+
+                const componentEl = modal.closest('[wire\\:id]');
+                if (!componentEl) {
+                    return;
+                }
+
+                const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                if (!component) {
+                    return;
+                }
+
+                const syncTasks = [];
+
+                modal.querySelectorAll('.walk-in-trf-parameters-wrap').forEach(function (wrap) {
+                    const $select = $(wrap).find('.walk-in-trf-parameters-select');
+                    if ($select.length === 0) {
+                        return;
+                    }
+
+                    const livewireModel = $(wrap).data('livewire-model') || $select.data('livewire-model');
+                    const selected = $select.val() || [];
+
+                    if (livewireModel) {
+                        syncTasks.push(component.set(livewireModel, selected));
+                    }
+                });
+
+                if (typeof SignaturePad !== 'undefined') {
+                    modal.querySelectorAll('.trf-signature-canvas').forEach(function (canvas) {
+                        const pad = canvas._trfSignaturePad;
+                        const fieldId = canvas.getAttribute('data-field');
+                        if (!pad || !fieldId) {
+                            return;
+                        }
+
+                        const input = document.getElementById('field_' + fieldId);
+                        if (!input) {
+                            return;
+                        }
+
+                        syncSignatureValue(canvas, input, pad);
+                    });
+                }
+
+                if (syncTasks.length > 0) {
+                    await Promise.all(syncTasks);
+                }
+
+                component.call('saveScheduleForm');
+            };
+
             function reinitScheduleTrfWidgets() {
                 setTimeout(function () {
                     window.initScheduleTrfSignaturePads(true);
                     window.initScheduleTrfParameterSelects();
-                }, 150);
+                }, 200);
             }
 
-            document.addEventListener('livewire:init', function () {
+            function bindListeners() {
+                if (listenersBound || typeof Livewire === 'undefined') {
+                    return;
+                }
+
+                listenersBound = true;
+
                 Livewire.on('schedule-trf-reinit-widgets', reinitScheduleTrfWidgets);
 
                 Livewire.on('schedule-trf-params-row-reset', function (payload) {
                     setTimeout(function () {
+                        const data = Array.isArray(payload) ? payload[0] : payload;
                         const modal = getModal();
-                        if (!modal || payload?.rowIndex === undefined || typeof window.resetScheduleTrfParamRow !== 'function') {
+                        if (!modal || data?.rowIndex === undefined || typeof window.resetScheduleTrfParamRow !== 'function') {
                             return;
                         }
 
-                        const wrap = modal.querySelector('.walk-in-trf-parameters-wrap[data-row-index="' + payload.rowIndex + '"]');
+                        const wrap = modal.querySelector('.walk-in-trf-parameters-wrap[data-row-index="' + data.rowIndex + '"]');
                         if (!wrap) {
                             return;
                         }
 
-                        window.resetScheduleTrfParamRow(wrap, payload.options || [], payload.selected || []);
+                        window.resetScheduleTrfParamRow(wrap, data.options || [], data.selected || []);
                     }, 80);
                 });
+
+                Livewire.hook('commit', ({ succeed }) => {
+                    succeed(() => {
+                        if (!getModal()) {
+                            return;
+                        }
+
+                        queueMicrotask(function () {
+                            // Soft init only — never wipe an in-progress signature mid-draw.
+                            window.initScheduleTrfSignaturePads(false);
+                            window.initScheduleTrfParameterSelects();
+                        });
+                    });
+                });
+            }
+
+            bindListeners();
+            document.addEventListener('livewire:init', bindListeners);
+            document.addEventListener('livewire:navigated', function () {
+                listenersBound = false;
+                bindListeners();
+                if (getModal()) {
+                    reinitScheduleTrfWidgets();
+                }
             });
 
             document.addEventListener('click', function (event) {
-                const toggle = event.target.closest('[wire\\:click*="showFormModal"]');
+                const toggle = event.target.closest(
+                    '[wire\\:click*="openScheduleFormModal"], [wire\\:click*="showFormModal"]'
+                );
                 if (toggle) {
-                    setTimeout(reinitScheduleTrfWidgets, 200);
+                    setTimeout(reinitScheduleTrfWidgets, 250);
                 }
             });
+
+            if (getModal()) {
+                reinitScheduleTrfWidgets();
+            }
         })();
     </script>
+    @endscript
 </div>

@@ -2,24 +2,19 @@
 
 namespace App\Livewire\Personnel;
 
-use App\Directorate;
 use App\Exports\ReportExporter;
 use App\InventoryDepartment;
 use App\Lab;
+use App\Models\Auth\Role;
 use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
-use App\UserDirectorateRelation;
 use App\UserLabRelation;
-use App\UserZoneRelation;
-use App\Zone;
 use App\Mail\PersonnelWelcomeMail;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use App\Services\Personnel\PersonnelSignatureService;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -36,8 +31,6 @@ class PersonnelTableManager extends Component
 
     public string $search = '';
     public string $activeTab = 'all';
-    public string $zoneFilter = '';
-    public string $directorateFilter = '';
     public string $labFilter = '';
     public string $employmentDateFrom = '';
     public string $employmentDateTo = '';
@@ -47,7 +40,11 @@ class PersonnelTableManager extends Component
     public bool $showAdvancedFilters = false;
     public bool $showAddPersonnelModal = false;
     public bool $showStateModal = false;
+    public bool $showBulkDeactivateModal = false;
     public bool $showResetPasswordModal = false;
+    /** @var array<int, string> */
+    public array $selectedPersonnel = [];
+    public bool $selectAll = false;
     public ?string $selectedPersonnelId = null;
     public string $selectedPersonnelName = '';
     public string $stateAction = 'active';
@@ -62,13 +59,7 @@ class PersonnelTableManager extends Component
     public array $positions = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $educationLevels = [];
-    /** @var array<int, array{id:string,key:string,value:string}> */
-    public array $zones = [];
-    public bool $zonesTableAvailable = false;
-    /** @var array<int, array{id:string,name:string,zone_id:string}> */
-    public array $directorates = [];
-    public bool $directoratesTableAvailable = false;
-    /** @var array<int, array{id:string,name:string,directorate_id:string,zone_id:string}> */
+    /** @var array<int, array{id:string,name:string}> */
     public array $labs = [];
     public bool $labsTableAvailable = false;
     /** @var array<int, array{id:string,name:string}> */
@@ -133,33 +124,20 @@ class PersonnelTableManager extends Component
     public function mount(bool $embedded = false): void
     {
         $this->embedded = $embedded;
-        $departmentRows = InventoryDepartment::query()
-            ->where('company_id', getUserCompany())
-            ->where('module', 'organizational')
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $this->reloadDepartments();
 
-        // Fallback: if module-scoped departments are empty, use company departments.
-        if ($departmentRows->isEmpty()) {
-            $departmentRows = InventoryDepartment::query()
-                ->where('company_id', getUserCompany())
-                ->orderBy('name')
-                ->get(['id', 'name']);
-        }
-
-        $this->departments = $departmentRows
-            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
-            ->toArray();
-
+        // Designation options come from Job Description configs (sidebar: Job Designation).
         $this->designations = ModulePreConfigs::query()
-            ->where('type', 'Designation')
+            ->where('type', 'Job Description')
+            ->whereIn('module', ['Personnel-Management', 'Skills-Matrix'])
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
 
-        $this->positions = ModulePreConfigs::query()
-            ->where('type', 'Job Description')
+        // Position options come from organizational Roles.
+        $this->positions = Role::query()
+            ->where('guard_name', 'web')
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
@@ -170,44 +148,21 @@ class PersonnelTableManager extends Component
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
-        $this->zonesTableAvailable = Schema::hasTable('zones');
-        $this->zones = $this->zonesTableAvailable
-            ? Zone::query()
-                ->where('inventory_location_id', getCurrentUserLocation()->id)
-                ->orderBy('key')
-                ->get(['id', 'key', 'value'])
-                ->map(fn ($item): array => ['id' => (string) $item->id, 'key' => (string) $item->key, 'value' => (string) $item->value])
-                ->toArray()
-            : [];
-        $this->directoratesTableAvailable = Schema::hasTable('directorates');
-        $this->directorates = $this->directoratesTableAvailable
-            ? Directorate::query()
-                ->where('active', 1)
-                ->orderBy('name')
-                ->get(['id', 'name', 'zone_id'])
-                ->map(fn ($item): array => [
-                    'id' => (string) $item->id,
-                    'name' => (string) $item->name,
-                    'zone_id' => (string) ($item->zone_id ?? ''),
-                ])
-                ->toArray()
-            : [];
         $this->labsTableAvailable = Schema::hasTable('labs');
         $this->labs = $this->labsTableAvailable
             ? Lab::query()
                 ->where('active', 1)
                 ->orderBy('name')
-                ->get(['id', 'name', 'directorate_id', 'zone_id'])
+                ->get(['id', 'name'])
                 ->map(fn ($item): array => [
                     'id' => (string) $item->id,
                     'name' => (string) $item->name,
-                    'directorate_id' => (string) ($item->directorate_id ?? ''),
-                    'zone_id' => (string) ($item->zone_id ?? ''),
                 ])
                 ->toArray()
             : [];
         $this->stages = SampleAnalysisStage::query()
             ->where('active', 1)
+            ->where('is_sample_stage', 0)
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
@@ -221,6 +176,13 @@ class PersonnelTableManager extends Component
         $this->primeAddModalDropdowns();
         $this->addPersonnelStep = 1;
         $this->showAddPersonnelModal = true;
+    }
+
+    #[On('personnel-departments-updated')]
+    public function handleDepartmentsUpdated(): void
+    {
+        $this->reloadDepartments();
+        $this->filteredDepartments = $this->departments;
     }
 
     public function closeAddPersonnelModal(): void
@@ -262,14 +224,14 @@ class PersonnelTableManager extends Component
             'personnelForm.designation' => [
                 'required',
                 'string',
-                Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Designation')),
+                Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
             ],
             'personnelForm.first_name' => 'required|string|max:255',
             'personnelForm.middle_name' => 'nullable|string|max:255',
             'personnelForm.last_name' => 'nullable|string|max:255',
             'personnelForm.email' => 'required|email|max:255|unique:users,email',
             'personnelForm.phone' => 'nullable|string|max:255',
-            'personnelForm.id_number' => 'required|string|max:255',
+            'personnelForm.id_number' => 'nullable|string|max:255',
             'personnelForm.date_of_birth' => 'nullable|date',
             'personnelForm.employment_date' => 'nullable|date',
             'personnelForm.educational_level' => [
@@ -280,7 +242,7 @@ class PersonnelTableManager extends Component
             'personnelForm.position' => [
                 'required',
                 'string',
-                Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
+                Rule::exists('spatie_roles', 'id'),
             ],
             'personnelForm.analyst_is_gazzetted' => 'boolean',
             'personnelForm.date_of_gazzette' => 'nullable|date',
@@ -305,7 +267,11 @@ class PersonnelTableManager extends Component
         $personnel->first_name = (string) $this->personnelForm['first_name'];
         $personnel->middle_name = (string) $this->personnelForm['middle_name'];
         $personnel->last_name = (string) $this->personnelForm['last_name'];
-        $personnel->name = trim($personnel->first_name . ' ' . $personnel->middle_name . ' ' . $personnel->last_name);
+        $personnel->name = trim(implode(' ', array_filter([
+            trim((string) $this->personnelForm['first_name']),
+            trim((string) $this->personnelForm['middle_name']),
+            trim((string) $this->personnelForm['last_name']),
+        ], fn (string $part): bool => $part !== '')));
         $personnel->email = (string) $this->personnelForm['email'];
         $personnel->phone = (string) $this->personnelForm['phone'];
         $personnel->company_id = getUserCompany();
@@ -324,7 +290,9 @@ class PersonnelTableManager extends Component
             ? trim((string) $this->personnelForm['gazzette_no'])
             : null;
         $personnel->start_of_career = $this->personnelForm['start_of_career'] !== '' ? (string) $this->personnelForm['start_of_career'] : null;
-        $personnel->id_number = (string) $this->personnelForm['id_number'];
+        $personnel->id_number = trim((string) $this->personnelForm['id_number']) !== ''
+            ? trim((string) $this->personnelForm['id_number'])
+            : null;
         $personnel->zone_id = null;
         $personnel->active = $this->personnelForm['active'] ? 1 : 0;
         $personnel->is_technical = ($this->personnelForm['is_technical'] ?? false) ? 1 : 0;
@@ -333,36 +301,22 @@ class PersonnelTableManager extends Component
         $personnel->password              = bcrypt($plainPassword);
         $personnel->password_changed_at   = null; // force change on first login
 
-        if ($this->signatureUpload) {
-            $filename = Str::uuid()->toString() . '_' . time() . '.' . $this->signatureUpload->getClientOriginalExtension();
-            $storedPath = $this->signatureUpload->storeAs('personnel-signature', $filename, 'public');
-            $personnel->electronic_sig = '/storage/' . $storedPath;
-        }
-
-        if ($this->signatureData !== '' && str_starts_with($this->signatureData, 'data:image/')) {
-            if (preg_match('/^data:image\/(\w+);base64,/', $this->signatureData, $matches)) {
-                $extension = strtolower($matches[1]);
-                if ($extension === 'jpeg') {
-                    $extension = 'jpg';
-                }
-
-                if (in_array($extension, ['png', 'jpg', 'gif', 'webp'], true)) {
-                    $imageData = substr($this->signatureData, strpos($this->signatureData, ',') + 1);
-                    $decoded = base64_decode($imageData, true);
-
-                    if ($decoded !== false) {
-                        $filename = Str::uuid()->toString() . '_' . time() . '.' . $extension;
-                        $storagePath = 'personnel-signature/' . $filename;
-                        Storage::disk('public')->put($storagePath, $decoded);
-                        $personnel->electronic_sig = '/storage/' . $storagePath;
-                    }
-                }
-            }
-        }
+        app(PersonnelSignatureService::class)->applyToUser(
+            $personnel,
+            $this->signatureUpload,
+            $this->signatureData,
+        );
 
         $personnel->save();
 
-        // Sync labs; derive zone and directorate relationships from the assigned labs
+        $selectedRole = Role::query()
+            ->where('guard_name', 'web')
+            ->find($this->personnelForm['position']);
+
+        if ($selectedRole) {
+            $personnel->assignRole($selectedRole);
+        }
+
         $selectedLabIds = array_values(array_unique(array_filter((array) ($this->personnelForm['lab_ids'] ?? []))));
 
         UserLabRelation::where('user_id', $personnel->id)->delete();
@@ -371,24 +325,6 @@ class PersonnelTableManager extends Component
                 'user_id' => $personnel->id,
                 'lab_id'  => (string) $labId,
             ]);
-        }
-
-        if (!empty($selectedLabIds) && $this->labsTableAvailable) {
-            $assignedLabs   = collect($this->labs)->whereIn('id', $selectedLabIds);
-            $derivedZoneIds = $assignedLabs->pluck('zone_id')->filter()->unique()->values()->all();
-            $derivedDirIds  = $assignedLabs->pluck('directorate_id')->filter()->unique()->values()->all();
-
-            UserZoneRelation::where('user_id', $personnel->id)->delete();
-            foreach ($derivedZoneIds as $zoneId) {
-                UserZoneRelation::create(['user_id' => $personnel->id, 'zone_id' => $zoneId]);
-            }
-            UserDirectorateRelation::where('user_id', $personnel->id)->delete();
-            foreach ($derivedDirIds as $dirId) {
-                UserDirectorateRelation::create(['user_id' => $personnel->id, 'directorate_id' => $dirId]);
-            }
-        } else {
-            UserZoneRelation::where('user_id', $personnel->id)->delete();
-            UserDirectorateRelation::where('user_id', $personnel->id)->delete();
         }
 
         $this->message = 'Personnel added successfully.';
@@ -412,6 +348,13 @@ class PersonnelTableManager extends Component
 
     public function openStateModal(string $personnelId): void
     {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
         $personnel = User::query()->findOrFail($personnelId);
         $this->selectedPersonnelId = $personnel->id;
         $this->selectedPersonnelName = (string) $personnel->name;
@@ -426,6 +369,13 @@ class PersonnelTableManager extends Component
 
     public function savePersonnelState(): void
     {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
         $this->validate([
             'selectedPersonnelId' => 'required|string|exists:users,id',
             'stateAction' => 'required|in:active,deactive',
@@ -438,6 +388,87 @@ class PersonnelTableManager extends Component
         $this->showStateModal = false;
         $this->message = 'Personnel state updated successfully.';
         $this->messageType = 'success';
+    }
+
+    public function updatedSelectAll(bool $value): void
+    {
+        if ($value) {
+            $this->selectedPersonnel = $this->personnel->pluck('id')->map(fn ($id): string => (string) $id)->toArray();
+        } else {
+            $this->selectedPersonnel = [];
+        }
+    }
+
+    public function updatedSelectedPersonnel(): void
+    {
+        $this->selectAll = count($this->selectedPersonnel) === $this->personnel->count()
+            && $this->personnel->count() > 0;
+    }
+
+    public function openBulkDeactivateModal(): void
+    {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        if ($this->selectedPersonnel === []) {
+            $this->message = __('personnel.select_personnel_first');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $this->showBulkDeactivateModal = true;
+    }
+
+    public function closeBulkDeactivateModal(): void
+    {
+        $this->showBulkDeactivateModal = false;
+    }
+
+    public function bulkDeactivate(): void
+    {
+        if (! $this->canDeactivatePersonnel()) {
+            $this->message = __('personnel.unauthorized_deactivate');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $ids = array_values(array_filter($this->selectedPersonnel));
+
+        if ($ids === []) {
+            $this->message = __('personnel.select_personnel_first');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $ids = array_values(array_diff($ids, [(string) auth()->id()]));
+
+        if ($ids === []) {
+            $this->message = __('personnel.cannot_deactivate_self');
+            $this->messageType = 'error';
+            $this->showBulkDeactivateModal = false;
+
+            return;
+        }
+
+        $updatedCount = User::query()
+            ->whereIn('id', $ids)
+            ->where('active', 1)
+            ->update(['active' => 0]);
+
+        $this->selectedPersonnel = [];
+        $this->selectAll = false;
+        $this->showBulkDeactivateModal = false;
+        $this->message = $updatedCount > 0
+            ? __('personnel.bulk_deactivated_success', ['count' => $updatedCount])
+            : __('personnel.bulk_deactivated_none');
+        $this->messageType = $updatedCount > 0 ? 'success' : 'error';
     }
 
     public function openResetPasswordModal(string $personnelId): void
@@ -483,43 +514,56 @@ class PersonnelTableManager extends Component
 
     public function updatingSearch(): void
     {
-        $this->resetPage();
-    }
-
-    public function updatingZoneFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatingDirectorateFilter(): void
-    {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingLabFilter(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingEmploymentDateFrom(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingEmploymentDateTo(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function updatingPerPage(): void
     {
+        $this->clearSelection();
         $this->resetPage();
     }
 
     public function setActiveTab(string $tab): void
     {
         $this->activeTab = in_array($tab, ['all', 'active', 'deactive', 'dormant'], true) ? $tab : 'all';
+        $this->clearSelection();
         $this->resetPage();
+    }
+
+    private function clearSelection(): void
+    {
+        $this->selectedPersonnel = [];
+        $this->selectAll = false;
+    }
+
+    private function canDeactivatePersonnel(): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('personnel.personnel.edit') || $user->CheckDeactivatePersonnel();
     }
 
     public function toggleAdvancedFilters(): void
@@ -530,11 +574,10 @@ class PersonnelTableManager extends Component
     public function clearFilters(): void
     {
         $this->search = '';
-        $this->zoneFilter = '';
-        $this->directorateFilter = '';
         $this->labFilter = '';
         $this->employmentDateFrom = '';
         $this->employmentDateTo = '';
+        $this->clearSelection();
         $this->resetPage();
     }
 
@@ -551,7 +594,7 @@ class PersonnelTableManager extends Component
                 'Middle Name' => (string) ($item->middle_name ?? ''),
                 'Last Name' => (string) ($item->last_name ?? ''),
                 'Department' => (string) ($item->department_name ?? ''),
-                'Job Description' => (string) ($item->position ?? ''),
+                'Position' => (string) ($item->position ?? ''),
                 'Lab Sections' => (string) ($item->labsectionname ?? ''),
                 'Email' => (string) ($item->email ?? ''),
                 'Employment Date' => (string) ($item->employment_date ?? ''),
@@ -565,7 +608,7 @@ class PersonnelTableManager extends Component
             'Middle Name',
             'Last Name',
             'Department',
-            'Job Description',
+            'Position',
             'Lab Sections',
             'Email',
             'Employment Date',
@@ -593,23 +636,23 @@ class PersonnelTableManager extends Component
             })
             ->leftJoin('module_pre_configs as de', function ($join): void {
                 $join->whereRaw('de.id::text = users.designation')
-                    ->where('de.type', '=', 'Designation');
+                    ->where('de.type', '=', 'Job Description');
             })
             ->leftJoin('module_pre_configs as e', function ($join): void {
                 $join->whereRaw('e.id::text = users.education_level')
                     ->where('e.type', '=', 'Educational Levels');
             })
-            ->leftJoin('module_pre_configs as p', function ($join): void {
-                $join->whereRaw('p.id::text = users.position::text')
-                    ->where('p.type', '=', 'Job Description');
+            ->leftJoin('spatie_roles as p', function ($join): void {
+                $join->whereRaw('p.id::text = users.position::text');
             })
             ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation');
 
-        if ($this->activeTab === 'active') {
-            $query->where('users.active', 1);
-        } elseif ($this->activeTab === 'deactive') {
+        if ($this->activeTab === 'deactive') {
             $query->where('users.active', 0);
         } elseif ($this->activeTab === 'dormant') {
+            // Dormant accounts are a subset of active accounts.
+            $query->where('users.active', 1);
+
             $ninetyDaysAgo = now()->subDays(90);
             
             $activeUserIds = \App\Models\Audit::where('created_at', '>=', $ninetyDaysAgo)
@@ -619,6 +662,9 @@ class PersonnelTableManager extends Component
 
             $query->whereNotIn('users.id', $activeUserIds)
                 ->where('users.created_at', '<', $ninetyDaysAgo);
+        } else {
+            // "All" and "Active" must exclude deactivated accounts.
+            $query->where('users.active', 1);
         }
 
         if ($this->search !== '') {
@@ -635,37 +681,10 @@ class PersonnelTableManager extends Component
             });
         }
 
-        if ($this->zoneFilter !== '') {
-            $zoneId = $this->zoneFilter;
-
-            $query->where(function ($builder) use ($zoneId): void {
-                $builder->where('users.zone_id', $zoneId);
-
-                if (Schema::hasTable('user_zone_relation')) {
-                    $builder->orWhereExists(function ($subQuery) use ($zoneId): void {
-                        $subQuery->select(DB::raw(1))
-                            ->from('user_zone_relation as uzr')
-                            ->whereColumn('uzr.user_id', 'users.id')
-                            ->where('uzr.zone_id', $zoneId);
-                    });
-                }
-            });
-        }
-
-        if ($this->directorateFilter !== '' && Schema::hasTable('user_directorate_relation')) {
-            $directorateId = $this->directorateFilter;
-            $query->whereExists(function ($subQuery) use ($directorateId): void {
-                $subQuery->select(DB::raw(1))
-                    ->from('user_directorate_relation as udr')
-                    ->whereColumn('udr.user_id', 'users.id')
-                    ->where('udr.directorate_id', $directorateId);
-            });
-        }
-
         if ($this->labFilter !== '' && Schema::hasTable('user_lab_relation')) {
             $labId = $this->labFilter;
             $query->whereExists(function ($subQuery) use ($labId): void {
-                $subQuery->select(DB::raw(1))
+                $subQuery->selectRaw('1')
                     ->from('user_lab_relation as ulr')
                     ->whereColumn('ulr.user_id', 'users.id')
                     ->where('ulr.lab_id', $labId);
@@ -919,6 +938,7 @@ class PersonnelTableManager extends Component
 
     private function primeAddModalDropdowns(): void
     {
+        $this->reloadDepartments();
         $this->filteredDesignations = $this->designations;
         $this->filteredEducationLevels = $this->educationLevels;
         $this->filteredPositions = $this->positions;
@@ -926,6 +946,38 @@ class PersonnelTableManager extends Component
         $this->filteredLabSections = $this->stages;
         $this->filteredLabs = $this->labs;
         $this->showLabDropdown = false;
+    }
+
+    private function reloadDepartments(): void
+    {
+        $companyId = getUserCompany();
+
+        $query = InventoryDepartment::query()
+            ->where('module', 'organizational')
+            ->where(function ($builder) use ($companyId): void {
+                if ($companyId) {
+                    $builder->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                } else {
+                    $builder->whereNull('company_id');
+                }
+            })
+            ->orderBy('name');
+
+        $departmentRows = $query->get(['id', 'name']);
+
+        // Fallback: if organizational list is empty, use any company departments.
+        if ($departmentRows->isEmpty() && $companyId) {
+            $departmentRows = InventoryDepartment::query()
+                ->where('company_id', $companyId)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
+        $this->departments = $departmentRows
+            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
+            ->values()
+            ->toArray();
     }
 
     private function resetAddModalSearches(): void
@@ -945,7 +997,7 @@ class PersonnelTableManager extends Component
             $this->validate([
                 'personnelForm.first_name' => 'required|string|max:255',
                 'personnelForm.email' => 'required|email|max:255|unique:users,email',
-                'personnelForm.id_number' => 'required|string|max:255',
+                'personnelForm.id_number' => 'nullable|string|max:255',
                 'personnelForm.date_of_birth' => 'nullable|date',
             ]);
         }
@@ -955,12 +1007,12 @@ class PersonnelTableManager extends Component
                 'personnelForm.designation' => [
                     'required',
                     'string',
-                    Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Designation')),
+                    Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
                 ],
                 'personnelForm.position' => [
                     'required',
                     'string',
-                    Rule::exists('module_pre_configs', 'id')->where(fn ($query) => $query->where('type', 'Job Description')),
+                    Rule::exists('spatie_roles', 'id'),
                 ],
                 'personnelForm.department' => 'required|string|exists:inventory_departments,id',
             ]);

@@ -610,7 +610,9 @@ class QuotationReportService
             'prepared_by_position' => $position,
             'prepared_by_email' => $preparedBy?->email,
             'prepared_by_phone' => $preparedBy?->phone,
-            'prepared_by_signature' => $preparedBy?->electronic_sig ?? null,
+            'prepared_by_signature' => function_exists('signatureToDataUri')
+                ? signatureToDataUri($preparedBy?->electronic_sig)
+                : ($preparedBy?->electronic_sig ?? null),
             'attention' => $attention,
             'sampling_location_display' => $samplingLocation ?? '-',
             'laboratory_ref_display' => $header->laboratory_ref ?? $batch?->batch_code ?? $header->quote_number,

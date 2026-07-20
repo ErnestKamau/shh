@@ -22,7 +22,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-	const receiveRequestUrl = @json(route('sample-workflow', ['status' => 'Samples Receiving']) . '?tab=submitted&open_receive_request=1');
+	const receiveRequestUrl = @json(route('sample-workflow', ['status' => 'Samples Receiving']) . '?tab=submitted');
 	const headerReceiveRequestBtn = document.querySelector('.workflow-header-receive-request-btn');
 
 	if (headerReceiveRequestBtn) {
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			</a>
 			@endif
 			@if($canLabs)
-			<a href="{{ route('livewire.labs') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('labs') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.labs') }}</span>
@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<a href="/sample-analysis-stages" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.sample_analysis_stages') }}</span>
+					<span class="menu-collapsed">Lab Sections</span>
 				</div>
 			</a>
 			@endif
@@ -544,12 +544,6 @@ document.addEventListener('DOMContentLoaded', function() {
 		@if($canChecklistApprovals)
 		<a href="{{ route('livewire.workflow-approvals') }}" class="list-group-item list-group-item-action">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.checklist_approvals') }}
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
-		@endif
-		@if($canConfigRouteAccess)
-		<a href="{{ route('module-pre-configs', ['config' => 'Zones', 'module' => 'Lab-Management']) }}" class="list-group-item list-group-item-action">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.zone') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif

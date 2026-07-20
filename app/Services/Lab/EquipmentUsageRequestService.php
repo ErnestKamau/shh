@@ -28,35 +28,20 @@ class EquipmentUsageRequestService
      */
     public function submit(User $requester, array $data): EquipmentUsageRequest
     {
-        $zoneIds = $this->userZoneResolver->zoneIdsForUser($requester);
-
-        if ($zoneIds === []) {
-            throw ValidationException::withMessages([
-                'equipment_id' => ['You are not assigned to a zone. Contact your administrator.'],
-            ]);
-        }
-
         $equipment = Equipment::query()
             ->where('active', true)
             ->where(function ($q): void {
                 $q->where('is_disposal', false)->orWhereNull('is_disposal');
             })
-            ->inZones($zoneIds)
             ->find($data['equipment_id']);
 
         if (! $equipment) {
             throw ValidationException::withMessages([
-                'equipment_id' => ['Selected equipment is not available in your zone.'],
+                'equipment_id' => ['Selected equipment is not available.'],
             ]);
         }
 
-        $zoneId = $this->equipmentZoneResolver->zoneIdForEquipment($equipment);
-
-        if ($zoneId === null || ! in_array($zoneId, $zoneIds, true)) {
-            throw ValidationException::withMessages([
-                'equipment_id' => ['Equipment zone could not be verified for your assignment.'],
-            ]);
-        }
+        $zoneId = $this->equipmentZoneResolver->resolveZoneId($equipment);
 
         $sampleIds = array_values(array_unique($data['sample_detail_ids'] ?? []));
 
@@ -67,9 +52,9 @@ class EquipmentUsageRequestService
         }
 
         foreach ($sampleIds as $sampleId) {
-            if (! $this->sampleZoneQueryService->sampleDetailInZones($sampleId, $zoneIds)) {
+            if (! $this->sampleZoneQueryService->sampleDetailInZones($sampleId, [])) {
                 throw ValidationException::withMessages([
-                    'sample_detail_ids' => ['One or more selected samples are not in your zone.'],
+                    'sample_detail_ids' => ['One or more selected samples could not be found.'],
                 ]);
             }
         }
@@ -128,21 +113,15 @@ class EquipmentUsageRequestService
             ]);
         }
 
-        if (! empty($data['helping_analyst_id']) && $request->zone_id) {
-            $helpingInZone = User::query()
+        if (! empty($data['helping_analyst_id'])) {
+            $helpingExists = User::query()
                 ->where('id', $data['helping_analyst_id'])
                 ->where('active', 1)
-                ->where(function ($query) use ($request): void {
-                    $zoneId = $request->zone_id;
-                    $query->where('zone_id', $zoneId)
-                        ->orWhereHas('assignedZones', fn ($q) => $q->where('zones.id', $zoneId))
-                        ->orWhereHas('assignedLabs', fn ($q) => $q->where('labs.zone_id', $zoneId));
-                })
                 ->exists();
 
-            if (! $helpingInZone) {
+            if (! $helpingExists) {
                 throw ValidationException::withMessages([
-                    'helping_analyst_id' => ['Selected helping analyst must be in the request zone.'],
+                    'helping_analyst_id' => ['Selected helping analyst is invalid or inactive.'],
                 ]);
             }
         }

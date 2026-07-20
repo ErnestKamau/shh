@@ -14,6 +14,12 @@ trait ClearsSeedCommercialDemoData
 {
     public const SEED_PRICELIST_CODE_PREFIX = 'PL-SEED-';
 
+    public const SEED_PRICELIST_CODE_MASTER = 'PL-SEED-MASTER';
+
+    public const SEED_PRICELIST_CODE_CUSTOMER = 'PL-SEED-CUSTOMER';
+
+    public const SEED_PRICELIST_CODE_PACKAGE = 'PL-SEED-PACKAGE';
+
     public const SEED_QUOTATION_LAB_REF_PREFIX = 'SEED-QTE-';
 
     protected function clearSeedCommercialDemoData(): void

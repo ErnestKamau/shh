@@ -10,7 +10,9 @@ use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\StageHeader;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -69,30 +71,78 @@ class WorksheetManager extends Component
             $this->pipeline = $this->activeGroupedHolderId;
         }
 
-        $requestedTab = request()->query('tab', $this->groupedHolders->isNotEmpty() ? 'grouped-pipelines' : 'formulas');
-        if (in_array($requestedTab, ['grouped-pipelines', 'method-sequences', 'procedures', 'ser', 'formulas', 'log-entry'], true)) {
-            $this->activeTab = $requestedTab;
-            if ($requestedTab === 'method-sequences') {
-                $this->queueMethodSequencesInit();
-            }
-        }
+        // Load all worksheet types up front so tabs can be gated to active ones only.
+        $this->loadProcedureWorksheetData();
+        $this->loadLogEntryWorksheetData();
+        $this->loadFormulaWorksheetData();
+        $this->loadStageHeaders();
+
+        $tabResolved = false;
 
         $requestedPipeline = request()->query('pipeline');
         if ($requestedPipeline && $this->groupedHolders->contains('id', $requestedPipeline)) {
             $this->activeTab = 'grouped-pipelines';
             $this->activeGroupedHolderId = (string) $requestedPipeline;
             $this->pipeline = (string) $requestedPipeline;
+            $tabResolved = true;
         }
 
         $requestedFormulaId = request()->query('formula');
-        if ($requestedFormulaId) {
+        if ($requestedFormulaId && $this->formulas->contains('id', $requestedFormulaId)) {
             $this->activeTab = 'formulas';
             $this->activeFormulaId = $requestedFormulaId;
+            $tabResolved = true;
         }
 
-        $this->loadProcedureWorksheetData();
-        $this->loadLogEntryWorksheetData();
-        $this->ensureTabDataLoaded();
+        if (! $tabResolved) {
+            $requestedTab = request()->query('tab', $this->resolveDefaultTab());
+            $this->activeTab = $this->isTabAvailable($requestedTab)
+                ? $requestedTab
+                : $this->resolveDefaultTab();
+        }
+
+        if ($this->activeTab === 'method-sequences') {
+            $this->queueMethodSequencesInit();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function availableTabs(): array
+    {
+        $tabs = [];
+
+        if ($this->groupedHolders->isNotEmpty()) {
+            $tabs[] = 'grouped-pipelines';
+        }
+        if ($this->formulas->isNotEmpty()) {
+            $tabs[] = 'formulas';
+        }
+        if ($this->stageHeaders->isNotEmpty()) {
+            $tabs[] = 'method-sequences';
+        }
+        if ($this->logEntryWorksheets->isNotEmpty()) {
+            $tabs[] = 'log-entry';
+        }
+        if ($this->procedureWorksheets->isNotEmpty()) {
+            $tabs[] = 'procedures';
+        }
+        if ($this->hasNoCaptureSamples) {
+            $tabs[] = 'ser';
+        }
+
+        return $tabs;
+    }
+
+    protected function isTabAvailable(string $tab): bool
+    {
+        return in_array($tab, $this->availableTabs(), true);
+    }
+
+    protected function resolveDefaultTab(): string
+    {
+        return $this->availableTabs()[0] ?? 'formulas';
     }
 
     protected function ensureTabDataLoaded(): void
@@ -112,10 +162,10 @@ class WorksheetManager extends Component
 
     public function loadLogEntryWorksheetData(): void
     {
-        $ids = CapturedResult::where('sample_header_id', $this->batch->id)
-            ->whereNotNull('log_entry_worksheet_id')
-            ->distinct()
-            ->pluck('log_entry_worksheet_id');
+        $query = CapturedResult::where('sample_header_id', $this->batch->id)
+            ->whereNotNull('log_entry_worksheet_id');
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $ids = $query->distinct()->pluck('log_entry_worksheet_id');
 
         $this->logEntryWorksheets = LogEntryWorksheet::whereIn('id', $ids)
             ->where('is_active', true)
@@ -129,11 +179,11 @@ class WorksheetManager extends Component
 
     public function loadProcedureWorksheetData(): void
     {
-        $ids = CapturedResult::query()
+        $query = CapturedResult::query()
             ->where('sample_header_id', $this->batch->id)
-            ->whereNotNull('procedure_worksheet_id')
-            ->distinct()
-            ->pluck('procedure_worksheet_id');
+            ->whereNotNull('procedure_worksheet_id');
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $ids = $query->distinct()->pluck('procedure_worksheet_id');
 
         $this->procedureWorksheets = ProcedureWorksheet::query()
             ->whereIn('id', $ids)
@@ -153,6 +203,7 @@ class WorksheetManager extends Component
                 $q->whereHas('sample', function ($sq) {
                     $sq->where('sample_header_id', $this->batch->id);
                 });
+                app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($q, Auth::user());
             })
             ->with(['method', 'analyte', 'sampleType', 'testStages'])
             ->orderBy('name')
@@ -173,10 +224,11 @@ class WorksheetManager extends Component
 
     public function loadWorksheetData(): void
     {
-        $capturedResults = CapturedResult::where('sample_header_id', $this->batch->id)
+        $query = CapturedResult::where('sample_header_id', $this->batch->id)
             ->whereNotNull('formular_id')
-            ->with(['analysisElement', 'formular', 'sample'])
-            ->get();
+            ->with(['analysisElement', 'formular', 'sample']);
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+        $capturedResults = $query->get();
 
         $formulaIds = $capturedResults->whereNotNull('formular_id')
             ->pluck('formular_id')
@@ -192,10 +244,11 @@ class WorksheetManager extends Component
         }
 
         if (Schema::hasColumn('captured_results', 'has_no_result_capture')) {
-            $noCaptureResults = CapturedResult::where('sample_header_id', $this->batch->id)
+            $noCaptureQuery = CapturedResult::where('sample_header_id', $this->batch->id)
                 ->where('has_no_result_capture', 1)
-                ->with(['sample', 'analysis_type'])
-                ->get();
+                ->with(['sample', 'analysis_type']);
+            app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($noCaptureQuery, Auth::user());
+            $noCaptureResults = $noCaptureQuery->get();
 
             $this->groupedNoCaptureSamples = [];
 
@@ -225,7 +278,7 @@ class WorksheetManager extends Component
 
     public function switchTab(string $tab): void
     {
-        if (! in_array($tab, ['grouped-pipelines', 'formulas', 'method-sequences', 'procedures', 'ser', 'log-entry'], true)) {
+        if (! $this->isTabAvailable($tab)) {
             return;
         }
 
@@ -278,7 +331,11 @@ class WorksheetManager extends Component
      */
     public function stageHeadersPayload(): array
     {
-        return $this->stageHeaders->map(function ($stageHeader) {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        $batchSampleIds = $this->batch->samples()->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        return $this->stageHeaders->map(function ($stageHeader) use ($access, $user, $batchSampleIds) {
             return [
                 'id' => $stageHeader->id,
                 'name' => $stageHeader->name,
@@ -287,6 +344,11 @@ class WorksheetManager extends Component
                 'sample_type_name' => $stageHeader->sampleType ? $stageHeader->sampleType->name : 'All',
                 'total_days' => $stageHeader->total_days,
                 'stages_count' => $stageHeader->testStages->count(),
+                'can_edit' => $access->canEditStageHeaderResults(
+                    $user,
+                    (string) $stageHeader->id,
+                    $batchSampleIds
+                ),
             ];
         })->values()->all();
     }

@@ -109,8 +109,8 @@
                                 </thead>
                                 <tbody>
                                     @foreach($variables as $variable)
-                                        <tr>
-                                            <td>{{ $variable->id }}</td>
+                                        <tr wire:key="variable-{{ $variable->id }}">
+                                            <td>{{ $variables->firstItem() + $loop->index }}</td>
                                             <td>
                                                 <strong>{{ $variable->name }}</strong>
                                             </td>
@@ -135,16 +135,16 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditVariableModal({{ $variable->id }})" 
+                                                    <button wire:click="showEditVariableModal(@js($variable->id))"
                                                             class="btn btn-sm mr-2 btn-outline-primary" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="toggleVariableStatus({{ $variable->id }})" 
-                                                            class="btn btn-sm mr-2 btn-outline-{{ $variable->is_active ? 'warning' : 'success' }}" 
+                                                    <button wire:click="toggleVariableStatus(@js($variable->id))"
+                                                            class="btn btn-sm mr-2 btn-outline-{{ $variable->is_active ? 'warning' : 'success' }}"
                                                             title="{{ $variable->is_active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $variable->is_active ? 'pause' : 'play' }}"></i>
                                                     </button>
-                                                    <button wire:click="deleteVariable({{ $variable->id }})" 
+                                                    <button wire:click="deleteVariable(@js($variable->id))"
                                                             class="btn btn-sm btn-outline-danger" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this variable?')">
@@ -192,16 +192,16 @@
                         <span wire:loading wire:target="closeCreateModal" class="spinner-border spinner-border-sm" role="status"></span>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <form wire:submit="createVariable">
+                <form wire:submit="createVariable">
+                    <div class="modal-body">
                         <div class="mb-3">
                             <label for="variableName" class="form-label">Variable Name *</label>
-                            <input type="text" wire:model="variableName" class="form-control" id="variableName" required>
+                            <input type="text" wire:model.live="variableName" class="form-control" id="variableName">
                             @error('variableName') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="mb-3">
                             <label for="dataType" class="form-label">Data Type *</label>
-                            <select wire:model="dataType" class="form-select" id="dataType" required>
+                            <select wire:model.live="dataType" class="form-select no-select2" id="dataType">
                                 <option value="string">String</option>
                                 <option value="number">Number</option>
                                 <option value="boolean">Boolean</option>
@@ -210,40 +210,40 @@
                         </div>
                         <div class="mb-3">
                             <label for="variableValue" class="form-label">Value *</label>
-                            <input type="text" wire:model="variableValue" class="form-control" id="variableValue" required>
+                            <input type="text" wire:model.live="variableValue" class="form-control" id="variableValue">
                             @error('variableValue') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="mb-3">
                             <label for="variableDescription" class="form-label">Description</label>
-                            <textarea wire:model="variableDescription" class="form-control" id="variableDescription" rows="3"></textarea>
+                            <textarea wire:model.live="variableDescription" class="form-control" id="variableDescription" rows="3"></textarea>
                             @error('variableDescription') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="mb-3">
                             <div class="form-check">
-                                <input type="checkbox" wire:model="isActive" class="form-check-input" id="isActive">
+                                <input type="checkbox" wire:model.live="isActive" class="form-check-input" id="isActive">
                                 <label class="form-check-label" for="isActive">
                                     Active
                                 </label>
                             </div>
                         </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="closeCreateModal" wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="closeCreateModal">Cancel</span>
-                        <span wire:loading wire:target="closeCreateModal">
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Closing...
-                        </span>
-                    </button>
-                    <button type="button" class="btn btn-success" wire:click="createVariable" wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="createVariable">Create Variable</span>
-                        <span wire:loading wire:target="createVariable">
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Creating...
-                        </span>
-                    </button>
-                </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeCreateModal" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="closeCreateModal">Cancel</span>
+                            <span wire:loading wire:target="closeCreateModal">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Closing...
+                            </span>
+                        </button>
+                        <button type="submit" class="btn btn-success" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="createVariable">Create Variable</span>
+                            <span wire:loading wire:target="createVariable">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Creating...
+                            </span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -264,16 +264,16 @@
                         <span wire:loading wire:target="closeEditModal" class="spinner-border spinner-border-sm" role="status"></span>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <form wire:submit="updateVariable">
+                <form wire:submit="updateVariable">
+                    <div class="modal-body">
                         <div class="mb-3">
                             <label for="editVariableName" class="form-label">Variable Name *</label>
-                            <input type="text" wire:model="variableName" class="form-control" id="editVariableName" required>
+                            <input type="text" wire:model.live="variableName" class="form-control" id="editVariableName">
                             @error('variableName') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="mb-3">
                             <label for="editDataType" class="form-label">Data Type *</label>
-                            <select wire:model="dataType" class="form-select" id="editDataType" required>
+                            <select wire:model.live="dataType" class="form-select no-select2" id="editDataType">
                                 <option value="string">String</option>
                                 <option value="number">Number</option>
                                 <option value="boolean">Boolean</option>
@@ -282,40 +282,40 @@
                         </div>
                         <div class="mb-3">
                             <label for="editVariableValue" class="form-label">Value *</label>
-                            <input type="text" wire:model="variableValue" class="form-control" id="editVariableValue" required>
+                            <input type="text" wire:model.live="variableValue" class="form-control" id="editVariableValue">
                             @error('variableValue') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="mb-3">
                             <label for="editVariableDescription" class="form-label">Description</label>
-                            <textarea wire:model="variableDescription" class="form-control" id="editVariableDescription" rows="3"></textarea>
+                            <textarea wire:model.live="variableDescription" class="form-control" id="editVariableDescription" rows="3"></textarea>
                             @error('variableDescription') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="mb-3">
                             <div class="form-check">
-                                <input type="checkbox" wire:model="isActive" class="form-check-input" id="editIsActive">
+                                <input type="checkbox" wire:model.live="isActive" class="form-check-input" id="editIsActive">
                                 <label class="form-check-label" for="editIsActive">
                                     Active
                                 </label>
                             </div>
                         </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="closeEditModal" wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="closeEditModal">Cancel</span>
-                        <span wire:loading wire:target="closeEditModal">
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Closing...
-                        </span>
-                    </button>
-                    <button type="button" class="btn btn-success" wire:click="updateVariable" wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="updateVariable">Update Variable</span>
-                        <span wire:loading wire:target="updateVariable">
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Updating...
-                        </span>
-                    </button>
-                </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeEditModal" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="closeEditModal">Cancel</span>
+                            <span wire:loading wire:target="closeEditModal">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Closing...
+                            </span>
+                        </button>
+                        <button type="submit" class="btn btn-success" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="updateVariable">Update Variable</span>
+                            <span wire:loading wire:target="updateVariable">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Updating...
+                            </span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

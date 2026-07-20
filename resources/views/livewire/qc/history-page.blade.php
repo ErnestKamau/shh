@@ -16,7 +16,7 @@
                 <div class="form-group col-md-2"><label>End Date</label><input type="date" wire:model.live="endDate" class="form-control form-control-sm"></div>
                 <div class="form-group col-md-2">
                     <label>QC Type</label>
-                    <select wire:model.live="qcTypeId" class="form-control form-control-sm">
+                    <select wire:model.live="qcTypeId" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
                         @foreach($qcTypes as $type)
                             <option value="{{ $type->id }}">{{ $type->name }}</option>
@@ -25,7 +25,7 @@
                 </div>
                 <div class="form-group col-md-2">
                     <label>QC Scheme</label>
-                    <select wire:model.live="qcSchemeId" class="form-control form-control-sm">
+                    <select wire:model.live="qcSchemeId" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
                         @foreach($qcSchemes as $scheme)
                             <option value="{{ $scheme->id }}">{{ $scheme->name }}</option>
@@ -34,7 +34,7 @@
                 </div>
                 <div class="form-group col-md-2">
                     <label>Standard</label>
-                    <select wire:model.live="standardId" class="form-control form-control-sm">
+                    <select wire:model.live="standardId" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
                         @foreach($standards as $standard)
                             <option value="{{ $standard->id }}">{{ $standard->name }}</option>
@@ -43,7 +43,7 @@
                 </div>
                 <div class="form-group col-md-2">
                     <label>Sample Type</label>
-                    <select wire:model.live="sampleTypeId" class="form-control form-control-sm">
+                    <select wire:model.live="sampleTypeId" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
                         @foreach($sampleTypes as $sampleType)
                             <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
@@ -54,7 +54,7 @@
             <div class="form-row">
                 <div class="form-group col-md-3">
                     <label>Analysis Type</label>
-                    <select wire:model.live="analysisTypeId" class="form-control form-control-sm">
+                    <select wire:model.live="analysisTypeId" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
                         @foreach($analysisTypes as $analysisType)
                             <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
@@ -63,7 +63,7 @@
                 </div>
                 <div class="form-group col-md-3">
                     <label>Analyte</label>
-                    <select wire:model.live="analyteId" class="form-control form-control-sm">
+                    <select wire:model.live="analyteId" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
                         @foreach($analytes as $analyte)
                             <option value="{{ $analyte->id }}">{{ $analyte->code }}</option>
@@ -71,16 +71,16 @@
                     </select>
                 </div>
                 <div class="form-group col-md-2">
-                    <label>Remark</label>
-                    <select wire:model.live="remark" class="form-control form-control-sm">
+                    <label>Status</label>
+                    <select wire:model.live="statusCode" class="form-control form-control-sm no-select2">
                         <option value="">All</option>
-                        <option value="PASS">Pass</option>
-                        <option value="FAIL">Fail</option>
+                        <option value="PASSED">Passed</option>
+                        <option value="FAILED">Failed</option>
                     </select>
                 </div>
                 <div class="form-group col-md-2">
                     <label>Group By</label>
-                    <select wire:model.live="groupBy" class="form-control form-control-sm">
+                    <select wire:model.live="groupBy" class="form-control form-control-sm no-select2">
                         <option value="1">By Parameter</option>
                         <option value="2">By Sample</option>
                         <option value="3">By Batch</option>
@@ -116,7 +116,7 @@
                         @if($groupBy === '1')
                             <th>Standard</th>
                         @endif
-                        <th>Remark</th>
+                        <th>Status</th>
                         <th>Analyst</th>
                     </tr>
                 </thead>
@@ -140,7 +140,7 @@
                             @if($groupBy === '1')
                                 <td>{{ $row->main_value }}</td>
                             @endif
-                            <td>{{ $row->remarks }}</td>
+                            <td>{{ $row->status_code ?? $row->remarks }}</td>
                             <td>{{ $row->analyst_name }}</td>
                         </tr>
                     @empty

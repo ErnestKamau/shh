@@ -6,10 +6,14 @@ use App\Analyte;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\SampleSubmissionRequest;
+use App\Models\SampleSubmissionRequestRequestedAnalysis;
+use App\Models\SubmissionFormInstance;
 use App\SampleType;
 use App\Services\Commercial\EnquiryReviewDisplayService;
+use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -196,5 +200,98 @@ class EnquiryReviewDisplayServiceTest extends TestCase
         $rows = app(EnquiryReviewDisplayService::class)->sampleRows($enquiry);
 
         $this->assertSame('—', $rows[0]['tests_requested']);
+    }
+
+    #[Test]
+    public function requested_tests_prefers_trf_instance_lines_over_stale_requested_analyses(): void
+    {
+        $sampleTypeId = (string) Str::uuid7();
+        $analysisTypeId = (string) Str::uuid7();
+        $trfElementId = (string) Str::uuid7();
+        $staleElementId = (string) Str::uuid7();
+        $trfAnalyteId = (string) Str::uuid7();
+        $staleAnalyteId = (string) Str::uuid7();
+
+        SampleType::query()->create([
+            'id' => $sampleTypeId,
+            'name' => 'Food',
+            'code' => 'FOOD',
+            'active' => 1,
+        ]);
+
+        AnalysisType::query()->create([
+            'id' => $analysisTypeId,
+            'name' => 'Cooked',
+            'code' => 'CKD',
+            'sample_type_id' => $sampleTypeId,
+            'active' => 1,
+        ]);
+
+        Analyte::query()->create([
+            'id' => $trfAnalyteId,
+            'code' => 'TRFCODE',
+            'name' => 'From TRF',
+            'active' => 1,
+        ]);
+
+        Analyte::query()->create([
+            'id' => $staleAnalyteId,
+            'code' => 'STALE',
+            'name' => 'Stale Analysis',
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $trfElementId,
+            'analysis_type_id' => $analysisTypeId,
+            'analyte_id' => $trfAnalyteId,
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'id' => $staleElementId,
+            'analysis_type_id' => $analysisTypeId,
+            'analyte_id' => $staleAnalyteId,
+            'active' => 1,
+        ]);
+
+        $instance = Mockery::mock(SubmissionFormInstance::class);
+        $enquiry = new SampleSubmissionRequest([
+            'sample_lines' => [[
+                'sort_order' => 0,
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'attributes' => ['analysis_element_ids' => [$staleElementId]],
+            ]],
+        ]);
+        $enquiry->setRelation('submissionFormInstance', $instance);
+        $enquiry->setRelation('requestedAnalyses', collect([
+            new SampleSubmissionRequestRequestedAnalysis([
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_element_id' => $staleElementId,
+                'analysis_key' => $staleElementId,
+                'analysis_label' => 'Stale Analysis',
+            ]),
+        ]));
+
+        $lineService = Mockery::mock(SubmissionRequestSampleLineService::class);
+        $lineService->shouldReceive('linesForInstance')
+            ->atLeast()
+            ->once()
+            ->with($instance)
+            ->andReturn([[
+                'sort_order' => 0,
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'attributes' => ['analysis_element_ids' => [$trfElementId]],
+            ]]);
+
+        $this->app->instance(SubmissionRequestSampleLineService::class, $lineService);
+        $this->app->forgetInstance(EnquiryReviewDisplayService::class);
+
+        $tests = app(EnquiryReviewDisplayService::class)->requestedTests($enquiry);
+
+        $this->assertSame([['label' => 'TRFCODE']], $tests);
     }
 }

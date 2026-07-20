@@ -68,15 +68,31 @@
                                 
                                 {{-- Standard Limit Column --}}
                                 <td style="padding: 1rem; vertical-align: middle;">
-                                    <span style="font-size: 0.85rem; font-weight: 500; color: #64748b;">
-                                        @if ($sample['standard_limit_type'] === 'range')
-                                            {{ $sample['limit_low'] ?? '' }} - {{ $sample['limit_high'] ?? '' }}
-                                        @elseif ($sample['standard_limit_type'] === 'value')
-                                            {{ $sample['limit_value'] ?? '-' }}
-                                        @else
-                                            {{ $sample['standard_limit_text'] ?? '-' }}
-                                        @endif
-                                    </span>
+                                    @php
+                                        $displayLimit = $sample['standard_limit'] ?? $sample['standard_limit_text'] ?? '-';
+                                    @endphp
+                                    <div class="standard-limit-container" data-track-id="{{ $trackId }}">
+                                        <div class="d-flex align-items-center">
+                                            <span class="standard-limit-text text-muted small" style="font-size: 0.85rem; font-weight: 500;">
+                                                {{ $displayLimit !== '' ? $displayLimit : '-' }}
+                                            </span>
+                                            <input type="hidden"
+                                                   class="step6-standard-limit-value"
+                                                   value="{{ $displayLimit !== '' ? $displayLimit : '' }}">
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 ml-1 step6-edit-standard-btn"
+                                                    data-result-id="{{ $sample['captured_result_id'] }}"
+                                                    data-sample-code="{{ $sample['sample_code'] ?? '' }}"
+                                                    data-analyte="{{ $sample['analyte_code'] ?? '' }}"
+                                                    data-track-id="{{ $trackId }}"
+                                                    data-captured-result-id="{{ $sample['captured_result_id'] }}"
+                                                    data-toggle="modal"
+                                                    data-target="#edit-standard-modal"
+                                                    title="Edit Standard Limit">
+                                                <i class="mdi mdi-pencil text-muted" style="font-size: 14px;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </td>
                                 
                                 {{-- Result Column (Editable) --}}
@@ -88,7 +104,7 @@
                                                style="border-radius: 0.375rem; border-color: #cbd5e1; font-size: 0.85rem;"
                                                data-sample-id="{{ $sample['id'] }}"
                                                data-captured-result-id="{{ $sample['captured_result_id'] }}"
-                                               data-standard-limit="{{ $sample['standard_limit_text'] }}"
+                                               data-standard-limit="{{ $displayLimit !== '' ? $displayLimit : '' }}"
                                                data-track-id="{{ $trackId }}"
                                                data-required="true"
                                                data-field-name="Sample {{ $loop->iteration }} Result"

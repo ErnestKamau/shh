@@ -11,9 +11,11 @@ use App\Models\GroupedWorksheets\GroupedWorksheetResultsCapturePost;
 use App\Models\GroupedWorksheets\GroupedWorksheetResultsCaptureSampleDraft;
 use App\SampleDetails;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class GroupedResultsCaptureService
 {
@@ -48,11 +50,15 @@ class GroupedResultsCaptureService
      */
     public function loadCapturedResults(SampleHeader $batch, GroupedWorksheetHolder $holder): Collection
     {
-        return CapturedResult::query()
+        $query = CapturedResult::query()
             ->where('sample_header_id', $batch->id)
             ->where('grouped_worksheet_holder_id', $holder->id)
             ->where('has_grouped_worksheet', true)
-            ->where('has_no_result_capture', false)
+            ->where('has_no_result_capture', false);
+
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+
+        return $query
             ->orderBy('analysis_type_order')
             ->orderBy('parameters_order')
             ->orderBy('sample_detail_code')
@@ -261,6 +267,20 @@ class GroupedResultsCaptureService
         array $cellPayload,
         array $sampleCommentsPayload
     ): void {
+        $this->assertUserCanEditCellPayload($batch, $holder, $cellPayload);
+        $this->saveDraftsWithoutAuthCheck($batch, $holder, $cellPayload, $sampleCommentsPayload);
+    }
+
+    /**
+     * @param  array<string, array{result?: string|null, reporting_symbol?: string|null, remark?: string|null}>  $cellPayload
+     * @param  array<string, array{header_body?: string|null, main_body?: string|null, notes_body?: string|null}>  $sampleCommentsPayload
+     */
+    protected function saveDraftsWithoutAuthCheck(
+        SampleHeader $batch,
+        GroupedWorksheetHolder $holder,
+        array $cellPayload,
+        array $sampleCommentsPayload
+    ): void {
         DB::transaction(function () use ($batch, $holder, $cellPayload, $sampleCommentsPayload): void {
             foreach ($cellPayload as $capturedResultId => $data) {
                 GroupedWorksheetResultsCaptureDraft::query()->updateOrCreate(
@@ -295,6 +315,37 @@ class GroupedResultsCaptureService
     }
 
     /**
+     * @param  array<string, array{result?: string|null, reporting_symbol?: string|null, remark?: string|null}>  $cellPayload
+     */
+    protected function assertUserCanEditCellPayload(
+        SampleHeader $batch,
+        GroupedWorksheetHolder $holder,
+        array $cellPayload
+    ): void {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+
+        if (! $access->hasLabSectionAssignment($user)) {
+            throw new InvalidArgumentException($access->denyEditMessage($user));
+        }
+
+        $allowedIds = $this->loadCapturedResults($batch, $holder)->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        foreach (array_keys($cellPayload) as $capturedResultId) {
+            $captured = CapturedResult::query()->find($capturedResultId);
+            if (! $captured) {
+                continue;
+            }
+
+            if (! in_array((string) $capturedResultId, $allowedIds, true)
+                || ! $access->canEditCapturedResult($user, $captured)
+            ) {
+                throw new InvalidArgumentException($access->denyEditMessage($user));
+            }
+        }
+    }
+
+    /**
      * @param  array<string, array{result?: string|null, reporting_symbol?: string|null, remark?: string|null}>  $cellPayload  keyed by captured_result_id
      * @param  array<string, array{header_body?: string|null, main_body?: string|null, notes_body?: string|null}>  $sampleCommentsPayload  keyed by sample_detail_id
      */
@@ -304,10 +355,12 @@ class GroupedResultsCaptureService
         array $cellPayload,
         array $sampleCommentsPayload
     ): void {
+        $this->assertUserCanEditCellPayload($batch, $holder, $cellPayload);
+
         $userId = Auth::id();
 
         DB::transaction(function () use ($batch, $holder, $cellPayload, $sampleCommentsPayload, $userId): void {
-            $this->saveDrafts($batch, $holder, $cellPayload, $sampleCommentsPayload);
+            $this->saveDraftsWithoutAuthCheck($batch, $holder, $cellPayload, $sampleCommentsPayload);
 
             foreach ($cellPayload as $capturedResultId => $data) {
                 $captured = CapturedResult::query()->find($capturedResultId);
@@ -360,12 +413,13 @@ class GroupedResultsCaptureService
                 );
             }
 
-            CapturedResult::query()
+            $postedQuery = CapturedResult::query()
                 ->where('sample_header_id', $batch->id)
                 ->where('grouped_worksheet_holder_id', $holder->id)
                 ->where('has_grouped_worksheet', true)
-                ->where('has_no_result_capture', false)
-                ->update(['worksheet_posted' => true]);
+                ->where('has_no_result_capture', false);
+            app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($postedQuery, Auth::user());
+            $postedQuery->update(['worksheet_posted' => true]);
 
             GroupedWorksheetResultsCapturePost::query()->updateOrCreate(
                 [
@@ -391,13 +445,23 @@ class GroupedResultsCaptureService
             return;
         }
 
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        if (! $access->hasLabSectionAssignment($user)) {
+            throw new InvalidArgumentException($access->denyEditMessage($user));
+        }
+
         $userId = Auth::id();
 
-        DB::transaction(function () use ($payload, $userId): void {
+        DB::transaction(function () use ($payload, $userId, $access, $user): void {
             foreach ($payload as $capturedResultId => $data) {
                 $captured = CapturedResult::query()->find($capturedResultId);
                 if (! $captured) {
                     continue;
+                }
+
+                if (! $access->canEditCapturedResult($user, $captured)) {
+                    throw new InvalidArgumentException($access->denyEditMessage($user));
                 }
 
                 $captured->result = $data['result'] ?? null;

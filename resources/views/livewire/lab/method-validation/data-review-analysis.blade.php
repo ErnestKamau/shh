@@ -226,12 +226,12 @@
             <div class="row">
                 <div class="col-md-3">
                     <label class="form-label">Method Type</label>
-                    <select wire:model.live="filters.method_type" class="form-control form-control-sm">
-                        <option value="">All Types</option>
-                        @foreach($methodTypes as $id => $name)
-                            <option value="{{ $id }}">{{ $name }}</option>
-                        @endforeach
-                    </select>
+                    <x-searchable-select
+                        wire:model.live="filters.method_type"
+                        :options="collect($methodTypes)->map(fn($name, $id) => ['id' => $id, 'name' => $name])"
+                        placeholder="Search method types..."
+                        empty-label="All Types"
+                    />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Active Status</label>
@@ -243,12 +243,12 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Company</label>
-                    <select wire:model.live="filters.company" class="form-control form-control-sm">
-                        <option value="">All Companies</option>
-                        @foreach($companies as $id => $name)
-                            <option value="{{ $id }}">{{ $name }}</option>
-                        @endforeach
-                    </select>
+                    <x-searchable-select
+                        wire:model.live="filters.company"
+                        :options="collect($companies)->map(fn($name, $id) => ['id' => $id, 'name' => $name])"
+                        placeholder="Search companies..."
+                        empty-label="All Companies"
+                    />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Per Page</label>

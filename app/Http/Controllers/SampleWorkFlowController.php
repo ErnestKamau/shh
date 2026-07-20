@@ -35,7 +35,6 @@ use App\Models\Lab\TatCaptured;
 use App\Models\Lab\TatCapturedView;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
-use App\Models\QcModule\QCProcessedResults;
 use App\Models\SampleSubmissionRequest;
 use App\Models\RequestWorkflowForm;
 use App\Models\SubmissionFormInstance;
@@ -46,7 +45,9 @@ use App\Services\SupportingDocumentInstanceFormService;
 use App\Services\SampleCreationService;
 use App\Models\System\SystemConfiguration;
 use App\Services\ResultRemarkService;
+use App\Services\Qc\QcBatchCompletionService;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\ProcessedResultSyncService;
 use App\Services\StandardLimitDisplayService;
 use App\Services\SubmissionFormPdfService;
@@ -568,16 +569,25 @@ class SampleWorkFlowController extends Controller
     {
         Log::info(json_encode($request->all(), JSON_PRETTY_PRINT));
         if (isset($request->is_qc_batch)) {
-            $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-            if (!isset($qc_customer_id->id)) {
-                return redirect()->back()->with('error', 'Kindly set company QC Customer first');
+            $qcSettings = app(\App\Services\Qc\QcCompanySettings::class);
+            $selectedCustomer = $qcSettings->resolvedCustomer();
+            if ($selectedCustomer === null) {
+                return redirect()->back()->with(
+                    'error',
+                    'Set QC Customer under QC Configurations → Company defaults'
+                );
             }
-            $selectedCustomer = CRMCustomer::find($qc_customer_id->value);
             if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
                 $repeat_samples = SampleDetails::whereIn('id', $request->repeat_samples_id)->get();
             }
         } else {
-            $selectedCustomer = CRMCustomer::find($request->crm_customer_id);
+            $crmCustomerId = (string) ($request->crm_customer_id ?? '');
+            $selectedCustomer = Str::isUuid($crmCustomerId)
+                ? CRMCustomer::find($crmCustomerId)
+                : null;
+            if ($selectedCustomer === null) {
+                return redirect()->back()->with('error', 'Kindly select a valid customer');
+            }
         }
         $selectedSampleType = SampleType::find($request->sample_type_id);
         $batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
@@ -661,7 +671,7 @@ class SampleWorkFlowController extends Controller
             $header->batch_instructions = $request->batch_instructions;
             $header->reason_for_submission = $request->reason_for_submission;
             $header->sampling_method_id = $request->sampling_method_id;
-            $header->require_mu = $request->require_mu;
+            $header->require_mu = $request->filled('require_mu') ? $request->require_mu : null;
             $header->payment_done_by = $request->payment_done_by;
             $header->condition_quality_sample = $request->condition_quality_sample;
             // $header->invoice_amount = $request->invoice_amount;
@@ -675,7 +685,11 @@ class SampleWorkFlowController extends Controller
                     ->all();
                 $header->lab_section_ids = implode(',', $sectionIds);
             } else {
-                $header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
+                $labSectionIds = array_values(array_filter(
+                    (array) ($request->lab_section_ids ?? []),
+                    static fn ($id): bool => $id !== null && $id !== ''
+                ));
+                $header->lab_section_ids = $labSectionIds === [] ? null : implode(',', $labSectionIds);
             }
             if (strtolower((string) $request->batch_scope) === 'express') {
                 $header->priority = 'Express';
@@ -688,15 +702,18 @@ class SampleWorkFlowController extends Controller
             if ($isInReception) {
                 $header->sample_type_id = $request->sample_type_id;
                 if (isset($request->is_qc_batch)) {
-                    $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-                    $qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
+                    $qc_customer_unit = app(\App\Services\Qc\QcCompanySettings::class)->customerUnitName();
 
-                    $header->crm_customer_id = $qc_customer_id->value;
+                    $header->crm_customer_id = $selectedCustomer->id;
 
-                    $header->crm_unit_name = $qc_customer_unit->value;
+                    $header->crm_unit_name = $qc_customer_unit;
                     $header->qc_type_id = $request->qc_type_id;
                     $header->qc_scheme_id = $request->qc_scheme_id;
-                    $header->repeat_sample_id = implode(',', $request->repeat_samples_id) ?? '';
+                    $repeatSampleIds = array_values(array_filter(
+                        (array) ($request->repeat_samples_id ?? []),
+                        static fn ($id): bool => $id !== null && $id !== ''
+                    ));
+                    $header->repeat_sample_id = $repeatSampleIds === [] ? null : implode(',', $repeatSampleIds);
                 } else {
                     $header->crm_customer_id = $request->crm_customer_id;
 
@@ -718,9 +735,9 @@ class SampleWorkFlowController extends Controller
             $header->description = $request->description;
             $header->document_number = $request->document_number;
             $header->importer_address = $request->importer_address;
-            $header->date_expected = $request->date_expected;
-            $header->quote_id = $request->quote_id;
-            $header->sampling_method_id = $request->sampling_method_id;
+            $header->date_expected = $request->filled('date_expected') ? $request->date_expected : null;
+            $header->quote_id = $request->filled('quote_id') ? $request->quote_id : null;
+            $header->sampling_method_id = $request->filled('sampling_method_id') ? $request->sampling_method_id : null;
             $header->radio_active_levels = $request->radio_active_levels;
             $header->receiving_officer_name = $request->receive_by;
             $header->receiving_officer = $request->receive_by;
@@ -738,7 +755,7 @@ class SampleWorkFlowController extends Controller
         }
 
 
-        $header->sampling_method_id = $request->sampling_method_id;
+        $header->sampling_method_id = $request->filled('sampling_method_id') ? $request->sampling_method_id : null;
         $header->submit_by = $request->submit_by;
         $header->radio_active_levels = $request->radio_active_levels;
         $header->kra_office_ref = $request->kra_office_ref;
@@ -1670,6 +1687,11 @@ class SampleWorkFlowController extends Controller
         $batch = Str::isUuid($batchLookup)
             ? $batchQuery->find($batchLookup)
             : $batchQuery->where('batch_code', $batchLookup)->first();
+
+        if (!$status && isset($batch->id)) {
+            $status = $batch->status;
+        }
+
         if (isset($batch->id) && $batch->crm_unit_id < 1) {
             $crm_unit = CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)->where('name', $batch->crm_unit_name)->first();
             $batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;
@@ -2022,6 +2044,10 @@ class SampleWorkFlowController extends Controller
         // return response()->json($analaytesHolder);
         // ---------------------------------------
         $userLabSections = auth()->user()->labsectionids;
+        $labSectionAccess = app(LabSectionResultAccess::class);
+        $canEditLabSectionResults = $labSectionAccess->hasLabSectionAssignment(auth()->user());
+        $analaytesHolder = $labSectionAccess->filterAnalytesHolderForUser($analaytesHolder, auth()->user());
+        $analaytesHolderPesticide = $labSectionAccess->filterAnalytesHolderForUser($analaytesHolderPesticide, auth()->user());
         $customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
         $requestTypes = getRequestTypes();
         $notifiable_users = getNotifiableUsers();
@@ -2054,7 +2080,7 @@ class SampleWorkFlowController extends Controller
 
         $clients = $clients->sortBy('name')->values();
         // return response()->json($analaytesHolder);
-        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids', 'ltmethods', 'processed_results', 'raw_results', 'qc_schemes', 'qc_types', 'qc_config_perc', 'clientPageSize'));
+        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'canEditLabSectionResults', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids', 'ltmethods', 'processed_results', 'raw_results', 'qc_schemes', 'qc_types', 'qc_config_perc', 'clientPageSize'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -3219,10 +3245,24 @@ class SampleWorkFlowController extends Controller
     {
         $batchid = 0;
         $captureService = app(CapturedResultCaptureService::class);
+        $labSectionAccess = app(LabSectionResultAccess::class);
+        $actingUser = auth()->user();
         $actingUserId = auth()->id() ? (string) auth()->id() : null;
+
+        if (! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+            return redirect()->back()->with('error', 'Assign a lab section in your profile before capturing results.');
+        }
 
         foreach ($request->captured_result_id as $cID) {
             $captured = CapturedResult::find($cID);
+
+            if (! $captured) {
+                continue;
+            }
+
+            if (! $labSectionAccess->canEditCapturedResult($actingUser, $captured)) {
+                return redirect()->back()->with('error', 'You can only save parameters for your assigned lab section(s).');
+            }
 
             $batchid = $captured->sample_header_id;
             $batch = SampleHeader::find($batchid);
@@ -3795,7 +3835,7 @@ class SampleWorkFlowController extends Controller
                 $notify = notify_user($body, $c->email, $subject, $file, $bcc);
             }
             $batch->email_date = getTodayDate();
-            $batch->status = 'Completed';
+            // Do not change workflow status here — only a manual move should advance the batch.
             $batch->save();
 
             $custodyDetails = [
@@ -3806,7 +3846,7 @@ class SampleWorkFlowController extends Controller
                     'tracking_stage' => $batch->sample_tracking_stage,
                 ],
                 'target' => [
-                    'status' => $batch->status,
+                    'status' => $previous,
                     'tracking_stage' => $batch->sample_tracking_stage,
                 ],
             ];
@@ -3836,44 +3876,8 @@ class SampleWorkFlowController extends Controller
         abort_unless(auth()->user()->can('laboratory.components.approve for analysis.edit'), 403);
         
         $batch = getSampleHeaderByID($id);
-        if ($batch->is_qc_batch) {
-            $results = Result::where('sample_header_id', $id)->get();
-            foreach ($results as $r) {
-                $qc_res = QcResults::where('result_id', $r->id)->first() ?? new QcResults();
-                $qc_res->captured_result_id = $r->captured_result_id;
-                $qc_res->sample_detail_code = $r->sample_detail_code;
-                $qc_res->sample_detail_id = $r->sample_detail_id;
-                $qc_res->sample_header_id = $r->sample_header_id;
-                $qc_res->analyte_id = $r->analyte_id;
-                $qc_res->analyte_code = $r->analyte_code;
-                $qc_res->result = $r->result;
-                $qc_res->guide = $r->guide;
-                $qc_res->comments = $r->comments;
-                $qc_res->recheck = $r->recheck;
-                $qc_res->guide_low = $r->guide_low;
-                $qc_res->guide_high = $r->guide_high;
-                $qc_res->unit_code = $r->unit_code;
-                $qc_res->status_code = $r->status_code;
-                $qc_res->reporting_symbol = $r->reporting_symbol;
-                $qc_res->correct_target = $r->correct_target;
-                $qc_res->standard_target = $r->standard_target;
-                $qc_res->recommendations = $r->recommendations;
-                $qc_res->initial_result = $r->initial_result;
-                $qc_res->initial_reporting_symbol = $r->initial_reporting_symbol;
-                $qc_res->very_low_guide = $r->very_low_guide;
-                $qc_res->very_high_guide = $r->very_high_guide;
-                $qc_res->analysis_type_id = $r->analysis_type_id;
-                $qc_res->seond_guide = $r->seond_guide;
-                $qc_res->remarks = $r->remarks;
-                $qc_res->analyte_status_contracted = $r->analyte_status_contracted;
-                $qc_res->analyte_accredited = $r->analyte_accredited;
-                $qc_res->result_id = $r->id;
-                $qc_res->qc_scheme_id = $batch->qc_scheme_id;
-                $qc_res->qc_type_id = $batch->qc_type_id;
-                $qc_res->standard_value = $r->guide;
-                $qc_res->save();
-            }
-        }
+
+        // QC results are written only by markQCBatchComplete (QcBatchCompletionService).
         if ($batch->verify_user_id == auth()->user()->id) {
             return redirect()->back()->with('error', 'You are not allowed to approve this batch');
         }
@@ -3884,7 +3888,7 @@ class SampleWorkFlowController extends Controller
         $batch->save();
 
         if ($batch->is_qc_batch) {
-            return redirect()->route('sample-workflow', ['status' => $current_stage])->with('success', 'Approval was successful');
+            return redirect()->route('sample-workflow', ['status' => $current_stage])->with('success', 'Approval was successful. Mark the QC batch complete to record QC results.');
         }
 
         return redirect()->back()->with('success', 'Batch approved successfully');
@@ -6036,6 +6040,7 @@ class SampleWorkFlowController extends Controller
             'batch_id' => ['required', 'string'],
             'language' => ['required', 'in:en,ar,pt'],
             'notes'    => ['nullable', 'string', 'max:1000'],
+            'include_reference_method' => ['nullable', 'boolean'],
         ]);
 
         $batch = SampleHeader::find($request->batch_id);
@@ -6061,6 +6066,7 @@ class SampleWorkFlowController extends Controller
             'seq'      => $batch->test_request_report_sequence,
             'lang'     => $request->language,
             'mode'     => 'pdf',
+            'include_reference_method' => $request->boolean('include_reference_method') ? 1 : 0,
         ]);
     }
 
@@ -6209,8 +6215,7 @@ class SampleWorkFlowController extends Controller
                         $batch->batch_report_online_url = url($normalizedStoragePath);
                     }
 
-                    // Mark status as Completed so it passes the portal reports filter.
-                    $batch->status = config('dashboard.report_status', 'Completed');
+                    // Persist report URLs only — workflow stage must change via manual move.
                     $batch->save();
 
                     // Push a CustomerNotification (surfaces in portal notifications bell).
@@ -6415,164 +6420,51 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Batch not found.');
         }
 
-        // Only increment if not coming from processTestRequestReport (which already bumped it)
-        if (!$request->has('seq')) {
+        $mode = strtolower((string) $request->query('mode', 'view'));
+        $isPreviewMode = $mode === 'preview';
+        $isPreviewDoc = $mode === 'preview-doc';
+        $isPdfMode = $mode === 'pdf';
+        $skipSequenceBump = $isPreviewMode || $isPreviewDoc;
+
+        // Preview never bumps revision. Official generate only bumps when seq is absent
+        // (processTestRequestReport already bumps and passes seq).
+        if (! $skipSequenceBump && ! $request->has('seq')) {
             $batch->test_request_report_sequence = ($batch->test_request_report_sequence ?? 0) + 1;
             $batch->save();
         }
 
-        $sequence     = $batch->test_request_report_sequence ?: 1;
+        if ($skipSequenceBump) {
+            // Show the next provisional revision without persisting a bump
+            $sequence = max(1, (int) ($batch->test_request_report_sequence ?? 0) + 1);
+        } else {
+            $sequence = $batch->test_request_report_sequence ?: 1;
+        }
+
         $jobNumber    = $batch->batch_code;
-        $reportNumber = $jobNumber . '-R' . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+        $reportNumber = $jobNumber . '-R' . str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
 
         $reportData = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
-            ->build($batch, $reportNumber);
+            ->build($batch, $reportNumber, [
+                'logoPublicUrlFallback' => ! $isPdfMode,
+            ]);
 
         if (! empty($reportData['signatureWarning'])) {
             session()->flash('warning', $reportData['signatureWarning']);
         }
 
-        // Language & translations
-        $language = in_array($request->lang, ['en', 'ar', 'pt']) ? $request->lang : 'en';
-        $isRTL    = ($language === 'ar');
-
-        $labels = match ($language) {
-            'ar' => [
-                'report_title'        => 'تقرير الاختبار المعملي',
-                'certificate_no'      => 'رقم الشهادة',
-                'page_of'             => 'صفحة %d من %d',
-                'attention'           => 'إلى عناية',
-                'client'              => 'العميل',
-                'address'             => 'العنوان والموقع',
-                'report_no'           => 'رقم التقرير',
-                'sample_no'           => 'رقم العينة',
-                'date_received'       => 'تاريخ الاستلام',
-                'date_reported'       => 'تاريخ التقرير',
-                'container_type'      => 'نوع الحاوية',
-                'sample_description'  => 'وصف العينة',
-                'weight'              => 'الوزن',
-                'sampled_by'          => 'أخذ العينة بواسطة',
-                'sample_temperature'  => 'درجة حرارة العينة',
-                'sample_preservation' => 'حفظ العينة',
-                'production_date'     => 'تاريخ الإنتاج',
-                'expiry_date'         => 'تاريخ الانتهاء',
-                'lot_no'              => 'رقم الدُفعة',
-                'no_of_pages'         => 'عدد الصفحات',
-                'date_of_analysis'    => 'تاريخ التحليل',
-                'sample_reference'    => 'مرجع العينة',
-                'sample_point'        => 'نقطة العينة',
-                'condition'           => 'الحالة',
-                'analyte'             => 'المادة المحللة',
-                'results'             => 'النتائج',
-                'unit'                => 'الوحدة',
-                'specification'       => 'المواصفة',
-                'mu_percent'          => 'عدم اليقين %',
-                'method'              => 'طريقة التحليل',
-                'no_results'          => 'لا توجد نتائج لهذه العينة.',
-                'no_samples'          => 'لم يتم العثور على عينات لهذه الدفعة.',
-                'analysis_conducted'  => 'التحليل بواسطة',
-                'test_method_dev'     => 'انحراف طريقة الاختبار: لا يوجد',
-                'signed_behalf'       => 'موقّع لصالح',
-                'no_signature'        => 'لا يوجد توقيع',
-                'results_relate'      => 'تتعلق نتائج الاختبار بالعينات التي تم اختبارها فقط.',
-                'no_reproduce'        => 'لا يجوز إعادة إنتاج هذا التقرير إلا كاملاً بإذن كتابي من المختبر.',
-                'end_of_text'         => 'نهاية النص-',
-                'issued_on'           => 'صدر في',
-                'disclaimer'          => 'إخلاء المسؤولية: تمت اختبار جميع العينات في مختبر طرف ثالث',
-            ],
-            'pt' => [
-                'report_title'        => 'RELATÓRIO DE ENSAIO LABORATORIAL',
-                'certificate_no'      => 'Certificado n.º',
-                'page_of'             => 'Página %d de %d',
-                'attention'           => 'À atenção de',
-                'client'              => 'Cliente',
-                'address'             => 'Endereço e Localização',
-                'report_no'           => 'N.º do Relatório',
-                'sample_no'           => 'N.º da Amostra',
-                'date_received'       => 'Data de Receção',
-                'date_reported'       => 'Data do Relatório',
-                'container_type'      => 'Tipo de Recipiente',
-                'sample_description'  => 'Descrição da Amostra',
-                'weight'              => 'Peso',
-                'sampled_by'          => 'Amostrado por',
-                'sample_temperature'  => 'Temperatura da Amostra',
-                'sample_preservation' => 'Preservação da Amostra',
-                'production_date'     => 'Data de Produção',
-                'expiry_date'         => 'Data de Validade',
-                'lot_no'              => 'N.º de Lote',
-                'no_of_pages'         => 'N.º de Páginas',
-                'date_of_analysis'    => 'Data da Análise',
-                'sample_reference'    => 'Referência da Amostra',
-                'sample_point'        => 'Ponto de Amostragem',
-                'condition'           => 'Condição',
-                'analyte'             => 'Analito',
-                'results'             => 'Resultados',
-                'unit'                => 'Unidade',
-                'specification'       => 'Especificação',
-                'mu_percent'          => 'I.M. %',
-                'method'              => 'Método de análise',
-                'no_results'          => 'Nenhum resultado registado para esta amostra.',
-                'no_samples'          => 'Nenhuma amostra encontrada para este lote.',
-                'analysis_conducted'  => 'Análise conduzida por',
-                'test_method_dev'     => 'Desvio do método de ensaio: Nenhum',
-                'signed_behalf'       => 'Assinado por e em nome de',
-                'no_signature'        => 'Sem assinatura registada',
-                'results_relate'      => 'Os resultados dos ensaios referem-se apenas às amostras ensaiadas.',
-                'no_reproduce'        => 'Este relatório não pode ser reproduzido, exceto na íntegra, sem aprovação escrita do Laboratório.',
-                'end_of_text'         => '-Fim do texto',
-                'issued_on'           => 'Emitido em',
-                'disclaimer'          => 'AVISO: TODAS AS AMOSTRAS FORAM ENSAIADAS NUM LABORATÓRIO EXTERNO',
-            ],
-            default => [
-                'report_title'        => 'LABORATORY TEST REPORT',
-                'certificate_no'      => 'Certificate no.',
-                'page_of'             => 'Page %d of %d',
-                'attention'           => 'Attention',
-                'client'              => 'Client',
-                'address'             => 'Address and Location',
-                'report_no'           => 'Report No',
-                'sample_no'           => 'Sample No.',
-                'date_received'       => 'Date received',
-                'date_reported'       => 'Date Reported',
-                'container_type'      => 'Container Type',
-                'sample_description'  => 'Sample Description',
-                'weight'              => 'Weight',
-                'sampled_by'          => 'Sampled By',
-                'sample_temperature'  => 'Sample Temperature',
-                'sample_preservation' => 'Sample Preservation',
-                'production_date'     => 'Production Date',
-                'expiry_date'         => 'Expiry Date',
-                'lot_no'              => 'Lot No.',
-                'no_of_pages'         => 'No. of pages',
-                'date_of_analysis'    => 'Date of Analysis',
-                'sample_reference'    => 'Sample Reference',
-                'sample_point'        => 'Sample Point',
-                'condition'           => 'Condition',
-                'analyte'             => 'Analyte',
-                'results'             => 'Results',
-                'unit'                => 'Unit',
-                'specification'       => 'Specification',
-                'mu_percent'          => 'M.U%',
-                'method'              => 'Method of Analysis',
-                'no_results'          => 'No results captured for this sample.',
-                'no_samples'          => 'No samples found for this batch.',
-                'analysis_conducted'  => 'Analysis conducted by',
-                'test_method_dev'     => 'Test method deviation: None',
-                'signed_behalf'       => 'Signed for and on behalf of',
-                'no_signature'        => 'No signature on file',
-                'results_relate'      => 'Test results relate only to the samples tested.',
-                'no_reproduce'        => 'This report shall not be reproduced except in full, without the written approval of the Laboratory.',
-                'end_of_text'         => '-End of text',
-                'issued_on'           => 'Issued on',
-                'disclaimer'          => 'DISCLAIMER: ALL THE SAMPLES WERE TESTED AT A THIRD-PARTY LABORATORY',
-            ],
-        };
+        // Language & translations (single source of truth in TestRequestReportPdfService)
+        $pdfService = app(\App\Services\Sampleworkflow\TestRequestReportPdfService::class);
+        $language = $pdfService->normalizeLanguage((string) ($request->lang ?? 'en'));
+        $isRTL = ($language === 'ar');
+        $labels = $pdfService->labelsFor($language);
+        $includeReferenceMethod = $request->boolean('include_reference_method');
 
         $verificationUrl = route('generateTestRequestReport', [
             'batch_id' => $batch->id,
             'seq' => $sequence,
             'lang' => $language,
             'mode' => 'pdf',
+            'include_reference_method' => $includeReferenceMethod ? 1 : 0,
         ]);
 
         $footerQrCode = '';
@@ -6591,21 +6483,36 @@ class SampleWorkFlowController extends Controller
             ->orderByDesc('revision_no')
             ->get();
 
-        $mode = strtolower((string) $request->query('mode', 'view'));
-        $isPdfMode = $mode === 'pdf';
-        if ($mode === 'pdf') {
+        $batchBackUrl = route('view-batch-details', [
+            'batch' => $batch->id,
+            'client' => 0,
+            'portal' => 0,
+            'status' => $batch->status ?? 'Samples In Lab',
+        ]);
+
+        if ($isPdfMode) {
             $viewData = array_merge($reportData, compact(
                 'language',
                 'labels',
                 'revisions',
                 'isRTL',
                 'isPdfMode',
+                'isPreviewMode',
+                'includeReferenceMethod',
                 'footerQrCode',
-                'verificationUrl'
+                'verificationUrl',
+                'batchBackUrl'
             ));
 
             $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
-            $pdf->setPaper('a4');
+            $dompdf = $pdf->getDomPDF();
+            $dompdf->set_option('enable_php', true);
+            $dompdf->set_option('isHtml5ParserEnabled', true);
+            $dompdf->set_option('defaultFont', 'DejaVu Sans');
+            $dompdf->set_option('isRemoteEnabled', true);
+            $dompdf->set_option('defaultMediaType', 'print');
+            $dompdf->set_option('isFontSubsettingEnabled', true);
+            $pdf->setPaper('a4', 'portrait');
 
             $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
             $customerName = trim($customerName, '_') ?: 'customer';
@@ -6629,15 +6536,46 @@ class SampleWorkFlowController extends Controller
             ]);
         }
 
-        return view('layouts.lab.sample-workflow.report-formats.test_request_report', array_merge($reportData, compact(
+        $reportViewData = array_merge($reportData, compact(
             'language',
             'labels',
             'revisions',
             'isRTL',
             'isPdfMode',
+            'isPreviewMode',
+            'includeReferenceMethod',
             'footerQrCode',
-            'verificationUrl'
-        )));
+            'verificationUrl',
+            'batchBackUrl',
+            'reportNumber',
+            'batch'
+        ));
+
+        // Shell page with sidebar; iframe loads preview-doc for isolated report CSS
+        if ($isPreviewMode) {
+            return view('layouts.lab.sample-workflow.report-formats.test_request_report_preview_page', [
+                'batch' => $batch,
+                'reportNumber' => $reportNumber,
+                'batchBackUrl' => $batchBackUrl,
+                'language' => $language,
+                'includeReferenceMethod' => $includeReferenceMethod,
+            ]);
+        }
+
+        // Bare report document for the in-app preview iframe (no revision bump)
+        if ($isPreviewDoc) {
+            return view(
+                'layouts.lab.sample-workflow.report-formats.test_request_report',
+                array_merge($reportViewData, [
+                    'isPreviewMode' => false,
+                    'isEmbedded' => false,
+                    'isPdfMode' => false,
+                    'hideScreenToolbar' => true,
+                ])
+            );
+        }
+
+        return view('layouts.lab.sample-workflow.report-formats.test_request_report', $reportViewData);
     }
 
     public function moveToVerificationApprovalLevel(Request $request)
@@ -6756,8 +6694,12 @@ class SampleWorkFlowController extends Controller
                 }
             }
 
-            // Update batch status
-            $batch->status = $request->status;
+            // Update batch status and chain of custody
+            app(\App\Services\Sampleworkflow\BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+                $batch,
+                $request->status,
+                $request->comments ?? 'Moved to Sample Verification with assigned Technical Reviewer and Lab Manager.'
+            );
             $batch->report_status = '';
             $batch->prelim_report_status = 0;
             $batch->prelim_batch_status = '';
@@ -6782,7 +6724,11 @@ class SampleWorkFlowController extends Controller
         $approvers->batch_status = $request->status;
         $approvers->show_report = 1;
         $approvers->save();
-        $batch->status = $request->status;
+        app(\App\Services\Sampleworkflow\BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+            $batch,
+            $request->status,
+            $request->comments ?? null
+        );
         $batch->save();
         if (isset($request->notification)) {
             $user = User::find($request->user_id);
@@ -8180,141 +8126,16 @@ class SampleWorkFlowController extends Controller
         return redirect()->back()->with('success', 'Results processed successfully!');
     }
 
-    public function markQCBatchComplete(Request $request)
+    public function markQCBatchComplete(Request $request, QcBatchCompletionService $qcBatchCompletionService)
     {
-        $captured_results = CapturedResult::with('sample')->where('sample_header_id', $request->batch_id)->get();
-        QcResults::where('sample_header_id', $request->batch_id)->delete();
-        $qc_config_percentage = SystemConfiguration::where('key', 'qc_percentage_config')->first();
-        $batch = SampleHeader::with('qctype')->find($request->batch_id);
-        $qc_results = [];
-        
-        foreach ($captured_results as $c_result) {
-            $analyte_processed = QCProcessedResults::where('analyte_id', $c_result->analyte_id)
-                ->where('analysis_type_id', $c_result->analysis_type_id)
-                ->where('sample_type_id', $batch->sample_type_id)
-                ->where('method_id', $c_result->method_id)
-                ->first();
-
-            if (!isset($analyte_processed->id)) {
-                $analyte_processed = QCProcessedResults::create([
-                    'method_id' => $c_result->method_id,
-                    "analyte_id" => $c_result->analyte_id,
-                    "analysis_type_id" => $c_result->analysis_type_id,
-                    "sample_type_id" => $batch->sample_type_id,
-                ]);
-            }
-
-            // Determine status_code (PASSED/FAILED)
-            $status = 'PASSED';
-            if ($c_result->repeat_captured_id > 0) {
-                // Duplicate comparison logic
-                $captured = CapturedResult::find($c_result->repeat_captured_id);
-                if ($captured && is_numeric($captured->result) && is_numeric($c_result->result)) {
-                    $perc_val = (floatval($qc_config_percentage->value ?? 0) / 100) * floatval($captured->result);
-                    $low = floatval($captured->result) - $perc_val;
-                    $high = floatval($captured->result) + $perc_val;
-                    if (floatval($c_result->result) < $low || floatval($c_result->result) > $high) {
-                        $status = 'FAILED';
-                    }
-                }
-            } else {
-                // Standard range comparison logic
-                $standardId = $c_result->sample->main_standard ?? 0;
-                if ($standardId > 0 && is_numeric($c_result->result)) {
-                    $stdAnalyte = \App\StandardAnalytes::where('standard_id', $standardId)
-                        ->where('analyte_id', $c_result->analyte_id)
-                        ->first();
-                    if ($stdAnalyte) {
-                        if (floatval($c_result->result) < $stdAnalyte->low || floatval($c_result->result) > $stdAnalyte->high) {
-                            $status = 'FAILED';
-                        }
-                    }
-                }
-            }
-
-            $qc_results[] = [
-                "captured_result_id" => $c_result->id,
-                "sample_detail_code" => $c_result->sample_detail_code,
-                "sample_detail_id" => $c_result->sample_detail_id,
-                "sample_header_id" => $c_result->sample_header_id,
-                "analyte_id" => $c_result->analyte_id,
-                "analyte_code" => $c_result->analyte_code,
-                "result" => $c_result->result,
-                "status_code" => $status, // Added status code population
-                "analysis_type_id" => $c_result->analysis_type_id,
-                "remarks" => $c_result->remark,
-                "analyte_status_contracted" => $c_result->analyte_status_contracted,
-                "analyte_accredited" => $c_result->analyte_accredited,
-                "qc_scheme_id" => $batch->qc_scheme_id,
-                "qc_type_id" => $batch->qc_type_id,
-                "method_id" => $c_result->method_id,
-                "sample_type_id" => $batch->sample_type_id,
-                "repeat_captured_id" => $c_result->repeat_captured_id,
-                "previous_result" => $c_result->repeatsampleresult,
-                "config_percentage" => $qc_config_percentage->value ?? 0,
-                "is_qc_processed" => 0,
-                "analyte_processed_id" => $analyte_processed->id,
-                "created_at" => now(),
-                "updated_at" => now(),
-            ];
-        }
-
-        if (!empty($qc_results)) {
-            QcResults::insert($qc_results);
-        }
-
-        // Automatic statistical processing (Robust CV logic from QualityControlController)
-        $this->autoProcessQcStats(collect($qc_results)->pluck('analyte_processed_id')->unique()->toArray());
-
+        $batchId = (string) $request->batch_id;
+        $batch = SampleHeader::query()->findOrFail($batchId);
         $previousStatus = $batch->status;
-        $batch->status = 'Completed';
-        $batch->save();
+
+        $qcBatchCompletionService->completeBatch($batchId);
 
         return redirect()->route('sample-workflow', ['status' => $previousStatus])
             ->with('success', 'QC batch completed and analytics processed.');
-    }
-
-    /**
-     * Internal helper to trigger robust statistical processing automatically
-     */
-    private function autoProcessQcStats(array $analyteProcessedIds)
-    {
-        $unprocessed = QCProcessedResults::whereIn('id', $analyteProcessedIds)->get();
-        foreach ($unprocessed as $up) {
-            $raw_results = QcResults::where('analyte_processed_id', $up->id)
-                ->pluck('result')
-                ->filter(fn($v) => is_numeric($v))
-                ->map(fn($v) => (float)$v)
-                ->values()
-                ->toArray();
-
-            if (count($raw_results) > 0) {
-                // Basic Robust Stats Logic (Simplified version of QualityControlController methods)
-                $median = $this->calculateMedian($raw_results);
-                $deviations = array_map(fn($v) => abs($v - $median), $raw_results);
-                $mad = $this->calculateMedian($deviations);
-                $rSD = $mad * 1.4826;
-                $mean = array_sum($raw_results) / count($raw_results);
-                $rCV = $median != 0 ? $rSD / $median : 0;
-
-                $up->robust_standard_deviation = $rSD;
-                $up->robust_median = $median;
-                $up->robust_mean = $mean;
-                $up->robust_cv = $rCV;
-                $up->robust_cv_percentage = $rCV * 100;
-                $up->save();
-            }
-        }
-        QcResults::whereIn('analyte_processed_id', $analyteProcessedIds)->update(['is_qc_processed' => 1]);
-    }
-
-    private function calculateMedian(array $values): float
-    {
-        $count = count($values);
-        if ($count === 0) return 0;
-        sort($values);
-        $middle = (int) floor($count / 2);
-        return $count % 2 ? $values[$middle] : ($values[$middle - 1] + $values[$middle]) / 2;
     }
 
     /**
@@ -8476,10 +8297,25 @@ class SampleWorkFlowController extends Controller
                 return response()->json(['error' => 'No results to save'], 400);
             }
 
+            $labSectionAccess = app(LabSectionResultAccess::class);
+            $actingUser = auth()->user();
+
+            if (! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+                return response()->json([
+                    'error' => 'Assign a lab section in your profile before capturing results.',
+                ], 403);
+            }
+
             foreach ($captureResults as $resultData) {
                 $capturedResult = CapturedResult::find($resultData['parameter_id']);
 
                 if ($capturedResult) {
+                    if (! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
+                        return response()->json([
+                            'error' => 'You can only save parameters for your assigned lab section(s).',
+                        ], 403);
+                    }
+
                     $capturedResult->result = $resultData['result'];
                     $capturedResult->result_reporting_symbol = $resultData['reporting_symbol'] ?? '';
 
@@ -8552,6 +8388,23 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_id = $analyteRecord->id;
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
+            }
+
+            $labSectionAccess = app(LabSectionResultAccess::class);
+            $actingUser = auth()->user();
+            if ($capturedResult->exists && ! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $labSectionAccess->hasLabSectionAssignment($actingUser)
+                        ? 'You can only update parameters for your assigned lab section(s).'
+                        : 'Assign a lab section in your profile before capturing results.',
+                ], 403);
+            }
+            if (! $capturedResult->exists && ! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Assign a lab section in your profile before capturing results.',
+                ], 403);
             }
 
             $actingUserId = auth()->id() ? (string) auth()->id() : null;
@@ -8740,6 +8593,27 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analyte_id = $analyteRecord->id;
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
+            }
+
+            if (! $capturedResult) {
+                return response()->json(['success' => false, 'message' => 'Result not found'], 404);
+            }
+
+            $labSectionAccess = app(LabSectionResultAccess::class);
+            $actingUser = auth()->user();
+            if ($capturedResult->exists && ! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $labSectionAccess->hasLabSectionAssignment($actingUser)
+                        ? 'You can only update parameters for your assigned lab section(s).'
+                        : 'Assign a lab section in your profile before capturing results.',
+                ], 403);
+            }
+            if (! $capturedResult->exists && ! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Assign a lab section in your profile before capturing results.',
+                ], 403);
             }
 
             $validationResult = null;
@@ -9290,13 +9164,20 @@ class SampleWorkFlowController extends Controller
                             // Additional fallbacks: storage/app/... (non-public) and public_path with decoded URL
                             $decodedPath = urldecode($imgPath);
                             $altLocalPaths = [
-                                // Signatures/photos are stored outside "public" in this app
+                                // Livewire uploads store signatures on the public disk
+                                str_starts_with($decodedPath, '/storage/personnel-signature/')
+                                    ? storage_path('app/public/personnel-signature/' . ltrim(substr($decodedPath, strlen('/storage/personnel-signature/')), '/'))
+                                    : null,
                                 str_starts_with($decodedPath, '/storage/personnel-signature/')
                                     ? storage_path('app/personnel-signature/' . ltrim(substr($decodedPath, strlen('/storage/personnel-signature/')), '/'))
                                     : null,
                                 str_starts_with($decodedPath, '/storage/personnel/')
+                                    ? storage_path('app/public/personnel/' . ltrim(substr($decodedPath, strlen('/storage/personnel/')), '/'))
+                                    : null,
+                                str_starts_with($decodedPath, '/storage/personnel/')
                                     ? storage_path('app/personnel/' . ltrim(substr($decodedPath, strlen('/storage/personnel/')), '/'))
                                     : null,
+                                storage_path('app/public/' . ltrim(str_replace('/storage/', '', $decodedPath), '/')),
                                 storage_path('app/' . ltrim($decodedPath, '/')),
                                 public_path(ltrim($decodedPath, '/')),
                             ];

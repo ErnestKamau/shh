@@ -364,24 +364,25 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Analyte <span class="text-danger">*</span></label>
-                                        <select wire:model="standardAnalyteForm.analyte_id" class="form-select @error('standardAnalyteForm.analyte_id') is-invalid @enderror">
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('standardAnalyteForm.analyte_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <x-searchable-select
+                                            wire:model="standardAnalyteForm.analyte_id"
+                                            :options="collect($analytes)->map(fn($analyte) => ['id' => $analyte->id, 'name' => $analyte->name . ' (' . $analyte->code . ')'])"
+                                            placeholder="Search analytes..."
+                                            empty-label="Select Analyte"
+                                            class="{{ $errors->has('standardAnalyteForm.analyte_id') ? 'is-invalid' : '' }}"
+                                        />
+                                        @error('standardAnalyteForm.analyte_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Standard Value</label>
-                                        <select wire:model="standardAnalyteForm.standard_value_id" class="form-select">
-                                            <option value="">Select Standard Value</option>
-                                            @foreach($standardValues as $value)
-                                                <option value="{{ $value->id }}">{{ $value->name }} ({{ $value->code }})</option>
-                                            @endforeach
-                                        </select>
+                                        <x-searchable-select
+                                            wire:model="standardAnalyteForm.standard_value_id"
+                                            :options="collect($standardValues)->map(fn($value) => ['id' => $value->id, 'name' => $value->name . ' (' . $value->code . ')'])"
+                                            placeholder="Search standard values..."
+                                            empty-label="Select Standard Value"
+                                        />
                                     </div>
                                 </div>
                             </div>

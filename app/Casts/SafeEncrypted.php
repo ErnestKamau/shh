@@ -15,8 +15,8 @@ use Throwable;
  * DecryptException, which would crash the page for rows that were stored
  * with a different APP_KEY or before encryption was introduced.
  *
- * Use the `lims:re-encrypt` Artisan command in gcla-api-s to fix the
- * underlying data so that every row can be decrypted cleanly.
+ * Also unwraps nested encryption from accidental double-encrypt save cycles,
+ * and avoids re-encrypting values that are already valid ciphertext.
  */
 class SafeEncrypted implements CastsAttributes
 {
@@ -26,17 +26,42 @@ class SafeEncrypted implements CastsAttributes
             return $value;
         }
 
-        try {
-            return Crypt::decryptString($value);
-        } catch (Throwable $e) {
-            Log::warning('SafeEncrypted: could not decrypt', [
-                'model' => $model::class,
-                'key'   => $key,
-                'error' => $e->getMessage(),
-            ]);
-
+        if (! is_string($value) || ! str_starts_with($value, 'eyJ')) {
             return $value;
         }
+
+        $current = $value;
+        $guard = 0;
+
+        while (
+            is_string($current)
+            && $current !== ''
+            && str_starts_with($current, 'eyJ')
+            && $guard < 30
+        ) {
+            try {
+                $next = Crypt::decryptString($current);
+            } catch (Throwable $e) {
+                if ($guard === 0) {
+                    Log::warning('SafeEncrypted: could not decrypt', [
+                        'model' => $model::class,
+                        'key'   => $key,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                break;
+            }
+
+            if ($next === $current) {
+                break;
+            }
+
+            $current = $next;
+            $guard++;
+        }
+
+        return $current;
     }
 
     public function set(Model $model, string $key, mixed $value, array $attributes): mixed
@@ -45,6 +70,19 @@ class SafeEncrypted implements CastsAttributes
             return $value;
         }
 
-        return Crypt::encryptString((string) $value);
+        $stringValue = (string) $value;
+
+        // Avoid double-encrypting an already-encrypted payload.
+        if (str_starts_with($stringValue, 'eyJ')) {
+            try {
+                Crypt::decryptString($stringValue);
+
+                return $stringValue;
+            } catch (Throwable) {
+                // Not valid ciphertext — treat as plaintext and encrypt below.
+            }
+        }
+
+        return Crypt::encryptString($stringValue);
     }
 }

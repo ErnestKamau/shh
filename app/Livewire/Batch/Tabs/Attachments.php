@@ -433,7 +433,14 @@ class Attachments extends Component
 
     public function getCustomerAttachmentsProperty()
     {
-        return $this->batch->submissionFormInstance ? $this->batch->submissionFormInstance->customAttachments : collect();
+        $instance = $this->batch->submissionFormInstance;
+        if ($instance === null) {
+            return collect();
+        }
+
+        return $instance->customAttachments->each(
+            fn ($attachment) => $attachment->setRelation('submissionFormInstance', $instance)
+        );
     }
 
     public function getQuotationDocumentProperty()

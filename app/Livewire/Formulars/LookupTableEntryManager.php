@@ -77,11 +77,13 @@ class LookupTableEntryManager extends Component
         $this->showCreateModal = true;
     }
 
-    public function showEditEntryModal(LookupTableEntry $entry)
+    public function showEditEntryModal(string $entryId): void
     {
+        $entry = LookupTableEntry::findOrFail($entryId);
+
         $this->editingEntry = $entry;
         $keys = is_array($entry->keys) ? $entry->keys : json_decode($entry->keys, true);
-        
+
         if ($this->lookupTable->isRangeBased()) {
             $this->rangeLow = $keys['low'] ?? '';
             $this->rangeHigh = $keys['high'] ?? '';
@@ -90,7 +92,7 @@ class LookupTableEntryManager extends Component
         } else {
             $this->entryKeys = $keys;
         }
-        
+
         $this->entryValue = $entry->value;
         $this->showEditModal = true;
     }
@@ -212,13 +214,14 @@ class LookupTableEntryManager extends Component
         }
     }
 
-    public function deleteEntry(LookupTableEntry $entry)
+    public function deleteEntry(string $entryId): void
     {
         try {
+            $entry = LookupTableEntry::findOrFail($entryId);
             $lookupService = app(LookupService::class);
             $keys = is_array($entry->keys) ? $entry->keys : json_decode($entry->keys, true);
             $lookupService->deleteValue($this->lookupTable->id, $keys);
-            
+
             $this->setMessage('Entry deleted successfully!', 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error deleting entry: ' . $e->getMessage(), 'error');
@@ -389,7 +392,7 @@ class LookupTableEntryManager extends Component
     /**
      * Check if a range overlaps with existing ranges.
      */
-    protected function hasOverlappingRange(array $keys, ?int $excludeEntryId = null): bool
+    protected function hasOverlappingRange(array $keys, ?string $excludeEntryId = null): bool
     {
         $low = $keys['low'];
         $high = $keys['high'];

@@ -117,6 +117,48 @@ final class CommercialEnquirySampleLineSync
     }
 
     /**
+     * Persist lab Process Enquiry sample-config edits back onto the enquiry's
+     * canonical portal/LIMS parameter stores (sample_lines, requested_analyses, parameter_ids).
+     *
+     * @param  list<array<string, mixed>>  $sampleConfigs
+     */
+    public function syncFromSampleConfigs(SampleSubmissionRequest $enquiry, array $sampleConfigs): void
+    {
+        $lines = [];
+
+        foreach (array_values($sampleConfigs) as $index => $config) {
+            $parameterKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '')
+                ->unique()
+                ->values()
+                ->all();
+
+            $customerSampleId = trim((string) ($config['customer_sample_id'] ?? ''));
+
+            $lines[] = [
+                'row_index' => array_key_exists('row_index', $config) && $config['row_index'] !== null
+                    ? (int) $config['row_index']
+                    : $index,
+                'sample_type_id' => $config['sample_type_id'] ?? null,
+                'analysis_type_id' => $config['analysis_type_id'] ?? null,
+                'analysis_element_id' => $parameterKeys[0] ?? null,
+                'parameter_label' => 'Parameter',
+                'number_of_samples' => 1,
+                'customer_sample_id' => $customerSampleId !== '' ? $customerSampleId : null,
+                'sample_condition_id' => $config['sample_condition_id'] ?? null,
+                'attributes' => $parameterKeys !== []
+                    ? ['analysis_element_ids' => $parameterKeys]
+                    : [],
+            ];
+        }
+
+        $this->syncSampleLines($enquiry, $lines);
+        $this->syncRequestedAnalyses($enquiry, $lines);
+        $enquiry->save();
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function linesForEnquirySync(
@@ -197,6 +239,8 @@ final class CommercialEnquirySampleLineSync
             if ($element !== null) {
                 $label = (string) ($element->analyte->name ?? $label);
                 $analysisTypeId = $analysisTypeId !== '' ? $analysisTypeId : (string) $element->analysis_type_id;
+            } elseif ($this->looksLikeUuidList($label)) {
+                $label = 'Parameter';
             }
         }
 
@@ -243,5 +287,21 @@ final class CommercialEnquirySampleLineSync
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
             ]);
         }
+    }
+
+    private function looksLikeUuidList(string $label): bool
+    {
+        $tokens = array_values(array_filter(array_map('trim', preg_split('/\s*,\s*/', $label) ?: [])));
+        if ($tokens === []) {
+            return false;
+        }
+
+        foreach ($tokens as $token) {
+            if (! Str::isUuid($token)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

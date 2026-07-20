@@ -5,6 +5,8 @@ namespace App\Livewire\Worksheets;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedResultsCaptureService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class GroupedResultsCapture extends Component
@@ -14,6 +16,9 @@ class GroupedResultsCapture extends Component
     public GroupedWorksheetHolder $holder;
 
     public bool $reviewOnly = false;
+
+    /** True when the user has no lab section assignment (view-all, edit-none). */
+    public bool $worksheetsReadOnly = false;
 
     /** @var array<int, array{row_key: string, label: string, analysis_type_name: string|null}> */
     public array $parameters = [];
@@ -55,7 +60,8 @@ class GroupedResultsCapture extends Component
     {
         $this->batch = $batch;
         $this->holder = $holder;
-        $this->reviewOnly = $reviewOnly;
+        $this->worksheetsReadOnly = ! app(LabSectionResultAccess::class)->hasLabSectionAssignment(Auth::user());
+        $this->reviewOnly = $reviewOnly || $this->worksheetsReadOnly;
         $this->loadMatrix();
         $this->loadPostingStatus();
     }
@@ -119,6 +125,11 @@ class GroupedResultsCapture extends Component
 
     public function saveDraft(): void
     {
+        if ($this->worksheetsReadOnly) {
+            $this->setMessage(app(LabSectionResultAccess::class)->denyEditMessage(Auth::user()), 'error');
+            return;
+        }
+
         try {
             app(GroupedResultsCaptureService::class)->saveDrafts(
                 $this->batch,
@@ -140,6 +151,11 @@ class GroupedResultsCapture extends Component
 
     public function postResults(?string $successMessage = null): void
     {
+        if ($this->worksheetsReadOnly) {
+            $this->setMessage(app(LabSectionResultAccess::class)->denyEditMessage(Auth::user()), 'error');
+            return;
+        }
+
         try {
             app(GroupedResultsCaptureService::class)->postResults(
                 $this->batch,

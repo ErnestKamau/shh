@@ -91,4 +91,68 @@ class SampleAnalysisSetupServiceCreationTest extends TestCase
         $this->assertNotNull($result);
         $this->assertSame($unit->name, $result->unit_code);
     }
+
+    public function test_sync_batch_lab_section_ids_from_analysis_types(): void
+    {
+        if (! extension_loaded('pdo_pgsql') && config('database.default') === 'pgsql') {
+            $this->markTestSkipped('pgsql unavailable in this environment');
+        }
+
+        $sectionId = (string) Str::uuid();
+        $labId = (string) Str::uuid();
+        $companyId = (string) Str::uuid();
+
+        \Illuminate\Support\Facades\DB::table('labs')->insert([
+            'id' => $labId,
+            'code' => 'LAB-'.Str::upper(Str::random(3)),
+            'name' => 'Sync Lab',
+            'phone1' => '000',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('sample_analysis_stages')->insert([
+            'id' => $sectionId,
+            'lab_id' => $labId,
+            'company_id' => $companyId,
+            'name' => 'MICRO',
+            'code' => 'MIC',
+            'active' => true,
+            'is_sample_stage' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $analysisType = \App\AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Micro Type '.Str::random(4),
+            'code' => 'MT-'.Str::upper(Str::random(4)),
+            'lab_section_id' => $sectionId,
+            'active' => 1,
+        ]);
+
+        $batch = SampleHeader::query()->create([
+            'batch_code' => 'SYNC-'.Str::random(4),
+            'status' => 'Samples In Lab',
+        ]);
+
+        $detail = SampleDetails::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_code' => 'MIC-001',
+            'analysis_type_id' => $analysisType->id,
+        ]);
+
+        \App\SampleAnalysisTypeRelation::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'batch_id' => $batch->id,
+            'sample_detail_id' => $detail->id,
+        ]);
+
+        $csv = app(SampleAnalysisSetupService::class)->syncBatchLabSectionIdsFromAnalysisTypes($batch->fresh());
+
+        $this->assertSame($sectionId, $csv);
+        $this->assertSame($sectionId, (string) $batch->fresh()->lab_section_ids);
+    }
 }

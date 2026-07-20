@@ -115,6 +115,29 @@ class FormulaStep extends Model implements Auditable
     }
 
     /**
+     * Lookup table UUID stored in lookup_config JSON (not a real FK column).
+     */
+    public function lookupTableId(): ?string
+    {
+        $id = $this->lookup_config['lookup_table_id'] ?? null;
+
+        return filled($id) ? (string) $id : null;
+    }
+
+    /**
+     * Human-readable lookup table name for UI, with graceful missing/empty fallbacks.
+     */
+    public function lookupTableDisplayName(): string
+    {
+        $id = $this->lookupTableId();
+        if ($id === null) {
+            return 'N/A';
+        }
+
+        return LookupTable::query()->find($id)?->name ?? '(missing)';
+    }
+
+    /**
      * Check if this step is a parameter result step.
      */
     public function isParameterResult(): bool

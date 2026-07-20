@@ -85,25 +85,7 @@
 
             @if($showAdvancedFilters)
                 <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label class="small text-muted">{{ __('personnel.zone') }}</label>
-                        <select class="form-control" wire:model.live="zoneFilter">
-                            <option value="">{{ __('personnel.zones') }}</option>
-                            @foreach($zones as $zone)
-                                <option value="{{ $zone['id'] }}">{{ $zone['key'] }}{{ $zone['value'] ? ' - '.$zone['value'] : '' }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="small text-muted">{{ __('personnel.directorate') }}</label>
-                        <select class="form-control" wire:model.live="directorateFilter">
-                            <option value="">{{ __('personnel.directorates') }}</option>
-                            @foreach($directorates as $directorate)
-                                <option value="{{ $directorate['id'] }}">{{ $directorate['name'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.lab') }}</label>
                         <select class="form-control" wire:model.live="labFilter">
                             <option value="">{{ __('personnel.labs') }}</option>
@@ -112,11 +94,11 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.employed_from') }}</label>
                         <input type="date" class="form-control" wire:model.live="employmentDateFrom">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.employed_to') }}</label>
                         <input type="date" class="form-control" wire:model.live="employmentDateTo">
                     </div>
@@ -134,7 +116,7 @@
                             <th>{{ __('personnel.middle_name') }}</th>
                             <th>{{ __('personnel.last_name') }}</th>
                             <th>{{ __('personnel.department') }}</th>
-                            <th>{{ __('personnel.jd') }}</th>
+                            <th>{{ __('personnel.position') }}</th>
                             <th>{{ __('personnel.lab_sections') }}</th>
                             <th>{{ __('personnel.email') }}</th>
                             <th>{{ __('personnel.employment_date') }}</th>
@@ -151,7 +133,7 @@
                                             <i class="mdi mdi-eye-outline"></i>
                                         </a>
 
-                                        @if(auth()->user()->CheckDeactivatePersonnel())
+                                        @if(auth()->user()->can('personnel.personnel.edit') || auth()->user()->CheckDeactivatePersonnel())
                                             <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="openStateModal('{{ $item->id }}')" title="{{ (int) $item->active === 1 ? __('personnel.deactivate_personnel') : __('personnel.activate_personnel') }}">
                                                 <i class="mdi {{ (int) $item->active === 1 ? 'mdi-account-lock' : 'mdi-lock-open-variant' }}"></i>
                                             </button>
@@ -291,7 +273,7 @@
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="form-group">
-                                                    <label class="control-label">{{ __('personnel.id_number_passport') }} <span class="text-danger">*</span></label>
+                                                    <label class="control-label">{{ __('personnel.id_number_passport') }}</label>
                                                     <input type="text" class="form-control" wire:model="personnelForm.id_number" placeholder="{{ __('personnel.id_number_passport') }}..." />
                                                 </div>
                                             </div>
@@ -531,6 +513,44 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div class="col-md-12">
+                                                <div class="form-group">
+                                                    <label class="control-label">{{ __('personnel.lab_sections') }}</label>
+                                                    <div class="tag-select-container" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showLabSectionDropdown', true)">
+                                                            @foreach(($personnelForm['lab_section_id'] ?? []) as $__sectionId)
+                                                                @php($__sectionName = collect($stages)->firstWhere('id', $__sectionId)['name'] ?? $__sectionId)
+                                                                <span class="tag-badge">
+                                                                    {{ $__sectionName }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="removeLabSectionSelection(@js($__sectionId))"></i>
+                                                                </span>
+                                                            @endforeach
+                                                            <input type="text"
+                                                                wire:model.live="labSectionSearch"
+                                                                wire:keyup="searchLabSections"
+                                                                class="tag-input"
+                                                                placeholder="{{ empty($personnelForm['lab_section_id'] ?? []) ? 'Search lab sections...' : '' }}"
+                                                                autocomplete="off">
+                                                        </div>
+                                                        @if($showLabSectionDropdown)
+                                                            <div class="tag-dropdown">
+                                                                @forelse($filteredLabSections as $item)
+                                                                    <div class="tag-dropdown-item {{ in_array($item['id'], $personnelForm['lab_section_id'] ?? []) ? 'tag-dropdown-item-selected' : '' }}"
+                                                                         wire:click.stop="toggleLabSectionSelection(@js($item['id']))">
+                                                                        @if(in_array($item['id'], $personnelForm['lab_section_id'] ?? []))
+                                                                            <i class="mdi mdi-check-circle text-primary"></i>
+                                                                        @endif
+                                                                        {{ $item['name'] }}
+                                                                    </div>
+                                                                @empty
+                                                                    <div class="tag-dropdown-item text-muted">No lab sections found</div>
+                                                                @endforelse
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                    @error('personnelForm.lab_section_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -560,11 +580,11 @@
                                             <div class="col-md-6 mb-3">
                                                 <div class="ptm-signature-card h-100">
                                                     <label class="control-label d-block">{{ __('personnel.sign_using_pad') }}</label>
-                                                    <div class="ptm-signature-canvas-wrap" id="addPersonnelSignatureCanvasWrap">
+                                                    <div class="ptm-signature-canvas-wrap" id="addPersonnelSignatureCanvasWrap" wire:ignore>
                                                         <canvas id="addPersonnelSignatureCanvas" width="620" height="190"></canvas>
                                                         <span class="ptm-signature-placeholder" id="addPersonnelSignaturePlaceholder">{{ __('personnel.sign_here') }}</span>
                                                     </div>
-                                                    <input type="hidden" id="addPersonnelSignatureData" value="{{ $signatureData }}">
+                                                    <input type="hidden" id="addPersonnelSignatureData" wire:model="signatureData" value="{{ $signatureData }}">
                                                     <div class="d-flex justify-content-between align-items-center mt-2">
                                                         <div class="d-flex align-items-center" style="gap: 8px;">
                                                             <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') }}</small>
@@ -1182,6 +1202,24 @@
                 statusBadge.classList.toggle('is-signed', isSigned);
             }
 
+            function pushSignatureToLivewire(value, canvas) {
+                const { hiddenInput } = getPadNodes();
+                const root = (canvas && canvas.closest('[wire\\:id]'))
+                    || (hiddenInput && hiddenInput.closest('[wire\\:id]'));
+
+                if (!root || !window.Livewire || typeof Livewire.find !== 'function') {
+                    return;
+                }
+
+                const component = Livewire.find(root.getAttribute('wire:id'));
+                if (!component || typeof component.set !== 'function') {
+                    return;
+                }
+
+                // false = update client snapshot only; included on the next save request (avoids race)
+                component.set('signatureData', value, false);
+            }
+
             function syncHiddenSignature(canvas) {
                 const { hiddenInput, placeholder } = getPadNodes();
                 if (!hiddenInput || !canvas) {
@@ -1191,17 +1229,17 @@
                 if (hasSignatureStroke) {
                     const data = canvas.toDataURL('image/png');
                     hiddenInput.value = data;
-                    if (window.Livewire && typeof window.Livewire.find === 'function') {
-                        $wire.set('signatureData', data);
-                    }
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    pushSignatureToLivewire(data, canvas);
                     if (placeholder) {
                         placeholder.style.display = 'none';
                     }
                 } else {
                     hiddenInput.value = '';
-                    if (window.Livewire && typeof window.Livewire.find === 'function') {
-                        $wire.set('signatureData', '');
-                    }
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    pushSignatureToLivewire('', canvas);
                     if (placeholder) {
                         placeholder.style.display = 'block';
                     }
@@ -1313,6 +1351,18 @@
             document.addEventListener('livewire:load', bindPad);
             document.addEventListener('livewire:navigated', bindPad);
             document.addEventListener('livewire:update', bindPad);
+
+            // Ensure pad data is in Livewire state before save / next-step clicks
+            document.addEventListener('click', function (event) {
+                const trigger = event.target.closest('[wire\\:click="savePersonnel"], [wire\\:click="nextAddPersonnelStep"]');
+                if (!trigger) {
+                    return;
+                }
+                const { canvas } = getPadNodes();
+                if (canvas) {
+                    syncHiddenSignature(canvas);
+                }
+            }, true);
 
             const observer = new MutationObserver(function () {
                 const canvas = document.getElementById('addPersonnelSignatureCanvas');

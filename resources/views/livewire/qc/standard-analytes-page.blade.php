@@ -24,13 +24,13 @@
             <div class="form-row">
                 <div class="form-group col-md-4">
                     <label>Analyte</label>
-                    <select wire:model="analyteId" class="form-control form-control-sm @error('analyteId') is-invalid @enderror">
+                    <select wire:model.live="analyteId" class="form-control form-control-sm no-select2 @error('analyteId') is-invalid @enderror">
                         <option value="">Select analyte...</option>
                         @foreach($analytes as $analyte)
                             <option value="{{ $analyte->id }}">{{ $analyte->code }} - {{ $analyte->name }}</option>
                         @endforeach
                     </select>
-                    @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    @error('analyteId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
                 <div class="form-group col-md-2">
                     <label>Expected</label>

@@ -146,12 +146,12 @@
                                             <td><small class="text-muted">{{ $entry->created_at->format('M d, Y') }}</small></td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditEntryModal({{ $entry->id }})" 
+                                                    <button wire:click="showEditEntryModal(@js($entry->id))"
                                                             class="btn btn-sm btn-outline-primary mr-2" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteEntry({{ $entry->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
+                                                    <button wire:click="deleteEntry(@js($entry->id))"
+                                                            class="btn btn-sm btn-outline-danger"
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this entry?')">
                                                         <i class="mdi mdi-delete"></i>

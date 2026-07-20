@@ -1,15 +1,46 @@
+@if(empty($isEmbedded))
 <!DOCTYPE html>
 <html lang="{{ $language }}" dir="{{ $isRTL ? 'rtl' : 'ltr' }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test Request Report &mdash; {{ $reportNumber }}</title>
+<title>@if(!empty($isPreviewMode))Preview — @endif Test Request Report &mdash; {{ $reportNumber }}</title>
+@endif
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     /* ═══════════════════════════════════════════
        AmSpec Test Request Report — matches PDF
        ═══════════════════════════════════════════ */
+    @if(empty($isEmbedded))
     body { background: #e9ecef; }
+    @else
+    .trr-embedded-root { background: transparent; }
+    .trr-embedded-root .trr-page { margin-bottom: 0; }
+    @endif
+
+    @if(!empty($hideScreenToolbar))
+    /* Compact preview-doc: less chrome around the A4 sheet */
+    body {
+        background: #eceff3 !important;
+        margin: 0;
+        padding: 12px 0 20px;
+    }
+    .trr-page {
+        margin: 0 auto !important;
+        padding: 18px 22px 16px !important;
+        max-width: 760px !important;
+        border-color: #cfd6de !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .pg-header {
+        margin-bottom: 10px !important;
+        padding-bottom: 8px !important;
+    }
+    .report-title-bar {
+        margin: 8px 0 10px !important;
+        padding: 6px 0 !important;
+    }
+    @endif
 
     /* Screen toolbar (hidden on print) */
     .trr-toolbar {
@@ -19,59 +50,165 @@
         padding: 0 4px;
     }
 
+    .trr-preview-chrome {
+        max-width: 800px;
+        margin: 20px auto 10px;
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 12px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+    }
+    .trr-preview-chrome .trr-preview-copy {
+        min-width: 0;
+    }
+    .trr-preview-chrome .trr-preview-badge {
+        display: inline-block;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        background: #f59e0b;
+        color: #111827;
+        border-radius: 999px;
+        padding: 3px 10px;
+        margin-bottom: 6px;
+    }
+    .trr-preview-chrome h1 {
+        font-size: 16px;
+        font-weight: 650;
+        margin: 0 0 4px;
+        color: #fff;
+        font-family: Georgia, 'Times New Roman', serif;
+    }
+    .trr-preview-chrome p {
+        margin: 0;
+        font-size: 12px;
+        color: #cbd5e1;
+        line-height: 1.45;
+    }
+    .trr-preview-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+    .trr-preview-actions a,
+    .trr-preview-actions button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 8px 12px;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid transparent;
+        font-family: inherit;
+    }
+    .trr-preview-actions .btn-print {
+        background: #fff;
+        color: #0f172a;
+    }
+    .trr-preview-actions .btn-back {
+        background: transparent;
+        color: #e2e8f0;
+        border-color: #475569;
+    }
+    .trr-preview-watermark {
+        pointer-events: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-28deg);
+        font-size: 72px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        color: rgba(148, 163, 184, 0.12);
+        z-index: 0;
+        text-transform: uppercase;
+        white-space: nowrap;
+        font-family: Georgia, 'Times New Roman', serif;
+    }
+    body.trr-preview-body .trr-page {
+        position: relative;
+        z-index: 1;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+        border-color: #dbe3ee;
+    }
+
     /* White A4-like page */
     .trr-page {
         max-width: 800px;
         margin: 0 auto 40px;
         background: #fff;
-        border: 1px solid #ccc;
-        padding: 28px 32px 24px;
+        border: 1px solid #d0d0d0;
+        padding: 26px 30px 22px;
         /* Dompdf ships with DejaVu fonts; use them for Arabic glyph coverage. */
         font-family: {{ $isRTL ? "'DejaVu Sans', 'DejaVu Serif', Arial" : 'Arial, Helvetica, sans-serif' }};
-        font-size: 11px;
-        color: #111;
-        line-height: 1.4;
+        font-size: 10.5px;
+        color: #1a1a1a;
+        line-height: 1.45;
     }
 
     /* ── PAGE HEADER ──────────────────────────────── */
     .pg-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
-        padding-bottom: 12px;
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
+        padding-bottom: 0;
+        border-bottom: 1px solid #e5e5e5;
+    }
+    .pg-header td {
+        border: none;
+        padding: 0 0 6px;
+        vertical-align: top;
+    }
+    .pg-header-logo {
+        width: 34%;
+        text-align: left;
     }
     .pg-header-logo img {
-        max-height: 80px;
+        max-height: 70px;
         max-width: 200px;
         object-fit: contain;
+        display: block;
     }
     .pg-header-logo .logo-text {
-        font-size: 28px;
+        font-size: 26px;
         font-weight: 900;
         color: #8B1A1A;
         letter-spacing: 1px;
     }
     .pg-header-center {
-        flex: 1;
+        width: 32%;
         text-align: center;
-        padding: 0 20px;
+        vertical-align: middle;
+        padding: 0 8px 6px;
     }
     .pg-header-center .cert-no {
-        font-size: 11px;
-        margin-bottom: 2px;
+        font-size: 10.5px;
+        color: #333;
+        letter-spacing: 0.02em;
     }
     .pg-header-center .page-of {
         font-size: 10px;
-        color: #444;
+        color: #666;
     }
     .pg-header-right {
+        width: 34%;
         text-align: right;
     }
     .pg-header-right img {
-        max-height: 64px;
-        max-width: 90px;
+        max-height: 70px;
+        max-width: 160px;
         object-fit: contain;
+        display: inline-block;
     }
 
     /* Report title bar */
@@ -80,154 +217,209 @@
         font-size: 13px;
         font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        padding: 6px 0;
-        margin: 0 0 12px;
+        letter-spacing: 1.6px;
+        padding: 8px 0 10px;
+        margin: 2px 0 12px;
+        color: #111;
+        border-bottom: 2px solid #8B1A1A;
     }
 
     /* ── INFO TABLE (Attention / Client / Address) ── */
     .info-table {
-        width: 98%;
+        width: 100%;
         border-collapse: collapse;
-        margin-bottom: 10px;
-        margin-left: auto;
-        margin-right: auto;
-        font-size: 11px;
-        border: 1px solid #aaa;
+        margin-bottom: 8px;
+        font-size: 10.5px;
+        border: 1px solid #bdbdbd;
     }
     .info-table td {
-        padding: 4px 8px;
-        vertical-align: top;
-        text-align: center;
+        padding: 5px 8px;
+        vertical-align: middle;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
     }
+    .info-table tr:last-child td { border-bottom: none; }
     .info-table .lbl {
         font-weight: bold;
         white-space: nowrap;
-        width: 140px;
+        width: 150px;
+        color: #333;
+        background: #fafafa;
     }
-    .info-table .colon { width: 10px; }
+    .info-table .colon { width: 12px; color: #888; background: #fafafa; }
 
     /* ── DETAILS GRID (2-column, bordered) ──────── */
     .detail-grid {
-        width: 98%;
+        width: 100%;
         border-collapse: collapse;
-        margin-bottom: 10px;
-        margin-left: auto;
-        margin-right: auto;
-        font-size: 11px;
+        margin-bottom: 8px;
+        font-size: 10.5px;
     }
     .detail-grid td {
-        border: 1px solid #888;
-        padding: 3px 6px;
-        vertical-align: top;
-        text-align: center;
+        border: 1px solid #c4c4c4;
+        padding: 4px 7px;
+        vertical-align: middle;
+        text-align: left;
     }
     .detail-grid .dlbl {
         font-weight: bold;
         white-space: nowrap;
-        background: #f7f7f7;
-        width: 120px;
+        background: #f6f6f6;
+        width: 118px;
+        color: #333;
+    }
+    .detail-grid .val-emphasize {
+        font-weight: bold;
+        color: #8B1A1A;
+    }
+    .sample-ref-grid {
+        margin-bottom: 4px;
     }
 
     /* ── RESULTS TABLE ──────────────────────────── */
     .results-table {
-        width: 98%;
+        width: 100%;
         border-collapse: collapse;
-        font-size: 11px;
-        margin-bottom: 8px;
-        margin-left: auto;
-        margin-right: auto;
+        font-size: 10px;
+        margin-bottom: 10px;
     }
     .results-table th {
         background: #8B1A1A;
         color: #fff;
-        padding: 4px 6px;
+        padding: 6px 5px;
         font-weight: bold;
-        border: 1px solid #6B1212;
+        border: 1px solid #6e1515;
         text-align: center;
+        letter-spacing: 0.02em;
+        font-size: 9.5px;
     }
     .results-table td {
-        border: 1px solid #ccc;
-        padding: 3px 6px;
+        border: 1px solid #d5d5d5;
+        padding: 4px 5px;
         vertical-align: middle;
     }
-    .results-table tr:nth-child(even) td { background: #fafafa; }
+    .results-table tr:nth-child(even) td { background: #fbfbfb; }
     .results-table .analysis-group td {
-        background: #eeeeee;
+        background: #efefef;
         font-weight: bold;
-        font-size: 10px;
+        font-size: 9.5px;
         text-transform: uppercase;
-        color: #111;
+        color: #222;
+        letter-spacing: 0.04em;
+        padding: 5px 6px;
     }
     .results-table .sample-subheader td {
-        background: #dce6f1;
+        background: #e8eef5;
         font-weight: bold;
     }
     .fail { color: #8B1A1A; font-weight: bold; }
-    .pass { color: #1e8449; }
+    .pass { color: #1e7a45; }
+
+    /* ── REMARKS / NOTES ────────────────────────── */
+    .sample-remarks,
+    .sample-interpretations,
+    .sample-notes {
+        font-size: 10px;
+        padding: 6px 2px;
+        line-height: 1.55;
+        color: #222;
+    }
+    .sample-remarks {
+        border-top: 1px solid #e6e6e6;
+        margin-top: 2px;
+        margin-bottom: 4px;
+    }
+    .sample-remarks strong,
+    .sample-interpretations strong,
+    .sample-notes strong {
+        color: #111;
+    }
+    .sample-notes ol {
+        margin: 4px 0 0 18px;
+        padding: 0;
+    }
+    .sample-notes li {
+        margin-bottom: 2px;
+        color: #444;
+    }
+
+    /* ── META BOX (analysis conducted) ──────────── */
+    .meta-box {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 10.5px;
+    }
+    .meta-box td {
+        border: 1px solid #c4c4c4;
+        padding: 6px 10px;
+        width: 50%;
+        vertical-align: middle;
+        background: #fcfcfc;
+    }
 
     /* ── SIGNATURE BLOCK ────────────────────────── */
     .sig-section {
-        margin-top: 18px;
-        border-top: 1px solid #888;
+        margin-top: 16px;
+        border-top: 1px solid #c4c4c4;
         padding-top: 10px;
+        page-break-inside: avoid;
     }
     .sig-section .sig-intro {
         font-weight: bold;
-        font-size: 11px;
-        margin-bottom: 14px;
+        font-size: 10.5px;
+        margin-bottom: 10px;
+        color: #111;
     }
     .sig-block {
-        display: flex;
-        align-items: flex-start;
-        gap: 30px;
-        margin-bottom: 10px;
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
     }
-    .sig-block .sig-left { flex: 1; }
-    .sig-block .sig-center {
-        flex: 1;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-end;
+    .sig-block td {
+        vertical-align: bottom;
+        border: none;
+        padding: 0;
     }
-    .sig-block .sig-center img {
-        max-height: 70px;
-        max-width: 200px;
-        display: block;
-        margin-bottom: 4px;
+    .sig-block .sig-left {
+        width: 62%;
+        padding-right: 14px;
+        vertical-align: top;
     }
-    .sig-block .sig-right { text-align: right; flex-shrink: 0; }
+    .sig-block .sig-right {
+        width: 38%;
+        text-align: right;
+        vertical-align: middle;
+    }
     .sig-block .sig-right img {
-        max-height: 90px;
-        max-width: 200px;
+        max-height: 72px;
+        max-width: 160px;
         object-fit: contain;
     }
-    .sig-name { font-weight: bold; font-size: 11px; margin-top: 4px; }
-    .sig-title-line { font-size: 11px; }
-    .sig-company-line { font-size: 11px; }
-    .sig-img-wrap {
-        min-height: 52px;
-        display: flex;
-        align-items: flex-end;
-        margin: 6px 0;
+    .sig-name { font-weight: bold; font-size: 11px; margin-top: 0; color: #111; }
+    .sig-title-line { font-size: 10.5px; color: #333; }
+    .sig-company-line { font-size: 10.5px; margin-bottom: 2px; color: #333; }
+    .sig-image {
+        margin: 2px 0 1px;
+        min-height: 36px;
     }
-    .sig-img-wrap img {
-        max-height: 52px;
+    .sig-image img {
+        max-height: 48px;
         max-width: 180px;
+        display: block;
     }
     .sig-underline {
-        border-top: 1px solid #333;
-        margin: 4px 0 3px;
-        width: 220px;
+        border-top: 1px solid #555;
+        margin: 1px 0 0;
+        width: 200px;
     }
 
     /* ── FOOTER TEXT ────────────────────────────── */
     .report-footer-text {
         font-size: 10px;
-        margin-top: 16px;
-        line-height: 1.6;
+        margin-top: 14px;
+        line-height: 1.55;
+        color: #333;
     }
     .report-issued {
         font-size: 10px;
@@ -240,7 +432,7 @@
         text-align: center;
         margin-top: 8px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.6px;
     }
     .disclaimer-footer {
         font-size: 9px;
@@ -254,14 +446,15 @@
     .end-text {
         text-align: center;
         font-size: 10px;
-        margin: 12px 0 6px;
+        margin: 14px 0 8px;
         font-style: italic;
-        color: #444;
+        color: #555;
+        letter-spacing: 0.03em;
     }
 
     /* ── PAGE DISCLAIMER FOOTER (every page) ─────── */
     .page-disclaimer {
-        margin-top: 18px;
+        margin-top: 16px;
         border-top: 1px solid #ccc;
         padding-top: 6px;
         display: flex;
@@ -272,9 +465,9 @@
     .page-disclaimer .disclaimer-text {
         flex: 1;
         font-size: 7px;
-        color: #000;
+        color: #222;
         font-weight: bold;
-        line-height: 1.65;
+        line-height: 1.6;
         font-family: inherit;
     }
     .page-disclaimer .disclaimer-qr {
@@ -289,86 +482,133 @@
 
     @if(!empty($isPdfMode))
     @page {
-        margin: 12mm 10mm 44mm 10mm;
+        size: A4 portrait;
+        margin: 8mm 16mm 18mm 16mm;
     }
-    html, body {
-        width: 190mm;
+    html {
+        margin: 0;
+        padding: 0;
     }
     body {
+        margin: 0;
+        padding: 0;
         background: #fff;
+    }
+    main {
+        margin: 0;
+        padding: 0;
+        width: auto;
     }
     .trr-page {
-        max-width: 190mm;
-        width: 190mm;
+        width: auto;
+        max-width: none;
         margin: 0;
         border: none;
-        padding: 4mm 8mm 44mm 4mm;
-        overflow: hidden;
+        padding: 0;
+        overflow: visible;
     }
-    .pdf-fixed-footer {
-        position: fixed;
-        left: 10mm;
-        width: 190mm;
-        right: auto;
-        bottom: 2mm;
-        height: 38mm;
-        padding: 1.5mm 8mm 0 4mm;
-        border-top: 1px solid #cfcfcf;
-        background: #fff;
-        z-index: 20;
+    .info-table,
+    .detail-grid,
+    .results-table,
+    .meta-box,
+    .sig-block,
+    .pg-header {
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
     }
-    .pdf-fixed-footer .meta-top {
-        font-size: 8px;
-        line-height: 1.25;
-        color: #222;
-        margin-bottom: 1mm;
+    .pg-header {
+        margin-bottom: 4px;
     }
-    .pdf-fixed-footer .meta-end {
+    .pg-header td {
+        padding-bottom: 4px;
+    }
+    .pg-header-logo img,
+    .pg-header-right img {
+        max-height: 68px;
+    }
+    .report-title-bar {
+        margin: 2px 0 8px;
+        padding: 6px 0 8px;
+    }
+    .sig-section {
+        page-break-inside: avoid;
+        margin-top: 12px;
+        margin-bottom: 4px;
+    }
+    .sig-image img,
+    .sig-block .sig-right img {
+        position: relative;
+        z-index: 1;
+    }
+    .sig-block .sig-right img {
+        max-height: 60px;
+        max-width: 140px;
+    }
+    .bottom-logos {
+        page-break-inside: avoid;
+        margin: 8px 0 4px;
+    }
+    .end-text {
+        display: block;
         text-align: center;
-        font-size: 8px;
-        font-style: italic;
-        color: #444;
-        margin: .8mm 0;
-    }
-    .pdf-fixed-footer .meta-issued {
-        text-align: center;
-        font-size: 7.8px;
-        color: #333;
-        margin-bottom: .8mm;
-    }
-    .pdf-fixed-footer .meta-company {
-        text-align: center;
-        font-size: 8.6px;
-        font-weight: bold;
-        letter-spacing: .3px;
-        margin-bottom: .8mm;
-        text-transform: uppercase;
-    }
-    .pdf-fixed-footer .meta-disclaimer {
-        text-align: center;
-        font-size: 7.2px;
+        font-size: 9.5px;
         font-style: italic;
         color: #555;
-        text-transform: uppercase;
-        letter-spacing: .2px;
-        margin-bottom: .8mm;
+        margin: 10px 0 8px;
+        page-break-inside: avoid;
+        page-break-before: avoid;
     }
-    .pdf-fixed-footer .meta-legal-wrap {
-        display: flex;
-        gap: 8px;
-        align-items: flex-start;
+    .pdf-doc-footer {
+        page-break-inside: avoid;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #cfcfcf;
     }
-    .pdf-fixed-footer .meta-legal {
-        flex: 1;
-        font-size: 5.9px;
+    .pdf-doc-footer .meta-top {
+        font-size: 8px;
         line-height: 1.35;
-        color: #000;
-        font-weight: bold;
-        word-break: break-word;
+        color: #333;
+        margin-bottom: 3px;
     }
-    .pdf-fixed-footer .meta-qr img {
-        width: 50px;
-        height: 50px;
+    .pdf-doc-footer .meta-issued {
+        text-align: center;
+        font-size: 8px;
+        color: #333;
+        margin-bottom: 2px;
+    }
+    .pdf-doc-footer .meta-company {
+        text-align: center;
+        font-size: 9px;
+        font-weight: bold;
+        letter-spacing: .4px;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        color: #111;
+    }
+    .pdf-doc-footer .meta-legal-wrap {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .pdf-doc-footer .meta-legal-wrap td {
+        border: none;
+        vertical-align: top;
+        padding: 0;
+    }
+    .pdf-doc-footer .meta-legal {
+        font-size: 6px;
+        line-height: 1.4;
+        color: #222;
+        font-weight: bold;
+        padding-right: 8px;
+    }
+    .pdf-doc-footer .meta-qr {
+        width: 54px;
+        text-align: right;
+    }
+    .pdf-doc-footer .meta-qr img {
+        width: 48px;
+        height: 48px;
         display: block;
     }
     @endif
@@ -376,87 +616,83 @@
     /* ── PRINT ──────────────────────────────────── */
     @media print {
         body { background: #fff; }
-        .trr-toolbar { display: none; }
+        .trr-toolbar,
+        .trr-preview-chrome,
+        .trr-preview-watermark { display: none !important; }
         .trr-page {
             border: none;
             margin: 0;
             max-width: 100%;
             padding: 12px 18px;
+            box-shadow: none;
         }
     }
 </style>
+@if(empty($isEmbedded))
 </head>
-<body>
-@if(!empty($isPdfMode))
-    <div class="pdf-fixed-footer">
-        <div class="meta-top">
-            {{ $labels['results_relate'] }}<br>
-            {{ $labels['no_reproduce'] }}
-        </div>
-        <div class="meta-end">{{ $labels['end_of_text'] }}</div>
-        <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-        <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
-        <div class="meta-disclaimer">{{ $labels['disclaimer'] }}</div>
-        <div class="meta-legal-wrap">
-            <div class="meta-legal">
-                This document is issued by the Company subject to the Terms and Conditions at
-                https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                information contained herein reflects the Company&#8217;s findings at the time and place of its
-                intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                responsibility is to its Client and the Company disclaims any liability to third parties.
-                Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-            </div>
-            <div class="meta-qr">
-                @if(!empty($footerQrCode))
-                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                @endif
-            </div>
-        </div>
-    </div>
+<body @class(['trr-preview-body' => !empty($isPreviewMode)])>
+@else
+<div class="trr-embedded-root" dir="{{ !empty($isRTL) ? 'rtl' : 'ltr' }}">
+@endif
+
+@if(!empty($isPreviewMode) && empty($isEmbedded))
+    <div class="trr-preview-watermark" aria-hidden="true">Draft Preview</div>
 @endif
 
 <main>
 
-    {{-- ── Screen toolbar ── --}}
-    @if(empty($isPdfMode))
-    <div class="trr-toolbar">
-        <button onclick="window.print()" style="background:#8B1A1A;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:6px;">&#128438; Print</button>
-        <a href="/sample-workflow/batch/{{ $batch->id }}/details" style="background:#fff;color:#555;border:1px solid #aaa;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">&#8592; Back to Batch</a>
-    </div>
+    {{-- ── Screen toolbar / preview chrome ── --}}
+    @if(empty($isPdfMode) && empty($isEmbedded) && empty($hideScreenToolbar))
+        @if(!empty($isPreviewMode))
+            <div class="trr-preview-chrome">
+                <div class="trr-preview-copy">
+                    <span class="trr-preview-badge">Draft preview</span>
+                    <h1>Test Request Report</h1>
+                    <p>
+                        This is how the final report will look with the current results and comments.
+                        It does not issue a revision and is not saved as an official PDF.
+                        @if(!empty($reportNumber))
+                            Provisional number: <strong style="color:#fff;">{{ $reportNumber }}</strong>
+                        @endif
+                    </p>
+                </div>
+                <div class="trr-preview-actions">
+                    <button type="button" class="btn-print" onclick="window.print()">Print</button>
+                    <a href="{{ $batchBackUrl ?? ('/sample-workflow/batch/'.$batch->id.'/details') }}" class="btn-back">← Back to Batch</a>
+                </div>
+            </div>
+        @else
+            <div class="trr-toolbar">
+                <button onclick="window.print()" style="background:#8B1A1A;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:6px;">&#128438; Print</button>
+                <a href="{{ $batchBackUrl ?? ('/sample-workflow/batch/'.$batch->id.'/details') }}" style="background:#fff;color:#555;border:1px solid #aaa;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">&#8592; Back to Batch</a>
+            </div>
+        @endif
     @endif
 
     <div class="trr-page">
 
         {{-- ══════════════ PAGE HEADER (logo + cert no) ══════════════ --}}
-        <div class="pg-header">
-            {{-- Top-left logo slot --}}
-            <div class="pg-header-logo">
-                @if(!empty($reportLogos['top_left']))
-                    <img src="{{ $reportLogos['top_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
-                @elseif($reportLogo && empty($reportLogos))
-                    <img src="{{ $reportLogo }}" alt="{{ $company->name ?? 'AmSpec' }}">
-                @else
-                    <span class="logo-text">{{ $company->name ?? 'AmSpec' }}</span>
-                @endif
-            </div>
-            <div class="pg-header-center">
-                <div class="cert-no">{{ $labels['certificate_no'] }}: {{ $reportNumber }}</div>
-                <div class="page-of">{{ sprintf($labels['page_of'], 1, $totalPages) }}</div>
-            </div>
-            {{-- Top-right logo slot (logo if assigned, else decorative hexagon) --}}
-            <div class="pg-header-right">
-                @if(!empty($reportLogos['top_right']))
-                    <img src="{{ $reportLogos['top_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:80px;max-width:200px;object-fit:contain;">
-                @else
-                    <svg width="72" height="80" viewBox="0 0 72 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="36,2 43,6 43,14 36,18 29,14 29,6" fill="#8B1A1A"/>
-                        <polygon points="36,22 66,39 66,63 36,78 6,63 6,39" fill="none" stroke="#8B1A1A" stroke-width="2"/>
-                        <polygon points="36,28 60,43 60,59 36,72 12,59 12,43" fill="none" stroke="#8B1A1A" stroke-width="1.2" stroke-dasharray="4,3"/>
-                        <polygon points="36,34 54,45 54,57 36,66 18,57 18,45" fill="none" stroke="#8B1A1A" stroke-width="1" stroke-dasharray="3,3"/>
-                    </svg>
-                @endif
-            </div>
-        </div>
+        <table class="pg-header">
+            <tr>
+                <td class="pg-header-logo">
+                    @if(!empty($reportLogos['top_left']))
+                        <img src="{{ $reportLogos['top_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
+                    @elseif($reportLogo && empty($reportLogos))
+                        <img src="{{ $reportLogo }}" alt="{{ $company->name ?? 'AmSpec' }}">
+                    @else
+                        <span class="logo-text">{{ $company->name ?? 'AmSpec' }}</span>
+                    @endif
+                </td>
+                <td class="pg-header-center">
+                    <div class="cert-no">{{ $labels['certificate_no'] }}: {{ $reportNumber }}</div>
+                </td>
+                <td class="pg-header-right">
+                    @if(!empty($reportLogos['top_right']))
+                        <img src="{{ $reportLogos['top_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
+                    @endif
+                </td>
+            </tr>
+        </table>
 
         {{-- ══════════════ REPORT TITLE ══════════════ --}}
         <div class="report-title-bar">{{ $labels['report_title'] }}</div>
@@ -480,90 +716,100 @@
             </tr>
         </table>
 
-        {{-- ══════════════ DETAIL GRID ══════════════ --}}
+        {{-- ══════════════ DETAIL GRID (omit unfilled TRF fields) ══════════════ --}}
+        @php
+            $isDetailFieldFilled = static function (mixed $value): bool {
+                $normalized = trim((string) ($value ?? ''));
+
+                if ($normalized === '' || $normalized === '-' || $normalized === '—') {
+                    return false;
+                }
+
+                return ! in_array(strtolower($normalized), ['n/a', 'na', 'ns', 'null'], true);
+            };
+
+            $detailGridFields = [];
+            $pushDetailField = static function (string $label, mixed $value, bool $emphasize = false) use (&$detailGridFields, $isDetailFieldFilled): void {
+                if (! $isDetailFieldFilled($value)) {
+                    return;
+                }
+
+                $detailGridFields[] = [
+                    'label' => $label,
+                    'value' => $value,
+                    'emphasize' => $emphasize,
+                ];
+            };
+
+            $pushDetailField($labels['report_no'], $reportNumber, true);
+            $pushDetailField($labels['sample_no'], $batch->batch_code);
+            $pushDetailField(
+                $labels['date_received'],
+                $dateReceived ?? ($batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : null)
+            );
+            $pushDetailField($labels['date_reported'], date('d/m/Y'));
+            $pushDetailField($labels['container_type'], $containerType ?? null);
+            $pushDetailField(
+                $labels['sample_description'],
+                $sampleDescription ?? strip_tags($batch->description ?? '')
+            );
+            $pushDetailField($labels['weight'], $sampleWeight ?? null);
+            $pushDetailField(
+                $labels['sampled_by'],
+                $batch->sampling_officer_name ?? ($batch->receivingofficer?->name ?? null)
+            );
+            $pushDetailField($labels['sample_temperature'], $sampleTemperature ?? null);
+            $pushDetailField($labels['sample_preservation'], $samplePreservation ?? null);
+            $pushDetailField($labels['production_date'], $mfgDate ?? null);
+            $pushDetailField($labels['expiry_date'], $expiryDate ?? null);
+            $pushDetailField($labels['lot_no'], $batchLotNo ?? null);
+            $pushDetailField($labels['no_of_pages'], str_pad((string) $totalPages, 2, '0', STR_PAD_LEFT));
+            $pushDetailField($labels['date_of_analysis'] . ' Start', $analysisStartDate ?? null);
+            $pushDetailField($labels['date_of_analysis'] . ' End', $analysisEndDate ?? null);
+            $pushDetailField($labels['packaging'] ?? 'Packaging', $trfCollectionExtras['packaging'] ?? null);
+            $pushDetailField($labels['sample_information'] ?? 'Sample information', $trfCollectionExtras['sample_information'] ?? null);
+            $pushDetailField($labels['sample_weight'] ?? 'Sample weight', $trfCollectionExtras['sample_weight'] ?? null);
+            $pushDetailField($labels['ship_name'] ?? 'Ship / vessel', $trfCollectionExtras['ship_name'] ?? null);
+            $pushDetailField($labels['port_of_loading'] ?? 'Port of loading', $trfCollectionExtras['port_of_loading'] ?? null);
+            $pushDetailField($labels['port_of_discharge'] ?? 'Port of discharge', $trfCollectionExtras['port_of_discharge'] ?? null);
+            $pushDetailField($labels['seal_number'] ?? 'Seal number', $trfCollectionExtras['seal_number'] ?? null);
+
+            $detailGridRows = array_chunk($detailGridFields, 2);
+        @endphp
         <table class="detail-grid">
+            @foreach($detailGridRows as $pair)
             <tr>
-                <td class="dlbl">{{ $labels['report_no'] }}</td>
-                <td style="font-weight:bold;color:#8B1A1A;">{{ $reportNumber }}</td>
-                <td class="dlbl">{{ $labels['sample_no'] }}</td>
-                <td>{{ $batch->batch_code }}</td>
+                <td class="dlbl">{{ $pair[0]['label'] }}</td>
+                @if(isset($pair[1]))
+                <td @class(['val-emphasize' => !empty($pair[0]['emphasize'])])>{{ $pair[0]['value'] }}</td>
+                <td class="dlbl">{{ $pair[1]['label'] }}</td>
+                <td @class(['val-emphasize' => !empty($pair[1]['emphasize'])])>{{ $pair[1]['value'] }}</td>
+                @else
+                <td colspan="3" @class(['val-emphasize' => !empty($pair[0]['emphasize'])])>{{ $pair[0]['value'] }}</td>
+                @endif
             </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['date_received'] }}</td>
-                <td>{{ $dateReceived ?? ($batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : '-') }}</td>
-                <td class="dlbl">{{ $labels['date_reported'] }}</td>
-                <td>{{ date('d/m/Y') }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['container_type'] }}</td>
-                <td>{{ $containerType }}</td>
-                <td class="dlbl">{{ $labels['sample_description'] }}</td>
-                <td>{{ $sampleDescription ?? strip_tags($batch->description ?? '-') }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['weight'] }}</td>
-                <td>{{ $sampleWeight }}</td>
-                <td class="dlbl">{{ $labels['sampled_by'] }}</td>
-                <td>{{ $batch->sampling_officer_name ?? ($batch->receivingofficer?->name ?? '-') }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['sample_temperature'] }}</td>
-                <td>{{ $sampleTemperature }}</td>
-                <td class="dlbl">{{ $labels['sample_preservation'] }}</td>
-                <td>{{ $samplePreservation }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['production_date'] }}</td>
-                <td>{{ $mfgDate }}</td>
-                <td class="dlbl">{{ $labels['expiry_date'] }}</td>
-                <td>{{ $expiryDate }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['lot_no'] }}</td>
-                <td>{{ $batchLotNo }}</td>
-                <td class="dlbl">{{ $labels['no_of_pages'] }}</td>
-                <td>{{ str_pad($totalPages, 2, '0', STR_PAD_LEFT) }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['date_of_analysis'] }} Start</td>
-                <td>{{ $analysisStartDate ?? '-' }}</td>
-                <td class="dlbl">{{ $labels['date_of_analysis'] }} End</td>
-                <td>{{ $analysisEndDate ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['packaging'] ?? 'Packaging' }}</td>
-                <td>{{ $trfCollectionExtras['packaging'] ?? '-' }}</td>
-                <td class="dlbl">{{ $labels['sample_information'] ?? 'Sample information' }}</td>
-                <td>{{ $trfCollectionExtras['sample_information'] ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['sample_weight'] ?? 'Sample weight' }}</td>
-                <td>{{ $trfCollectionExtras['sample_weight'] ?? '-' }}</td>
-                <td class="dlbl">{{ $labels['ship_name'] ?? 'Ship / vessel' }}</td>
-                <td>{{ $trfCollectionExtras['ship_name'] ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['port_of_loading'] ?? 'Port of loading' }}</td>
-                <td>{{ $trfCollectionExtras['port_of_loading'] ?? '-' }}</td>
-                <td class="dlbl">{{ $labels['port_of_discharge'] ?? 'Port of discharge' }}</td>
-                <td>{{ $trfCollectionExtras['port_of_discharge'] ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="dlbl">{{ $labels['seal_number'] ?? 'Seal number' }}</td>
-                <td colspan="3">{{ $trfCollectionExtras['seal_number'] ?? '-' }}</td>
-            </tr>
+            @endforeach
         </table>
 
         {{-- ══════════════ TEST RESULTS ══════════════ --}}
         @forelse ($samples as $sample)
 
             {{-- Per-sample subheader --}}
-            <table class="detail-grid" style="margin-bottom:4px;">
+            <table class="detail-grid sample-ref-grid">
                 <tr>
                     <td class="dlbl">{{ $labels['sample_reference'] }}</td>
-                    <td><strong>{{ $sample->sample_code }}</strong></td>
+                    <td><strong>{{ format_sample_code($sample->sample_code) }}</strong></td>
+                    @php
+                        $samplePointValue = $samplePointByIndex[$loop->index] ?? ($sample->sample_point_name ?? null);
+                        $samplePointFilled = filled(trim((string) ($samplePointValue ?? '')))
+                            && ! in_array(trim((string) $samplePointValue), ['-', '—'], true);
+                    @endphp
+                    @if($samplePointFilled)
                     <td class="dlbl">{{ $labels['sample_point'] }}</td>
-                    <td>{{ $samplePointByIndex[$loop->index] ?? ($sample->sample_point_name ?? '-') }}</td>
+                    <td>{{ $samplePointValue }}</td>
+                    @else
+                    <td colspan="2"></td>
+                    @endif
                 </tr>
                 @if($sample->sample_condition_name)
                 <tr>
@@ -576,47 +822,65 @@
             <table class="results-table">
                 <thead>
                     <tr>
-                        <th style="width:30%">{{ $labels['analyte'] }}</th>
-                        <th style="width:13%">{{ $labels['results'] }}</th>
-                        <th style="width:8%">{{ $labels['unit'] }}</th>
-                        <th style="width:14%">{{ $labels['specification'] }}</th>
-                        <th style="width:9%">{{ $labels['mu_percent'] }}</th>
-                        <th style="width:26%">{{ $labels['method'] }}</th>
+                        @php
+                            $includeReferenceMethod = !empty($includeReferenceMethod);
+                            $resultsColspan = $includeReferenceMethod ? 8 : 7;
+                        @endphp
+                        <th style="width:{{ $includeReferenceMethod ? '18%' : '22%' }}">{{ $labels['analyte'] }}</th>
+                        <th style="width:10%">{{ $labels['results'] }}</th>
+                        <th style="width:7%">{{ $labels['unit'] }}</th>
+                        <th style="width:11%">{{ $labels['specification'] }}</th>
+                        <th style="width:12%">{{ $labels['standard_name'] ?? 'Standard Name' }}</th>
+                        <th style="width:7%">{{ $labels['mu_percent'] }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '17%' : '25%' }}">{{ $labels['method'] }}</th>
+                        @if($includeReferenceMethod)
+                        <th style="width:18%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
-                    @php $hasRows = false; @endphp
+                    @php
+                        $hasRows = false;
+                        $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
+                    @endphp
                     @foreach ($sample->getSampleByAnalysisType() as $atLevel)
                         @php $captured_results = $atLevel->getCapturedResults(); @endphp
                         @if($captured_results->count() > 0)
                         <tr class="analysis-group">
-                            <td colspan="6">{{ $atLevel->analysis_type_name ?? 'General' }}</td>
+                            <td colspan="{{ $resultsColspan }}">{{ $atLevel->analysis_type_name ?? 'General' }}</td>
                         </tr>
                         @foreach ($captured_results as $cr)
-                            @php $hasRows = true; @endphp
+                            @php
+                                $hasRows = true;
+                                $analysisMethod = $cr->method() ?: $cr->ltmethod;
+                                $referenceMethodName = $analysisMethod?->referencemethod?->name ?? null;
+                            @endphp
                             <tr>
                                 <td>
-                                    @if(isset($cr->analyte_accredited) && $cr->analyte_accredited == 1)
-                                        <span title="Accredited">*</span>
-                                    @endif
-                                    {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}
+                                    {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
                                 </td>
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
                                 <td>
-                                    {{ app(\App\Services\StandardLimitDisplayService::class)->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
+                                    {{ $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
+                                </td>
+                                <td>
+                                    {{ $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
                                 <td>{{ $measureUncertaintyByCapturedResultId[$cr->id] ?? '-' }}</td>
                                 <td>{{ strtoupper($cr->method()->name ?? ($cr->ltmethod->name ?? '-')) }}</td>
+                                @if($includeReferenceMethod)
+                                <td>{{ $referenceMethodName ? strtoupper($referenceMethodName) : '-' }}</td>
+                                @endif
                             </tr>
                         @endforeach
                         @endif
                     @endforeach
                     @if(!$hasRows)
                     <tr>
-                        <td colspan="6" style="text-align:center;color:#888;font-style:italic;padding:8px;">
+                        <td colspan="{{ $resultsColspan }}" style="text-align:center;color:#888;font-style:italic;padding:8px;">
                             {{ $labels['no_results'] }}
                         </td>
                     </tr>
@@ -625,14 +889,18 @@
             </table>
 
             @if($sample->header_body)
-            <div style="font-size:10px;padding:4px 0;border-top:1px solid #eee;margin-bottom:6px;">
-                <em>*Accredited Analysis</em><br>
-                <strong>Remarks:</strong> {!! $sample->header_body !!}
+            <div class="sample-remarks">
+                <strong>Remarks:</strong> {!! str_ireplace('not conforming', 'non-conforming', $sample->header_body) !!}
             </div>
             @endif
             @if($sample->main_body)
-            <div style="font-size:10px;padding:4px 0;">
-                {!! $sample->main_body !!}
+            <div class="sample-interpretations">
+                <strong>Recommendations / Interpretations:</strong> {!! $sample->main_body !!}
+            </div>
+            @endif
+            @if($sample->notes_body)
+            <div class="sample-notes">
+                <strong>Notes:</strong> {!! $sample->notes_body !!}
             </div>
             @endif
 
@@ -641,12 +909,12 @@
         @endforelse
 
         {{-- ══════════════ ANALYSIS CONDUCTED / TEST METHOD ══════════════ --}}
-        <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:11px;">
+        <table class="meta-box">
             <tr>
-                <td style="border:1px solid #aaa;padding:4px 8px;width:50%;">
+                <td>
                     {{ $labels['analysis_conducted'] }}: {{ $batch->getLabSectionsNames() ?: 'Laboratory' }}
                 </td>
-                <td style="border:1px solid #aaa;padding:4px 8px;width:50%;">
+                <td>
                     {{ $labels['test_method_dev'] }}
                 </td>
             </tr>
@@ -658,63 +926,91 @@
                 {{ $labels['signed_behalf'] }} {{ $company->name ?? 'AmSpec Inspection &amp; Testing Services' }}
             </div>
 
-            <div class="sig-block">
-                <div class="sig-left">
-                    <div class="sig-name">{{ $approverUser->name ?? '&nbsp;' }}</div>
-                    <div class="sig-title-line">
-                        {{ $approverRole ?? '&nbsp;' }}
-                        @if($company->location ?? null) | {{ $company->location }} @endif
-                    </div>
-                    <div class="sig-company-line">{{ $company->name ?? '&nbsp;' }}</div>
-                    <div class="sig-underline" style="margin-top:30px;"></div>
-                </div>
-                <div class="sig-center">
-                    @if(!empty($signatureSrc))
-                        <img src="{{ $signatureSrc }}" alt="Signature">
-                    @else
-                        <span style="color:#aaa;font-size:9px;font-style:italic;">{{ $labels['no_signature'] }}</span>
-                    @endif
-                </div>
-                <div class="sig-right">
-                    @if($companyLogo)
-                        <img src="{{ $companyLogo }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:90px;max-width:200px;object-fit:contain;">
-                    @endif
-                </div>
-            </div>
+            <table class="sig-block">
+                <tr>
+                    <td class="sig-left">
+                        <div class="sig-name">{{ $approverUser->name ?? '&nbsp;' }}</div>
+                        <div class="sig-title-line">
+                            {{ $approverRole ?? '&nbsp;' }}
+                            @if($company->location ?? null) | {{ $company->location }} @endif
+                        </div>
+                        <div class="sig-company-line">{{ $company->name ?? '&nbsp;' }}</div>
+                        <div class="sig-image">
+                            @if(!empty($signatureSrc))
+                                <img src="{{ $signatureSrc }}" alt="Signature">
+                            @else
+                                <span style="color:#aaa;font-size:9px;font-style:italic;">{{ $labels['no_signature'] }}</span>
+                            @endif
+                        </div>
+                        <div class="sig-underline"></div>
+                    </td>
+                    <td class="sig-right">
+                        @if($companyLogo)
+                            <img src="{{ $companyLogo }}" alt="{{ $company->name ?? 'AmSpec' }}">
+                        @endif
+                    </td>
+                </tr>
+            </table>
         </div>
 
         {{-- ══════════════ BOTTOM LOGOS ══════════════ --}}
         @if(!empty($reportLogos['bottom_left']) || !empty($reportLogos['bottom_right']))
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin:10px 0 4px;">
-            <div>
-                @if(!empty($reportLogos['bottom_left']))
-                    <img src="{{ $reportLogos['bottom_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:80px;max-width:200px;object-fit:contain;">
-                @endif
-            </div>
-            <div>
-                @if(!empty($reportLogos['bottom_right']))
-                    <img src="{{ $reportLogos['bottom_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:80px;max-width:200px;object-fit:contain;">
-                @endif
-            </div>
-        </div>
+        <table class="bottom-logos" style="width:100%;border-collapse:collapse;margin:8px 0 4px;">
+            <tr>
+                <td style="border:none;padding:0;vertical-align:bottom;text-align:left;">
+                    @if(!empty($reportLogos['bottom_left']))
+                        <img src="{{ $reportLogos['bottom_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:60px;max-width:160px;object-fit:contain;">
+                    @endif
+                </td>
+                <td style="border:none;padding:0;vertical-align:bottom;text-align:right;">
+                    @if(!empty($reportLogos['bottom_right']))
+                        <img src="{{ $reportLogos['bottom_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:60px;max-width:160px;object-fit:contain;">
+                    @endif
+                </td>
+            </tr>
+        </table>
         @endif
 
-        @if(empty($isPdfMode))
-        {{-- ══════════════ FOOTER TEXT ══════════════ --}}
+        {{-- ══════════════ END OF TEXT ══════════════ --}}
+        <div class="end-text">{{ $labels['end_of_text'] }}</div>
+
+        @if(!empty($isPdfMode))
+        {{-- Document footer in normal flow (after all content — never overlays data) --}}
+        <div class="pdf-doc-footer">
+            <div class="meta-top">
+                {{ $labels['results_relate'] }}<br>
+                {{ $labels['no_reproduce'] }}
+            </div>
+            <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
+            <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
+            <table class="meta-legal-wrap">
+                <tr>
+                    <td class="meta-legal">
+                        This document is issued by the Company subject to the Terms and Conditions at
+                        https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
+                        information contained herein reflects the Company&#8217;s findings at the time and place of its
+                        intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
+                        responsibility is to its Client and the Company disclaims any liability to third parties.
+                        Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
+                    </td>
+                    <td class="meta-qr">
+                        @if(!empty($footerQrCode))
+                            <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                        @endif
+                    </td>
+                </tr>
+            </table>
+        </div>
+        @else
         <div class="report-footer-text">
             {{ $labels['results_relate'] }}<br>
             {{ $labels['no_reproduce'] }}
         </div>
-        <div class="end-text">{{ $labels['end_of_text'] }}</div>
         <div class="report-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
         <div class="report-company-tag">
             {{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}
         </div>
-        <div class="disclaimer-footer">
-            {{ $labels['disclaimer'] }}
-        </div>
 
-        {{-- ══════════════ PAGE DISCLAIMER FOOTER ══════════════ --}}
         <div class="page-disclaimer">
             <div class="disclaimer-text">
                 This document is issued by the Company subject to the Terms and Conditions at
@@ -739,6 +1035,27 @@
     </div>{{-- end .trr-page --}}
 
 </main>
+@if(!empty($isPdfMode))
+@php
+    $pageNumberText = match ($language ?? 'en') {
+        'ar' => 'صفحة {PAGE_NUM} من {PAGE_COUNT}',
+        'pt' => 'Página {PAGE_NUM} de {PAGE_COUNT}',
+        default => 'Page {PAGE_NUM} of {PAGE_COUNT}',
+    };
+@endphp
+<script type="text/php">
+    if (isset($pdf)) {
+        $pageText = {!! var_export($pageNumberText, true) !!};
+        $size = 8;
+        $font = $fontMetrics->getFont("DejaVu Sans");
+        $width = $fontMetrics->get_text_width("Page 99 of 99", $font, $size);
+        // Match @page right margin (16mm ≈ 45pt).
+        $x = $pdf->get_width() - $width - 45;
+        $y = $pdf->get_height() - 16;
+        $pdf->page_text($x, $y, $pageText, $font, $size);
+    }
+</script>
+@endif
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.results-table td').forEach(function (td) {
@@ -748,5 +1065,9 @@
         });
     });
 </script>
+@if(empty($isEmbedded))
 </body>
 </html>
+@else
+</div>{{-- .trr-embedded-root --}}
+@endif

@@ -334,13 +334,10 @@ Route::get('/livewire/standard-manager', [LabAppController::class, 'standardMana
     ->name('livewire.standard-manager')
     ->middleware('can:laboratory.components.sample-types.view');
 
-Route::get('/livewire/labs', [LabAppController::class, 'labManager'])
-    ->name('livewire.labs')
-    ->middleware('can:laboratory.components.labs.view');
-
-Route::get('/livewire/labs/{lab}', [LabAppController::class, 'labProfile'])
-    ->name('livewire.labs.show')
-    ->middleware('can:laboratory.components.labs.view');
+Route::redirect('/livewire/labs', '/labs')->name('livewire.labs');
+Route::get('/livewire/labs/{lab}', function () {
+    return redirect()->route('labs');
+})->name('livewire.labs.show')->middleware('can:laboratory.components.labs.view');
 
 // Livewire Test Page
 Route::get('/livewire-test', function () {
@@ -619,6 +616,7 @@ Route::get('/method-sequences/tracks/{track}/edit-data', 'SampleWorkFlowControll
 Route::get('/method-sequence-runs/tracks/{track}/solution-results', 'SampleWorkFlowController@getSolutionResultsForStep6')->name('method-sequence-runs.solution-results')->middleware('auth');
 Route::get('/method-sequence-runs/tracks/{track}/sample-results', 'SampleWorkFlowController@getSampleResultsForStep6')->name('method-sequence-runs.sample-results')->middleware('auth');
 Route::post('/method-sequence-runs/tracks/{track}/step6-remark', 'SampleWorkFlowController@calculateStep6SampleRemark')->name('method-sequence-runs.step6-remark')->middleware('auth');
+Route::post('/method-sequence-runs/tracks/{track}/step6-standard-limit', 'SampleWorkFlowController@updateStep6TrackStandardLimit')->name('method-sequence-runs.step6-standard-limit')->middleware('auth');
 // Temporary design route for procedure worksheet PDF template preview.
 Route::get(
     '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',

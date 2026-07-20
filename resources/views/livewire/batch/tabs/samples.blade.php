@@ -201,7 +201,7 @@
                     <div class="modal-body">
                         @forelse($this->incompleteCapturedResultsGrouped as $sampleCode => $items)
                             <div class="mb-3">
-                                <h6 class="font-weight-bold mb-2">{{ $sampleCode }}</h6>
+                                <h6 class="font-weight-bold mb-2">{{ format_sample_code($sampleCode) }}</h6>
                                 <ul class="mb-0 pl-3 small">
                                     @foreach($items as $item)
                                         <li>
@@ -224,11 +224,11 @@
     @endif
 
     {{-- Sample Configuration Form (Livewire-driven) --}}
-    <div class="workflow-board-panel batch-samples-panel">
+    <form wire:submit="saveSamples" class="workflow-board-panel batch-samples-panel">
         <div class="workflow-board-panel-header">
             <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
                 <h5><i class="mdi mdi-flask-outline"></i> Samples configuration</h5>
-                <button type="button" wire:click="saveSamples" class="btn btn-danger btn-sm btn-action-sm text-white"
+                <button type="submit" class="btn btn-danger btn-sm btn-action-sm text-white"
                     wire:loading.attr="disabled" wire:target="saveSamples" style="height: auto; min-height: 32px;">
                     <span wire:loading.remove wire:target="saveSamples"><i class="mdi mdi-content-save"></i> Save</span>
                     <span wire:loading wire:target="saveSamples"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
@@ -328,6 +328,11 @@
                                     class="btn btn-sm btn-icon btn-light text-success mx-1"
                                     title="Comments & Interpretations">
                                     <i class="mdi mdi-comment-text"></i>
+                                    @if(trim(strip_tags($sampleForm['header_body'] ?? '')) !== ''
+                                        || trim(strip_tags($sampleForm['main_body'] ?? '')) !== ''
+                                        || trim(strip_tags($sampleForm['notes_body'] ?? '')) !== '')
+                                        <span class="badge badge-success interpretation-badge">!</span>
+                                    @endif
                                 </button>
                                 @endif
 
@@ -368,7 +373,7 @@
                         {{-- Sample Code (readonly) --}}
                         <td>
                             <input type="text" class="form-control form-control-sm"
-                                value="{{ $sampleForm['sample_code'] }}" readonly
+                                value="{{ format_sample_code($sampleForm['sample_code']) }}" readonly
                                 style="background: #f5f5f5; font-weight: bold;">
                         </td>
 
@@ -454,8 +459,8 @@
 
                         {{-- Sample Type --}}
                         <td>
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.sample_type_id">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.sample_type_id">
                                 <option value="">Select...</option>
                                 @foreach($sampleTypes as $type)
                                 <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
@@ -469,7 +474,7 @@
                         {{-- Customer Sample ID --}}
                         <td>
                             <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.blur="sampleForms.{{ $index }}.customer_sample_id"
+                                wire:model="sampleForms.{{ $index }}.customer_sample_id"
                                 placeholder="Customer sample ID...">
                         </td>
 
@@ -480,11 +485,13 @@
                                 value="{{ collect($labSections)->firstWhere('id', $sampleForm['lab_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.lab_id" required>
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.lab_id"
+                                wire:key="sample-lab-{{ $index }}"
+                                required>
                                 <option value="">Select...</option>
                                 @foreach($labSections as $lab)
-                                <option value="{{ $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
+                                <option value="{{ (string) $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
                                 @endforeach
                             </select>
                             @error("sampleForms.$index.lab_id")
@@ -495,8 +502,8 @@
 
                         {{-- Main Standard --}}
                         <td>
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.main_standard" required>
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.main_standard" required>
                                 <option value="">Select...</option>
                                 @foreach($standards as $std)
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
@@ -509,8 +516,8 @@
 
                         {{-- Secondary Standard --}}
                         <td>
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.secondary_standard">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.secondary_standard">
                                 <option value="">Select...</option>
                                 @foreach($standards as $std)
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
@@ -525,8 +532,8 @@
                                 value="{{ collect($conditions)->firstWhere('id', $sampleForm['sample_condition_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.sample_condition_id">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.sample_condition_id">
                                 <option value="">Select...</option>
                                 @foreach($conditions as $condition)
                                 <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
@@ -545,8 +552,8 @@
                                 value="{{ collect($samplePoints)->firstWhere('id', $sampleForm['sample_point_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.blur="sampleForms.{{ $index }}.sample_point_id">
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.sample_point_id">
                                 <option value="">Select...</option>
                                 @foreach($samplePoints as $point)
                                 <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
@@ -611,7 +618,7 @@
                                 value="{{ collect($storageLocations)->firstWhere('id', $sampleForm['store_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
-                            <select class="form-control form-control-sm modern-select"
+                            <select class="form-control form-control-sm modern-select no-select2"
                                 wire:model="sampleForms.{{ $index }}.store_id">
                                 <option value="">Select...</option>
                                 @foreach($storageLocations as $store)
@@ -628,6 +635,46 @@
                                 @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
                         </td>
                     </tr>
+                    @php
+                        $interpretationHeader = trim(strip_tags($sampleForm['header_body'] ?? ''));
+                        $interpretationMain = trim(strip_tags($sampleForm['main_body'] ?? ''));
+                        $interpretationNotes = trim(strip_tags($sampleForm['notes_body'] ?? ''));
+                        $hasInterpretations = $interpretationHeader !== '' || $interpretationMain !== '' || $interpretationNotes !== '';
+                    @endphp
+                    @if($hasInterpretations)
+                    <tr wire:key="sample-interpretations-{{ $index }}" class="sample-interpretations-row">
+                        <td colspan="16" class="bg-light border-top-0 pt-0">
+                            <div class="sample-interpretations-panel p-2">
+                                <div class="d-flex align-items-center mb-1">
+                                    <small class="font-weight-bold text-muted text-uppercase">
+                                        <i class="mdi mdi-comment-text-outline text-success"></i>
+                                        Comments &amp; Interpretations
+                                    </small>
+                                </div>
+                                <div class="row">
+                                    @if($interpretationHeader !== '')
+                                    <div class="col-md-4 mb-2 mb-md-0">
+                                        <div class="small font-weight-bold text-muted mb-1">Comments</div>
+                                        <div class="sample-interpretation-content">{!! str_ireplace('not conforming', 'non-conforming', $sampleForm['header_body']) !!}</div>
+                                    </div>
+                                    @endif
+                                    @if($interpretationMain !== '')
+                                    <div class="col-md-4 mb-2 mb-md-0">
+                                        <div class="small font-weight-bold text-muted mb-1">Recommendations / Interpretations</div>
+                                        <div class="sample-interpretation-content">{!! $sampleForm['main_body'] !!}</div>
+                                    </div>
+                                    @endif
+                                    @if($interpretationNotes !== '')
+                                    <div class="col-md-4">
+                                        <div class="small font-weight-bold text-muted mb-1">Notes</div>
+                                        <div class="sample-interpretation-content">{!! $sampleForm['notes_body'] !!}</div>
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    @endif
                     @empty
                     <tr>
                         <td colspan="16" class="text-center text-muted py-4">
@@ -640,7 +687,7 @@
             </table>
         </div>
         </div>
-    </div>
+    </form>
 
     {{-- Delete Sample Confirmation Modal --}}
     @if($showDeleteSampleModal)
@@ -887,7 +934,7 @@
                             Parameters for sample
                         </h5>
                         <p class="text-muted small mb-0">
-                            <span class="badge badge-light border font-weight-normal">{{ $selectedSampleCode }}</span>
+                            <span class="badge badge-light border font-weight-normal">{{ format_sample_code($selectedSampleCode) }}</span>
                             @if(!empty($sampleParameters))
                                 <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
                             @endif
@@ -907,13 +954,39 @@
                 </div>
 
                 <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
+                    @if (session()->has('error'))
+                    <div class="alert alert-danger border mb-3">
+                        <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
+                    </div>
+                    @endif
+                    @if (session()->has('message'))
+                    <div class="alert alert-success border mb-3">
+                        <i class="mdi mdi-check-circle"></i> {{ session('message') }}
+                    </div>
+                    @endif
+                    @if($parametersReadOnly)
+                    <div class="alert alert-warning border mb-3">
+                        <i class="mdi mdi-lock-outline"></i>
+                        Assign a lab section in your profile before capturing results. You can view parameters but cannot fill or save them.
+                    </div>
+                    @elseif($parametersSectionFiltered)
+                    <div class="alert alert-light border mb-3">
+                        <i class="mdi mdi-flask-outline text-primary"></i>
+                        Showing parameters for your lab section(s) only.
+                    </div>
+                    @endif
+
                     @if(!empty($sampleParameters))
+                    @php
+                        $parameterColspan = ($uncertaintyRequired ? 16 : 15);
+                        $groupedParameters = $this->groupedParametersForm;
+                        $parametersDisabled = $parametersReadOnly;
+                    @endphp
                     <div class="table-responsive sample-parameters-modal__table-wrap">
                         <table class="table table-sm sample-parameters-table mb-0">
                             <thead>
                                 <tr>
                                     <th style="min-width: 100px;">Sample</th>
-                                    <th style="min-width: 120px;">Analysis type</th>
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
                                     <th style="min-width: 100px;">Result</th>
@@ -928,16 +1001,22 @@
                                     <th style="min-width: 120px;">Operator</th>
                                     <th style="min-width: 120px;">Method</th>
                                     <th style="min-width: 120px;">LTM</th>
-                                    <th style="min-width: 120px;">Equipment</th>
+                                    <th style="min-width: 160px;">Equipment</th>
                                     <th style="min-width: 80px; text-align: center;">Sub.</th>
                                     <th style="min-width: 80px; text-align: center;">Accr.</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($parametersForm as $id => $param)
+                                @foreach($groupedParameters as $analysisTypeName => $groupedParams)
+                                <tr class="sample-parameters-group-row" wire:key="param-group-{{ md5((string) $analysisTypeName) }}">
+                                    <td colspan="{{ $parameterColspan }}" class="sample-parameters-group-cell">
+                                        <span class="sample-parameters-group-label">{{ $analysisTypeName }}</span>
+                                        <span class="badge badge-light border ml-1">{{ count($groupedParams) }}</span>
+                                    </td>
+                                </tr>
+                                @foreach($groupedParams as $id => $param)
                                 <tr wire:key="param-{{ $id }}">
-                                    <td><strong>{{ $param['sample_code'] }}</strong></td>
-                                    <td>{{ $param['analysis_type'] }}</td>
+                                    <td><strong>{{ format_sample_code($param['sample_code']) }}</strong></td>
                                     <td class="sample-parameters-modal__analyte">
                                         <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
                                         @if(!empty($param['analyte_code']) && $param['analyte_code'] !== $param['analyte_name'])
@@ -948,12 +1027,13 @@
                                     <td style="min-width: 160px;">
                                         <div class="input-group input-group-sm">
                                             <input type="text"
-                                                class="form-control form-control-sm js-confirm-result"
-                                                value="{{ $param['result'] ?? '' }}"
+                                                class="form-control form-control-sm {{ $parametersDisabled ? '' : 'js-confirm-result' }}"
+                                                wire:model="parametersForm.{{ $id }}.result"
                                                 placeholder="Result"
                                                 data-row-id="{{ $id }}"
                                                 data-analyte="{{ $param['analyte_name'] ?? 'analyte' }}"
-                                                data-sample="{{ $param['sample_code'] ?? '' }}">
+                                                data-sample="{{ $param['sample_code'] ?? '' }}"
+                                                @if($parametersDisabled) readonly disabled @endif>
                                             @if(!empty($param['batch_attachment_url']) && strcasecmp($param['result'] ?? '', 'as attached') === 0)
                                             <div class="input-group-append">
                                                 <a href="{{ $param['batch_attachment_url'] }}" target="_blank"
@@ -969,24 +1049,27 @@
                                     <td style="min-width: 145px;">
                                         <input type="date"
                                             class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.start_analysis_date">
+                                            wire:model.defer="parametersForm.{{ $id }}.start_analysis_date"
+                                            @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     <td style="min-width: 145px;">
                                         <input type="date"
                                             class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.end_analysis_date">
+                                            wire:model.defer="parametersForm.{{ $id }}.end_analysis_date"
+                                            @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     @if($uncertaintyRequired)
                                     <td style="min-width: 80px;">
                                         <input type="text" class="form-control form-control-sm"
                                             wire:model.defer="parametersForm.{{ $id }}.measure_uncertanity"
-                                            placeholder="M.U.">
+                                            placeholder="M.U."
+                                            @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     @endif
                                     <td>
                                         <div class="d-flex align-items-center justify-content-between">
                                             <small>{{ $param['standard_value'] }}</small>
-                                            @if($param['standard_id'])
+                                            @if($param['standard_id'] && ! $parametersDisabled)
                                             <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 1)"
                                                 class="btn btn-sm btn-link p-0 text-secondary ml-1"
                                                 title="Edit Main Standard" style="line-height: 1;"
@@ -1001,7 +1084,7 @@
                                         @if($param['sec_standard_value'])
                                         <div class="d-flex align-items-center justify-content-between mt-1">
                                             <small class="text-muted">{{ $param['sec_standard_value'] }}</small>
-                                            @if($param['sec_standard_id'])
+                                            @if($param['sec_standard_id'] && ! $parametersDisabled)
                                             <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 2)"
                                                 class="btn btn-sm btn-link p-0 text-muted ml-1"
                                                 title="Edit Secondary Standard" style="line-height: 1;"
@@ -1018,18 +1101,25 @@
                                     <td style="min-width: 110px;">
                                         <select class="form-control form-control-sm"
                                             wire:model="parametersForm.{{ $id }}.remark"
-                                            style="pointer-events: none; background-color: #e9ecef;">
+                                            style="pointer-events: none; background-color: #e9ecef;"
+                                            @if($parametersDisabled) disabled @endif>
                                             <option value="">- Select -</option>
-                                            <option value="PASS">PASS</option>
-                                            <option value="FAIL">FAIL</option>
+                                            <option value="PASS">Conforming</option>
+                                            <option value="FAIL">Non-conforming</option>
                                         </select>
                                     </td>
                                     <td style="min-width: 120px;">
+                                        @php
+                                            $selectedUnitId = (string) ($parametersForm[$id]['reporting_unit'] ?? $param['reporting_unit'] ?? '');
+                                        @endphp
                                         <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.reporting_unit">
+                                            wire:model.defer="parametersForm.{{ $id }}.reporting_unit"
+                                            @if($parametersDisabled) disabled @endif>
                                             <option value="">- Unit -</option>
                                             @foreach($modalLists['units'] as $unit)
-                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                            <option value="{{ (string) $unit->id }}" @selected($selectedUnitId === (string) $unit->id)>
+                                                {{ $unit->name }}
+                                            </option>
                                             @endforeach
                                         </select>
                                     </td>
@@ -1041,7 +1131,8 @@
                                     </td>
                                     <td style="min-width: 140px;">
                                         <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.method_id">
+                                            wire:model.defer="parametersForm.{{ $id }}.method_id"
+                                            @if($parametersDisabled) disabled @endif>
                                             <option value="">- Method -</option>
                                             @foreach($modalLists['methods'] as $method)
                                             <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -1049,30 +1140,47 @@
                                         </select>
                                     </td>
                                     <td><small>{{ $param['ltm_method_name'] }}</small></td>
-                                    <td style="min-width: 140px;">
-                                        <select class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.equipment_id">
-                                            <option value="">- Equipment -</option>
-                                            @foreach($modalLists['equipments'] as $eq)
-                                            <option value="{{ $eq->id }}">{{ $eq->name }}</option>
-                                            @endforeach
-                                        </select>
+                                    <td style="min-width: 200px;">
+                                        @php
+                                            $selectedEquipmentIds = array_values(array_map(
+                                                'strval',
+                                                $parametersForm[$id]['equipment_ids'] ?? ($param['equipment_ids'] ?? [])
+                                            ));
+                                        @endphp
+                                        <div wire:ignore
+                                            class="param-equipment-select2-wrap"
+                                            data-param-id="{{ $id }}"
+                                            data-initial='@json($selectedEquipmentIds)'>
+                                            <select class="form-control form-control-sm param-equipment-select2 no-select2"
+                                                multiple="multiple"
+                                                data-placeholder="Select equipment..."
+                                                @if($parametersDisabled) disabled @endif>
+                                                @foreach($modalLists['equipments'] as $eq)
+                                                <option value="{{ $eq->id }}" @selected(in_array((string) $eq->id, $selectedEquipmentIds, true))>
+                                                    {{ $eq->name }}
+                                                </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="custom-control custom-checkbox text-center">
                                             <input type="checkbox" class="custom-control-input" id="sub_{{ $id }}"
-                                                wire:model.defer="parametersForm.{{ $id }}.subcontracted">
+                                                wire:model.defer="parametersForm.{{ $id }}.subcontracted"
+                                                @if($parametersDisabled) disabled @endif>
                                             <label class="custom-control-label" for="sub_{{ $id }}"></label>
                                         </div>
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="custom-control custom-checkbox text-center">
                                             <input type="checkbox" class="custom-control-input" id="accr_{{ $id }}"
-                                                wire:model.defer="parametersForm.{{ $id }}.accredited">
+                                                wire:model.defer="parametersForm.{{ $id }}.accredited"
+                                                @if($parametersDisabled) disabled @endif>
                                             <label class="custom-control-label" for="accr_{{ $id }}"></label>
                                         </div>
                                     </td>
                                 </tr>
+                                @endforeach
                                 @endforeach
                             </tbody>
                         </table>
@@ -1080,7 +1188,13 @@
                     @else
                     <div class="alert alert-light border text-center py-5 mb-0">
                         <i class="mdi mdi-flask-empty-outline text-muted" style="font-size: 2.5rem;"></i>
-                        <p class="mb-0 mt-2 text-muted">No captured results found for this sample.</p>
+                        <p class="mb-0 mt-2 text-muted">
+                            @if($parametersSectionFiltered)
+                                No parameters for your lab section on this sample.
+                            @else
+                                No captured results found for this sample.
+                            @endif
+                        </p>
                     </div>
                     @endif
                 </div>
@@ -1088,6 +1202,7 @@
                     <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
                         <i class="mdi mdi-close"></i> Close
                     </button>
+                    @if(! $parametersReadOnly && ! empty($sampleParameters))
                     <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
                         wire:loading.attr="disabled" wire:target="saveParameters">
                         <span wire:loading.remove wire:target="saveParameters">
@@ -1098,17 +1213,55 @@
                             Saving…
                         </span>
                     </button>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 
     <style>
+        /* modal-xl caps at 800px below 1200px viewports; the parameters table needs the full screen. */
+        .sample-parameters-modal .modal-dialog.modal-xl {
+            max-width: min(96vw, 1500px);
+        }
+
         .sample-parameters-modal__content {
             border: none;
             border-radius: 16px;
             box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
             overflow: hidden;
+        }
+
+        .btn-icon {
+            position: relative;
+        }
+
+        .interpretation-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            font-size: 0.55rem;
+            padding: 0.15rem 0.3rem;
+            line-height: 1;
+            border-radius: 50%;
+        }
+
+        .sample-interpretations-panel {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .sample-interpretation-content {
+            font-size: 0.8125rem;
+            color: #334155;
+            line-height: 1.4;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .sample-interpretation-content p {
+            margin-bottom: 0.25rem;
         }
 
         .sample-parameters-modal__header {
@@ -1119,16 +1272,33 @@
         .sample-parameters-modal__body {
             max-height: 70vh;
             overflow-y: auto;
+            /* Only the table wrap may scroll horizontally; otherwise the alerts
+               and table scroll together and content gets clipped at the modal edge. */
+            overflow-x: hidden;
             padding: 0 1.5rem 1rem;
             background: #f8fafc;
         }
 
         .sample-parameters-modal__table-wrap {
             border-radius: 12px;
-            border: 1px solid #e9ecef;
+            border: 1px solid #e2e8f0;
             background: #fff;
             overflow: auto;
             max-height: 62vh;
+            max-width: 100%;
+        }
+
+        .sample-parameters-group-cell {
+            background: #f1f5f9 !important;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.55rem 0.75rem !important;
+        }
+
+        .sample-parameters-group-label {
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: 0.01em;
         }
 
         .sample-parameters-table {
@@ -1184,6 +1354,21 @@
             border-color: #86b7fe;
             box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
         }
+
+        .param-equipment-select2-wrap .select2-container {
+            width: 100% !important;
+        }
+
+        .sample-parameters-table .select2-selection--multiple {
+            min-height: 31px;
+            border-radius: 8px;
+            border-color: #e2e8f0;
+        }
+
+        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            margin-top: 3px;
+            font-size: 0.75rem;
+        }
     </style>
     @endif
 
@@ -1191,7 +1376,7 @@
     @if($showCommentsModal)
     <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog"
         wire:key="comments-modal-{{ $editingCommentsSampleId }}">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
             <div class="modal-content"
                 x-data="{
                     initEditor(selector, field, initialHtml) {
@@ -1231,6 +1416,26 @@
                         $wire.set('commentsForm.main_body', tinymce.get('comments-main-editor')?.getContent() ?? '');
                         $wire.set('commentsForm.notes_body', tinymce.get('comments-notes-editor')?.getContent() ?? '');
                     },
+                    isEditorEmpty(editorId) {
+                        if (typeof tinymce === 'undefined') {
+                            return true;
+                        }
+                        const editor = tinymce.get(editorId);
+                        if (!editor) {
+                            return true;
+                        }
+                        const text = (editor.getContent({ format: 'text' }) || '').trim();
+                        return text === '';
+                    },
+                    applyDefaults() {
+                        this.syncToWire();
+                        const hasContent = !this.isEditorEmpty('comments-header-editor')
+                            || !this.isEditorEmpty('comments-notes-editor');
+                        if (hasContent && !confirm('Replace current Remarks and Notes with generated defaults? Recommendations will not be changed.')) {
+                            return;
+                        }
+                        $wire.applyCommentDefaults();
+                    },
                     destroyEditors() {
                         if (typeof tinymce !== 'undefined') {
                             tinymce.remove('#comments-header-editor, #comments-main-editor, #comments-notes-editor');
@@ -1245,7 +1450,25 @@
                         $wire.cancelComments();
                     }
                 }"
-                x-init="setTimeout(() => initAll(), 150)">
+                x-init="
+                    setTimeout(() => initAll(), 150);
+                    const stopListening = Livewire.on('comments-defaults-applied', (payload) => {
+                        const data = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+                        if (typeof tinymce === 'undefined') {
+                            return;
+                        }
+                        tinymce.get('comments-header-editor')?.setContent(data.headerBody ?? '');
+                        tinymce.get('comments-notes-editor')?.setContent(data.notesBody ?? '');
+                        $wire.set('commentsForm.header_body', data.headerBody ?? '');
+                        $wire.set('commentsForm.notes_body', data.notesBody ?? '');
+                    });
+                    return () => {
+                        if (typeof stopListening === 'function') {
+                            stopListening();
+                        }
+                        destroyEditors();
+                    };
+                ">
                 <div class="modal-header">
                     <h5 class="modal-title">
                         <i class="mdi mdi-file-document-edit"></i> Comments & Interpretations
@@ -1263,9 +1486,9 @@
                     </style>
                     <div class="comments-interpretations-modal" wire:ignore>
                         <div class="form-group">
-                            <label>Comments</label>
+                            <label>Remarks</label>
                             <textarea id="comments-header-editor" class="form-control" rows="3"
-                                placeholder="Comments..."></textarea>
+                                placeholder="Remarks..."></textarea>
                         </div>
                         <div class="form-group">
                             <label>Recommendations / Interpretations</label>
@@ -1278,15 +1501,18 @@
                                 placeholder="Notes..."></textarea>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="comments-batch-scope" class="control-label">Scope</label>
-                        <select id="comments-batch-scope" wire:model.defer="commentsForm.batch_comment_scope" class="form-control">
-                            <option value="1">Concatenate</option>
-                            <option value="2">Overwrite</option>
-                        </select>
-                    </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" wire:loading.attr="disabled"
+                        wire:target="applyCommentDefaults"
+                        @click="applyDefaults()">
+                        <span wire:loading.remove wire:target="applyCommentDefaults">
+                            <i class="mdi mdi-auto-fix"></i> Apply defaults
+                        </span>
+                        <span wire:loading wire:target="applyCommentDefaults">
+                            <i class="mdi mdi-loading mdi-spin"></i> Applying...
+                        </span>
+                    </button>
                     <button type="button" class="btn btn-info btn-sm" wire:loading.attr="disabled"
                         @click="saveComments()">
                         <span wire:loading.remove wire:target="saveComments"><i class="mdi mdi-content-save"></i> Save</span>
@@ -2561,7 +2787,7 @@
 
                 if (current === '') {
                     delete el.dataset.confirmedValue;
-                    component.call('clearParameterResult', rowId);
+                    await component.call('clearParameterResult', rowId);
                     return;
                 }
 
@@ -2579,19 +2805,31 @@
 
                     if (confirmation !== null && confirmation.trim() === current) {
                         el.dataset.confirmedValue = current;
-                        component.call('applyConfirmedResult', rowId, current);
+                        await component.call('applyConfirmedResult', rowId, current);
                     } else {
                         el.value = '';
                         delete el.dataset.confirmedValue;
-                        component.call('clearParameterResult', rowId);
+                        await component.call('clearParameterResult', rowId);
                     }
                 } finally {
                     delete el.dataset.confirming;
                 }
             };
 
-            document.addEventListener('change', function (event) {
-                confirmResultInput(event.target);
+            document.addEventListener('focusout', function (event) {
+                const el = event.target;
+                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
+                    return;
+                }
+
+                const next = event.relatedTarget;
+                if (next instanceof Element) {
+                    if (next.id === 'js-result-confirm-input' || next.closest('#js-result-confirm-overlay')) {
+                        return;
+                    }
+                }
+
+                confirmResultInput(el);
             });
 
             document.addEventListener('keydown', function (event) {
@@ -2608,6 +2846,105 @@
                 confirmResultInput(el);
             });
         }
+
+        // Select2 must not own ordinary Livewire selects (see .cursor/rules frontend ownership).
+        // Equipment multi-select is an explicit Select2 (wire:ignore) exception.
+        const releaseLivewireSelects = () => {
+            if (!window.jQuery || !window.jQuery.fn.select2) {
+                return;
+            }
+
+            let destroyed = 0;
+
+            window.jQuery('.batch-samples-panel select.no-select2').each(function () {
+                const $select = window.jQuery(this);
+
+                if ($select.hasClass('param-equipment-select2')) {
+                    return;
+                }
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    try {
+                        $select.select2('destroy');
+                        destroyed += 1;
+                    } catch (e) {
+                        // Ignore already-destroyed instances.
+                    }
+                }
+
+                $select.show().css('display', '');
+            });
+
+            if (destroyed > 0) {
+                console.log('[Samples] destroyed Select2 wrappers:', destroyed);
+            }
+        };
+
+        const initParamEquipmentSelect2 = () => {
+            if (!window.jQuery || !window.jQuery.fn.select2) {
+                return;
+            }
+
+            const $modal = window.jQuery('.sample-parameters-modal');
+            if (!$modal.length) {
+                return;
+            }
+
+            $modal.find('select.param-equipment-select2').each(function () {
+                const $el = window.jQuery(this);
+                const $wrap = $el.closest('.param-equipment-select2-wrap');
+
+                if ($el.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+
+                $el.select2({
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || 'Select equipment...',
+                    allowClear: true,
+                    closeOnSelect: false,
+                    dropdownParent: $modal.find('.modal-content').first().length
+                        ? $modal.find('.modal-content').first()
+                        : $modal,
+                });
+
+                let initial = [];
+                try {
+                    initial = JSON.parse($wrap.attr('data-initial') || '[]');
+                } catch (e) {
+                    initial = [];
+                }
+
+                if (!Array.isArray(initial)) {
+                    initial = initial ? [String(initial)] : [];
+                }
+
+                if (initial.length) {
+                    $el.val(initial.map(String)).trigger('change.select2');
+                }
+
+                $el.off('change.paramEquipmentSelect2').on('change.paramEquipmentSelect2', function () {
+                    const paramId = String($wrap.data('param-id') || '');
+                    if (!paramId) {
+                        return;
+                    }
+
+                    const vals = $el.val() || [];
+                    $wire.set('parametersForm.' + paramId + '.equipment_ids', vals);
+                });
+            });
+        };
+
+        const syncParamSelectWidgets = () => {
+            releaseLivewireSelects();
+            queueMicrotask(initParamEquipmentSelect2);
+        };
+
+        syncParamSelectWidgets();
+        document.addEventListener('livewire:navigated', syncParamSelectWidgets);
+        Livewire.hook('commit', ({ succeed }) => {
+            succeed(() => queueMicrotask(syncParamSelectWidgets));
+        });
     </script>
     @endscript
 </div>

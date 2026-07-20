@@ -292,7 +292,7 @@
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.last_name') }}</label><input wire:model.live="detailsLastName" class="form-control">@error('detailsLastName')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.email') }} *</label><input type="email" wire:model.live="detailsEmail" class="form-control" required>@error('detailsEmail')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.phone') }}</label><input wire:model.live="detailsPhone" class="form-control">@error('detailsPhone')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.id_number_passport') }} *</label><input wire:model.live="detailsIdNumber" class="form-control" required>@error('detailsIdNumber')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.id_number_passport') }}</label><input wire:model.live="detailsIdNumber" class="form-control">@error('detailsIdNumber')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.date_of_birth') }}</label><input type="date" wire:model.live="detailsDateOfBirth" class="form-control">@error('detailsDateOfBirth')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                         </div>
 
@@ -321,11 +321,11 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="signature-card h-100">
                                         <label class="signature-label d-block">{{ __('personnel.sign_using_pad') }}</label>
-                                        <div class="signature-canvas-wrap" id="personnelSignatureCanvasWrap">
+                                        <div class="signature-canvas-wrap" id="personnelSignatureCanvasWrap" wire:ignore>
                                             <canvas id="personnelSignatureCanvas" width="620" height="190"></canvas>
                                             <span class="signature-canvas-placeholder" id="personnelSignaturePlaceholder">{{ __('personnel.sign_here') }}</span>
                                         </div>
-                                        <input type="hidden" id="personnelSignatureData" wire:model.live="detailsSignatureData">
+                                        <input type="hidden" id="personnelSignatureData" wire:model="detailsSignatureData">
                                         <div class="d-flex justify-content-between align-items-center mt-2">
                                             <div class="d-flex align-items-center" style="gap: 8px;">
                                                 <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') }}</small>
@@ -446,20 +446,46 @@
                                     <div class="tag-select-input">
                                         @foreach($selectedLabIds as $selectedLabId)
                                             @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab('{{ $selectedLabId }}')"></i></span>
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab(@js($selectedLabId))"></i></span>
                                         @endforeach
                                         <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
                                     </div>
                                     @if($showLabDropdown)
                                         <div class="tag-dropdown">
                                             @foreach($this->labs->filter(fn($l)=>$labSearch===''||stripos($l->name,$labSearch)!==false) as $lab)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">{{ $lab->name }}</div>
+                                                <div class="tag-dropdown-item" wire:click.stop="selectLab(@js($lab->id))">{{ $lab->name }}</div>
                                             @endforeach
                                         </div>
                                     @endif
                                 </div>
                                 @error('selectedLabIds')<small class="text-danger">{{ $message }}</small>@enderror
                                 @error('selectedLabIds.*')<small class="text-danger">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.lab_sections') }}</label>
+                                <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @foreach($selectedLabSectionIds as $selectedSectionId)
+                                            @php $s = $this->labSections->firstWhere('id', $selectedSectionId); @endphp
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLabSection(@js($selectedSectionId))"></i></span>
+                                        @endforeach
+                                        <input class="tag-input" wire:model.live="labSectionSearch" wire:keyup="searchLabSection" placeholder="Search lab sections...">
+                                    </div>
+                                    @if($showLabSectionDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->labSections->filter(fn($l)=>$labSectionSearch===''||stripos($l->name,$labSectionSearch)!==false||stripos((string)($l->code ?? ''),$labSectionSearch)!==false) as $section)
+                                                <div class="tag-dropdown-item {{ in_array($section->id, $selectedLabSectionIds, true) ? 'tag-dropdown-item-selected' : '' }}"
+                                                     wire:click.stop="selectLabSection(@js($section->id))">
+                                                    {{ $section->code }} - {{ $section->name }}
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-item text-muted">No lab sections found. Create lab sections under Lab Sections management.</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('selectedLabSectionIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                @error('selectedLabSectionIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                         </div>
                     </div>
@@ -1481,6 +1507,25 @@
                 };
             }
 
+            function pushSignatureToLivewire(value) {
+                const { canvas, hiddenInput } = getPadNodes();
+                const root = (canvas && canvas.closest('[wire\\:id]'))
+                    || (hiddenInput && hiddenInput.closest('[wire\\:id]'))
+                    || document.querySelector('[wire\\:id]');
+
+                if (!root || !window.Livewire || typeof Livewire.find !== 'function') {
+                    return;
+                }
+
+                const component = Livewire.find(root.getAttribute('wire:id'));
+                if (!component || typeof component.set !== 'function') {
+                    return;
+                }
+
+                // false = update client snapshot only; included on the next save request (avoids race)
+                component.set('detailsSignatureData', value, false);
+            }
+
             function syncHiddenSignature() {
                 const { canvas, hiddenInput } = getPadNodes();
                 if (!canvas || !hiddenInput) {
@@ -1493,9 +1538,9 @@
                     hiddenInput.value = '';
                 }
 
-                if (typeof $wire !== 'undefined' && $wire && typeof $wire.set === 'function') {
-                    $wire.set('detailsSignatureData', hiddenInput.value);
-                }
+                hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                pushSignatureToLivewire(hiddenInput.value);
 
                 setSignatureStatus(hasSignatureStroke);
             }
@@ -1604,7 +1649,19 @@
                     form.dataset.signatureSubmitBound = '1';
                     form.addEventListener('submit', function () {
                         syncHiddenSignature();
-                    });
+                    }, true);
+                }
+
+                // Also sync before any save button that targets this form / Livewire method
+                if (!window.__personnelSignatureSaveSyncBound) {
+                    window.__personnelSignatureSaveSyncBound = true;
+                    document.addEventListener('click', function (event) {
+                        const trigger = event.target.closest('#userDetailsForm [type="submit"], [wire\\:click="saveUserDetails"], .detail-save-btn');
+                        if (!trigger) {
+                            return;
+                        }
+                        syncHiddenSignature();
+                    }, true);
                 }
 
                 setSignatureStatus(hasSignatureStroke);

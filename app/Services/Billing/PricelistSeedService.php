@@ -18,6 +18,10 @@ use Illuminate\Support\Str;
 
 final class PricelistSeedService
 {
+    private const PACKAGE_PARAMETER_COUNT = 4;
+
+    private const MASTER_PARAMETER_LIMIT = 5;
+
     /** @var array<string, string> */
     private const CUSTOMER_NAMES = [
         'adnoc' => 'ADNOC Group',
@@ -48,13 +52,15 @@ final class PricelistSeedService
         $companyId = $this->resolveCommonCompanyId($customers);
         $currency = $this->resolveCurrency($currencyCode);
         $sampleTypes = $this->resolveSampleTypes($companyId);
-        $elements = $this->resolveMasterElements($sampleTypes);
+        $allElements = $this->resolveCandidateElements($sampleTypes);
+        $masterElements = $this->limitMasterElements($allElements, $sampleTypes);
+        $packageElementsBySampleType = $this->resolvePackageElementGroups($allElements, $sampleTypes);
 
-        if ($elements->isEmpty()) {
+        if ($masterElements->isEmpty()) {
             throw new \RuntimeException('No active analysis elements were found for the Water and Food sample types.');
         }
 
-        return DB::transaction(function () use ($companyId, $currency, $sampleTypes, $elements, $customers): array {
+        return DB::transaction(function () use ($companyId, $currency, $sampleTypes, $masterElements, $packageElementsBySampleType, $customers): array {
             $oldPricelistIds = Pricelist::query()->pluck('id')->all();
 
             $master = $this->createPricelist(
@@ -76,8 +82,8 @@ final class PricelistSeedService
                 $companyId,
             );
 
-            $itemCount = $this->createPerParameterItems($master, $customer, $elements);
-            $packageAnalysisTypes = $this->createPackageItems($package, $elements, $sampleTypes);
+            $itemCount = $this->createPerParameterItems($master, $customer, $masterElements);
+            $packageAnalysisTypes = $this->createPackageItems($package, $packageElementsBySampleType);
 
             $this->replaceOldPricelists($oldPricelistIds, (string) $master->id);
 
@@ -92,7 +98,7 @@ final class PricelistSeedService
                 'items' => $itemCount + count($packageAnalysisTypes),
                 'packages' => count($packageAnalysisTypes),
                 'assignments' => $assignmentCount,
-                'master_elements' => $elements->count(),
+                'master_elements' => $masterElements->count(),
                 'package_analysis_types' => $packageAnalysisTypes,
             ];
         });
@@ -207,7 +213,7 @@ final class PricelistSeedService
      * @param  Collection<string, SampleType>  $sampleTypes
      * @return Collection<int, AnalysisElements>
      */
-    private function resolveMasterElements(Collection $sampleTypes): Collection
+    private function resolveCandidateElements(Collection $sampleTypes): Collection
     {
         return AnalysisElements::query()
             ->with(['analysis_type', 'analyte'])
@@ -229,6 +235,92 @@ final class PricelistSeedService
                 (string) ($element->analyte?->name ?? ''),
             ]))
             ->values();
+    }
+
+    /**
+     * Prefer up to a few parameters from each sample type, never more than MASTER_PARAMETER_LIMIT total.
+     *
+     * @param  Collection<int, AnalysisElements>  $elements
+     * @param  Collection<string, SampleType>  $sampleTypes
+     * @return Collection<int, AnalysisElements>
+     */
+    private function limitMasterElements(Collection $elements, Collection $sampleTypes): Collection
+    {
+        $sampleTypeCount = max(1, $sampleTypes->count());
+        $perTypeBudget = max(1, (int) floor(self::MASTER_PARAMETER_LIMIT / $sampleTypeCount));
+        $selected = collect();
+
+        foreach ($sampleTypes as $sampleType) {
+            $slice = $elements
+                ->filter(fn (AnalysisElements $element): bool => (
+                    (string) $element->analysis_type?->sample_type_id === (string) $sampleType->id
+                ))
+                ->take($perTypeBudget)
+                ->values();
+
+            $selected = $selected->concat($slice);
+        }
+
+        if ($selected->count() < self::MASTER_PARAMETER_LIMIT) {
+            $remaining = self::MASTER_PARAMETER_LIMIT - $selected->count();
+            $selectedIds = $selected->pluck('id')->all();
+            $selected = $selected->concat(
+                $elements
+                    ->reject(fn (AnalysisElements $element): bool => in_array($element->id, $selectedIds, true))
+                    ->take($remaining)
+                    ->values()
+            );
+        }
+
+        return $selected->take(self::MASTER_PARAMETER_LIMIT)->values();
+    }
+
+    /**
+     * @param  Collection<int, AnalysisElements>  $elements
+     * @param  Collection<string, SampleType>  $sampleTypes
+     * @return Collection<string, Collection<int, AnalysisElements>>
+     */
+    private function resolvePackageElementGroups(Collection $elements, Collection $sampleTypes): Collection
+    {
+        $groups = collect();
+
+        foreach ($sampleTypes as $key => $sampleType) {
+            $analysisGroup = $elements
+                ->filter(fn (AnalysisElements $element): bool => (
+                    (string) $element->analysis_type?->sample_type_id === (string) $sampleType->id
+                ))
+                ->groupBy('analysis_type_id')
+                ->first(fn ($group): bool => $group instanceof Collection
+                    && $group->count() >= self::PACKAGE_PARAMETER_COUNT);
+
+            if (! $analysisGroup instanceof Collection) {
+                $analysisGroup = $elements
+                    ->filter(fn (AnalysisElements $element): bool => (
+                        (string) $element->analysis_type?->sample_type_id === (string) $sampleType->id
+                    ))
+                    ->groupBy('analysis_type_id')
+                    ->first();
+            }
+
+            if (! $analysisGroup instanceof Collection || $analysisGroup->isEmpty()) {
+                throw new \RuntimeException("No package-capable analysis type found for {$sampleType->name}.");
+            }
+
+            $packageGroup = $analysisGroup->take(self::PACKAGE_PARAMETER_COUNT)->values();
+
+            if ($packageGroup->count() < self::PACKAGE_PARAMETER_COUNT) {
+                throw new \RuntimeException(sprintf(
+                    'Analysis type for %s needs at least %d active parameters for package seeding; found %d.',
+                    $sampleType->name,
+                    self::PACKAGE_PARAMETER_COUNT,
+                    $packageGroup->count(),
+                ));
+            }
+
+            $groups->put((string) $key, $packageGroup);
+        }
+
+        return $groups;
     }
 
     private function createPricelist(
@@ -309,44 +401,30 @@ final class PricelistSeedService
     }
 
     /**
-     * @param  Collection<int, AnalysisElements>  $elements
-     * @param  Collection<string, SampleType>  $sampleTypes
+     * @param  Collection<string, Collection<int, AnalysisElements>>  $packageElementsBySampleType
      * @return list<string>
      */
     private function createPackageItems(
         Pricelist $packagePricelist,
-        Collection $elements,
-        Collection $sampleTypes,
+        Collection $packageElementsBySampleType,
     ): array {
         $analysisNames = [];
         $level = 1;
 
-        foreach ($sampleTypes as $sampleType) {
-            $analysisGroup = $elements
-                ->filter(fn (AnalysisElements $element): bool => (
-                    (string) $element->analysis_type?->sample_type_id === (string) $sampleType->id
-                ))
-                ->groupBy('analysis_type_id')
-                ->first();
-
-            if (! $analysisGroup instanceof Collection || $analysisGroup->isEmpty()) {
-                throw new \RuntimeException("No package-capable analysis type found for {$sampleType->name}.");
-            }
-
+        foreach ($packageElementsBySampleType as $analysisGroup) {
             /** @var AnalysisElements $firstElement */
             $firstElement = $analysisGroup->first();
             $analysisType = $firstElement->analysis_type;
 
             if ($analysisType === null) {
-                throw new \RuntimeException("Package analysis type could not be loaded for {$sampleType->name}.");
+                throw new \RuntimeException('Package analysis type could not be loaded for a package group.');
             }
 
             $parameterTotal = 0.0;
             $costTotal = 0.0;
 
-            foreach ($analysisGroup as $element) {
-                $position = $elements->search(fn (AnalysisElements $candidate): bool => $candidate->id === $element->id);
-                $elementLevel = $position === false ? 1 : $position + 1;
+            foreach ($analysisGroup->values() as $index => $element) {
+                $elementLevel = $index + 1;
                 $cost = 35 + (($elementLevel - 1) % 10) * 5;
                 $costTotal += $cost;
                 $parameterTotal += round(($cost * 1.60) * 0.90, 2);
@@ -355,7 +433,7 @@ final class PricelistSeedService
             $packageItem = PricelistItem::query()->create([
                 'id' => (string) Str::uuid(),
                 'pricelist_id' => $packagePricelist->id,
-                'sample_type_id' => $sampleType->id,
+                'sample_type_id' => $analysisType->sample_type_id,
                 'analysis_id' => $analysisType->id,
                 'analysis_element_id' => null,
                 'cost_price' => round($costTotal, 2),
@@ -377,7 +455,7 @@ final class PricelistSeedService
                 ]);
             }
 
-            $analysisNames[] = (string) $analysisType->name;
+            $analysisNames[] = (string) $analysisType->name.' ('.self::PACKAGE_PARAMETER_COUNT.' parameters)';
         }
 
         return $analysisNames;

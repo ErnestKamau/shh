@@ -21,7 +21,9 @@ use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\Sampleworkflow\CommentsInterpretationsDefaultsService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\Services\ResultRemarkService;
 use Livewire\Component;
@@ -116,6 +118,10 @@ class Samples extends Component
     public $showParametersModal = false;
     public $selectedSampleCode = null;
     public $sampleParameters = [];
+    /** True when the user has no lab section assignment (view-all, edit-none). */
+    public bool $parametersReadOnly = false;
+    /** True when rows were filtered to the user's assigned lab section(s). */
+    public bool $parametersSectionFiltered = false;
     public $activeField = '';
 
     public $activeRowIndex = null;
@@ -305,10 +311,16 @@ class Samples extends Component
     protected function loadIncompleteCapturedResults(): void
     {
         try {
-            $rows = CapturedResult::where('sample_header_id', $this->batchId)
+            $access = app(LabSectionResultAccess::class);
+            $user = auth()->user();
+
+            $query = CapturedResult::where('sample_header_id', $this->batchId)
                 ->whereValidUuidAnalyteId()
-                ->with(['sample', 'analysis_type', 'my_analyte'])
-                ->get();
+                ->with(['sample', 'analysis_type', 'my_analyte']);
+
+            $access->scopeVisibleCapturedResults($query, $user);
+
+            $rows = $query->get();
 
             $items = [];
             foreach ($rows as $cr) {
@@ -452,7 +464,7 @@ class Samples extends Component
                     ->select('id', 'name')->get()->toArray();
             }
 
-            $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
 
             // Load all sample types
             $this->sampleTypes = \App\SampleType::select('id', 'name')->where('active', 1)->orderBy('name')->get()->toArray();
@@ -499,21 +511,24 @@ class Samples extends Component
                     'id' => $sample->id,
                     'sample_code' => $sample->sample_code,
                     'analysis_type_id' => array_filter(explode(',', $sample->analysis_type_id ?? '')),
-                    'lab_id' => $sample->lab_id ?? '',
-                    'sample_condition_id' => $sample->sample_condition_id ?? '',
-                    'sample_point_id' => $sample->sample_point_id ?? '',
+                    'lab_id' => $sample->lab_id ? (string) $sample->lab_id : '',
+                    'sample_condition_id' => $sample->sample_condition_id ? (string) $sample->sample_condition_id : '',
+                    'sample_point_id' => $sample->sample_point_id ? (string) $sample->sample_point_id : '',
                     'photo_url' => $sample->photo_url ?? '',
                     'sample_no' => $sample->sample_no ?? '',
-                    'sample_type_id' => $sample->sample_type_id ?? '',
+                    'sample_type_id' => $sample->sample_type_id ? (string) $sample->sample_type_id : '',
                     'customer_sample_id' => $this->resolveCustomerSampleId($sample),
                     'comments' => $sample->comments ?? '',
-                    'main_standard' => $sample->main_standard ?? '',
-                    'secondary_standard' => $sample->secondary_standard ?? '',
+                    'header_body' => $sample->header_body ?? '',
+                    'main_body' => $sample->main_body ?? '',
+                    'notes_body' => $sample->notes_body ?? '',
+                    'main_standard' => $sample->main_standard ? (string) $sample->main_standard : '',
+                    'secondary_standard' => $sample->secondary_standard ? (string) $sample->secondary_standard : '',
                     'disposal_date' => $sample->disposal_date ?? '',
-                    'store_id' => $sample->store_id ?? '',
-                    'store_slot_id' => $sample->store_slot_id ?? '',
+                    'store_id' => $sample->store_id ? (string) $sample->store_id : '',
+                    'store_slot_id' => $sample->store_slot_id ? (string) $sample->store_slot_id : '',
                     'quantity' => $sample->quantity ?? 1,
-                    'reporting_unit_id' => $sample->reporting_unit_id ?? '',
+                    'reporting_unit_id' => $sample->reporting_unit_id ? (string) $sample->reporting_unit_id : '',
                 ];
             }
 
@@ -545,9 +560,9 @@ class Samples extends Component
     private function persistSampleFromFormData(SampleDetails $sample, array $sampleData, int $index): SampleDetails
     {
         $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
-            ? implode(',', $sampleData['analysis_type_id'])
+            ? implode(',', array_map('strval', $sampleData['analysis_type_id']))
             : (string) ($sampleData['analysis_type_id'] ?? '');
-        $sample->lab_id = ! empty($sampleData['lab_id']) ? $sampleData['lab_id'] : null;
+        $sample->lab_id = ! empty($sampleData['lab_id']) ? (string) $sampleData['lab_id'] : null;
         $sample->sample_condition_id = ! empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
         $sample->sample_point_id = ! empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
 
@@ -1167,45 +1182,37 @@ class Samples extends Component
 
     private function generateResultsForSample($sampleDetail, $analysisTypeIdsStr)
     {
-        $analysisTypeIds = explode(',', $analysisTypeIdsStr);
+        $analysisTypeIds = collect(explode(',', (string) $analysisTypeIdsStr))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($analysisTypeIds === []) {
+            return;
+        }
+
+        $setupService = app(\App\Services\Sampleworkflow\SampleAnalysisSetupService::class);
+        $header = \App\SampleHeader::query()->find($sampleDetail->sample_header_id);
+        if ($header) {
+            $setupService->syncAnalysisRelations($header, $sampleDetail, $analysisTypeIds);
+        }
+
         foreach ($analysisTypeIds as $atId) {
-            if (!$atId)
-                continue;
+            $setupService->createCapturedResultsForAnalysisType(
+                (string) $sampleDetail->sample_header_id,
+                (string) $sampleDetail->id,
+                $atId,
+                (string) $sampleDetail->sample_code,
+                auth()->id() ? (string) auth()->id() : null,
+            );
+        }
 
-            $elements = \App\AnalysisElements::where('analysis_type_id', $atId)->where('active', 1)->get();
-            foreach ($elements as $element) {
-                // Create CapturedResult and Result
-                // This is a minimal implementation to get it working, mirroring SampleCreationController
-                $analyteCode = $element->analyte->code ?? 'UNKNOWN';
-                $reportingUnit = \App\ReportingUnit::find($element->reporting_unit);
-                $reportingUnitName = $reportingUnit ? $reportingUnit->name : '';
-
-                $captured = new \App\CapturedResult();
-                $captured->fill([
-                    'sample_detail_code' => $sampleDetail->sample_code,
-                    'sample_detail_id' => $sampleDetail->id,
-                    'sample_header_id' => $sampleDetail->sample_header_id,
-                    'analyte_id' => $element->analyte_id,
-                    'analyte_code' => $analyteCode,
-                    'analysis_type_id' => $atId,
-                    'lab_section_id' => $element->lab_section_id,
-                    'user_id' => auth()->id(),
-                    'reporting_unit_id' => $reportingUnitName,
-                ]);
-                $captured->save();
-
-                $result = new \App\Result();
-                $result->fill([
-                    'captured_result_id' => $captured->id,
-                    'sample_detail_code' => $sampleDetail->sample_code,
-                    'sample_detail_id' => $sampleDetail->id,
-                    'sample_header_id' => $sampleDetail->sample_header_id,
-                    'analyte_id' => $element->analyte_id,
-                    'analyte_code' => $analyteCode,
-                    'analysis_type_id' => $atId,
-                    'reporting_unit_id' => $reportingUnitName,
-                ]);
-                $result->save();
+        if ($header) {
+            $setupService->syncBatchLabSectionIdsFromAnalysisTypes($header);
+            if ($this->batch && (string) $this->batch->id === (string) $header->id) {
+                $this->batch->refresh();
             }
         }
     }
@@ -1674,6 +1681,9 @@ class Samples extends Component
             'sample_type_id' => '',
             'customer_sample_id' => '',
             'comments' => '',
+            'header_body' => '',
+            'main_body' => '',
+            'notes_body' => '',
             'main_standard' => '',
             'secondary_standard' => '',
             'disposal_date' => '',
@@ -1981,10 +1991,21 @@ class Samples extends Component
      */
     public function saveSamples()
     {
+        Log::info('Samples::saveSamples called', [
+            'batch_id' => $this->batch->id,
+            'rows' => collect($this->sampleForms)->map(fn ($row, $index) => [
+                'index' => $index,
+                'id' => $row['id'] ?? null,
+                'lab_id' => $row['lab_id'] ?? null,
+                'sample_type_id' => $row['sample_type_id'] ?? null,
+                'customer_sample_id' => $row['customer_sample_id'] ?? null,
+            ])->values()->all(),
+        ]);
+
         // Validate all samples
         $this->validate([
             'sampleForms.*.analysis_type_id' => 'required|array|min:1',
-            'sampleForms.*.lab_id' => 'required',
+            'sampleForms.*.lab_id' => 'required|uuid|exists:labs,id',
             'sampleForms.*.sample_condition_id' => 'nullable',
             'sampleForms.*.sample_point_id' => 'nullable',
             'sampleForms.*.photo_url' => 'nullable',
@@ -1997,6 +2018,8 @@ class Samples extends Component
             'sampleForms.*.analysis_type_id.required' => 'Matrix is required',
             'sampleForms.*.analysis_type_id.min' => 'At least one matrix option must be selected',
             'sampleForms.*.lab_id.required' => 'Lab is required',
+            'sampleForms.*.lab_id.uuid' => 'Lab selection is invalid',
+            'sampleForms.*.lab_id.exists' => 'Selected lab does not exist',
             'sampleForms.*.main_standard.required' => 'Main standard is required',
         ]);
 
@@ -2019,6 +2042,12 @@ class Samples extends Component
                 $sample = $this->persistSampleFromFormData($sample, $sampleData, $index);
 
                 $this->sampleForms[$index]['id'] = $sample->id;
+
+                Log::info('Samples::saveSamples persisted row', [
+                    'sample_id' => $sample->id,
+                    'lab_id' => $sample->lab_id,
+                    'customer_sample_id' => $sample->customer_sample_id,
+                ]);
             }
 
             DB::commit();
@@ -2033,7 +2062,10 @@ class Samples extends Component
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error saving samples: ' . $e->getMessage());
+            Log::error('Error saving samples: ' . $e->getMessage(), [
+                'batch_id' => $this->batch->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
             session()->flash('error', 'Failed to save samples: ' . $e->getMessage());
         }
     }
@@ -2073,7 +2105,7 @@ class Samples extends Component
 
         if (empty($selectedAnalysisIds)) {
             // Reset to all labs if no analysis types selected
-            $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
             return;
         }
 
@@ -2087,19 +2119,31 @@ class Samples extends Component
 
             if (!empty($labIds)) {
                 // Filter labs to only those that handle the selected analysis types
-                $this->labSections = Lab::whereIn('id', $labIds)
-                    ->select('id', 'name', 'code')
-                    ->get()
-                    ->toArray();
+                $this->labSections = $this->mapLabsForSelect(
+                    Lab::whereIn('id', $labIds)->select('id', 'name', 'code')->get()
+                );
             } else {
                 // No labs found, keep all labs available
-                $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+                $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
             }
         } catch (\Exception $e) {
             Log::error('Error filtering labs: ' . $e->getMessage());
             // On error, show all labs
-            $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
         }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Lab>|\Illuminate\Database\Eloquent\Collection<int, Lab>  $labs
+     * @return array<int, array{id: string, name: string|null, code: string|null}>
+     */
+    private function mapLabsForSelect($labs): array
+    {
+        return $labs->map(fn (Lab $lab) => [
+            'id' => (string) $lab->id,
+            'name' => $lab->name,
+            'code' => $lab->code,
+        ])->values()->all();
     }
 
     /**
@@ -2123,12 +2167,19 @@ class Samples extends Component
 
             $this->uncertaintyRequired = $this->batch->require_mu == 1;
 
+            $access = app(LabSectionResultAccess::class);
+            $user = auth()->user();
+            $this->parametersReadOnly = ! $access->hasLabSectionAssignment($user);
+            $this->parametersSectionFiltered = $access->hasLabSectionAssignment($user);
+
             // Use Eloquent so SafeEncrypted casts decrypt analyte_code, result, remark, etc.
             $capturedResultsQuery = CapturedResult::query()
                 ->where('sample_detail_code', $sampleCode)
                 ->where('sample_header_id', $this->batch->id)
                 ->orderBy('analysis_type_order')
                 ->orderBy('parameters_order');
+
+            $access->scopeVisibleCapturedResults($capturedResultsQuery, $user);
 
             if ($hasAttachmentColumn) {
                 $capturedResultsQuery->with('batchAttachment');
@@ -2138,6 +2189,9 @@ class Samples extends Component
 
             if ($capturedResults->isEmpty()) {
                 $this->sampleParameters = [];
+                $this->parametersForm = [];
+                $this->parameterLabSections = [];
+                $this->dateOfAnalysisBySection = [];
                 $this->showParametersModal = true;
                 return;
             }
@@ -2159,32 +2213,43 @@ class Samples extends Component
                 // Get operator - prefer stored, else current user (auto-assigned on save)
                 $operator = \App\User::find($result->operator_id) ?? auth()->user();
 
-                // Get method — fall back to analysis element when blank
-                $method = \App\AnalysisMethod::find($result->method_id);
-                if (! $method && $result->analysis_type_id && $result->analyte_id) {
-                    $element = \App\AnalysisElements::query()
-                        ->where('analysis_type_id', $result->analysis_type_id)
-                        ->where('analyte_id', $result->analyte_id)
-                        ->where('active', 1)
-                        ->first();
-                    if ($element?->method) {
-                        $method = \App\AnalysisMethod::find($element->method);
-                        if (! $result->method_id && $method) {
-                            $result->method_id = $method->id;
-                        }
-                        if (! $result->reporting_unit_id && $element->reporting_unit) {
-                            $result->reporting_unit_id = resolveReportingUnitIdFromName($element->reporting_unit);
-                        }
+                $element = $result->resolveAnalysisElement();
+                if ($element && ! $result->analysis_element_id) {
+                    $result->analysis_element_id = $element->id;
+                }
+
+                // Prefill blanks from analysis element; user can still change via full dropdowns
+                if ($element) {
+                    if (! $result->method_id && $element->method) {
+                        $result->method_id = $element->method;
+                    }
+                    if (! $result->equipment_id && $element->equipment_id) {
+                        $result->equipment_id = $element->equipment_id;
                     }
                 }
 
-                // Get LTM method (stored as simple value, not a model)
-                $ltmMethod = null;
-
-                // Get equipment
+                $method = \App\AnalysisMethod::find($result->method_id);
                 $equipment = \App\Models\Equipments\Equipment::find($result->equipment_id);
+                $defaultUnitId = $this->resolveDefaultReportingUnitId($result, $element);
+                $defaultMethodId = $result->method_id ?: ($element?->method ? (string) $element->method : null);
+                $defaultEquipmentIds = $this->normalizeEquipmentIds(
+                    Schema::hasColumn('captured_results', 'equipment_ids')
+                        ? ($result->equipment_ids ?? null)
+                        : null,
+                    $result->equipment_id ?: $element?->equipment_id
+                );
 
                 // Lab section (for Parameters modal column and change section)
+                if (! $result->lab_section_id && $element?->lab_section_id) {
+                    // Prefer element section only when the current user can edit that section;
+                    // otherwise leave null so assigned analysts can still capture (claimed on save).
+                    $candidateSection = (string) $element->lab_section_id;
+                    if (in_array($candidateSection, $access->allowedLabSectionIds($user), true)) {
+                        $result->lab_section_id = $candidateSection;
+                        $result->saveQuietly();
+                    }
+                }
+
                 $labSection = SampleAnalysisStage::find($result->lab_section_id);
 
                 // Get analyte for reporting unit
@@ -2238,11 +2303,32 @@ class Samples extends Component
                         : '—';
                 }
 
+                $selectedEquipmentIds = $defaultEquipmentIds;
+
+                $startAnalysisDate = $analysisDatesBySection['captured_result:' . $result->id]['start_date']
+                    ?? $analysisDatesBySection[$result->lab_section_id]['start_date']
+                    ?? null;
+                $endAnalysisDate = $analysisDatesBySection['captured_result:' . $result->id]['end_date']
+                    ?? $analysisDatesBySection[$result->lab_section_id]['end_date']
+                    ?? null;
+
+                // Start date defaults to receipt/acceptance date when the job has been received.
+                if ($startAnalysisDate === null || $startAnalysisDate === '') {
+                    $startAnalysisDate = $this->defaultStartAnalysisDateFromReceipt();
+                }
+
+                // Previously filed results with no saved end date: use when the result was last updated.
+                if (($endAnalysisDate === null || $endAnalysisDate === '')
+                    && trim((string) ($result->result ?? '')) !== '') {
+                    $endAnalysisDate = $this->normalizeDateOnly($result->updated_at);
+                }
+
                 $parameters[$result->id] = [
                     'id' => $result->id,
                     'sample_code' => $result->sample_detail_code,
                     'analysis_type' => $analysisType->name ?? $analysisType->code ?? '-',
                     'analysis_type_id' => $result->analysis_type_id,
+                    'analysis_element_id' => $result->analysis_element_id ?? $element?->id,
                     'analyte_code' => is_string($analyteCode) && ! str_starts_with($analyteCode, 'eyJ') ? $analyteCode : ($analyte?->code ?? ''),
                     'analyte_id' => $result->analyte_id,
                     'analyte_name' => $analyteName,
@@ -2255,23 +2341,20 @@ class Samples extends Component
                     'sec_standard_id' => $effectiveSecStandardId,
                     'remark' => $result->remark ?: '',
                     'remark_is_manual' => $result->remark_is_manual,
-                    'reporting_unit' => $result->reporting_unit_id,
+                    'reporting_unit' => $defaultUnitId ?? '',
                     'operator_name' => $operator->name ?? '-',
                     'operator_id' => $result->operator_id,
                     'method_name' => $method->name ?? '-',
-                    'method_id' => $result->method_id,
+                    'method_id' => $defaultMethodId,
                     'ltm_method_name' => $result->ltm_method_id ? 'LTM-' . $result->ltm_method_id : '-',
                     'ltm_method_id' => $result->ltm_method_id,
                     'equipment_name' => $equipment->name ?? '-',
-                    'equipment_id' => $result->equipment_id,
+                    'equipment_id' => $selectedEquipmentIds[0] ?? $result->equipment_id,
+                    'equipment_ids' => $selectedEquipmentIds,
                     'lab_section_id' => $result->lab_section_id,
                     'lab_section_name' => $labSection ? ($labSection->name . ' - ' . $labSection->code) : '-',
-                    'start_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['start_date']
-                        ?? $analysisDatesBySection[$result->lab_section_id]['start_date']
-                        ?? '',
-                    'end_analysis_date' => $analysisDatesBySection['captured_result:' . $result->id]['end_date']
-                        ?? $analysisDatesBySection[$result->lab_section_id]['end_date']
-                        ?? '',
+                    'start_analysis_date' => $startAnalysisDate ?? '',
+                    'end_analysis_date' => $endAnalysisDate ?? '',
                     'subcontracted' => $result->analyte_status_contracted,
                     'accredited' => $result->analyte_accredited,
                     'result_confirmation' => $result->result, // Initialize with same value
@@ -2286,7 +2369,7 @@ class Samples extends Component
                 ];
             }
 
-            // Unique lab sections for Date of Analysis row: from parameters, or fall back to batch's lab sections
+            // Unique lab sections for Date of Analysis row: from (already visibility-filtered) parameters
             $uniqueSectionIds = collect($parameters)->pluck('lab_section_id')->filter()->unique()->values();
             $this->parameterLabSections = [];
             foreach ($uniqueSectionIds as $sid) {
@@ -2295,8 +2378,10 @@ class Samples extends Component
                     $this->parameterLabSections[$sid] = $stage->name . ' - ' . $stage->code;
                 }
             }
-            // If no sections from parameters (e.g. not yet assigned), use batch's lab sections so Date row still shows
-            if (empty($this->parameterLabSections) && !empty($this->batch->lab_section_ids)) {
+
+            // Unassigned (view-all): if no sections on rows, fall back to batch sections so Date row still shows.
+            // Section-scoped users must not see foreign batch sections.
+            if (empty($this->parameterLabSections) && ! $this->parametersSectionFiltered && ! empty($this->batch->lab_section_ids)) {
                 $batchSectionIds = array_filter(explode(',', $this->batch->lab_section_ids));
                 foreach ($batchSectionIds as $sid) {
                     $stage = SampleAnalysisStage::find($sid);
@@ -2313,26 +2398,32 @@ class Samples extends Component
                     continue;
                 }
 
+                if ($this->parametersSectionFiltered && ! isset($this->parameterLabSections[$secId])) {
+                    continue;
+                }
+
                 $this->dateOfAnalysisBySection[$secId] = $range['start_date'] ?? '';
             }
-            // Ensure every parameter section has an entry
+            // Ensure every parameter section has an entry (default to receipt/acceptance date)
+            $defaultStartDate = $this->defaultStartAnalysisDateFromReceipt() ?? '';
             foreach (array_keys($this->parameterLabSections) as $sid) {
-                if (!isset($this->dateOfAnalysisBySection[$sid])) {
-                    $this->dateOfAnalysisBySection[$sid] = '';
+                if (! isset($this->dateOfAnalysisBySection[$sid]) || $this->dateOfAnalysisBySection[$sid] === '') {
+                    $this->dateOfAnalysisBySection[$sid] = $defaultStartDate;
                 }
             }
 
             // Lab sections for dropdown (Parameters modal)
             $this->modalLabSections = SampleAnalysisStage::where('active', 1)->where('is_system', 0)->orderBy('name')->get();
 
-            // If still no sections (batch has none), use all active sections so Date of Analysis row is always visible
-            if (empty($this->parameterLabSections) && $this->modalLabSections->isNotEmpty()) {
+            // If still no sections (batch has none), use all active sections only for unassigned view-all users
+            if (empty($this->parameterLabSections) && ! $this->parametersSectionFiltered && $this->modalLabSections->isNotEmpty()) {
                 foreach ($this->modalLabSections as $stage) {
                     $this->parameterLabSections[$stage->id] = $stage->name . ' - ' . $stage->code;
                 }
+                $defaultStartDate = $this->defaultStartAnalysisDateFromReceipt() ?? '';
                 foreach (array_keys($this->parameterLabSections) as $sid) {
-                    if (!isset($this->dateOfAnalysisBySection[$sid])) {
-                        $this->dateOfAnalysisBySection[$sid] = '';
+                    if (! isset($this->dateOfAnalysisBySection[$sid]) || $this->dateOfAnalysisBySection[$sid] === '') {
+                        $this->dateOfAnalysisBySection[$sid] = $defaultStartDate;
                     }
                 }
             }
@@ -2340,13 +2431,18 @@ class Samples extends Component
             // Populate form data for editing
             $this->parametersForm = $parameters;
 
-            // Load dropdown lists if empty
+            // Full dropdown lists — AE values are only used as defaults above
             if (empty($this->modalLists['operators'])) {
                 $this->modalLists['operators'] = \App\User::orderBy('name')->get();
-                $this->modalLists['methods'] = \App\AnalysisMethod::orderBy('name')->get();
-                $this->modalLists['equipments'] = \App\Models\Equipments\Equipment::orderBy('name')->get();
-                $this->modalLists['units'] = \App\ReportingUnit::all();
             }
+            if (empty($this->modalLists['methods'])) {
+                $this->modalLists['methods'] = \App\AnalysisMethod::orderBy('name')->get();
+            }
+            if (empty($this->modalLists['equipments'])) {
+                $this->modalLists['equipments'] = \App\Models\Equipments\Equipment::orderBy('name')->get();
+            }
+            // Always refresh units so names ensured from analysis elements appear in the dropdown.
+            $this->modalLists['units'] = ReportingUnit::query()->orderBy('name')->get();
 
             // Load standard values for edit modal
             if (empty($this->standardValueOptions)) {
@@ -2370,9 +2466,15 @@ class Samples extends Component
             return;
         }
 
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
+            session()->flash('error', app(LabSectionResultAccess::class)->denyEditMessage(auth()->user()));
+            return;
+        }
+
         $result = trim($result);
         $this->parametersForm[$id]['result'] = $result;
         $this->parametersForm[$id]['result_confirmation'] = $result;
+        $this->autofillAnalysisDatesForFiledResult($id);
         $this->evaluateResult($id);
     }
 
@@ -2382,6 +2484,10 @@ class Samples extends Component
     public function clearParameterResult(string $id): void
     {
         if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
             return;
         }
 
@@ -2469,6 +2575,11 @@ class Samples extends Component
 
     public function openEditStandardModal($id, $level = 1)
     {
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow((string) $id)) {
+            session()->flash('error', 'Assign a lab section in your profile before editing standards.');
+            return;
+        }
+
         if (!isset($this->parametersForm[$id])) {
             session()->flash('error', "Error: Parameter ID $id not found in form.");
             return;
@@ -2535,6 +2646,12 @@ class Samples extends Component
     public function saveStandardLimit()
     {
         $data = $this->editingStandardData;
+        $capturedId = (string) ($data['captured_result_id'] ?? '');
+
+        if ($this->parametersReadOnly || ($capturedId !== '' && ! $this->userCanEditParameterRow($capturedId))) {
+            session()->flash('error', 'You can only edit standards for your assigned lab section(s).');
+            return;
+        }
 
         // Find or create
         $stdAnalyte = \App\StandardAnalytes::where('standard_id', $data['standard_id'])
@@ -2596,31 +2713,39 @@ class Samples extends Component
         // Update CapturedResult snapshot with the Display Value
         $updateField = $data['standard_level'] == 1 ? 'main_value' : 'secondary_value';
         $idField = $data['standard_level'] == 1 ? 'main_standard_id' : 'secondary_standard_id';
+        $capturedResultId = (string) $data['captured_result_id'];
 
         DB::table('captured_results')
-            ->where('id', $data['captured_result_id'])
+            ->where('id', $capturedResultId)
             ->update([
                 $updateField => $newValue,
                 $idField => $data['standard_id']
             ]);
 
-        // Refresh view
-        if ($this->selectedSampleCode) {
-            $this->viewParameters($this->selectedSampleCode);
-            // Also update the parametersForm used for editing if needed, 
-            // but viewParameters should rebuild it.
+        // Update only the edited row in-place so unsaved sibling parameter edits are preserved
+        if (isset($this->parametersForm[$capturedResultId])) {
+            if ((int) $data['standard_level'] === 1) {
+                $this->parametersForm[$capturedResultId]['standard_value'] = $newValue;
+                $this->parametersForm[$capturedResultId]['standard_id'] = $data['standard_id'];
+                $this->parametersForm[$capturedResultId]['limit_type'] = $stdAnalyte->standard_value_type;
+                $this->parametersForm[$capturedResultId]['limit_low'] = $stdAnalyte->low;
+                $this->parametersForm[$capturedResultId]['limit_high'] = $stdAnalyte->high;
+                $this->parametersForm[$capturedResultId]['value_limit_type'] = $stdAnalyte->value_type;
+                $this->parametersForm[$capturedResultId]['standard_limit_value'] = $stdAnalyte->standard_is_value;
+            } else {
+                $this->parametersForm[$capturedResultId]['sec_standard_value'] = $newValue;
+                $this->parametersForm[$capturedResultId]['sec_standard_id'] = $data['standard_id'];
+            }
+
+            if (isset($this->sampleParameters[$capturedResultId])) {
+                $this->sampleParameters[$capturedResultId] = $this->parametersForm[$capturedResultId];
+            }
         }
 
         $this->showEditStandardModal = false;
         $this->reset('editingStandardData');
 
-        // Re-evaluate current row result against new limits
-        // (Optional: Recalculate pass/fail based on new limits? 
-        //  The legacy code does not seem to trigger a full re-evaluation of ALL results, 
-        //  but the user might expect the "Remark" to update if they change the limit.
-        //  Legacy JS performs an ajax call to /fetch/results-remark. We should do similar.)
-
-        $this->evaluateResult($data['captured_result_id']);
+        $this->evaluateResult($capturedResultId);
     }
 
     /**
@@ -2629,8 +2754,39 @@ class Samples extends Component
     public function saveParameters(): void
     {
         try {
+            $access = app(LabSectionResultAccess::class);
+            $user = auth()->user();
+
+            if (! $access->hasLabSectionAssignment($user)) {
+                session()->flash('error', 'Assign a lab section in your profile before capturing results.');
+                return;
+            }
+
+            foreach (array_keys($this->parametersForm) as $id) {
+                $captured = CapturedResult::query()->find($id);
+                if (! $captured || ! $access->canEditCapturedResult($user, $captured)) {
+                    session()->flash('error', 'You can only save parameters for your assigned lab section(s).');
+                    return;
+                }
+            }
+
             foreach (array_keys($this->parametersForm) as $id) {
                 $this->evaluateResult($id);
+            }
+
+            // Persist receipt-based start dates even when no result is filed yet.
+            // When a result is present, also autofill end date if still empty.
+            foreach (array_keys($this->parametersForm) as $id) {
+                if (empty($this->parametersForm[$id]['start_analysis_date'])) {
+                    $receiptDate = $this->defaultStartAnalysisDateFromReceipt();
+                    if ($receiptDate !== null) {
+                        $this->parametersForm[$id]['start_analysis_date'] = $receiptDate;
+                    }
+                }
+
+                if (trim((string) ($this->parametersForm[$id]['result'] ?? '')) !== '') {
+                    $this->autofillAnalysisDatesForFiledResult($id);
+                }
             }
 
             foreach ($this->parametersForm as $data) {
@@ -2652,17 +2808,43 @@ class Samples extends Component
                     continue;
                 }
 
-                app(\App\Services\Sampleworkflow\CapturedResultCaptureService::class)->applyOnSave($captured, [
-                    'result' => $data['result'] ?: null,
+                if (! $access->canEditCapturedResult($user, $captured)) {
+                    continue;
+                }
+
+                $equipmentIds = $this->normalizeEquipmentIds(
+                    $data['equipment_ids'] ?? null,
+                    $data['equipment_id'] ?? null
+                );
+
+                $labSectionId = $this->resolveLabSectionIdForSave($captured, $user, $access);
+
+                // Keep resolved lab_section_id; do not trust form-posted section for auth.
+                $saveAttributes = [
+                    'result' => ($data['result'] ?? '') === '' || $data['result'] === null ? null : (string) $data['result'],
                     'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
                     'remark' => $data['remark'] ?: null,
                     'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
                     'method_id' => $this->normalizeNullableForeignKey($data['method_id'] ?? null),
-                    'equipment_id' => $this->normalizeNullableForeignKey($data['equipment_id'] ?? null),
-                    'lab_section_id' => $this->normalizeNullableForeignKey($data['lab_section_id'] ?? null),
+                    'equipment_id' => $equipmentIds[0] ?? null,
+                    'lab_section_id' => $labSectionId,
                     'analyte_status_contracted' => ! empty($data['subcontracted']) ? 1 : 0,
                     'analyte_accredited' => ! empty($data['accredited']) ? 1 : 0,
-                ], auth()->id() ? (string) auth()->id() : null);
+                ];
+
+                if (Schema::hasColumn('captured_results', 'equipment_ids')) {
+                    $saveAttributes['equipment_ids'] = $equipmentIds !== [] ? $equipmentIds : null;
+                }
+
+                app(\App\Services\Sampleworkflow\CapturedResultCaptureService::class)->applyOnSave(
+                    $captured,
+                    $saveAttributes,
+                    auth()->id() ? (string) auth()->id() : null
+                );
+
+                if (isset($this->parametersForm[$id])) {
+                    $this->parametersForm[$id]['lab_section_id'] = $labSectionId;
+                }
             }
 
             $this->persistSampleAnalysisDateRange();
@@ -2687,6 +2869,53 @@ class Samples extends Component
         return (string) $value;
     }
 
+    /**
+     * @param  array<int, string|int>|string|null  $equipmentIds
+     * @return list<string>
+     */
+    protected function normalizeEquipmentIds(mixed $equipmentIds, mixed $fallbackEquipmentId = null): array
+    {
+        $ids = [];
+
+        if (is_string($equipmentIds) && $equipmentIds !== '') {
+            $decoded = json_decode($equipmentIds, true);
+            $equipmentIds = is_array($decoded) ? $decoded : (preg_split('/\s*,\s*/', $equipmentIds) ?: []);
+        }
+
+        if (is_array($equipmentIds)) {
+            foreach ($equipmentIds as $equipmentId) {
+                $normalized = $this->normalizeNullableForeignKey($equipmentId);
+                if ($normalized !== null) {
+                    $ids[] = $normalized;
+                }
+            }
+        }
+
+        if ($ids === []) {
+            $fallback = $this->normalizeNullableForeignKey($fallbackEquipmentId);
+            if ($fallback !== null) {
+                $ids[] = $fallback;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    public function getGroupedParametersFormProperty(): array
+    {
+        $grouped = [];
+
+        foreach ($this->parametersForm as $id => $param) {
+            $group = (string) ($param['analysis_type'] ?? 'Ungrouped');
+            $grouped[$group][$id] = $param;
+        }
+
+        return $grouped;
+    }
+
     private function resolveReportingUnitId(mixed $value): ?string
     {
         $normalized = $this->normalizeNullableForeignKey($value);
@@ -2695,10 +2924,37 @@ class Samples extends Component
         }
 
         if (Str::isUuid($normalized)) {
-            return $normalized;
+            $exists = ReportingUnit::query()->where('id', $normalized)->exists();
+
+            return $exists ? $normalized : null;
         }
 
-        return ReportingUnit::query()->where('name', $normalized)->value('id');
+        return ensureReportingUnitIdFromName($normalized);
+    }
+
+    /**
+     * Prefer a valid captured_results.reporting_unit_id, otherwise the analysis element unit name
+     * (creating the reporting_units row when the master list is missing it).
+     */
+    private function resolveDefaultReportingUnitId(CapturedResult $result, ?AnalysisElements $element): ?string
+    {
+        $fromCaptured = $this->resolveReportingUnitId($result->reporting_unit_id);
+        if ($fromCaptured !== null) {
+            return $fromCaptured;
+        }
+
+        if ($element?->reporting_unit) {
+            $fromElement = ensureReportingUnitIdFromName((string) $element->reporting_unit);
+            if ($fromElement !== null) {
+                return $fromElement;
+            }
+        }
+
+        return resolveReportingUnitIdFromAnalyte(
+            $result->analysis_type_id ? (string) $result->analysis_type_id : null,
+            $result->analyte_id ? (string) $result->analyte_id : null,
+            null,
+        );
     }
 
     /**
@@ -2745,6 +3001,67 @@ class Samples extends Component
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Receipt/acceptance date for the batch — used as the default start analysis date.
+     */
+    private function defaultStartAnalysisDateFromReceipt(): ?string
+    {
+        return $this->normalizeDateOnly($this->batch->receipt_date ?? null);
+    }
+
+    /**
+     * When a result is filed: ensure start date comes from receipt (if empty),
+     * and end date defaults to today (if empty). Does not overwrite user-entered dates.
+     */
+    private function autofillAnalysisDatesForFiledResult(string $id): void
+    {
+        if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        if (empty($this->parametersForm[$id]['start_analysis_date'])) {
+            $receiptDate = $this->defaultStartAnalysisDateFromReceipt();
+            if ($receiptDate !== null) {
+                $this->parametersForm[$id]['start_analysis_date'] = $receiptDate;
+            }
+        }
+
+        if (empty($this->parametersForm[$id]['end_analysis_date'])) {
+            $this->parametersForm[$id]['end_analysis_date'] = now()->format('Y-m-d');
+        }
+    }
+
+    /**
+     * Resolve a lab section for save when the captured row is missing one.
+     * Prefer the analysis element's section when the user is assigned to it;
+     * otherwise use the user's first assigned section so they can keep editing.
+     */
+    private function resolveLabSectionIdForSave(
+        CapturedResult $captured,
+        mixed $user,
+        LabSectionResultAccess $access
+    ): ?string {
+        $existing = $this->normalizeNullableForeignKey($captured->lab_section_id);
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $fromElement = $this->normalizeNullableForeignKey(
+            $captured->resolveAnalysisElement()?->lab_section_id
+        );
+        $userSections = $access->allowedLabSectionIds($user instanceof \App\User ? $user : null);
+
+        if ($fromElement !== null && in_array($fromElement, $userSections, true)) {
+            return $fromElement;
+        }
+
+        if ($userSections !== []) {
+            return $userSections[0];
+        }
+
+        return $fromElement;
     }
 
     private function findEarliestDate(array $dates): ?string
@@ -3025,6 +3342,20 @@ class Samples extends Component
             return;
         }
 
+        $access = app(LabSectionResultAccess::class);
+        $user = auth()->user();
+
+        if (! $access->hasLabSectionAssignment($user)) {
+            session()->flash('error', 'Assign a lab section in your profile before changing sections.');
+            return;
+        }
+
+        $allowedSections = $access->allowedLabSectionIds($user);
+        if (! in_array((string) $this->changeSectionLabSectionId, $allowedSections, true)) {
+            session()->flash('error', 'You can only change parameters to your assigned lab section(s).');
+            return;
+        }
+
         $capturedIds = array_keys($this->parametersForm);
         if (empty($capturedIds)) {
             session()->flash('error', 'No parameters to update.');
@@ -3038,6 +3369,13 @@ class Samples extends Component
 
         try {
             $capturedResults = CapturedResult::whereIn('id', $capturedIds)->get();
+
+            foreach ($capturedResults as $cr) {
+                if (! $access->canEditCapturedResult($user, $cr)) {
+                    session()->flash('error', 'You can only change lab section for parameters in your assigned section(s).');
+                    return;
+                }
+            }
 
             foreach ($capturedResults as $cr) {
                 if ($this->changeSectionAffectBatch) {
@@ -3089,12 +3427,25 @@ class Samples extends Component
         $this->showParametersModal = false;
         $this->selectedSampleCode = null;
         $this->sampleParameters = [];
+        $this->parametersForm = [];
+        $this->parametersReadOnly = false;
+        $this->parametersSectionFiltered = false;
         $this->dateOfAnalysisBySection = [];
         $this->parameterLabSections = [];
         $this->showChangeSectionPanel = false;
         $this->changeSectionLabSectionId = '';
         $this->changeSectionAffectBatch = false;
         $this->changeSectionAffectAll = true;
+    }
+
+    private function userCanEditParameterRow(string $id): bool
+    {
+        $captured = CapturedResult::query()->find($id);
+        if (! $captured) {
+            return false;
+        }
+
+        return app(LabSectionResultAccess::class)->canEditCapturedResult(auth()->user(), $captured);
     }
 
     // ========== Comments & Interpretations Feature ==========
@@ -3115,12 +3466,28 @@ class Samples extends Component
     {
         try {
             $sample = SampleDetails::findOrFail($sampleId);
+            $defaultsService = app(CommentsInterpretationsDefaultsService::class);
+
+            $headerBody = $sample->header_body ?? '';
+            $notesBody = $sample->notes_body ?? '';
+
+            if ($defaultsService->isHtmlEmpty($headerBody) || $defaultsService->isHtmlEmpty($notesBody)) {
+                $batch = SampleHeader::find($sample->sample_header_id);
+                $defaults = $defaultsService->generate($sample, $batch);
+
+                if ($defaultsService->isHtmlEmpty($headerBody)) {
+                    $headerBody = $defaults['header_body'];
+                }
+                if ($defaultsService->isHtmlEmpty($notesBody)) {
+                    $notesBody = $defaults['notes_body'];
+                }
+            }
 
             $this->editingCommentsSampleId = $sampleId;
             $this->commentsForm = [
-                'header_body' => $sample->header_body ?? '',
+                'header_body' => $headerBody,
                 'main_body' => $sample->main_body ?? '',
-                'notes_body' => $sample->notes_body ?? '',
+                'notes_body' => $notesBody,
                 'batch_comment_scope' => '1',
             ];
 
@@ -3128,6 +3495,34 @@ class Samples extends Component
         } catch (\Exception $e) {
             Log::error('Error loading comments: ' . $e->getMessage());
             session()->flash('error', 'Failed to load sample comments');
+        }
+    }
+
+    /**
+     * Regenerate Remarks and Notes from current sample results (leaves Recommendations untouched).
+     */
+    public function applyCommentDefaults(): void
+    {
+        if (! $this->editingCommentsSampleId) {
+            return;
+        }
+
+        try {
+            $sample = SampleDetails::findOrFail($this->editingCommentsSampleId);
+            $batch = SampleHeader::find($sample->sample_header_id);
+            $defaults = app(CommentsInterpretationsDefaultsService::class)->generate($sample, $batch);
+
+            $this->commentsForm['header_body'] = $defaults['header_body'];
+            $this->commentsForm['notes_body'] = $defaults['notes_body'];
+
+            $this->dispatch(
+                'comments-defaults-applied',
+                headerBody: $defaults['header_body'],
+                notesBody: $defaults['notes_body'],
+            );
+        } catch (\Exception $e) {
+            Log::error('Error applying comment defaults: ' . $e->getMessage());
+            session()->flash('error', 'Failed to apply default comments');
         }
     }
 
@@ -3143,6 +3538,15 @@ class Samples extends Component
             $sample->header_body = $this->commentsForm['header_body'];
             $sample->notes_body = $this->commentsForm['notes_body'];
             $sample->save();
+
+            foreach ($this->sampleForms as $index => $form) {
+                if (($form['id'] ?? null) === $this->editingCommentsSampleId) {
+                    $this->sampleForms[$index]['header_body'] = $sample->header_body ?? '';
+                    $this->sampleForms[$index]['main_body'] = $sample->main_body ?? '';
+                    $this->sampleForms[$index]['notes_body'] = $sample->notes_body ?? '';
+                    break;
+                }
+            }
 
             $this->showCommentsModal = false;
             $this->reset('editingCommentsSampleId', 'commentsForm');
