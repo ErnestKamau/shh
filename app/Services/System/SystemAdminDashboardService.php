@@ -408,6 +408,11 @@ class SystemAdminDashboardService
         $defaultConnection = config('database.default', 'pgsql');
         $defaultDriver = config("database.connections.{$defaultConnection}.driver", 'pgsql');
 
+        // Only the connections we actually probe count toward the configured total.
+        // Boilerplate stubs for other drivers are skipped and must not be reported
+        // as "disconnected" databases.
+        $probedNames = [];
+
         foreach ($connectionNames as $name) {
             $connectionConfig = config("database.connections.{$name}", []);
             $driver = (string) ($connectionConfig['driver'] ?? 'unknown');
@@ -417,6 +422,18 @@ class SystemAdminDashboardService
             if ($name !== $defaultConnection && $driver !== $defaultDriver && $driver !== 'sqlite') {
                 continue;
             }
+
+            // Skip sqlite boilerplate stubs that have no database file configured
+            // (e.g. the default database/database.sqlite that was never created).
+            if ($driver === 'sqlite') {
+                $sqlitePath = (string) ($connectionConfig['database'] ?? '');
+
+                if ($sqlitePath === '' || !file_exists($sqlitePath)) {
+                    continue;
+                }
+            }
+
+            $probedNames[] = $name;
 
             try {
                 // Set a short connection/login timeout dynamically (2 seconds)
@@ -457,7 +474,7 @@ class SystemAdminDashboardService
         }
 
         return [
-            'configured_count' => count($connectionNames),
+            'configured_count' => count($probedNames),
             'connected_count' => count($connected),
             'disconnected_count' => count($disconnected),
             'connected' => $connected,
@@ -696,6 +713,17 @@ class SystemAdminDashboardService
 
     private function activeModulesCount(): int
     {
+        // Prefer the configured module visibility map so the count reflects
+        // what administrators have actually enabled in System Settings.
+        if (function_exists('getSystemModuleVisibilityMap')) {
+            $visibility = getSystemModuleVisibilityMap();
+
+            if (!empty($visibility)) {
+                return collect($visibility)->filter(fn ($value): bool => (bool) $value === true)->count();
+            }
+        }
+
+        // Fallback: count enabled package modules from modules_statuses.json.
         $file = base_path('modules_statuses.json');
 
         if (!is_file($file)) {
