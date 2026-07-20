@@ -11,13 +11,14 @@
 
     @php
         $formNumber = $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending';
-        $boardStatus = $instance->batches->first()?->status === 'Samples Request Review'
-            || $instance->analysisAcceptanceForms()->exists()
-            ? 'Samples Request Review'
-            : 'Samples Receiving';
+        $boardStatus = 'Samples Receiving';
+        $boardTab = $instance->analysisAcceptanceForms()->exists()
+            || $instance->batches->first()?->status === 'Samples Request Review'
+            ? 'accepted'
+            : 'in_review';
         $items = [
             ['link' => route('dashboard-lab'), 'name' => 'Dashboard', 'icon' => null],
-            ['link' => route('sample-workflow', ['status' => $boardStatus]), 'name' => 'Workflow board', 'icon' => null],
+            ['link' => route('sample-workflow', ['status' => $boardStatus, 'tab' => $boardTab]), 'name' => 'Workflow board', 'icon' => null],
             ['link' => '#', 'name' => 'Request '.$formNumber, 'icon' => null],
         ];
     @endphp

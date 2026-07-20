@@ -142,13 +142,12 @@ class RequestViewPage extends Component
     }
 
     /**
-     * Sample collection label is shown only on the Samples Receiving board tabs
-     * "Ready for Reception" and "Received Request".
+     * Sample collection label is shown only on the Samples Receiving board
+     * "Ready for Reception" tab (before physical check-in).
      */
     public function shouldShowSampleCollectionLabel(): bool
     {
-        return $this->isInSamplesReceivingReadyForReceptionTab()
-            || $this->isInSamplesReceivingReceivedRequestTab();
+        return $this->isInSamplesReceivingReadyForReceptionTab();
     }
 
     protected function isInSamplesReceivingReadyForReceptionTab(): bool
@@ -159,11 +158,6 @@ class RequestViewPage extends Component
 
         return $this->commercialEnquiry !== null
             && $this->commercialEnquiry->status === SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION;
-    }
-
-    protected function isInSamplesReceivingReceivedRequestTab(): bool
-    {
-        return in_array((string) $this->instance->status, ['received', 'Received'], true);
     }
 
     public function recordWalkInQuotationAcceptance(): void
@@ -720,16 +714,22 @@ class RequestViewPage extends Component
 
     public function workflowBoardStatus(): string
     {
-        $batch = $this->instance->batches->first();
-        if ($batch && $batch->status === 'Samples Request Review') {
-            return 'Samples Request Review';
-        }
-
-        if ($this->instance->analysisAcceptanceForms->isNotEmpty()) {
-            return 'Samples Request Review';
-        }
-
         return 'Samples Receiving';
+    }
+
+    public function workflowBoardTab(): string
+    {
+        $batch = $this->instance->batches->first();
+        if (($batch && $batch->status === 'Samples Request Review')
+            || $this->instance->analysisAcceptanceForms->isNotEmpty()) {
+            return 'accepted';
+        }
+
+        if (in_array((string) $this->instance->status, ['in_review', 'In Review', 'received'], true)) {
+            return 'in_review';
+        }
+
+        return 'submitted';
     }
 
     public function render(): View

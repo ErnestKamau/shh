@@ -578,8 +578,51 @@ class ProcessEnquiryWizard extends Component
             $this->quotationManuallyEdited = false;
             $this->showBuildQuotationModal = false;
             $this->pdfGenerated = ! empty($header->upload_url);
-            $this->setStatus('success', 'Quotation saved. You can generate the PDF or send to the customer.');
+            $this->setStatus('success', 'Quotation saved. Use View Quotation to generate and open the PDF, or send to the customer once it is ready.');
         } catch (Throwable $exception) {
+            $this->setStatus('error', $exception->getMessage());
+        }
+    }
+
+    public function viewQuotation(): void
+    {
+        if ($this->enquiryId === null || $this->lines === []) {
+            $this->setStatus('error', 'No quotation lines to view. Complete sample configuration and sync prices first.');
+
+            return;
+        }
+
+        try {
+            $this->normalizeQuotationLineQuantities();
+            $this->refreshLineLabMetrics();
+            $header = $this->ensureQuotationHeader();
+            $header->show_unit_price_column = true;
+            $header->save();
+
+            $this->persistQuotationLines();
+            $this->persistSampleConfiguration();
+
+            $header = app(QuotationFromEnquiryService::class)->generatePdf($header->fresh() ?? $header);
+            $header->refresh();
+
+            $this->quotationHeaderId = $header->id;
+            $this->quoteNumber = (string) ($header->quote_number ?? '');
+            $this->quotationBuilt = true;
+            $this->quotationManuallyEdited = false;
+            $this->showBuildQuotationModal = false;
+            $this->pdfGenerated = ! empty($header->upload_url);
+
+            if (! $this->pdfGenerated || $this->quotationHeaderId === null) {
+                throw new \RuntimeException('Quotation PDF was not generated.');
+            }
+
+            $this->dispatch(
+                'open-quotation-preview',
+                url: route('quotation.preview', ['id' => $this->quotationHeaderId]),
+            );
+            $this->setStatus('success', 'Quotation built and opened in a new tab.');
+        } catch (Throwable $exception) {
+            $this->pdfGenerated = false;
             $this->setStatus('error', $exception->getMessage());
         }
     }
@@ -795,31 +838,6 @@ class ProcessEnquiryWizard extends Component
         $this->setStatus('success', 'Line price reset from contract pricelist.');
     }
 
-    public function generatePdf(): void
-    {
-        if (! $this->quotationBuilt) {
-            $this->setStatus('error', 'Build the quotation first before generating the PDF.');
-
-            return;
-        }
-
-        try {
-            $header = $this->ensureQuotationHeader();
-            $this->persistQuotationLines();
-            $this->persistSampleConfiguration();
-
-            app(QuotationFromEnquiryService::class)->generatePdf($header);
-            $header->refresh();
-
-            $this->quoteNumber = (string) $header->quote_number;
-            $this->pdfGenerated = ! empty($header->upload_url);
-            $this->setStatus('success', 'Quotation PDF generated.');
-        } catch (Throwable $exception) {
-            $this->pdfGenerated = false;
-            $this->setStatus('error', $exception->getMessage());
-        }
-    }
-
     public function sendQuotation(): void
     {
         if (strtolower($this->sourceChannel) !== 'portal') {
@@ -842,7 +860,13 @@ class ProcessEnquiryWizard extends Component
         }
 
         if (! $this->quotationBuilt) {
-            $this->setStatus('error', 'Build the quotation first before sending to the customer.');
+            $this->setStatus('error', 'Build or view the quotation first before sending to the customer.');
+
+            return;
+        }
+
+        if (! $this->pdfGenerated || $this->quotationHeaderId === null) {
+            $this->setStatus('error', 'Open View Quotation first so the PDF is generated before sending to the customer.');
 
             return;
         }
@@ -857,6 +881,10 @@ class ProcessEnquiryWizard extends Component
             }
 
             $header = $this->ensureQuotationHeader();
+            if (empty($header->upload_url)) {
+                throw new \RuntimeException('Open View Quotation first so the PDF is generated before sending to the customer.');
+            }
+
             $this->persistQuotationLines();
             $this->persistSampleConfiguration($enquiry);
 

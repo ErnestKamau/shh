@@ -56,9 +56,9 @@ class WorkflowBoard extends Component
         return [
             'submitted' => 'Submitted Requests',
             'ready_for_reception' => 'Ready for Reception',
-            'received' => 'Received Request',
             'sub_contracting' => 'Sub-contracting',
             'in_review' => 'In Review',
+            'accepted' => 'Accepted',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
             // 'interzone_transfers' => 'Interzone Transfers',
@@ -243,6 +243,9 @@ class WorkflowBoard extends Component
         $requestedTab = strtolower((string) ($this->initialFilters['tab'] ?? request()->query('tab', 'requests')));
         if ($this->status === 'Samples Receiving') {
             $defaultTab = 'submitted';
+            if ($requestedTab === 'received') {
+                $requestedTab = 'in_review';
+            }
             $this->workflowSubTab = in_array($requestedTab, array_keys(self::receivingRequestTabs()), true)
                 ? $requestedTab
                 : $defaultTab;
@@ -628,7 +631,7 @@ class WorkflowBoard extends Component
     {
         return array_values(array_filter(
             array_keys(self::receivingRequestTabs()),
-            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sub_contracting'], true)
+            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sub_contracting', 'accepted'], true)
         ));
     }
 
@@ -680,34 +683,39 @@ class WorkflowBoard extends Component
     }
 
     /**
-     * Sidebar badge: submitted + received + additional-info requests in receiving.
+     * Sidebar badge: commercial pipeline + analyst review queue (formerly Samples Request Review).
      */
     public static function sidebarReceivingRequestCount(): int
     {
-        return (int) self::receivingSubmissionFormsQuery(['submitted', 'received', 'in_additional_info'])->count();
+        $pipeline = (int) self::receivingSubmissionFormsQuery(['submitted', 'in_additional_info'])->count();
+        $inReview = (int) SubmissionFormInstance::query()->requestReviewInReview()->count();
+
+        return $pipeline + $inReview;
     }
 
     /**
-     * Sidebar badge: in-review requests plus batches at Samples Request Review.
+     * @deprecated Request Review stage is folded into Samples Receiving → In Review / Accepted.
      */
     public static function sidebarRequestReviewCount(): int
     {
-        $inReviewRequests = SubmissionFormInstance::query()
-            ->whereHas('submissionForm', function ($formQuery) {
-                $formQuery->where('form_type', 'template');
-            })
-            ->whereIn('status', ['in_review', 'In Review'])
-            ->count();
+        return self::sidebarReceivingRequestCount();
+    }
 
-        $batchesInReview = SampleHeader::query()
-            ->where('isactive', 1)
-            ->where(function ($inner) {
-                $inner->where('status', 'Samples Request Review')
-                    ->orWhere('prelim_batch_status', 'Samples Request Review');
-            })
-            ->count();
+    /**
+     * True when Accept / Reject / Move-to-tray should run on Receiving → In Review.
+     */
+    public function isReceivingAnalystReviewTab(): bool
+    {
+        return $this->isSamplesReceiving() && $this->workflowSubTab === 'in_review';
+    }
 
-        return $inReviewRequests + $batchesInReview;
+    /**
+     * True for Receiving → In Review or Accepted (review outcomes UI).
+     */
+    public function isReceivingReviewOutcomeTab(): bool
+    {
+        return $this->isSamplesReceiving()
+            && in_array($this->workflowSubTab, ['in_review', 'accepted'], true);
     }
 
     protected function receivingSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
@@ -1157,6 +1165,18 @@ class WorkflowBoard extends Component
                 $counts[$tabKey] = (int) $subcontractingQuery->count();
                 continue;
             }
+            if ($tabKey === 'in_review') {
+                $inReviewQuery = SubmissionFormInstance::query()->requestReviewInReview();
+                $this->applyReceivingSubmissionFormFilters($inReviewQuery);
+                $counts[$tabKey] = (int) $inReviewQuery->count();
+                continue;
+            }
+            if ($tabKey === 'accepted') {
+                $acceptedQuery = SubmissionFormInstance::query()->requestReviewAccepted();
+                $this->applyReceivingSubmissionFormFilters($acceptedQuery);
+                $counts[$tabKey] = (int) $acceptedQuery->count();
+                continue;
+            }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
         }
 
@@ -1284,10 +1304,18 @@ class WorkflowBoard extends Component
                 'activePendingIntray',
             ];
 
+            if (in_array($this->workflowSubTab, ['in_review', 'accepted'], true)) {
+                $eagerLoads[] = 'analysisAcceptanceForms';
+                $eagerLoads[] = 'workflowForms';
+            }
+
             $query = match ($this->workflowSubTab) {
                 'ready_for_reception' => $this->readyForPhysicalReceptionSubmissionFormsQuery(),
                 'submitted' => $this->submittedCommercialPipelineSubmissionFormsQuery(),
                 'sub_contracting' => $this->subcontractingSubmissionFormsQuery(),
+                // Analyst review queue (formerly Samples Request Review stage).
+                'in_review' => SubmissionFormInstance::query()->requestReviewInReview(),
+                'accepted' => SubmissionFormInstance::query()->requestReviewAccepted(),
                 default => $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus),
             };
 
@@ -1738,6 +1766,9 @@ class WorkflowBoard extends Component
         $tab = strtolower(trim($tab));
 
         if ($this->isSamplesReceiving()) {
+            if ($tab === 'received') {
+                $tab = 'in_review';
+            }
             $this->workflowSubTab = in_array($tab, $this->receivingRequestTabKeys(), true) ? $tab : 'submitted';
             $this->selectedFormInstanceIds = [];
             $this->resetPage('forms_page');
@@ -1901,7 +1932,7 @@ class WorkflowBoard extends Component
     /**
      * Dashboard KPIs for the Samples Receiving board.
      *
-     * @return array{sub_contracting: int, submitted: int, ready_for_reception: int, received: int, todays_check_ins: int}
+     * @return array{sub_contracting: int, submitted: int, ready_for_reception: int, in_review: int, todays_check_ins: int}
      */
     public function getReceivingDashboardStatsProperty(): array
     {
@@ -1910,7 +1941,8 @@ class WorkflowBoard extends Component
                 'sub_contracting' => 0,
                 'submitted' => 0,
                 'ready_for_reception' => 0,
-                'received' => 0,
+                'in_review' => 0,
+                'accepted' => 0,
                 'todays_check_ins' => 0,
             ];
         }
@@ -1924,7 +1956,8 @@ class WorkflowBoard extends Component
             ),
             'submitted' => (int) ($tabCounts['submitted'] ?? 0),
             'ready_for_reception' => (int) ($tabCounts['ready_for_reception'] ?? 0),
-            'received' => (int) ($tabCounts['received'] ?? 0),
+            'in_review' => (int) ($tabCounts['in_review'] ?? 0),
+            'accepted' => (int) ($tabCounts['accepted'] ?? 0),
             'todays_check_ins' => $this->receivingTodayCheckInCount,
         ];
     }
@@ -2493,6 +2526,10 @@ class WorkflowBoard extends Component
         $this->selectedFormInstanceIds = [];
         $this->receiveFormSummaries = [];
         $this->dispatch('hide-receive-sample-modal');
+
+        if ($this->isSamplesReceiving()) {
+            $this->setWorkflowSubTab('in_review');
+        }
 
         if ($trfiIds !== []) {
             $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $trfiIds[0]));

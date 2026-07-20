@@ -17,9 +17,9 @@
 				<div class="workflow-kpi-card__subtitle">Awaiting check-in</div>
 			</div>
 			<div class="workflow-kpi-card">
-				<div class="workflow-kpi-card__label">Received</div>
-				<div class="workflow-kpi-card__value">{{ $receivingDashboardStats['received'] ?? 0 }}</div>
-				<div class="workflow-kpi-card__subtitle">At lab, pre-review</div>
+				<div class="workflow-kpi-card__label">In review</div>
+				<div class="workflow-kpi-card__value">{{ $receivingDashboardStats['in_review'] ?? 0 }}</div>
+				<div class="workflow-kpi-card__subtitle">Checked in at lab</div>
 			</div>
 			<div class="workflow-kpi-card">
 				<div class="workflow-kpi-card__label">Today&rsquo;s check-ins</div>

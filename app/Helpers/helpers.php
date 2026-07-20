@@ -710,7 +710,7 @@ function getModulePreconfig($type, $module, $sortBy='name', $sortOrder='asc')
 
 function getSampleWorflowStages()
 {
-	return array("All Samples", "Samples Receiving", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Completed Sample");
+	return array("All Samples", "Samples Receiving", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Completed Sample");
 }
 
 function getSampleWorkflowStageLabel($stage)
@@ -920,7 +920,6 @@ function getSampleWorkFLowTotals()
 
 	// Form-centric stages: match WorkflowBoard queue logic, not batch status alone.
 	$arr['Samples Receiving'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarReceivingRequestCount();
-	$arr['Samples Request Review'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarRequestReviewCount();
 
 	return $arr;
 }

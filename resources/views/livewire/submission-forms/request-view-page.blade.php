@@ -2,6 +2,7 @@
     @php
         $formNumber = $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending';
         $boardStatus = $this->workflowBoardStatus();
+        $boardTab = $this->workflowBoardTab();
         $statusChipClass = match ($instance->status) {
             'in_review' => 'workflow-status-chip--in-review',
             'submitted' => 'workflow-status-chip--submitted',

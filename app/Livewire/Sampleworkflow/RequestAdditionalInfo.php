@@ -79,7 +79,7 @@ class RequestAdditionalInfo extends Component
                 ->get();
 
             foreach ($instances as $instance) {
-                if ($instance->status !== 'received') {
+                if (! in_array($instance->status, ['received', 'in_review'], true)) {
                     $skipped++;
 
                     continue;
@@ -104,7 +104,7 @@ class RequestAdditionalInfo extends Component
         });
 
         if ($processed === 0) {
-            $this->addError('selection', 'No eligible received requests were updated. They may already be in another status.');
+            $this->addError('selection', 'No eligible requests were updated. They may already be in another status.');
 
             return;
         }

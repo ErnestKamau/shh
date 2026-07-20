@@ -171,7 +171,7 @@ final class SampleReceivingCheckInService
 
         if ($enquiry !== null
             && $this->contractCustomerService->isScheduledEnquiry($enquiry)
-            && in_array((string) $instance->status, ['received', 'Received'], true)) {
+            && in_array((string) $instance->status, ['received', 'Received', 'in_review'], true)) {
             return null;
         }
 

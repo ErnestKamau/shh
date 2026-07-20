@@ -628,7 +628,7 @@ final class QuotationFromEnquiryService
 
         return DB::transaction(function () use ($enquiry, $header, $sendPortal, $sendEmail): SampleSubmissionRequest {
             if (empty($header->upload_url)) {
-                $header = $this->generatePdf($header);
+                throw new RuntimeException('Generate the quotation PDF with View Quotation before sending to the customer.');
             }
 
             $now = now();

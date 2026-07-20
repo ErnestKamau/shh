@@ -438,28 +438,38 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-sample-type {
-        width: 18%;
-        min-width: 100px;
+        width: 14%;
+        min-width: 90px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-analysis-type {
-        width: 20%;
-        min-width: 110px;
+        width: 14%;
+        min-width: 90px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-lab-section {
+        width: 14%;
+        min-width: 100px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-condition {
-        width: 11%;
-        min-width: 96px;
+        width: 10%;
+        min-width: 88px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-main-standard {
-        width: 22%;
-        min-width: 110px;
+        width: 14%;
+        min-width: 100px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-lab {
         width: 12%;
         min-width: 80px;
+    }
+
+    .acc-sample-config-table--acceptance .acc-col-assigned-user {
+        width: 14%;
+        min-width: 100px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-qty {
@@ -583,7 +593,10 @@
     }
 
     .acc-sample-config-params-band-actions {
+        display: flex;
         flex-shrink: 0;
+        gap: 0.4rem;
+        align-items: center;
     }
 
     .acc-sample-config-select-all {

@@ -115,6 +115,21 @@ class SampleWorkFlowController extends Controller
             $status = getSampleWorflowStages()[0];
         }
 
+        // Samples Request Review processes now live on Samples Receiving → In Review / Accepted.
+        if ($status === 'Samples Request Review') {
+            $tab = strtolower((string) $request->query('tab', 'in_review'));
+            if (in_array($tab, ['accepted', 'received'], true)) {
+                $tab = 'accepted';
+            } else {
+                $tab = 'in_review';
+            }
+
+            return redirect()->route('sample-workflow', [
+                'status' => 'Samples Receiving',
+                'tab' => $tab,
+            ]);
+        }
+
         return view('livewire.layout.sample-workflow', [
             'status' => $status,
             'initialFilters' => $request->all(),

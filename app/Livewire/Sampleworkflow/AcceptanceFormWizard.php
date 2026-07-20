@@ -67,13 +67,15 @@ class AcceptanceFormWizard extends Component
     /** @var array<string, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null> */
     public array $instancePhotoUploads = [];
 
-    public bool $showLabSectionOnConfig = false;
+    public bool $showLabSectionOnConfig = true;
 
     public bool $showMainStandardOnConfig = true;
 
     public bool $showSecondaryStandardOnConfig = false;
 
     public bool $showLabIdOnConfig = true;
+
+    public bool $showAssignedUserOnConfig = true;
 
     public bool $compactConfigTable = true;
 
@@ -226,6 +228,7 @@ class AcceptanceFormWizard extends Component
             }
         }
 
+        $this->applySampleConfigAssignmentDefaults($configService);
         $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
 
         $this->lines = $this->mapQuotationLinesForAcceptance($quotationLines);
@@ -475,6 +478,23 @@ class AcceptanceFormWizard extends Component
 
         if ($match !== null) {
             $this->customerSignerName = (string) ($match['label'] ?? '');
+        }
+    }
+
+    private function applySampleConfigAssignmentDefaults(AcceptanceFormSampleConfigService $configService): void
+    {
+        $defaultUserId = Auth::id() ? (string) Auth::id() : null;
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            if ($analysisTypeId !== '' && empty($config['lab_section_id'])) {
+                $this->sampleConfigs[$index]['lab_section_id'] = $configService
+                    ->resolveLabSectionIdForAnalysisType($analysisTypeId);
+            }
+
+            if ($defaultUserId !== null && empty($config['assigned_user_id'])) {
+                $this->sampleConfigs[$index]['assigned_user_id'] = $defaultUserId;
+            }
         }
     }
 
