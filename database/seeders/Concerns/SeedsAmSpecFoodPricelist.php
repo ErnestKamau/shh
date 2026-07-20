@@ -68,7 +68,7 @@ trait SeedsAmSpecFoodPricelist
             'document_no' => 'DOC-FOOD-ADNOC',
             'revision_number' => '1',
             'status' => 'no-changes',
-            'valid_till' => now()->addYear()->toDateString(),
+            'valid_till' => now()->addYear(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
