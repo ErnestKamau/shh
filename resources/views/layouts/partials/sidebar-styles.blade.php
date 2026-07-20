@@ -50,6 +50,15 @@
 		overflow: hidden;
 	}
 
+	#sidebar-container .list-group > a[aria-expanded] .mdi,
+	#sidebar-container .list-group > a[aria-expanded] .fa {
+		color: var(--color-primary) !important;
+	}
+
+	#sidebar-container .list-group > a[aria-expanded] .submenu-icon {
+		color: var(--color-primary) !important;
+	}
+
 	#sidebar-container .list-group a::before {
 		content: '';
 		position: absolute;

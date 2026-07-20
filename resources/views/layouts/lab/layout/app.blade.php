@@ -560,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		@endif
 
 		@if(auth()->user()->can('settings.module.access'))
-		<a href="{{ route('system-settings.whatsapp') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('lab.whatsapp-configuration') }}" class="list-group-item list-group-item-action">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.whatsapp_configuration') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>

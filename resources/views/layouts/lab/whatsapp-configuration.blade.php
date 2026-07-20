@@ -1,4 +1,4 @@
-@extends('layouts.configuration.layout.app')
+@extends('layouts.lab.layout.app')
 
 @section('title2')
 <title>Whatsapp Configuration</title>

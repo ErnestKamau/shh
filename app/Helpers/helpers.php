@@ -958,7 +958,7 @@ function getSystemModules()
 		'inventory' => array(
 			'name' => 'Inventory',
 			'route' => '/inventory-home',
-			'default_visible' => false,
+			'default_visible' => true,
 		),
 		'equipment' => array(
 			'name' => 'Equipment',
@@ -983,26 +983,11 @@ function getSystemModules()
 		'calendar' => array(
 			'name' => 'System Planner',
 			'route' => '/full-calendar/view',
-			'default_visible' => false,
+			'default_visible' => true,
 		),
 		'matrix' => array(
 			'name' => 'Skills Matrix',
 			'route' => '/matrix',
-			'default_visible' => false,
-		),
-		'ai' => array(
-			'name' => 'ImaraChat AI',
-			'route' => '/imara/ai/index',
-			'default_visible' => true,
-		),
-		'ai_analytics' => array(
-			'name' => 'AI Analytics',
-			'route' => '/mas',
-			'default_visible' => true,
-		),
-		'registry' => array(
-			'name' => 'Registry',
-			'route' => '/registry',
 			'default_visible' => true,
 		),
 		'risk' => array(
@@ -1023,6 +1008,21 @@ function getSystemModules()
 		'settings' => array(
 			'name' => 'System Settings',
 			'route' => '/system-settings',
+			'default_visible' => true,
+		),
+		'ai_analytics' => array(
+			'name' => 'AI Analytics',
+			'route' => '/ai-analytics',
+			'default_visible' => true,
+		),
+		'registry' => array(
+			'name' => 'Registry',
+			'route' => '/registry',
+			'default_visible' => true,
+		),
+		'imaraai' => array(
+			'name' => 'ImaraAI',
+			'route' => '/imaraai',
 			'default_visible' => true,
 		),
 	);
@@ -1051,6 +1051,7 @@ function getSystemModuleVisibilityMap()
 
 		if (is_array($decoded)) {
 			foreach ($decoded as $moduleKey => $isVisible) {
+				// Only update visibility for modules that exist in the base modules array
 				if (isset($visibility[$moduleKey])) {
 					$visibility[$moduleKey] = (bool) $isVisible;
 				}
@@ -1061,6 +1062,7 @@ function getSystemModuleVisibilityMap()
 	}
 
 	foreach ($configurations as $configuration) {
+		// Only update visibility for modules that exist in the base modules array
 		if (isset($visibility[$configuration->value])) {
 			$visibility[$configuration->value] = (bool) $configuration->status;
 		}
@@ -1070,6 +1072,11 @@ function getSystemModuleVisibilityMap()
 }
 function isSystemModuleVisible($moduleKey)
 {
+	$hiddenModules = [];
+	if (in_array($moduleKey, $hiddenModules, true)) {
+		return false;
+	}
+
 	$visibility = getSystemModuleVisibilityMap();
 	return isset($visibility[$moduleKey]) ? (bool) $visibility[$moduleKey] : true;
 }

@@ -60,10 +60,9 @@ class AmSpecMetricsSeeder extends Seeder
         ];
 
         foreach ($metrics as $index => $metric) {
-            EvaluationMetric::query()->updateOrCreate(
+            $metricModel = EvaluationMetric::query()->updateOrCreate(
                 ['name' => $metric['name']],
                 [
-                    'id' => (string) Str::uuid(),
                     'prompt_text' => $metric['prompt_text'],
                     'max_rating' => 10,
                     'rating_labels' => [
@@ -83,6 +82,11 @@ class AmSpecMetricsSeeder extends Seeder
                     'display_order' => $index + 1,
                 ]
             );
+
+            if ($metricModel->wasRecentlyCreated) {
+                $metricModel->id = (string) Str::uuid();
+                $metricModel->save();
+            }
         }
     }
 }
