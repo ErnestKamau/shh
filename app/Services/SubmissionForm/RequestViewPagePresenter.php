@@ -150,6 +150,7 @@ class RequestViewPagePresenter
             SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => self::STAGE_QUOTATION_UNDER_REVIEW,
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => self::STAGE_QUOTATION_ACCEPTED,
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => self::STAGE_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_IN_REVIEW => self::STAGE_IN_REVIEW,
             default => $commercial !== '' ? $commercial : ($raw !== '' ? $raw : null),
         };
     }
@@ -943,7 +944,6 @@ class RequestViewPagePresenter
         $secondary = [];
         $primary = null;
 
-        $edit = $this->editAction();
         $trfActions = $this->trfActions();
         $quotation = $this->viewQuotationAction();
         $invoice = $this->viewInvoiceAction();
@@ -953,7 +953,7 @@ class RequestViewPagePresenter
         $applyBatches = $this->applyBatchesAction();
 
         if ($stage === null) {
-            $primary = $edit;
+            $primary = null;
             foreach (array_filter([$quotation, $invoice, ...$trfActions, $batch, $label, $createJob, $applyBatches]) as $action) {
                 if ($primary !== null && ($action['key'] ?? null) === ($primary['key'] ?? null)) {
                     continue;
@@ -972,15 +972,13 @@ class RequestViewPagePresenter
 
         if ($commercialActions['primary'] !== null) {
             $primary = $commercialActions['primary'];
-        } elseif ($edit !== null) {
-            $primary = $edit;
         }
 
         foreach ($commercialActions['secondary'] as $action) {
             $secondary[] = $action;
         }
 
-        foreach (array_filter([$edit, $quotation, $invoice, ...$trfActions, $batch, $label, $createJob, $applyBatches]) as $action) {
+        foreach (array_filter([$quotation, $invoice, ...$trfActions, $batch, $label, $createJob, $applyBatches]) as $action) {
             if ($primary !== null && ($action['key'] ?? null) === ($primary['key'] ?? null)) {
                 continue;
             }
@@ -1012,8 +1010,11 @@ class RequestViewPagePresenter
 
         $instanceStatus = strtolower((string) $this->instance->status);
         if (in_array($instanceStatus, ['received', 'in_review', 'in_additional_info', 'approved', 'rejected', 'complete'], true)) {
-            return $this->commercialEnquiry->status === SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION
-                || in_array((string) $this->commercialEnquiry->status, ['Received at Lab'], true)
+            return in_array((string) $this->commercialEnquiry->status, [
+                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+                SampleSubmissionRequest::STATUS_IN_REVIEW,
+                'Received at Lab',
+            ], true)
                 || $this->instance->batches->isNotEmpty()
                 || $this->instance->analysisAcceptanceForms->isNotEmpty();
         }
@@ -1304,12 +1305,11 @@ class RequestViewPagePresenter
             $primary = $this->action('receive_samples', 'Receive', 'mdi-package-variant-closed', 'wire', 'openPhysicalReceiveModal');
         } elseif ($stage === self::STAGE_IN_REVIEW) {
             $primary = $this->action(
-                'open_review_board',
-                'Open on review board',
-                'mdi-clipboard-check-outline',
-                'href',
-                null,
-                route('sample-workflow', ['status' => $workflowBoardStatus === 'Samples Request Review' ? 'Samples Request Review' : 'Samples Receiving'])
+                'accept_samples',
+                'Accept sample',
+                'mdi-check-circle-outline',
+                'wire',
+                'openAcceptSampleWizard'
             );
         }
 
@@ -1355,17 +1355,6 @@ class RequestViewPagePresenter
         };
 
         return ! in_array($key, $blockedByStage, true);
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function editAction(): ?array
-    {
-        $href = route('submission-forms.instances.fill', [$this->submissionForm, $this->instance]);
-        $label = $this->instance->isDraft() ? 'Continue editing' : 'Edit information';
-
-        return $this->action('edit', $label, 'mdi-pencil', 'href', null, $href);
     }
 
     /**

@@ -154,15 +154,18 @@ class SampleAnalysisSetupService
 
             $reportingUnit = $this->resolveReportingUnitFromElement($element, $reportingUnitsByKey);
 
-            $labSectionId = $resolvedLabSectionOverride
+            // Capture Results always prefers the Analysis Element lab section (master data).
+            $labSectionId = $this->resolveValidLabSectionId($element->lab_section_id)
                 ?? $labSectionIdFromAnalysisType
-                ?? $this->resolveValidLabSectionId($element->lab_section_id);
+                ?? $resolvedLabSectionOverride;
 
             if ($labSectionId === null) {
                 throw new \InvalidArgumentException(
-                    'Lab section is required to create captured results. Set lab_section_id on analysis type '
+                    'Lab section is required to create captured results. Set lab_section_id on analysis element '
+                    . (string) ($element->id ?? '')
+                    . ' or analysis type '
                     . (string) $analysisTypeId
-                    . ' (or provide a valid lab section override).'
+                    . '.'
                 );
             }
 

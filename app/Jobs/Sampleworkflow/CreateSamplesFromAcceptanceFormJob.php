@@ -80,13 +80,14 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     : [];
 
                 $primaryZoneId = $this->resolvePrimaryZoneIdFromConfig($configPayload);
-                $configLabId = $this->resolvePrimaryLabIdFromConfig($configPayload);
 
+                // Lab / lab section come from TRF receiving context and Analysis Type master data —
+                // not from wizard overrides (Lab/Lab section columns are hidden on Acceptance).
                 $headerAttributes = $sampleHeaderService->buildCreateAttributes(
                     $form,
                     $primarySampleTypeId,
                     $primaryZoneId,
-                    $configLabId,
+                    null,
                 );
 
                 $batchCode = (string) $headerAttributes['batch_code'];
@@ -246,25 +247,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 continue;
             }
 
-            $zoneId = $config['zone_id'] ?? $config['lab_id'] ?? null;
+            $zoneId = $config['zone_id'] ?? null;
 
             if ($zoneId !== null && (string) $zoneId !== '') {
                 return (string) $zoneId;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $configPayload
-     */
-    private function resolvePrimaryLabIdFromConfig(array $configPayload): ?string
-    {
-        foreach ($configPayload as $config) {
-            $labId = $config['lab_id'] ?? null;
-            if ($labId !== null && (string) $labId !== '') {
-                return (string) $labId;
             }
         }
 
@@ -495,7 +481,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                             : $actingUserId,
                         is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null,
                         $elementFlagOverrides,
-                        $plan['lab_section_id'] ?? null,
+                        null,
                         [
                             'sample_header' => $header,
                             'sample_detail' => $detail,

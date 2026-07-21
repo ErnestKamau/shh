@@ -250,7 +250,7 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame('', $instances[2]['customer_sample_id']);
     }
 
-    public function test_validate_reception_configs_requires_lab_and_main_standard(): void
+    public function test_validate_reception_configs_requires_main_standard_and_assigned_user(): void
     {
         $service = app(AcceptanceFormSampleConfigService::class);
         $config = $service->emptyConfig();
@@ -261,6 +261,23 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $service->validateReceptionConfigs([$config]);
+    }
+
+    public function test_validate_reception_configs_does_not_require_lab_fields(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = 'st-1';
+        $config['analysis_type_id'] = 'at-1';
+        $config['parameter_keys'] = ['el-1'];
+        $config['main_standard_id'] = 'std-1';
+        $config['assigned_user_id'] = 'user-1';
+        $config['lab_id'] = null;
+        $config['lab_section_id'] = null;
+
+        $service->validateReceptionConfigs([$config]);
+
+        $this->assertTrue(true);
     }
 
     public function test_validate_configs_requires_parameters(): void

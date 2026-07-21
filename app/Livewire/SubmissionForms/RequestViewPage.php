@@ -4,6 +4,7 @@ namespace App\Livewire\SubmissionForms;
 
 use App\ChainOfCustody;
 use App\BatchAttachment;
+use App\Livewire\Sampleworkflow\AcceptanceFormWizard;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Livewire\Sampleworkflow\SampleRejectionWizard;
 use App\Models\SampleSubmissionRequest;
@@ -298,6 +299,27 @@ class RequestViewPage extends Component
                 'customer' => $customer,
             ]],
         );
+    }
+
+    public function openAcceptSampleWizard(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        $instanceStatus = strtolower((string) $this->instance->status);
+        $enquiryStatus = (string) ($this->commercialEnquiry?->status ?? '');
+
+        if (! in_array($instanceStatus, ['in_review', 'received'], true)
+            && $enquiryStatus !== SampleSubmissionRequest::STATUS_IN_REVIEW) {
+            session()->flash('request_view_message', 'Sample acceptance is only available after the request has been moved to In Review.');
+
+            return;
+        }
+
+        $this->dispatch(
+            'open-acceptance-wizard',
+            submissionFormInstanceId: $this->instance->id,
+            submissionRequestId: $this->commercialEnquiry?->id,
+        )->to(AcceptanceFormWizard::class);
     }
 
     public function setTab(string $tab): void

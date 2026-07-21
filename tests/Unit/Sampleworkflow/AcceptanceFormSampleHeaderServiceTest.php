@@ -294,7 +294,6 @@ class AcceptanceFormSampleHeaderServiceTest extends TestCase
             'sample_configuration_payload' => [
                 [
                     'analysis_type_id' => $analysisType->id,
-                    'lab_section_id' => $section->id,
                 ],
             ],
         ]);

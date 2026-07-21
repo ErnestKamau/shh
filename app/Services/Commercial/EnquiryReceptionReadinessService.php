@@ -3,6 +3,7 @@
 namespace App\Services\Commercial;
 
 use App\Models\SampleSubmissionRequest;
+use App\Models\SubmissionFormInstance;
 use App\QuotationHeader;
 
 final class EnquiryReceptionReadinessService
@@ -68,6 +69,25 @@ final class EnquiryReceptionReadinessService
             || $enquiry->quotation_accepted_at !== null;
     }
 
+    /**
+     * True when samples have been checked in and are ready for lab acceptance.
+     */
+    public function isEligibleForSampleAcceptance(
+        SampleSubmissionRequest $enquiry,
+        ?SubmissionFormInstance $instance = null,
+    ): bool {
+        if ((string) $enquiry->status === SampleSubmissionRequest::STATUS_IN_REVIEW) {
+            return true;
+        }
+
+        if ($instance !== null
+            && in_array(strtolower((string) $instance->status), ['in_review', 'received'], true)) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function resolveAcceptedQuotation(SampleSubmissionRequest $enquiry): ?QuotationHeader
     {
         $quotationId = $enquiry->accepted_quotation_header_id
@@ -114,5 +134,4 @@ final class EnquiryReceptionReadinessService
 
         return $flags;
     }
-
 }

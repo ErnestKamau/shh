@@ -67,13 +67,13 @@ class AcceptanceFormWizard extends Component
     /** @var array<string, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null> */
     public array $instancePhotoUploads = [];
 
-    public bool $showLabSectionOnConfig = true;
+    public bool $showLabSectionOnConfig = false;
 
     public bool $showMainStandardOnConfig = true;
 
     public bool $showSecondaryStandardOnConfig = false;
 
-    public bool $showLabIdOnConfig = true;
+    public bool $showLabIdOnConfig = false;
 
     public bool $showAssignedUserOnConfig = true;
 
@@ -147,14 +147,15 @@ class AcceptanceFormWizard extends Component
                 return;
             }
 
-            if (! $readiness->isEligibleForPhysicalReceive($enquiry)) {
+            if (! $readiness->isEligibleForSampleAcceptance($enquiry, $instance)) {
                 $message = match ((string) $enquiry->status) {
                     SampleSubmissionRequest::STATUS_REQUESTED,
                     SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => 'Complete enquiry processing and send the quotation before accepting samples.',
                     SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Record customer acceptance on the request view page first.',
                     SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the customer.',
                     SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before physical reception.',
-                    default => 'This commercial request is not ready for physical reception yet.',
+                    SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => 'Move the request to In Review (Receive) before accepting samples.',
+                    default => 'This request is not ready for sample acceptance yet.',
                 };
                 $this->dispatch('notify', type: 'error', message: $message);
 
@@ -228,7 +229,7 @@ class AcceptanceFormWizard extends Component
             }
         }
 
-        $this->applySampleConfigAssignmentDefaults($configService);
+        $this->applySampleConfigAssignmentDefaults();
         $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
 
         $this->lines = $this->mapQuotationLinesForAcceptance($quotationLines);
@@ -344,6 +345,12 @@ class AcceptanceFormWizard extends Component
                 $this->sampleConfigs,
                 $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
             );
+            $normalizedConfigs = array_map(static function (array $config): array {
+                $config['lab_id'] = null;
+                $config['lab_section_id'] = null;
+
+                return $config;
+            }, $normalizedConfigs);
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? 'Sample configuration is invalid.';
             $this->dispatch('notify', type: 'error', message: $message);
@@ -481,16 +488,15 @@ class AcceptanceFormWizard extends Component
         }
     }
 
-    private function applySampleConfigAssignmentDefaults(AcceptanceFormSampleConfigService $configService): void
+    private function applySampleConfigAssignmentDefaults(): void
     {
         $defaultUserId = Auth::id() ? (string) Auth::id() : null;
 
         foreach ($this->sampleConfigs as $index => $config) {
-            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
-            if ($analysisTypeId !== '' && empty($config['lab_section_id'])) {
-                $this->sampleConfigs[$index]['lab_section_id'] = $configService
-                    ->resolveLabSectionIdForAnalysisType($analysisTypeId);
-            }
+            // Lab / lab section are owned by Analysis Type → Analysis Element master data.
+            // Never write them from the Acceptance wizard.
+            $this->sampleConfigs[$index]['lab_id'] = null;
+            $this->sampleConfigs[$index]['lab_section_id'] = null;
 
             if ($defaultUserId !== null && empty($config['assigned_user_id'])) {
                 $this->sampleConfigs[$index]['assigned_user_id'] = $defaultUserId;

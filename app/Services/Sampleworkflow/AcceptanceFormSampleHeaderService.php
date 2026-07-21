@@ -409,11 +409,10 @@ class AcceptanceFormSampleHeaderService
     }
 
     /**
-     * Prefill batch lab_section_ids from selected analysis types (and config overrides).
+     * Prefill batch lab_section_ids from selected analysis types (master data only).
      */
     private function resolveLabSectionIdsFromForm(AnalysisAcceptanceForm $form): ?string
     {
-        $sectionIds = [];
         $analysisTypeIds = [];
 
         $payload = is_array($form->sample_configuration_payload)
@@ -423,11 +422,6 @@ class AcceptanceFormSampleHeaderService
         foreach ($payload as $config) {
             if (! is_array($config)) {
                 continue;
-            }
-
-            $configSectionId = trim((string) ($config['lab_section_id'] ?? ''));
-            if ($configSectionId !== '' && Str::isUuid($configSectionId)) {
-                $sectionIds[] = $configSectionId;
             }
 
             $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
@@ -445,19 +439,19 @@ class AcceptanceFormSampleHeaderService
         }
 
         $analysisTypeIds = array_values(array_unique(array_filter($analysisTypeIds)));
-        if ($analysisTypeIds !== []) {
-            $fromTypes = AnalysisType::query()
-                ->whereIn('id', $analysisTypeIds)
-                ->whereNotNull('lab_section_id')
-                ->pluck('lab_section_id')
-                ->map(fn ($id) => trim((string) $id))
-                ->filter(fn ($id) => $id !== '' && Str::isUuid($id))
-                ->all();
-
-            $sectionIds = array_merge($sectionIds, $fromTypes);
+        if ($analysisTypeIds === []) {
+            return null;
         }
 
-        $sectionIds = array_values(array_unique(array_filter($sectionIds)));
+        $sectionIds = AnalysisType::query()
+            ->whereIn('id', $analysisTypeIds)
+            ->whereNotNull('lab_section_id')
+            ->pluck('lab_section_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '' && Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
 
         return $sectionIds !== [] ? implode(',', $sectionIds) : null;
     }

@@ -40,6 +40,7 @@ class ElementManager extends Component
         'significant_figures' => 3,
         'lod' => null,
         'hod' => null,
+        'lab_section_id' => null,
         'level' => 1,
         'active' => true,
         'non_detectable' => false,
@@ -57,7 +58,7 @@ class ElementManager extends Component
         'log_entry_worksheet_id' => null,
     ];
 
-    // Supporting Data
+    // Supporting Data (kept empty — options load on demand via search)
     public $analytes = [];
     public $methods = [];
     public $equipment = [];
@@ -80,6 +81,7 @@ class ElementManager extends Component
     public $logEntryWorksheetSearch = '';
     public $methodSequenceSearch = '';
     public $reportingUnitSearch = '';
+    public $labSectionSearch = '';
 
     public $showAnalyteDropdown = false;
     public $showMethodDropdown = false;
@@ -90,6 +92,7 @@ class ElementManager extends Component
     public $showLogEntryWorksheetDropdown = false;
     public $showMethodSequenceDropdown = false;
     public $showReportingUnitDropdown = false;
+    public $showLabSectionDropdown = false;
 
     public $selectedAnalyteName = '';
     public $selectedMethodName = '';
@@ -99,6 +102,7 @@ class ElementManager extends Component
     public $selectedFormularName = '';
     public $selectedLogEntryWorksheetName = '';
     public $selectedMethodSequenceName = '';
+    public $selectedLabSectionName = '';
 
     public $filteredAnalytes = [];
     public $filteredMethods = [];
@@ -109,6 +113,9 @@ class ElementManager extends Component
     public $filteredLogEntryWorksheets = [];
     public $filteredMethodSequences = [];
     public $filteredReportingUnits = [];
+    public $filteredLabSections = [];
+
+    protected int $searchResultLimit = 20;
 
     // Search and Filter
     public $search = '';
@@ -129,6 +136,9 @@ class ElementManager extends Component
         'elementForm.reporting_unit' => 'nullable|string|max:255',
         'elementForm.decimal_places' => 'nullable|integer|min:0|max:10',
         'elementForm.significant_figures' => 'nullable|integer|min:1|max:10',
+        'elementForm.lod' => 'nullable|numeric',
+        'elementForm.hod' => 'nullable|numeric',
+        'elementForm.lab_section_id' => 'nullable|uuid|exists:sample_analysis_stages,id',
         'elementForm.level' => 'nullable|integer|min:1',
         'elementForm.remark_is_manual' => 'boolean',
         'elementForm.result_is_calculated' => 'boolean',
@@ -176,21 +186,44 @@ class ElementManager extends Component
 
     public function loadInitialData()
     {
-        $this->analytes = Analyte::where('active', 1)->get();
-        $this->methods = AnalysisMethod::where('active', 1)->get();
-        $this->equipment = Equipment::where('active', 1)->get();
-        $this->operators = User::where('active', 1)->where('is_client', 0)->get();
-        $this->remedyHeaders = \App\Models\RemedyHeader::all();
-        $this->reportingUnits = ReportingUnit::where('active', 1)->get();
-        $this->formulars = \App\Models\Formulars\Formula::where('is_active', 1)->get();
-        $this->logEntryWorksheets = \App\Models\LogEntryWorksheets\LogEntryWorksheet::where('is_active', 1)->orderBy('name')->get();
         $this->methodSequences = collect([]);
         $this->stageHeaders = collect([]);
+        $this->filteredAnalytes = collect([]);
+        $this->filteredMethods = collect([]);
+        $this->filteredEquipment = collect([]);
+        $this->filteredOperators = collect([]);
+        $this->filteredReportingUnits = collect([]);
+        $this->filteredFormulars = collect([]);
+        $this->filteredLogEntryWorksheets = collect([]);
+        $this->filteredLabSections = collect([]);
     }
 
     public function getAnalysisTypeProperty()
     {
         return AnalysisType::find($this->analysisTypeId);
+    }
+
+    protected function defaultLabSectionIdFromAnalysisType(): ?string
+    {
+        $labSectionId = $this->analysisType?->lab_section_id;
+
+        return $labSectionId !== null && $labSectionId !== ''
+            ? (string) $labSectionId
+            : null;
+    }
+
+    protected function syncSelectedLabSectionName(?string $labSectionId): void
+    {
+        if ($labSectionId === null || $labSectionId === '') {
+            $this->selectedLabSectionName = '';
+
+            return;
+        }
+
+        $section = \App\SampleAnalysisStage::query()->find($labSectionId);
+        $this->selectedLabSectionName = $section
+            ? trim($section->name.($section->code ? ' — '.$section->code : ''))
+            : '';
     }
 
     public function getElementsProperty()
@@ -236,12 +269,8 @@ class ElementManager extends Component
     public function showCreateElementModal()
     {
         $this->resetElementForm();
-        // Preload all active options for dropdowns
-        $this->filteredAnalytes = Analyte::where('active', 1)->orderBy('name')->get();
-        $this->filteredMethods = $this->queryMethodOptions()->get();
-        $this->filteredEquipment = Equipment::where('active', 1)->orderBy('name')->get();
-        $this->filteredOperators = User::where('active', 1)->where('is_client', 0)->orderBy('name')->get();
-        $this->filteredReportingUnits = ReportingUnit::orderBy('name')->get();
+        $this->elementForm['lab_section_id'] = $this->defaultLabSectionIdFromAnalysisType();
+        $this->syncSelectedLabSectionName($this->elementForm['lab_section_id']);
         $this->showElementModal = true;
         $this->editingElement = null;
         $this->dispatch('element-modal-opened');
@@ -257,6 +286,9 @@ class ElementManager extends Component
         // Reset form data only (preserves editingElement)
         $this->resetFormDataOnly();
         
+        $labSectionId = $element->lab_section_id
+            ?: $this->defaultLabSectionIdFromAnalysisType();
+
         // Then populate with element data
         $this->elementForm = [
             'analyte_id' => $element->analyte_id,
@@ -268,6 +300,7 @@ class ElementManager extends Component
             'significant_figures' => $element->significant_figures,
             'lod' => $element->lod,
             'hod' => $element->hod,
+            'lab_section_id' => $labSectionId,
             'level' => $element->level,
             'active' => $element->active,
             'non_detectable' => $element->non_detectable,
@@ -311,19 +344,14 @@ class ElementManager extends Component
         
         $this->selectedMethodSequenceName = $element->methodSequence->name ?? '';
         $this->methodSequenceSearch = $this->selectedMethodSequenceName;
+
+        $this->syncSelectedLabSectionName($labSectionId ? (string) $labSectionId : null);
         
         $this->loadMethodSequencesForAnalyte();
         $this->reloadStageHeaderOptions();
-        $this->filteredMethods = $this->queryMethodOptions()->get();
 
         $this->showElementModal = true;
         $this->dispatch('element-modal-opened');
-    }
-
-    public function openMethodDropdown(): void
-    {
-        $this->filteredMethods = $this->queryMethodOptions($this->methodSearch)->get();
-        $this->showMethodDropdown = true;
     }
 
     public function saveElement()
@@ -343,9 +371,14 @@ class ElementManager extends Component
         $this->validate($this->getRules());
 
         try {
+            $labSectionId = ! empty($this->elementForm['lab_section_id'])
+                ? (string) $this->elementForm['lab_section_id']
+                : $this->defaultLabSectionIdFromAnalysisType();
+
             $data = array_merge($this->elementForm, [
                 'analysis_type_id' => $this->analysisTypeId,
                 'procedure_worksheet_id' => $this->analysisType->procedure_worksheet_id ?? null,
+                'lab_section_id' => $labSectionId,
             ]);
 
             if ($this->editingElement) {
@@ -391,6 +424,7 @@ class ElementManager extends Component
             'significant_figures' => 3,
             'lod' => null,
             'hod' => null,
+            'lab_section_id' => null,
             'level' => 1,
             'active' => true,
             'non_detectable' => false,
@@ -416,6 +450,9 @@ class ElementManager extends Component
         $this->remedyHeaderSearch = '';
         $this->formularSearch = '';
         $this->methodSequenceSearch = '';
+        $this->labSectionSearch = '';
+        $this->logEntryWorksheetSearch = '';
+        $this->reportingUnitSearch = '';
         
         $this->selectedAnalyteName = '';
         $this->selectedMethodName = '';
@@ -424,6 +461,8 @@ class ElementManager extends Component
         $this->selectedRemedyHeaderName = '';
         $this->selectedFormularName = '';
         $this->selectedMethodSequenceName = '';
+        $this->selectedLabSectionName = '';
+        $this->selectedLogEntryWorksheetName = '';
         
         $this->showAnalyteDropdown = false;
         $this->showMethodDropdown = false;
@@ -432,6 +471,18 @@ class ElementManager extends Component
         $this->showRemedyHeaderDropdown = false;
         $this->showFormularDropdown = false;
         $this->showMethodSequenceDropdown = false;
+        $this->showLabSectionDropdown = false;
+        $this->showLogEntryWorksheetDropdown = false;
+        $this->showReportingUnitDropdown = false;
+
+        $this->filteredAnalytes = collect([]);
+        $this->filteredMethods = collect([]);
+        $this->filteredEquipment = collect([]);
+        $this->filteredOperators = collect([]);
+        $this->filteredReportingUnits = collect([]);
+        $this->filteredFormulars = collect([]);
+        $this->filteredLogEntryWorksheets = collect([]);
+        $this->filteredLabSections = collect([]);
         
         $this->editingElement = null;
     }
@@ -448,6 +499,7 @@ class ElementManager extends Component
             'significant_figures' => 3,
             'lod' => null,
             'hod' => null,
+            'lab_section_id' => null,
             'level' => 1,
             'active' => true,
             'non_detectable' => false,
@@ -474,6 +526,8 @@ class ElementManager extends Component
         $this->formularSearch = '';
         $this->logEntryWorksheetSearch = '';
         $this->methodSequenceSearch = '';
+        $this->labSectionSearch = '';
+        $this->reportingUnitSearch = '';
         
         $this->selectedAnalyteName = '';
         $this->selectedMethodName = '';
@@ -482,6 +536,8 @@ class ElementManager extends Component
         $this->selectedRemedyHeaderName = '';
         $this->selectedFormularName = '';
         $this->selectedMethodSequenceName = '';
+        $this->selectedLabSectionName = '';
+        $this->selectedLogEntryWorksheetName = '';
         
         $this->showAnalyteDropdown = false;
         $this->showMethodDropdown = false;
@@ -490,6 +546,18 @@ class ElementManager extends Component
         $this->showRemedyHeaderDropdown = false;
         $this->showFormularDropdown = false;
         $this->showMethodSequenceDropdown = false;
+        $this->showLabSectionDropdown = false;
+        $this->showLogEntryWorksheetDropdown = false;
+        $this->showReportingUnitDropdown = false;
+
+        $this->filteredAnalytes = collect([]);
+        $this->filteredMethods = collect([]);
+        $this->filteredEquipment = collect([]);
+        $this->filteredOperators = collect([]);
+        $this->filteredReportingUnits = collect([]);
+        $this->filteredFormulars = collect([]);
+        $this->filteredLogEntryWorksheets = collect([]);
+        $this->filteredLabSections = collect([]);
     }
 
     public function updatedElementFormRecommendRemedies()
@@ -579,24 +647,31 @@ class ElementManager extends Component
     }
 
     // Searchable Select Methods
-    public function searchAnalytes()
+    public function openAnalyteDropdown(): void
     {
-        $this->showAnalyteDropdown = true;
-        $search = $this->analyteSearch;
-        
-        $this->filteredAnalytes = Analyte::where('active', 1)
-            ->where(function($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('code', 'like', '%' . $search . '%');
-            })
-            ->limit(10)
-            ->get();
+        $this->searchAnalytes();
     }
 
-    public function selectAnalyte($id)
+    public function searchAnalytes(): void
     {
-        $analyte = collect($this->analytes)->firstWhere('id', $id);
-        if (!$analyte) {
+        $this->showAnalyteDropdown = true;
+        $search = trim((string) $this->analyteSearch);
+
+        $query = Analyte::query()->where('active', 1)->orderBy('name');
+        if ($search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('code', 'like', '%'.$search.'%');
+            });
+        }
+
+        $this->filteredAnalytes = $query->limit($this->searchResultLimit)->get();
+    }
+
+    public function selectAnalyte($id): void
+    {
+        $analyte = Analyte::query()->where('active', 1)->find($id);
+        if (! $analyte) {
             return;
         }
 
@@ -608,7 +683,7 @@ class ElementManager extends Component
         $this->reloadStageHeaderOptions();
     }
 
-    public function clearAnalyte()
+    public function clearAnalyte(): void
     {
         $this->elementForm['analyte_id'] = null;
         $this->selectedAnalyteName = '';
@@ -616,6 +691,11 @@ class ElementManager extends Component
         $this->methodSequences = collect([]);
         $this->stageHeaders = collect([]);
         $this->elementForm['stage_header_id'] = null;
+    }
+
+    public function openMethodDropdown(): void
+    {
+        $this->searchMethods();
     }
 
     public function searchMethods(): void
@@ -632,18 +712,18 @@ class ElementManager extends Component
 
         if ($search !== null && $search !== '') {
             $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('code', 'like', '%'.$search.'%');
             });
         }
 
-        return $query;
+        return $query->limit($this->searchResultLimit);
     }
 
-    public function selectMethod($id)
+    public function selectMethod($id): void
     {
-        $method = collect($this->methods)->firstWhere('id', $id);
-        if (!$method) {
+        $method = AnalysisMethod::query()->where('active', 1)->find($id);
+        if (! $method) {
             return;
         }
 
@@ -651,30 +731,39 @@ class ElementManager extends Component
         $this->selectedMethodName = $method->name;
         $this->methodSearch = $method->name;
         $this->showMethodDropdown = false;
+        $this->reloadStageHeaderOptions();
     }
 
-    public function clearMethod()
+    public function clearMethod(): void
     {
         $this->elementForm['method'] = null;
         $this->selectedMethodName = '';
         $this->methodSearch = '';
+        $this->reloadStageHeaderOptions();
     }
 
-    public function searchEquipment()
+    public function openEquipmentDropdown(): void
+    {
+        $this->searchEquipment();
+    }
+
+    public function searchEquipment(): void
     {
         $this->showEquipmentDropdown = true;
-        $search = $this->equipmentSearch;
-        
-        $this->filteredEquipment = Equipment::where('active', 1)
-            ->where('name', 'like', '%' . $search . '%')
-            ->limit(10)
-            ->get();
+        $search = trim((string) $this->equipmentSearch);
+
+        $query = Equipment::query()->where('active', 1)->orderBy('name');
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredEquipment = $query->limit($this->searchResultLimit)->get();
     }
 
-    public function selectEquipment($id)
+    public function selectEquipment($id): void
     {
-        $equipment = collect($this->equipment)->firstWhere('id', $id);
-        if (!$equipment) {
+        $equipment = Equipment::query()->where('active', 1)->find($id);
+        if (! $equipment) {
             return;
         }
 
@@ -684,29 +773,38 @@ class ElementManager extends Component
         $this->showEquipmentDropdown = false;
     }
 
-    public function clearEquipment()
+    public function clearEquipment(): void
     {
         $this->elementForm['equipment_id'] = null;
         $this->selectedEquipmentName = '';
         $this->equipmentSearch = '';
     }
 
-    public function searchOperators()
+    public function openOperatorDropdown(): void
     {
-        $this->showOperatorDropdown = true;
-        $search = $this->operatorSearch;
-        
-        $this->filteredOperators = User::where('active', 1)
-            ->where('is_client', 0)
-            ->where('name', 'like', '%' . $search . '%')
-            ->limit(10)
-            ->get();
+        $this->searchOperators();
     }
 
-    public function selectOperator($id)
+    public function searchOperators(): void
     {
-        $operator = collect($this->operators)->firstWhere('id', $id);
-        if (!$operator) {
+        $this->showOperatorDropdown = true;
+        $search = trim((string) $this->operatorSearch);
+
+        $query = User::query()
+            ->where('active', 1)
+            ->where('is_client', 0)
+            ->orderBy('name');
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredOperators = $query->limit($this->searchResultLimit)->get();
+    }
+
+    public function selectOperator($id): void
+    {
+        $operator = User::query()->where('active', 1)->where('is_client', 0)->find($id);
+        if (! $operator) {
             return;
         }
 
@@ -716,27 +814,30 @@ class ElementManager extends Component
         $this->showOperatorDropdown = false;
     }
 
-    public function clearOperator()
+    public function clearOperator(): void
     {
         $this->elementForm['operator_id'] = null;
         $this->selectedOperatorName = '';
         $this->operatorSearch = '';
     }
 
-    public function searchRemedyHeaders()
+    public function searchRemedyHeaders(): void
     {
         $this->showRemedyHeaderDropdown = true;
-        $search = $this->remedyHeaderSearch;
-        
-        $this->filteredRemedyHeaders = \App\Models\RemedyHeader::where('name', 'like', '%' . $search . '%')
-            ->limit(10)
-            ->get();
+        $search = trim((string) $this->remedyHeaderSearch);
+
+        $query = \App\Models\RemedyHeader::query()->orderBy('name');
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredRemedyHeaders = $query->limit($this->searchResultLimit)->get();
     }
 
-    public function selectRemedyHeader($id)
+    public function selectRemedyHeader($id): void
     {
-        $remedyHeader = collect($this->remedyHeaders)->firstWhere('id', $id);
-        if (!$remedyHeader) {
+        $remedyHeader = \App\Models\RemedyHeader::query()->find($id);
+        if (! $remedyHeader) {
             return;
         }
 
@@ -746,30 +847,39 @@ class ElementManager extends Component
         $this->showRemedyHeaderDropdown = false;
     }
 
-    public function clearRemedyHeader()
+    public function clearRemedyHeader(): void
     {
         $this->elementForm['remedy_header_id'] = null;
         $this->selectedRemedyHeaderName = '';
         $this->remedyHeaderSearch = '';
     }
 
-    public function searchFormulars()
+    public function openFormularDropdown(): void
     {
-        $this->showFormularDropdown = true;
-        $search = $this->formularSearch;
-        
-        $this->filteredFormulars = \App\Models\Formulars\Formula::where('is_active', 1)
-            ->where('name', 'like', '%' . $search . '%')
-            ->limit(10)
-            ->get();
+        $this->searchFormulars();
     }
 
-    public function selectFormular($id)
+    public function searchFormulars(): void
+    {
+        $this->showFormularDropdown = true;
+        $search = trim((string) $this->formularSearch);
+
+        $query = \App\Models\Formulars\Formula::query()
+            ->where('is_active', 1)
+            ->orderBy('name');
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredFormulars = $query->limit($this->searchResultLimit)->get();
+    }
+
+    public function selectFormular($id): void
     {
         $formular = \App\Models\Formulars\Formula::query()
             ->where('is_active', 1)
             ->find($id);
-        if (!$formular) {
+        if (! $formular) {
             return;
         }
 
@@ -779,23 +889,31 @@ class ElementManager extends Component
         $this->showFormularDropdown = false;
     }
 
-    public function clearFormular()
+    public function clearFormular(): void
     {
         $this->elementForm['formular_id'] = null;
         $this->selectedFormularName = '';
         $this->formularSearch = '';
     }
 
+    public function openLogEntryWorksheetDropdown(): void
+    {
+        $this->searchLogEntryWorksheets();
+    }
+
     public function searchLogEntryWorksheets(): void
     {
         $this->showLogEntryWorksheetDropdown = true;
-        $search = $this->logEntryWorksheetSearch;
+        $search = trim((string) $this->logEntryWorksheetSearch);
 
-        $this->filteredLogEntryWorksheets = \App\Models\LogEntryWorksheets\LogEntryWorksheet::where('is_active', true)
-            ->where('name', 'like', '%'.$search.'%')
-            ->orderBy('name')
-            ->limit(10)
-            ->get();
+        $query = \App\Models\LogEntryWorksheets\LogEntryWorksheet::query()
+            ->where('is_active', true)
+            ->orderBy('name');
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredLogEntryWorksheets = $query->limit($this->searchResultLimit)->get();
     }
 
     public function selectLogEntryWorksheet(string $id): void
@@ -820,22 +938,28 @@ class ElementManager extends Component
         $this->logEntryWorksheetSearch = '';
     }
 
-    public function searchMethodSequences()
+    public function searchMethodSequences(): void
     {
         $this->showMethodSequenceDropdown = true;
-        $search = $this->methodSequenceSearch;
-        
-        $this->filteredMethodSequences = \App\Models\MethodSequences\MethodSequence::where('is_active', true)
-            ->where('name', 'like', '%' . $search . '%')
-            ->with(['activeVersion', 'latestVersion'])
-            ->limit(10)
-            ->get();
+        $search = trim((string) $this->methodSequenceSearch);
+
+        $query = \App\Models\MethodSequences\MethodSequence::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->with(['activeVersion', 'latestVersion']);
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredMethodSequences = $query->limit($this->searchResultLimit)->get();
     }
 
-    public function selectMethodSequence($id)
+    public function selectMethodSequence($id): void
     {
-        $methodSequence = collect($this->methodSequences)->firstWhere('id', $id);
-        if (!$methodSequence) {
+        $methodSequence = \App\Models\MethodSequences\MethodSequence::query()
+            ->where('is_active', true)
+            ->find($id);
+        if (! $methodSequence) {
             return;
         }
 
@@ -845,22 +969,29 @@ class ElementManager extends Component
         $this->showMethodSequenceDropdown = false;
     }
 
-    public function clearMethodSequence()
+    public function clearMethodSequence(): void
     {
         $this->elementForm['method_sequence_id'] = null;
         $this->selectedMethodSequenceName = '';
         $this->methodSequenceSearch = '';
     }
 
+    public function openReportingUnitDropdown(): void
+    {
+        $this->searchReportingUnits();
+    }
+
     public function searchReportingUnits(): void
     {
         $this->showReportingUnitDropdown = true;
-        $search = $this->reportingUnitSearch;
-        
-        $this->filteredReportingUnits = ReportingUnit::where('active', 1)
-            ->where('name', 'like', '%' . $search . '%')
-            ->limit(50)
-            ->get();
+        $search = trim((string) $this->reportingUnitSearch);
+
+        $query = ReportingUnit::query()->where('active', 1)->orderBy('name');
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $this->filteredReportingUnits = $query->limit($this->searchResultLimit)->get();
     }
 
     public function selectReportingUnit($unit): void
@@ -868,6 +999,61 @@ class ElementManager extends Component
         $this->elementForm['reporting_unit'] = $unit;
         $this->reportingUnitSearch = '';
         $this->showReportingUnitDropdown = false;
+    }
+
+    public function openLabSectionDropdown(): void
+    {
+        $this->searchLabSections();
+    }
+
+    public function searchLabSections(): void
+    {
+        $this->showLabSectionDropdown = true;
+        $search = trim((string) $this->labSectionSearch);
+
+        $query = \App\SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->where(function ($q): void {
+                $q->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+            })
+            ->orderBy('name');
+
+        $analysisTypeLabId = $this->analysisType?->lab_id;
+        if (! empty($analysisTypeLabId)) {
+            $query->where(function ($q) use ($analysisTypeLabId): void {
+                $q->where('lab_id', $analysisTypeLabId)->orWhereNull('lab_id');
+            });
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('code', 'like', '%'.$search.'%');
+            });
+        }
+
+        $this->filteredLabSections = $query->limit($this->searchResultLimit)->get();
+    }
+
+    public function selectLabSection(string $labSectionId): void
+    {
+        $section = \App\SampleAnalysisStage::query()->find($labSectionId);
+        if (! $section) {
+            return;
+        }
+
+        $this->elementForm['lab_section_id'] = (string) $section->id;
+        $this->syncSelectedLabSectionName((string) $section->id);
+        $this->labSectionSearch = '';
+        $this->showLabSectionDropdown = false;
+    }
+
+    public function clearLabSection(): void
+    {
+        $this->elementForm['lab_section_id'] = null;
+        $this->selectedLabSectionName = '';
+        $this->labSectionSearch = '';
+        $this->showLabSectionDropdown = false;
     }
 
     public function clearFilters()

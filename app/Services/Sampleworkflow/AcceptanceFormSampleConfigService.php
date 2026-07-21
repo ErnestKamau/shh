@@ -1290,12 +1290,6 @@ class AcceptanceFormSampleConfigService
             if (empty($config['main_standard_id'])) {
                 $errors["sampleConfigs.{$index}.main_standard_id"] = "Row {$row}: main standard is required.";
             }
-            if (empty($config['lab_id'])) {
-                $errors["sampleConfigs.{$index}.lab_id"] = "Row {$row}: lab is required.";
-            }
-            if (empty($config['lab_section_id'])) {
-                $errors["sampleConfigs.{$index}.lab_section_id"] = "Row {$row}: lab section is required.";
-            }
             if (empty($config['assigned_user_id'])) {
                 $errors["sampleConfigs.{$index}.assigned_user_id"] = "Row {$row}: assigned user is required.";
             }
@@ -1357,7 +1351,7 @@ class AcceptanceFormSampleConfigService
                     'sample_condition_id' => $config['sample_condition_id'] ?? null,
                     'main_standard_id' => $config['main_standard_id'] ?? null,
                     'zone_id' => $this->resolveZoneIdFromConfig($config),
-                    'lab_section_id' => $config['lab_section_id'] ?? null,
+                    'lab_section_id' => null,
                     'customer_sample_id' => $sampleDetails['customer_sample_id'] !== ''
                         ? $sampleDetails['customer_sample_id']
                         : null,
@@ -1607,9 +1601,9 @@ class AcceptanceFormSampleConfigService
                 'sample_condition_id' => $config['sample_condition_id'] ?? null,
                 'main_standard_id' => $config['main_standard_id'] ?? null,
                 'secondary_standard_id' => $config['secondary_standard_id'] ?? null,
-                'lab_id' => ! empty($config['lab_id']) ? (string) $config['lab_id'] : null,
+                'lab_id' => null,
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
-                'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
+                'lab_section_id' => null,
                 'assigned_user_id' => ! empty($config['assigned_user_id']) ? (string) $config['assigned_user_id'] : null,
                 'customer_sample_id' => $details['customer_sample_id'] !== ''
                     ? $details['customer_sample_id']

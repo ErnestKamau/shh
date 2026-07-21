@@ -69,7 +69,6 @@ class AcceptanceFormWizardTest extends TestCase
             ->test(AcceptanceFormWizard::class)
             ->dispatch('open-acceptance-wizard', submissionFormInstanceId: $instance->id)
             ->set('sampleConfigs.0.main_standard_id', (string) Str::uuid())
-            ->set('sampleConfigs.0.lab_id', (string) Str::uuid())
             ->call('saveSampleConfigAndContinue')
             ->assertSet('activeStep', 'signatures');
     }

@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -723,10 +722,6 @@ class SubmissionFormInstance extends Model implements Auditable
             'reviewed_by' => $user->id,
             'review_notes' => $notes,
         ];
-
-        if (! empty($user->lab_id) && Schema::hasColumn($this->getTable(), 'receiving_lab_id')) {
-            $attributes['receiving_lab_id'] = (string) $user->lab_id;
-        }
 
         $this->update($attributes);
 

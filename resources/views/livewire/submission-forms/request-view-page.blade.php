@@ -137,17 +137,18 @@
 
     @livewire('sampleworkflow.process-enquiry-wizard')
     @livewire('sampleworkflow.sample-rejection-wizard')
+    @livewire('sampleworkflow.acceptance-form-wizard')
 
     <div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered" id="receive-sample-modal-dialog">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0">
                     <div>
-                        <h5 class="modal-title mb-1">
-                            <i class="mdi mdi-package-variant-closed text-primary mr-2"></i>
-                            Physical sample check-in
+                        <h5 class="modal-title mb-1" id="receive-sample-modal-title">
+                            <i class="mdi mdi-clipboard-arrow-right text-primary mr-2" id="receive-sample-modal-icon"></i>
+                            <span id="receive-sample-modal-title-text">Move to In Review</span>
                         </h5>
-                        <p class="text-muted small mb-0">Confirm samples arrived at reception against the accepted quotation.</p>
+                        <p class="text-muted small mb-0 d-none" id="receive-sample-modal-subtitle"></p>
                     </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
@@ -216,13 +217,77 @@
         }
     });
 
-    $wire.on('show-receive-sample-modal', () => {
+    // Child ReceiveSampleRequest dispatches this — must use Livewire.on (not $wire.on).
+    Livewire.on('show-receive-sample-modal', (payload) => {
+        const physical = payload?.physicalCheckIn ?? true;
+        const modalEl = document.getElementById('receive-sample-modal');
+        const dialogEl = document.getElementById('receive-sample-modal-dialog');
+        const titleEl = document.getElementById('receive-sample-modal-title-text');
+        const iconEl = document.getElementById('receive-sample-modal-icon');
+        const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
+
+        if (modalEl) {
+            modalEl.classList.toggle('receive-sample-modal--compact', physical);
+        }
+        if (dialogEl) {
+            dialogEl.classList.toggle('modal-xl', !physical);
+            dialogEl.classList.toggle('modal-dialog-scrollable', !physical);
+        }
+        if (titleEl && iconEl) {
+            if (physical) {
+                titleEl.textContent = 'Move to In Review';
+                iconEl.className = 'mdi mdi-clipboard-arrow-right text-primary mr-2';
+                if (subtitleEl) {
+                    subtitleEl.textContent = '';
+                    subtitleEl.classList.add('d-none');
+                }
+            } else {
+                titleEl.textContent = 'Test Request Form';
+                iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
+                if (subtitleEl) {
+                    subtitleEl.textContent = '';
+                    subtitleEl.classList.add('d-none');
+                }
+            }
+        }
+
         $('#receive-sample-modal').modal('show');
         setTimeout(function () {
             if (typeof window.initTrfSignaturePads === 'function') {
                 window.initTrfSignaturePads();
             }
         }, 300);
+    });
+
+    Livewire.on('hide-receive-sample-modal', () => {
+        $('#receive-sample-modal').modal('hide');
+    });
+
+    Livewire.on('receive-completed', () => {
+        window.location.reload();
+    });
+
+    Livewire.on('notify', (payload) => {
+        const data = payload?.detail ?? payload ?? {};
+        const type = data.type ?? 'info';
+        const message = data.message ?? data[0]?.message ?? '';
+        if (!message) {
+            return;
+        }
+        if (typeof toastr !== 'undefined') {
+            toastr[type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'success')](message);
+            return;
+        }
+        alert(message);
+    });
+
+    Livewire.on('acceptance-form-completed', (event) => {
+        const redirectUrl = event?.redirectUrl ?? event?.detail?.redirectUrl;
+        if (redirectUrl) {
+            window.location.href = redirectUrl;
+            return;
+        }
+        window.location.reload();
     });
 
     Livewire.on('sample-rejection-completed', () => {

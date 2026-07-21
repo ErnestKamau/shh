@@ -211,7 +211,7 @@
                 border: 1px solid #ced4da;
                 border-radius: 12px;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                z-index: 1050;
+                z-index: 2050;
                 max-height: 300px;
                 overflow-y: auto;
             }

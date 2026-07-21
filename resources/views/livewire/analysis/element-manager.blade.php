@@ -234,9 +234,9 @@
 
     <!-- Parameter Modal -->
     @if($showElementModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+        <div class="modal fade show d-block element-manager-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                <div class="modal-content">
+                <div class="modal-content" style="overflow: visible;">
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingElement ? 'pencil' : 'plus' }}"></i>
@@ -272,7 +272,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-flask-outline text-primary"></i> Analyte <span class="text-danger">*</span>
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showAnalyteDropdown', true)">
+                                        <div class="tag-select-container" wire:click="openAnalyteDropdown">
                                             <div class="tag-select-input">
                                                 <!-- Display selected analyte -->
                                                 @if($selectedAnalyteName)
@@ -282,8 +282,9 @@
                                                     </span>
                                                 @else
                                                     <input type="text" 
-                                                           wire:model.live="analyteSearch" 
+                                                           wire:model.live.debounce.250ms="analyteSearch" 
                                                            wire:keyup="searchAnalytes"
+                                                           wire:focus="openAnalyteDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search analytes..."
                                                            autocomplete="off">
@@ -319,7 +320,7 @@
                                                     </span>
                                                 @else
                                                     <input type="text" 
-                                                           wire:model.live="methodSearch" 
+                                                           wire:model.live.debounce.250ms="methodSearch" 
                                                            wire:keyup="searchMethods"
                                                            wire:focus="openMethodDropdown"
                                                            class="tag-input" 
@@ -349,7 +350,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-cog text-warning"></i> Equipment
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showEquipmentDropdown', true)">
+                                        <div class="tag-select-container" wire:click="openEquipmentDropdown">
                                             <div class="tag-select-input">
                                                 <!-- Display selected equipment -->
                                                 @if($selectedEquipmentName)
@@ -359,8 +360,9 @@
                                                     </span>
                                                 @else
                                                     <input type="text" 
-                                                           wire:model.live="equipmentSearch" 
+                                                           wire:model.live.debounce.250ms="equipmentSearch" 
                                                            wire:keyup="searchEquipment"
+                                                           wire:focus="openEquipmentDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search equipment..."
                                                            autocomplete="off">
@@ -386,7 +388,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-account text-info"></i> Operator
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showOperatorDropdown', true)">
+                                        <div class="tag-select-container" wire:click="openOperatorDropdown">
                                             <div class="tag-select-input">
                                                 <!-- Display selected operator -->
                                                 @if($selectedOperatorName)
@@ -396,8 +398,9 @@
                                                     </span>
                                                 @else
                                                     <input type="text" 
-                                                           wire:model.live="operatorSearch" 
+                                                           wire:model.live.debounce.250ms="operatorSearch" 
                                                            wire:keyup="searchOperators"
+                                                           wire:focus="openOperatorDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search operators..."
                                                            autocomplete="off">
@@ -425,7 +428,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-scale-balance text-primary"></i> Reporting Unit
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showReportingUnitDropdown', true)">
+                                        <div class="tag-select-container" wire:click="openReportingUnitDropdown">
                                             <div class="tag-select-input">
                                                 <!-- Display selected unit -->
                                                 @if($elementForm['reporting_unit'])
@@ -435,8 +438,9 @@
                                                     </span>
                                                 @else
                                                     <input type="text" 
-                                                           wire:model.live="reportingUnitSearch" 
+                                                           wire:model.live.debounce.250ms="reportingUnitSearch" 
                                                            wire:keyup="searchReportingUnits"
+                                                           wire:focus="openReportingUnitDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search reporting units..."
                                                            autocomplete="off">
@@ -481,6 +485,42 @@
                                     <div class="form-group mb-3">
                                         <label class="form-label">LOQ (Limit of Quantification)</label>
                                         <input type="number" step="0.0000001" wire:model="elementForm.hod" class="form-control" placeholder="Limit of Quantification">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-view-grid-outline text-primary"></i> Lab Section
+                                        </label>
+                                        <div class="tag-select-container" wire:click="openLabSectionDropdown">
+                                            <div class="tag-select-input">
+                                                @if($selectedLabSectionName)
+                                                    <span class="tag-badge">
+                                                        {{ $selectedLabSectionName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearLabSection"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text"
+                                                       wire:model.live.debounce.250ms="labSectionSearch"
+                                                       wire:keyup="searchLabSections"
+                                                       wire:focus="openLabSectionDropdown"
+                                                       class="tag-input"
+                                                       placeholder="{{ $selectedLabSectionName ? '' : 'Search lab sections...' }}"
+                                                       autocomplete="off"
+                                                       @if($selectedLabSectionName) style="min-width: 8rem;" @endif>
+                                            </div>
+                                            @if($showLabSectionDropdown && count($filteredLabSections) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredLabSections as $section)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLabSection('{{ $section->id }}')">
+                                                            {{ $section->code ? $section->code.' — ' : '' }}{{ $section->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.lab_section_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Defaults from the Analysis Type lab section.</small>
                                     </div>
                                 </div>
                             </div>
@@ -548,7 +588,7 @@
                                                     <label class="form-label">
                                                         <i class="mdi mdi-calculator text-primary"></i> Formulars
                                                     </label>
-                                                    <div class="tag-select-container" wire:click="$set('showFormularDropdown', true)">
+                                                    <div class="tag-select-container" wire:click="openFormularDropdown">
                                                         <div class="tag-select-input">
                                                             <!-- Display selected formular -->
                                                             @if($selectedFormularName)
@@ -560,8 +600,9 @@
                                                             
                                                             <!-- Search Input -->
                                                             <input type="text" 
-                                                                   wire:model.live="formularSearch" 
+                                                                   wire:model.live.debounce.250ms="formularSearch" 
                                                                    wire:keyup="searchFormulars"
+                                                                   wire:focus="openFormularDropdown"
                                                                    class="tag-input" 
                                                                    placeholder="{{ $selectedFormularName ? '' : 'Search formulars...' }}"
                                                                    autocomplete="off">
@@ -591,7 +632,7 @@
                                                 <label class="form-label">
                                                     <i class="mdi mdi-table-edit text-primary"></i> Log entry worksheet
                                                 </label>
-                                                <div class="tag-select-container" wire:click="$set('showLogEntryWorksheetDropdown', true)">
+                                                <div class="tag-select-container" wire:click="openLogEntryWorksheetDropdown">
                                                     <div class="tag-select-input">
                                                         @if($selectedLogEntryWorksheetName)
                                                             <span class="tag-badge">
@@ -600,8 +641,9 @@
                                                             </span>
                                                         @endif
                                                         <input type="text"
-                                                               wire:model.live="logEntryWorksheetSearch"
+                                                               wire:model.live.debounce.250ms="logEntryWorksheetSearch"
                                                                wire:keyup="searchLogEntryWorksheets"
+                                                               wire:focus="openLogEntryWorksheetDropdown"
                                                                class="tag-input"
                                                                placeholder="{{ $selectedLogEntryWorksheetName ? '' : 'Search log entry worksheets...' }}"
                                                                autocomplete="off">
@@ -647,7 +689,7 @@
                                             </div>
 
                                             @if($elementForm['has_method_sequence'] ?? false)
-                                                <div class="form-group mb-3">
+                                                <div class="form-group mb-3 element-stage-header-field">
                                                     <label class="form-label" for="element-stage-header-select">Stage header</label>
                                                     <x-searchable-select
                                                         wire:model.live="elementForm.stage_header_id"
@@ -854,9 +896,46 @@ body.modal-open {
 }
 
 /* Ensure modal is properly positioned and scrollable */
-.modal-dialog-scrollable .modal-body {
+.element-manager-modal.modal {
     overflow-y: auto;
-    max-height: calc(100vh - 200px);
+}
+
+.element-manager-modal .modal-dialog-scrollable {
+    max-height: calc(100vh - 1rem);
+    overflow-y: auto;
+    overflow-x: visible;
+}
+
+.element-manager-modal .modal-dialog-scrollable .modal-content {
+    overflow: visible;
+}
+
+/* Visible overflow so Stage header / tag dropdowns are not clipped */
+.element-manager-modal .modal-dialog-scrollable .modal-body {
+    overflow: visible;
+    max-height: none;
+}
+
+/* Stage header list must stack above modal body content */
+.element-manager-modal .element-stage-header-field {
+    position: relative;
+    z-index: 1060;
+    overflow: visible;
+}
+
+.element-manager-modal .element-stage-header-field .searchable-dropdown-wrapper {
+    position: relative;
+    z-index: 1060;
+    overflow: visible;
+}
+
+.element-manager-modal .element-stage-header-field .dropdown-list {
+    z-index: 2000 !important;
+    position: absolute;
+}
+
+.element-manager-modal .tag-dropdown {
+    z-index: 2000;
 }
 
 /* Smooth scrolling for modal content */
@@ -993,6 +1072,8 @@ document.addEventListener('click', function (e) {
         'showFormularDropdown',
         'showMethodSequenceDropdown',
         'showReportingUnitDropdown',
+        'showLogEntryWorksheetDropdown',
+        'showLabSectionDropdown',
     ];
 
     dropdownProperties.forEach(function (property) {
