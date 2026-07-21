@@ -309,7 +309,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-test-tube text-success"></i> Method
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showMethodDropdown', true)">
+                                        <div class="tag-select-container" wire:click="openMethodDropdown">
                                             <div class="tag-select-input">
                                                 <!-- Display selected method -->
                                                 @if($selectedMethodName)
@@ -321,6 +321,7 @@
                                                     <input type="text" 
                                                            wire:model.live="methodSearch" 
                                                            wire:keyup="searchMethods"
+                                                           wire:focus="openMethodDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search methods..."
                                                            autocomplete="off">

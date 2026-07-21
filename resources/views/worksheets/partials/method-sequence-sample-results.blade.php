@@ -4,23 +4,18 @@
         <h5 class="mb-2 font-weight-bold"><i class="mdi mdi-test-tube"></i> Sample Results</h5>
     </div>
         @if (!empty($samples))
-            {{-- Information Bar --}}
-            <div class="alert alert-light border mb-4" style="background-color: #eff6ff; border-color: #93c5fd; padding: 1rem;">
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <small class="text-muted text-uppercase d-block" style="font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Method</small>
-                        <strong style="font-size: 0.9rem; color: #1f2937; display: block;">{{ $samples[0]['method_name'] ?? 'N/A' }}</strong>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <small class="text-muted text-uppercase d-block" style="font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Unit</small>
-                        <strong style="font-size: 0.9rem; color: #1f2937; display: block;">{{ $samples[0]['unit'] ?? 'N/A' }}</strong>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <small class="text-muted text-uppercase d-block" style="font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Analyte/Parameter</small>
-                        <strong style="font-size: 0.9rem; color: #1f2937; display: block;">{{ $samples[0]['analyte_name'] ?? 'N/A' }}</strong>
-                    </div>
-                </div>
-            </div>
+            @php
+                $info = $metaSummary ?? [
+                    'sample_code' => $samples[0]['sample_code'] ?? 'N/A',
+                    'test_name' => $samples[0]['test_name'] ?? ($samples[0]['analyte_name'] ?? 'N/A'),
+                    'analyst' => $samples[0]['analyst'] ?? 'N/A',
+                    'method' => $samples[0]['method_name'] ?? 'N/A',
+                    'unit' => $samples[0]['unit'] ?? 'N/A',
+                    'standard' => $samples[0]['standard_name'] ?? 'N/A',
+                    'standard_limit' => $samples[0]['standard_limit'] ?? ($samples[0]['standard_limit_text'] ?? 'N/A'),
+                ];
+            @endphp
+            @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $info])
         @endif
 
         <div class="table-responsive">

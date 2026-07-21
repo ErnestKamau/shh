@@ -16,6 +16,7 @@ use App\Services\LogEntryWorksheets\LogEntryDatasetResolverService;
 use App\Services\LogEntryWorksheets\LogEntryMandatoryFieldOptionsResolver;
 use App\Services\LogEntryWorksheets\LogEntryRowGeneratorService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -44,6 +45,9 @@ class LogEntryWorksheetManager extends Component
 
     public function render()
     {
+        $capturedResults = $this->scopedCapturedResultModels();
+        $metaResolver = app(WorksheetMetaResolver::class);
+
         return view('livewire.worksheets.log-entry-worksheet-manager', [
             'worksheets' => $this->availableWorksheets,
             'selectedWorksheet' => $this->selectedWorksheet,
@@ -51,7 +55,18 @@ class LogEntryWorksheetManager extends Component
             'columns' => $this->worksheetColumns,
             'mandatoryFields' => $this->mandatoryFields,
             'orderedRows' => $this->orderedRows,
+            'worksheetMetaSummary' => $metaResolver->summaryForMany($capturedResults),
+            'worksheetMetaRows' => $metaResolver->forMany($capturedResults),
         ]);
+    }
+
+    protected function scopedCapturedResultModels(): Collection
+    {
+        $query = CapturedResult::where('sample_header_id', $this->batch->id)
+            ->when($this->selectedWorksheetId, fn ($q) => $q->where('log_entry_worksheet_id', $this->selectedWorksheetId));
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+
+        return $query->with(WorksheetMetaResolver::EAGER)->get();
     }
 
     public function getAvailableWorksheetsProperty(): Collection

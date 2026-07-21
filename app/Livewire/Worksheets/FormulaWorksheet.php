@@ -14,6 +14,7 @@ use App\Models\Worksheets\SampleCapturedWorksheetFormula;
 use App\Services\Formulars\FormulaStepCheckboxOptionsResolver;
 use App\Services\Formulars\FormulaStepTableRowGeneratorService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
 use App\SampleHeader;
@@ -2467,8 +2468,13 @@ class FormulaWorksheet extends Component
 
     public function render()
     {
+        $capturedCollection = collect($this->capturedResults);
+        $metaResolver = app(WorksheetMetaResolver::class);
+
         return view('livewire.worksheets.formula-worksheet', [
             'users' => User::where('active', 1)->get(),
+            'worksheetMetaSummary' => $metaResolver->summaryForMany($capturedCollection),
+            'worksheetMetaRows' => $metaResolver->forMany($capturedCollection),
         ]);
     }
 }

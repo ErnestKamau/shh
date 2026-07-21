@@ -77,6 +77,10 @@
             </div>
         </div>
     @else
+        @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
+        @if(!empty($worksheetMetaRows) && count($worksheetMetaRows) > 1)
+            @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
+        @endif
         <div class="card">
             <div class="card-header bg-white">
                  <h5 class="mb-0">New Run - {{ $analysisTypeName }}</h5>

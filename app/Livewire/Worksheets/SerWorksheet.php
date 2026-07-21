@@ -13,6 +13,7 @@ use App\SampleDetails;
 use App\AnalysisType;
 use App\AnalysisMethod;
 use App\CapturedResult;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -158,6 +159,10 @@ class SerWorksheet extends Component
 
         // Initial check for existing runs
         $this->loadExistingRuns();
+
+        $this->dispatch('worksheet-print-context-updated', context: [
+            'analysis_type_id' => (string) $this->analysisTypeId,
+        ]);
     }
 
     public function loadExistingRuns()
@@ -386,14 +391,39 @@ class SerWorksheet extends Component
 
     public function render()
     {
+        $metaResolver = app(WorksheetMetaResolver::class);
+        $capturedResults = CapturedResult::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->where('analysis_type_id', $this->analysisTypeId)
+            ->where('has_no_result_capture', true)
+            ->with(WorksheetMetaResolver::EAGER)
+            ->get();
+
+        $analystNames = collect($this->analyst_ids)
+            ->map(fn ($id) => User::query()->find($id)?->name)
+            ->filter()
+            ->implode(', ');
+
+        $methodName = $this->method_id
+            ? AnalysisMethod::query()->find($this->method_id)?->name
+            : null;
+
+        $metaContext = array_filter([
+            'analyst_name' => $analystNames !== '' ? $analystNames : null,
+        ]);
+
+        $worksheetMetaSummary = $metaResolver->summaryForMany($capturedResults, $metaContext);
+        if ($methodName) {
+            $worksheetMetaSummary['method'] = $methodName;
+        }
+
         return view('livewire.worksheets.ser-worksheet', [
-            // Fetch measurands relevant to the active steps + analysis type
             'measurands' => \App\AnalysisElements::where('analysis_type_id', $this->analysisTypeId)
                 ->orWhereIn('id', collect($this->steps)->pluck('measurand_id')->filter())
                 ->get(),
-            // "searchable dropdowns with already auto select the default configurations"
-            // I'll pass necessary lookups.
             'equipments' => Equipment::where('status', 'Active')->get(),
+            'worksheetMetaSummary' => $worksheetMetaSummary,
+            'worksheetMetaRows' => $metaResolver->forMany($capturedResults, $metaContext),
         ]);
     }
 }

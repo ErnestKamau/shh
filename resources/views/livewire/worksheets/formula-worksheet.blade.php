@@ -97,6 +97,10 @@
         </div>
 
         @if($viewMode === 'table')
+            @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
+            @if(count($worksheetMetaRows) > 1)
+                @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
+            @endif
             <div class="card border-0 shadow-sm mb-4 fws-card">
                 <div class="card-header fws-card-header bg-white d-flex justify-content-between align-items-center">
                     <div>

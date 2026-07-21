@@ -63,6 +63,10 @@
 		</div>
 
 		@if($selectedWorksheet && $instance)
+			@include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
+			@if(!empty($worksheetMetaRows) && count($worksheetMetaRows) > 1)
+				@include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
+			@endif
 			@php
 				$placementTop = $selectedWorksheet->mandatory_fields_placement === 'top';
 			@endphp

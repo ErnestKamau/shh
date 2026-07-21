@@ -48,6 +48,12 @@ class WorksheetManager extends Component
     /** @var \Illuminate\Support\Collection<int, ProcedureWorksheet> */
     public $procedureWorksheets;
 
+    public ?string $activeStageHeaderId = null;
+
+    public ?string $activeSerAnalysisTypeId = null;
+
+    public ?string $activeProcedureWorksheetId = null;
+
     protected bool $formulaDataLoaded = false;
 
     protected bool $stageHeadersLoaded = false;
@@ -103,6 +109,26 @@ class WorksheetManager extends Component
 
         if ($this->activeTab === 'method-sequences') {
             $this->queueMethodSequencesInit();
+        }
+
+        $this->initializePrintContextDefaults();
+    }
+
+    protected function initializePrintContextDefaults(): void
+    {
+        if ($this->procedureWorksheets->isNotEmpty() && $this->activeProcedureWorksheetId === null) {
+            $this->activeProcedureWorksheetId = (string) $this->procedureWorksheets->first()->id;
+        }
+
+        if ($this->stageHeaders->isNotEmpty() && $this->activeStageHeaderId === null) {
+            $this->activeStageHeaderId = (string) $this->stageHeaders->first()->id;
+        }
+
+        if ($this->hasNoCaptureSamples && $this->activeSerAnalysisTypeId === null) {
+            $firstKey = array_key_first($this->groupedNoCaptureSamples);
+            if ($firstKey !== null) {
+                $this->activeSerAnalysisTypeId = (string) $firstKey;
+            }
         }
     }
 
@@ -324,6 +350,70 @@ class WorksheetManager extends Component
     {
         $this->activeTab = 'formulas';
         $this->activeFormulaId = $formulaId;
+    }
+
+    public function printUrl(): ?string
+    {
+        $params = ['tab' => $this->activeTab];
+
+        return match ($this->activeTab) {
+            'grouped-pipelines' => $this->activeGroupedHolderId
+                ? route('batch-worksheets.print', ['batch' => $this->batch->id] + $params + [
+                    'pipeline_id' => $this->activeGroupedHolderId,
+                ])
+                : null,
+            'formulas' => $this->activeFormulaId
+                ? route('batch-worksheets.print', ['batch' => $this->batch->id] + $params + [
+                    'formula_id' => $this->activeFormulaId,
+                ])
+                : null,
+            'method-sequences' => $this->activeStageHeaderId
+                ? route('batch-worksheets.print', ['batch' => $this->batch->id] + $params + [
+                    'stage_header_id' => $this->activeStageHeaderId,
+                ])
+                : null,
+            'log-entry' => $this->activeLogEntryWorksheetId
+                ? route('batch-worksheets.print', ['batch' => $this->batch->id] + $params + [
+                    'log_entry_worksheet_id' => $this->activeLogEntryWorksheetId,
+                ])
+                : null,
+            'procedures' => $this->activeProcedureWorksheetId
+                ? route('batch-worksheets.print', ['batch' => $this->batch->id] + $params + [
+                    'procedure_worksheet_id' => $this->activeProcedureWorksheetId,
+                ])
+                : null,
+            'ser' => $this->activeSerAnalysisTypeId
+                ? route('batch-worksheets.print', ['batch' => $this->batch->id] + $params + [
+                    'analysis_type_id' => $this->activeSerAnalysisTypeId,
+                ])
+                : null,
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    public function updatePrintContext(array $context = []): void
+    {
+        if (! empty($context['procedure_worksheet_id'])) {
+            $this->activeProcedureWorksheetId = (string) $context['procedure_worksheet_id'];
+        }
+
+        if (! empty($context['stage_header_id'])) {
+            $this->activeStageHeaderId = (string) $context['stage_header_id'];
+        }
+
+        if (! empty($context['analysis_type_id'])) {
+            $this->activeSerAnalysisTypeId = (string) $context['analysis_type_id'];
+        }
+    }
+
+    protected function getListeners(): array
+    {
+        return [
+            'worksheet-print-context-updated' => 'updatePrintContext',
+        ];
     }
 
     /**

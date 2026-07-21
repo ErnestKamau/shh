@@ -28,6 +28,7 @@ use App\Models\Procedures\SampleProcedureStepTableRow;
 use App\Services\LogEntryWorksheets\LogEntryMandatoryFieldOptionsResolver;
 use App\Services\Procedures\ProcedureStepTableRowGeneratorService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use App\SampleHeader;
 use App\User;
 use App\SampleDetails;
@@ -510,6 +511,9 @@ class ProcedureWorksheetManager extends Component
     public function selectWorksheet($worksheetId)
     {
         $this->selectedWorksheetId = $worksheetId;
+        $this->dispatch('worksheet-print-context-updated', context: [
+            'procedure_worksheet_id' => (string) $worksheetId,
+        ]);
         // Preserve $externalCapturedResultIds so user-added external samples aren't lost when switching worksheets
         $this->externalSearchResults = [];
         $this->externalSelectionItems = [];
@@ -2284,6 +2288,8 @@ class ProcedureWorksheetManager extends Component
     public function render()
     {
         $batch = \App\SampleHeader::find($this->batchId);
+        $metaResolver = app(WorksheetMetaResolver::class);
+        $capturedForMeta = $this->currentCapturedResultsForMeta();
 
         return view('livewire.worksheets.procedure-worksheet-manager', [
             'configFields' => $this->getConfigFieldsProperty(),
@@ -2293,7 +2299,26 @@ class ProcedureWorksheetManager extends Component
             'selectedProcedureWorksheet' => $this->getSelectedProcedureWorksheetProperty(),
             'batch' => $batch,
             'stepLabels' => $this->getStepLabelsProperty(),
+            'worksheetMetaSummary' => $metaResolver->summaryForMany($capturedForMeta),
+            'worksheetMetaRows' => $metaResolver->forMany($capturedForMeta),
         ]);
+    }
+
+    private function currentCapturedResultsForMeta()
+    {
+        if (! $this->selectedWorksheetId) {
+            return collect();
+        }
+
+        $query = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->where('procedure_worksheet_id', $this->selectedWorksheetId);
+
+        if (! empty($this->activeTabs)) {
+            $query->whereIn('analyte_id', $this->activeTabs);
+        }
+
+        return $query->with(WorksheetMetaResolver::EAGER)->get();
     }
 
     /**

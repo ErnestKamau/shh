@@ -19,6 +19,7 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Procedures\ProcedureWorksheetStepAnalyst;
 use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -368,8 +369,36 @@ class ProcedureWorksheetPdfService
         $viewData['procedure'] = $worksheet;
         $viewData['testKitRows'] = collect($testKitRows);
         $viewData['testKitColumns'] = $testKitColumns;
+        $analystNames = $this->buildAnalystNamesByCapturedResultId($stepAnalystMap, $capturedResults);
+        $metaResolver = app(WorksheetMetaResolver::class);
+        $loadedResults = $capturedResults->loadMissing(WorksheetMetaResolver::EAGER);
+
+        $viewData['metaRows'] = $metaResolver->forMany($loadedResults, ['analyst_names' => $analystNames]);
+        $viewData['metaSummary'] = $metaResolver->summaryForMany($loadedResults, ['analyst_names' => $analystNames]);
 
         return $viewData;
+    }
+
+    /**
+     * @param  array<int, string>  $stepAnalystMap
+     * @return array<string, string>
+     */
+    private function buildAnalystNamesByCapturedResultId(array $stepAnalystMap, $capturedResults): array
+    {
+        if ($stepAnalystMap === []) {
+            return [];
+        }
+
+        $fallbackAnalyst = collect($stepAnalystMap)->first() ?? '';
+        $map = [];
+
+        foreach ($capturedResults as $captured) {
+            if ($fallbackAnalyst !== '') {
+                $map[(string) $captured->id] = $fallbackAnalyst;
+            }
+        }
+
+        return $map;
     }
 
     public function generateAndAttach(

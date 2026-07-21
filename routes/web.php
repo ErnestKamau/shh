@@ -622,6 +622,10 @@ Route::get(
     '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',
     'WorksheetsController@previewProcedureWorksheetPdf'
 )->name('batch-worksheets.procedure-preview')->middleware('can:laboratory.components.all samples.view');
+Route::get(
+    '/sample-workflow/batch/{batch}/worksheets/print',
+    'WorksheetsController@printWorksheet'
+)->name('batch-worksheets.print')->middleware('can:laboratory.components.all samples.view');
 Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples')->middleware('can:laboratory.components.all samples.edit');

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\SampleHeader;
 use App\Services\ProcedureWorksheetPdfService;
+use App\Services\Worksheets\WorksheetPrintService;
 use App\Models\Procedures\ProcedureWorksheet;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -62,5 +64,43 @@ class WorksheetsController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="procedure-worksheet-preview.pdf"',
         ]);
+    }
+
+    public function printWorksheet(
+        Request $request,
+        string $batchId,
+        WorksheetPrintService $printService,
+    ): View|RedirectResponse {
+        $batch = SampleHeader::findOrFail($batchId);
+        $tab = (string) $request->query('tab', '');
+
+        $params = array_filter([
+            'formula_id' => $request->query('formula_id'),
+            'stage_header_id' => $request->query('stage_header_id'),
+            'track_id' => $request->query('track_id'),
+            'log_entry_worksheet_id' => $request->query('log_entry_worksheet_id'),
+            'pipeline_id' => $request->query('pipeline_id'),
+            'procedure_worksheet_id' => $request->query('procedure_worksheet_id'),
+            'run_id' => $request->query('run_id'),
+            'analysis_type_id' => $request->query('analysis_type_id'),
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $viewData = $printService->build($tab, $batch, $params);
+
+        if (! empty($viewData['redirectToPdf']) && ! empty($params['procedure_worksheet_id'])) {
+            $query = http_build_query(array_filter([
+                'samples' => $request->query('samples'),
+                'analytes' => $request->query('analytes'),
+            ]));
+
+            $url = route('batch-worksheets.procedure-preview', [
+                'batch' => $batch->id,
+                'worksheet' => $params['procedure_worksheet_id'],
+            ]);
+
+            return redirect($query !== '' ? $url.'?'.$query : $url);
+        }
+
+        return view($viewData['view'], $viewData);
     }
 }

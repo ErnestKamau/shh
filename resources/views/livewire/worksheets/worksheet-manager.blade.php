@@ -26,6 +26,11 @@
                                     <i class="mdi mdi-upload"></i> Post Results
                                 </button>
                             @endif
+                            @if($this->printUrl())
+                                <a href="{{ $this->printUrl() }}" target="_blank" class="btn btn-outline-primary">
+                                    <i class="mdi mdi-printer"></i> Print
+                                </a>
+                            @endif
                             <a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status]) }}" class="btn btn-outline-secondary">
                                 <i class="mdi mdi-arrow-left"></i> Back to Batch
                             </a>
