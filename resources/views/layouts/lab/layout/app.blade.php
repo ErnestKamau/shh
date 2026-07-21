@@ -234,10 +234,16 @@ document.addEventListener('DOMContentLoaded', function() {
 				<?php
                 $menuTotals = getSampleWorkFLowTotals();
                 ?>
+				@php
+					$requestForTestingLabel = __('lab.request_for_testing');
+					if ($requestForTestingLabel === 'lab.request_for_testing') {
+						$requestForTestingLabel = 'Request For Testing';
+					}
+				@endphp
 				@if($canRftForms)
 				<a href="{{ route('sample-workflow.request-for-testing') }}" class="list-group-item list-group-item-action {{ $isRequestForTestingActive ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.request_for_testing') }}</span>
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ $requestForTestingLabel }}</span>
 					</div>
 				</a>
 				@endif

@@ -10,7 +10,7 @@
 			method="POST" autocomplete="off">
 			@php $maxDate = getTodayDate(); @endphp
 			@csrf
-			<div class="row p-2 w-100 mx-0">
+			<div class="row px-3 py-2 w-100 mx-0">
 				<div class="form-group col-md-3">
 					<label class="control-label">Date Collected <span class="text-danger">*</span></label>
 					<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date"

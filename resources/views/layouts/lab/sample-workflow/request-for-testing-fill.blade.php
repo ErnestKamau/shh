@@ -1,7 +1,14 @@
 @extends('layouts.lab.layout.app', ['select2' => true])
 
+@php
+    $requestForTestingLabel = __('lab.request_for_testing');
+    if ($requestForTestingLabel === 'lab.request_for_testing') {
+        $requestForTestingLabel = 'Request For Testing';
+    }
+@endphp
+
 @section('title2')
-<title>{{ __('lab.request_for_testing') }} | Sample WorkFlow</title>
+<title>{{ $requestForTestingLabel }} | Sample WorkFlow</title>
 @include('layouts.lab.partials.lab-panel-theme-styles')
 @include('layouts.rft.partials.rft-theme-styles')
 <style>
@@ -43,7 +50,7 @@
             ],
             [
                 'link' => route('sample-workflow.request-for-testing'),
-                'name' => __('lab.request_for_testing'),
+                'name' => $requestForTestingLabel,
                 'icon' => null,
             ],
             [

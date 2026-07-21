@@ -443,7 +443,8 @@
                     <div class="workflow-board-panel-header d-flex flex-wrap align-items-center justify-content-between rft-gap">
                         <div class="min-width-0">
                             <h5 class="mb-1">
-                                <i class="mdi mdi-clipboard-text-outline"></i> {{ __('lab.request_for_testing') }}
+                                <i class="mdi mdi-clipboard-text-outline"></i>
+                                {{ __('lab.request_for_testing') === 'lab.request_for_testing' ? 'Request For Testing' : __('lab.request_for_testing') }}
                             </h5>
                             <p class="text-muted mb-0 small">{{ $submissionForm->name }} · {{ $this->selectedSampleType?->name }}</p>
                         </div>

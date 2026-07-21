@@ -15,15 +15,11 @@
 		}
 	}
 
-	/* Single KPI strip instead of five separate cards */
+	/* Receiving KPI cards */
 	.workflow-stat-strip {
 		display: grid;
 		grid-template-columns: repeat(5, minmax(0, 1fr));
-		background: var(--color-surface, #fff);
-		border: 1px solid var(--color-border, #e2e8f0);
-		border-radius: 10px;
-		overflow: hidden;
-		box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+		gap: 0.75rem;
 	}
 
 	@media (max-width: 1199.98px) {
@@ -49,42 +45,11 @@
 		gap: 0.5rem;
 		align-items: flex-start;
 		padding: 0.75rem 1rem;
-		border-left: 1px solid var(--color-border, #e2e8f0);
+		background: var(--color-surface, #fff);
+		border: 1px solid var(--color-border, #e2e8f0);
+		border-radius: 10px;
+		box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 		min-width: 0;
-	}
-
-	.workflow-stat-strip__item:first-child {
-		border-left: none;
-	}
-
-	@media (max-width: 1199.98px) {
-		.workflow-stat-strip__item:nth-child(3n + 1) {
-			border-left: none;
-		}
-		.workflow-stat-strip__item:nth-child(n + 4) {
-			border-top: 1px solid var(--color-border, #e2e8f0);
-		}
-	}
-
-	@media (max-width: 767.98px) {
-		.workflow-stat-strip__item:nth-child(3n + 1) {
-			border-left: 1px solid var(--color-border, #e2e8f0);
-		}
-		.workflow-stat-strip__item:nth-child(2n + 1) {
-			border-left: none;
-		}
-		.workflow-stat-strip__item:nth-child(n + 3) {
-			border-top: 1px solid var(--color-border, #e2e8f0);
-		}
-	}
-
-	@media (max-width: 575.98px) {
-		.workflow-stat-strip__item {
-			border-left: none !important;
-		}
-		.workflow-stat-strip__item:not(:first-child) {
-			border-top: 1px solid var(--color-border, #e2e8f0);
-		}
 	}
 
 	.workflow-stat-strip__dot {

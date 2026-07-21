@@ -26,9 +26,9 @@
 	<div class="workflow-stat-strip__item">
 		<span class="workflow-stat-strip__dot workflow-stat-strip__dot--success" aria-hidden="true"></span>
 		<div>
-			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['received'] ?? 0 }}</p>
-			<p class="workflow-stat-strip__label">Received</p>
-			<p class="workflow-stat-strip__meta">At lab, pre-review</p>
+			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['in_review'] ?? 0 }}</p>
+			<p class="workflow-stat-strip__label">In review</p>
+			<p class="workflow-stat-strip__meta">Checked in at lab</p>
 		</div>
 	</div>
 	<div class="workflow-stat-strip__item">
