@@ -98,117 +98,43 @@
             z-index: 1065 !important;
         }
     </style>
-    @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
-            <section class="receive-sample-selected mb-3">
-                <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
-                <div class="receive-sample-chips">
-                    @foreach ($selectedFormSummaries as $summary)
-                        <span class="receive-sample-chip badge mr-1 mb-1 p-2">
-                            <span class="receive-sample-chip-code font-weight-bold">{{ $summary['label'] ?? 'Request' }}</span>
-                            @if (!empty($summary['customer']))
-                                <span class="receive-sample-chip-meta small">({{ $summary['customer'] }})</span>
-                            @endif
-                        </span>
-                    @endforeach
-                    @if ($selectedFormSummaries === [] && $selectedFormInstanceIds !== [])
-                        <span class="receive-sample-chip receive-sample-chip--muted">{{ count($selectedFormInstanceIds) }} request(s)</span>
-                    @endif
-                </div>
-                <p class="receive-sample-selected-hint text-muted small mt-1">Verify the enquiry summary below, then confirm check-in.</p>
-            </section>
-        @endif
-
-        @if ($checkInContexts !== [])
-            <section class="receive-sample-checkin mb-3">
-                @foreach ($checkInContexts as $context)
-                    <article class="receive-checkin-card" wire:key="receive-context-{{ $context['instance_id'] ?? $loop->index }}">
-                        <header class="receive-checkin-card__header">
-                            <div class="receive-checkin-card__identity">
-                                <span class="receive-checkin-card__ref">{{ $context['form_number'] ?? 'Request' }}</span>
-                                @if (!empty($context['customer_name']))
-                                    <span class="receive-checkin-card__customer">{{ $context['customer_name'] }}</span>
-                                @endif
-                            </div>
-                            <div class="receive-checkin-card__header-aside">
-                                @if (!empty($context['enquiry_status']))
-                                    <span class="receive-checkin-card__status">{{ $context['enquiry_status'] }}</span>
-                                @endif
-                                @if (!empty($context['source_channel']))
-                                    <span class="receive-checkin-card__channel badge badge-light border text-uppercase">{{ str_replace('_', ' ', $context['source_channel']) }}</span>
-                                @endif
-                            </div>
-                        </header>
-
-                        @if (! ($context['can_receive'] ?? true))
-                            <div class="alert alert-warning py-2 px-3 mb-0 mx-3 mt-2 small">
-                                {{ $context['receive_block_reason'] ?? 'This request cannot be received yet.' }}
-                            </div>
+    @if ($this->isPhysicalCheckIn)
+        <section class="receive-sample-checkin-confirm text-center py-4">
+            <i class="mdi mdi-clipboard-arrow-right text-primary" style="font-size: 3rem;"></i>
+            <h5 class="mt-3 mb-2">Are you sure you want to move {{ count($selectedFormInstanceIds) === 1 ? 'this request' : 'these requests' }} to In Review?</h5>
+            <div class="receive-sample-chips justify-content-center d-flex flex-wrap mb-0">
+                @foreach ($selectedFormSummaries as $summary)
+                    <span class="receive-sample-chip badge mr-1 mb-1 p-2">
+                        <span class="receive-sample-chip-code font-weight-bold">{{ $summary['label'] ?? 'Request' }}</span>
+                        @if (!empty($summary['customer']))
+                            <span class="receive-sample-chip-meta small">({{ $summary['customer'] }})</span>
                         @endif
-
-                        <div class="receive-checkin-card__grid">
-                            @if (!empty($context['number_of_samples']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Samples</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['number_of_samples'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['sampling_date']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Sampling date</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['sampling_date'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['sampling_location']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Sampling location</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['sampling_location'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['quotation_number']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Accepted quotation</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['quotation_number'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['client_po_number']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Client PO</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['client_po_number'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['advance_payment_reference']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Advance payment</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['advance_payment_reference'] }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($context['sample_description']) || !empty($context['sample_description_html']))
-                                <div class="receive-checkin-stat receive-checkin-stat--full">
-                                    <span class="receive-checkin-stat__label">Sample description</span>
-                                    <div class="receive-checkin-stat__value receive-checkin-rich-text">
-                                        {!! $context['sample_description_html'] ?? e($context['sample_description'] ?? '') !!}
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-
-                        @if (!empty($context['instance_id']))
-                            @include('livewire.partials.check-in-trf-metadata-fields', ['instanceId' => $context['instance_id']])
-                        @endif
-
-                        <footer class="receive-checkin-card__footer">
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-outline-danger"
-                                wire:click="openRejectWizard('{{ $context['instance_id'] }}')"
-                            >
-                                <i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
-                            </button>
-                        </footer>
-                    </article>
+                    </span>
                 @endforeach
-            </section>
-        @endif
+                @if ($selectedFormSummaries === [] && $selectedFormInstanceIds !== [])
+                    <span class="receive-sample-chip receive-sample-chip--muted">{{ count($selectedFormInstanceIds) }} request(s)</span>
+                @endif
+            </div>
+        </section>
+    @elseif ($selectedFormInstanceIds !== [])
+        <section class="receive-sample-selected mb-3">
+            <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
+            <div class="receive-sample-chips">
+                @foreach ($selectedFormSummaries as $summary)
+                    <span class="receive-sample-chip badge mr-1 mb-1 p-2">
+                        <span class="receive-sample-chip-code font-weight-bold">{{ $summary['label'] ?? 'Request' }}</span>
+                        @if (!empty($summary['customer']))
+                            <span class="receive-sample-chip-meta small">({{ $summary['customer'] }})</span>
+                        @endif
+                    </span>
+                @endforeach
+                @if ($selectedFormSummaries === [] && $selectedFormInstanceIds !== [])
+                    <span class="receive-sample-chip receive-sample-chip--muted">{{ count($selectedFormInstanceIds) }} request(s)</span>
+                @endif
+            </div>
+            <p class="receive-sample-selected-hint text-muted small mt-1">Verify the enquiry summary below, then confirm check-in.</p>
+        </section>
+    @endif
 
         @unless($this->isPhysicalCheckIn)
         @if ($errors->any())
@@ -253,18 +179,7 @@
         @endif
         @endunless
 
-        @if ($this->isPhysicalCheckIn)
-            <section class="receive-sample-checkin-remarks mb-3">
-                <label class="receive-checklist-field-label small font-weight-bold" for="receive-remarks">Reception notes</label>
-                <textarea
-                    id="receive-remarks"
-                    wire:model="remarks"
-                    rows="3"
-                    class="form-control form-control-sm receive-checklist-control"
-                    placeholder="Optional notes about sample condition on arrival, packaging, etc. (separate from TRF remarks above)"
-                ></textarea>
-            </section>
-        @endif
+        {{-- Remarks / reception notes removed for physical check-in; now a simple confirmation. --}}
 
     @error('selection')
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
@@ -419,7 +334,7 @@
                 >
                     <span wire:loading.remove wire:target="confirmReceive">
                         <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                        {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
+                        {{ $this->isPhysicalCheckIn ? 'Yes, move to In Review' : 'Submit walk-in request' }}
                     </span>
                     <span wire:loading wire:target="confirmReceive">
                         <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

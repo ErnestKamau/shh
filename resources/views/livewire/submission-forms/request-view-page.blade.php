@@ -135,12 +135,8 @@
                             @if($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION)
                                 <button type="button" class="dropdown-item" wire:click="openPhysicalReceiveModal">
                                     <i class="mdi mdi-package-variant-closed" aria-hidden="true"></i>
-                                    <span>Receive physical samples</span>
+                                    <span>Receive</span>
                                 </button>
-                                <a href="{{ route('sample-workflow', ['status' => 'Samples Receiving']) }}?workflowSubTab=ready_for_reception" class="dropdown-item">
-                                    <i class="mdi mdi-open-in-new" aria-hidden="true"></i>
-                                    <span>Open on receiving board</span>
-                                </a>
                             @endif
                             @if($commercialEnquiry->currentQuotation)
                                 <a href="{{ route('quotation.preview.pdf', ['id' => $commercialEnquiry->currentQuotation->id]) }}" target="_blank" class="dropdown-item">

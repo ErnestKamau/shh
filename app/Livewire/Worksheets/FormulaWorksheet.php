@@ -44,7 +44,7 @@ class FormulaWorksheet extends Component
     /**
      * Worksheet-level metadata shared across all samples.
      *
-     * @var array{date: string, time_in: string|null, done_by_user_id: string|null, time_out: string|null, read_by_user_id: string|null, read_date: string|null}
+     * @var array{date: string, lab_no: string|null, time_in: string|null, done_by_user_id: string|null, time_out: string|null, read_by_user_id: string|null, read_date: string|null}
      */
     public array $sharedWorksheetMeta = [];
 
@@ -280,6 +280,7 @@ class FormulaWorksheet extends Component
                 $this->worksheetData[$captured->id] = [
                     'id' => $existing->id,
                     'date' => $existing->date?->format('Y-m-d') ?? now()->format('Y-m-d'),
+                    'lab_no' => $existing->lab_no ?? $this->batch->batch_code,
                     'time_in' => $existing->time_in?->format('H:i') ?? null,
                     'done_by_user_id' => $existing->done_by_user_id ?? Auth::id(),
                     'time_out' => $existing->time_out?->format('H:i') ?? null,
@@ -294,6 +295,7 @@ class FormulaWorksheet extends Component
                 $this->worksheetData[$captured->id] = [
                     'id' => null,
                     'date' => now()->format('Y-m-d'),
+                    'lab_no' => $this->batch->batch_code,
                     'time_in' => now()->format('H:i'),
                     'done_by_user_id' => Auth::id(),
                     'time_out' => null,
@@ -393,6 +395,7 @@ class FormulaWorksheet extends Component
 
         $this->sharedWorksheetMeta = [
             'date'             => $meta['date']             ?? now()->format('Y-m-d'),
+            'lab_no'           => $meta['lab_no']           ?? $this->batch->batch_code,
             'time_in'          => $meta['time_in']          ?? now()->format('H:i'),
             'done_by_user_id'  => $meta['done_by_user_id']  ?? (string) (Auth::id() ?? ''),
             'time_out'         => $meta['time_out']         ?? null,
@@ -509,6 +512,7 @@ class FormulaWorksheet extends Component
                 }
 
                 $this->worksheetData[$crId]['date']            = $this->sharedWorksheetMeta['date'];
+                $this->worksheetData[$crId]['lab_no']          = $this->sharedWorksheetMeta['lab_no'] ?: $this->batch->batch_code;
                 $this->worksheetData[$crId]['time_in']         = $this->sharedWorksheetMeta['time_in'];
                 $this->worksheetData[$crId]['done_by_user_id'] = $this->sharedWorksheetMeta['done_by_user_id'];
                 $this->worksheetData[$crId]['time_out']        = $this->sharedWorksheetMeta['time_out'];
@@ -563,6 +567,7 @@ class FormulaWorksheet extends Component
                 ['captured_result_id' => $capturedResultId],
                 array_merge($this->defaultWorksheetAttributes($captured), [
                     'date' => $data['date'],
+                    'lab_no' => $data['lab_no'] ?: $this->batch->batch_code,
                     'time_in' => $data['time_in'],
                     'done_by_user_id' => $data['done_by_user_id'],
                     'time_out' => $data['time_out'] ?: null,
@@ -937,7 +942,7 @@ class FormulaWorksheet extends Component
             'sample_header_id' => $this->batch->id,
             'sample_detail_id' => $captured->sample_detail_id,
             'formular_id' => $this->formula->id,
-            'lab_no' => $this->batch->batch_code,
+            'lab_no' => $this->sharedWorksheetMeta['lab_no'] ?? $this->batch->batch_code,
             'date' => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
             'sample_details' => $this->sampleDetailsLabel($captured),
             'done_by_user_id' => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
@@ -2464,6 +2469,34 @@ class FormulaWorksheet extends Component
 
         // Auto-save the change
         $this->saveWorksheet($capturedResultId);
+    }
+
+    public function updatedViewMode(string $value): void
+    {
+        if ($value === 'form') {
+            $this->bootstrapSharedWorksheetState();
+        } else {
+            $this->syncSharedWorksheetMetaToRows();
+        }
+    }
+
+    protected function syncSharedWorksheetMetaToRows(): void
+    {
+        foreach ($this->capturedResults as $captured) {
+            $crId = (string) $captured->id;
+
+            if (! isset($this->worksheetData[$crId])) {
+                continue;
+            }
+
+            $this->worksheetData[$crId]['date'] = $this->sharedWorksheetMeta['date'] ?? null;
+            $this->worksheetData[$crId]['lab_no'] = $this->sharedWorksheetMeta['lab_no'] ?? $this->batch->batch_code;
+            $this->worksheetData[$crId]['time_in'] = $this->sharedWorksheetMeta['time_in'] ?? null;
+            $this->worksheetData[$crId]['done_by_user_id'] = $this->sharedWorksheetMeta['done_by_user_id'] ?? null;
+            $this->worksheetData[$crId]['time_out'] = $this->sharedWorksheetMeta['time_out'] ?? null;
+            $this->worksheetData[$crId]['read_by_user_id'] = $this->sharedWorksheetMeta['read_by_user_id'] ?? null;
+            $this->worksheetData[$crId]['read_date'] = $this->sharedWorksheetMeta['read_date'] ?? null;
+        }
     }
 
     public function render()

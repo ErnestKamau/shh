@@ -6,7 +6,7 @@ use App\AnalysisMethod;
 use App\CapturedResult;
 use App\Models\Formulars\Formula;
 use App\Models\Formulars\FormulaStep;
-use App\Models\Formulars\SampleCapturedWorksheetFormula;
+use App\Models\Worksheets\SampleCapturedWorksheetFormula;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\LogEntryWorksheets\LogEntryWorksheetColumn;
@@ -64,6 +64,7 @@ class WorksheetPrintService
 
         $metaRows = $this->metaResolver->forMany($capturedResults);
         $metaSummary = $this->metaResolver->summaryForMany($capturedResults);
+        $runDetails = $this->formulaRunDetails($capturedResults);
 
         $steps = $formula->activeVersion
             ? FormulaStep::where('formula_version_id', $formula->activeVersion->id)->orderBy('step_number')->get()
@@ -96,6 +97,7 @@ class WorksheetPrintService
             'batch' => $batch,
             'metaRows' => $metaRows,
             'metaSummary' => $metaSummary,
+            'runDetails' => $runDetails,
             'steps' => $steps,
             'captureRows' => $captureRows,
         ];
@@ -365,5 +367,36 @@ class WorksheetPrintService
     private function scopeVisible($query): void
     {
         app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
+    }
+
+    /**
+     * @param  Collection<int, CapturedResult>  $capturedResults
+     * @return array<string, string>
+     */
+    private function formulaRunDetails(Collection $capturedResults): array
+    {
+        $firstCaptured = $capturedResults->first();
+        if (! $firstCaptured) {
+            return [];
+        }
+
+        $saved = SampleCapturedWorksheetFormula::query()
+            ->where('captured_result_id', $firstCaptured->id)
+            ->with(['doneByUser', 'readByUser'])
+            ->first();
+
+        if (! $saved) {
+            return [];
+        }
+
+        return [
+            'date' => $saved->date?->format('Y-m-d') ?? '—',
+            'lab_no' => trim((string) ($saved->lab_no ?? '')) !== '' ? (string) $saved->lab_no : '—',
+            'time_in' => $saved->time_in?->format('H:i') ?? '—',
+            'done_by' => $saved->doneByUser?->name ?? '—',
+            'time_out' => $saved->time_out?->format('H:i') ?? '—',
+            'read_date' => $saved->read_date?->format('Y-m-d') ?? '—',
+            'read_by' => $saved->readByUser?->name ?? '—',
+        ];
     }
 }
