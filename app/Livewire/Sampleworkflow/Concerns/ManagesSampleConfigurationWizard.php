@@ -66,24 +66,8 @@ trait ManagesSampleConfigurationWizard
             ? $configService->resolveLabSectionIdForAnalysisType((string) $config['analysis_type_id'])
             : null;
 
-        if (! $this->crmCustomerId || empty($config['analysis_type_id'])) {
-            $this->sampleConfigs[$index]['parameter_keys'] = [];
-
-            return;
-        }
-
-        $parameters = app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
-            $this->crmCustomerId ?? '',
-            $config['sample_type_id'] ?? null,
-            $config['analysis_type_id']
-        );
-
-        $this->sampleConfigs[$index]['parameter_keys'] = collect($parameters)
-            ->pluck('analysis_element_id')
-            ->filter()
-            ->map(fn ($id) => (string) $id)
-            ->values()
-            ->all();
+        // Start empty so the user picks parameters from the dropdown (or Select all).
+        $this->sampleConfigs[$index]['parameter_keys'] = [];
     }
 
     public function toggleConfigParameter(string $configId, string $parameterKey): void

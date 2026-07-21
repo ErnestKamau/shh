@@ -29,6 +29,12 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     'pt' => 'Receber solicitação',
                     'ar' => 'استلام الطلب',
                 ],
+                'request_for_testing' => [
+                    'en' => 'Request For Testing',
+                    'sw' => 'Ombi la Upimaji',
+                    'pt' => 'Pedido de Ensaio',
+                    'ar' => 'طلب الاختبار',
+                ],
                 'sample_workflow' => [
                     'en' => 'Sample Workflow',
                     'sw' => 'Mtiririko wa Sampuli',

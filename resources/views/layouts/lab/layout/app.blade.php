@@ -13,7 +13,7 @@
 	--}}
 	<button type="button"
 		class="btn btn-sm ml-3 workflow-header-receive-btn workflow-header-receive-request-btn"
-		data-sf-trigger="workflow-walk-in-request">
+		onclick="window.location.href=@json(route('sample-workflow.request-for-testing'))">
 		<i class="mdi mdi-walk"></i> {{ __('lab.receive_request') }}
 	</button>
 </li>
@@ -22,23 +22,6 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-	const receiveRequestUrl = @json(route('sample-workflow', ['status' => 'Samples Receiving']) . '?tab=submitted');
-	const headerReceiveRequestBtn = document.querySelector('.workflow-header-receive-request-btn');
-
-	if (headerReceiveRequestBtn) {
-		headerReceiveRequestBtn.addEventListener('click', function(e) {
-			e.preventDefault();
-
-			const walkInTrigger = document.querySelector('[data-sf-trigger="workflow-walk-in-request"]:not(.workflow-header-receive-request-btn)');
-			if (walkInTrigger) {
-				walkInTrigger.click();
-				return;
-			}
-
-			window.location.href = receiveRequestUrl;
-		});
-	}
-
 	{{-- Legacy header Receive proxy (physical check-in)
 	const headerReceiveBtn = document.querySelector('.workflow-header-receive-btn:not(.workflow-header-receive-request-btn)');
 	if (headerReceiveBtn) {
@@ -199,6 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			$isInSampleWorkflow = request()->routeIs(
 				'dashboard-lab-personal',
 				'sample-workflow',
+				'sample-workflow.request-for-testing',
+				'sample-workflow.request-for-testing.fill',
 				'sample-workflow.kpis',
 				'lab-reports-home',
 				'sample-workflow-stage',
@@ -209,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				'sample-workflow.submission-requests.*'
 			);
 			$isWorkflowKpisActive = request()->routeIs('sample-workflow.kpis', 'lab-reports-home');
+			$isRequestForTestingActive = request()->routeIs('sample-workflow.request-for-testing', 'sample-workflow.request-for-testing.fill');
 			$isSampleWorkflowStageActive = static function (string $stage) use ($labWorkflowStatus, $labRouteName): bool {
 				if ($labWorkflowStatus === $stage) {
 					return true;
@@ -248,6 +234,13 @@ document.addEventListener('DOMContentLoaded', function() {
 				<?php
                 $menuTotals = getSampleWorkFLowTotals();
                 ?>
+				@if($canRftForms)
+				<a href="{{ route('sample-workflow.request-for-testing') }}" class="list-group-item list-group-item-action {{ $isRequestForTestingActive ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.request_for_testing') }}</span>
+					</div>
+				</a>
+				@endif
 				@if($canAllSamples)
 				<a href="{{ route('dashboard-lab-personal') }}" class="list-group-item list-group-item-action {{ $isLabPersonalDashboardActive ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">

@@ -21,22 +21,22 @@
         }
 
         .batch-code-label {
-            font-size: 1.15rem;
+            font-size: 1.05rem;
             font-weight: 700;
             letter-spacing: 0.01em;
         }
 
         .batch-stage-pill {
             border-radius: 20px;
-            padding: 3px 12px;
-            font-size: 0.78rem;
+            padding: 2px 8px;
+            font-size: 0.7rem;
             font-weight: 600;
         }
 
         .batch-priority-pill {
             border-radius: 20px;
-            padding: 3px 12px;
-            font-size: 0.78rem;
+            padding: 2px 8px;
+            font-size: 0.7rem;
             font-weight: 600;
         }
 
@@ -57,8 +57,8 @@
             background: #f8f9fa;
             border: 1px solid #e9ecef;
             border-radius: 20px;
-            padding: 3px 10px;
-            font-size: 0.77rem;
+            padding: 2px 8px;
+            font-size: 0.7rem;
             color: #495057;
         }
 
@@ -66,7 +66,7 @@
             color: #94a3b8;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 0.67rem;
+            font-size: 0.62rem;
             letter-spacing: 0.04em;
         }
 
@@ -82,8 +82,8 @@
             background: #f0fdf4;
             border: 1px solid #bbf7d0;
             border-radius: 20px;
-            padding: 3px 10px;
-            font-size: 0.77rem;
+            padding: 2px 8px;
+            font-size: 0.7rem;
             color: #166534;
             text-decoration: none;
             font-weight: 600;
@@ -103,9 +103,9 @@
         }
 
         .btn-action-sm {
-            height: 32px;
-            padding: 0 14px;
-            font-size: 0.82rem;
+            height: 30px;
+            padding: 0 12px;
+            font-size: 0.75rem;
             border-radius: 6px;
             display: inline-flex;
             align-items: center;

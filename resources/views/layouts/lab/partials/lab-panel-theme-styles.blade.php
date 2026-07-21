@@ -16,7 +16,7 @@
 		background: #fff;
 		border: 1px solid var(--workflow-border);
 		border-radius: 12px;
-		margin-bottom: 1.5rem;
+		margin-bottom: 0.85rem;
 		box-shadow: var(--card-shadow);
 		overflow: hidden;
 	}
@@ -26,8 +26,8 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: 12px;
-		padding: 20px 24px;
+		gap: 10px;
+		padding: 0.85rem 1rem;
 		border-bottom: 1px solid var(--workflow-border);
 		background: #fff;
 	}
@@ -35,18 +35,18 @@
 	.lab-panel-theme .workflow-board-panel-header h5,
 	.lab-panel-theme .workflow-board-panel-header h6 {
 		margin: 0;
-		font-size: var(--text-base);
+		font-size: var(--ls-text-lg, 0.95rem);
 		font-weight: var(--font-semibold);
 		color: var(--workflow-text-main);
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 	}
 
 	.lab-panel-theme .workflow-board-panel-header h5 .mdi,
 	.lab-panel-theme .workflow-board-panel-header h6 .mdi {
 		color: var(--workflow-accent);
-		font-size: var(--text-lg);
+		font-size: var(--ls-text-md, 0.875rem);
 	}
 
 	/* Stat Cards */
@@ -108,7 +108,7 @@
 	}
 
 	.lab-panel-theme .workflow-board-panel-body {
-		padding: 24px;
+		padding: 0.85rem 1rem;
 	}
 
 	.lab-panel-theme .workflow-board-panel-body.p-0 {
@@ -119,25 +119,25 @@
 		background: #f8fafc;
 		border: 1px solid var(--workflow-border);
 		border-radius: 10px;
-		padding: 20px;
-		margin-bottom: 20px;
+		padding: 0.85rem 1rem;
+		margin-bottom: 0.85rem;
 	}
 
 	.lab-panel-theme .workflow-table thead th {
 		background: #f8fafc !important;
 		color: var(--workflow-text-muted) !important;
-		font-size: var(--text-caption);
+		font-size: var(--ls-text-xs, 0.6875rem);
 		font-weight: var(--font-semibold);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		border-bottom: 1px solid var(--workflow-border) !important;
-		padding: 14px 16px;
+		padding: 0.55rem 0.7rem;
 	}
 
 	.lab-panel-theme .workflow-table tbody td {
-		padding: 16px;
+		padding: 0.55rem 0.7rem;
 		vertical-align: middle;
-		font-size: var(--text-sm);
+		font-size: var(--ls-text-base, 0.8125rem);
 		color: var(--workflow-text-main);
 		border-bottom: 1px solid var(--workflow-border);
 	}
@@ -149,20 +149,20 @@
 	.lab-panel-theme .workflow-status-chip {
 		display: inline-flex;
 		align-items: center;
-		padding: 4px 10px;
+		padding: 2px 8px;
 		border-radius: 20px;
 		font-weight: var(--font-semibold);
-		font-size: var(--text-caption);
+		font-size: var(--ls-text-xs, 0.6875rem);
 		background: #f1f5f9;
 		color: #475569;
 		border: 1px solid #e2e8f0;
 	}
 
 	.lab-panel-theme .btn-action-sm {
-		height: 38px;
-		padding: 0 18px;
-		font-size: var(--text-sm);
-		border-radius: 8px;
+		height: 30px;
+		padding: 0 12px;
+		font-size: var(--ls-text-sm, 0.75rem);
+		border-radius: 6px;
 		font-weight: var(--font-semibold);
 		transition: all 0.2s;
 	}

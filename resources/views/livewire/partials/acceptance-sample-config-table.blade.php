@@ -263,39 +263,7 @@
                                             </div>
                                         </div>
                                         <div class="acc-sample-config-section-body" x-show="showParameters" x-cloak>
-                                            @if(count($parameters) > 8)
-                                                <div class="acc-sample-config-params-search-row">
-                                                    <input
-                                                        type="search"
-                                                        class="form-control form-control-sm acc-input acc-sample-config-search"
-                                                        placeholder="Search parameters…"
-                                                        wire:model.live="sampleConfigs.{{ $configIndex }}.parameter_search"
-                                                    >
-                                                </div>
-                                            @endif
-                                            @if(empty($config['analysis_type_id']))
-                                                <p class="acc-wizard-hint mb-0">Select sample type and analysis type to load parameters.</p>
-                                            @elseif($parameters === [])
-                                                <p class="acc-wizard-hint mb-0">No parameters found for this analysis type on the customer pricelist.</p>
-                                            @else
-                                                <div class="acc-sample-config-param-grid">
-                                                    @foreach($parameters as $param)
-                                                        @php
-                                                            $paramKey = (string) ($param['analysis_element_id'] ?? $param['id'] ?? '');
-                                                            $isSelected = in_array($paramKey, $selectedKeys, true);
-                                                        @endphp
-                                                        <label class="acc-sample-config-param-chip {{ $isSelected ? 'is-selected' : '' }}">
-                                                            <input
-                                                                type="checkbox"
-                                                                @checked($isSelected)
-                                                                wire:click="toggleConfigParameter('{{ $configId }}', '{{ $paramKey }}')"
-                                                            >
-                                                            <span>{{ $param['label'] ?? 'Parameter' }}</span>
-                                                        </label>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                            @error('sampleConfigs.'.$configIndex.'.parameter_keys')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                                            @include('livewire.partials.acceptance-sample-config-parameters')
                                         </div>
                                     </div>
                                 </td>

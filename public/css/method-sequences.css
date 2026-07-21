@@ -5,9 +5,10 @@
     color: #6c757d;
     border: none;
     border-bottom: 3px solid transparent;
-    padding: 12px 20px;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .nav-tabs .nav-link:hover {
@@ -26,39 +27,39 @@
 .sequence-info-card {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 10px 12px;
+    margin-bottom: 0.85rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    gap: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .sequence-info-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .sequence-info-item i {
-    font-size: 24px;
+    font-size: 1.25rem;
     color: var(--color-primary);
 }
 
 .sequence-info-item-text h6 {
     margin: 0;
-    font-size: 12px;
+    font-size: 0.625rem;
     color: #6c757d;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
 .sequence-info-item-text p {
-    margin: 5px 0 0 0;
-    font-size: 16px;
-    font-weight: bold;
+    margin: 2px 0 0 0;
+    font-size: 0.8125rem;
+    font-weight: 700;
     color: #212529;
 }
 
@@ -66,15 +67,15 @@
 .run-item {
     background: white;
     border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 15px;
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
     cursor: pointer;
 }
 
 .run-item:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     border-color: var(--color-primary);
 }
 
@@ -198,17 +199,18 @@
 }
 
 .stepper-circle {
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: white;
-    border: 3px solid #dee2e6;
+    border: 2px solid #dee2e6;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
+    font-weight: 700;
+    font-size: 0.75rem;
     color: #6c757d;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
     transition: all 0.3s ease;
 }
 
@@ -216,7 +218,7 @@
     background: var(--color-primary);
     color: white;
     border-color: var(--color-primary-hover);
-    box-shadow: 0 0 0 4px var(--color-primary-focus);
+    box-shadow: 0 0 0 3px var(--color-primary-focus);
 }
 
 .stepper-item.completed .stepper-circle {
@@ -226,10 +228,12 @@
 }
 
 .stepper-label {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 0.625rem;
+    font-weight: 700;
     color: #6c757d;
     text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .stepper-item.active .stepper-label,
@@ -244,7 +248,7 @@
     background: white;
     border: 1px solid #dee2e6;
     border-radius: 6px;
-    padding: 15px;
+    padding: 10px 12px;
     transition: all 0.3s ease;
 }
 
@@ -282,29 +286,37 @@
 
 .form-group label {
     font-weight: 600;
-    color: #212529;
-    margin-bottom: 8px;
-    font-size: 14px;
+    color: #475569;
+    margin-bottom: 0.3rem;
+    font-size: 0.75rem;
+}
+
+.stage-details-stepper-form .form-group label {
+    font-size: 0.75rem;
+    margin-bottom: 0.3rem;
 }
 
 /* ===== Table Styles ===== */
 .table-results {
-    font-size: 14px;
+    font-size: 0.8125rem;
 }
 
 .table-results thead {
     background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .table-results th {
     font-weight: 600;
-    color: #495057;
-    padding: 12px 8px;
+    color: #64748b;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .table-results tbody td {
-    padding: 10px 8px;
+    padding: 0.4rem 0.55rem;
     vertical-align: middle;
 }
 
@@ -325,19 +337,26 @@
 /* ===== Modal Enhancements ===== */
 .modal-header {
     background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.65rem 0.85rem;
 }
 
 .modal-title {
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 0.875rem;
     color: #212529;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
 }
 
 .modal-body {
-    font-size: 14px;
+    font-size: 0.8125rem;
+    padding: 0.75rem 0.85rem;
+}
+
+.modal-footer {
+    padding: 0.55rem 0.85rem;
 }
 
 /* ===== Loading & Empty States ===== */

@@ -7,7 +7,7 @@
 
 	.btn-primary,
 	.btn-add,
-	button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(#toggle-main-sidebar),
+	button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(.rv-action-item):not(#toggle-main-sidebar),
 	.btn-primary-custom,
 	.w3-btn.w3-brown,
 	.w3-button.w3-brown {
@@ -20,8 +20,8 @@
 	.btn-primary:focus,
 	.btn-add:hover,
 	.btn-add:focus,
-	button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(#toggle-main-sidebar):hover,
-	button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(#toggle-main-sidebar):focus,
+	button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(.rv-action-item):not(#toggle-main-sidebar):hover,
+	button[type="submit"]:not(.btn-link):not(.btn-outline-secondary):not(.search-btn):not(.rv-action-item):not(#toggle-main-sidebar):focus,
 	.w3-btn.w3-brown:hover,
 	.w3-button.w3-brown:hover {
 		background-color: var(--color-primary-hover) !important;

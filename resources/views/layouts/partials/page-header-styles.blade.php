@@ -32,10 +32,17 @@
 	}
 
 	.workflow-board-header .batch-code-label,
-	.submission-requests-hero .batch-code-label,
+	.submission-requests-hero .batch-code-label {
+		color: #fff;
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: var(--text-xl);
+		font-weight: var(--font-bold);
+	}
+
 	.batch-show-page .batch-code-label {
 		color: #fff;
-		font-size: var(--text-xl);
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: 1.05rem;
 		font-weight: var(--font-bold);
 	}
 
@@ -152,7 +159,7 @@
 	}
 
 	.batch-show-page .batch-header-bar {
-		padding: 14px 20px 0 20px;
+		padding: 12px 16px 0 16px;
 		overflow: visible;
 	}
 
@@ -239,12 +246,13 @@
 		color: #fff !important;
 		border: 1px solid rgba(255, 255, 255, 0.35) !important;
 		border-radius: 20px;
-		padding: 3px 12px;
+		padding: 2px 8px;
+		font-size: 0.7rem;
 	}
 
 	.batch-show-page .batch-meta-bar {
 		border-top-color: rgba(255, 255, 255, 0.2);
-		padding: 8px 0 12px;
+		padding: 8px 0 10px;
 	}
 
 	.batch-date-pill,
@@ -310,8 +318,10 @@
 	}
 
 	.workflow-header-actions .workflow-actions-dropdown .dropdown-item:hover,
-	.workflow-header-actions .workflow-actions-dropdown .dropdown-item:focus {
-		background: var(--color-primary-soft);
-		color: var(--color-primary);
+	.workflow-header-actions .workflow-actions-dropdown .dropdown-item:focus,
+	.workflow-header-actions .workflow-actions-dropdown .dropdown-item:active,
+	.workflow-header-actions .workflow-actions-dropdown .dropdown-item.active {
+		background: #f1f5f9 !important;
+		color: #1e293b !important;
 	}
 </style>

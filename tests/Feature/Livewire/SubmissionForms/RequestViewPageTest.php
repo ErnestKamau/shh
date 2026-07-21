@@ -44,10 +44,36 @@ class RequestViewPageTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('submission-forms.instances.show', [$form, $instance]))
             ->assertOk()
-            ->assertSee('Samples')
+            ->assertSee('Request Info')
+            ->assertSee('Tests')
+            ->assertSee('Actions')
             ->assertSee('Notes')
             ->assertSee('Attachments')
-            ->assertSee('Chain of custody');
+            ->assertSee('Chain of custody')
+            ->assertDontSee('Captured request details');
+    }
+
+    public function test_ready_for_reception_view_hides_process_enquiry_action(): void
+    {
+        [$form, $instance] = $this->createFormAndInstance();
+
+        \App\Models\SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'status' => \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            'source_channel' => 'walk_in',
+            'request_number' => 7,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(RequestViewPage::class, [
+                'submissionFormId' => $form->id,
+                'instanceId' => $instance->id,
+            ])
+            ->assertSee('Receive physical samples')
+            ->assertSee('Ready for Reception')
+            ->assertDontSee('Process enquiry')
+            ->assertDontSee('Record PO');
     }
 
     public function test_add_internal_note_does_not_notify_customer(): void

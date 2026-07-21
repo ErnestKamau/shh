@@ -17,7 +17,12 @@ class WorkflowBoardSidebarCountsTest extends TestCase
         $this->assertContains('submitted', $keys);
         $this->assertContains('received', $keys);
         $this->assertContains('in_additional_info', $keys);
+        $this->assertContains('in_review', $keys);
         $this->assertNotContains('interzone_transfers', $keys);
+        $this->assertNotContains('complete', $keys);
+        $this->assertNotContains('sub_contracting', $keys);
+        $this->assertSame('sub_contracting', array_key_last(WorkflowBoard::receivingRequestTabs()));
+        $this->assertArrayNotHasKey('complete', WorkflowBoard::receivingRequestTabs());
     }
 
     #[Test]
@@ -36,7 +41,7 @@ class WorkflowBoardSidebarCountsTest extends TestCase
         $stats = $board->receivingDashboardStats;
 
         $this->assertSame([
-            'my_intray' => 0,
+            'sub_contracting' => 0,
             'submitted' => 0,
             'ready_for_reception' => 0,
             'received' => 0,

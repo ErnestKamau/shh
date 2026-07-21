@@ -681,16 +681,16 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeLookupModal">
+                        <button type="button" class="btn btn-secondary btn-sm" wire:click="closeLookupModal">
                             <i class="mdi mdi-close"></i> Cancel
                         </button>
                         @if($currentCapturedResultId && $selectedLookupStepId && isset($worksheetData[$currentCapturedResultId]['lookup_overrides'][$selectedLookupStepId]))
-                            <button type="button" class="btn btn-warning" wire:click="resetLookupTable">
+                            <button type="button" class="btn btn-warning btn-sm" wire:click="resetLookupTable">
                                 <i class="mdi mdi-refresh"></i> Reset to Default
                             </button>
                         @endif
                         <button type="button" 
-                                class="btn btn-primary" 
+                                class="btn btn-primary btn-sm" 
                                 wire:click="changeLookupTable"
                                 @if(count($compatibleLookupTables) == 0) disabled @endif>
                             <i class="mdi mdi-check"></i> Apply

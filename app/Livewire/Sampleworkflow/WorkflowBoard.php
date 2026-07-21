@@ -31,12 +31,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use App\Support\VarcharUuidSql;
 use Throwable;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -57,10 +58,10 @@ class WorkflowBoard extends Component
             'submitted' => 'Submitted Requests',
             'ready_for_reception' => 'Ready for Reception',
             'received' => 'Received Request',
-            'sub_contracting' => 'Sub-contracting',
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
-            'complete' => 'Complete Requests',
+            // 'complete' => 'Complete Requests',
+            'sub_contracting' => 'Sub-contracting',
             // 'interzone_transfers' => 'Interzone Transfers',
         ];
     }
@@ -139,6 +140,13 @@ class WorkflowBoard extends Component
      * Expandable advanced filters (Samples Receiving layout).
      */
     public bool $showAdvancedFilters = false;
+
+    /**
+     * Collapsible filters panel for request tables (closed by default).
+     *
+     * @deprecated Panel open/close is Alpine-only; kept for snapshot compatibility.
+     */
+    public bool $showFiltersPanel = false;
 
     /**
      * Customer dropdown state.
@@ -443,38 +451,50 @@ class WorkflowBoard extends Component
             $this->labsections = collect();
             $this->zohoItems = collect();
             $this->analysts = collect();
-        } else {
-            $this->labsections = SampleAnalysisStage::where('active', 1)->orderBy('name')->get();
-            $this->zohoItems = InventorySubCategories::orderBy('name', 'asc')->get();
+            // Defer full user/customer lists — form-only stages only need sample types for filters.
+            // Customers are queried on demand in filteredCustomers; users load when assign modals need them.
+            $this->users = collect();
+            $this->clients = collect();
+            $this->customers = collect();
+            $this->sampletypes = Cache::remember(
+                'workflow-board:active-sample-types',
+                now()->addMinutes(10),
+                fn () => SampleType::where('active', 1)->orderBy('name')->get()
+            );
 
-            $analystRoleNames = ['laboratory analyst', 'analyst'];
-            $driver = DB::connection()->getDriverName();
-            $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
-
-            $analystUserIds = DB::table('spatie_model_has_roles as smr')
-                ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
-                ->where('smr.model_type', User::class)
-                ->where('sr.guard_name', 'web')
-                ->where(function ($query) use ($analystRoleNames) {
-                    foreach ($analystRoleNames as $roleName) {
-                        $query->orWhereRaw('LOWER(sr.name) = ?', [$roleName]);
-                    }
-                })
-                ->pluck('smr.model_id')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-
-            $this->analysts = empty($analystUserIds)
-                ? collect()
-                : User::query()
-                    ->where('active', 1)
-                    ->where('is_support_staff', 0)
-                    ->whereIn($userIdColumn, $analystUserIds)
-                    ->orderBy('name')
-                    ->get();
+            return;
         }
+
+        $this->labsections = SampleAnalysisStage::where('active', 1)->orderBy('name')->get();
+        $this->zohoItems = InventorySubCategories::orderBy('name', 'asc')->get();
+
+        $analystRoleNames = ['laboratory analyst', 'analyst'];
+        $driver = DB::connection()->getDriverName();
+        $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
+
+        $analystUserIds = DB::table('spatie_model_has_roles as smr')
+            ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
+            ->where('smr.model_type', User::class)
+            ->where('sr.guard_name', 'web')
+            ->where(function ($query) use ($analystRoleNames) {
+                foreach ($analystRoleNames as $roleName) {
+                    $query->orWhereRaw('LOWER(sr.name) = ?', [$roleName]);
+                }
+            })
+            ->pluck('smr.model_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->analysts = empty($analystUserIds)
+            ? collect()
+            : User::query()
+                ->where('active', 1)
+                ->where('is_support_staff', 0)
+                ->whereIn($userIdColumn, $analystUserIds)
+                ->orderBy('name')
+                ->get();
 
         $this->users = User::query()
             ->where('active', 1)
@@ -495,8 +515,24 @@ class WorkflowBoard extends Component
      */
     protected function ensureReferenceDataLoaded(): void
     {
-        if (! isset($this->users)) {
-            $this->loadReferenceData();
+        if (! isset($this->users) || $this->users->isEmpty()) {
+            $this->users = User::query()
+                ->where('active', 1)
+                ->where(function ($query): void {
+                    $query->where('is_client', 0)
+                        ->orWhereNull('is_client');
+                })
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
+        if (! isset($this->clients) || $this->clients->isEmpty()) {
+            $this->clients = CRMCustomer::where('active', 1)->orderBy('name')->get();
+            $this->customers = $this->clients;
+        }
+
+        if (! isset($this->sampletypes)) {
+            $this->sampletypes = SampleType::where('active', 1)->orderBy('name')->get();
         }
     }
 
@@ -637,25 +673,36 @@ class WorkflowBoard extends Component
      */
     public static function receivingSubmissionFormsQuery(?array $statuses = null): \Illuminate\Database\Eloquent\Builder
     {
-        $templateFormIds = SubmissionForm::query()
-            ->where('form_type', 'template')
-            ->pluck('id')
-            ->filter()
-            ->map(fn ($id) => (string) $id)
-            ->values()
-            ->all();
+        static $templateFormIdsCache = null;
+        static $linkedInstanceIdsCache = null;
+
+        if ($templateFormIdsCache === null) {
+            $templateFormIdsCache = SubmissionForm::query()
+                ->where('form_type', 'template')
+                ->pluck('id')
+                ->filter()
+                ->map(fn ($id) => (string) $id)
+                ->values()
+                ->all();
+        }
+
+        $templateFormIds = $templateFormIdsCache;
 
         if ($templateFormIds === []) {
             return SubmissionFormInstance::query()->where('id', '00000000-0000-0000-0000-000000000000');
         }
 
-        $linkedInstanceIds = SampleHeader::query()
-            ->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception'])
-            ->pluck('submission_form_instance_id')
-            ->filter()
-            ->map(fn ($id) => (string) $id)
-            ->values()
-            ->all();
+        if ($linkedInstanceIdsCache === null) {
+            $linkedInstanceIdsCache = SampleHeader::query()
+                ->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception'])
+                ->pluck('submission_form_instance_id')
+                ->filter()
+                ->map(fn ($id) => (string) $id)
+                ->values()
+                ->all();
+        }
+
+        $linkedInstanceIds = $linkedInstanceIdsCache;
 
         $query = SubmissionFormInstance::query()
             ->where(function ($templateQuery) use ($templateFormIds): void {
@@ -1125,42 +1172,72 @@ class WorkflowBoard extends Component
             return [];
         }
 
-        $query = $this->receivingSubmissionFormsBaseQuery();
-        $this->applyReceivingSubmissionFormFilters($query);
+        $cacheKey = $this->receivingCountsCacheKey('tab-counts');
 
-        $rows = $query->selectRaw('status, COUNT(*) as cnt')
-            ->groupBy('status')
-            ->pluck('cnt', 'status')
-            ->all();
+        return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
+            $query = $this->receivingSubmissionFormsBaseQuery();
+            $this->applyReceivingSubmissionFormFilters($query);
 
-        $counts = [];
-        foreach ($this->receivingRequestTabKeys() as $tabKey) {
-            // if ($tabKey === 'interzone_transfers') {
-            //     $counts[$tabKey] = \App\Models\Sampleworkflow\InterzoneTransfer::query()->count();
-            //     continue;
-            // }
-            if ($tabKey === 'submitted') {
-                $submittedQuery = $this->submittedCommercialPipelineSubmissionFormsQuery();
-                $this->applyReceivingSubmissionFormFilters($submittedQuery);
-                $counts[$tabKey] = (int) $submittedQuery->count();
-                continue;
-            }
-            if ($tabKey === 'ready_for_reception') {
-                $readyQuery = $this->readyForPhysicalReceptionSubmissionFormsQuery();
-                $this->applyReceivingSubmissionFormFilters($readyQuery);
-                $counts[$tabKey] = (int) $readyQuery->count();
-                continue;
-            }
-            if ($tabKey === 'sub_contracting') {
-                $subcontractingQuery = $this->subcontractingSubmissionFormsQuery();
-                $this->applyReceivingSubmissionFormFilters($subcontractingQuery);
-                $counts[$tabKey] = (int) $subcontractingQuery->count();
-                continue;
-            }
-            $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
-        }
+            $rows = $query->selectRaw('status, COUNT(*) as cnt')
+                ->groupBy('status')
+                ->pluck('cnt', 'status')
+                ->all();
 
-        return $counts;
+            $counts = [];
+            foreach ($this->receivingRequestTabKeys() as $tabKey) {
+                if ($tabKey === 'submitted') {
+                    $submittedQuery = $this->submittedCommercialPipelineSubmissionFormsQuery();
+                    $this->applyReceivingSubmissionFormFilters($submittedQuery);
+                    $counts[$tabKey] = (int) $submittedQuery->count();
+                    continue;
+                }
+                if ($tabKey === 'ready_for_reception') {
+                    $readyQuery = $this->readyForPhysicalReceptionSubmissionFormsQuery();
+                    $this->applyReceivingSubmissionFormFilters($readyQuery);
+                    $counts[$tabKey] = (int) $readyQuery->count();
+                    continue;
+                }
+                if ($tabKey === 'sub_contracting') {
+                    $subcontractingQuery = $this->subcontractingSubmissionFormsQuery();
+                    $this->applyReceivingSubmissionFormFilters($subcontractingQuery);
+                    $counts[$tabKey] = (int) $subcontractingQuery->count();
+                    continue;
+                }
+                $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
+            }
+
+            return $counts;
+        });
+    }
+
+    /**
+     * Cache key for receiving KPI / tab counts (invalidated when queue data changes).
+     */
+    protected function receivingCountsCacheKey(string $suffix): string
+    {
+        $companyId = (string) (Auth::user()?->company_id ?? 'none');
+        $version = (int) Cache::get("workflow-board:receiving:{$companyId}:ver", 0);
+
+        $filterFingerprint = md5(json_encode([
+            $this->submissionFormsSearch,
+            $this->receiptDateFrom,
+            $this->receiptDateTo,
+            $this->submissionFormsPriority,
+            $this->natureOfSampleFilter,
+            $this->customerFilter,
+            $this->sampleTypeFilter,
+            $this->submissionFormsStatus,
+            $this->subcontractingDispatchStatus,
+        ]));
+
+        return "workflow-board:receiving:{$companyId}:v{$version}:{$filterFingerprint}:{$suffix}";
+    }
+
+    protected function bustReceivingCountsCache(): void
+    {
+        $companyId = (string) (Auth::user()?->company_id ?? 'none');
+        $versionKey = "workflow-board:receiving:{$companyId}:ver";
+        Cache::put($versionKey, ((int) Cache::get($versionKey, 0)) + 1, now()->addDays(7));
     }
 
     /**
@@ -1275,12 +1352,10 @@ class WorkflowBoard extends Component
             $eagerLoads = [
                 'submissionForm.sampleTypes',
                 'submittedBy',
-                'batches',
+                'batches.samples',
                 'crmCustomer',
                 'sampleSubmissionRequest.currentQuotation',
-                'values.element',
-                'latestIntray.toUser',
-                'latestIntray.fromUser',
+                'sampleSubmissionRequest.requestedAnalyses',
                 'activePendingIntray',
             ];
 
@@ -1291,13 +1366,8 @@ class WorkflowBoard extends Component
                 default => $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus),
             };
 
-            $query->with($eagerLoads)->select('submission_form_instances.*');
-
-            $query->selectSub(function ($subQuery) use ($driver) {
-                    $subQuery->from('submission_form_instances as attachment_instances')
-                        ->selectRaw('count(*)')
-                        ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
-                }, 'attachment_count')
+            $query->with($eagerLoads)
+                ->select('submission_form_instances.*')
                 ->latest();
 
             $this->applyReceivingSubmissionFormFilters($query);
@@ -1728,9 +1798,52 @@ class WorkflowBoard extends Component
         $this->natureOfSampleFilter = '';
     }
 
+    public function toggleFiltersPanel(): void
+    {
+        $this->showFiltersPanel = ! $this->showFiltersPanel;
+    }
+
     public function toggleAdvancedFilters(): void
     {
         $this->showAdvancedFilters = ! $this->showAdvancedFilters;
+    }
+
+    /**
+     * Count of active request-table filters (for the Filters toggle badge).
+     */
+    public function getActiveRequestFilterCountProperty(): int
+    {
+        $count = 0;
+
+        if (trim($this->submissionFormsSearch) !== '') {
+            $count++;
+        }
+        if (trim((string) $this->search) !== '') {
+            $count++;
+        }
+        if ($this->receiptDateFrom) {
+            $count++;
+        }
+        if ($this->receiptDateTo) {
+            $count++;
+        }
+        if ($this->submissionFormsPriority !== '') {
+            $count++;
+        }
+        if ($this->natureOfSampleFilter !== '') {
+            $count++;
+        }
+        if ($this->customerFilter) {
+            $count++;
+        }
+        if ($this->sampleTypeFilter) {
+            $count++;
+        }
+        if ($this->submissionFormsStatus !== '') {
+            $count++;
+        }
+
+        return $count;
     }
 
     public function setWorkflowSubTab(string $tab): void
@@ -1915,18 +2028,22 @@ class WorkflowBoard extends Component
             ];
         }
 
-        $tabCounts = $this->receivingRequestTabCounts;
+        $cacheKey = $this->receivingCountsCacheKey('dashboard-stats');
 
-        return [
-            'sub_contracting' => (int) (
-                ($this->subcontractingDispatchCounts[SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0)
-                + ($this->subcontractingDispatchCounts[SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0)
-            ),
-            'submitted' => (int) ($tabCounts['submitted'] ?? 0),
-            'ready_for_reception' => (int) ($tabCounts['ready_for_reception'] ?? 0),
-            'received' => (int) ($tabCounts['received'] ?? 0),
-            'todays_check_ins' => $this->receivingTodayCheckInCount,
-        ];
+        return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
+            $tabCounts = $this->receivingRequestTabCounts;
+
+            return [
+                'sub_contracting' => (int) (
+                    ($this->subcontractingDispatchCounts[SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING] ?? 0)
+                    + ($this->subcontractingDispatchCounts[SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED] ?? 0)
+                ),
+                'submitted' => (int) ($tabCounts['submitted'] ?? 0),
+                'ready_for_reception' => (int) ($tabCounts['ready_for_reception'] ?? 0),
+                'received' => (int) ($tabCounts['received'] ?? 0),
+                'todays_check_ins' => $this->receivingTodayCheckInCount,
+            ];
+        });
     }
 
     /**
@@ -2035,18 +2152,18 @@ class WorkflowBoard extends Component
      */
     public function getFilteredCustomersProperty()
     {
-        $customers = $this->clients;
-        
-        // Apply search filter if provided
-        if (!empty($this->customerSearch)) {
-            $customers = $customers->filter(function($customer) {
-                return stripos($customer->name ?? '', $this->customerSearch) !== false;
-            });
+        $query = CRMCustomer::query()
+            ->where('active', 1)
+            ->orderBy('name');
+
+        if (! empty($this->customerSearch)) {
+            $search = $this->customerSearch;
+            $query->where('name', 'like', '%'.$search.'%');
         }
-        
-        // Return all customers up to current page (for infinite scroll accumulation)
+
         $totalToShow = $this->customerPage * $this->customerPerPage;
-        return $customers->take($totalToShow);
+
+        return $query->limit($totalToShow)->get();
     }
     
     /**
@@ -2054,16 +2171,16 @@ class WorkflowBoard extends Component
      */
     public function getHasMoreCustomersProperty()
     {
-        $customers = $this->clients;
-        
-        if (!empty($this->customerSearch)) {
-            $customers = $customers->filter(function($customer) {
-                return stripos($customer->name ?? '', $this->customerSearch) !== false;
-            });
+        $query = CRMCustomer::query()->where('active', 1);
+
+        if (! empty($this->customerSearch)) {
+            $search = $this->customerSearch;
+            $query->where('name', 'like', '%'.$search.'%');
         }
-        
+
         $totalLoaded = $this->customerPage * $this->customerPerPage;
-        return $customers->count() > $totalLoaded;
+
+        return $query->count() > $totalLoaded;
     }
     
     /**
@@ -2081,11 +2198,11 @@ class WorkflowBoard extends Component
      */
     public function getSelectedCustomerProperty()
     {
-        if (!$this->customerFilter) {
+        if (! $this->customerFilter) {
             return null;
         }
-        
-        return $this->clients->firstWhere('id', $this->customerFilter);
+
+        return CRMCustomer::query()->find($this->customerFilter);
     }
     
     /**
@@ -2110,6 +2227,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>  $ids  Checked instance IDs from the browser (deferred wire:model may not be synced yet).
      */
+    #[Renderless]
     public function openReceiveModal(array $ids = []): void
     {
         $this->syncSelectedFormInstanceIds($ids);
@@ -2218,6 +2336,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>  $ids
      */
+    #[Renderless]
     public function openProcessEnquiryModal(array $ids = []): void
     {
         $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
@@ -2240,11 +2359,13 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>  $ids
      */
+    #[Renderless]
     public function openProcessEnquiryFromInstances(array $ids = []): void
     {
         $this->openProcessEnquiryModal($ids);
     }
 
+    #[Renderless]
     public function openProcessEnquiryByEnquiryId(string $enquiryId): void
     {
         $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
@@ -2259,6 +2380,7 @@ class WorkflowBoard extends Component
             ->to(ProcessEnquiryWizard::class);
     }
 
+    #[Renderless]
     public function openReviewQuotationByEnquiryId(string $enquiryId): void
     {
         $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
@@ -2280,6 +2402,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>  $ids
      */
+    #[Renderless]
     public function openReviewQuotationFromInstances(array $ids = []): void
     {
         $enquiryId = $this->resolveReviewQuotationEnquiryIdFromSelection($ids);
@@ -2479,10 +2602,9 @@ class WorkflowBoard extends Component
 
     public function onProcessEnquiryCompleted(): void
     {
-        // Livewire will re-render lists on next request; nothing else required.
+        $this->bustReceivingCountsCache();
     }
 
-    #[On('process-enquiry-completed')]
     public function handleProcessEnquiryCompleted(): void
     {
         $this->onProcessEnquiryCompleted();
@@ -2490,6 +2612,7 @@ class WorkflowBoard extends Component
 
     public function onReceiveCompleted(array $trfiIds = []): void
     {
+        $this->bustReceivingCountsCache();
         $this->selectedFormInstanceIds = [];
         $this->receiveFormSummaries = [];
         $this->dispatch('hide-receive-sample-modal');
@@ -2553,6 +2676,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>|string  $ids
      */
+    #[Renderless]
     public function openMoveToIntrayModal(array|string $ids = []): void
     {
         if (is_string($ids)) {
@@ -2579,11 +2703,9 @@ class WorkflowBoard extends Component
     }
 
     /**
-     * @param  array<int, string>  $ids
-     */
-    /**
      * @param  array<int, string>|string  $ids
      */
+    #[Renderless]
     public function openRequestReviewModal(array|string $ids = []): void
     {
         if (is_string($ids)) {
@@ -2606,6 +2728,7 @@ class WorkflowBoard extends Component
 
     public function onAnalystReviewCompleted(): void
     {
+        $this->bustReceivingCountsCache();
         $this->selectedFormInstanceIds = [];
         $this->dispatch('hide-analyst-review-modal');
     }
@@ -2613,6 +2736,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>|string  $ids
      */
+    #[Renderless]
     public function openRequestAdditionalInfoModal(array|string $ids = []): void
     {
         if (is_string($ids)) {
@@ -2635,6 +2759,7 @@ class WorkflowBoard extends Component
 
     public function onRequestAdditionalInfoCompleted(): void
     {
+        $this->bustReceivingCountsCache();
         $this->selectedFormInstanceIds = [];
         $this->dispatch('hide-request-additional-info-modal');
     }
@@ -2642,6 +2767,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>|string  $ids
      */
+    #[Renderless]
     public function openSubcontractDispatchModal(array|string $ids = []): void
     {
         if (is_string($ids)) {
@@ -2666,10 +2792,12 @@ class WorkflowBoard extends Component
 
     public function onSubcontractDispatchCompleted(): void
     {
+        $this->bustReceivingCountsCache();
         $this->selectedFormInstanceIds = [];
         $this->dispatch('hide-subcontract-dispatch-modal');
     }
 
+    #[Renderless]
     public function openAcceptSampleWizardFromSelection(): void
     {
         if (count($this->selectedFormInstanceIds) !== 1) {
@@ -2685,6 +2813,7 @@ class WorkflowBoard extends Component
         )->to(AcceptanceFormWizard::class);
     }
 
+    #[Renderless]
     public function openRejectSampleWizardFromSelection(): void
     {
         if (count($this->selectedFormInstanceIds) !== 1) {
@@ -2703,6 +2832,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>|string  $ids
      */
+    #[Renderless]
     public function openAcceptSampleWizard(array|string $ids = []): void
     {
         if (is_string($ids)) {
@@ -2727,6 +2857,7 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>|string  $ids
      */
+    #[Renderless]
     public function openRejectSampleWizard(array|string $ids = []): void
     {
         if (is_string($ids)) {
@@ -2793,6 +2924,7 @@ class WorkflowBoard extends Component
 
     public function onIntrayMoveCompleted(): void
     {
+        $this->bustReceivingCountsCache();
         $this->selectedFormInstanceIds = [];
         $this->intrayFormSummaries = [];
         $this->pendingIntrayAssignments = [];
@@ -3020,7 +3152,7 @@ class WorkflowBoard extends Component
             'request-additional-info-completed' => 'onRequestAdditionalInfoCompleted',
             'analyst-review-completed' => 'onAnalystReviewCompleted',
             'subcontract-dispatch-completed' => 'onSubcontractDispatchCompleted',
-            'process-enquiry-completed' => '$refresh',
+            'process-enquiry-completed' => 'handleProcessEnquiryCompleted',
         ];
     }
 
@@ -3030,46 +3162,59 @@ class WorkflowBoard extends Component
         // the Livewire encrypted snapshot, which would bloat every request/response.
         $this->loadReferenceData();
 
-        $batches = $this->batches;
+        $isFormOnlyStage = $this->isSamplesReceiving() || $this->isSamplesRequestReview();
 
+        $batches = collect();
         $batchAssignmentMap = collect();
-        if ($batches instanceof LengthAwarePaginator && Schema::hasTable('sample_header_user_assignments')) {
-            $batchIds = collect($batches->items())
-                ->pluck('id')
-                ->filter()
-                ->values();
+        $tatTodayBatches = collect();
 
-            if ($batchIds->isNotEmpty()) {
-                $batchAssignmentMap = SampleHeaderUserAssignment::query()
-                    ->pending()
-                    ->where(function ($query) use ($batchIds): void {
-                        foreach ($batchIds as $batchId) {
-                            $query->orWhere('sample_header_id', $batchId);
-                        }
-                    })
-                    ->with('toUser')
-                    ->orderByDesc('created_at')
-                    ->get()
-                    ->unique('sample_header_id')
-                    ->mapWithKeys(fn (SampleHeaderUserAssignment $assignment) => [
-                        (string) $assignment->sample_header_id => [
-                            'user_id' => (string) $assignment->to_user_id,
-                            'name' => (string) ($assignment->toUser?->name ?? ''),
-                        ],
-                    ]);
+        if (! $isFormOnlyStage) {
+            $batches = $this->batches;
+
+            if ($batches instanceof LengthAwarePaginator && Schema::hasTable('sample_header_user_assignments')) {
+                $batchIds = collect($batches->items())
+                    ->pluck('id')
+                    ->filter()
+                    ->values();
+
+                if ($batchIds->isNotEmpty()) {
+                    $batchAssignmentMap = SampleHeaderUserAssignment::query()
+                        ->pending()
+                        ->where(function ($query) use ($batchIds): void {
+                            foreach ($batchIds as $batchId) {
+                                $query->orWhere('sample_header_id', $batchId);
+                            }
+                        })
+                        ->with('toUser')
+                        ->orderByDesc('created_at')
+                        ->get()
+                        ->unique('sample_header_id')
+                        ->mapWithKeys(fn (SampleHeaderUserAssignment $assignment) => [
+                            (string) $assignment->sample_header_id => [
+                                'user_id' => (string) $assignment->to_user_id,
+                                'name' => (string) ($assignment->toUser?->name ?? ''),
+                            ],
+                        ]);
+                }
             }
+
+            // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
+            $tatTodayBatches = $this->tatTodayBatches;
         }
 
-        // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
-        $tatTodayBatches = $this->tatTodayBatches;
-
-        $natureOfSampleOptions = \App\Models\System\SystemConfigurationsType::where('configuration_type', '=', 'Nature of Sample', 'and')
-            ->with('configurations')
-            ->first()
-            ?->configurations
-            ?->sortBy('key')
-            ?->values()
-            ?? collect();
+        $natureOfSampleOptions = Cache::remember(
+            'workflow-board:nature-of-sample-options',
+            now()->addMinutes(10),
+            function () {
+                return \App\Models\System\SystemConfigurationsType::where('configuration_type', '=', 'Nature of Sample', 'and')
+                    ->with('configurations')
+                    ->first()
+                    ?->configurations
+                    ?->sortBy('key')
+                    ?->values()
+                    ?? collect();
+            }
+        );
 
         return view('livewire.sampleworkflow.workflow-board', [
             'batches' => $batches,
@@ -3083,7 +3228,7 @@ class WorkflowBoard extends Component
             'sampletypes' => $this->sampletypes,
             'customers' => $this->customers,
             'submissionFormAttachmentTypeId' => $this->submissionFormAttachmentTypeId,
-            'portalSubmissions' => $this->portalSubmissions,
+            'portalSubmissions' => $isFormOnlyStage ? null : $this->portalSubmissions,
             'commercialEnquiries' => $this->commercialEnquiries,
             'samplesReceptionStats' => $this->samplesReceptionStats,
             'receivingDashboardStats' => $this->receivingDashboardStats,
@@ -3091,10 +3236,11 @@ class WorkflowBoard extends Component
             'receivingRequestTabCounts' => $this->receivingRequestTabCounts,
             'requestReviewTabs' => self::requestReviewTabs(),
             'requestReviewTabCounts' => $this->requestReviewTabCounts,
-            'myPendingIntrayForms' => $this->myPendingIntrayForms,
-            'myPendingIntrayCount' => $this->myPendingIntrayCount,
-            'assignableUsersForIntray' => $this->assignableUsersForIntray,
-            'assignableUsersForBatchAssignment' => $this->assignableUsersForBatchAssignment,
+            // Unused in the blade today — skip query work on form-only stages.
+            'myPendingIntrayForms' => collect(),
+            'myPendingIntrayCount' => 0,
+            'assignableUsersForIntray' => [],
+            'assignableUsersForBatchAssignment' => $isFormOnlyStage ? [] : $this->assignableUsersForBatchAssignment,
             'subcontractingDispatchStatuses' => $this->subcontractingDispatchStatuses,
             'tatTodayBatches' => $tatTodayBatches,
             'tatTodayCount' => $tatTodayBatches->count(),

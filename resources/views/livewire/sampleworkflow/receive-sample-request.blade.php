@@ -98,6 +98,221 @@
             z-index: 1065 !important;
         }
     </style>
+
+        @if ($pageMode && ! $wizardOnly && ! $this->isPhysicalCheckIn)
+            <div class="rft-overview-section mb-3">
+                <div class="workflow-board-section-label mb-2">
+                    <i class="mdi mdi-information-outline"></i> How it works
+                </div>
+                <div class="row rft-card-row rft-how-it-works-row">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="rft-workflow-card w-100 text-left">
+                            <div class="rft-workflow-card-icon" style="--card-accent: var(--workflow-accent);">
+                                <i class="mdi mdi-file-edit-outline"></i>
+                            </div>
+                            <div class="rft-workflow-card-body">
+                                <strong>Choose a form</strong>
+                                <p class="text-muted small mb-0 mt-1">Pick a sample type / TRF template to start a test request capture.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="rft-workflow-card w-100 text-left">
+                            <div class="rft-workflow-card-icon" style="--card-accent: var(--workflow-accent);">
+                                <i class="mdi mdi-format-list-checks"></i>
+                            </div>
+                            <div class="rft-workflow-card-body">
+                                <strong>Fill section by section</strong>
+                                <p class="text-muted small mb-0 mt-1">Complete each wizard step on a tablet-friendly form.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="rft-workflow-card w-100 text-left">
+                            <div class="rft-workflow-card-icon" style="--card-accent: var(--workflow-accent);">
+                                <i class="mdi mdi-flask-outline"></i>
+                            </div>
+                            <div class="rft-workflow-card-body">
+                                <strong>Lab Reception</strong>
+                                <p class="text-muted small mb-0 mt-1">Submitted requests appear in Samples Receiving for lab staff.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if ($formTypeCards->isNotEmpty())
+                <div class="rft-overview-section mb-3">
+                    <div class="workflow-board-section-label mb-2">
+                        <i class="mdi mdi-form-select"></i> Test request forms
+                    </div>
+                    <div class="row rft-card-row">
+                        @foreach ($formTypeCards as $card)
+                            <div class="col-lg-4 col-md-6 mb-3">
+                                <div class="rft-form-type-card {{ (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}">
+                                    <div class="rft-form-type-card-header">
+                                        <div class="rft-form-type-card-icon">
+                                            <i class="mdi {{ $card['icon'] }}"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0 text-truncate">{{ $card['name'] }}</h6>
+                                            @if ($card['document_code'])
+                                                <span class="text-muted small">{{ $card['document_code'] }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <p class="rft-form-type-card-desc">{{ $card['description'] }}</p>
+                                    <div class="rft-form-type-card-meta">
+                                        <span><i class="mdi mdi-view-list"></i> {{ $card['sections_count'] }} sections</span>
+                                        <span><i class="mdi mdi-test-tube"></i> {{ $card['sample_type_name'] }}</span>
+                                    </div>
+                                    <div class="rft-form-type-card-actions">
+                                        @if ((string) $selectedSampleTypeId === (string) $card['sample_type_id'])
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary btn-action-sm"
+                                                    wire:click="clearSelectedSampleType">
+                                                <i class="mdi mdi-close"></i> Clear
+                                            </button>
+                                        @endif
+                                        <button type="button"
+                                                class="btn btn-sm btn-primary btn-action-sm"
+                                                wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
+                                                wire:loading.attr="disabled"
+                                                wire:target="startWalkInForSampleType">
+                                            <span wire:loading.remove wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                <i class="mdi mdi-plus"></i> Start
+                                            </span>
+                                            <span wire:loading wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                <i class="mdi mdi-loading mdi-spin"></i>
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @else
+                <div class="alert alert-warning">
+                    No active Test Request Form templates are linked to sample types. Link a TRF template in Submission Forms, then try again.
+                </div>
+            @endif
+
+            <div class="workflow-board-panel mb-3">
+                <div class="workflow-board-panel-header">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="mdi mdi-clipboard-text-outline"></i> Request For Testing
+                        </h5>
+                        <p class="text-muted mb-0 small">Capture and manage sample submission forms</p>
+                    </div>
+                </div>
+                <div class="workflow-board-panel-body">
+                    <div class="rft-segmented" role="tablist">
+                        <button type="button"
+                                class="rft-segmented__btn {{ $rftInstancesTab === 'open' ? 'is-active' : '' }}"
+                                wire:click="setRftInstancesTab('open')"
+                                role="tab"
+                                @if ($rftInstancesTab === 'open') aria-selected="true" @endif>
+                            Open Drafts
+                        </button>
+                        <button type="button"
+                                class="rft-segmented__btn {{ $rftInstancesTab === 'today' ? 'is-active' : '' }}"
+                                wire:click="setRftInstancesTab('today')"
+                                role="tab"
+                                @if ($rftInstancesTab === 'today') aria-selected="true" @endif>
+                            Today
+                        </button>
+                    </div>
+
+                    <div class="rft-toolbar">
+                        <input type="search"
+                               wire:model.live.debounce.300ms="rftInstancesSearch"
+                               class="form-control"
+                               placeholder="Search form number, title..."
+                               autocomplete="off">
+                        <button type="button" wire:click="clearRftInstanceFilters" class="btn btn-outline-secondary">
+                            <i class="mdi mdi-refresh"></i> Clear
+                        </button>
+                    </div>
+
+                    @if ($rftInstances->isNotEmpty())
+                        <div class="rft-instance-list">
+                            @foreach ($rftInstances as $instance)
+                                @php
+                                    $statusChip = match ($instance->status) {
+                                        'draft' => 'rft-status-chip--draft',
+                                        'submitted' => 'rft-status-chip--submitted',
+                                        default => 'rft-status-chip--default',
+                                    };
+                                    $showUrl = route('submission-forms.instances.show', [
+                                        $instance->submission_form_id,
+                                        $instance->id,
+                                    ]);
+                                    $fillUrl = route('submission-forms.instances.fill', [
+                                        $instance->submission_form_id,
+                                        $instance->id,
+                                    ]);
+                                @endphp
+                                <article class="rft-instance-card" wire:key="rft-instance-{{ $instance->id }}">
+                                    <div class="rft-instance-card__main">
+                                        <span class="rft-instance-card__number">{{ $instance->form_number ?? '—' }}</span>
+                                        <div class="min-width-0">
+                                            <p class="rft-instance-card__title text-truncate mb-0">{{ $instance->submissionForm?->name ?? 'Test request' }}</p>
+                                            <p class="rft-instance-card__subtitle text-truncate mb-0">{{ $instance->title }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="rft-instance-card__meta">
+                                        <span class="rft-status-chip {{ $statusChip }}">
+                                            {{ ucfirst(str_replace('_', ' ', (string) $instance->status)) }}
+                                        </span>
+                                        <time class="rft-instance-card__time" datetime="{{ optional($instance->updated_at)->toIso8601String() }}">
+                                            {{ optional($instance->updated_at)->format('M d, H:i') }}
+                                        </time>
+                                    </div>
+                                    <div class="rft-instance-card__actions">
+                                        @if ($instance->status === 'draft')
+                                            <a href="{{ $fillUrl }}"
+                                               class="btn btn-sm btn-primary btn-action-sm"
+                                               title="Continue"
+                                               aria-label="Continue editing">
+                                                <i class="mdi mdi-pencil"></i>
+                                            </a>
+                                            <button type="button"
+                                                    wire:click="deleteRftDraft('{{ $instance->id }}')"
+                                                    wire:confirm="Delete this draft?"
+                                                    class="btn btn-sm btn-outline-danger btn-action-sm"
+                                                    title="Delete draft"
+                                                    aria-label="Delete draft">
+                                                <i class="mdi mdi-delete-outline"></i>
+                                            </button>
+                                        @else
+                                            <a href="{{ $showUrl }}"
+                                               class="btn btn-sm btn-outline-primary btn-action-sm"
+                                               title="View"
+                                               aria-label="View submission">
+                                                <i class="mdi mdi-eye-outline"></i>
+                                            </a>
+                                        @endif
+                                    </div>
+                                </article>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="workflow-empty-state text-center py-5">
+                            <i class="mdi mdi-file-document-outline" style="font-size: 4rem; opacity: 0.3;"></i>
+                            <h5 class="text-muted mt-3">No submissions found</h5>
+                            <p class="text-muted small mb-0">
+                                {{ $rftInstancesTab === 'open'
+                                    ? 'Start a new test request above to capture samples. Drafts you resume will appear here.'
+                                    : 'Nothing captured or submitted today yet.' }}
+                            </p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
     @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
             <section class="receive-sample-selected mb-3">
                 <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
@@ -221,35 +436,70 @@
                 </ul>
             </div>
         @endif
-        <!-- Walk-in only: Sample Type + TRF -->
-        <div class="form-group mb-4 receive-sample-type-field">
-            <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample Type <span class="text-danger">*</span></label>
-            <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
-                <option value="">-- Select Sample Type --</option>
-                @foreach($sampleTypes as $st)
-                    <option value="{{ $st->id }}">{{ $st->name }}</option>
-                @endforeach
-            </select>
-            @error('selectedSampleTypeId')
-                <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
-            @enderror
-        </div>
 
-        @if($selectedSampleTypeId && $submissionForm)
-            @include('livewire.partials.walk-in-trf-wizard-styles')
-            <div class="walk-in-trf-wizard-shell mb-3">
-                @include('livewire.partials.walk-in-trf-wizard-stepper')
-                @include('livewire.partials.walk-in-trf-capture-sections', [
-                    'submissionForm' => $submissionForm,
-                    'formData' => $formData,
-                    'walkInSections' => $walkInSections,
-                    'walkInActiveStepIndex' => $walkInActiveStepIndex,
-                ])
+        @if ($pageMode)
+            @if ($selectedSampleTypeId && $submissionForm)
+                <div class="workflow-board-panel mb-3">
+                    <div class="workflow-board-panel-header d-flex flex-wrap align-items-center justify-content-between rft-gap">
+                        <div class="min-width-0">
+                            <h5 class="mb-1">
+                                <i class="mdi mdi-clipboard-text-outline"></i> {{ __('lab.request_for_testing') }}
+                            </h5>
+                            <p class="text-muted mb-0 small">{{ $submissionForm->name }} · {{ $this->selectedSampleType?->name }}</p>
+                        </div>
+                        <div class="submission-instance-actions ml-auto">
+                            @include('livewire.partials.walk-in-trf-wizard-nav')
+                        </div>
+                    </div>
+                    <div class="workflow-board-panel-body">
+                        @include('livewire.partials.walk-in-trf-wizard-styles')
+                        <div class="walk-in-trf-wizard-shell mb-0 border-0 bg-transparent p-0">
+                            @include('livewire.partials.walk-in-trf-wizard-stepper')
+                            @include('livewire.partials.walk-in-trf-capture-sections', [
+                                'submissionForm' => $submissionForm,
+                                'formData' => $formData,
+                                'walkInSections' => $walkInSections,
+                                'walkInActiveStepIndex' => $walkInActiveStepIndex,
+                            ])
+                        </div>
+                    </div>
+                </div>
+            @elseif ($selectedSampleTypeId)
+                <div class="alert alert-warning py-2 px-3 mb-0 small">
+                    No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+                </div>
+            @endif
+        @else
+            <!-- Walk-in only: Sample Type + TRF (modal) -->
+            <div class="form-group mb-4 receive-sample-type-field">
+                <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample Type <span class="text-danger">*</span></label>
+                <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
+                    <option value="">-- Select Sample Type --</option>
+                    @foreach($sampleTypes as $st)
+                        <option value="{{ $st->id }}">{{ $st->name }}</option>
+                    @endforeach
+                </select>
+                @error('selectedSampleTypeId')
+                    <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
+                @enderror
             </div>
-        @elseif($selectedSampleTypeId)
-            <div class="alert alert-warning py-2 px-3 mb-0 small">
-                No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
-            </div>
+
+            @if($selectedSampleTypeId && $submissionForm)
+                @include('livewire.partials.walk-in-trf-wizard-styles')
+                <div class="walk-in-trf-wizard-shell mb-3">
+                    @include('livewire.partials.walk-in-trf-wizard-stepper')
+                    @include('livewire.partials.walk-in-trf-capture-sections', [
+                        'submissionForm' => $submissionForm,
+                        'formData' => $formData,
+                        'walkInSections' => $walkInSections,
+                        'walkInActiveStepIndex' => $walkInActiveStepIndex,
+                    ])
+                </div>
+            @elseif($selectedSampleTypeId)
+                <div class="alert alert-warning py-2 px-3 mb-0 small">
+                    No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+                </div>
+            @endif
         @endif
         @endunless
 
@@ -344,62 +594,43 @@
         <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
     @endif
 
-    <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap" style="gap: 8px;">
-        @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
-            <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
-                Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
-                · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
-            </span>
-        @else
-            <span></span>
+    @if ($pageMode)
+        @if ((! $selectedSampleTypeId || ! $submissionForm) && ! $this->isPhysicalCheckIn)
+            <footer class="rft-touch-bar">
+                <span class="text-muted small mb-0">{{ $wizardOnly ? 'Loading form…' : 'Select a form type above to begin capture.' }}</span>
+                <a href="{{ $wizardOnly ? route('sample-workflow.request-for-testing') : route('sample-workflow', ['status' => 'Samples Receiving']) }}" class="btn btn-sm btn-light">
+                    {{ $wizardOnly ? 'Back' : 'Back to Receiving' }}
+                </a>
+            </footer>
         @endif
-
-        <div class="d-flex align-items-center" style="gap: 8px;">
-            <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
-
+    @else
+        <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap rft-gap">
             @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
-                @if (! $this->walkInIsFirstStep)
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary"
-                        wire:click="prevWalkInStep"
-                        wire:loading.attr="disabled"
-                        wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
-                    >
-                        <i class="mdi mdi-arrow-left mr-1" aria-hidden="true"></i> Back
-                    </button>
-                @endif
+                <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
+                    Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
+                    · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
+                </span>
+            @else
+                <span></span>
+            @endif
 
-                @if (! $this->walkInIsLastStep)
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-primary"
-                        wire:click="nextWalkInStep"
-                        wire:loading.attr="disabled"
-                        wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
-                        onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF step sync failed', error); }"
-                    >
-                        <span wire:loading.remove wire:target="nextWalkInStep">
-                            Continue
-                            <i class="mdi mdi-arrow-right ml-1" aria-hidden="true"></i>
-                        </span>
-                        <span wire:loading wire:target="nextWalkInStep">
-                            <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
-                            Checking…
-                        </span>
-                    </button>
+            <div class="d-flex align-items-center rft-gap">
+                @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+                    @include('livewire.partials.walk-in-trf-wizard-nav')
                 @else
+                    <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
                     <button
                         type="button"
                         class="btn btn-sm btn-primary receive-sample-submit-btn"
                         wire:click="confirmReceive"
                         wire:loading.attr="disabled"
-                        wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
-                        onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
+                        wire:target="confirmReceive"
+                        onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
+                        @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
                     >
                         <span wire:loading.remove wire:target="confirmReceive">
                             <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                            Submit walk-in request
+                            {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
                         </span>
                         <span wire:loading wire:target="confirmReceive">
                             <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
@@ -407,26 +638,169 @@
                         </span>
                     </button>
                 @endif
-            @else
-                <button
-                    type="button"
-                    class="btn btn-sm btn-primary receive-sample-submit-btn"
-                    wire:click="confirmReceive"
-                    wire:loading.attr="disabled"
-                    wire:target="confirmReceive"
-                    onclick="try { if (typeof window.syncWalkInParametersBeforeSubmit === 'function') { window.syncWalkInParametersBeforeSubmit(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
-                    @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
-                >
-                    <span wire:loading.remove wire:target="confirmReceive">
-                        <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                        {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
-                    </span>
-                    <span wire:loading wire:target="confirmReceive">
-                        <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
-                        Processing…
-                    </span>
-                </button>
-            @endif
-        </div>
-    </footer>
+            </div>
+        </footer>
+    @endif
 </div>
+@script
+<script>
+    Alpine.data('rftParamPickerUi', (config = {}) => ({
+        open: false,
+        openUp: false,
+        search: '',
+        rowIndex: config.rowIndex ?? 0,
+        options: Array.isArray(config.options) ? config.options.slice() : [],
+        selected: Array.isArray(config.selected) ? config.selected.slice() : [],
+        hydrating: false,
+        init() {
+            // Card body uses x-if: remount must re-read Livewire (wire:ignore freezes Blade snapshot).
+            this.hydrateFromWire();
+        },
+        get filtered() {
+            const query = String(this.search || '').trim().toLowerCase();
+            if (!query) {
+                return this.options;
+            }
+
+            return this.options.filter((name) => String(name).toLowerCase().includes(query));
+        },
+        get visibleChips() {
+            return this.selected.slice(0, 8);
+        },
+        get hiddenCount() {
+            return Math.max(0, this.selected.length - 8);
+        },
+        isSelected(name) {
+            return this.selected.includes(name);
+        },
+        toggleOpen() {
+            this.open = !this.open;
+            if (this.open) {
+                this.hydrateFromWire();
+                this.$nextTick(() => this.decideDirection());
+            }
+        },
+        decideDirection() {
+            const rect = this.$el.getBoundingClientRect();
+            this.openUp = (window.innerHeight - rect.bottom) < 320;
+        },
+        matches(name) {
+            const query = String(this.search || '').trim().toLowerCase();
+            return !query || String(name).includes(query);
+        },
+        toggle(name) {
+            if (this.isSelected(name)) {
+                this.selected = this.selected.filter((item) => item !== name);
+            } else {
+                this.selected = this.selected.concat([name]);
+            }
+            this.sync();
+        },
+        selectAll() {
+            this.selected = this.options.slice();
+            this.sync();
+        },
+        clearAll() {
+            this.selected = [];
+            this.search = '';
+            this.sync();
+        },
+        sync() {
+            if (this.$wire) {
+                this.$wire.setWalkInParameters(this.rowIndex, this.selected.slice());
+            }
+        },
+        applySelectedFromWire() {
+            if (!this.$wire) {
+                return;
+            }
+
+            const raw = this.$wire.get(`formData.parameters.${this.rowIndex}`);
+            if (Array.isArray(raw)) {
+                this.selected = raw.map((value) => String(value));
+            } else if (raw !== null && raw !== undefined && raw !== '') {
+                this.selected = [String(raw)];
+            } else {
+                this.selected = [];
+            }
+        },
+        async hydrateFromWire() {
+            if (!this.$wire || this.hydrating) {
+                return;
+            }
+
+            this.hydrating = true;
+            try {
+                this.applySelectedFromWire();
+
+                const state = await this.$wire.walkInParameterPickerState(this.rowIndex);
+                if (state && Array.isArray(state.options)) {
+                    this.options = state.options.map((value) => String(value));
+                }
+                if (state && Array.isArray(state.selected)) {
+                    this.selected = state.selected.map((value) => String(value));
+                }
+            } catch (error) {
+                this.applySelectedFromWire();
+            } finally {
+                this.hydrating = false;
+            }
+        },
+    }));
+
+    Alpine.data('rftSampleDescriptionEditor', (config) => ({
+        editorId: config.editorId,
+        wireKey: config.wireKey,
+        rowIndex: config.rowIndex ?? 0,
+        init() {
+            this.$nextTick(() => this.mountEditor());
+        },
+        mountEditor() {
+            if (typeof tinymce === 'undefined') {
+                const existing = document.querySelector('script[data-rft-tinymce]');
+                if (existing) {
+                    existing.addEventListener('load', () => this.initTiny());
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = '/tinymce/tinymce.min.js';
+                script.dataset.rftTinymce = '1';
+                script.onload = () => this.initTiny();
+                document.head.appendChild(script);
+                return;
+            }
+            this.initTiny();
+        },
+        initTiny() {
+            if (typeof tinymce === 'undefined') {
+                return;
+            }
+            if (tinymce.get(this.editorId)) {
+                tinymce.remove('#' + this.editorId);
+            }
+            const self = this;
+            tinymce.init({
+                selector: '#' + this.editorId,
+                height: 160,
+                menubar: false,
+                statusbar: false,
+                branding: false,
+                plugins: 'lists',
+                toolbar: 'bold italic underline | bullist numlist',
+                setup(editor) {
+                    editor.on('change keyup blur', function () {
+                        if (self.$wire) {
+                            self.$wire.set(self.wireKey, editor.getContent(), false);
+                        }
+                    });
+                },
+            });
+        },
+        destroy() {
+            if (typeof tinymce !== 'undefined' && tinymce.get(this.editorId)) {
+                tinymce.remove('#' + this.editorId);
+            }
+        },
+    }));
+</script>
+@endscript

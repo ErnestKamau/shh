@@ -1,4 +1,4 @@
-<div class="acc-wizard-root acc-wizard-root--acceptance">
+<div class="acc-wizard-root acc-wizard-root--acceptance lab-surface-theme">
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
             <div class="modal-dialog {{ $activeStep === 'sample_config' ? 'modal-xl' : 'modal-lg' }} acc-wizard-dialog" role="document">

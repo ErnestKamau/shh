@@ -5,6 +5,7 @@ namespace App\Livewire\SubmissionForms;
 use App\ChainOfCustody;
 use App\BatchAttachment;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
+use App\Livewire\Sampleworkflow\SampleRejectionWizard;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
@@ -18,6 +19,7 @@ use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Planner\SamplingScheduleTrfSync;
+use App\Services\SubmissionForm\RequestViewPagePresenter;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
@@ -25,6 +27,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+
 class RequestViewPage extends Component
 {
     use WithFileUploads;
@@ -58,7 +61,7 @@ class RequestViewPage extends Component
 
     public string $instanceId;
 
-    public string $activeTab = 'samples';
+    public string $activeTab = 'tests';
 
     public string $noteBody = '';
 
@@ -109,6 +112,8 @@ class RequestViewPage extends Component
         $this->instance = SubmissionFormInstance::query()
             ->with([
                 'sampleSubmissionRequest.currentQuotation',
+                'sampleSubmissionRequest.contact',
+                'sampleSubmissionRequest.customer',
                 'submissionForm',
                 'submittedBy',
                 'reviewedBy',
@@ -123,7 +128,7 @@ class RequestViewPage extends Component
 
         $this->commercialEnquiry = $this->instance->sampleSubmissionRequest
             ?? SampleSubmissionRequest::query()
-                ->with('currentQuotation')
+                ->with(['currentQuotation', 'contact', 'customer'])
                 ->where('submission_form_instance_id', $this->instance->id)
                 ->first();
 
@@ -303,7 +308,7 @@ class RequestViewPage extends Component
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['samples', 'notes', 'attachments', 'custody'], true)) {
+        if (! in_array($tab, ['tests', 'notes', 'attachments', 'custody'], true)) {
             return;
         }
 
@@ -632,6 +637,24 @@ class RequestViewPage extends Component
             ->to(ProcessEnquiryWizard::class);
     }
 
+    public function openRejectWizard(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        $status = strtolower((string) $this->instance->status);
+        if (in_array($status, ['rejected', 'cancelled', 'approved'], true)) {
+            session()->flash('request_view_message', 'This submission can no longer be rejected.');
+
+            return;
+        }
+
+        $this->dispatch(
+            'open-rejection-wizard',
+            submissionFormInstanceId: $this->instance->id,
+            submissionRequestId: $this->commercialEnquiry?->id,
+        )->to(SampleRejectionWizard::class);
+    }
+
     public function isTrfForm(): bool
     {
         $code = strtoupper((string) ($this->submissionForm->document_code ?? ''));
@@ -801,6 +824,21 @@ class RequestViewPage extends Component
             }
         }
 
+        $presenter = new RequestViewPagePresenter(
+            instance: $this->instance,
+            submissionForm: $this->submissionForm,
+            commercialEnquiry: $this->commercialEnquiry,
+            trfPdfUrl: $this->trfPdfUrl,
+            canCreateSamples: $canCreateSamples,
+            linkedBatchesOutOfSyncWithForm: $this->linkedBatchesOutOfSyncWithForm,
+            showSampleCollectionLabel: $this->shouldShowSampleCollectionLabel(),
+            isTrfForm: $this->isTrfForm(),
+        );
+
+        $sectionCards = $presenter->sectionCards($formData);
+        $sampleLines = $this->sampleLines;
+        $boardStatus = $this->workflowBoardStatus();
+
         return view('livewire.submission-forms.request-view-page', [
             'formData' => $formData,
             'attachmentInstances' => $attachmentInstances,
@@ -811,6 +849,13 @@ class RequestViewPage extends Component
             'sampleStatus' => $sampleStatus,
             'acceptanceForm' => $acceptanceForm,
             'workflowForms' => $this->instance->workflowForms()->get(),
+            'viewHeader' => $presenter->header(),
+            'requestInfoCard' => $presenter->requestInfoCard($formData, $sampleLines),
+            'customerCard' => $sectionCards['customer'],
+            'sectionCards' => $sectionCards['sections'],
+            'testSamplesCard' => $presenter->testSamplesCard($sampleLines),
+            'nextStepActions' => $presenter->nextStepActions($boardStatus),
+            'boardStatus' => $boardStatus,
         ]);
     }
 }

@@ -1,11 +1,21 @@
 <style>
     .acc-wizard-root {
-        --acc-accent: var(--color-primary, var(--color-primary));
-        --acc-accent-dark: var(--color-primary-hover, var(--color-primary-hover));
-        --acc-accent-soft: var(--color-primary-soft, var(--color-primary-soft));
-        --acc-border: #e5e7eb;
-        --acc-muted: #6b7280;
-        --acc-text: #111827;
+        --acc-accent: var(--ls-color-primary, var(--color-primary, #800000));
+        --acc-accent-dark: var(--ls-color-primary-hover, var(--color-primary-hover, #6b0000));
+        --acc-accent-soft: var(--ls-color-primary-soft, var(--color-primary-soft, #f8ecec));
+        --acc-border: var(--ls-color-border, #e2e8f0);
+        --acc-muted: var(--ls-color-muted, #64748b);
+        --acc-text: var(--ls-color-ink, #1e293b);
+        --acc-font: var(--ls-font-ui, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
+        --acc-text-xs: var(--ls-text-xs, 0.6875rem);
+        --acc-text-sm: var(--ls-text-sm, 0.75rem);
+        --acc-text-base: var(--ls-text-base, 0.8125rem);
+        --acc-text-md: var(--ls-text-md, 0.875rem);
+        --acc-text-lg: var(--ls-text-lg, 0.95rem);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        color: var(--acc-text);
+        -webkit-font-smoothing: antialiased;
     }
 
     .acc-wizard-backdrop {
@@ -32,9 +42,12 @@
 
     .acc-wizard-modal {
         border: none;
-        border-radius: 16px;
+        border-radius: var(--ls-radius-xl, 12px);
         overflow: hidden;
         box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        color: var(--acc-text);
     }
 
     .acc-wizard-header {
@@ -42,7 +55,7 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        padding: 1.25rem 1.5rem;
+        padding: 0.85rem 1rem;
         background: #fff;
         color: var(--acc-text);
         border-bottom: 1px solid var(--acc-border);
@@ -50,9 +63,9 @@
 
     .acc-wizard-eyebrow {
         display: block;
-        font-size: var(--text-caption);
-        font-weight: var(--font-semibold);
-        letter-spacing: 0.08em;
+        font-size: var(--acc-text-xs);
+        font-weight: var(--ls-font-semibold, 600);
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--acc-muted);
         margin-bottom: 0.15rem;
@@ -60,20 +73,27 @@
 
     .acc-wizard-title {
         margin: 0;
-        font-size: var(--text-xl);
-        font-weight: var(--font-bold);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-lg);
+        font-weight: var(--ls-font-semibold, 600);
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.45rem;
+        line-height: 1.3;
+    }
+
+    .acc-wizard-header .text-muted,
+    .acc-wizard-header .small {
+        font-size: var(--acc-text-sm) !important;
     }
 
     .acc-wizard-close {
         border: none;
         background: #f1f5f9;
         color: var(--acc-muted);
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+        width: var(--ls-btn-h, 34px);
+        height: var(--ls-btn-h, 34px);
+        border-radius: var(--ls-radius-sm, 6px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -99,34 +119,35 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        padding: 0.85rem 0.5rem;
+        gap: 0.45rem;
+        padding: 0.55rem 0.5rem;
         border: none;
         background: transparent;
         color: var(--acc-muted);
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-sm);
+        font-weight: var(--ls-font-semibold, 600);
         border-bottom: 3px solid transparent;
         transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
 
     .acc-wizard-step:hover:not(:disabled) {
-        color: #111827;
+        color: var(--acc-text);
         background: var(--acc-accent-soft);
     }
 
     .acc-wizard-step.is-active {
-        color: #111827;
+        color: var(--acc-text);
         border-bottom-color: var(--acc-accent);
         background: #fff;
     }
 
     .acc-wizard-step.is-active .acc-wizard-step-label {
-        color: #111827;
+        color: var(--acc-text);
     }
 
     .acc-wizard-step.is-done {
-        color: var(--color-muted, #64748b);
+        color: var(--acc-muted);
     }
 
     .acc-wizard-step:disabled {
@@ -135,13 +156,13 @@
     }
 
     .acc-wizard-step-index {
-        width: 26px;
-        height: 26px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: var(--text-caption);
+        font-size: var(--acc-text-xs);
         background: #e2e8f0;
         color: var(--acc-muted);
     }
@@ -152,24 +173,55 @@
     }
 
     .acc-wizard-step.is-done .acc-wizard-step-index {
-        background: #d1fae5;
-        color: #059669;
+        background: var(--ls-color-success-soft, #dcfce7);
+        color: var(--ls-color-success-text, #166534);
+    }
+
+    .acc-wizard-top-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.55rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid var(--acc-border);
+    }
+
+    .acc-wizard-top-nav-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-left: auto;
+    }
+
+    .acc-wizard-top-nav .btn {
+        min-height: var(--ls-btn-h-sm, 30px);
+        padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-sm);
+        font-weight: var(--ls-font-semibold, 600);
+        line-height: 1.2;
+        border-radius: var(--ls-radius-sm, 6px);
     }
 
     .acc-wizard-body {
-        padding: 1.25rem 1.5rem 1rem;
+        padding: 0.85rem 1rem 1rem;
         background: #f8fafc;
         max-height: min(70vh, 640px);
         overflow-y: auto;
         color: var(--acc-text);
+        font-size: var(--acc-text-base);
     }
 
     .acc-wizard-section {
         background: #fff;
         border: 1px solid var(--acc-border);
-        border-radius: 12px;
-        padding: 1.15rem 1.25rem;
-        margin-bottom: 1rem;
+        border-radius: var(--ls-radius-lg, 10px);
+        padding: var(--ls-card-pad-y, 0.85rem) var(--ls-card-pad-x, 1rem);
+        margin-bottom: 0.85rem;
+        box-shadow: var(--ls-shadow-sm, 0 1px 2px rgb(0 0 0 / 0.05));
     }
 
     .acc-wizard-section:last-child {
@@ -177,49 +229,133 @@
     }
 
     .acc-wizard-section-title {
-        font-size: var(--text-caption);
-        font-weight: var(--font-semibold);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-xs);
+        font-weight: var(--ls-font-semibold, 600);
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
         color: var(--acc-muted);
-        margin-bottom: 0.85rem;
+        margin-bottom: 0.65rem;
     }
 
     .acc-wizard-hint {
-        font-size: var(--text-caption);
+        font-size: var(--acc-text-sm);
         color: var(--acc-muted);
     }
 
     .acc-wizard-fields > [class*="col-"] {
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.65rem;
+        font-size: var(--acc-text-base);
+    }
+
+    .acc-wizard-fields strong {
+        font-size: var(--acc-text-sm);
+        font-weight: var(--ls-font-semibold, 600);
+        color: var(--acc-muted);
     }
 
     .acc-label {
-        font-size: var(--text-caption);
-        font-weight: var(--font-semibold);
+        font-size: var(--acc-text-sm);
+        font-weight: var(--ls-font-semibold, 600);
         color: var(--acc-muted);
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.3rem;
     }
 
     .acc-input {
-        border-radius: 8px;
+        border-radius: var(--ls-radius-sm, 6px);
         border-color: var(--acc-border);
-        font-size: var(--text-sm);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        min-height: var(--ls-control-h, 34px);
     }
 
     .acc-input:focus {
         border-color: var(--acc-accent);
-        box-shadow: 0 0 0 3px var(--color-primary-highlight);
+        box-shadow: 0 0 0 3px var(--ls-color-primary-focus, var(--color-primary-highlight, rgba(128, 0, 0, 0.18)));
     }
 
     .acc-wizard-footer {
         display: flex;
         justify-content: flex-end;
         flex-wrap: wrap;
-        gap: 0.65rem;
-        padding: 0.9rem 1.35rem;
+        gap: 0.5rem;
+        padding: 0.65rem 1rem;
         background: #fff;
         border-top: 1px solid var(--acc-border);
+    }
+
+    .acc-wizard-footer .btn,
+    .acc-wizard-root .btn-sm {
+        min-height: var(--ls-btn-h-sm, 30px);
+        padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-sm);
+        font-weight: var(--ls-font-semibold, 600);
+        border-radius: var(--ls-radius-sm, 6px);
+    }
+
+    .acc-wizard-root .btn:not(.btn-sm) {
+        min-height: var(--ls-btn-h, 34px);
+        padding: 0.35rem var(--ls-btn-pad-x, 0.85rem);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        font-weight: var(--ls-font-semibold, 600);
+        border-radius: var(--ls-radius-sm, 6px);
+    }
+
+    .acc-wizard-root .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: var(--ls-badge-pad-y, 0.2rem) var(--ls-badge-pad-x, 0.55rem);
+        font-size: var(--ls-badge-font, var(--acc-text-sm));
+        font-weight: var(--ls-font-semibold, 600);
+        line-height: 1.25;
+        border-radius: 999px;
+    }
+
+    .acc-wizard-root .table,
+    .acc-wizard-root .workflow-table {
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        color: var(--acc-text);
+    }
+
+    .acc-wizard-root .table thead th,
+    .acc-wizard-root .workflow-table thead th {
+        font-size: var(--acc-text-xs);
+        font-weight: var(--ls-font-bold, 700);
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--acc-muted);
+        background: #f8fafc;
+        padding: var(--ls-table-cell-y, 0.55rem) var(--ls-table-cell-x, 0.7rem);
+        white-space: nowrap;
+    }
+
+    .acc-wizard-root .table tbody td,
+    .acc-wizard-root .workflow-table tbody td {
+        font-size: var(--acc-text-base);
+        font-weight: var(--ls-font-medium, 500);
+        color: var(--acc-text);
+        padding: var(--ls-table-cell-y, 0.55rem) var(--ls-table-cell-x, 0.7rem);
+        vertical-align: middle;
+    }
+
+    .acc-wizard-root .form-control,
+    .acc-wizard-root .form-control-sm {
+        min-height: var(--ls-control-h, 34px);
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        border-radius: var(--ls-radius-sm, 6px);
+        border-color: var(--acc-border);
+        color: var(--acc-text);
+    }
+
+    .acc-wizard-root .alert {
+        border-radius: var(--ls-radius-md, 8px);
+        font-size: var(--acc-text-base);
+        padding: 0.55rem 0.8rem;
     }
 
     .acc-pricing-toolbar {
@@ -231,15 +367,15 @@
 
     .acc-pricing-table-wrap {
         border: 1px solid var(--acc-border);
-        border-radius: 10px;
+        border-radius: var(--ls-radius-md, 8px);
         overflow: hidden;
         background: #fff;
     }
 
     .acc-pricing-table thead th {
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
+        font-size: var(--acc-text-xs);
+        font-weight: var(--ls-font-bold, 700);
+        letter-spacing: 0.03em;
         text-transform: uppercase;
         color: var(--acc-muted);
         background: #f8fafc;
@@ -253,7 +389,7 @@
 
     /* Sample configuration (Process Enquiry + Acceptance wizard) */
     .acc-sample-config-section {
-        padding: 1.25rem 1.35rem 1.1rem;
+        padding: 0.85rem 1rem;
     }
 
     .acc-sample-config-toolbar {
@@ -261,9 +397,9 @@
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 0.75rem;
-        margin-bottom: 1rem !important;
-        padding-bottom: 0.85rem;
+        gap: 0.65rem;
+        margin-bottom: 0.85rem !important;
+        padding-bottom: 0.65rem;
         border-bottom: 1px solid #eef2f7;
     }
 
@@ -275,20 +411,21 @@
     }
 
     .acc-sample-config-sync-btn {
-        width: 2rem;
-        height: 2rem;
+        width: var(--ls-btn-h, 34px);
+        height: var(--ls-btn-h, 34px);
         padding: 0;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
+        border-radius: var(--ls-radius-sm, 6px);
     }
 
     .acc-btn-add {
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.8125rem;
-        padding: 0.35rem 0.85rem;
+        border-radius: var(--ls-radius-sm, 6px);
+        font-weight: var(--ls-font-semibold, 600);
+        font-size: var(--acc-text-sm);
+        padding: 0.3rem 0.75rem;
+        min-height: var(--ls-btn-h-sm, 30px);
         color: #fff !important;
         background: var(--acc-accent) !important;
         border: 1px solid var(--acc-accent) !important;
@@ -301,11 +438,12 @@
     }
 
     .acc-btn-remove {
-        border-radius: 8px;
-        color: #be123c;
-        border-color: #fecdd3;
-        background: #fff5f7;
+        border-radius: var(--ls-radius-sm, 6px);
+        color: var(--ls-color-danger-text, #991b1b);
+        border-color: #fecaca;
+        background: var(--ls-color-danger-soft, #fee2e2);
         padding: 0.2rem 0.45rem;
+        font-size: var(--acc-text-sm);
     }
 
     .acc-btn-remove:hover {
@@ -317,15 +455,15 @@
     .acc-sample-config-list {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.85rem;
     }
 
     .acc-sample-config-card {
         border: 1px solid var(--acc-border);
-        border-radius: 12px;
+        border-radius: var(--ls-radius-lg, 10px);
         background: #fff;
-        overflow: hidden;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        overflow: visible;
+        box-shadow: var(--ls-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
     }
 
     .acc-sample-config-card-head {
@@ -333,7 +471,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
-        padding: 0.7rem 1rem;
+        padding: 0.55rem 0.85rem;
         background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
         border-bottom: 1px solid var(--acc-border);
     }
@@ -342,14 +480,15 @@
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        font-size: 0.875rem;
-        font-weight: 700;
+        font-family: var(--acc-font);
+        font-size: var(--acc-text-base);
+        font-weight: var(--ls-font-semibold, 600);
         color: var(--acc-text);
     }
 
     .acc-sample-config-card-title .mdi {
         color: var(--acc-accent);
-        font-size: 1.05rem;
+        font-size: 1rem;
     }
 
     .acc-sample-config-table-wrap {
@@ -360,25 +499,27 @@
         table-layout: fixed;
         width: 100%;
         margin: 0;
+        font-size: var(--acc-text-base);
     }
 
     .acc-sample-config-table thead th {
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
+        font-size: var(--acc-text-xs);
+        font-weight: var(--ls-font-bold, 700);
+        letter-spacing: 0.03em;
         text-transform: uppercase;
         color: var(--acc-muted);
         background: #fff;
         border-bottom: 1px solid var(--acc-border);
-        padding: 0.65rem 0.75rem;
+        padding: 0.55rem 0.65rem;
         vertical-align: bottom;
         white-space: nowrap;
     }
 
     .acc-sample-config-table tbody td {
         border-top: none;
-        padding: 0.75rem;
+        padding: 0.65rem;
         vertical-align: top;
+        font-size: var(--acc-text-base);
     }
 
     .acc-sample-config-table--compact th:nth-child(1),
@@ -512,7 +653,7 @@
         border: 1px solid var(--acc-border);
         border-radius: 10px;
         background: #fff;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .acc-sample-config-params-panel + .acc-sample-config-params-panel,
@@ -698,6 +839,197 @@
         .acc-sample-config-table {
             table-layout: auto;
         }
+    }
+
+    /* Tags / Select2-style multi-select */
+    .acc-param-tags {
+        position: relative;
+        z-index: 5;
+    }
+
+    .acc-param-tags__control {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+        min-height: 34px;
+        padding: 0.35rem 0.45rem;
+        border: 1px solid var(--acc-border);
+        border-radius: 8px;
+        background: #fff;
+        cursor: text;
+    }
+
+    .acc-param-tags__control:focus-within {
+        border-color: var(--acc-accent);
+        box-shadow: 0 0 0 3px var(--ls-color-primary-focus, rgba(128, 0, 0, 0.15));
+    }
+
+    .acc-param-tags__chips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+        max-height: 6.5rem;
+        overflow-y: auto;
+        min-height: 1.25rem;
+        padding-top: 0.25rem;
+        border-top: 1px solid #eef2f7;
+    }
+
+    .acc-param-tags__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        max-width: 100%;
+        padding: 0.15rem 0.35rem 0.15rem 0.45rem;
+        border-radius: 999px;
+        background: var(--acc-accent-soft);
+        border: 1px solid var(--color-primary-border-soft, #e2b4b4);
+        color: var(--acc-accent);
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.25;
+    }
+
+    .acc-param-tags__remove {
+        border: none;
+        background: transparent;
+        color: inherit;
+        font-size: 1rem;
+        line-height: 1;
+        padding: 0 0.15rem;
+        cursor: pointer;
+        opacity: 0.75;
+    }
+
+    .acc-param-tags__remove:hover {
+        opacity: 1;
+    }
+
+    .acc-param-tags__placeholder {
+        color: var(--acc-muted);
+        font-size: 0.8125rem;
+    }
+
+    .acc-param-tags__input {
+        display: block;
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: 0.8125rem;
+        color: var(--acc-text);
+        padding: 0.15rem 0.15rem 0.2rem;
+    }
+
+    .acc-param-tags__panel {
+        position: absolute;
+        z-index: 40;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        max-height: 240px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        border: 1px solid var(--acc-border);
+        border-radius: 8px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    }
+
+    .acc-param-tags__panel--floating {
+        position: fixed;
+        left: auto;
+        right: auto;
+        top: auto;
+        z-index: 2050;
+    }
+
+    .acc-param-tags__panel--floating .acc-param-tags__options {
+        flex: 1 1 auto;
+        max-height: none;
+        min-height: 0;
+    }
+
+    .acc-param-tags__panel-hint {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--acc-muted);
+        border-bottom: 1px solid #eef2f7;
+        background: #f8fafc;
+        flex-shrink: 0;
+    }
+
+    .acc-param-tags__options {
+        overflow-y: auto;
+        max-height: 200px;
+        padding: 0.25rem;
+    }
+
+    .acc-param-tags__option {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        padding: 0.4rem 0.55rem;
+        font-size: 0.8125rem;
+        color: var(--acc-text);
+        cursor: pointer;
+    }
+
+    .acc-param-tags__option:hover {
+        background: var(--acc-accent-soft);
+        color: var(--acc-accent);
+    }
+
+    /*
+     * Enquiry sample cards must stay overflow:visible so the tags dropdown
+     * is not clipped. Fade the card edge with an inset shadow instead of ::after.
+     */
+    .acc-wizard-root--enquiry .acc-sample-config-card {
+        position: relative;
+        overflow: visible;
+        box-shadow:
+            0 1px 2px rgba(15, 23, 42, 0.04),
+            inset 0 -14px 12px -12px rgba(148, 163, 184, 0.55);
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-card::after {
+        display: none;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-table-wrap {
+        overflow: visible;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-params-row td {
+        overflow: visible;
+        position: relative;
+        z-index: 2;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-section-body {
+        padding: 0.55rem 0.65rem 0.75rem;
+        overflow: visible;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-param-grid {
+        max-height: 220px;
+        overflow-y: auto;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-param-chip {
+        padding: 0.35rem 0.45rem;
+        font-size: 0.75rem;
+        border-radius: 6px;
     }
 
     body.modal-open {

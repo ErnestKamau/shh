@@ -120,6 +120,9 @@ class ProcessEnquiryWizard extends Component
 
     public bool $defaultExpandParameters = true;
 
+    /** Process Enquiry sample config uses the tags (Select2-style) parameter picker. */
+    public string $parameterPickerView = 'tags';
+
     public bool $showAddLineModal = false;
 
     public ?string $addLineSampleTypeId = null;

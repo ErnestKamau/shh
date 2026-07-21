@@ -387,7 +387,7 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <div class="text-primary font-weight-bold small mb-1">ITEM #${listContainer.children().length + 1}</div>
-                                    <h5 class="mb-3 font-weight-bold equipment-name" title="${safeName}">${safeName}</h5>
+                                    <h5 class="mb-1 font-weight-bold equipment-name" title="${safeName}">${safeName}</h5>
                                     <div class="equipment-meta">
                                         <div class="equipment-meta-block">
                                             <div class="text-muted small">Equipment Number</div>
@@ -1286,7 +1286,8 @@
                     badges.push(`<span class="step-info-badge time"><i class="mdi mdi-clock-outline"></i> ${timeInfo.elapsed}</span>`);
                 }
                 if (timeInfo.remaining) {
-                    badges.push(`<span class="step-info-badge time"><i class="mdi mdi-timer-sand"></i> ${timeInfo.remaining}</span>`);
+                    const isOverdue = String(timeInfo.remaining).includes('overdue');
+                    badges.push(`<span class="step-info-badge ${isOverdue ? 'overdue' : 'time'}"><i class="mdi mdi-timer-sand"></i> ${timeInfo.remaining}</span>`);
                 }
                 
                 // User info
@@ -1425,7 +1426,7 @@
             return `
                 <div class="stage-details-stepper-form ${isStageLocked ? 'stage-locked' : ''}" id="stepper-form-${track.id}" data-stage-locked="${isStageLocked ? '1' : '0'}" data-controls-config='${JSON.stringify(stage.controls_required || [])}' data-media-config='${JSON.stringify(stage.media_required || [])}' data-stage-id='${track.id}' data-track-id='${track.id}' data-test-stage='${JSON.stringify(stage)}'>
                     <!-- Stepper Header -->
-                    <div class="stepper-header mb-4">
+                    <div class="stepper-header mb-3">
                         <div class="step-item active" data-step="1" data-track-id="${track.id}">
                             <div class="step-circle">1</div>
                             <div class="step-label text-uppercase">Basic Info</div>
@@ -1467,12 +1468,12 @@
                         <!-- Step 1: Basic Info -->
                         <div class="step-pane active" id="step-pane-1-${track.id}">
                             <h4 class="step-title mb-1">Basic Stage Information</h4>
-                            <p class="step-description mb-4">Review timing and analyst information for this stage.</p>
+                            <p class="step-description mb-3">Review timing and analyst information for this stage.</p>
                             
-                            <div class="info-card p-4 mb-4" style="background: #f8faff; border: 1px dashed #d0d7e7; border-radius: 8px;">
+                            <div class="info-card p-3 mb-3" style="background: #f8faff; border: 1px dashed #d0d7e7; border-radius: 8px;">
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-2">
                                             <label class="form-label font-weight-bold">Start Date & Time</label>
                                             <div class="input-group">
                                                 <input type="datetime-local" class="form-control" id="start-date-${track.id}" 
@@ -1486,7 +1487,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-2">
                                             <label class="form-label font-weight-bold">End Date & Time</label>
                                             <div class="input-group">
                                                 <input type="datetime-local" class="form-control" id="end-date-${track.id}" 
@@ -1502,28 +1503,28 @@
                                 </div>
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-2">
                                             <label class="form-label font-weight-bold">Started By (Analyst)</label>
                                             <input type="text" class="form-control" value="${track.user ? track.user.name : 'Not started'}" readonly>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-2">
                                             <label class="form-label font-weight-bold">Ended By (Analyst)</label>
                                             <input type="text" class="form-control" id="ended-by-name-${track.id}" value="${endedByName}" readonly>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row mt-2">
+                                <div class="row mt-1">
                                     <div class="col-md-12 text-center">
-                                        <div class="badge badge-soft-primary p-2">
+                                        <div class="badge badge-soft-primary px-2 py-1">
                                             <i class="mdi mdi-clock-fast mr-1"></i> Expected Duration: ${stage.duration_hours || 0} hours
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="stepper-actions d-flex justify-content-between mt-4">
+                            <div class="stepper-actions d-flex justify-content-between mt-3">
                                 <button type="button" class="btn btn-nav-back" onclick="methodSequences.cancelEdit(${track.id})">
                                     <i class="mdi mdi-close mr-1"></i> Cancel
                                 </button>
@@ -1536,10 +1537,10 @@
                         <!-- Step 2: Equipment -->
                         <div class="step-pane" id="step-pane-2-${track.id}">
                             <h4 class="step-title mb-1">Equipment Selection</h4>
-                            <p class="step-description mb-4">Please register the laboratory equipment used for this assessment cycle. Each entry requires an equipment number and calibration status.</p>
+                            <p class="step-description mb-3">Please register the laboratory equipment used for this assessment cycle. Each entry requires an equipment number and calibration status.</p>
                             
-                            <div class="equipment-registration-card p-4 mb-4" style="background: #f8faff; border: 1px dashed #d0d7e7; border-radius: 8px;">
-                                <div class="form-group mb-3">
+                            <div class="equipment-registration-card p-3 mb-3" style="background: #f8faff; border: 1px dashed #d0d7e7; border-radius: 8px;">
+                                <div class="form-group mb-2">
                                     <label class="form-label font-weight-bold">Equipment Name</label>
                                     <select class="form-control" id="equipment-picker-${track.id}">
                                         <option></option>
@@ -1548,28 +1549,28 @@
                                 </div>
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-2">
                                             <label class="form-label font-weight-bold">Equipment No</label>
                                             <input type="text" class="form-control" id="equipment-serial-${track.id}" placeholder="Equipment Number">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-2">
                                             <label class="form-label font-weight-bold">Calibration</label>
                                             <input type="date" class="form-control" id="equipment-calibration-${track.id}">
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-outline-primary btn-block py-2 font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="equipment">
+                                <button type="button" class="btn btn-outline-primary btn-block btn-sm font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="equipment">
                                     <i class="mdi mdi-plus-circle-outline mr-1"></i> Add Equipment
                                 </button>
                             </div>
 
-                            <div id="equipment-list-${track.id}" class="mb-4">
+                            <div id="equipment-list-${track.id}" class="mb-3">
                                 <!-- Cards will be rendered here -->
                             </div>
                             
-                            <div class="stepper-actions d-flex justify-content-between mt-4">
+                            <div class="stepper-actions d-flex justify-content-between mt-3">
                                 <button type="button" class="btn btn-nav-back prev-step-btn" data-track-id="${track.id}" data-prev="1">
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Basic Info
                                 </button>
@@ -1582,16 +1583,16 @@
                         <!-- Step 3: Controls -->
                         <div class="step-pane" id="step-pane-3-${track.id}">
                             <h4 class="step-title mb-1">Lab Run Controls</h4>
-                            <p class="step-description mb-4">Select and configure the controls used for this stage. Each entry requires a lot number and expiration date for validation.</p>
+                            <p class="step-description mb-3">Select and configure the controls used for this stage. Each entry requires a lot number and expiration date for validation.</p>
 
                             <div class="section-title-with-icon">
                                 <i class="mdi mdi-layers-outline"></i>
                                 <span>Currently Added Controls</span>
                             </div>
 
-                            <div id="controls-list-${track.id}" class="row mb-4">
+                            <div id="controls-list-${track.id}" class="row mb-3">
                                 <!-- Cards will be rendered here -->
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-4 mb-2">
                                     <div class="add-more-dashed-box" onclick="$('#controls-picker-${track.id}').select2('open')">
                                         <i class="mdi mdi-plus-circle-outline"></i>
                                         <span class="font-weight-bold">Add more controls...</span>
@@ -1599,16 +1600,16 @@
                                 </div>
                             </div>
 
-                            <div class="registration-panel-premium mb-4">
-                                <div class="d-flex align-items-center mb-4">
-                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mr-3" style="width: 32px; height: 32px;">
-                                        <i class="mdi mdi-plus"></i>
+                            <div class="registration-panel-premium mb-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mr-2" style="width: 22px; height: 22px;">
+                                        <i class="mdi mdi-plus" style="font-size: 0.75rem;"></i>
                                     </div>
                                     <h5 class="font-weight-bold mb-0">New Control Entry</h5>
                                 </div>
 
                                 <div class="row">
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
                                             <label>Control Name</label>
                                             <select class="form-control premium-input" id="controls-picker-${track.id}">
@@ -1616,19 +1617,19 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-6 mb-2">
                                         <div class="premium-input-group">
                                             <label>Lot Number</label>
                                             <input type="text" class="form-control premium-input" id="control-lot-${track.id}" placeholder="Enter lot number">
                                         </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-6 mb-2">
                                         <div class="premium-input-group">
                                             <label>Expiration Date</label>
                                             <input type="date" class="form-control premium-input" id="control-expiry-${track.id}">
                                         </div>
                                     </div>
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
                                             <label>Result Nature</label>
                                             <select class="form-control premium-input" id="control-result-nature-${track.id}">
@@ -1641,7 +1642,7 @@
                                     </div>
                                 </div>
 
-                                <button type="button" class="register-btn-premium mt-2 add-solution-item" data-track-id="${track.id}" data-type="controls">
+                                <button type="button" class="register-btn-premium mt-1 add-solution-item" data-track-id="${track.id}" data-type="controls">
                                     <i class="mdi mdi-check-circle-outline"></i> Register Control Item
                                 </button>
                                 
@@ -1651,7 +1652,7 @@
                                 </p>
                             </div>
 
-                            <div class="stepper-actions d-flex justify-content-between mt-4">
+                            <div class="stepper-actions d-flex justify-content-between mt-3">
                                 <button type="button" class="btn btn-nav-back prev-step-btn" data-track-id="${track.id}" data-prev="2">
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Equipment
                                 </button>
@@ -1666,10 +1667,10 @@
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <h4 class="step-title mb-0">Uninoculated Media</h4>
                             </div>
-                            <p class="step-description mb-4">Document the preparation and verification of uninoculated growth media to ensure sterile baseline conditions for the assessment.</p>
+                            <p class="step-description mb-3">Document the preparation and verification of uninoculated growth media to ensure sterile baseline conditions for the assessment.</p>
                             
                             <!-- Media Cards Grid -->
-                            <div class="row mb-4" id="media-cards-grid-${track.id}">
+                            <div class="row mb-3" id="media-cards-grid-${track.id}">
                                 <!-- Media cards will be rendered here -->
                             </div>
 
@@ -1677,7 +1678,7 @@
                             <div class="media-registration-panel">
                                 <div class="media-registration-title">Add New Media Entry</div>
                                 <div class="row">
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
                                             <label class="form-label font-weight-bold">Media Name</label>
                                             <select class="form-control premium-input" id="media-picker-${track.id}">
@@ -1685,19 +1686,19 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-6 mb-2">
                                         <div class="premium-input-group">
                                             <label class="form-label font-weight-bold">Preparation Date</label>
                                             <input type="date" class="form-control premium-input" id="media-prep-date-${track.id}">
                                         </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-6 mb-2">
                                         <div class="premium-input-group">
                                             <label class="form-label font-weight-bold">Preparation No.</label>
                                             <input type="text" class="form-control premium-input" id="media-prep-no-${track.id}" placeholder="Enter preparation number">
                                         </div>
                                     </div>
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
                                             <label class="form-label font-weight-bold">Result Nature</label>
                                             <select class="form-control premium-input" id="media-result-nature-${track.id}">
@@ -1710,13 +1711,13 @@
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-end">
-                                    <button type="button" class="btn btn-primary px-4 py-2 font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="media" style="background: #0061e0; border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 97, 224, 0.2);">
+                                    <button type="button" class="btn btn-primary btn-sm font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="media" style="background: #0061e0; border: none; border-radius: 6px;">
                                         <i class="mdi mdi-plus mr-1"></i> Add Media
                                     </button>
                                 </div>
                             </div>
 
-                            <div class="stepper-actions d-flex justify-content-between mt-4">
+                            <div class="stepper-actions d-flex justify-content-between mt-3">
                                 <button type="button" class="btn btn-nav-back prev-step-btn" data-track-id="${track.id}" data-prev="3">
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Controls
                                 </button>
@@ -1729,12 +1730,12 @@
                         <!-- Step 5: Diluents -->
                         <div class="step-pane" id="step-pane-5-${track.id}">
                             <h4 class="step-title mb-1">Uninoculated Diluents</h4>
-                            <p class="step-description mb-4">Document preparation and verification details for uninoculated diluents.</p>
+                            <p class="step-description mb-3">Document preparation and verification details for uninoculated diluents.</p>
                             
                             <!-- Diluent Cards Grid Container -->
-                            <div class="row mb-4" id="diluent-cards-grid-${track.id}">
+                            <div class="row mb-3" id="diluent-cards-grid-${track.id}">
                                 <!-- Placeholder card will be inserted here initially -->
-                                <div class="col-md-6 mb-3 diluent-placeholder-wrapper">
+                                <div class="col-md-6 mb-2 diluent-placeholder-wrapper">
                                     <div class="placeholder-card-dashed">
                                         <div class="placeholder-icon-container">
                                             <i class="mdi mdi-beaker-outline"></i>
@@ -1748,24 +1749,24 @@
                             <!-- Diluent Entry Panel (Collapsible) -->
                             <div class="media-registration-panel p-0 overflow-hidden">
                                 <!-- Panel Header (Toggle) -->
-                                <div class="media-registration-title diluent-entry-header p-4" data-track-id="${track.id}" role="button" aria-expanded="false" style="cursor: pointer;">
+                                <div class="media-registration-title diluent-entry-header px-3 py-2" data-track-id="${track.id}" role="button" aria-expanded="false" style="cursor: pointer;">
                                     <span>Add New Diluent Entry</span>
                                     <i class="mdi mdi-chevron-right text-muted diluent-entry-toggle-icon ml-auto"></i>
                                 </div>
                                 
                                 <!-- Form Body (initially hidden) -->
-                                <div id="diluent-entry-body-${track.id}" class="d-none px-4 pb-4">
-                                    <div class="form-group">
+                                <div id="diluent-entry-body-${track.id}" class="d-none px-3 pb-3">
+                                    <div class="form-group mb-2">
                                         <label class="form-label font-weight-bold">Diluent Name</label>
                                         <select class="form-control premium-input" id="diluents-picker-${track.id}">
                                             <option></option>
                                         </select>
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group mb-2">
                                         <label class="form-label font-weight-bold">Preparation Date</label>
                                         <input type="date" class="form-control premium-input" id="diluent-prep-date-${track.id}">
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group mb-2">
                                         <label class="form-label font-weight-bold">Result Nature</label>
                                         <select class="form-control premium-input" id="diluent-result-nature-${track.id}">
                                             <option value="">Select Result Nature</option>
@@ -1774,26 +1775,26 @@
                                             <option value="quantitative">Quantitative</option>
                                         </select>
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group mb-2">
                                         <label class="form-label font-weight-bold">Preparation No.</label>
                                         <input type="text" class="form-control premium-input" id="diluent-prep-no-${track.id}" placeholder="e.g., P-001-2026">
                                     </div>
-                                    <button type="button" class="btn btn-outline-primary btn-block py-2 font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="diluents">
+                                    <button type="button" class="btn btn-outline-primary btn-block btn-sm font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="diluents">
                                         <i class="mdi mdi-plus-circle-outline mr-1"></i> Add Diluent
                                     </button>
                                 </div>
                             </div>
 
-                            <div class="stepper-actions d-flex justify-content-between mt-4">
+                            <div class="stepper-actions d-flex justify-content-between mt-3">
                                 <button type="button" class="btn btn-nav-back prev-step-btn" data-track-id="${track.id}" data-prev="4">
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Media
                                 </button>
                                 <div class="ml-auto d-flex gap-2">
-                                    <button type="button" class="btn btn-nav-continue px-5 py-2 save-stage-details-btn" onclick="methodSequences.saveStageDetails(${track.id})">
+                                    <button type="button" class="btn btn-nav-continue save-stage-details-btn" onclick="methodSequences.saveStageDetails(${track.id})">
                                         Save Stage Details <i class="mdi mdi-content-save ml-1"></i>
                                     </button>
                                     ${isResultStage ? `
-                                    <button type="button" class="btn btn-nav-continue px-5 py-2 next-step-btn" data-track-id="${track.id}" data-next="6">
+                                    <button type="button" class="btn btn-nav-continue next-step-btn" data-track-id="${track.id}" data-next="6">
                                         Proceed to Results <i class="mdi mdi-arrow-right ml-1"></i>
                                     </button>
                                     ` : ''}
@@ -1805,23 +1806,23 @@
                         ${track.test_stage && track.test_stage.is_result_stage ? `
                         <div class="step-pane" id="step-pane-6-${track.id}">
                             <h4 class="step-title mb-1">Capture Stage Results</h4>
-                            <p class="step-description mb-4">Enter results for controls/media and samples.</p>
+                            <p class="step-description mb-3">Enter results for controls/media and samples.</p>
                             
                             <!-- Solution Results Container (dynamically loaded) -->
                             <div id="solution-results-container-${track.id}">
-                                <div class="text-center text-muted py-3"><i class="mdi mdi-loading mdi-spin"></i> Loading solution results...</div>
+                                <div class="text-center text-muted py-2"><i class="mdi mdi-loading mdi-spin"></i> Loading solution results...</div>
                             </div>
                             
                             <!-- Sample Results Container (dynamically loaded) -->
-                            <div id="sample-results-container-${track.id}" class="mt-4">
-                                <div class="text-center text-muted py-3"><i class="mdi mdi-loading mdi-spin"></i> Loading sample results...</div>
+                            <div id="sample-results-container-${track.id}" class="mt-3">
+                                <div class="text-center text-muted py-2"><i class="mdi mdi-loading mdi-spin"></i> Loading sample results...</div>
                             </div>
                             
-                            <div class="stepper-actions d-flex justify-content-between mt-4">
+                            <div class="stepper-actions d-flex justify-content-between mt-3">
                                 <button type="button" class="btn btn-nav-back prev-step-btn" data-track-id="${track.id}" data-prev="5">
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Diluents
                                 </button>
-                                <button type="button" class="btn btn-nav-continue px-5 py-2 save-results-btn" onclick="methodSequences.saveResultsData(${track.id})">
+                                <button type="button" class="btn btn-nav-continue save-results-btn" onclick="methodSequences.saveResultsData(${track.id})">
                                     Save Results <i class="mdi mdi-content-save ml-1"></i>
                                 </button>
                             </div>
@@ -3188,7 +3189,7 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <div class="text-primary font-weight-bold small mb-1">ITEM #${listContainer.children().length + 1}</div>
-                                    <h5 class="mb-3 font-weight-bold equipment-name" title="${safeName}">${safeName}</h5>
+                                    <h5 class="mb-1 font-weight-bold equipment-name" title="${safeName}">${safeName}</h5>
                                     <div class="equipment-meta">
                                         <div class="equipment-meta-block">
                                             <div class="text-muted small">Equipment Number</div>

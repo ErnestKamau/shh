@@ -655,13 +655,13 @@
 
                         <div class="form-group">
                             <label class="form-label">Select Samples <span class="text-danger">*</span></label>
-                            <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                            <div class="border rounded p-2" style="max-height: 240px; overflow-y: auto;">
                                 @if($availableSamples->count() > 0)
                                     @foreach($availableSamples as $sample)
-                                        <div class="form-check">
+                                        <div class="form-check mb-1">
                                             <input class="form-check-input" type="checkbox" wire:model="selectedSamples"
                                                 value="{{ $sample->id }}" id="sample-{{ $sample->id }}">
-                                            <label class="form-check-label" for="sample-{{ $sample->id }}">
+                                            <label class="form-check-label" for="sample-{{ $sample->id }}" style="font-size: 0.8125rem;">
                                                 {{ $sample->sample->sample_code }} -
                                                 {{ $sample->analysisElement->analyte->name ?? 'Unknown Analyte' }}
                                             </label>
@@ -675,10 +675,10 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showCreateRunModal', false)">
+                        <button type="button" class="btn btn-secondary btn-sm" wire:click="$set('showCreateRunModal', false)">
                             Cancel
                         </button>
-                        <button type="button" class="btn btn-primary" wire:click="createRun">
+                        <button type="button" class="btn btn-primary btn-sm" wire:click="createRun">
                             <i class="mdi mdi-check"></i> Create Run
                         </button>
                     </div>
@@ -768,10 +768,10 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showEditRunModal', false)">
+                        <button type="button" class="btn btn-secondary btn-sm" wire:click="$set('showEditRunModal', false)">
                             Cancel
                         </button>
-                        <button type="button" class="btn btn-primary" wire:click="updateRun">
+                        <button type="button" class="btn btn-primary btn-sm" wire:click="updateRun">
                             <i class="mdi mdi-check"></i> Update Run
                         </button>
                     </div>
@@ -782,11 +782,11 @@
 
     <script>
         // Auto-refresh timers every minute
-        setInterval(functio n() { 
+        setInterval(function() {
             @this.call('loadData');
-        }, 60000)   ;
-         // Close dropdowns when clicking outside
-        document.addEventListener('click', function(eve nt) {
+        }, 60000);
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
             if (!event.target.closest('.searchable-dropdown')) {
                 @this.set('showEquipmentDropdown', false);
                 @this.set('showMediaDropdown', false);
