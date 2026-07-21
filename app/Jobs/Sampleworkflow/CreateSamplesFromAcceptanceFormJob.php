@@ -490,7 +490,9 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                         (string) $detail->id,
                         $typeKey,
                         $sampleCode,
-                        $actingUserId,
+                        ! empty($plan['assigned_user_id'])
+                            ? (string) $plan['assigned_user_id']
+                            : $actingUserId,
                         is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null,
                         $elementFlagOverrides,
                         $plan['lab_section_id'] ?? null,

@@ -29,6 +29,7 @@
                                 class="custom-control-input"
                                 id="module-{{ $moduleKey }}"
                                 wire:model="visibility.{{ $moduleKey }}"
+                                {{ $moduleKey === 'settings' ? 'disabled' : '' }}
                             >
                             <label class="custom-control-label" for="module-{{ $moduleKey }}"></label>
                         </div>
@@ -62,6 +63,12 @@
         Livewire.on('module-visibility-save-failed', (payload) => {
             const message = payload?.message ?? 'Module visibility save failed (no message provided).';
             console.error('[ModuleVisibility] Save failed:', message);
+        });
+
+        Livewire.on('module-visibility-saved', () => {
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
         });
     });
 </script>

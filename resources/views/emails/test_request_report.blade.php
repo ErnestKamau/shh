@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laboratory Test Report — {{ $reportNumber }}</title>
+    <title>Test Report — {{ $reportNumber }}</title>
     <style>
         body { font-family: Arial, Helvetica, sans-serif; background:#f5f5f5; margin:0; padding:20px; color:#333; }
         .wrap { max-width:600px; margin:0 auto; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.1); }
@@ -23,11 +23,11 @@
 <div class="wrap">
     <div class="header">
         <h1>{{ $companyName }}</h1>
-        <p>Laboratory Test Report — Ready for download</p>
+        <p>Test Report — Ready for download</p>
     </div>
     <div class="body">
         <p>Dear {{ $contactName }},</p>
-        <p>Your Laboratory Test Report has been processed and is ready. Please find the details below.</p>
+        <p>Your Test Report has been processed and is ready. Please find the details below.</p>
 
         <div class="report-card">
             <div class="label">Report Number</div>

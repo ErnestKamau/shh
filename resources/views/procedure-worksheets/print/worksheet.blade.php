@@ -343,6 +343,36 @@
             </div>
         </div>
 
+        @if(!empty($metaRows))
+            <div class="section-title">Sample metadata</div>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Sample code</th>
+                        <th>Test name</th>
+                        <th>Analyst</th>
+                        <th>Method</th>
+                        <th>Unit</th>
+                        <th>Standard</th>
+                        <th>Standard limit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($metaRows as $row)
+                        <tr>
+                            <td>{{ $row['sample_code'] ?? '—' }}</td>
+                            <td>{{ $row['test_name'] ?? '—' }}</td>
+                            <td>{{ $row['analyst'] ?? '—' }}</td>
+                            <td>{{ $row['method'] ?? '—' }}</td>
+                            <td>{{ $row['unit'] ?? '—' }}</td>
+                            <td>{{ $row['standard'] ?? '—' }}</td>
+                            <td>{{ $row['standard_limit'] ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         {{-- Steps table (Step, Measurand, Equipment ID, Analyst) --}}
         <table class="results-table">
             <thead>

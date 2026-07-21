@@ -36,6 +36,10 @@
             <p class="mb-0 mt-2 text-muted">No parameters or samples found for results capture on this pipeline.</p>
         </div>
     @else
+        @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
+        @if(!empty($worksheetMetaRows) && count($worksheetMetaRows) > 1)
+            @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
+        @endif
         <div x-data="groupedResultsCaptureActions">
         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
             <div class="mb-2 mb-md-0">

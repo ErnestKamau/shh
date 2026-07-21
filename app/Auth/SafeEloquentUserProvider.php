@@ -27,4 +27,24 @@ class SafeEloquentUserProvider extends EloquentUserProvider
             throw $exception;
         }
     }
+
+    public function retrieveByToken($identifier, #[\SensitiveParameter] $token)
+    {
+        $table = $this->createModel()->getTable();
+
+        if (! Schema::hasTable($table)) {
+            return null;
+        }
+
+        try {
+            return parent::retrieveByToken($identifier, $token);
+        } catch (QueryException $exception) {
+            // Guard against stale/non-UUID identifiers in "remember me" cookies.
+            if (in_array(($exception->errorInfo[0] ?? null), ['22P02', '42P01'], true)) {
+                return null;
+            }
+
+            throw $exception;
+        }
+    }
 }

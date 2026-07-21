@@ -311,6 +311,12 @@
 
                 {{-- Steps 1+: Capture sections --}}
                 @if($currentStepIndex > 0)
+                @if(!empty($worksheetMetaSummary))
+                    @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
+                    @if(!empty($worksheetMetaRows) && count($worksheetMetaRows) > 1)
+                        @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
+                    @endif
+                @endif
                 @php
                 $selectedResults = $this->analysisSamples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
                 $configPlacementTop = ($selectedProcedureWorksheet?->config_fields_placement ?? 'top') === 'top';

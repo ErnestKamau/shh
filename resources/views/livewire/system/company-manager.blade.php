@@ -299,7 +299,7 @@
                                                 <label class="form-label small font-weight-bold">Used In Report</label>
                                                 <select wire:model="reportLogos.{{ $index }}.report_type" class="form-control form-control-sm">
                                                     <option value="">— None —</option>
-                                                    <option value="test_request_report">Laboratory Test Report</option>
+                                                    <option value="test_request_report">Test Report</option>
                                                 </select>
                                                 <small class="text-muted">Logo will be placed on this report</small>
                                             </div>

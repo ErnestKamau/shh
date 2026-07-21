@@ -1080,7 +1080,7 @@
 											@click.prevent="$wire.openReceiveModal(selectedInstanceIds())"><i class="mdi mdi-package-variant-closed mr-2"></i> Receive Sample</button>
 									</li>
 								@endif
-								@if($status === 'Samples Request Review')
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_review')
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-move-to-intray"
@@ -1089,17 +1089,6 @@
 											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())"><i class="mdi mdi-inbox-arrow-down mr-2"></i> Move to tray</button>
 									</li>
 								@endif
-								{{-- Move to tray hidden on Samples Receiving (use Request Review stage instead).
-								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-move-to-intray"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())"><i class="mdi mdi-inbox-arrow-down mr-2"></i> Move to tray</button>
-									</li>
-								@endif
-								--}}
 								{{-- Interzone transfer removed with zones
 								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
 									<li>
@@ -1113,7 +1102,18 @@
 									</li>
 								@endif
 								--}}
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_review')
+									<li>
+										<button type="button" class="dropdown-item"
+											data-sf-trigger="workflow-action-request-additional-info"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
+										</button>
+									</li>
+								@endif
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-action-request-review"
@@ -1123,8 +1123,6 @@
 											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for review
 										</button>
 									</li>
-								@endif
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-action-request-additional-info"
@@ -1219,7 +1217,7 @@
 
 									</li>
 								@endif
-								@if($status == "Samples Request Review")
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_review')
 									<li>
 										<button type="button" class="dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
 											data-sf-trigger="workflow-action-generate-draft-invoice"
@@ -1493,15 +1491,13 @@
 											<i class="mdi mdi-package-variant-closed mr-1"></i> Receive
 										</button>
 									@endif
-									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-review"
 											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
 											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for review
 										</button>
-									@endif
-									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['received', 'sub_contracting'], true))
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-additional-info"
@@ -1509,22 +1505,33 @@
 											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
 										</button>
 									@endif
-									@if($status === 'Samples Request Review')
-									<button type="button"
-										class="btn btn-sm btn-outline-primary"
-										data-sf-trigger="workflow-move-to-intray"
-										@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
-										<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
-									</button>
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'in_review')
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-action-request-additional-info"
+											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-primary"
+											data-sf-trigger="workflow-action-approve-request"
+											@click.prevent="selectedCount > 0 && $wire.openAcceptSampleWizardFromSelection()">
+											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-danger"
+											data-sf-trigger="workflow-action-reject-request"
+											@click.prevent="selectedCount > 0 && $wire.openRejectSampleWizardFromSelection()">
+											<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-move-to-intray"
+											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
+											<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
+										</button>
 									@endif
-									{{-- Move to tray hidden on Samples Receiving panel selection bar.
-									<button type="button"
-										class="btn btn-sm btn-outline-primary"
-										data-sf-trigger="workflow-move-to-intray"
-										@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
-										<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
-									</button>
-									--}}
+									{{-- Former Samples Request Review selection actions are on Receiving → In Review above. --}}
 								</div>
 							@endif
 							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
@@ -2179,7 +2186,7 @@
 
 							@if($hasSubmissions)
 								@if($submissionForms && $submissionForms->count() > 0)
-									@if($status === 'Samples Request Review' && $workflowSubTab === 'in_review')
+									@if($this->isReceivingAnalystReviewTab())
 										<div class="workflow-review-status-legend mb-3">
 											<span class="legend-label">Row border:</span>
 											<span class="legend-item">
@@ -2323,18 +2330,20 @@
 													<tr @if($reviewRowBorderClass !== '') class="{{ $reviewRowBorderClass }}" @endif>
 														<td class="align-middle">
 															@php
-																$requestReviewStatuses = $status === 'Samples Receiving' && $workflowSubTab === 'received'
-																	? ['received']
-																	: ['submitted', 'in_review'];
 																$showRequestReviewCheckbox = (
+																	$this->isReceivingAnalystReviewTab()
+																	&& ! $hasBatch
+																	&& in_array($instance->status, ['in_review', 'In Review', 'received'], true)
+																) || (
 																	$status === 'Samples Request Review'
 																	&& $workflowSubTab === 'in_review'
 																	&& ! $hasBatch
 																	&& in_array($instance->status, ['in_review', 'In Review'], true)
 																) || (
-																	$status !== 'Samples Request Review'
+																	$status === 'Samples Receiving'
+																	&& ! $this->isReceivingReviewOutcomeTab()
 																	&& ! $hasBatch
-																	&& in_array($instance->status, $requestReviewStatuses, true)
+																	&& in_array($instance->status, ['submitted', 'in_review', 'received'], true)
 																);
 																$showInstanceRowCheckbox = $status === 'Samples Receiving'
 																	|| $showRequestReviewCheckbox;
@@ -2516,7 +2525,7 @@
 														<td class="text-center ls-table-meta">
 															{{ $testsRequiredCount }}
 														</td>
-														@if($status === 'Samples Request Review')
+														@if($this->isReceivingReviewOutcomeTab() || $status === 'Samples Request Review')
 															@php
 																$acceptanceForm = $instance->analysisAcceptanceForms->first();
 																$acceptanceStatus = $acceptanceForm?->status;
@@ -3295,7 +3304,7 @@
 									<i class="mdi mdi-file-document-edit-outline text-primary mr-2"></i>
 									Request more info
 								</h5>
-								<p class="text-muted small mb-0">Ask the customer for additional information on received requests.</p>
+								<p class="text-muted small mb-0">Ask the customer for additional information on requests in review.</p>
 							</div>
 							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 								<span aria-hidden="true">&times;</span>

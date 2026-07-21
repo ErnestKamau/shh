@@ -238,7 +238,7 @@ class ElementManager extends Component
         $this->resetElementForm();
         // Preload all active options for dropdowns
         $this->filteredAnalytes = Analyte::where('active', 1)->orderBy('name')->get();
-        $this->filteredMethods = AnalysisMethod::where('active', 1)->orderBy('name')->get();
+        $this->filteredMethods = $this->queryMethodOptions()->get();
         $this->filteredEquipment = Equipment::where('active', 1)->orderBy('name')->get();
         $this->filteredOperators = User::where('active', 1)->where('is_client', 0)->orderBy('name')->get();
         $this->filteredReportingUnits = ReportingUnit::orderBy('name')->get();
@@ -314,9 +314,16 @@ class ElementManager extends Component
         
         $this->loadMethodSequencesForAnalyte();
         $this->reloadStageHeaderOptions();
+        $this->filteredMethods = $this->queryMethodOptions()->get();
 
         $this->showElementModal = true;
         $this->dispatch('element-modal-opened');
+    }
+
+    public function openMethodDropdown(): void
+    {
+        $this->filteredMethods = $this->queryMethodOptions($this->methodSearch)->get();
+        $this->showMethodDropdown = true;
     }
 
     public function saveElement()
@@ -611,15 +618,26 @@ class ElementManager extends Component
         $this->elementForm['stage_header_id'] = null;
     }
 
-    public function searchMethods()
+    public function searchMethods(): void
     {
+        $this->filteredMethods = $this->queryMethodOptions($this->methodSearch)->get();
         $this->showMethodDropdown = true;
-        $search = $this->methodSearch;
-        
-        $this->filteredMethods = AnalysisMethod::where('active', 1)
-            ->where('name', 'like', '%' . $search . '%')
-            ->limit(10)
-            ->get();
+    }
+
+    protected function queryMethodOptions(?string $search = null)
+    {
+        $query = AnalysisMethod::query()
+            ->where('active', 1)
+            ->orderBy('name');
+
+        if ($search !== null && $search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            });
+        }
+
+        return $query;
     }
 
     public function selectMethod($id)

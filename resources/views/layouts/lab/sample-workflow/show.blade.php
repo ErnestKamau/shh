@@ -752,7 +752,7 @@
 				@endif
 				@if($batch->status == "Sample Approval")
 				<li>
-					<span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal" title="Generate Test Request Report"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Report</span>
+					<span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal" title="Generate Test Report"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Report</span>
 				</li>
 
 				@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
@@ -3000,7 +3000,7 @@
 					<div class="custom-control custom-checkbox">
 						<input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa">
 						<label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa">
-							Include in Test Request Report (merge report first, then your PDF file(s))
+							Include in Test Report (merge report first, then your PDF file(s))
 						</label>
 					</div>
 				</div>

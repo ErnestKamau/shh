@@ -84,6 +84,7 @@ trait ManagesSampleConfigurationWizard
                 $keys[] = $parameterKey;
             }
             $this->sampleConfigs[$index]['parameter_keys'] = $keys;
+            $this->sampleConfigs[$index]['suppress_requested_parameter_autofill'] = $keys === [];
 
             if (property_exists($this, 'crmCustomerId')
                 && is_string($this->crmCustomerId)
@@ -100,9 +101,9 @@ trait ManagesSampleConfigurationWizard
     {
         $configService = app(AcceptanceFormSampleConfigService::class);
 
-        foreach ($this->sampleConfigs as $index => $config) {
+        $this->sampleConfigs = array_values(array_map(function (array $config) use ($configId, $configService): array {
             if ((string) ($config['id'] ?? '') !== $configId) {
-                continue;
+                return $config;
             }
 
             $parameters = $configService->parametersForConfig(
@@ -111,15 +112,31 @@ trait ManagesSampleConfigurationWizard
                 $config['analysis_type_id'] ?? null
             );
 
-            $this->sampleConfigs[$index]['parameter_keys'] = collect($parameters)
+            $config['parameter_keys'] = collect($parameters)
                 ->pluck('analysis_element_id')
                 ->filter()
                 ->map(fn ($id) => (string) $id)
                 ->values()
                 ->all();
+            $config['suppress_requested_parameter_autofill'] = false;
 
-            break;
-        }
+            return $config;
+        }, $this->sampleConfigs));
+    }
+
+    public function deselectAllConfigParameters(string $configId): void
+    {
+        $this->sampleConfigs = array_values(array_map(function (array $config) use ($configId): array {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                return $config;
+            }
+
+            $config['parameter_keys'] = [];
+            // Prevent TRF/requested-analysis autofill from immediately re-selecting after a clear.
+            $config['suppress_requested_parameter_autofill'] = true;
+
+            return $config;
+        }, $this->sampleConfigs));
     }
 
     /**
@@ -168,6 +185,14 @@ trait ManagesSampleConfigurationWizard
     public function getConfigLabsProperty(): array
     {
         return app(AcceptanceFormSampleConfigService::class)->labsForPicker();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function getConfigAssignableUsersProperty(): array
+    {
+        return app(AcceptanceFormSampleConfigService::class)->assignableUsersForPicker();
     }
 
     public function instancePhotoUploadKey(string $configId): string

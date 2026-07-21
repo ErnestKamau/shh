@@ -23,8 +23,11 @@ final class AmSpecQuotationNumberGenerator
             ->value('quote_number');
 
         $sequence = 1;
-        if (is_string($lastNumber) && preg_match('/(\d{3})$/', $lastNumber, $matches) === 1) {
-            $sequence = (int) $matches[1] + 1;
+        if (is_string($lastNumber) && str_starts_with($lastNumber, $prefix)) {
+            $sequencePart = substr($lastNumber, strlen($prefix));
+            if (ctype_digit($sequencePart)) {
+                $sequence = (int) $sequencePart + 1;
+            }
         }
 
         do {

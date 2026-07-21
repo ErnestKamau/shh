@@ -6,6 +6,7 @@ use App\CapturedResult;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\StandardLimitDisplayService;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -2475,19 +2476,25 @@ trait HandlesStageHeaderMethodSequences
                 ?? $defaultStandardLimit
                 ?? '-';
 
+            $meta = app(WorksheetMetaResolver::class)->forCapturedResult(
+                $cr->loadMissing(WorksheetMetaResolver::EAGER)
+            );
+
             $samples[] = [
                 'id' => $cr->id,
-                'sample_code' => $sampleCode,
+                'sample_code' => $meta['sample_code'],
                 'sample_type' => $sampleType,
                 'analyte_name' => $analyteName,
+                'test_name' => $meta['test_name'],
+                'analyst' => $meta['analyst'],
                 'analyte_code' => $cr->analyte_code ?? '',
-                'method_name' => $method,
-                'unit' => $unit,
+                'method_name' => $meta['method'],
+                'unit' => $meta['unit'],
                 'reporting_symbol' => $trackSampleResult->reporting_symbol ?? '',
-                'standard_name' => $standardAnalyte?->standard?->name ?? 'N/A',
+                'standard_name' => $meta['standard'],
                 'standard_limit_type' => $standardAnalyte?->standard_value_type ?? 'value',
                 'standard_limit' => $effectiveStandardLimit,
-                'standard_limit_text' => $effectiveStandardLimit,
+                'standard_limit_text' => $meta['standard_limit'],
                 'limit_low' => $standardAnalyte?->low,
                 'limit_high' => $standardAnalyte?->high,
                 'limit_value' => $standardValue?->code ?? null,
@@ -2498,9 +2505,17 @@ trait HandlesStageHeaderMethodSequences
             ];
         }
 
+        $capturedForSummary = collect($samples)
+            ->pluck('captured_result_id')
+            ->filter()
+            ->pipe(fn ($ids) => CapturedResult::query()->whereIn('id', $ids)->with(WorksheetMetaResolver::EAGER)->get());
+
+        $metaSummary = app(WorksheetMetaResolver::class)->summaryForMany($capturedForSummary);
+
         $html = view('worksheets.partials.method-sequence-sample-results', [
             'samples' => $samples,
             'trackId' => $track->id,
+            'metaSummary' => $metaSummary,
         ])->render();
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');

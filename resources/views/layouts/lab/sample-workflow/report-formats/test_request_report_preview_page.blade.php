@@ -223,7 +223,7 @@
     <div class="trr-system-preview-chrome">
         <div class="trr-system-preview-meta">
             <span class="trr-preview-badge">Draft</span>
-            <h1>Test Request Report</h1>
+            <h1>Test Report</h1>
             <span class="trr-preview-sep" aria-hidden="true"></span>
             <span class="trr-preview-number">{{ $reportNumber }}</span>
         </div>
@@ -236,7 +236,7 @@
     <div class="trr-system-preview-frame-wrap">
         <iframe
             id="trr-preview-frame"
-            title="Test Request Report Preview"
+            title="Test Report Preview"
             src="{{ $frameUrl }}"
             loading="eager"
         ></iframe>

@@ -404,7 +404,7 @@ class TestRequestReportDataService
     }
 
     /**
-     * Resolve logos configured for Laboratory Test Report in System Settings → Companies.
+     * Resolve logos configured for Test Report in System Settings → Companies.
      *
      * @return array{0: array<string, array{src: string, show_on_every_page: bool}>, 1: string, 2: string}
      */

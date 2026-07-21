@@ -21,7 +21,7 @@ class TestRequestReportMail extends Mailable
     public function build(): self
     {
         return $this
-            ->subject("Laboratory Test Report: {$this->reportNumber}")
+            ->subject("Test Report: {$this->reportNumber}")
             ->view('emails.test_request_report');
     }
 }

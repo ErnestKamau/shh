@@ -25,7 +25,10 @@
         @foreach($this->sampleConfigs as $configIndex => $config)
             @php
                 $configId = (string) ($config['id'] ?? '');
+                $allParameters = $this->parametersForConfigIndex($configIndex);
                 $parameters = $this->filteredParametersForConfigIndex($configIndex);
+                $parameterSearch = trim((string) ($config['parameter_search'] ?? ''));
+                $showParameterSearch = count($allParameters) > 8 || $parameterSearch !== '';
                 $selectedKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
                 $analysisTypes = $this->analysisTypesForConfigIndex($configIndex);
                 $sampleConditions = $this->sampleConditionsForConfigIndex($configIndex);
@@ -34,6 +37,7 @@
                 $showMainStandard = (bool) ($showMainStandardOnConfig ?? true);
                 $showSecondaryStandard = (bool) ($showSecondaryStandardOnConfig ?? false);
                 $showLabId = (bool) ($showLabIdOnConfig ?? false);
+                $showAssignedUser = (bool) ($showAssignedUserOnConfig ?? false);
                 $showSampleDetails = (bool) ($showSampleDetailsOnConfig ?? ($showSampleInstancesOnConfig ?? false));
                 $showQuantity = (bool) ($showQuantityOnConfig ?? false);
                 $showParameters = (bool) ($showParametersOnConfig ?? true);
@@ -49,6 +53,7 @@
                     + ($showMainStandard ? 1 : 0)
                     + ($showSecondaryStandard ? 1 : 0)
                     + ($showLabId ? 1 : 0)
+                    + ($showAssignedUser ? 1 : 0)
                     + ($showQuantity ? 1 : 0);
                 $sampleTypeName = collect($this->configSampleTypes)->firstWhere('id', (string) ($config['sample_type_id'] ?? ''))['name'] ?? '—';
                 $analysisTypeName = collect($analysisTypes)->firstWhere('id', (string) ($config['analysis_type_id'] ?? ''))['name'] ?? '—';
@@ -88,8 +93,14 @@
                                 @if($showMainStandard)
                                     <col class="acc-col-main-standard">
                                 @endif
+                                @if($showAssignedUser)
+                                    <col class="acc-col-assigned-user">
+                                @endif
                                 @if($showLabId)
                                     <col class="acc-col-lab">
+                                @endif
+                                @if($showLabSection)
+                                    <col class="acc-col-lab-section">
                                 @endif
                                 @if($showQuantity)
                                     <col class="acc-col-qty">
@@ -100,9 +111,6 @@
                             <tr>
                                 <th>Sample type</th>
                                 <th>Analysis type</th>
-                                @if($showLabSection)
-                                    <th>Lab section</th>
-                                @endif
                                 @if($showCondition)
                                     <th>{{ $compactTable ? 'Condition' : 'Condition of sample' }}</th>
                                 @endif
@@ -112,8 +120,14 @@
                                 @if($showSecondaryStandard)
                                     <th>Secondary standard</th>
                                 @endif
+                                @if($showAssignedUser)
+                                    <th>{{ $compactTable ? 'User' : 'Assigned user' }}</th>
+                                @endif
                                 @if($showLabId)
                                     <th>Lab</th>
+                                @endif
+                                @if($showLabSection)
+                                    <th>Lab section</th>
                                 @endif
                                 @if($showQuantity)
                                     <th class="text-center">{{ $compactTable ? 'Qty' : 'No. of samples' }}</th>
@@ -157,21 +171,6 @@
                                         @error('sampleConfigs.'.$configIndex.'.analysis_type_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                     @endif
                                 </td>
-                                @if($showLabSection)
-                                <td>
-                                    <select
-                                        class="form-control form-control-sm acc-input"
-                                        wire:model.live="sampleConfigs.{{ $configIndex }}.lab_section_id"
-                                        @disabled(empty($config['analysis_type_id']))
-                                    >
-                                        <option value="">Select…</option>
-                                        @foreach($this->configLabSections as $section)
-                                            <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('sampleConfigs.'.$configIndex.'.lab_section_id')<div class="text-danger small">{{ $message }}</div>@enderror
-                                </td>
-                                @endif
                                 @if($showCondition)
                                 <td>
                                     <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.sample_condition_id">
@@ -205,6 +204,17 @@
                                     @error('sampleConfigs.'.$configIndex.'.secondary_standard_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                 </td>
                                 @endif
+                                @if($showAssignedUser)
+                                <td>
+                                    <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.assigned_user_id">
+                                        <option value="">Select…</option>
+                                        @foreach($this->configAssignableUsers as $user)
+                                            <option value="{{ $user['id'] }}">{{ $user['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('sampleConfigs.'.$configIndex.'.assigned_user_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                                </td>
+                                @endif
                                 @if($showLabId)
                                 <td>
                                     <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.lab_id">
@@ -214,6 +224,21 @@
                                         @endforeach
                                     </select>
                                     @error('sampleConfigs.'.$configIndex.'.lab_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                                </td>
+                                @endif
+                                @if($showLabSection)
+                                <td>
+                                    <select
+                                        class="form-control form-control-sm acc-input"
+                                        wire:model.live="sampleConfigs.{{ $configIndex }}.lab_section_id"
+                                        @disabled(empty($config['analysis_type_id']))
+                                    >
+                                        <option value="">Select…</option>
+                                        @foreach($this->configLabSections as $section)
+                                            <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('sampleConfigs.'.$configIndex.'.lab_section_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                 </td>
                                 @endif
                                 @if($showQuantity)
@@ -255,10 +280,18 @@
                                                 <button
                                                     type="button"
                                                     class="btn btn-sm acc-sample-config-select-all"
-                                                    wire:click="selectAllConfigParameters('{{ $configId }}')"
+                                                    wire:click.prevent="selectAllConfigParameters('{{ $configId }}')"
                                                     @disabled(empty($config['analysis_type_id']))
                                                 >
                                                     Select all
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-sm acc-sample-config-select-all"
+                                                    wire:click.prevent="deselectAllConfigParameters('{{ $configId }}')"
+                                                    @disabled(empty($config['analysis_type_id']) || count($selectedKeys) === 0)
+                                                >
+                                                    Deselect all
                                                 </button>
                                             </div>
                                         </div>

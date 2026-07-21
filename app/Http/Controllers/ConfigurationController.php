@@ -89,9 +89,4 @@ class ConfigurationController extends Controller
       ->back()
       ->with('success', 'System Preferences & Theming updated successfully!');
   }
-
-  public function whatsapp(): View
-  {
-    return view('layouts.configuration.whatsapp-configuration');
-  }
 }

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -706,6 +707,7 @@ class SubmissionFormInstance extends Model implements Auditable
 
     /**
      * Mark a submitted portal/LIMS template request as physically received at the lab.
+     * Check-in advances straight to In Review (the Received Request stage is skipped).
      */
     public function markAsReceived($user, ?string $notes = null): bool
     {
@@ -713,24 +715,47 @@ class SubmissionFormInstance extends Model implements Auditable
             return false;
         }
 
-        $this->update([
-            'status' => 'received',
+        $previousStatus = $this->status;
+
+        $attributes = [
+            'status' => 'in_review',
             'reviewed_at' => now(),
             'reviewed_by' => $user->id,
             'review_notes' => $notes,
-        ]);
+        ];
 
-        $this->logAction('received', $user, null, $notes);
+        if (! empty($user->lab_id) && Schema::hasColumn($this->getTable(), 'receiving_lab_id')) {
+            $attributes['receiving_lab_id'] = (string) $user->lab_id;
+        }
+
+        $this->update($attributes);
+
+        $this->logAction('received', $user, [
+            'status' => ['from' => $previousStatus, 'to' => 'in_review'],
+        ], $notes);
+
+        $this->logAction('sent_for_analyst_review', $user, [
+            'status' => ['from' => $previousStatus, 'to' => 'in_review'],
+        ], $notes);
+
+        foreach ($this->attachmentInstances as $attachmentInstance) {
+            if ($attachmentInstance->status === 'submitted') {
+                $attachmentInstance->update([
+                    'status' => 'in_review',
+                    'reviewed_at' => $attachmentInstance->reviewed_at ?? now(),
+                ]);
+            }
+        }
 
         return true;
     }
 
     /**
-     * Request additional information from the customer (Samples Receiving — Received tab).
+     * Request additional information from the customer (Samples Receiving — In Review).
      */
     public function markAsInAdditionalInfo(User $user, ?string $notes = null, bool $notifyCustomer = true): bool
     {
-        if ($this->status !== 'received') {
+        if (! in_array($this->status, ['received', 'in_review'], true)) {
             return false;
         }
 

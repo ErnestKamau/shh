@@ -350,10 +350,16 @@ class AnalyteManager extends Component
     public function getFilteredMethodsProperty()
     {
         $query = AnalysisMethod::where('active', 1)->orderBy('name');
-        if (!empty($this->methodSearch)) {
-            $query->where('name', 'like', '%' . $this->methodSearch . '%');
+
+        if (! empty($this->methodSearch)) {
+            $search = $this->methodSearch;
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            });
         }
-        return $query->limit(30)->get();
+
+        return $query->get();
     }
 
     public function getFilteredEquipmentProperty()

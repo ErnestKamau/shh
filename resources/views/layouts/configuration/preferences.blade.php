@@ -76,12 +76,25 @@
         position: relative;
     }
     .preview-link:hover {
-        background: var(--preview-link-bg, rgba(255, 255, 255, 0.05));
-        transform: translateX(5px) scale(1.02);
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 6px 20px var(--preview-primary, #00A7DF);
-        border: 1px solid var(--preview-primary, #00A7DF);
-        padding: 9px 11px; /* compensate for 1px border */
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        padding: 8px 10px; /* compensate for 2px border */
         color: var(--preview-sidebar-text, rgba(255, 255, 255, 0.95)) !important;
+    }
+    .preview-link:hover::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 8px;
+        padding: 2px;
+        background: linear-gradient(135deg, var(--preview-primary, #00A7DF), var(--preview-secondary, #0090C0));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: exclude;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
     }
     .preview-link.active {
         background: var(--preview-link-bg, rgba(255, 255, 255, 0.05));
@@ -121,6 +134,7 @@
         margin-right: 8px;
     }
     .preview-button {
+        position: relative;
         background-color: var(--preview-primary, #00A7DF);
         border-color: var(--preview-primary, #00A7DF);
         color: white;
@@ -128,8 +142,29 @@
         border-radius: 6px;
         font-size: 13px;
         font-weight: 500;
-        border: 1px solid transparent;
+        border: 1px solid var(--preview-primary, #00A7DF);
         transition: all 0.2s ease;
+        z-index: 1;
+    }
+    .preview-button:hover {
+        background: transparent;
+        border-color: transparent;
+    }
+    .preview-button:hover::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 6px;
+        padding: 15px;
+        background: linear-gradient(135deg, var(--preview-primary, #00A7DF), var(--preview-secondary, #0090C0));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: exclude;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        z-index: -1;
     }
     .preset-theme-btn {
         width: 100%;

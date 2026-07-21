@@ -13,6 +13,7 @@ use App\SampleAnalysisStage;
 use App\SampleCondition;
 use App\SampleType;
 use App\Standards;
+use App\User;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +40,7 @@ class AcceptanceFormSampleConfigService
             'zone_id' => null,
             'lab_section_id' => null,
             'lab_id' => null,
+            'assigned_user_id' => null,
             'row_index' => null,
             'number_of_samples' => 1,
             'parameter_keys' => [],
@@ -555,6 +557,11 @@ class AcceptanceFormSampleConfigService
 
             // Preserve intentional lab selections; only fill empty keys from TRF.
             if ($existingKeys !== []) {
+                return $config;
+            }
+
+            // User explicitly cleared parameters (Deselect all / last toggle off).
+            if (! empty($config['suppress_requested_parameter_autofill'])) {
                 return $config;
             }
 
@@ -1182,6 +1189,29 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * Active lab users available for per-sample assignment on Analysis Acceptance.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function assignableUsersForPicker(): array
+    {
+        return User::query()
+            ->where('active', 1)
+            ->where(function ($query): void {
+                $query->where('is_client', 0)
+                    ->orWhereNull('is_client');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $user) => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $instances
      * @return list<array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}>
      */
@@ -1262,6 +1292,12 @@ class AcceptanceFormSampleConfigService
             }
             if (empty($config['lab_id'])) {
                 $errors["sampleConfigs.{$index}.lab_id"] = "Row {$row}: lab is required.";
+            }
+            if (empty($config['lab_section_id'])) {
+                $errors["sampleConfigs.{$index}.lab_section_id"] = "Row {$row}: lab section is required.";
+            }
+            if (empty($config['assigned_user_id'])) {
+                $errors["sampleConfigs.{$index}.assigned_user_id"] = "Row {$row}: assigned user is required.";
             }
         }
 
@@ -1515,6 +1551,7 @@ class AcceptanceFormSampleConfigService
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
                 'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
                 'lab_id' => ! empty($config['lab_id']) ? (string) $config['lab_id'] : null,
+                'assigned_user_id' => ! empty($config['assigned_user_id']) ? (string) $config['assigned_user_id'] : null,
                 'row_index' => isset($config['row_index']) ? (int) $config['row_index'] : null,
                 'number_of_samples' => 1,
                 'parameter_keys' => array_values(array_map('strval', $config['parameter_keys'] ?? [])),
@@ -1541,6 +1578,7 @@ class AcceptanceFormSampleConfigService
      *     lab_id: ?string,
      *     zone_id: ?string,
      *     lab_section_id: ?string,
+     *     assigned_user_id: ?string,
      *     customer_sample_id: ?string,
      *     sample_marking: ?string,
      *     disposal_date: ?string,
@@ -1572,6 +1610,7 @@ class AcceptanceFormSampleConfigService
                 'lab_id' => ! empty($config['lab_id']) ? (string) $config['lab_id'] : null,
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
                 'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
+                'assigned_user_id' => ! empty($config['assigned_user_id']) ? (string) $config['assigned_user_id'] : null,
                 'customer_sample_id' => $details['customer_sample_id'] !== ''
                     ? $details['customer_sample_id']
                     : null,

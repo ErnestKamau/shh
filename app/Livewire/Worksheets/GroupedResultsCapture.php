@@ -6,6 +6,7 @@ use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedResultsCaptureService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
+use App\Services\Worksheets\WorksheetMetaResolver;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -174,7 +175,15 @@ class GroupedResultsCapture extends Component
 
     public function render()
     {
-        return view('livewire.worksheets.grouped-results-capture');
+        $service = app(GroupedResultsCaptureService::class);
+        $capturedResults = $service->loadCapturedResults($this->batch, $this->holder)
+            ->load(WorksheetMetaResolver::EAGER);
+        $metaResolver = app(WorksheetMetaResolver::class);
+
+        return view('livewire.worksheets.grouped-results-capture', [
+            'worksheetMetaSummary' => $metaResolver->summaryForMany($capturedResults),
+            'worksheetMetaRows' => $metaResolver->forMany($capturedResults),
+        ]);
     }
 
     /**

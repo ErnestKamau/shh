@@ -67,7 +67,7 @@
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             @else
-                                <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt)>
+                                <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt || !$pdfGenerated)>
                                     <span wire:loading.remove wire:target="sendQuotation">
                                         <i class="mdi mdi-send"></i>
                                         {{ $quotationSent ? 'Send again' : 'Send to customer' }}
@@ -178,21 +178,23 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
                                             <i class="mdi mdi-sync"></i> Sync from pricelist
                                         </button>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" wire:click="openAddQuotationLineModal" wire:loading.attr="disabled">
-                                            <i class="mdi mdi-plus"></i> Add parameter
-                                        </button>
                                         <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
                                             <i class="mdi mdi-file-document-check-outline"></i> Build quotation
                                         </button>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled" @disabled(!$quotationBuilt)>
-                                            <i class="mdi mdi-file-pdf-box"></i> Generate PDF
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-primary btn-sm"
+                                            wire:click="viewQuotation"
+                                            wire:loading.attr="disabled"
+                                            @disabled($lines === [])
+                                        >
+                                            <span wire:loading.remove wire:target="viewQuotation">
+                                                <i class="mdi mdi-file-eye-outline"></i> View Quotation
+                                            </span>
+                                            <span wire:loading wire:target="viewQuotation">
+                                                Preparing…
+                                            </span>
                                         </button>
-                                        @if($pdfGenerated && $quotationHeaderId)
-                                            <a href="{{ route('quotation.preview', ['id' => $quotationHeaderId]) }}"
-                                               class="btn btn-sm btn-outline-secondary" target="_blank">
-                                                Preview quotation
-                                            </a>
-                                        @endif
                                     </div>
                                 </div>
 
@@ -541,4 +543,14 @@
         }
     </style>
 </div>
+
+@script
+<script>
+    $wire.on('open-quotation-preview', ({ url }) => {
+        if (url) {
+            window.open(url, '_blank');
+        }
+    });
+</script>
+@endscript
 

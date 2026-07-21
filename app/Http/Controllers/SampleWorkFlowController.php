@@ -115,6 +115,21 @@ class SampleWorkFlowController extends Controller
             $status = getSampleWorflowStages()[0];
         }
 
+        // Samples Request Review processes now live on Samples Receiving → In Review / Accepted.
+        if ($status === 'Samples Request Review') {
+            $tab = strtolower((string) $request->query('tab', 'in_review'));
+            if (in_array($tab, ['accepted', 'received'], true)) {
+                $tab = 'accepted';
+            } else {
+                $tab = 'in_review';
+            }
+
+            return redirect()->route('sample-workflow', [
+                'status' => 'Samples Receiving',
+                'tab' => $tab,
+            ]);
+        }
+
         return view('livewire.layout.sample-workflow', [
             'status' => $status,
             'initialFilters' => $request->all(),
@@ -4414,7 +4429,7 @@ class SampleWorkFlowController extends Controller
         if ($testRequestReportPath === null) {
             return redirect()->back()->with(
                 'error',
-                'Test Request Report PDF is not available for this batch. Generate the Test Request Report first, then try again.'
+                'Test Report PDF is not available for this batch. Generate the Test Report first, then try again.'
             );
         }
 
@@ -4442,7 +4457,7 @@ class SampleWorkFlowController extends Controller
         try {
             $mergedContent = $mergeService->mergeFilesToPdfContent($orderedPaths);
         } catch (\Throwable $exception) {
-            return redirect()->back()->with('error', 'Failed to merge PDFs with the Test Request Report: '.$exception->getMessage());
+            return redirect()->back()->with('error', 'Failed to merge PDFs with the Test Report: '.$exception->getMessage());
         }
 
         $fileName = 'TRR_Merged_'.time().'.pdf';
@@ -4463,7 +4478,7 @@ class SampleWorkFlowController extends Controller
 
         return redirect()
             ->route('show-pdf-annotation-page', $new->id)
-            ->with('success', 'Files merged with the Test Request Report. You can now annotate the combined PDF.');
+            ->with('success', 'Files merged with the Test Report. You can now annotate the combined PDF.');
     }
 
     private function linkCapturedResultsToAttachment(Request $request, SampleHeader $batch, BatchAttachment $new): void
@@ -6246,7 +6261,7 @@ class SampleWorkFlowController extends Controller
                         'customer_id'              => $customerId,
                         'entity_type'              => \App\SampleHeader::class,
                         'entity_id'                => $batch->id,
-                        'notification_type'        => 'Laboratory Test Report Ready',
+                        'notification_type'        => 'Test Report Ready',
                         'notification_description' => "Report {$reportNumber} is available on the portal in: {$languageSummary}.",
                     ]);
                 });
@@ -6372,7 +6387,7 @@ class SampleWorkFlowController extends Controller
                                     'to'                => $phone,
                                     'type'              => 'text',
                                     'text'              => [
-                                        'body' => "Hello {$contactName},\n\nYour Laboratory Test Report *{$reportNumber}* is ready.\n\nDownload: {$downloadUrl}\n\n{$companyName}",
+                                        'body' => "Hello {$contactName},\n\nYour Test Report *{$reportNumber}* is ready.\n\nDownload: {$downloadUrl}\n\n{$companyName}",
                                     ],
                                 ];
 

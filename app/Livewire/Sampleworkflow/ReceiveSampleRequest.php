@@ -1445,8 +1445,8 @@ class ReceiveSampleRequest extends Component
         }
 
         $message = $processed === 1
-            ? '1 request checked in at reception.'
-            : "{$processed} requests checked in at reception.";
+            ? '1 request checked in and moved to In Review.'
+            : "{$processed} requests checked in and moved to In Review.";
 
         if ($skipped > 0) {
             $message .= " ({$skipped} skipped.)";

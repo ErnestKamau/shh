@@ -101,6 +101,7 @@ class MethodSequenceManager extends Component
     public function showCreateSequenceModal(): void
     {
         $this->resetForm();
+        $this->searchMethods();
         $this->showCreateModal = true;
         $this->dispatch('modal-opened');
     }
@@ -125,7 +126,8 @@ class MethodSequenceManager extends Component
             $this->selectedMethodName = $sequence->method->name;
             $this->methodSearch = $sequence->method->name;
         }
-        
+
+        $this->searchMethods();
         $this->showEditModal = true;
         $this->dispatch('modal-opened');
     }
@@ -310,15 +312,29 @@ class MethodSequenceManager extends Component
 
     public function searchMethods(): void
     {
-        if (strlen($this->methodSearch) >= 2) {
-            $this->filteredMethods = AnalysisMethod::where('name', 'like', '%' . $this->methodSearch . '%')
-                ->limit(10)
-                ->get();
-            $this->showMethodDropdown = true;
-        } else {
-            $this->showMethodDropdown = false;
-            $this->filteredMethods = collect();
+        $query = AnalysisMethod::query()
+            ->where('active', 1)
+            ->orderBy('name');
+
+        if ($this->methodSearch !== '') {
+            $search = $this->methodSearch;
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            });
         }
+
+        $this->filteredMethods = $query->get();
+        $this->showMethodDropdown = true;
+    }
+
+    public function openMethodDropdown(): void
+    {
+        $this->filteredMethods = AnalysisMethod::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+        $this->showMethodDropdown = true;
     }
 
     public function selectAnalyte($id, $name): void

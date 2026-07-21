@@ -177,7 +177,9 @@ Route::get('/system-settings/module-visibility', 'ConfigurationController@module
 Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('can:system.translations.view');
 Route::get('/system-settings/preferences', 'ConfigurationController@preferences')->name('system-settings.preferences')->middleware('can:settings.module.access');
 Route::post('/system-settings/preferences', 'ConfigurationController@updatePreferences')->name('system-settings.preferences.update')->middleware('can:settings.module.access');
-Route::get('/system-settings/whatsapp', 'ConfigurationController@whatsapp')->name('system-settings.whatsapp')->middleware('can:settings.module.access');
+Route::get('/lab/whatsapp-configuration', function () {
+    return view('layouts.lab.whatsapp-configuration');
+})->name('lab.whatsapp-configuration')->middleware('can:settings.module.access');
 
 // Bulk Data Import
 Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-import')->middleware('can:settings.module.access');
@@ -626,6 +628,10 @@ Route::get(
     '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',
     'WorksheetsController@previewProcedureWorksheetPdf'
 )->name('batch-worksheets.procedure-preview')->middleware('can:laboratory.components.all samples.view');
+Route::get(
+    '/sample-workflow/batch/{batch}/worksheets/print',
+    'WorksheetsController@printWorksheet'
+)->name('batch-worksheets.print')->middleware('can:laboratory.components.all samples.view');
 Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples')->middleware('can:laboratory.components.all samples.edit');
