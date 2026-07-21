@@ -114,6 +114,14 @@
 		max-width: min(1140px, calc(100vw - 2rem));
 	}
 
+	#receive-sample-modal.receive-sample-modal--compact .modal-dialog {
+		max-width: min(420px, calc(100vw - 2rem));
+	}
+
+	#receive-sample-modal.receive-sample-modal--compact .modal-body {
+		padding: 0 1.25rem 0.5rem;
+	}
+
 	#receive-sample-modal .modal-body {
 		padding: 0 1.5rem 1.25rem;
 	}

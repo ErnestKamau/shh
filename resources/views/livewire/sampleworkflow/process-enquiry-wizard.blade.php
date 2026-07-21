@@ -178,9 +178,11 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
                                             <i class="mdi mdi-sync"></i> Sync from pricelist
                                         </button>
+                                        {{-- Build quotation temporarily disabled
                                         <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
                                             <i class="mdi mdi-file-document-check-outline"></i> Build quotation
                                         </button>
+                                        --}}
                                         <button
                                             type="button"
                                             class="btn btn-outline-primary btn-sm"

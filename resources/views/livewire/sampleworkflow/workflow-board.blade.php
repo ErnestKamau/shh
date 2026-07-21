@@ -1080,6 +1080,7 @@
 											@click.prevent="$wire.openReceiveModal(selectedInstanceIds())"><i class="mdi mdi-package-variant-closed mr-2"></i> Receive Sample</button>
 									</li>
 								@endif
+								{{-- Move to tray removed as unnecessary
 								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_review')
 									<li>
 										<button type="button" class="dropdown-item"
@@ -1089,6 +1090,7 @@
 											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())"><i class="mdi mdi-inbox-arrow-down mr-2"></i> Move to tray</button>
 									</li>
 								@endif
+								--}}
 								{{-- Interzone transfer removed with zones
 								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
 									<li>
@@ -1524,12 +1526,14 @@
 											@click.prevent="selectedCount > 0 && $wire.openRejectSampleWizardFromSelection()">
 											<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
 										</button>
+										{{-- Move to tray removed as unnecessary
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-move-to-intray"
 											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
 											<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
 										</button>
+										--}}
 									@endif
 									{{-- Former Samples Request Review selection actions are on Receiving → In Review above. --}}
 								</div>
@@ -3274,7 +3278,7 @@
 		@endif
 		@if ($status === 'Samples Receiving')
 			<div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+				<div id="receive-sample-modal-dialog" class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -6127,9 +6131,18 @@
 
 			Livewire.on('show-receive-sample-modal', function (payload) {
 				const physical = payload?.physicalCheckIn ?? false;
+				const modalEl = document.getElementById('receive-sample-modal');
+				const dialogEl = document.getElementById('receive-sample-modal-dialog');
 				const titleEl = document.getElementById('receive-sample-modal-title-text');
 				const iconEl = document.getElementById('receive-sample-modal-icon');
 				const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
+				if (modalEl) {
+					modalEl.classList.toggle('receive-sample-modal--compact', physical);
+				}
+				if (dialogEl) {
+					dialogEl.classList.toggle('modal-xl', !physical);
+					dialogEl.classList.toggle('modal-dialog-scrollable', !physical);
+				}
 				if (titleEl && iconEl) {
 					if (physical) {
 						titleEl.textContent = 'Move to In Review';
@@ -6221,6 +6234,14 @@
 			});
 
 			$('#receive-sample-modal').on('hidden.bs.modal', function () {
+				const modalEl = document.getElementById('receive-sample-modal');
+				const dialogEl = document.getElementById('receive-sample-modal-dialog');
+				if (modalEl) {
+					modalEl.classList.remove('receive-sample-modal--compact');
+				}
+				if (dialogEl) {
+					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');
+				}
 				window.dispatchEvent(new CustomEvent('trf-destroy-editors'));
 				document.querySelectorAll('.walk-in-trf-parameters-select').forEach(function (select) {
 					if (typeof window.destroyWalkInParamSelect === 'function') {
