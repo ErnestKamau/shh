@@ -3,34 +3,8 @@
 @section('module-name')
 <li class="nav-item d-flex align-items-center">
 	<a class="nav-link module-name" href="{{ route('dashboard-lab') }}"><i class="mdi mdi-flask"></i> {{ __('lab.module_name') }}</a>
-	{{-- Legacy physical check-in header button (Ready for Reception) — replaced by Receive request (walk-in TRF capture)
-	<button type="button"
-		class="btn btn-sm ml-3 workflow-header-receive-btn"
-		data-sf-trigger="workflow-receive-sample"
-		disabled>
-		<i class="mdi mdi-package-variant-closed"></i> Receive
-	</button>
-	--}}
-	<button type="button"
-		class="btn btn-sm ml-3 workflow-header-receive-btn workflow-header-receive-request-btn"
-		onclick="window.location.href=@json(route('sample-workflow.request-for-testing'))">
-		<i class="mdi mdi-walk"></i> {{ __('lab.receive_request') }}
-	</button>
 </li>
 @endsection
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-	{{-- Legacy header Receive proxy (physical check-in)
-	const headerReceiveBtn = document.querySelector('.workflow-header-receive-btn:not(.workflow-header-receive-request-btn)');
-	if (headerReceiveBtn) {
-		...
-	}
-	--}}
-});
-</script>
-@endpush
 
 @section('title')
 <style type="text/css">	.tab-card {

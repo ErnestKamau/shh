@@ -70,7 +70,9 @@ class RequestViewPageTest extends TestCase
                 'submissionFormId' => $form->id,
                 'instanceId' => $instance->id,
             ])
-            ->assertSee('Receive physical samples')
+            ->assertSeeHtml('wire:click="openPhysicalReceiveModal"')
+            ->assertDontSee('Receive physical samples')
+            ->assertDontSee('Open on receiving board')
             ->assertSee('Ready for Reception')
             ->assertDontSee('Process enquiry')
             ->assertDontSee('Record PO');

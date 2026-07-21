@@ -36,9 +36,11 @@ class RequestViewPagePresenterTest extends TestCase
         $keys = $this->actionKeys($actions);
 
         $this->assertSame('receive_samples', $actions['primary']['key'] ?? null);
+        $this->assertSame('Receive', $actions['primary']['label'] ?? null);
         $this->assertNotContains('process_enquiry', $keys);
         $this->assertNotContains('record_po', $keys);
         $this->assertNotContains('record_walk_in_acceptance', $keys);
+        $this->assertNotContains('open_receiving_board', $keys);
         $this->assertContains('receive_samples', $keys);
     }
 

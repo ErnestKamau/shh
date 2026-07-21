@@ -2525,7 +2525,7 @@
 														<td class="text-center ls-table-meta">
 															{{ $testsRequiredCount }}
 														</td>
-														@if($this->isReceivingReviewOutcomeTab() || $status === 'Samples Request Review')
+														@if($status === 'Samples Request Review')
 															@php
 																$acceptanceForm = $instance->analysisAcceptanceForms->first();
 																$acceptanceStatus = $acceptanceForm?->status;

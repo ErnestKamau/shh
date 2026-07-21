@@ -8,7 +8,7 @@
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
-@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'customer_email', 'email', 'customer_tax_id'], true))
+@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'customer_email', 'email', 'customer_tax_id'], true))
     <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
         {{ $field['label'] ?? $fieldName }}
         @if($field['required'] ?? false)

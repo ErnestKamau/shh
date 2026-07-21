@@ -21,7 +21,7 @@ class RequestViewPagePresenter
 
     public const STAGE_READY_FOR_RECEPTION = 'Ready for Reception';
 
-    public const STAGE_IN_REVIEW = 'In review';
+    public const STAGE_IN_REVIEW = 'In Review';
 
     /** @var list<string> */
     public const ENQUIRY_PROGRESS_STAGES = [
@@ -1301,15 +1301,7 @@ class RequestViewPagePresenter
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');
         } elseif ($stage === self::STAGE_READY_FOR_RECEPTION) {
-            $primary = $this->action('receive_samples', 'Receive physical samples', 'mdi-package-variant-closed', 'wire', 'openPhysicalReceiveModal');
-            $secondary[] = $this->action(
-                'open_receiving_board',
-                'Open on receiving board',
-                'mdi-open-in-new',
-                'href',
-                null,
-                route('sample-workflow', ['status' => 'Samples Receiving']).'?workflowSubTab=ready_for_reception'
-            );
+            $primary = $this->action('receive_samples', 'Receive', 'mdi-package-variant-closed', 'wire', 'openPhysicalReceiveModal');
         } elseif ($stage === self::STAGE_IN_REVIEW) {
             $primary = $this->action(
                 'open_review_board',
