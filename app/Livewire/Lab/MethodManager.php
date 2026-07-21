@@ -168,14 +168,8 @@ class MethodManager extends Component
     {
         $query = AnalysisMethod::with(['referencemethod', 'methodtype', 'basedOnStandard', 'qcSchemes']);
 
-        // Apply search filter
-        if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                    ->orWhere('code', 'like', '%' . $this->search . '%')
-                    ->orWhere('description', 'like', '%' . $this->search . '%');
-            });
-        }
+        // Apply search filter (case-insensitive for PostgreSQL and MySQL)
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code', 'description'], (string) $this->search);
 
         // Apply status filter
         if ($this->statusFilter === 'active') {
@@ -190,6 +184,38 @@ class MethodManager extends Component
         }
 
         return $query->orderBy('name')->paginate($this->perPage);
+    }
+
+    /**
+     * Apply a driver-aware case-insensitive LIKE filter across columns.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<int, string>  $columns
+     */
+    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
+    {
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+        $isPgsql = $driver === 'pgsql';
+        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
+
+        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
+            foreach ($columns as $index => $column) {
+                if ($isPgsql) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $builder->{$method}($column, 'ilike', $like);
+                    continue;
+                }
+
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
+            }
+        });
     }
 
     public function showCreateMethodModal(): void
@@ -313,7 +339,7 @@ class MethodManager extends Component
             
             if ($method) {
                 // Check if method has associated analytes
-                $analytesCount = $method->analytes()->count();
+                $analytesCount = $method->analytesCount();
                 
                 if ($analytesCount > 0) {
                     $this->setMessage('Cannot delete method with associated analytes. Please remove analytes first.', 'error');

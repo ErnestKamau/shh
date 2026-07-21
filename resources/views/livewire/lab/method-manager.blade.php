@@ -43,7 +43,7 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by name, code, or description...">
+                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, code, or description...">
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -140,7 +140,7 @@
                                             <td>{{ $method->referencemethod->name ?? '-' }}</td>
                                             <td>{{ $method->basedOnStandard->code ?? '-' }}</td>
                                             <td>
-                                                <span class="badge badge-info p-2">{{ number_format($method->analytes()->count()) }}</span>
+                                                <span class="badge badge-info p-2">{{ number_format($method->analytesCount()) }}</span>
                                             </td>
                                             <td>{{ $method->methodtype->value ?? 'Not Set' }}</td>
                                             <td>

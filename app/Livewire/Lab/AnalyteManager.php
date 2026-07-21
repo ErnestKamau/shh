@@ -349,25 +349,43 @@ class AnalyteManager extends Component
 
     public function getFilteredMethodsProperty()
     {
-        $query = AnalysisMethod::where('active', 1)->orderBy('name');
+        $selectedIds = collect($this->analyteForm['method'] ?? [])
+            ->map(fn ($id): string => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
 
-        if (! empty($this->methodSearch)) {
-            $search = $this->methodSearch;
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%');
-            });
+        $query = AnalysisMethod::query()
+            ->where('active', 1)
+            ->orderBy('name');
+
+        if ($selectedIds !== []) {
+            $query->whereNotIn('id', $selectedIds);
         }
 
-        return $query->get();
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->methodSearch);
+
+        return $query->limit(30)->get();
     }
 
     public function getFilteredEquipmentProperty()
     {
-        $query = Equipment::where('active', 1)->orderBy('name');
-        if (!empty($this->equipmentSearch)) {
-            $query->where('name', 'like', '%' . $this->equipmentSearch . '%');
+        $selectedIds = collect($this->analyteForm['equipment_id'] ?? [])
+            ->map(fn ($id): string => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        $query = Equipment::query()
+            ->where('active', 1)
+            ->orderBy('name');
+
+        if ($selectedIds !== []) {
+            $query->whereNotIn('id', $selectedIds);
         }
+
+        $this->applyCaseInsensitiveSearch($query, ['name', 'equipment_number'], (string) $this->equipmentSearch);
+
         return $query->limit(30)->get();
     }
 
@@ -404,13 +422,45 @@ class AnalyteManager extends Component
 
     public function getFilteredReportingUnitsProperty()
     {
-        $query = ReportingUnit::where('active', 1)->orderBy('name');
+        $query = ReportingUnit::query()
+            ->where('active', 1)
+            ->orderBy('name');
 
-        if (!empty($this->reportingUnitSearch)) {
-            $query->where('name', 'like', '%' . $this->reportingUnitSearch . '%');
-        }
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->reportingUnitSearch);
 
         return $query->limit(50)->get();
+    }
+
+    /**
+     * Apply a driver-aware case-insensitive LIKE filter across columns.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<int, string>  $columns
+     */
+    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
+    {
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+        $isPgsql = $driver === 'pgsql';
+        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
+
+        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
+            foreach ($columns as $index => $column) {
+                if ($isPgsql) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $builder->{$method}($column, 'ilike', $like);
+                    continue;
+                }
+
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
+            }
+        });
     }
 
     public function render()
@@ -419,11 +469,7 @@ class AnalyteManager extends Component
         
         // Apply search filter
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%')
-                  ->orWhere('common_name', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code', 'common_name'], (string) $this->search);
         }
         
         // Apply status filter
