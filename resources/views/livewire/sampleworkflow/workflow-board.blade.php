@@ -1,4 +1,5 @@
-<div class="container-fluid workflow-board-page lab-panel-theme workflow-theme"
+<div class="container-fluid workflow-board-page lab-panel-theme workflow-theme lab-surface-theme"
+	data-ls-type="plex"
 	x-data="{
 		selectedCount: 0,
 		selectedLabBatchCount: 0,
@@ -63,9 +64,10 @@
 		type="button"
 		class="d-none"
 		data-sf-trigger="workflow-walk-in-request"
-		wire:click="openReceiveModal([])"
+		onclick="window.location.href=@json(route('sample-workflow.request-for-testing'))"
 	></button>
 @include('layouts.lab.partials.lab-panel-theme-styles')
+@include('layouts.lab.partials.lab-surface-theme-styles')
 <style>
 	.workflow-board-header .batch-header-bar {
 		margin-bottom: 0;
@@ -87,9 +89,9 @@
 		flex-wrap: wrap;
 	}
 	.workflow-board-header .btn-action-sm {
-		height: 32px;
-		padding: 0 14px;
-		font-size: var(--text-sm);
+		height: 30px;
+		padding: 0 12px;
+		font-size: var(--ls-text-sm, 0.75rem);
 		border-radius: 6px;
 		display: inline-flex;
 		align-items: center;
@@ -348,24 +350,25 @@
 	.workflow-board-page .workflow-receiving-tabs {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
-		padding: 4px;
+		gap: 6px;
+		padding: calc(4px - 0.5px);
 		background: #f8fafc;
 		border: 1px solid #e2e8f0;
-		border-radius: 10px;
+		border-radius: var(--ls-radius-lg, 8px);
 	}
 	.workflow-board-page .workflow-receiving-tab {
 		display: inline-flex;
 		align-items: center;
-		gap: 8px;
-		padding: 8px 14px;
+		gap: 6px;
+		padding: var(--ls-tab-pad-y, calc(0.5rem - 0.5px)) var(--ls-tab-pad-x, 0.85rem);
 		border: 1px solid transparent;
-		border-radius: 8px;
+		border-radius: var(--ls-radius-md, 6px);
 		background: transparent;
 		color: #475569;
-		font-size: 0.8rem;
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif) !important;
+		font-size: var(--ls-tab-font, 0.8125rem);
 		font-weight: 600;
-		line-height: 1.2;
+		line-height: 1.25;
 		cursor: pointer;
 		transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 	}
@@ -378,16 +381,16 @@
 		background: #fff;
 		border-color: var(--color-primary);
 		color: var(--color-primary);
-		box-shadow: 0 1px 4px var(--color-primary-highlight);
+		box-shadow: 0 1px 3px var(--color-primary-highlight);
 	}
 	.workflow-board-page .workflow-receiving-tab-badge {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 1.35rem;
-		padding: 2px 7px;
+		min-width: 1.25rem;
+		padding: calc(2px - 0.5px) 6px;
 		border-radius: 999px;
-		font-size: 0.7rem;
+		font-size: var(--ls-text-xs, 0.6875rem);
 		font-weight: 700;
 		background: #e2e8f0;
 		color: #475569;
@@ -396,6 +399,65 @@
 		background: var(--color-primary-soft-10);
 		color: var(--color-primary);
 	}
+
+	.workflow-board-page .workflow-filters-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		gap: 0.75rem;
+		padding: 0.15rem 0;
+		border: 0 !important;
+		outline: none !important;
+		box-shadow: none !important;
+		background: transparent;
+		color: inherit;
+		text-align: left;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.workflow-board-page .workflow-filters-toggle:focus,
+	.workflow-board-page .workflow-filters-toggle:focus-visible,
+	.workflow-board-page .workflow-filters-toggle:active {
+		outline: none !important;
+		box-shadow: none !important;
+		border: 0 !important;
+	}
+	.workflow-board-page .workflow-filters-toggle__label {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: var(--ls-text-md, 0.875rem);
+		font-weight: 600;
+		color: var(--color-text, #0f172a);
+	}
+	.workflow-board-page .workflow-filters-toggle__badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 1px 7px;
+		border-radius: 999px;
+		font-size: 0.6875rem;
+		font-weight: 700;
+		background: var(--color-primary-soft-10, #e8eefc);
+		color: var(--color-primary, #3b5fc0);
+	}
+	.workflow-board-page .workflow-filters-panel {
+		margin-top: 0.75rem;
+	}
+	.workflow-board-page .workflow-brand-filters-card {
+		padding: 0.7rem 0.9rem;
+		margin-bottom: 0.9rem;
+		border-radius: 10px;
+	}
+	.workflow-board-page .workflow-panel-selection-actions .btn {
+		padding: 0.3rem 0.7rem;
+		font-size: 0.8125rem;
+		line-height: 1.2;
+	}
+	.workflow-board-page .workflow-board-panel-header h5 {
+		font-size: var(--ls-text-lg, 0.95rem);
+	}
+	/* Table/card density comes from lab-surface-theme tokens */
 
 	.workflow-review-status-legend {
 		display: flex;
@@ -1488,12 +1550,14 @@
 					</div>
 					<div class="workflow-board-panel-body flush-top">
 						@if($status === 'Samples Receiving')
-							<div class="workflow-receiving-tabs mb-3" role="tablist">
+							<div class="workflow-receiving-tabs mb-3" role="tablist" wire:loading.class="is-busy" wire:target="setWorkflowSubTab,setSubcontractingDispatchStatus">
 								@foreach($receivingRequestTabs as $tabKey => $tabLabel)
 									<button
 										type="button"
 										class="workflow-receiving-tab {{ $workflowSubTab === $tabKey ? 'is-active' : '' }}"
 										wire:click="setWorkflowSubTab('{{ $tabKey }}')"
+										wire:loading.class="is-loading"
+										wire:target="setWorkflowSubTab('{{ $tabKey }}')"
 										role="tab"
 										aria-selected="{{ $workflowSubTab === $tabKey ? 'true' : 'false' }}"
 									>
@@ -1519,10 +1583,22 @@
 								</p>
 							@endif
 							@if($workflowSubTab !== 'interzone_transfers')
-							<div class="workflow-brand-filters-card">
-								<div class="workflow-brand-filters-card__title">
-									<i class="mdi mdi-filter-variant"></i> Filters
-								</div>
+							<div class="workflow-brand-filters-card"
+								x-data="{ open: false, advanced: false }">
+								<button type="button"
+									class="workflow-filters-toggle"
+									@click="open = !open"
+									:aria-expanded="open.toString()">
+									<span class="workflow-filters-toggle__label">
+										<i class="mdi mdi-filter-variant"></i>
+										Filters
+										@if($this->activeRequestFilterCount > 0)
+											<span class="workflow-filters-toggle__badge">{{ $this->activeRequestFilterCount }} active</span>
+										@endif
+									</span>
+									<i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+								</button>
+								<div class="workflow-filters-panel" x-show="open" x-cloak x-transition.opacity.duration.150ms>
 								<div class="row workflow-filters-primary-row">
 									<div class="col-md-4">
 										<div class="form-group mb-3 mb-md-0">
@@ -1558,14 +1634,13 @@
 										</div>
 									</div>
 									<div class="col-md-2 d-flex align-items-end">
-										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
+										<button type="button" @click="advanced = !advanced" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
 											<i class="mdi mdi-filter-variant"></i>
-											{{ $showAdvancedFilters ? 'Fewer filters' : 'More filters' }}
+											<span x-text="advanced ? 'Fewer filters' : 'More filters'"></span>
 										</button>
 									</div>
 								</div>
-							@if($showAdvancedFilters)
-								<div class="workflow-filters-advanced">
+								<div class="workflow-filters-advanced" x-show="advanced" x-cloak x-transition.opacity.duration.150ms>
 									<div class="row">
 										<div class="col-md-2">
 											<div class="form-group mb-3 mb-md-0">
@@ -1670,7 +1745,7 @@
 										</div>
 									</div>
 								</div>
-							@endif
+								</div>
 							</div>
 							@endif
 							{{-- Interzone Transfers tab panel (tab hidden)
@@ -1760,10 +1835,22 @@
 									</button>
 								@endforeach
 							</div>
-							<div class="workflow-brand-filters-card">
-								<div class="workflow-brand-filters-card__title">
-									<i class="mdi mdi-filter-variant"></i> Filters
-								</div>
+							<div class="workflow-brand-filters-card"
+								x-data="{ open: false, advanced: false }">
+								<button type="button"
+									class="workflow-filters-toggle"
+									@click="open = !open"
+									:aria-expanded="open.toString()">
+									<span class="workflow-filters-toggle__label">
+										<i class="mdi mdi-filter-variant"></i>
+										Filters
+										@if($this->activeRequestFilterCount > 0)
+											<span class="workflow-filters-toggle__badge">{{ $this->activeRequestFilterCount }} active</span>
+										@endif
+									</span>
+									<i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+								</button>
+								<div class="workflow-filters-panel" x-show="open" x-cloak x-transition.opacity.duration.150ms>
 								<div class="row workflow-filters-primary-row">
 									<div class="col-md-4">
 										<div class="form-group mb-3 mb-md-0">
@@ -1799,14 +1886,13 @@
 										</div>
 									</div>
 									<div class="col-md-2 d-flex align-items-end">
-										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
+										<button type="button" @click="advanced = !advanced" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
 											<i class="mdi mdi-filter-variant"></i>
-											{{ $showAdvancedFilters ? 'Fewer filters' : 'More filters' }}
+											<span x-text="advanced ? 'Fewer filters' : 'More filters'"></span>
 										</button>
 									</div>
 								</div>
-								@if($showAdvancedFilters)
-									<div class="workflow-filters-advanced">
+								<div class="workflow-filters-advanced" x-show="advanced" x-cloak x-transition.opacity.duration.150ms>
 										<div class="row">
 											<div class="col-md-2">
 												<div class="form-group mb-3 mb-md-0">
@@ -1913,152 +1999,161 @@
 											</div>
 										</div>
 									</div>
-								@endif
+								</div>
 							</div>
 						@endif
 						@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
-						<!-- Consolidated Filters -->
-						<div class="workflow-brand-filters-card">
-							<div class="workflow-brand-filters-card__title">
-								<i class="mdi mdi-filter-variant"></i> Filters
-							</div>
-							<div class="row">
-								<div class="col-md-3">
-									<div class="form-group mb-3 mb-md-0">
-										<label class="form-label small fw-bold">Search</label>
-										<div class="position-relative">
-											@if(
-												$status === 'Samples Request Review' ||
-												($this->isReceivingStage() && $workflowSubTab === 'requests') ||
-												($status === 'Samples In Lab')
-											)
-												<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
-												<div wire:loading wire:target="submissionFormsSearch" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
-													<span class="spinner-border spinner-border-sm text-primary"></span>
-												</div>
-											@else
-												<input type="text" wire:model.live.debounce.300ms="search" class="form-control form-control-sm" placeholder="Batch code or sample code...">
-												<div wire:loading wire:target="search" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
-													<span class="spinner-border spinner-border-sm text-primary"></span>
-												</div>
-											@endif
-										</div>
-									</div>
-								</div>
-								
-								@if(
-									$status === 'Samples Request Review' ||
-									($this->isReceivingStage() && $workflowSubTab === 'requests') ||
-									($status === 'Samples In Lab')
-								)
-									<div class="col-md-2">
+						@php
+							$boardUsesSubmissionSearch = $status === 'Samples In Lab'
+								|| ($this->isReceivingStage() && $workflowSubTab === 'requests');
+						@endphp
+						<!-- Board filters — collapsible (match Samples Receiving density) -->
+						<div class="workflow-brand-filters-card"
+							x-data="{ open: {{ $this->activeRequestFilterCount > 0 ? 'true' : 'false' }} }">
+							<button type="button"
+								class="workflow-filters-toggle"
+								@click="open = !open"
+								:aria-expanded="open.toString()">
+								<span class="workflow-filters-toggle__label">
+									<i class="mdi mdi-filter-variant"></i>
+									Filters
+									@if($this->activeRequestFilterCount > 0)
+										<span class="workflow-filters-toggle__badge">{{ $this->activeRequestFilterCount }} active</span>
+									@endif
+								</span>
+								<i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+							</button>
+							<div class="workflow-filters-panel" x-show="open" x-cloak x-transition.opacity.duration.150ms>
+								<div class="row">
+									<div class="col-md-3">
 										<div class="form-group mb-3 mb-md-0">
-											<label class="form-label small fw-bold">Status</label>
-											<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
-												<option value="">All Statuses</option>
-												<option value="submitted">Submitted</option>
-												<option value="in_review">In Review</option>
-												<option value="approved">Approved</option>
-												<option value="rejected">Rejected</option>
-											</select>
-										</div>
-									</div>
-									<div class="col-md-2">
-										<div class="form-group mb-3 mb-md-0">
-											<label class="form-label small fw-bold">Priority</label>
-											<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
-												<option value="">All Priorities</option>
-												<option value="low">Low</option>
-												<option value="normal">Normal</option>
-												<option value="high">High</option>
-												<option value="urgent">Urgent</option>
-											</select>
-										</div>
-									</div>
-								@endif
-
-								<div class="col-md-2">
-									<div class="form-group mb-3 mb-md-0">
-										<label class="form-label small fw-bold">Receipt From</label>
-										<input type="date" wire:model.live="receiptDateFrom" class="form-control form-control-sm">
-									</div>
-								</div>
-								<div class="col-md-2">
-									<div class="form-group mb-3 mb-md-0">
-										<label class="form-label small fw-bold">Receipt To</label>
-										<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
-									</div>
-								</div>
-								
-								<div class="col-md-1 d-flex align-items-end">
-									<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
-										<i class="mdi mdi-refresh"></i>
-									</button>
-								</div>
-							</div>
-
-							<div class="row mt-3">
-								<div class="col-md-6">
-									<div class="form-group mb-0">
-										<label class="form-label small fw-bold">Customer</label>
-										<div class="position-relative">
-												<div class="tag-select-container form-control-sm py-0"
-												 wire:click="$set('showCustomerDropdown', true)"
-												 wire:click.outside="$set('showCustomerDropdown', false)"
-												 wire:key="customer-dropdown-{{ $customerFilter }}">
-												<div class="tag-select-input" style="min-height: 29px;">
-													@if($this->selectedCustomer)
-														<span class="tag-badge py-0 px-2" style="font-size: 11px;">
-															{{ $this->selectedCustomer->name }}
-															<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
-														</span>
-													@endif
-													@if(!$this->selectedCustomer)
-														<input type="text" 
-															   wire:model.live.debounce.300ms="customerSearch" 
-															   wire:click.stop="$set('showCustomerDropdown', true)"
-															   class="tag-input customer-search-input py-0" 
-															   style="font-size: 12px; height: 28px;"
-															   placeholder="Search customers..."
-															   autocomplete="off">
-													@endif
-												</div>
-												@if($showCustomerDropdown)
-													<div class="tag-dropdown customer-dropdown-scroll" style="max-height: 250px; overflow-y: auto; z-index: 1000;">
-														<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center py-2">
-															<span class="spinner-border spinner-border-sm text-primary"></span>
-														</div>
-														<div wire:loading.remove wire:target="customerSearch,selectCustomer">
-															@if(count($this->filteredCustomers) > 0)
-																@foreach($this->filteredCustomers as $customer)
-																	<div class="tag-dropdown-item py-1 px-3" style="font-size: 12px;" wire:click.stop="selectCustomer({{ $customer->id }})">
-																		{{ $customer->name }}
-																	</div>
-																@endforeach
-																@if($this->hasMoreCustomers)
-																	<div class="tag-dropdown-item text-center text-primary py-1" wire:click.stop="loadMoreCustomers" style="cursor: pointer; font-weight: 600; font-size: 11px;">
-																		<i class="mdi mdi-chevron-down"></i> Load More
-																	</div>
-																@endif
-															@else
-																<div class="tag-dropdown-item text-muted py-1 px-3" style="font-size: 12px;">No customers found</div>
-															@endif
-														</div>
+											<label class="form-label small fw-bold">Search</label>
+											<div class="position-relative">
+												@if($boardUsesSubmissionSearch)
+													<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
+													<div wire:loading wire:target="submissionFormsSearch" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+														<span class="spinner-border spinner-border-sm text-primary"></span>
+													</div>
+												@else
+													<input type="text" wire:model.live.debounce.300ms="search" class="form-control form-control-sm" placeholder="Batch code or sample code...">
+													<div wire:loading wire:target="search" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+														<span class="spinner-border spinner-border-sm text-primary"></span>
 													</div>
 												@endif
 											</div>
 										</div>
 									</div>
+
+									@if($boardUsesSubmissionSearch)
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Status</label>
+												<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
+													<option value="">All Statuses</option>
+													<option value="submitted">Submitted</option>
+													<option value="in_review">In Review</option>
+													<option value="approved">Approved</option>
+													<option value="rejected">Rejected</option>
+												</select>
+											</div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Priority</label>
+												<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
+													<option value="">All Priorities</option>
+													<option value="low">Low</option>
+													<option value="normal">Normal</option>
+													<option value="high">High</option>
+													<option value="urgent">Urgent</option>
+												</select>
+											</div>
+										</div>
+									@endif
+
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Receipt From</label>
+											<input type="date" wire:model.live="receiptDateFrom" class="form-control form-control-sm">
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Receipt To</label>
+											<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
+										</div>
+									</div>
+
+									<div class="col-md-1 d-flex align-items-end">
+										<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
+											<i class="mdi mdi-refresh"></i>
+										</button>
+									</div>
 								</div>
-								<div class="col-md-4">
-									<div class="form-group mb-0">
-										<label class="form-label small fw-bold">Sample Type</label>
-										<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
-											<option value="">All Sample Types</option>
-											@foreach($sampletypes as $sampleType)
-												<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
-											@endforeach
-										</select>
+
+								<div class="row mt-3">
+									<div class="col-md-6">
+										<div class="form-group mb-0">
+											<label class="form-label small fw-bold">Customer</label>
+											<div class="position-relative">
+												<div class="tag-select-container form-control-sm py-0"
+													wire:click="$set('showCustomerDropdown', true)"
+													wire:click.outside="$set('showCustomerDropdown', false)"
+													wire:key="customer-dropdown-{{ $customerFilter }}">
+													<div class="tag-select-input" style="min-height: 29px;">
+														@if($this->selectedCustomer)
+															<span class="tag-badge py-0 px-2" style="font-size: 11px;">
+																{{ $this->selectedCustomer->name }}
+																<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
+															</span>
+														@endif
+														@if(!$this->selectedCustomer)
+															<input type="text"
+																wire:model.live.debounce.300ms="customerSearch"
+																wire:click.stop="$set('showCustomerDropdown', true)"
+																class="tag-input customer-search-input py-0"
+																style="font-size: 12px; height: 28px;"
+																placeholder="Search customers..."
+																autocomplete="off">
+														@endif
+													</div>
+													@if($showCustomerDropdown)
+														<div class="tag-dropdown customer-dropdown-scroll" style="max-height: 250px; overflow-y: auto; z-index: 1000;">
+															<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center py-2">
+																<span class="spinner-border spinner-border-sm text-primary"></span>
+															</div>
+															<div wire:loading.remove wire:target="customerSearch,selectCustomer">
+																@if(count($this->filteredCustomers) > 0)
+																	@foreach($this->filteredCustomers as $customer)
+																		<div class="tag-dropdown-item py-1 px-3" style="font-size: 12px;" wire:click.stop="selectCustomer({{ $customer->id }})">
+																			{{ $customer->name }}
+																		</div>
+																	@endforeach
+																	@if($this->hasMoreCustomers)
+																		<div class="tag-dropdown-item text-center text-primary py-1" wire:click.stop="loadMoreCustomers" style="cursor: pointer; font-weight: 600; font-size: 11px;">
+																			<i class="mdi mdi-chevron-down"></i> Load More
+																		</div>
+																	@endif
+																@else
+																	<div class="tag-dropdown-item text-muted py-1 px-3" style="font-size: 12px;">No customers found</div>
+																@endif
+															</div>
+														</div>
+													@endif
+												</div>
+											</div>
+										</div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-group mb-0">
+											<label class="form-label small fw-bold">Sample Type</label>
+											<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
+												<option value="">All Sample Types</option>
+												@foreach($sampletypes as $sampleType)
+													<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+												@endforeach
+											</select>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -2117,6 +2212,7 @@
 												<tr>
 													<th style="width: 40px;"></th>
 													<th>Actions</th>
+													<th>Test request number</th>
 													<th>Customer</th>
 													@if(in_array($status, ['Samples Receiving'], true))
 														<th>Enquiry Status</th>
@@ -2124,87 +2220,111 @@
 													@if($status === 'Samples Receiving')
 														<th>Origin</th>
 													@endif
-													@php
-														$useJobLabels = in_array($status, ['Samples Receiving', 'Samples Request Review'], true);
-													@endphp
-													<th>{{ $useJobLabels ? 'Job Status' : 'Batch Status' }}</th>
-													<th>{{ $useJobLabels ? 'Job No' : 'Batches' }}</th>
+													@if(! in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+														<th>Batch Status</th>
+														<th>Batches</th>
+													@endif
 													<th>Sample Type</th>
 													<th>Tests Required</th>
-													<th>Status</th>
-													@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
-														<th>In tray</th>
-													@endif
-													@if($this->isReceivingReviewOutcomeTab() || $status === 'Samples Request Review')
+													@if($status === 'Samples Request Review')
 														<th>Acceptance</th>
 													@endif
 													<th>Submitted</th>
-													<th>Due Date</th>
 												</tr>
 											</thead>
 											<tbody>
 												@foreach($submissionForms as $instance)
 													@php
+														$isSamplesReceiving = $status === 'Samples Receiving';
 														$hasBatch = $instance->batches->count() > 0;
 														$formSampleTypeNames = $instance->getReceivingSampleTypeNames();
-														$testsRequiredCount = $instance->requested_tests_count;
-														$sampleCount = count($instance->getAllSampleDetails());
-														$instanceValues = collect($instance->values ?? []);
-														$pickValue = function (array $fieldHints) use ($instanceValues) {
-															$hintBag = collect($fieldHints)
-																->map(fn ($value) => strtolower(trim((string) $value)))
-																->filter()
-																->values();
-
-															if ($hintBag->isEmpty()) {
-																return '';
-															}
-
-															$match = $instanceValues->first(function ($row) use ($hintBag) {
-																$element = $row->element ?? null;
-																if (! $element) {
-																	return false;
-																}
-
-																$mappingField = strtolower(trim((string) ($element->mapping_field ?? '')));
-																$elementName = strtolower(trim((string) ($element->name ?? '')));
-
-																foreach ($hintBag as $hint) {
-																	if (($mappingField !== '' && str_contains($mappingField, $hint))
-																		|| ($elementName !== '' && str_contains($elementName, $hint))) {
-																		return true;
-																	}
-																}
-
-																return false;
-															});
-
-															return trim((string) ($match->value ?? ''));
-														};
-
+														$testsRequiredCount = $hasBatch
+															? (int) $instance->tests_count
+															: (int) $instance->requested_tests_count;
+														$sampleCount = 0;
 														$instanceCustomerName = trim((string) (
 															$instance->crmCustomer->name
-															?? $pickValue(['customer_name', 'submitting_agency', 'name_of_client'])
 															?? ($instance->submittedBy->name ?? '')
 														));
 														$instanceCustomerEmail = trim((string) (
 															$instance->crmCustomer->email
-															?? $pickValue(['customer_email', 'email'])
 															?? ($instance->submittedBy->email ?? '')
 														));
 														$instanceCustomerPhone = trim((string) (
-															$instance->crmCustomer->telephone1
-															?? $pickValue(['mobile_telephone_no', 'office_telephone_no', 'telephone', 'phone', 'tel'])
+															$instance->crmCustomer->telephone1 ?? ''
 														));
 														$instanceCustomerAddress = trim((string) (
 															$instance->crmCustomer->postal_address
 															?? $instance->crmCustomer->physical_address
-															?? $pickValue(['physical_address', 'postal_address', 'address'])
+															?? ''
 														));
 														$instanceRequestDate = trim((string) (
-															optional($instance->submitted_at)->format('Y-m-d')
-															?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
+															optional($instance->submitted_at)->format('Y-m-d') ?? ''
 														));
+
+														// Receiving rows use CRM/enquiry fields only — skip getAllSampleDetails()
+														// (loads full form graph per row) and values pickers.
+														if (! $isSamplesReceiving) {
+															$sampleCount = count($instance->getAllSampleDetails());
+															$instanceValues = $instance->relationLoaded('values')
+																? collect($instance->values)
+																: collect($instance->values ?? []);
+															$pickValue = function (array $fieldHints) use ($instanceValues) {
+																$hintBag = collect($fieldHints)
+																	->map(fn ($value) => strtolower(trim((string) $value)))
+																	->filter()
+																	->values();
+
+																if ($hintBag->isEmpty()) {
+																	return '';
+																}
+
+																$match = $instanceValues->first(function ($row) use ($hintBag) {
+																	$element = $row->element ?? null;
+																	if (! $element) {
+																		return false;
+																	}
+
+																	$mappingField = strtolower(trim((string) ($element->mapping_field ?? '')));
+																	$elementName = strtolower(trim((string) ($element->name ?? '')));
+
+																	foreach ($hintBag as $hint) {
+																		if (($mappingField !== '' && str_contains($mappingField, $hint))
+																			|| ($elementName !== '' && str_contains($elementName, $hint))) {
+																			return true;
+																		}
+																	}
+
+																	return false;
+																});
+
+																return trim((string) ($match->value ?? ''));
+															};
+
+															$instanceCustomerName = trim((string) (
+																$instance->crmCustomer->name
+																?? $pickValue(['customer_name', 'submitting_agency', 'name_of_client'])
+																?? ($instance->submittedBy->name ?? '')
+															));
+															$instanceCustomerEmail = trim((string) (
+																$instance->crmCustomer->email
+																?? $pickValue(['customer_email', 'email'])
+																?? ($instance->submittedBy->email ?? '')
+															));
+															$instanceCustomerPhone = trim((string) (
+																$instance->crmCustomer->telephone1
+																?? $pickValue(['mobile_telephone_no', 'office_telephone_no', 'telephone', 'phone', 'tel'])
+															));
+															$instanceCustomerAddress = trim((string) (
+																$instance->crmCustomer->postal_address
+																?? $instance->crmCustomer->physical_address
+																?? $pickValue(['physical_address', 'postal_address', 'address'])
+															));
+															$instanceRequestDate = trim((string) (
+																optional($instance->submitted_at)->format('Y-m-d')
+																?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
+															));
+														}
 														$reviewRowBorderClass = '';
 													@endphp
 													<tr @if($reviewRowBorderClass !== '') class="{{ $reviewRowBorderClass }}" @endif>
@@ -2325,11 +2445,23 @@
 																--}}
 															</div>
 														</td>
+														<td nowrap>
+															@php
+																$testRequestNumber = $instance->getDocumentControlNumber()
+																	?? $instance->form_number
+																	?? null;
+															@endphp
+															@if($testRequestNumber)
+																<span class="ls-table-id ls-table-emphasis">{{ $testRequestNumber }}</span>
+															@else
+																<span class="text-muted small">—</span>
+															@endif
+														</td>
 
 
 														<td>
 															@if($instance->crmCustomer)
-																<span class="font-weight-medium" title="Portal customer">{{ $instance->crmCustomer->name }}</span>
+																<span class="ls-table-emphasis" title="Portal customer">{{ $instance->crmCustomer->name }}</span>
 															@elseif($instance->submittedBy)
 																<span class="text-muted small" title="LIMS user submission">{{ $instance->submittedBy->name }}</span>
 															@else
@@ -2365,85 +2497,34 @@
 																@endif
 															</td>
 														@endif
-														<td>
-															@if($hasBatch)
-																<span class="workflow-status-chip" style="--chip-accent: #28a745;">
-																	{{ $instance->batches->count() }} {{ $useJobLabels ? 'Job' : 'Batch' }}{{ $instance->batches->count() > 1 ? 's' : '' }} created
-																</span>
-															@else
-																<span class="workflow-status-chip" style="--chip-accent: #dc3545;">
-																	Not created
-																</span>
-															@endif
-														</td>
-														<td nowrap>
-															@if($hasBatch)
-																@foreach($instance->batches as $batch)
-																	<a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
-																		{{ $batch->batch_code }}
-																	</a>@if(!$loop->last) @endif
-																@endforeach
-															@else
-																<span class="text-muted small">—</span>
-															@endif
-														</td>
-														<td nowrap>{{ implode(', ', $formSampleTypeNames) ?: 'N/A' }}</td>
-														<td class="text-center">
-															<span class="font-weight-bold">{{ $hasBatch ? $instance->tests_count : $testsRequiredCount }}</span>
-														</td>
-														<td>
-															@php
-																$color = match(strtolower($instance->getStatusBadgeColor())) {
-																	'success' => '#28a745',
-																	'warning' => '#ffc107',
-																	'danger' => '#dc3545',
-																	'info' => '#17a2b8',
-																	'primary' => '#3b5fc0',
-																	'secondary' => '#6c757d',
-																	default => '#6c757d'
-																};
-																$statusText = ucfirst(str_replace('_', ' ', $instance->status));
-																$subcontractDispatchStatus = $linkedEnquiry?->subcontractingDispatchStatus();
-																if ($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting' && $linkedEnquiry) {
-																	$color = $subcontractDispatchStatus === \App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED
-																		? '#2563eb'
-																		: '#f59e0b';
-																	$statusText = $subcontractDispatchStatus === \App\Models\SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED
-																		? 'Dispatched'
-																		: 'Awaiting dispatch';
-																}
-															@endphp
-															<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
-																{{ $statusText }}
-															</span>
-														</td>
-														@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+														@if(! in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+															<td>
+																@if($hasBatch)
+																	<span class="workflow-status-chip" style="--chip-accent: #28a745;">
+																		{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} created
+																	</span>
+																@else
+																	<span class="workflow-status-chip" style="--chip-accent: #dc3545;">
+																		Not created
+																	</span>
+																@endif
+															</td>
 															<td nowrap>
-																<div class="d-flex align-items-center flex-wrap workflow-row-actions">
-																	@if($instance->latestIntray && $instance->latestIntray->toUser)
-																		<div class="mr-2">
-																			<span class="font-weight-medium">{{ $instance->latestIntray->toUser->name }}</span>
-																			@if($instance->activePendingIntray)
-																				<span class="badge badge-warning ml-1">Pending</span>
-																			@endif
-																			@if($instance->latestIntray->fromUser)
-																				<div class="text-muted small">from {{ $instance->latestIntray->fromUser->name }}</div>
-																			@endif
-																		</div>
-																	@else
-																		<span class="text-muted small mr-2">—</span>
-																	@endif
-																	@if($instance->activePendingIntray)
-																		<button type="button"
-																			class="btn btn-sm rm-act-btn rm-act-btn--muted"
-																			title="Reassign intray"
-																			wire:click="openMoveToIntrayModal('{{ $instance->id }}')">
-																			<i class="mdi mdi-swap-horizontal"></i>
-																		</button>
-																	@endif
-																</div>
+																@if($hasBatch)
+																	@foreach($instance->batches as $batch)
+																		<a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
+																			{{ $batch->batch_code }}
+																		</a>@if(!$loop->last) @endif
+																	@endforeach
+																@else
+																	<span class="text-muted small">—</span>
+																@endif
 															</td>
 														@endif
+														<td nowrap class="ls-table-meta">{{ implode(', ', $formSampleTypeNames) ?: 'N/A' }}</td>
+														<td class="text-center ls-table-meta">
+															{{ $testsRequiredCount }}
+														</td>
 														@if($this->isReceivingReviewOutcomeTab() || $status === 'Samples Request Review')
 															@php
 																$acceptanceForm = $instance->analysisAcceptanceForms->first();
@@ -2458,21 +2539,11 @@
 																@endif
 															</td>
 														@endif
-														<td nowrap>
+														<td nowrap class="ls-table-meta">
 															@if($instance->submitted_at)
 																{{ $instance->submitted_at->format('Y-m-d H:i') }}
 															@else
 																<span class="text-muted small">Not submitted</span>
-															@endif
-														</td>
-														<td nowrap>
-															@if($instance->due_date)
-																{{ $instance->due_date->format('Y-m-d') }}
-																@if($instance->isOverdue())
-																	<i class="mdi mdi-alert text-danger" title="Overdue"></i>
-																@endif
-															@else
-																<span class="text-muted small">No due date</span>
 															@endif
 														</td>
 													</tr>

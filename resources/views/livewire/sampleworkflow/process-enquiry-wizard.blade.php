@@ -1,5 +1,5 @@
 <div
-    class="acc-wizard-root acc-wizard-root--enquiry"
+    class="acc-wizard-root acc-wizard-root--enquiry lab-surface-theme"
     x-data
     x-effect="document.body.classList.toggle('modal-open', $wire.showModal)"
 >
@@ -25,6 +25,7 @@
                         @php
                             $activeIndex = collect($this->wizardSteps)->search(fn ($s) => $s['key'] === $activeStep);
                             $activeIndex = $activeIndex === false ? 0 : (int) $activeIndex;
+                            $prevStepKey = $activeIndex > 0 ? ($this->wizardSteps[$activeIndex - 1]['key'] ?? null) : null;
                         @endphp
                         @foreach($this->wizardSteps as $index => $meta)
                             @php
@@ -46,6 +47,35 @@
                                 <span class="acc-wizard-step-label">{{ $meta['label'] }}</span>
                             </button>
                         @endforeach
+                    </div>
+
+                    <div class="acc-wizard-top-nav">
+                        <button type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            @disabled($prevStepKey === null)
+                            @if($prevStepKey) wire:click.stop.prevent="goToStep('{{ $prevStepKey }}')" @endif>
+                            <i class="mdi mdi-arrow-left"></i> Back
+                        </button>
+                        <div class="acc-wizard-top-nav-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="closeWizard">Cancel</button>
+                            @if($activeStep === 'review')
+                                <button type="button" class="btn btn-primary btn-sm" wire:click="saveReviewAndContinue">
+                                    Next <i class="mdi mdi-arrow-right"></i>
+                                </button>
+                            @elseif($activeStep === 'sample_config')
+                                <button type="button" class="btn btn-primary btn-sm" wire:click="saveSampleConfigAndContinue">
+                                    Next <i class="mdi mdi-arrow-right"></i>
+                                </button>
+                            @else
+                                <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt || !$pdfGenerated)>
+                                    <span wire:loading.remove wire:target="sendQuotation">
+                                        <i class="mdi mdi-send"></i>
+                                        {{ $quotationSent ? 'Send again' : 'Send to customer' }}
+                                    </span>
+                                    <span wire:loading wire:target="sendQuotation">Sending…</span>
+                                </button>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="acc-wizard-body">
@@ -76,7 +106,7 @@
                                     <div class="mb-4">
                                         <h6 class="acc-wizard-section-title">Sample details</h6>
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-bordered mb-0">
+                                            <table class="table table-sm table-bordered workflow-table mb-0">
                                                 <thead class="thead-light">
                                                     <tr>
                                                         <th>#</th>
@@ -121,28 +151,12 @@
                                 @endif
 
                             </section>
-
-                            <div class="acc-wizard-footer">
-                                <button type="button" class="btn btn-outline-secondary" wire:click="closeWizard">Cancel</button>
-                                <button type="button" class="btn btn-primary" wire:click="saveReviewAndContinue">
-                                    Proceed to sample configuration <i class="mdi mdi-arrow-right"></i>
-                                </button>
-                            </div>
                         @endif
 
                         @if($activeStep === 'sample_config')
                             @include('livewire.partials.process-enquiry-status-alert')
 
                             @include('livewire.partials.acceptance-sample-config-table')
-
-                            <div class="acc-wizard-footer">
-                                <button type="button" class="btn btn-outline-secondary" wire:click.stop.prevent="goToStep('review')">
-                                    <i class="mdi mdi-arrow-left"></i> Back
-                                </button>
-                                <button type="button" class="btn btn-primary" wire:click="saveSampleConfigAndContinue">
-                                    Continue to pricing <i class="mdi mdi-arrow-right"></i>
-                                </button>
-                            </div>
                         @endif
 
                         @if($activeStep === 'pricing')
@@ -305,21 +319,6 @@
                                     </div>
                                 </div>
                             </section>
-
-                            <div class="acc-wizard-footer">
-                                <button type="button" class="btn btn-outline-secondary" wire:click.stop.prevent="goToStep('sample_config')">
-                                    <i class="mdi mdi-arrow-left"></i> Back
-                                </button>
-                                <button type="button" class="btn btn-primary" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt || !$pdfGenerated)>
-                                    <span wire:loading.remove wire:target="sendQuotation">
-                                        <i class="mdi mdi-send"></i>
-                                        {{ $quotationSent ? 'Send again' : 'Send to customer' }}
-                                    </span>
-                                    <span wire:loading wire:target="sendQuotation">
-                                        Sending…
-                                    </span>
-                                </button>
-                            </div>
                         @endif
                     </div>
                 </div>
@@ -527,7 +526,7 @@
         }
 
         .acc-wizard-root--enquiry .acc-enquiry-rich-text {
-            font-size: 0.875rem;
+            font-size: var(--ls-text-base, 0.8125rem);
             line-height: 1.45;
             word-break: break-word;
         }

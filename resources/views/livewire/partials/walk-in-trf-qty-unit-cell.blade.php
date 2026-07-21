@@ -1,21 +1,20 @@
 @php
     $rowIndex = $rowIndex ?? 0;
-    $inputStyle = 'padding: 2px 5px; height: auto; font-size: 10px;';
+    $quantityField = $quantityField ?? 'sample_quantity';
+    $unitField = $unitField ?? 'sample_quantity_unit';
 @endphp
-<div class="d-flex walk-in-trf-qty-unit" style="gap: 3px;">
+<div class="d-flex walk-in-trf-qty-unit rft-gap-xs">
     <input
         type="number"
         step="0.01"
         min="0"
-        wire:model="formData.sample_quantity.{{ $rowIndex }}"
-        class="form-control form-control-xs"
-        style="{{ $inputStyle }} width: 48%;"
+        wire:model="formData.{{ $quantityField }}.{{ $rowIndex }}"
+        class="form-control form-control-sm rft-qty-input"
         placeholder="Qty"
     >
     <select
-        wire:model="formData.sample_quantity_unit.{{ $rowIndex }}"
-        class="form-control form-control-xs no-select2"
-        style="{{ $inputStyle }} width: 52%;"
+        wire:model="formData.{{ $unitField }}.{{ $rowIndex }}"
+        class="form-control form-control-sm no-select2 rft-unit-input"
     >
         <option value="">Unit</option>
         @foreach($this->reportingUnits as $unit)

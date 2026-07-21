@@ -998,10 +998,11 @@ class AcceptanceFormSampleConfigService
 
         return AnalysisElements::query()
             ->where('analysis_type_id', $analysisTypeId)
-            ->with(['analyte:id,name'])
+            ->with(['analyte:id,name,code'])
             ->orderBy('level')
             ->get()
             ->map(function (AnalysisElements $element) use ($analysisTypeId, $sampleTypeId): array {
+                $code = trim((string) ($element->analyte?->code ?? ''));
                 $label = (string) ($element->analyte?->name ?? $element->method ?? 'Parameter');
 
                 return [
@@ -1009,6 +1010,7 @@ class AcceptanceFormSampleConfigService
                     'analysis_element_id' => (string) $element->id,
                     'analysis_type_id' => (string) $analysisTypeId,
                     'sample_type_id' => $sampleTypeId,
+                    'code' => $code,
                     'label' => $label,
                     'unit_amount' => 0.0,
                 ];

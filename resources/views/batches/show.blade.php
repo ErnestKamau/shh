@@ -3,6 +3,7 @@
 @section('title2')
   <title> {{ isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch" }}</title>
   @include('layouts.lab.partials.lab-panel-theme-styles')
+  @include('layouts.lab.partials.lab-surface-theme-styles')
   {{-- Include all CSS from original show.blade.php lines 5-431 --}}
   <style>
 		/*
@@ -77,22 +78,122 @@
 			}
 		}
 
-		/* Page chrome */
+		/* Page chrome — match request-view / receiving surface density */
 		.batch-show-page{
-			padding: 14px 18px 28px 18px;
+			padding-top: 0.75rem;
+			padding-bottom: 1.5rem;
+			font-size: var(--ls-text-base, 0.8125rem);
+			max-width: var(--ls-max-width, 1280px);
+			margin-left: auto;
+			margin-right: auto;
 		}
 		.batch-show-shell{
-			background: #fff;
-			border: 1px solid #e9ecef;
-			border-radius: 12px;
-			box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02);
-			padding: 14px;
+			background: transparent;
+			border: none;
+			border-radius: 0;
+			box-shadow: none;
+			padding: 0;
+		}
+		.batch-show-page .workflow-board-panel {
+			border-radius: var(--ls-radius-xl, 12px);
+			margin-bottom: 0.75rem;
+		}
+		.batch-show-page .workflow-board-panel-header {
+			padding: 10px 14px;
+		}
+		.batch-show-page .workflow-board-panel-header h5,
+		.batch-show-page .workflow-board-panel-header h6 {
+			font-size: 0.875rem;
+			margin-bottom: 0;
+		}
+		.batch-show-page .workflow-board-panel-body {
+			padding: 10px 14px 14px;
+		}
+		.batch-show-page .workflow-board-panel-body.flush-top {
+			padding: 0;
+		}
+		.batch-show-page .workflow-table thead th {
+			padding: 8px 10px;
+			font-size: 0.68rem;
+		}
+		.batch-show-page .workflow-table tbody td {
+			padding: 8px 10px;
+			font-size: 0.8125rem;
+		}
+		.batch-show-page .btn-action-sm {
+			height: 30px;
+			min-height: 30px;
+			padding: 0 0.65rem;
+			font-size: 0.75rem;
+		}
+		.batch-show-page .form-control,
+		.batch-show-page .form-control-sm {
+			min-height: 34px;
+			font-size: 0.8125rem;
+			padding: 0.35rem 0.65rem;
+		}
+		.batch-show-page label,
+		.batch-show-page .control-label,
+		.batch-show-page .form-label {
+			font-size: 0.75rem;
+		}
+		/* Batch details labels/values: size only — keep Roboto (do not switch to Plex) */
+		.batch-show-page #batch-detail-form .control-label,
+		.batch-show-page #batch-detail-form label,
+		.batch-show-page #batch-detail-form .form-control,
+		.batch-show-page #batch-detail-form select,
+		.batch-show-page #batch-detail-form textarea {
+			font-family: 'Roboto', sans-serif !important;
+		}
+		.batch-show-page #batch-detail-form .form-group {
+			margin-bottom: 0.75rem;
+		}
+		.batch-show-page #batch-detail-form > .row {
+			row-gap: 0.15rem;
+		}
+		.batch-show-page #batch-detail-form .select2-container .select2-selection--single {
+			height: 34px !important;
+			min-height: 34px !important;
+		}
+		.batch-show-page #batch-detail-form .select2-container--default .select2-selection--single .select2-selection__rendered {
+			line-height: 32px !important;
+			font-size: 0.8125rem !important;
+			font-family: 'Roboto', sans-serif !important;
+		}
+		.batch-show-page #batch-detail-form .select2-container--default .select2-selection--single .select2-selection__arrow {
+			height: 32px !important;
+		}
+		.batch-show-page .batch-details-checkboxes-panel {
+			padding: 10px 12px;
+			border-radius: 8px;
+		}
+		.batch-show-page .batch-code-label {
+			font-size: 1.05rem;
+		}
+		.batch-show-page .batch-header-bar {
+			padding: 12px 16px 0;
+		}
+		.batch-show-page .batch-stage-pill,
+		.batch-show-page .batch-priority-pill {
+			padding: 2px 8px;
+			font-size: 0.7rem;
+		}
+		.batch-show-page .batch-date-pill {
+			padding: 2px 8px;
+			font-size: 0.7rem;
+		}
+		.batch-show-page .batch-date-pill .pill-label {
+			font-size: 0.62rem;
+		}
+		.batch-show-page .batch-nav-tabs .nav-link {
+			padding: 8px 12px;
+			font-size: 0.8125rem;
 		}
 		.batch-show-breadcrumbs .breadcrumb-container{
 			margin-left: 0 !important;
 			margin-right: 0 !important;
-			margin-top: 8px;
-			margin-bottom: 12px;
+			margin-top: 0;
+			margin-bottom: 0.75rem;
 		}
 		.batch-show-alerts .alert{
 			border-radius: 10px;
@@ -188,7 +289,7 @@
 			display: inline-flex;
 			align-items: center;
 			gap: 8px;
-			padding: 10px 14px;
+			padding: 8px 12px;
 			margin-bottom: -1px;
 			border-radius: 6px 6px 0 0;
 			border: 1px solid transparent;
@@ -218,7 +319,7 @@
 		}
 
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link .mdi {
-			font-size: 1.125rem;
+			font-size: 1rem;
 			line-height: 1;
 			opacity: 0.9;
 		}
@@ -231,7 +332,7 @@
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link .badge {
 			font-size: 0.65rem;
 			font-weight: 700;
-			padding: 3px 8px;
+			padding: 2px 6px;
 			border-radius: 999px;
 			background: #e2e8f0;
 			color: #475569;
@@ -282,7 +383,7 @@
 @endsection
 
 @section('content2')
-  <main class="container-fluid lab-panel-theme batch-show-page workflow-theme">
+  <main class="container-fluid lab-panel-theme batch-show-page workflow-theme lab-surface-theme" data-ls-type="plex">
     {{-- Breadcrumbs and alerts from original lines 435-530 --}}
     <?php
       if ($defaultClient) {

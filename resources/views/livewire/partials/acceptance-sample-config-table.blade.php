@@ -296,47 +296,7 @@
                                             </div>
                                         </div>
                                         <div class="acc-sample-config-section-body" x-show="showParameters" x-cloak>
-                                            @if($showParameterSearch)
-                                                <div class="acc-sample-config-params-search-row">
-                                                    <input
-                                                        type="search"
-                                                        class="form-control form-control-sm acc-input acc-sample-config-search"
-                                                        placeholder="Search parameters…"
-                                                        wire:model.live="sampleConfigs.{{ $configIndex }}.parameter_search"
-                                                    >
-                                                </div>
-                                            @endif
-                                            @if(empty($config['analysis_type_id']))
-                                                <p class="acc-wizard-hint mb-0">Select sample type and analysis type to load parameters.</p>
-                                            @elseif($allParameters === [])
-                                                <p class="acc-wizard-hint mb-0">No parameters found for this analysis type on the customer pricelist.</p>
-                                            @elseif($parameters === [])
-                                                <p class="acc-wizard-hint mb-0">No parameters match “{{ $parameterSearch }}”.</p>
-                                            @else
-                                                <div
-                                                    class="acc-sample-config-param-grid"
-                                                    wire:key="param-grid-{{ $configId }}-{{ count($selectedKeys) }}-{{ md5(json_encode($selectedKeys)) }}"
-                                                >
-                                                    @foreach($parameters as $param)
-                                                        @php
-                                                            $paramKey = (string) ($param['analysis_element_id'] ?? $param['id'] ?? '');
-                                                            $isSelected = in_array($paramKey, $selectedKeys, true);
-                                                        @endphp
-                                                        <label
-                                                            class="acc-sample-config-param-chip {{ $isSelected ? 'is-selected' : '' }}"
-                                                            wire:key="param-chip-{{ $configId }}-{{ $paramKey }}-{{ $isSelected ? '1' : '0' }}"
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                @checked($isSelected)
-                                                                wire:click.prevent="toggleConfigParameter('{{ $configId }}', '{{ $paramKey }}')"
-                                                            >
-                                                            <span>{{ $param['label'] ?? 'Parameter' }}</span>
-                                                        </label>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                            @error('sampleConfigs.'.$configIndex.'.parameter_keys')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                                            @include('livewire.partials.acceptance-sample-config-parameters')
                                         </div>
                                     </div>
                                 </td>

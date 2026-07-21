@@ -1,4 +1,4 @@
-<div class="acc-wizard-root acc-wizard-root--rejection">
+<div class="acc-wizard-root acc-wizard-root--rejection lab-surface-theme">
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">

@@ -22,21 +22,21 @@
 	.workflow-receiving-filters-card {
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: 12px;
-		padding: 16px 18px;
-		margin-bottom: 1.25rem;
+		border-radius: 10px;
+		padding: 0.7rem 0.9rem;
+		margin-bottom: 0.9rem;
 		box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 	}
 
 	.workflow-filters-card__title,
 	.workflow-brand-filters-card__title {
-		font-size: var(--text-base);
+		font-size: var(--ls-text-md, 0.875rem);
 		font-weight: var(--font-semibold);
 		color: var(--color-text);
-		margin-bottom: 14px;
+		margin-bottom: 0.65rem;
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 	}
 
 	.workflow-brand-filters-card .form-control,

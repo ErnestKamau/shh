@@ -1,64 +1,88 @@
 @php
-    $fieldId = $fieldId ?? 'parameters';
-    $rowIndex = $rowIndex ?? 0;
+    $rowIndex = (int) ($rowIndex ?? 0);
     $wirePrefix = $wirePrefix ?? ('formData.parameters.'.$rowIndex);
-    $controlClass = ($compact ?? true) ? 'form-control form-control-xs' : 'form-control form-control-sm';
-    $compactStyle = ($compact ?? true) ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
-    $raw = $this->formData['parameters'][$rowIndex] ?? [];
-    $selectedParams = is_array($raw)
-        ? $raw
-        : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
-    $options = $this->parametersForRow($rowIndex)->pluck('name')->values()->all();
-    $hasOptions = count($options) > 0;
+    $picker = $this->walkInParameterPickerState($rowIndex);
+    $selectedParams = $picker['selected'];
+    $options = $picker['options'];
+    $optionsKey = md5(json_encode($options));
 @endphp
+
+{{--
+  Full wire:ignore keeps Alpine UI interactive after selections.
+  Livewire remains source of truth via setWalkInParameters().
+--}}
 <div
-    class="walk-in-trf-parameters-wrap"
+    class="rft-param-picker"
+    wire:key="param-picker-{{ $rowIndex }}-{{ $optionsKey }}"
     wire:ignore
-    data-row-index="{{ $rowIndex }}"
-    data-livewire-model="{{ $wirePrefix }}"
-    data-selected="{{ json_encode(array_values($selectedParams)) }}"
-    data-options="{{ json_encode($options) }}"
+    x-data="rftParamPickerUi({
+        rowIndex: {{ $rowIndex }},
+        options: @js($options),
+        selected: @js($selectedParams),
+    })"
+    @keydown.escape.window="open = false"
+    @click.outside="open = false"
 >
-    <div class="walk-in-trf-parameters-actions d-flex align-items-center justify-content-between flex-wrap mb-1">
-        <span class="walk-in-trf-parameters-count text-muted {{ ($compact ?? true) ? 'small' : '' }}">
-            @if($hasOptions)
-                {{ count($selectedParams) }}/{{ count($options) }} selected
-            @endif
-        </span>
-        <span class="walk-in-trf-parameters-action-btns">
-            <button
-                type="button"
-                class="btn btn-link p-0 walk-in-trf-params-select-all {{ ($compact ?? true) ? 'small' : '' }}"
-                data-walk-in-params-action="select-all"
-                @disabled(! $hasOptions)
-                title="Select every parameter for this analysis type"
-            >
-                Select all
-            </button>
-            <span class="text-muted px-1" aria-hidden="true">·</span>
-            <button
-                type="button"
-                class="btn btn-link p-0 walk-in-trf-params-clear {{ ($compact ?? true) ? 'small' : '' }}"
-                data-walk-in-params-action="clear"
-                @disabled(! $hasOptions)
-                title="Clear selected parameters"
-            >
-                Clear
-            </button>
-        </span>
-    </div>
-    <select
-        id="field_{{ $fieldId }}"
-        multiple
-        class="{{ $controlClass }} walk-in-trf-parameters-select no-select2 @error($wirePrefix) is-invalid @enderror"
-        data-row-index="{{ $rowIndex }}"
-        data-livewire-model="{{ $wirePrefix }}"
-        style="width: 100%; min-width: 0; {{ $compactStyle }}"
+    <button type="button" class="rft-param-picker__trigger w-100 text-left" @click.stop="toggleOpen()">
+        <div class="rft-param-picker__chips">
+            <template x-if="selected.length === 0">
+                <span class="text-muted small" x-text="options.length ? 'Choose parameters…' : 'Select analysis type first'"></span>
+            </template>
+            <template x-for="chip in visibleChips" :key="chip">
+                <span class="rft-param-chip">
+                    <span x-text="chip" :title="chip"></span>
+                    <button type="button" class="rft-param-chip__remove" @click.stop="toggle(chip)" title="Remove" aria-label="Remove parameter">
+                        <i class="mdi mdi-close"></i>
+                    </button>
+                </span>
+            </template>
+            <template x-if="hiddenCount > 0">
+                <span class="rft-param-picker__more" x-text="'+' + hiddenCount"></span>
+            </template>
+        </div>
+        <i class="mdi mdi-chevron-down text-muted rft-param-picker__caret" :class="open && 'mdi-rotate-180'"></i>
+    </button>
+
+    <div
+        class="rft-param-picker__panel"
+        x-show="open"
+        x-cloak
+        x-transition
+        @click.stop
+        :class="openUp ? 'is-up' : ''"
     >
-        @foreach($options as $optionName)
-            <option value="{{ $optionName }}" @selected(in_array($optionName, $selectedParams, true))>{{ $optionName }}</option>
-        @endforeach
-    </select>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted">
+                <span x-text="selected.length"></span>/<span x-text="options.length"></span> selected
+            </span>
+            <span class="rft-param-picker__actions">
+                <button type="button" class="btn btn-link btn-sm p-0 mr-2" @click.prevent="selectAll()" :disabled="!options.length">Select all</button>
+                <button type="button" class="btn btn-link btn-sm p-0" @click.prevent="clearAll()" :disabled="!selected.length">Clear</button>
+            </span>
+        </div>
+        <input
+            type="search"
+            class="form-control form-control-sm"
+            placeholder="Search parameters..."
+            x-model="search"
+            @click.stop
+            @keydown.stop
+        >
+        <div class="rft-param-picker__grid">
+            <template x-for="name in filtered" :key="name">
+                <label class="rft-param-option" :class="isSelected(name) && 'is-selected'" @click.prevent="toggle(name)">
+                    <input type="checkbox" class="mt-1" :checked="isSelected(name)" tabindex="-1">
+                    <span x-text="name" :title="name"></span>
+                </label>
+            </template>
+        </div>
+        <template x-if="!options.length">
+            <p class="small text-muted mb-0 mt-2">Choose an analysis type on this sample to load parameters.</p>
+        </template>
+        <template x-if="options.length && filtered.length === 0">
+            <p class="small text-muted mb-0 mt-2">No parameters match your search.</p>
+        </template>
+    </div>
 </div>
 @error($wirePrefix)
     <div class="invalid-feedback d-block small font-weight-semibold">{{ $message }}</div>

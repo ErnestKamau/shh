@@ -4,10 +4,11 @@
     $rowIndex = $rowIndex ?? null;
     $fieldName = $field['name'] ?? '';
     $compact = $compact ?? false;
+    $hideLabel = $hideLabel ?? false;
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
-@if(! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'customer_email', 'email', 'customer_tax_id'], true))
+@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'customer_email', 'email', 'customer_tax_id'], true))
     <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
         {{ $field['label'] ?? $fieldName }}
         @if($field['required'] ?? false)
@@ -68,8 +69,16 @@
         $sigFieldName = $fieldName ?: 'customer_rep_signature';
         $canvasId = 'trf-sig-'.$fieldId;
     @endphp
+    @if(! $hideLabel && ! $compact)
+        <label class="font-weight-bold text-secondary small d-block">
+            {{ $field['label'] ?? 'Signature' }}
+            @if($field['required'] ?? false)
+                <span class="text-danger">*</span>
+            @endif
+        </label>
+    @endif
     <div class="acc-signature-pad trf-signature-pad" wire:ignore>
-        <canvas id="{{ $canvasId }}-canvas" class="trf-signature-canvas" data-field="{{ $sigFieldName }}" data-livewire-model="{{ $wirePrefix }}" style="width: 100%; height: {{ $compact ? '80' : '120' }}px; touch-action: none;"></canvas>
+        <canvas id="{{ $canvasId }}-canvas" class="trf-signature-canvas" data-field="{{ $fieldId }}" data-livewire-model="{{ $wirePrefix }}" style="width: 100%; height: {{ $compact ? '80' : '140' }}px; touch-action: none; display: block; background: #fff;"></canvas>
         <div class="acc-signature-actions">
             <button type="button" class="btn btn-sm btn-outline-secondary trf-signature-clear" data-canvas="{{ $canvasId }}-canvas" data-input="field_{{ $fieldId }}">Clear</button>
         </div>

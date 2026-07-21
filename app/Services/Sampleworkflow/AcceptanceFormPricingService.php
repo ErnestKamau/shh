@@ -774,7 +774,7 @@ class AcceptanceFormPricingService
         $query = PricelistItem::query()
             ->where('pricelist_id', $pricelist->id)
             ->where('active', 1)
-            ->with(['sampleType:id,name', 'analysisType:id,name', 'analysisElement.analyte:id,name']);
+            ->with(['sampleType:id,name', 'analysisType:id,name', 'analysisElement.analyte:id,name,code']);
 
         if ($sampleTypeId) {
             $query->where('sample_type_id', $sampleTypeId);
@@ -785,7 +785,9 @@ class AcceptanceFormPricingService
         }
 
         return $query->get()->map(function (PricelistItem $item) {
-            $label = $item->analysisElement?->analyte?->name
+            $analyte = $item->analysisElement?->analyte;
+            $code = trim((string) ($analyte?->code ?? ''));
+            $label = $analyte?->name
                 ?? $item->analysisType?->name
                 ?? 'Parameter';
 
@@ -797,6 +799,7 @@ class AcceptanceFormPricingService
                 'analysis_type_id' => $item->analysis_id ? (string) $item->analysis_id : null,
                 'analysis_type_name' => $item->analysisType?->name,
                 'analysis_element_id' => $item->analysis_element_id ? (string) $item->analysis_element_id : null,
+                'code' => $code,
                 'label' => $label,
                 'unit_amount' => (float) $item->selling_price,
             ];
@@ -1295,10 +1298,11 @@ class AcceptanceFormPricingService
 
         return AnalysisElements::query()
             ->where('analysis_type_id', $analysisTypeId)
-            ->with(['analyte:id,name'])
+            ->with(['analyte:id,name,code'])
             ->orderBy('level')
             ->get()
             ->map(function (AnalysisElements $element) use ($pricelist, $resolvedSampleTypeId, $analysisType) {
+                $code = trim((string) ($element->analyte?->code ?? ''));
                 $label = $element->analyte?->name
                     ?? ($element->method !== '' ? (string) $element->method : null)
                     ?? 'Parameter';
@@ -1313,6 +1317,7 @@ class AcceptanceFormPricingService
                     'analysis_type_id' => (string) $analysisType->id,
                     'analysis_type_name' => (string) $analysisType->name,
                     'analysis_element_id' => (string) $element->id,
+                    'code' => $code,
                     'label' => $label,
                     'unit_amount' => $this->resolveLinePrice(
                         $pricelist,

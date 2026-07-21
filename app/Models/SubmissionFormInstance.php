@@ -1235,8 +1235,12 @@ class SubmissionFormInstance extends Model implements Auditable
     {
         $count = 0;
 
-        // Eager load batches and their samples to avoid N+1 if not already loaded
-        $batches = $this->batches()->with('samples')->get();
+        if ($this->relationLoaded('batches')) {
+            $this->loadMissing('batches.samples');
+            $batches = $this->batches;
+        } else {
+            $batches = $this->batches()->with('samples')->get();
+        }
 
         if ($batches->isEmpty()) {
             return $this->getRequestedTestsCountAttribute();

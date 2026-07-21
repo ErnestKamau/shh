@@ -120,9 +120,15 @@
     }
 
     .walk-in-trf-wizard__step.is-done .walk-in-trf-wizard__step-index {
-        background: var(--trf-wizard-done-soft);
-        border-color: var(--trf-wizard-done);
-        color: var(--trf-wizard-done);
+        background: var(--color-success-strong, #16a34a);
+        border-color: var(--color-success-strong, #16a34a);
+        color: #fff;
+    }
+
+    .walk-in-trf-wizard__step.is-done .walk-in-trf-wizard__step-index .mdi {
+        color: #fff;
+        font-size: 1rem;
+        line-height: 1;
     }
 
     .walk-in-trf-wizard__step.is-active {
@@ -157,6 +163,7 @@
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         animation: walkInTrfStepIn 0.28s ease-out;
         min-height: 12rem;
+        overflow: visible;
     }
 
     @keyframes walkInTrfStepIn {

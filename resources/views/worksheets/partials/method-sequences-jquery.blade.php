@@ -17,64 +17,64 @@
 <!-- Create Run Modal -->
 <div class="modal fade" id="create-run-modal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
-            <div class="modal-header bg-light border-bottom-0 pb-0" style="border-radius: 12px 12px 0 0;">
-                <h5 class="modal-title d-flex align-items-center" style="font-weight: 700; color: #1e293b;">
-                    <div class="bg-primary text-white rounded-circle p-2 mr-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="mdi mdi-plus" style="font-size: 18px;"></i>
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header bg-light border-bottom-0">
+                <h5 class="modal-title d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle mr-2 d-flex align-items-center justify-content-center" style="width: 22px; height: 22px;">
+                        <i class="mdi mdi-plus" style="font-size: 0.75rem;"></i>
                     </div>
                     Create New Run
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true" style="font-size: 24px;">&times;</span>
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body">
                 <!-- Success Message -->
-                <div id="create-run-success-alert" class="alert alert-success border-0 shadow-sm mb-4 d-none" style="background: #f0fdf4; border-left: 4px solid #22c55e !important; border-radius: 8px;">
+                <div id="create-run-success-alert" class="alert alert-success border-0 shadow-sm d-none" style="background: #f0fdf4; border-left: 3px solid #22c55e !important;">
                     <div class="d-flex align-items-center">
-                        <i class="mdi mdi-check-circle-outline text-success mr-3" style="font-size: 24px;"></i>
+                        <i class="mdi mdi-check-circle-outline text-success mr-2"></i>
                         <div>
-                            <h6 class="mb-0" style="font-weight: 700; color: #15803d;">Run created successfully!</h6>
+                            <h6 class="mb-0" style="color: #15803d;">Run created successfully!</h6>
                         </div>
                     </div>
                 </div>
 
                 <!-- Guide Section -->
-                <div class="alert alert-info border-0 shadow-sm mb-4" style="background: #f0f9ff; border-left: 4px solid #0ea5e9 !important; border-radius: 8px;">
+                <div class="alert alert-info border-0 shadow-sm" style="background: #f0f9ff; border-left: 3px solid #0ea5e9 !important;">
                     <div class="d-flex">
-                        <i class="mdi mdi-information-outline text-info mr-3" style="font-size: 24px;"></i>
+                        <i class="mdi mdi-information-outline text-info mr-2"></i>
                         <div>
-                            <h6 class="mb-1" style="font-weight: 700; color: #0369a1;">How it works</h6>
-                            <p class="mb-0 text-muted" style="font-size: 13px; line-height: 1.5;">
+                            <h6 class="mb-1" style="color: #0369a1;">How it works</h6>
+                            <p class="mb-0 text-muted" style="line-height: 1.4;">
                                 Select samples to group them into a new analysis run. You can pick samples from the current batch or eligible samples from other batches that share the same analyte and are currently in the lab.
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div id="create-run-empty-notice" class="alert alert-warning border-0 shadow-sm mb-3 d-none" style="font-size: 13px; border-radius: 8px;"></div>
+                <div id="create-run-empty-notice" class="alert alert-warning border-0 shadow-sm d-none"></div>
 
                 <form id="create-run-form">
                     <input type="hidden" id="run-stage-header-id" name="stage_header_id">
                     
                     <div class="row">
                         <div class="col-md-6 border-right">
-                            <div class="form-group">
-                                <label style="font-weight: 600; color: #475569; display: flex; align-items: center;">
-                                    <i class="mdi mdi-layers-outline text-primary mr-2"></i> Current Batch Samples
+                            <div class="form-group mb-2">
+                                <label class="d-flex align-items-center mb-1">
+                                    <i class="mdi mdi-layers-outline text-primary mr-1"></i> Current Batch Samples
                                 </label>
-                                <p class="text-muted mb-2" style="font-size: 11px;">Select samples from this batch.</p>
+                                <p class="text-muted mb-1">Select samples from this batch.</p>
                                 <select id="run-samples-select" name="sample_ids[]" class="form-control" multiple>
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label style="font-weight: 600; color: #475569; display: flex; align-items: center;">
-                                    <i class="mdi mdi-link-variant text-success mr-2"></i> Other Batches
+                            <div class="form-group mb-2">
+                                <label class="d-flex align-items-center mb-1">
+                                    <i class="mdi mdi-link-variant text-success mr-1"></i> Other Batches
                                 </label>
-                                <p class="text-muted mb-2" style="font-size: 11px;">Samples from other batches with status "In Lab".</p>
+                                <p class="text-muted mb-1">Samples from other batches with status "In Lab".</p>
                                 <select id="run-other-samples-select" name="sample_ids[]" class="form-control" multiple>
                                 </select>
                             </div>
@@ -82,10 +82,10 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-top-0 p-4">
-                <button type="button" class="btn btn-secondary px-4" data-dismiss="modal" style="font-weight: 600; border-radius: 8px;">Cancel</button>
-                <button type="button" class="btn btn-primary px-4 d-flex align-items-center shadow-sm" id="save-run-btn" style="font-weight: 600; border-radius: 8px;">
-                    <i class="mdi mdi-content-save mr-2"></i> Create Run
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm d-flex align-items-center" id="save-run-btn">
+                    <i class="mdi mdi-content-save mr-1"></i> Create Run
                 </button>
             </div>
         </div>
@@ -235,10 +235,10 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
                     <i class="mdi mdi-close"></i> Cancel
                 </button>
-                <button type="button" class="btn btn-success" id="confirm-post-results" disabled>
+                <button type="button" class="btn btn-success btn-sm" id="confirm-post-results" disabled>
                     <i class="mdi mdi-check"></i> Yes, Post Results
                 </button>
             </div>

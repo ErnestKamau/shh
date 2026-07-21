@@ -19,11 +19,11 @@
 @if(empty($hideFooter))
     @if(empty($postingInProgress))
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" wire:click="{{ $closeAction ?? 'closePostResultsModal' }}">
+            <button type="button" class="btn btn-secondary btn-sm" wire:click="{{ $closeAction ?? 'closePostResultsModal' }}">
                 <i class="mdi mdi-close"></i> Cancel
             </button>
             <button type="button"
-                    class="btn btn-success"
+                    class="btn btn-success btn-sm"
                     wire:click="{{ $confirmAction ?? 'postResults' }}"
                     wire:loading.attr="disabled">
                 <span wire:loading.remove wire:target="{{ $confirmAction ?? 'postResults' }}">

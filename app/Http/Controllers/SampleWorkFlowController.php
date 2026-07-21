@@ -136,6 +136,29 @@ class SampleWorkFlowController extends Controller
         ]);
     }
 
+    /**
+     * Walk-in Request For Testing capture page (tablet-first UI).
+     */
+    public function requestForTesting(): \Illuminate\View\View
+    {
+        return view('layouts.lab.sample-workflow.request-for-testing');
+    }
+
+    /**
+     * Walk-in Request For Testing wizard for a selected sample type.
+     */
+    public function requestForTestingFill(string $sampleType): \Illuminate\View\View
+    {
+        $exists = \App\SampleType::query()->whereKey($sampleType)->exists();
+        if (! $exists) {
+            abort(404, 'Sample type not found.');
+        }
+
+        return view('layouts.lab.sample-workflow.request-for-testing-fill', [
+            'sampleTypeId' => $sampleType,
+        ]);
+    }
+
     public function submissionRequestsIndex(Request $request): \Illuminate\View\View
     {
         $tab = $request->get('tab', 'requests');

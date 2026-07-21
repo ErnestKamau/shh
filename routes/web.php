@@ -544,6 +544,12 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}', 'SampleWorkFlowContro
 
 Route::post('/process-raw-results/lab', 'SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab')->middleware('can:laboratory.components.all samples.edit');
 Route::get('/sample-workflow/kpis', 'Lab\Reports\SamplesReportsController@index')->name('sample-workflow.kpis')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/sample-workflow/request-for-testing', 'SampleWorkFlowController@requestForTesting')
+    ->name('sample-workflow.request-for-testing')
+    ->middleware('can:laboratory.components.rft form.view');
+Route::get('/sample-workflow/request-for-testing/fill/{sampleType}', 'SampleWorkFlowController@requestForTestingFill')
+    ->name('sample-workflow.request-for-testing.fill')
+    ->middleware('can:laboratory.components.rft form.view');
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.all samples.view');
 Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
     ->name('sample-workflow.assign-user')

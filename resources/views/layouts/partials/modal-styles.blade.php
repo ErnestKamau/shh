@@ -70,7 +70,7 @@
 	}
 
 	.acc-wizard-header {
-		padding: 1.25rem 1.5rem;
+		padding: 0.85rem 1rem;
 	}
 
 	.acc-wizard-step.is-done {
@@ -160,14 +160,14 @@
 	.acc-wizard-root .acc-wizard-panel,
 	.acc-wizard-root .acc-wizard-section-body,
 	.receive-sample-modal-body {
-		color: #111827;
+		color: var(--ls-color-ink, #1e293b);
 	}
 
 	.modal-body .text-muted,
 	.acc-wizard-root .text-muted,
 	.acc-wizard-root .acc-wizard-muted,
 	.acc-wizard-root .acc-wizard-help {
-		color: #6b7280 !important;
+		color: var(--ls-color-muted, #64748b) !important;
 	}
 
 	.modal-body h1,
@@ -184,6 +184,6 @@
 	.acc-wizard-root h6,
 	.acc-wizard-root .acc-wizard-section-title,
 	.acc-wizard-root .acc-wizard-field-label {
-		color: #111827;
+		color: var(--ls-color-ink, #1e293b);
 	}
 </style>

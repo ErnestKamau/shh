@@ -67,15 +67,42 @@ class ReceiveSampleRequest extends Component
 
     public ?string $lastSelectedSampleTypeId = null;
 
-    public function mount(array $selectedFormInstanceIds = [], array $selectedFormSummaries = []): void
-    {
+    /** When true, render tablet RFT page chrome instead of modal chrome. */
+    public bool $pageMode = false;
+
+    /** When true, only the wizard is shown (dedicated fill page). */
+    public bool $wizardOnly = false;
+
+    public ?string $initialSampleTypeId = null;
+
+    /** Open Drafts / Today tab on the RFT list page. */
+    public string $rftInstancesTab = 'today';
+
+    public string $rftInstancesSearch = '';
+
+    public function mount(
+        array $selectedFormInstanceIds = [],
+        array $selectedFormSummaries = [],
+        bool $pageMode = false,
+        bool $wizardOnly = false,
+        ?string $initialSampleTypeId = null,
+    ): void {
+        $this->pageMode = $pageMode;
+        $this->wizardOnly = $wizardOnly;
+        $this->initialSampleTypeId = $initialSampleTypeId;
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
         $this->selectedFormSummaries = $selectedFormSummaries;
 
         $this->sampleTypes = \App\SampleType::orderBy('name')->get();
 
+        if ($this->initialSampleTypeId) {
+            $this->selectedSampleTypeId = (string) $this->initialSampleTypeId;
+            $this->lastSelectedSampleTypeId = (string) $this->initialSampleTypeId;
+            $this->initializeFormDataForSampleType((string) $this->initialSampleTypeId);
+        }
+
         // Auto-load form data if viewing an existing request
-        if (!empty($this->selectedFormInstanceIds)) {
+        if (! empty($this->selectedFormInstanceIds)) {
             $this->loadExistingFormData();
         }
 
@@ -204,13 +231,10 @@ class ReceiveSampleRequest extends Component
 
     public function getWalkInWizardProgressProperty(): int
     {
-        $total = $this->walkInSections->count();
+        $total = max(1, $this->walkInSections->count());
 
-        if ($total <= 1) {
-            return 100;
-        }
-
-        return (int) round(($this->walkInActiveStepIndex / ($total - 1)) * 100);
+        // Step-based progress: step 1 of 5 => 20%, step 2 => 40%, etc.
+        return (int) round((($this->walkInActiveStepIndex + 1) / $total) * 100);
     }
 
     public function getWalkInIsFirstStepProperty(): bool
@@ -228,6 +252,184 @@ class ReceiveSampleRequest extends Component
     public function getWalkInTotalStepsProperty(): int
     {
         return $this->walkInSections->count();
+    }
+
+    /**
+     * Sample-type cards for the tablet Request For Testing page (UI only).
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    public function getFormTypeCardsProperty(): Collection
+    {
+        return collect($this->sampleTypes)
+            ->map(function ($sampleType): ?array {
+                $form = $this->resolveSubmissionFormForSampleType((string) $sampleType->id);
+                if ($form === null) {
+                    return null;
+                }
+
+                return [
+                    'sample_type_id' => (string) $sampleType->id,
+                    'name' => (string) ($form->name ?: $sampleType->name),
+                    'sample_type_name' => (string) $sampleType->name,
+                    'document_code' => $form->document_code,
+                    'sections_count' => $this->wizardStepCountForForm($form),
+                    'description' => filled($form->description)
+                        ? (string) $form->description
+                        : 'Capture a test request for '.$sampleType->name.'.',
+                    'icon' => 'mdi-flask-outline',
+                ];
+            })
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * Wizard step count shown on form cards (matches the stepper, not raw section rows).
+     */
+    private function wizardStepCountForForm(SubmissionForm $form): int
+    {
+        return max(1, app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
+            ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage')
+            ->count());
+    }
+
+    /**
+     * Draft / today walk-in submissions for the RFT list page.
+     *
+     * @return Collection<int, SubmissionFormInstance>
+     */
+    public function getRftInstancesProperty(): Collection
+    {
+        if (! $this->pageMode || $this->wizardOnly) {
+            return collect();
+        }
+
+        $formIds = collect($this->sampleTypes)
+            ->map(fn ($sampleType) => $this->resolveSubmissionFormForSampleType((string) $sampleType->id)?->id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($formIds === []) {
+            return collect();
+        }
+
+        $query = SubmissionFormInstance::query()
+            ->with(['submissionForm'])
+            ->whereIn('submission_form_id', $formIds)
+            ->orderByDesc('updated_at');
+
+        if ($this->rftInstancesTab === 'today') {
+            $query->where(function ($q): void {
+                $q->whereDate('created_at', today())
+                    ->orWhereDate('submitted_at', today());
+            });
+        } else {
+            $query->where('status', 'draft');
+        }
+
+        $search = trim($this->rftInstancesSearch);
+        if ($search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('form_number', 'like', '%'.$search.'%')
+                    ->orWhere('title', 'like', '%'.$search.'%');
+            });
+        }
+
+        return $query->limit(25)->get();
+    }
+
+    public function setRftInstancesTab(string $tab): void
+    {
+        $this->rftInstancesTab = in_array($tab, ['open', 'today'], true) ? $tab : 'open';
+    }
+
+    public function clearRftInstanceFilters(): void
+    {
+        $this->rftInstancesSearch = '';
+        $this->rftInstancesTab = 'today';
+    }
+
+    public function deleteRftDraft(string $instanceId): void
+    {
+        $instance = SubmissionFormInstance::query()->find($instanceId);
+        if ($instance === null || $instance->status !== 'draft') {
+            return;
+        }
+
+        $instance->delete();
+    }
+
+    public function startWalkInForSampleType(string $sampleTypeId): void
+    {
+        if ($this->pageMode && ! $this->wizardOnly) {
+            $this->redirect(
+                route('sample-workflow.request-for-testing.fill', ['sampleType' => $sampleTypeId]),
+                navigate: false,
+            );
+
+            return;
+        }
+
+        $this->selectedSampleTypeId = $sampleTypeId;
+    }
+
+    public function clearSelectedSampleType(): void
+    {
+        if ($this->wizardOnly) {
+            $this->redirect(route('sample-workflow.request-for-testing'), navigate: false);
+
+            return;
+        }
+
+        $this->selectedSampleTypeId = null;
+        $this->lastSelectedSampleTypeId = null;
+        $this->formData = [];
+        $this->walkInActiveStepIndex = 0;
+    }
+
+    public function toggleWalkInParameter(int $rowIndex, string $paramName): void
+    {
+        $current = $this->formData['parameters'][$rowIndex] ?? [];
+        if (! is_array($current)) {
+            $current = $current !== '' && $current !== null ? [(string) $current] : [];
+        }
+
+        $paramName = trim($paramName);
+        if ($paramName === '') {
+            return;
+        }
+
+        if (in_array($paramName, $current, true)) {
+            $current = array_values(array_filter($current, fn ($value) => (string) $value !== $paramName));
+        } else {
+            $current[] = $paramName;
+        }
+
+        $this->formData['parameters'][$rowIndex] = array_values($current);
+    }
+
+    public function selectAllWalkInParameters(int $rowIndex): void
+    {
+        $this->formData['parameters'][$rowIndex] = $this->parametersForRow($rowIndex)->pluck('name')->values()->all();
+    }
+
+    public function clearWalkInParameters(int $rowIndex): void
+    {
+        $this->formData['parameters'][$rowIndex] = [];
+    }
+
+    /**
+     * @param  list<string|int|float>  $parameters
+     */
+    public function setWalkInParameters(int $rowIndex, array $parameters): void
+    {
+        $this->formData['parameters'][$rowIndex] = array_values(array_map(
+            static fn ($value): string => (string) $value,
+            $parameters
+        ));
     }
 
     public function goToWalkInStep(int $index): void
@@ -369,11 +571,14 @@ class ReceiveSampleRequest extends Component
     public function walkInRowTableColumns(SubmissionFormSection $section): array
     {
         $columns = [];
+        $elements = $this->uniqueRowElementsForSection($section);
+        $elementNames = $elements->map(fn ($el) => (string) ($el->name ?? ''))->all();
+        $hasSampleQuantity = in_array('sample_quantity', $elementNames, true);
 
-        foreach ($this->uniqueRowElementsForSection($section) as $element) {
+        foreach ($elements as $element) {
             $name = (string) ($element->name ?? '');
 
-            if ($name === 'sample_quantity') {
+            if ($name === 'sample_quantity' || ($name === 'number_of_samples' && ! $hasSampleQuantity)) {
                 $columns[] = [
                     'type' => 'qty_unit',
                     'label' => 'Qty / Unit',
@@ -381,6 +586,10 @@ class ReceiveSampleRequest extends Component
                     'element' => $element,
                 ];
 
+                continue;
+            }
+
+            if (in_array($name, ['sample_quantity_unit', 'number_of_samples'], true)) {
                 continue;
             }
 
@@ -409,6 +618,219 @@ class ReceiveSampleRequest extends Component
             'batch_number' => 'walk-in-trf-col-batch',
             default => str_starts_with($fieldName, 'field_') ? 'walk-in-trf-col-field-data' : 'walk-in-trf-col-default',
         };
+    }
+
+    /**
+     * Prepare compact sample-card field buckets for Blade (no layout logic in the view).
+     *
+     * Row 1: Qty/Unit | Sample temp | State of sample
+     * Row 2: Batch | Production date | Expiration date
+     * Row 3: Sampling point | Test category | Sample/Analysis type
+     * Then: Parameters (full), Sample description (full)
+     *
+     * @param  list<array{type: string, label: string, class: string, element: SubmissionFormElement, field?: array<string, mixed>}>  $tableColumns
+     * @param  list<string>  $hiddenFields
+     * @return array{
+     *     grid_rows: list<list<array<string, mixed>|null>>,
+     *     parameters_column: array<string, mixed>|null,
+     *     description_column: array<string, mixed>|null,
+     *     extra_columns: list<array<string, mixed>>
+     * }
+     */
+    public function walkInSampleCardLayout(array $tableColumns, array $hiddenFields = []): array
+    {
+        $columnName = static function (array $column): string {
+            if (($column['type'] ?? '') === 'qty_unit') {
+                return 'sample_quantity';
+            }
+
+            $fromField = (string) ($column['field']['name'] ?? '');
+            if ($fromField !== '') {
+                return $fromField;
+            }
+
+            return (string) ($column['element']->name ?? '');
+        };
+
+        $columnLabel = static function (array $column): string {
+            return strtolower(trim((string) ($column['label'] ?? '')));
+        };
+
+        /** @var array<string, array<string, mixed>> $byName */
+        $byName = [];
+        foreach ($tableColumns as $column) {
+            $byName[$columnName($column)] = $column;
+        }
+
+        $findByNames = static function (array $names) use ($byName): ?array {
+            foreach ($names as $name) {
+                if (isset($byName[$name])) {
+                    return $byName[$name];
+                }
+            }
+
+            return null;
+        };
+
+        $findTemp = static function () use ($findByNames, $tableColumns, $columnName, $columnLabel): ?array {
+            $exact = $findByNames([
+                'field_sample_temp',
+                'sample_temp',
+                'sample_temperature',
+                'temperature',
+                'sample_temp_c',
+            ]);
+            if ($exact !== null) {
+                return $exact;
+            }
+
+            foreach ($tableColumns as $column) {
+                $name = strtolower($columnName($column));
+                $label = $columnLabel($column);
+                if (str_contains($name, 'temp') || str_contains($label, 'temp')) {
+                    return $column;
+                }
+            }
+
+            return null;
+        };
+
+        $findQty = static function () use ($findByNames, $byName, $tableColumns): ?array {
+            $qty = $findByNames(['sample_quantity']);
+            if ($qty !== null) {
+                return $qty;
+            }
+
+            // Some food TRFs still use number_of_samples as Qty.
+            if (isset($byName['number_of_samples'])) {
+                $column = $byName['number_of_samples'];
+                if (($column['type'] ?? '') !== 'qty_unit') {
+                    $column['type'] = 'qty_unit';
+                    $column['label'] = 'Qty / Unit';
+                }
+
+                return $column;
+            }
+
+            foreach ($tableColumns as $column) {
+                $label = strtolower((string) ($column['label'] ?? ''));
+                if ($label === 'qty' || str_starts_with($label, 'qty')) {
+                    $column['type'] = 'qty_unit';
+                    $column['label'] = 'Qty / Unit';
+
+                    return $column;
+                }
+            }
+
+            return null;
+        };
+
+        $usedNames = [];
+        $take = static function (?array $column) use (&$usedNames, $columnName): ?array {
+            if ($column === null) {
+                return null;
+            }
+
+            $name = $columnName($column);
+            $usedNames[$name] = true;
+            if (($column['type'] ?? '') === 'qty_unit') {
+                $usedNames['sample_quantity'] = true;
+                $usedNames['sample_quantity_unit'] = true;
+                $usedNames['number_of_samples'] = true;
+            }
+
+            return $column;
+        };
+
+        $gridRows = [
+            [
+                $take($findQty()),
+                $take($findTemp()),
+                $take($findByNames(['state_of_sample'])),
+            ],
+            [
+                $take($findByNames(['batch_number'])),
+                $take($findByNames(['production_date'])),
+                $take($findByNames(['expiration_date'])),
+            ],
+            [
+                $take($findByNames(['sampling_point', 'location', 'sampling_location'])),
+                $take($findByNames(['test_category', 'test_requirements'])),
+                $take($findByNames(['analysis_type_id', 'analysis_type', 'analysis_types', 'sample_type_id', 'sample_type'])),
+            ],
+        ];
+
+        $parametersColumn = $take($findByNames(['parameters', 'parameter']));
+        $descriptionColumn = $take($findByNames(['sample_description']));
+
+        $extraColumns = [];
+        foreach ($tableColumns as $column) {
+            $name = $columnName($column);
+            if (isset($usedNames[$name]) || in_array($name, $hiddenFields, true)) {
+                continue;
+            }
+            $extraColumns[] = $column;
+        }
+
+        return [
+            'grid_rows' => $gridRows,
+            'parameters_column' => $parametersColumn,
+            'description_column' => $descriptionColumn,
+            'extra_columns' => $extraColumns,
+        ];
+    }
+
+    /**
+     * @return array{analysis_label: string, param_count: int, param_preview: string}
+     */
+    public function walkInSampleRowSummary(int $rowIndex): array
+    {
+        $analysisLabel = '';
+        foreach (['analysis_type', 'analysis_types'] as $key) {
+            $candidate = $this->formData[$key][$rowIndex] ?? '';
+            if (is_string($candidate) && $candidate !== '') {
+                $analysisLabel = $candidate;
+                break;
+            }
+        }
+
+        if ($analysisLabel === '' && ! empty($this->formData['analysis_type_id'][$rowIndex] ?? null)) {
+            $analysisType = $this->analysisTypes->firstWhere('id', $this->formData['analysis_type_id'][$rowIndex]);
+            $analysisLabel = (string) ($analysisType->name ?? 'Analysis selected');
+        }
+
+        $paramRaw = $this->formData['parameters'][$rowIndex] ?? [];
+        $paramList = is_array($paramRaw)
+            ? array_values(array_map('strval', $paramRaw))
+            : ($paramRaw ? [(string) $paramRaw] : []);
+
+        return [
+            'analysis_label' => $analysisLabel,
+            'param_count' => count($paramList),
+            'param_preview' => implode(', ', array_slice($paramList, 0, 2)),
+        ];
+    }
+
+    /**
+     * @return array{selected: list<string>, options: list<string>}
+     */
+    public function walkInParameterPickerState(int $rowIndex): array
+    {
+        $raw = $this->formData['parameters'][$rowIndex] ?? [];
+        $selected = is_array($raw)
+            ? array_values(array_map('strval', $raw))
+            : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
+
+        $options = $this->parametersForRow($rowIndex)
+            ->pluck('name')
+            ->map(fn ($name) => (string) $name)
+            ->values()
+            ->all();
+
+        return [
+            'selected' => $selected,
+            'options' => $options,
+        ];
     }
 
     /**
@@ -592,8 +1014,14 @@ class ReceiveSampleRequest extends Component
         }
 
         if (array_key_exists('customer_email', $this->formData)) {
-            $this->formData['customer_email'] = (string) ($contact->email ?? '');
+            $this->formData['customer_email'] = (string) ($contact->email ?? $this->formData['customer_email'] ?? '');
         }
+
+        if (array_key_exists('email', $this->formData) && empty($this->formData['email'])) {
+            $this->formData['email'] = (string) ($contact->email ?? '');
+        }
+
+        $this->applyCustomerRepresentativeFromContact($contact);
     }
 
     public function openWalkInAddContactModal(): void
@@ -1094,6 +1522,13 @@ class ReceiveSampleRequest extends Component
 
         session()->flash('success', 'Walk-in test request submitted successfully.');
         $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds);
+
+        if ($this->pageMode) {
+            $this->redirect(route('sample-workflow', ['status' => 'Samples Receiving']).'?tab=submitted', navigate: false);
+
+            return;
+        }
+
         $this->dispatch('hide-receive-sample-modal');
     }
 
@@ -1132,11 +1567,16 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        if (($section->title ?? '') === 'Customer details') {
+        $title = (string) ($section->title ?? '');
+
+        // Only Customer + Test/sample rows must be complete to proceed.
+        if ($title === 'Customer details') {
             $this->validateWalkInCustomerInfo();
             if ($this->getErrorBag()->isNotEmpty()) {
                 throw ValidationException::withMessages($this->getErrorBag()->toArray());
             }
+
+            return;
         }
 
         if (($section->section_type ?? '') === 'rows_section') {
@@ -1145,49 +1585,7 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $rules = [];
-        $messages = [];
-        $hiddenWalkInFields = ['job_number', 'crm_contact_id', 'customer_tax_id'];
-        $miscellaneousOnlyTrfFieldNames = [
-            'packaging',
-            'sample_weight',
-            'sample_information',
-            'ship_name',
-            'port_of_loading',
-            'port_of_discharge',
-            'seal_number',
-        ];
-        $seenElements = [];
-
-        foreach ($section->elementHolders->flatMap->elements as $element) {
-            $elementName = (string) ($element->name ?? '');
-            if ($elementName === '' || isset($seenElements[$elementName])) {
-                continue;
-            }
-
-            if (in_array($elementName, $hiddenWalkInFields, true)) {
-                continue;
-            }
-
-            if (($section->title ?? '') === 'Sample collection data'
-                && in_array($elementName, $miscellaneousOnlyTrfFieldNames, true)) {
-                continue;
-            }
-
-            $seenElements[$elementName] = true;
-
-            if (! $element->is_required) {
-                continue;
-            }
-
-            $key = 'formData.'.$elementName;
-            $rules[$key] = 'required';
-            $messages[$key.'.required'] = ($element->label ?? $elementName).' is required.';
-        }
-
-        if ($rules !== []) {
-            $this->validate($rules, $messages);
-        }
+        // Collection / Misc / Sign may be empty; progress still advances.
     }
 
     private function validateWalkInCustomerInfo(): void
@@ -1197,6 +1595,7 @@ class ReceiveSampleRequest extends Component
             'formData.client_name',
             'formData.customer',
             'formData.client',
+            'formData.contact_person',
         ]);
 
         $customerName = '';
@@ -1211,6 +1610,11 @@ class ReceiveSampleRequest extends Component
 
         if ($customerName === '') {
             $this->addError('formData.customer_name', 'Customer name is required in Customer details.');
+        }
+
+        if (array_key_exists('contact_person', $this->formData)
+            && trim((string) ($this->formData['contact_person'] ?? '')) === '') {
+            $this->addError('formData.contact_person', 'Contact person is required in Customer details.');
         }
     }
 
@@ -1449,6 +1853,76 @@ class ReceiveSampleRequest extends Component
         if (empty($this->formData['lab_received_by']) && $user instanceof User) {
             $this->formData['lab_received_by'] = $user->name;
         }
+
+        $this->applyCustomerRepresentativeFromSelectedContact();
+    }
+
+    private function applyCustomerRepresentativeFromSelectedContact(): void
+    {
+        $contactId = trim((string) ($this->formData['contact_person'] ?? ''));
+        if ($contactId === '') {
+            return;
+        }
+
+        $contact = CustomerContact::query()->find($contactId);
+        if ($contact === null) {
+            return;
+        }
+
+        if (array_key_exists('crm_contact_id', $this->formData) || $this->formDataHasElement('crm_contact_id')) {
+            $this->formData['crm_contact_id'] = (string) $contact->id;
+        } else {
+            $this->formData['crm_contact_id'] = (string) $contact->id;
+        }
+
+        $this->applyCustomerRepresentativeFromContact($contact);
+    }
+
+    private function applyCustomerRepresentativeFromContact(CustomerContact $contact): void
+    {
+        $name = trim(implode(' ', array_filter([
+            (string) ($contact->first_name ?? ''),
+            (string) ($contact->middle_name ?? ''),
+            (string) ($contact->last_name ?? ''),
+        ])));
+        $mobile = (string) ($contact->mobile ?? $contact->telephone ?? '');
+
+        $nameKeys = ['customer_representative_name', 'customer_rep_name'];
+        $contactKeys = ['customer_representative_contact', 'customer_rep_contact'];
+
+        foreach ($nameKeys as $key) {
+            if ($name !== '' && (array_key_exists($key, $this->formData) || $this->formDataHasElement($key))) {
+                $this->formData[$key] = $name;
+            }
+        }
+
+        foreach ($contactKeys as $key) {
+            if ($mobile !== '' && (array_key_exists($key, $this->formData) || $this->formDataHasElement($key))) {
+                $this->formData[$key] = $mobile;
+            }
+        }
+
+        // Always keep keys present so processFormData / commercial sync can persist when schema has them.
+        if ($name !== '') {
+            $this->formData['customer_representative_name'] = $name;
+            $this->formData['customer_rep_name'] = $name;
+        }
+        if ($mobile !== '') {
+            $this->formData['customer_representative_contact'] = $mobile;
+            $this->formData['customer_rep_contact'] = $mobile;
+        }
+    }
+
+    private function formDataHasElement(string $name): bool
+    {
+        $form = $this->submissionForm;
+        if ($form === null) {
+            return false;
+        }
+
+        return $form->sections
+            ->flatMap(fn ($section) => $section->elementHolders->flatMap->elements)
+            ->contains(fn ($element) => (string) ($element->name ?? '') === $name);
     }
 
     private function prefillCustomerDetailsFromSelection(?string $customerName): void
@@ -1485,7 +1959,8 @@ class ReceiveSampleRequest extends Component
 
         $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
         $telFax = (string) ($customer->telephone1 ?? $customer->telephone2 ?? '');
-        $mobile = (string) ($contact?->mobile ?? $contact?->telephone ?? $customer->telephone2 ?? $customer->telephone1 ?? '');
+        $mobile = (string) ($customer->telephone2 ?? $customer->telephone1 ?? '');
+        $email = (string) ($customer->email ?? '');
 
         $prefill = [
             'customer_name' => (string) ($customer->name ?? ''),
@@ -1493,7 +1968,7 @@ class ReceiveSampleRequest extends Component
             'customer_phone' => $telFax,
             'mobile_number' => $mobile,
             'contact_person' => $contactId !== '' ? $contactId : $contactName,
-            'customer_email' => (string) ($contact?->email ?? $customer->email ?? ''),
+            'customer_email' => $email,
             'sampling_location' => '',
             'client_name' => (string) ($customer->name ?? ''),
             'customer' => (string) ($customer->name ?? ''),
@@ -1506,8 +1981,8 @@ class ReceiveSampleRequest extends Component
             'phone_number' => $telFax,
             'telephone_number' => $telFax,
             'tel_fax_no' => $telFax,
-            'email' => (string) ($customer->email ?? ''),
-            'email_address' => (string) ($customer->email ?? ''),
+            'email' => $email,
+            'email_address' => $email,
             'contact' => $contactName,
             'contact_name' => $contactName,
         ];
@@ -1525,6 +2000,10 @@ class ReceiveSampleRequest extends Component
                 $this->formData[$key] = $value;
             }
         }
+
+        if ($contact !== null) {
+            $this->applyCustomerRepresentativeFromContact($contact);
+        }
     }
 
     public function render()
@@ -1532,6 +2011,8 @@ class ReceiveSampleRequest extends Component
         return view('livewire.sampleworkflow.receive-sample-request', [
             'submissionForm' => $this->submissionForm,
             'walkInSections' => $this->walkInSections,
+            'formTypeCards' => $this->pageMode ? $this->formTypeCards : collect(),
+            'rftInstances' => $this->pageMode && ! $this->wizardOnly ? $this->rftInstances : collect(),
         ]);
     }
 
