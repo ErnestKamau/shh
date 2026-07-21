@@ -313,7 +313,12 @@
             </div>
         @endif
 
-    @if ($selectedFormInstanceIds !== [] && ! $this->isPhysicalCheckIn)
+    @if ($this->isPhysicalCheckIn)
+        <section class="receive-sample-checkin-confirm text-center py-3 px-2">
+            <i class="mdi mdi-clipboard-arrow-right text-primary" style="font-size: 2.5rem;"></i>
+            <p class="mt-3 mb-0 h6 font-weight-normal">Are you sure you want to move {{ count($selectedFormInstanceIds) === 1 ? 'this request' : 'these requests' }} to In Review?</p>
+        </section>
+    @elseif ($selectedFormInstanceIds !== [])
             <section class="receive-sample-selected mb-3">
                 <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
                 <div class="receive-sample-chips">
@@ -333,7 +338,7 @@
             </section>
         @endif
 
-        @if ($checkInContexts !== [])
+        @if ($checkInContexts !== [] && ! $this->isPhysicalCheckIn)
             <section class="receive-sample-checkin mb-3">
                 @foreach ($checkInContexts as $context)
                     <article class="receive-checkin-card" wire:key="receive-context-{{ $context['instance_id'] ?? $loop->index }}">
@@ -619,7 +624,7 @@
                     >
                         <span wire:loading.remove wire:target="confirmReceive">
                             <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                            {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
+                            {{ $this->isPhysicalCheckIn ? 'Yes, move to In Review' : 'Submit walk-in request' }}
                         </span>
                         <span wire:loading wire:target="confirmReceive">
                             <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
