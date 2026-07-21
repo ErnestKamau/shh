@@ -101,6 +101,7 @@
             @if(count($worksheetMetaRows) > 1)
                 @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
             @endif
+            @include('livewire.worksheets.partials.formula-worksheet-run-details')
             <div class="card border-0 shadow-sm mb-4 fws-card">
                 <div class="card-header fws-card-header bg-white d-flex justify-content-between align-items-center">
                     <div>
@@ -126,7 +127,7 @@
                             <thead class="thead-light">
                                 <!-- First Header Row: Sections -->
                                 <tr>
-                                    <th colspan="7" class="bg-light text-primary font-weight-bold border-bottom">Sample Metadata &amp; Run Details</th>
+                                    <th colspan="1" class="bg-light text-primary font-weight-bold border-bottom">Sample</th>
                                     @if($mandatoryFields->isNotEmpty())
                                         <th colspan="{{ $mandatoryFields->count() }}" class="bg-light text-warning font-weight-bold border-bottom">Mandatory Fields</th>
                                     @endif
@@ -140,14 +141,7 @@
                                 </tr>
                                 <!-- Second Header Row: Column Names -->
                                 <tr>
-                                    <!-- Metadata Columns -->
                                     <th style="min-width: 140px;">Sample Code</th>
-                                    <th style="min-width: 130px;">Date</th>
-                                    <th style="min-width: 100px;">Time In</th>
-                                    <th style="min-width: 150px;">Done By</th>
-                                    <th style="min-width: 100px;">Time Out</th>
-                                    <th style="min-width: 150px;">Read By</th>
-                                    <th style="min-width: 130px;">Read Date</th>
                                     <!-- Mandatory Fields Columns -->
                                     @foreach($mandatoryFields as $field)
                                         <th style="min-width: 140px;">{{ $field->field_label }}</th>
@@ -174,51 +168,6 @@
                                         <!-- Sample Code -->
                                         <td class="font-weight-bold align-middle bg-white">
                                             {{ $captured->sample->sample_code }}
-                                        </td>
-                                        <!-- Date -->
-                                        <td class="align-middle">
-                                            <input type="date" class="form-control form-control-sm text-center border-0 bg-transparent"
-                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.date"
-                                                wire:blur="saveWorksheet('{{ $crId }}')">
-                                        </td>
-                                        <!-- Time In -->
-                                        <td class="align-middle">
-                                            <input type="time" class="form-control form-control-sm text-center border-0 bg-transparent"
-                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.time_in"
-                                                wire:blur="saveWorksheet('{{ $crId }}')">
-                                        </td>
-                                        <!-- Done By -->
-                                        <td class="align-middle">
-                                            <select class="form-control form-control-sm border-0 bg-transparent text-center"
-                                                wire:model.live="worksheetData.{{ $crId }}.done_by_user_id"
-                                                wire:change="saveWorksheet('{{ $crId }}')">
-                                                @foreach($users as $user)
-                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <!-- Time Out -->
-                                        <td class="align-middle">
-                                            <input type="time" class="form-control form-control-sm text-center border-0 bg-transparent"
-                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.time_out"
-                                                wire:blur="saveWorksheet('{{ $crId }}')">
-                                        </td>
-                                        <!-- Read By -->
-                                        <td class="align-middle">
-                                            <select class="form-control form-control-sm border-0 bg-transparent text-center"
-                                                wire:model.live="worksheetData.{{ $crId }}.read_by_user_id"
-                                                wire:change="saveWorksheet('{{ $crId }}')">
-                                                <option value="">Select...</option>
-                                                @foreach($users as $user)
-                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <!-- Read Date -->
-                                        <td class="align-middle">
-                                            <input type="date" class="form-control form-control-sm text-center border-0 bg-transparent"
-                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.read_date"
-                                                wire:blur="saveWorksheet('{{ $crId }}')">
                                         </td>
                                         
                                         <!-- Mandatory Fields -->
@@ -338,61 +287,12 @@
                 ])
             @endif
 
-            {{-- ── Section 1: Worksheet run metadata ──────────────────────────────── --}}
-            <div class="card border-0 shadow-sm mb-4 fws-card">
-                <div class="card-header fws-card-header">
-                    <i class="mdi mdi-clipboard-text-outline text-primary"></i>
-                    <span>Worksheet Run Details</span>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-6 col-md-2">
-                            <label class="fws-label">Date</label>
-                            <input type="date" class="form-control form-control-sm"
-                                   wire:model="sharedWorksheetMeta.date">
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="fws-label">Lab No</label>
-                            <input type="text" class="form-control form-control-sm bg-light"
-                                   value="{{ $batch->batch_code }}" readonly>
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="fws-label">Time In</label>
-                            <input type="time" class="form-control form-control-sm"
-                                   wire:model="sharedWorksheetMeta.time_in">
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="fws-label">Done By</label>
-                            <select class="form-control form-control-sm no-select2"
-                                    wire:model="sharedWorksheetMeta.done_by_user_id">
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="fws-label">Time Out</label>
-                            <input type="time" class="form-control form-control-sm"
-                                   wire:model="sharedWorksheetMeta.time_out">
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="fws-label">Read Date</label>
-                            <input type="date" class="form-control form-control-sm"
-                                   wire:model="sharedWorksheetMeta.read_date">
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="fws-label">Read By</label>
-                            <select class="form-control form-control-sm no-select2"
-                                    wire:model="sharedWorksheetMeta.read_by_user_id">
-                                <option value="">Select...</option>
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
+            @if(count($worksheetMetaRows) > 1)
+                @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
+            @endif
+
+            @include('livewire.worksheets.partials.formula-worksheet-run-details')
 
             {{-- ── Section 2: Formula steps in execution order ───────────────────────── --}}
             @php

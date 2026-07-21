@@ -17,7 +17,7 @@ class WorksheetMetaResolver
         'analysisElement.analyte',
         'analysisElement.mmethod',
         'analysisElement.ltmethod',
-        'method',
+        'analysisMethod',
         'ltmethod',
         'user',
         'operator',
@@ -184,8 +184,8 @@ class WorksheetMetaResolver
 
     private function resolveMethodName(CapturedResult $captured, ?\App\AnalysisElements $element): ?string
     {
-        if ($captured->relationLoaded('method') && $captured->method?->name) {
-            return (string) $captured->method->name;
+        if ($captured->relationLoaded('analysisMethod') && $captured->analysisMethod?->name) {
+            return (string) $captured->analysisMethod->name;
         }
 
         if ($captured->method_id) {

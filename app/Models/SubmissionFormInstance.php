@@ -747,6 +747,12 @@ class SubmissionFormInstance extends Model implements Auditable
             }
         }
 
+        $enquiry = $this->sampleSubmissionRequest;
+        if ($enquiry !== null
+            && (string) $enquiry->status === SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION) {
+            $enquiry->update(['status' => SampleSubmissionRequest::STATUS_IN_REVIEW]);
+        }
+
         return true;
     }
 

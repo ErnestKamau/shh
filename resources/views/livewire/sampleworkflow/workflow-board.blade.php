@@ -6132,8 +6132,8 @@
 				const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
 				if (titleEl && iconEl) {
 					if (physical) {
-						titleEl.textContent = 'Sample receiving';
-						iconEl.className = 'mdi mdi-package-variant-closed text-primary mr-2';
+						titleEl.textContent = 'Move to In Review';
+						iconEl.className = 'mdi mdi-clipboard-arrow-right text-primary mr-2';
 						if (subtitleEl) {
 							subtitleEl.textContent = '';
 							subtitleEl.classList.add('d-none');

@@ -504,18 +504,7 @@
         @endif
         @endunless
 
-        @if ($this->isPhysicalCheckIn)
-            <section class="receive-sample-checkin-remarks mb-3">
-                <label class="receive-checklist-field-label small font-weight-bold" for="receive-remarks">Reception notes</label>
-                <textarea
-                    id="receive-remarks"
-                    wire:model="remarks"
-                    rows="3"
-                    class="form-control form-control-sm receive-checklist-control"
-                    placeholder="Optional notes about sample condition on arrival, packaging, etc. (separate from TRF remarks above)"
-                ></textarea>
-            </section>
-        @endif
+        {{-- Remarks / reception notes removed for physical check-in; now a simple confirmation. --}}
 
     @error('selection')
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>

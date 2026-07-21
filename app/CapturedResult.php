@@ -127,10 +127,16 @@ class CapturedResult extends Model implements Auditable
 		return Models\Equipments\Equipment::where('id', $this->equipment_id)->first();
 	}
 
+	public function analysisMethod()
+	{
+		return $this->belongsTo(AnalysisMethod::class, 'method_id');
+	}
+
 	public function method()
 	{
-		return AnalysisMethod::find($this->method_id);
+		return $this->analysisMethod()->first();
 	}
+
 	public function ltmethod()
 	{
 		return $this->belongsTo(AnalysisMethod::class, 'ltm_method_id');
