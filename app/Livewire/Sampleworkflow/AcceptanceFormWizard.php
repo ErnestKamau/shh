@@ -439,10 +439,21 @@ class AcceptanceFormWizard extends Component
      */
     private function mapQuotationLinesForAcceptance(array $quotationLines): array
     {
-        return collect($quotationLines)->map(function (array $line, int $index): array {
+        $fallbackSampleTypeId = collect($this->sampleConfigs)
+            ->pluck('sample_type_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->first();
+
+        return collect($quotationLines)->map(function (array $line, int $index) use ($fallbackSampleTypeId): array {
+            $sampleTypeId = $line['sample_type_id'] ?? null;
+            if (($sampleTypeId === null || $sampleTypeId === '') && $fallbackSampleTypeId) {
+                $sampleTypeId = $fallbackSampleTypeId;
+            }
+
             return [
                 'line_no' => $index + 1,
-                'sample_type_id' => $line['sample_type_id'] ?? null,
+                'sample_type_id' => $sampleTypeId,
                 'sample_type_name' => $line['sample_type_name'] ?? '',
                 'analysis_type_id' => $line['analysis_type_id'] ?? null,
                 'analysis_type_name' => $line['analysis_type_name'] ?? '',

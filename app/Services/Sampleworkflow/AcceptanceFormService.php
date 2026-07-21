@@ -2,6 +2,7 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\AnalysisType;
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\ChainOfCustody;
@@ -369,10 +370,29 @@ class AcceptanceFormService
     {
         $form->lines()->delete();
 
+        $analysisTypeIds = collect($lines)
+            ->pluck('analysis_type_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $sampleTypeByAnalysisType = $analysisTypeIds === []
+            ? collect()
+            : AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->pluck('sample_type_id', 'id');
+
         foreach (array_values($lines) as $index => $line) {
             $sampleTypeId = $line['sample_type_id'] ?? null;
             $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
             $analysisElementId = $line['analysis_element_id'] ?? null;
+
+            if (($sampleTypeId === null || $sampleTypeId === '') && $analysisTypeId !== '') {
+                $resolved = $sampleTypeByAnalysisType->get($analysisTypeId);
+                $sampleTypeId = $resolved ? (string) $resolved : null;
+            }
 
             $unitAmount = isset($line['unit_amount'])
                 ? (float) $line['unit_amount']

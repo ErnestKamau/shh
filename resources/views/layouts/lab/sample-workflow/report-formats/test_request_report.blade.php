@@ -483,7 +483,8 @@
     @if(!empty($isPdfMode))
     @page {
         size: A4 portrait;
-        margin: 8mm 16mm 18mm 16mm;
+        /* Bottom margin reserves space for the fixed disclaimer footer + page number. */
+        margin: 8mm 16mm 48mm 16mm;
     }
     html {
         margin: 0;
@@ -559,11 +560,18 @@
         page-break-inside: avoid;
         page-break-before: avoid;
     }
+    /* Fixed on every PDF page (DomPDF repeats position:fixed elements). */
     .pdf-doc-footer {
-        page-break-inside: avoid;
-        margin-top: 6px;
-        padding-top: 6px;
+        position: fixed;
+        left: 16mm;
+        right: 16mm;
+        bottom: 6mm;
+        width: auto;
+        margin: 0;
+        padding: 4px 0 0;
         border-top: 1px solid #cfcfcf;
+        background: #fff;
+        page-break-inside: avoid;
     }
     .pdf-doc-footer .meta-top {
         font-size: 8px;
@@ -974,34 +982,7 @@
         {{-- ══════════════ END OF TEXT ══════════════ --}}
         <div class="end-text">{{ $labels['end_of_text'] }}</div>
 
-        @if(!empty($isPdfMode))
-        {{-- Document footer in normal flow (after all content — never overlays data) --}}
-        <div class="pdf-doc-footer">
-            <div class="meta-top">
-                {{ $labels['results_relate'] }}<br>
-                {{ $labels['no_reproduce'] }}
-            </div>
-            <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-            <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
-            <table class="meta-legal-wrap">
-                <tr>
-                    <td class="meta-legal">
-                        This document is issued by the Company subject to the Terms and Conditions at
-                        https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                        information contained herein reflects the Company&#8217;s findings at the time and place of its
-                        intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                        responsibility is to its Client and the Company disclaims any liability to third parties.
-                        Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-                    </td>
-                    <td class="meta-qr">
-                        @if(!empty($footerQrCode))
-                            <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                        @endif
-                    </td>
-                </tr>
-            </table>
-        </div>
-        @else
+        @if(empty($isPdfMode))
         <div class="report-footer-text">
             {{ $labels['results_relate'] }}<br>
             {{ $labels['no_reproduce'] }}
@@ -1036,6 +1017,34 @@
 
 </main>
 @if(!empty($isPdfMode))
+{{-- Fixed footer: DomPDF repeats position:fixed on every page --}}
+<div class="pdf-doc-footer">
+    <div class="meta-top">
+        {{ $labels['results_relate'] }}<br>
+        {{ $labels['no_reproduce'] }}
+    </div>
+    <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
+    <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
+    <table class="meta-legal-wrap">
+        <tr>
+            <td class="meta-legal">
+                This document is issued by the Company subject to the Terms and Conditions at
+                https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
+                information contained herein reflects the Company&#8217;s findings at the time and place of its
+                intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
+                responsibility is to its Client and the Company disclaims any liability to third parties.
+                Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
+            </td>
+            <td class="meta-qr">
+                @if(!empty($footerQrCode))
+                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                @endif
+            </td>
+        </tr>
+    </table>
+</div>
+@endif
+@if(!empty($isPdfMode))
 @php
     $pageNumberText = match ($language ?? 'en') {
         'ar' => 'صفحة {PAGE_NUM} من {PAGE_COUNT}',
@@ -1049,9 +1058,9 @@
         $size = 8;
         $font = $fontMetrics->getFont("DejaVu Sans");
         $width = $fontMetrics->get_text_width("Page 99 of 99", $font, $size);
-        // Match @page right margin (16mm ≈ 45pt).
+        // Match @page right margin (16mm ≈ 45pt). Sit below the fixed footer.
         $x = $pdf->get_width() - $width - 45;
-        $y = $pdf->get_height() - 16;
+        $y = $pdf->get_height() - 14;
         $pdf->page_text($x, $y, $pageText, $font, $size);
     }
 </script>

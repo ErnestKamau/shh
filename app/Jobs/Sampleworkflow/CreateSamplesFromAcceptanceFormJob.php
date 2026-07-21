@@ -72,12 +72,19 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     throw new \RuntimeException('No approved analysis lines on acceptance form.');
                 }
 
-                $primarySampleTypeId = (string) ($approvedLines->first()->sample_type_id ?? '');
-                $instance = $this->resolveLinkedSubmissionFormInstance($form);
-
                 $configPayload = is_array($form->sample_configuration_payload)
                     ? $form->sample_configuration_payload
                     : [];
+
+                $primarySampleTypeId = $this->resolvePrimarySampleTypeId($form, $approvedLines, $configPayload);
+                if ($primarySampleTypeId === '') {
+                    throw new \RuntimeException(
+                        'Cannot create sample batch: sample type is missing on the acceptance form. '
+                        .'Ensure each sample configuration and analysis line has a sample type.'
+                    );
+                }
+
+                $instance = $this->resolveLinkedSubmissionFormInstance($form);
 
                 $primaryZoneId = $this->resolvePrimaryZoneIdFromConfig($configPayload);
 
@@ -203,6 +210,101 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * @param  Collection<int, AnalysisAcceptanceFormLine>  $approvedLines
+     * @param  list<array<string, mixed>>  $configPayload
+     */
+    private function resolvePrimarySampleTypeId(
+        AnalysisAcceptanceForm $form,
+        Collection $approvedLines,
+        array $configPayload,
+    ): string {
+        foreach ($approvedLines as $line) {
+            $sampleTypeId = trim((string) ($line->sample_type_id ?? ''));
+            if ($sampleTypeId !== '') {
+                return $sampleTypeId;
+            }
+        }
+
+        foreach ($configPayload as $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+
+            $sampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
+            if ($sampleTypeId !== '') {
+                return $sampleTypeId;
+            }
+        }
+
+        $analysisTypeIds = $approvedLines
+            ->pluck('analysis_type_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($analysisTypeIds !== []) {
+            $fromAnalysisType = AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->whereNotNull('sample_type_id')
+                ->value('sample_type_id');
+
+            if ($fromAnalysisType) {
+                return (string) $fromAnalysisType;
+            }
+        }
+
+        $configAnalysisTypeIds = collect($configPayload)
+            ->filter(fn ($config) => is_array($config))
+            ->pluck('analysis_type_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($configAnalysisTypeIds !== []) {
+            $fromConfigAnalysisType = AnalysisType::query()
+                ->whereIn('id', $configAnalysisTypeIds)
+                ->whereNotNull('sample_type_id')
+                ->value('sample_type_id');
+
+            if ($fromConfigAnalysisType) {
+                return (string) $fromConfigAnalysisType;
+            }
+        }
+
+        $instance = $this->resolveLinkedSubmissionFormInstance($form);
+        if ($instance !== null) {
+            $instance->loadMissing(['values.element', 'submissionForm.sampleTypes', 'batches']);
+
+            $fromBatch = trim((string) ($instance->batches->first()?->sample_type_id ?? ''));
+            if ($fromBatch !== '') {
+                return $fromBatch;
+            }
+
+            $fromFormTemplate = trim((string) ($instance->submissionForm?->sampleTypes?->first()?->id ?? ''));
+            if ($fromFormTemplate !== '') {
+                return $fromFormTemplate;
+            }
+        }
+
+        if ($form->sample_submission_request_id) {
+            $submissionRequest = $form->relationLoaded('sampleSubmissionRequest')
+                ? $form->sampleSubmissionRequest
+                : \App\Models\SampleSubmissionRequest::query()->find($form->sample_submission_request_id);
+
+            $fromRequest = trim((string) ($submissionRequest?->sample_type_id ?? ''));
+            if ($fromRequest !== '') {
+                return $fromRequest;
+            }
+        }
+
+        return '';
     }
 
     private function resolveLinkedSubmissionFormInstance(AnalysisAcceptanceForm $form): ?SubmissionFormInstance
