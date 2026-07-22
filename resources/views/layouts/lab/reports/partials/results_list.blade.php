@@ -5,7 +5,7 @@
             <table class="results-table table table-bordered" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
                     <tr style="background-color: #f8f9fa;">
-                        <td colspan="4" style="padding: 10px; font-weight: bold; font-size: 11px; text-transform: uppercase;">
+                        <td colspan="5" style="padding: 10px; font-weight: bold; font-size: 11px; text-transform: uppercase;">
                             Laboratory Number: {{ $sampleCode }} |
                             Sample Description: {{ $group['sample']->sample_point ?? $group['sample']->description ?? 'N/A' }} |
                             Batch/Lot/Ref: {{ $group['sample']->reference_number ?? 'N/A' }}
@@ -13,6 +13,7 @@
                     </tr>
                     <tr style="background-color: #e9ecef;">
                         <th style="padding: 8px;">Analysis Element</th>
+                        <th style="padding: 8px;">Lab Section</th>
                         <th style="padding: 8px;">Units</th>
                         <th style="padding: 8px;">Results</th>
                         <th style="padding: 8px;">Specifications</th>
@@ -27,9 +28,11 @@
                     $specification = $standards[$analyteCode] ?? 'NS';
                     $remark = strtolower($result['remark'] ?? 'pass');
                     $isFailed = in_array($remark, ['fail', 'failed', 'failure', 'rejected']);
+                    $labSection = $result['lab_section'] ?? $parameter->lab_section_name ?? '-';
                     @endphp
                     <tr>
                         <td style="padding: 6px; text-align: left;">{{ $analyteCode }}</td>
+                        <td style="padding: 6px;">{{ $labSection ?: '-' }}</td>
                         <td style="padding: 6px;">{{ $parameter->reporting_unit_name ?? $parameter->reporting_unit_id ?? '-' }}</td>
                         <td style="padding: 6px;" class="{{ $isFailed ? 'failed-result text-danger' : '' }} fw-bold">
                             {{ $result['value'] }}
@@ -38,7 +41,7 @@
                     </tr>
                     @endforeach
                     <tr style="background-color: #f8f9fa;">
-                        <td colspan="4" style="padding: 8px; font-weight: bold;">
+                        <td colspan="5" style="padding: 8px; font-weight: bold;">
                             Action/Recommendation:
                             <span class="{{ strtolower($group['conformity'] ?? 'pass') == 'pass' ? 'text-success' : 'text-danger' }}">
                                 {{ $group['conformity'] ?? 'Pass' }}
@@ -56,7 +59,7 @@
             <table class="results-table table table-bordered" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
                     <tr style="background-color: #f8f9fa;">
-                        <td colspan="4" style="padding: 10px; font-weight: bold; font-size: 11px; text-transform: uppercase;">
+                        <td colspan="5" style="padding: 10px; font-weight: bold; font-size: 11px; text-transform: uppercase;">
                             Laboratory Number: {{ $sampleCode }} |
                             Sample Description: {{ $sampleData['sample']->sample_point ?? $sampleData['sample']->description ?? 'N/A' }} |
                             Batch/Lot/Ref: {{ $sampleData['sample']->reference_number ?? 'N/A' }}
@@ -64,6 +67,7 @@
                     </tr>
                     <tr style="background-color: #e9ecef;">
                         <th style="padding: 8px;">Analysis Element</th>
+                        <th style="padding: 8px;">Lab Section</th>
                         <th style="padding: 8px;">Units</th>
                         <th style="padding: 8px;">Results</th>
                         <th style="padding: 8px;">Specifications</th>
@@ -78,9 +82,11 @@
                     $specification = $standards[$analyteCode] ?? 'NS';
                     $remark = strtolower($result['remark'] ?? 'pass');
                     $isFailed = in_array($remark, ['fail', 'failed', 'failure', 'rejected']);
+                    $labSection = $result['lab_section'] ?? $parameter->lab_section_name ?? '-';
                     @endphp
                     <tr>
                         <td style="padding: 6px; text-align: left;">{{ $analyteCode }}</td>
+                        <td style="padding: 6px;">{{ $labSection ?: '-' }}</td>
                         <td style="padding: 6px;">{{ $parameter->reporting_unit_name ?? $parameter->reporting_unit_id ?? '-' }}</td>
                         <td style="padding: 6px;" class="{{ $isFailed ? 'failed-result text-danger' : '' }} fw-bold">
                             {{ $result['value'] }}
@@ -89,7 +95,7 @@
                     </tr>
                     @endforeach
                     <tr style="background-color: #f8f9fa;">
-                        <td colspan="4" style="padding: 8px; font-weight: bold;">
+                        <td colspan="5" style="padding: 8px; font-weight: bold;">
                             Action/Recommendation:
                             <span class="{{ strtolower($sampleData['conformity'] ?? 'pass') == 'pass' ? 'text-success' : 'text-danger' }}">
                                 {{ $sampleData['conformity'] ?? 'Pass' }}

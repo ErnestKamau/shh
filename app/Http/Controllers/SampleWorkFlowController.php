@@ -46,6 +46,7 @@ use App\Services\SampleCreationService;
 use App\Models\System\SystemConfiguration;
 use App\Services\ResultRemarkService;
 use App\Services\Qc\QcBatchCompletionService;
+use App\Services\Lab\MethodConfigurationResolver;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\ProcessedResultSyncService;
@@ -1771,8 +1772,9 @@ class SampleWorkFlowController extends Controller
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
         $countries = Country::orderBy('name')->get();
         // $methods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
-        $is_ltm_id = SystemConfiguration::where('key', 'method_ltm_id')->first();
-        $ltMethodTypeId = $this->resolveIntegerConfigValue($is_ltm_id->value ?? null, 'method_ltm_id');
+        $methodTypeResolver = app(MethodConfigurationResolver::class);
+        $methodTypeResolver->ensurePointerConfigurations();
+        $ltMethodTypeId = $methodTypeResolver->resolvePointerConfigValue('method_ltm_id');
         $ltmethods = $ltMethodTypeId !== null
             ? AnalysisMethod::where('active', 1)->where('method_type_id', $ltMethodTypeId)->get()
             : collect();
@@ -1790,8 +1792,7 @@ class SampleWorkFlowController extends Controller
         $workflowstages = [];
         $workflows = getSampleWorflowStages();
         $sample_types = getSampleTypes();
-        $is_sampling = SystemConfiguration::where('key', 'sampling_method_type_id')->first();
-        $samplingMethodTypeId = $this->resolveIntegerConfigValue($is_sampling->value ?? null, 'sampling_method_type_id');
+        $samplingMethodTypeId = $methodTypeResolver->resolvePointerConfigValue('sampling_method_type_id');
         $samplingmethods = $samplingMethodTypeId !== null
             ? AnalysisMethod::where('active', 1)->where('method_type_id', $samplingMethodTypeId)->get()
             : collect();
@@ -2129,43 +2130,6 @@ class SampleWorkFlowController extends Controller
             'products' => $unit->products,
             'sample_points' => $unit->sample_points,
         ], 200);
-    }
-
-    private function resolveIntegerConfigValue(mixed $rawValue, string $configKey): ?int
-    {
-        if (is_int($rawValue)) {
-            return $rawValue;
-        }
-
-        $value = trim((string) $rawValue);
-        if ($value === '') {
-            return null;
-        }
-
-        if (ctype_digit($value)) {
-            return (int) $value;
-        }
-
-        try {
-            $decrypted = decrypt($value);
-            if (is_int($decrypted)) {
-                return $decrypted;
-            }
-
-            $decryptedString = trim((string) $decrypted);
-            if ($decryptedString !== '' && ctype_digit($decryptedString)) {
-                return (int) $decryptedString;
-            }
-        } catch (\Throwable $e) {
-            // Non-encrypted values will fail decryption and are handled below.
-        }
-
-        Log::warning('System configuration value is not a valid integer', [
-            'key' => $configKey,
-            'value' => $value,
-        ]);
-
-        return null;
     }
 
     public function updateChainofCustody($data)

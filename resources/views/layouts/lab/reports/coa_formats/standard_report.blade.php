@@ -255,13 +255,16 @@ $printed_pos = [];
                 <thead style="height: 60px !important; background-color: lightgray;">
                     <tr style="">
                         <th class="parameter"
-                            style="font-size: 9px !important; width:20% !important;vertical-align: top !important;padding:5px !important;">
+                            style="font-size: 9px !important; width:18% !important;vertical-align: top !important;padding:5px !important;">
                             Test Parameters</th>
                         <th class="parameter"
-                            style="font-size:9px !important;width:16% !important;vertical-align: top !important;padding:5px !important">
+                            style="font-size:9px !important;width:12% !important;vertical-align: top !important;padding:5px !important">
+                            Lab Section</th>
+                        <th class="parameter"
+                            style="font-size:9px !important;width:14% !important;vertical-align: top !important;padding:5px !important">
                             Test Method</th>
                         <th class="parameter"
-                            style="font-size:9px !important;width:16% !important;vertical-align: top !important;padding:5px !important">
+                            style="font-size:9px !important;width:14% !important;vertical-align: top !important;padding:5px !important">
                             Ref. Method</th>
                         <th class="parameter"
                             style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
@@ -272,14 +275,14 @@ $printed_pos = [];
                                 Uncertainity (+-)</th>
                         @endif
                         <th class="parameter"
-                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                            style="font-size: 9px !important;width:8% !important;vertical-align: top !important;padding:5px !important">
                             Unit(s)</th>
                         <th class="parameter text-center"
-                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                            style="font-size: 9px !important;width:12% !important;vertical-align: top !important;padding:5px !important">
                             Specification</th>
 
                         <th class="parameter text-center"
-                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                            style="font-size: 9px !important;width:12% !important;vertical-align: top !important;padding:5px !important">
                             Rating</th>
                     </tr>
                 </thead>
@@ -296,6 +299,9 @@ $printed_pos = [];
                                 <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                     {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}
                                     {!! $captured->isitalic == 1 ? '<i>' . $captured->analyte_code . '</i>' : $captured->analyte_code !!}
+                                </td>
+                                <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
+                                    {{ $captured->labSection->name ?? '-' }}
                                 </td>
                                 <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                     {{ strtoupper($captured->ltmethod->name ?? '') }}
@@ -330,7 +336,7 @@ $printed_pos = [];
                     @endforeach
                     <tr>
                         <td style="font-size: 9px !important;padding-left:3px !important; text-align:center ;border: 0 transparent !important"
-                            colspan="{{ $batch->require_mu == 1 ? 8 : 7 }}">******<small>End of Test
+                            colspan="{{ $batch->require_mu == 1 ? 9 : 8 }}">******<small>End of Test
                                 Results</small>*******</td>
                     </tr>
                 </tbody>

@@ -8,8 +8,8 @@ use App\AnalysisType;
 use App\Analyte;
 use App\Company;
 use App\Lab;
-use App\LabSection;
 use App\Models\Equipments\Equipment;
+use App\SampleAnalysisStage;
 use App\SampleType;
 
 trait SeedsAmSpecParameterMatrix
@@ -106,17 +106,48 @@ trait SeedsAmSpecParameterMatrix
                 $stats['analysis_types']++;
             }
 
+            // analysis_elements.lab_section_id / analysis_types.lab_section_id reference
+            // sample_analysis_stages (operational departments, is_sample_stage = 0),
+            // not the Monitoring module's lab_sections table.
             $labSectionId = null;
             if (! empty($row['lab_section_code']) && ! empty($row['lab_section_name'])) {
-                $labSection = LabSection::query()->updateOrCreate(
-                    ['code' => $row['lab_section_code'], 'company_id' => $company->id],
-                    [
+                $labSection = SampleAnalysisStage::query()
+                    ->where('company_id', $company->id)
+                    ->where(function ($query) {
+                        $query->where('is_sample_stage', false)->orWhereNull('is_sample_stage');
+                    })
+                    ->where(function ($query) use ($row) {
+                        $query->where('code', $row['lab_section_code'])
+                            ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $row['lab_section_name']))]);
+                    })
+                    ->first();
+
+                if (! $labSection) {
+                    $labSection = SampleAnalysisStage::query()->create([
+                        'code' => $row['lab_section_code'],
+                        'company_id' => $company->id,
                         'name' => $row['lab_section_name'],
+                        'title' => $row['lab_section_name'],
                         'lab_id' => $lab->id,
-                        'active' => 1,
-                    ]
-                );
+                        'is_sample_stage' => false,
+                        'active' => true,
+                    ]);
+                } else {
+                    $labSection->fill([
+                        'name' => $row['lab_section_name'],
+                        'title' => $row['lab_section_name'],
+                        'lab_id' => $lab->id,
+                        'is_sample_stage' => false,
+                        'active' => true,
+                    ])->save();
+                }
+
                 $labSectionId = $labSection->id;
+
+                if ($analysisType->lab_section_id !== $labSectionId) {
+                    $analysisType->lab_section_id = $labSectionId;
+                    $analysisType->save();
+                }
             }
 
             $nonAccredited = $this->isNonAccredited($row['accreditation'] ?? 'Accredited');

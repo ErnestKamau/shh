@@ -832,17 +832,18 @@
                     <tr>
                         @php
                             $includeReferenceMethod = !empty($includeReferenceMethod);
-                            $resultsColspan = $includeReferenceMethod ? 8 : 7;
+                            $resultsColspan = $includeReferenceMethod ? 9 : 8;
                         @endphp
-                        <th style="width:{{ $includeReferenceMethod ? '18%' : '22%' }}">{{ $labels['analyte'] }}</th>
-                        <th style="width:10%">{{ $labels['results'] }}</th>
-                        <th style="width:7%">{{ $labels['unit'] }}</th>
-                        <th style="width:11%">{{ $labels['specification'] }}</th>
-                        <th style="width:12%">{{ $labels['standard_name'] ?? 'Standard Name' }}</th>
-                        <th style="width:7%">{{ $labels['mu_percent'] }}</th>
-                        <th style="width:{{ $includeReferenceMethod ? '17%' : '25%' }}">{{ $labels['method'] }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '16%' : '18%' }}">{{ $labels['analyte'] }}</th>
+                        <th style="width:12%">{{ $labels['lab_section'] ?? 'Lab Section' }}</th>
+                        <th style="width:9%">{{ $labels['results'] }}</th>
+                        <th style="width:6%">{{ $labels['unit'] }}</th>
+                        <th style="width:10%">{{ $labels['specification'] }}</th>
+                        <th style="width:10%">{{ $labels['standard_name'] ?? 'Standard Name' }}</th>
+                        <th style="width:6%">{{ $labels['mu_percent'] }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '14%' : '19%' }}">{{ $labels['method'] }}</th>
                         @if($includeReferenceMethod)
-                        <th style="width:18%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
+                        <th style="width:15%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
                         @endif
                     </tr>
                 </thead>
@@ -867,6 +868,7 @@
                                 <td>
                                     {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
                                 </td>
+                                <td>{{ $cr->labSection->name ?? '-' }}</td>
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>

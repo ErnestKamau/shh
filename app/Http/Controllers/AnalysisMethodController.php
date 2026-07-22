@@ -8,6 +8,7 @@ use App\AnalysisMethod;
 use App\MethodValidationRequest;
 
 use App\Models\System\SystemConfiguration;
+use App\Services\Lab\MethodConfigurationResolver;
 use Illuminate\Http\Request;
 
 class AnalysisMethodController extends Controller
@@ -25,14 +26,19 @@ class AnalysisMethodController extends Controller
   public function index(Request $request, $sample_type_id = 0)
   {
     $companies = Company::all();
-    $reference_id = SystemConfiguration::where('key','method_reference_id')->first();
-    $ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
-    $methods = AnalysisMethod::with(['referencemethod','methodtype'])->get();
-    $method_types = SystemConfiguration::where('key','method_type')->get();
+    $methodTypeResolver = app(MethodConfigurationResolver::class);
+    $methodTypeResolver->ensurePointerConfigurations();
+    $referenceTypeId = $methodTypeResolver->resolvePointerConfigValue('method_reference_id');
+    $reference_id = SystemConfiguration::where('key', 'method_reference_id')->first();
+    $ltm_id = SystemConfiguration::where('key', 'method_ltm_id')->first();
+    $methods = AnalysisMethod::with(['referencemethod', 'methodtype'])->get();
+    $method_types = SystemConfiguration::where('key', 'method_type')->get();
 
-    $references = AnalysisMethod::where('method_type_id',$reference_id)->get();
+    $references = $referenceTypeId !== null
+      ? AnalysisMethod::where('method_type_id', $referenceTypeId)->get()
+      : collect();
 
-    return view('layouts.lab.methods.index', compact('companies', 'methods','references','reference_id','method_types','ltm_id'));
+    return view('layouts.lab.methods.index', compact('companies', 'methods', 'references', 'reference_id', 'method_types', 'ltm_id'));
   }
 
   /**
