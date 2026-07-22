@@ -3,15 +3,16 @@
 namespace App\Livewire\Lab;
 
 use App\Analyte;
+use App\AnalysisElements;
 use App\AnalysisMethod;
+use App\CapturedResult;
 use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
-use App\CapturedResult;
 use App\Result;
-use App\AnalysisElements;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Illuminate\Support\Facades\DB;
 
 class AnalyteManager extends Component
 {
@@ -19,12 +20,14 @@ class AnalyteManager extends Component
 
     // Pagination
     public $perPage = 10;
+
     public $perPageOptions = [10, 25, 50, 100];
-    
+
     // Filters
     public $search = '';
+
     public $statusFilter = '';
-    
+
     // Modal state
     public bool $showModal = false;
 
@@ -33,7 +36,7 @@ class AnalyteManager extends Component
     public bool $deleteModalVisible = false;
 
     public ?string $analyteToDeleteId = null;
-    
+
     // Form data
     public $analyteForm = [
         'code' => '',
@@ -51,25 +54,32 @@ class AnalyteManager extends Component
         'show_on_report' => true,
         'active' => true,
     ];
-    
+
     // Tag-based multi-select properties
-    public $methodSearch = '';
-    public $equipmentSearch = '';
-    public $showMethodDropdown = false;
-    public $showEquipmentDropdown = false;
+    public string $methodSearch = '';
+
+    public string $equipmentSearch = '';
+
+    public bool $showMethodDropdown = false;
+
+    public bool $showEquipmentDropdown = false;
 
     // Status tag-select
-    public $showStatusDropdown = false;
-    
+    public bool $showStatusDropdown = false;
+
     // Reporting unit single-select properties
-    public $reportingUnitSearch = '';
-    public $showReportingUnitDropdown = false;
-    
+    public string $reportingUnitSearch = '';
+
+    public bool $showReportingUnitDropdown = false;
+
     // Message
     public $message = '';
+
     public $messageType = 'success';
-    
+
     protected string $paginationTheme = 'bootstrap';
+
+    protected int $searchResultLimit = 30;
 
     protected function rules(): array
     {
@@ -127,8 +137,12 @@ class AnalyteManager extends Component
             'equivalent_weight' => $analyte->equivalent_weight,
             'reporting_symbol' => $analyte->reporting_symbol,
             'reporting_unit' => $analyte->reporting_unit,
-            'method' => $analyte->analysisMethods()->pluck('analysis_methods.id')->toArray(),
-            'equipment_id' => $analyte->equipmentItems()->pluck('equipment.id')->toArray(),
+            'method' => $this->normalizeIdList(
+                $analyte->analysisMethods()->pluck('analysis_methods.id')->all()
+            ),
+            'equipment_id' => $this->normalizeIdList(
+                $analyte->equipmentItems()->pluck('equipment.id')->all()
+            ),
             'is_italic' => (bool) $analyte->is_italic,
             'non_detectable' => (bool) $analyte->non_detectable,
             'non_accredited' => (bool) $analyte->non_accredited,
@@ -183,8 +197,8 @@ class AnalyteManager extends Component
         $this->validate();
 
         try {
-            $methodIds = array_values(array_filter($this->analyteForm['method'] ?? []));
-            $equipmentIds = array_values(array_filter($this->analyteForm['equipment_id'] ?? []));
+            $methodIds = $this->normalizeIdList($this->analyteForm['method'] ?? []);
+            $equipmentIds = $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []);
 
             $data = [
                 'code' => $this->analyteForm['code'],
@@ -301,96 +315,163 @@ class AnalyteManager extends Component
         $this->reset(['message', 'messageType']);
     }
 
-    // Tag-based multi-select methods for Methods
-    public function addMethod($methodId): void
+    public function openMethodDropdown(): void
     {
-        if (!in_array($methodId, $this->analyteForm['method'])) {
-            $this->analyteForm['method'][] = $methodId;
+        $this->showMethodDropdown = true;
+        $this->showEquipmentDropdown = false;
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function closeMethodDropdown(): void
+    {
+        $this->showMethodDropdown = false;
+    }
+
+    public function addMethod(string $methodId): void
+    {
+        $methodId = (string) $methodId;
+        $selected = $this->normalizeIdList($this->analyteForm['method'] ?? []);
+
+        if (! in_array($methodId, $selected, true)) {
+            $selected[] = $methodId;
         }
+
+        $this->analyteForm['method'] = $selected;
         $this->methodSearch = '';
         $this->showMethodDropdown = false;
     }
 
-    public function removeMethod($methodId): void
+    public function removeMethod(string $methodId): void
     {
+        $methodId = (string) $methodId;
         $this->analyteForm['method'] = array_values(array_filter(
-            $this->analyteForm['method'], 
-            fn($id) => $id != $methodId
+            $this->normalizeIdList($this->analyteForm['method'] ?? []),
+            fn (string $id): bool => $id !== $methodId
         ));
     }
 
     public function updatedMethodSearch(): void
     {
         $this->showMethodDropdown = true;
+        $this->showEquipmentDropdown = false;
+        $this->showReportingUnitDropdown = false;
     }
 
-    // Tag-based multi-select methods for Equipment
-    public function addEquipment($equipmentId): void
+    public function openEquipmentDropdown(): void
     {
-        if (!in_array($equipmentId, $this->analyteForm['equipment_id'])) {
-            $this->analyteForm['equipment_id'][] = $equipmentId;
+        $this->showEquipmentDropdown = true;
+        $this->showMethodDropdown = false;
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function closeEquipmentDropdown(): void
+    {
+        $this->showEquipmentDropdown = false;
+    }
+
+    public function addEquipment(string $equipmentId): void
+    {
+        $equipmentId = (string) $equipmentId;
+        $selected = $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []);
+
+        if (! in_array($equipmentId, $selected, true)) {
+            $selected[] = $equipmentId;
         }
+
+        $this->analyteForm['equipment_id'] = $selected;
         $this->equipmentSearch = '';
         $this->showEquipmentDropdown = false;
     }
 
-    public function removeEquipment($equipmentId): void
+    public function removeEquipment(string $equipmentId): void
     {
+        $equipmentId = (string) $equipmentId;
         $this->analyteForm['equipment_id'] = array_values(array_filter(
-            $this->analyteForm['equipment_id'], 
-            fn($id) => $id != $equipmentId
+            $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []),
+            fn (string $id): bool => $id !== $equipmentId
         ));
     }
 
     public function updatedEquipmentSearch(): void
     {
         $this->showEquipmentDropdown = true;
+        $this->showMethodDropdown = false;
+        $this->showReportingUnitDropdown = false;
     }
 
-    public function getFilteredMethodsProperty()
+    public function getFilteredMethodsProperty(): Collection
     {
-        $query = AnalysisMethod::where('active', 1)->orderBy('name');
-
-        if (! empty($this->methodSearch)) {
-            $search = $this->methodSearch;
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%');
-            });
-        }
-
-        return $query->get();
-    }
-
-    public function getFilteredEquipmentProperty()
-    {
-        $query = Equipment::where('active', 1)->orderBy('name');
-        if (!empty($this->equipmentSearch)) {
-            $query->where('name', 'like', '%' . $this->equipmentSearch . '%');
-        }
-        return $query->limit(30)->get();
-    }
-
-    public function getSelectedMethodsProperty()
-    {
-        if (empty($this->analyteForm['method'])) {
+        if (! $this->showMethodDropdown) {
             return collect();
         }
-        
-        return AnalysisMethod::whereIn('id', $this->analyteForm['method'])->get();
+
+        $query = $this->methodOptionsQuery($this->methodSearch);
+        $selectedIds = $this->normalizeIdList($this->analyteForm['method'] ?? []);
+
+        if ($selectedIds !== []) {
+            $query->whereNotIn('id', $selectedIds);
+        }
+
+        return $query->limit($this->searchResultLimit)->get();
     }
 
-    public function getSelectedEquipmentProperty()
+    public function getFilteredEquipmentProperty(): Collection
     {
-        if (empty($this->analyteForm['equipment_id'])) {
+        if (! $this->showEquipmentDropdown) {
             return collect();
         }
-        
-        return Equipment::whereIn('id', $this->analyteForm['equipment_id'])->get();
+
+        $query = $this->equipmentOptionsQuery($this->equipmentSearch);
+        $selectedIds = $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []);
+
+        if ($selectedIds !== []) {
+            $query->whereNotIn('id', $selectedIds);
+        }
+
+        return $query->limit($this->searchResultLimit)->get();
     }
 
-    // Reporting unit single-select methods
-    public function selectReportingUnit($unit): void
+    public function getSelectedMethodsProperty(): Collection
+    {
+        $ids = $this->normalizeIdList($this->analyteForm['method'] ?? []);
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return AnalysisMethod::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getSelectedEquipmentProperty(): Collection
+    {
+        $ids = $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []);
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return Equipment::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function openReportingUnitDropdown(): void
+    {
+        $this->showReportingUnitDropdown = true;
+        $this->showMethodDropdown = false;
+        $this->showEquipmentDropdown = false;
+    }
+
+    public function closeReportingUnitDropdown(): void
+    {
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function selectReportingUnit(string $unit): void
     {
         $this->analyteForm['reporting_unit'] = $unit;
         $this->reportingUnitSearch = '';
@@ -400,50 +481,106 @@ class AnalyteManager extends Component
     public function updatedReportingUnitSearch(): void
     {
         $this->showReportingUnitDropdown = true;
+        $this->showMethodDropdown = false;
+        $this->showEquipmentDropdown = false;
     }
 
-    public function getFilteredReportingUnitsProperty()
+    public function getFilteredReportingUnitsProperty(): Collection
     {
-        $query = ReportingUnit::where('active', 1)->orderBy('name');
-
-        if (!empty($this->reportingUnitSearch)) {
-            $query->where('name', 'like', '%' . $this->reportingUnitSearch . '%');
+        if (! $this->showReportingUnitDropdown) {
+            return collect();
         }
 
-        return $query->limit(50)->get();
+        return $this->reportingUnitOptionsQuery($this->reportingUnitSearch)
+            ->limit($this->searchResultLimit)
+            ->get();
+    }
+
+    protected function methodOptionsQuery(?string $search = null): Builder
+    {
+        $query = AnalysisMethod::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $search = trim((string) $search);
+        if ($search !== '') {
+            $query->where(function (Builder $q) use ($search): void {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('code', 'like', '%'.$search.'%');
+            });
+        }
+
+        return $query;
+    }
+
+    protected function equipmentOptionsQuery(?string $search = null): Builder
+    {
+        $query = Equipment::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $search = trim((string) $search);
+        if ($search !== '') {
+            $query->where(function (Builder $q) use ($search): void {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('equipment_number', 'like', '%'.$search.'%');
+            });
+        }
+
+        return $query;
+    }
+
+    protected function reportingUnitOptionsQuery(?string $search = null): Builder
+    {
+        $query = ReportingUnit::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $search = trim((string) $search);
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  array<int, mixed>  $ids
+     * @return array<int, string>
+     */
+    protected function normalizeIdList(array $ids): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map(
+                static fn ($id): string => trim((string) ($id ?? '')),
+                $ids
+            ),
+            static fn (string $id): bool => $id !== ''
+        )));
     }
 
     public function render()
     {
         $query = Analyte::query()->where('company_id', getUserCompany());
-        
-        // Apply search filter
+
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%')
-                  ->orWhere('common_name', 'like', '%' . $this->search . '%');
+            $query->where(function ($q): void {
+                $q->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('code', 'like', '%'.$this->search.'%')
+                    ->orWhere('common_name', 'like', '%'.$this->search.'%');
             });
         }
-        
-        // Apply status filter
+
         if ($this->statusFilter !== '') {
-            $query->where('active', $this->statusFilter);
+            $query->where('active', $this->statusFilter === '1');
         }
-        
+
         $analytes = $query->with(['analysisMethods', 'equipmentItems'])
             ->orderBy('created_at', 'desc')
             ->paginate($this->perPage);
-        
-        $reportingUnits = ReportingUnit::where('active', 1)->get();
-        $methods = AnalysisMethod::where('active', 1)->get();
-        $equipment = Equipment::where('active', 1)->get();
-        
+
         return view('livewire.lab.analyte-manager', [
             'analytes' => $analytes,
-            'reportingUnits' => $reportingUnits,
-            'methods' => $methods,
-            'equipment' => $equipment,
         ]);
     }
 }

@@ -80,6 +80,8 @@ class ReceiveSampleRequest extends Component
 
     public string $rftInstancesSearch = '';
 
+    public bool $showPhysicalConfirmModal = false;
+
     public function mount(
         array $selectedFormInstanceIds = [],
         array $selectedFormSummaries = [],
@@ -1323,9 +1325,6 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
-     * Receives data from the parent WorkflowBoard and shows the Bootstrap modal
-     * once this component's state is fully updated in the same response cycle.
-     *
      * @param  array<int, string>  $instanceIds
      * @param  array<int, array{id: string, label: string, customer: string}>  $summaries
      */
@@ -1351,17 +1350,35 @@ class ReceiveSampleRequest extends Component
         $this->selectedFormSummaries = $summaries;
         $this->refreshCheckInContexts();
 
-        // Dispatched after state is set — JS listener shows the modal.
-        $this->dispatch(
-            'show-receive-sample-modal',
-            physicalCheckIn: $this->isPhysicalCheckIn,
-        );
+        if ($this->isPhysicalCheckIn) {
+            $this->showPhysicalConfirmModal = true;
+
+            return;
+        }
+
+        $this->showPhysicalConfirmModal = false;
+        $this->dispatch('show-receive-sample-modal', physicalCheckIn: false);
+    }
+
+    public function closePhysicalConfirmModal(): void
+    {
+        $this->showPhysicalConfirmModal = false;
+        $this->selectedFormInstanceIds = [];
+        $this->selectedFormSummaries = [];
+        $this->checkInContexts = [];
+        $this->resetValidation();
+    }
+
+    public function onHideReceiveSampleModal(): void
+    {
+        $this->showPhysicalConfirmModal = false;
     }
 
     protected function getListeners(): array
     {
         return [
             'receive-modal-open' => 'handleReceiveModalOpen',
+            'hide-receive-sample-modal' => 'onHideReceiveSampleModal',
         ];
     }
 
@@ -1453,6 +1470,7 @@ class ReceiveSampleRequest extends Component
         }
 
         session()->flash('success', $message);
+        $this->showPhysicalConfirmModal = false;
         $this->dispatch('receive-completed');
         $this->dispatch('hide-receive-sample-modal');
     }

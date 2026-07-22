@@ -138,28 +138,7 @@
     @livewire('sampleworkflow.process-enquiry-wizard')
     @livewire('sampleworkflow.sample-rejection-wizard')
     @livewire('sampleworkflow.acceptance-form-wizard')
-
-    <div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered" id="receive-sample-modal-dialog">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0">
-                    <div>
-                        <h5 class="modal-title mb-1" id="receive-sample-modal-title">
-                            <i class="mdi mdi-clipboard-arrow-right text-primary mr-2" id="receive-sample-modal-icon"></i>
-                            <span id="receive-sample-modal-title-text">Move to In Review</span>
-                        </h5>
-                        <p class="text-muted small mb-0 d-none" id="receive-sample-modal-subtitle"></p>
-                    </div>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    @livewire('sampleworkflow.receive-sample-request', key('request-view-receive-'.$instance->id))
-                </div>
-            </div>
-        </div>
-    </div>
+    @livewire('sampleworkflow.receive-sample-request', key('request-view-receive-'.$instance->id))
 
     @if($showPoCaptureModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
@@ -215,56 +194,6 @@
         if (url) {
             window.open(url, '_blank');
         }
-    });
-
-    // Child ReceiveSampleRequest dispatches this — must use Livewire.on (not $wire.on).
-    Livewire.on('show-receive-sample-modal', (payload) => {
-        const physical = payload?.physicalCheckIn ?? true;
-        const modalEl = document.getElementById('receive-sample-modal');
-        const dialogEl = document.getElementById('receive-sample-modal-dialog');
-        const titleEl = document.getElementById('receive-sample-modal-title-text');
-        const iconEl = document.getElementById('receive-sample-modal-icon');
-        const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
-
-        if (modalEl) {
-            modalEl.classList.toggle('receive-sample-modal--compact', physical);
-        }
-        if (dialogEl) {
-            dialogEl.classList.toggle('modal-xl', !physical);
-            dialogEl.classList.toggle('modal-dialog-scrollable', !physical);
-        }
-        if (titleEl && iconEl) {
-            if (physical) {
-                titleEl.textContent = 'Move to In Review';
-                iconEl.className = 'mdi mdi-clipboard-arrow-right text-primary mr-2';
-                if (subtitleEl) {
-                    subtitleEl.textContent = '';
-                    subtitleEl.classList.add('d-none');
-                }
-            } else {
-                titleEl.textContent = 'Test Request Form';
-                iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
-                if (subtitleEl) {
-                    subtitleEl.textContent = '';
-                    subtitleEl.classList.add('d-none');
-                }
-            }
-        }
-
-        $('#receive-sample-modal').modal('show');
-        setTimeout(function () {
-            if (typeof window.initTrfSignaturePads === 'function') {
-                window.initTrfSignaturePads();
-            }
-        }, 300);
-    });
-
-    Livewire.on('hide-receive-sample-modal', () => {
-        $('#receive-sample-modal').modal('hide');
-    });
-
-    Livewire.on('receive-completed', () => {
-        window.location.reload();
     });
 
     Livewire.on('notify', (payload) => {

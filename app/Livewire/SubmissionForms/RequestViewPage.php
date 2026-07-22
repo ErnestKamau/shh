@@ -6,6 +6,7 @@ use App\ChainOfCustody;
 use App\BatchAttachment;
 use App\Livewire\Sampleworkflow\AcceptanceFormWizard;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
+use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Livewire\Sampleworkflow\SampleRejectionWizard;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
@@ -26,6 +27,8 @@ use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -292,15 +295,30 @@ class RequestViewPage extends Component
 
         $this->dispatch(
             'receive-modal-open',
-            instanceIds: [$this->instance->id],
+            instanceIds: [(string) $this->instance->id],
             summaries: [[
-                'id' => $this->instance->id,
+                'id' => (string) $this->instance->id,
                 'label' => $label,
                 'customer' => $customer,
             ]],
-        );
+        )->to(ReceiveSampleRequest::class);
     }
 
+    #[On('receive-completed')]
+    public function onReceiveCompleted(): void
+    {
+        $this->instance = $this->instance->fresh([
+            'submissionForm',
+            'crmCustomer',
+            'batches',
+            'analysisAcceptanceForms',
+            'sampleSubmissionRequest',
+            'values.element',
+        ]) ?? $this->instance;
+        $this->commercialEnquiry = $this->instance->sampleSubmissionRequest;
+    }
+
+    #[Renderless]
     public function openAcceptSampleWizard(): void
     {
         $this->authorizeFormAccess(auth()->user());

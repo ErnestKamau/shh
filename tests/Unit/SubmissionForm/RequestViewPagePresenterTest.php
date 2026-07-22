@@ -76,6 +76,34 @@ class RequestViewPagePresenterTest extends TestCase
         $this->assertNotContains('receive_samples', $keys);
     }
 
+    public function test_accepted_enquiry_shows_accepted_and_hides_accept_sample(): void
+    {
+        [$form, $instance, $enquiry] = $this->createTrfWithEnquiry('received_at_lab');
+
+        $instance->update(['status' => 'approved']);
+        $instance = $instance->fresh(['batches', 'analysisAcceptanceForms']);
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form,
+            commercialEnquiry: $enquiry->fresh(),
+        );
+
+        $this->assertSame(
+            RequestViewPagePresenter::STAGE_ACCEPTED,
+            $presenter->enquiryDisplayStatus()
+        );
+
+        $actions = $presenter->nextStepActions('Samples Receiving');
+        $keys = $this->actionKeys($actions);
+
+        $this->assertNull($actions['primary']);
+        $this->assertNotContains('accept_samples', $keys);
+        $this->assertNotContains('receive_samples', $keys);
+        $this->assertNotContains('process_enquiry', $keys);
+        $this->assertNotContains('record_po', $keys);
+    }
+
     public function test_empty_and_submit_sign_sections_are_omitted_from_cards(): void
     {
         [$form, $instance] = $this->createBareFormAndInstance();

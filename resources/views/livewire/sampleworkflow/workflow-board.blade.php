@@ -6130,34 +6130,30 @@
 			}, 500);
 
 			Livewire.on('show-receive-sample-modal', function (payload) {
-				const physical = payload?.physicalCheckIn ?? false;
+				const data = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+				const physical = data.physicalCheckIn ?? false;
+				if (physical) {
+					return;
+				}
+
 				const modalEl = document.getElementById('receive-sample-modal');
 				const dialogEl = document.getElementById('receive-sample-modal-dialog');
 				const titleEl = document.getElementById('receive-sample-modal-title-text');
 				const iconEl = document.getElementById('receive-sample-modal-icon');
 				const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
+
 				if (modalEl) {
-					modalEl.classList.toggle('receive-sample-modal--compact', physical);
+					modalEl.classList.remove('receive-sample-modal--compact');
 				}
 				if (dialogEl) {
-					dialogEl.classList.toggle('modal-xl', !physical);
-					dialogEl.classList.toggle('modal-dialog-scrollable', !physical);
+					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');
 				}
 				if (titleEl && iconEl) {
-					if (physical) {
-						titleEl.textContent = 'Move to In Review';
-						iconEl.className = 'mdi mdi-clipboard-arrow-right text-primary mr-2';
-						if (subtitleEl) {
-							subtitleEl.textContent = '';
-							subtitleEl.classList.add('d-none');
-						}
-					} else {
-						titleEl.textContent = 'Test Request Form';
-						iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
-						if (subtitleEl) {
-							subtitleEl.textContent = '';
-							subtitleEl.classList.add('d-none');
-						}
+					titleEl.textContent = 'Test Request Form';
+					iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
+					if (subtitleEl) {
+						subtitleEl.textContent = '';
+						subtitleEl.classList.add('d-none');
 					}
 				}
 				$('#receive-sample-modal').modal('show');

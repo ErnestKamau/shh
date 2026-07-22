@@ -51,6 +51,7 @@
                         <i class="mdi mdi-account-check"></i> Verifier Configuration
                     </a>
                 </li>
+                {{-- Report Configurations tab temporarily hidden
                 <li class="nav-item">
                     <a class="nav-link {{ $activeTab === 'report-configs' ? 'active' : '' }}"
                         wire:click="setActiveTab('report-configs')"
@@ -58,6 +59,7 @@
                         <i class="mdi mdi-file-document-outline"></i> Report Configurations
                     </a>
                 </li>
+                --}}
             </ul>
         </div>
 
@@ -326,7 +328,7 @@
             </div>
             @endif
 
-            {{-- REPORT CONFIGURATIONS TAB --}}
+            {{-- REPORT CONFIGURATIONS TAB temporarily hidden
             @if($activeTab === 'report-configs')
             <div class="tab-pane-content">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -401,6 +403,7 @@
                 </div>
             </div>
             @endif
+            --}}
         </div>
     </div>
 

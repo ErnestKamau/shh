@@ -2295,7 +2295,7 @@ class WorkflowBoard extends Component
         $this->dispatch('receive-modal-open',
             instanceIds: $this->selectedFormInstanceIds,
             summaries: $summaries,
-        );
+        )->to(\App\Livewire\Sampleworkflow\ReceiveSampleRequest::class);
     }
 
     /**

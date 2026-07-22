@@ -43,7 +43,7 @@
                         <div class="col-md-6">
                             <div class="form-group mb-0">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by name, code, or common name...">
+                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, code, or common name...">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -282,8 +282,8 @@
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold small">Reporting Unit</label>
                                 <div class="tag-select-container"
-                                     wire:click="$set('showReportingUnitDropdown', true)"
-                                     wire:click.outside="$set('showReportingUnitDropdown', false)">
+                                     wire:click="openReportingUnitDropdown"
+                                     wire:click.outside="closeReportingUnitDropdown">
                                     <div class="tag-select-input">
                                         @if($analyteForm['reporting_unit'])
                                             <span class="tag-badge tag-badge--neutral">
@@ -292,18 +292,22 @@
                                             </span>
                                         @endif
                                         <input type="text"
-                                               wire:model.live="reportingUnitSearch"
+                                               wire:model.live.debounce.300ms="reportingUnitSearch"
                                                class="tag-input"
                                                placeholder="{{ $analyteForm['reporting_unit'] ? '' : 'Search units...' }}"
                                                autocomplete="off">
                                     </div>
-                                    @if($showReportingUnitDropdown && count($this->filteredReportingUnits) > 0)
+                                    @if($showReportingUnitDropdown)
                                         <div class="tag-dropdown">
-                                            @foreach($this->filteredReportingUnits as $unit)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit('{{ $unit->name }}')">
+                                            @forelse($this->filteredReportingUnits as $unit)
+                                                <div class="tag-dropdown-item" wire:key="reporting-unit-{{ $unit->id }}" wire:click.stop="selectReportingUnit(@js($unit->name))">
                                                     {{ $unit->name }}
                                                 </div>
-                                            @endforeach
+                                            @empty
+                                                <div class="tag-dropdown-item text-muted">
+                                                    <i class="mdi mdi-information-outline me-2"></i>No reporting units found
+                                                </div>
+                                            @endforelse
                                         </div>
                                     @endif
                                 </div>
@@ -327,17 +331,17 @@
                                     <i class="mdi mdi-test-tube text-success me-1"></i>Analysis Methods
                                 </label>
                                 <div class="tag-select-container"
-                                     wire:click="$set('showMethodDropdown', true)"
-                                     wire:click.outside="$set('showMethodDropdown', false)">
+                                     wire:click="openMethodDropdown"
+                                     wire:click.outside="closeMethodDropdown">
                                     <div class="tag-select-input">
                                         @foreach($this->selectedMethods as $method)
-                                            <span class="tag-badge tag-badge--success">
+                                            <span class="tag-badge tag-badge--success" wire:key="selected-method-{{ $method->id }}">
                                                 {{ $method->name }}
                                                 <i class="mdi mdi-close-circle" wire:click.stop="removeMethod(@js($method->id))"></i>
                                             </span>
                                         @endforeach
                                         <input type="text"
-                                               wire:model.live="methodSearch"
+                                               wire:model.live.debounce.300ms="methodSearch"
                                                class="tag-input"
                                                placeholder="{{ count($this->selectedMethods) > 0 ? '' : 'Search or select methods...' }}"
                                                autocomplete="off">
@@ -345,17 +349,16 @@
                                     @if($showMethodDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredMethods as $method)
-                                                @if(!in_array($method->id, $analyteForm['method']))
-                                                    <div class="tag-dropdown-item" wire:click.stop="addMethod(@js($method->id))">
-                                                        {{ $method->name }}
-                                                        @if($method->code)
-                                                            <small class="text-muted ms-1">({{ $method->code }})</small>
-                                                        @endif
-                                                    </div>
-                                                @endif
+                                                <div class="tag-dropdown-item" wire:key="method-option-{{ $method->id }}" wire:click.stop="addMethod(@js($method->id))">
+                                                    {{ $method->name }}
+                                                    @if($method->code)
+                                                        <small class="text-muted ms-1">({{ $method->code }})</small>
+                                                    @endif
+                                                </div>
                                             @empty
                                                 <div class="tag-dropdown-item text-muted">
-                                                    <i class="mdi mdi-information-outline me-2"></i>No active methods found
+                                                    <i class="mdi mdi-information-outline me-2"></i>
+                                                    {{ $methodSearch !== '' ? 'No matching methods found' : 'No active methods available' }}
                                                 </div>
                                             @endforelse
                                         </div>
@@ -369,17 +372,17 @@
                                     <i class="mdi mdi-cog text-warning me-1"></i>Equipment
                                 </label>
                                 <div class="tag-select-container"
-                                     wire:click="$set('showEquipmentDropdown', true)"
-                                     wire:click.outside="$set('showEquipmentDropdown', false)">
+                                     wire:click="openEquipmentDropdown"
+                                     wire:click.outside="closeEquipmentDropdown">
                                     <div class="tag-select-input">
                                         @foreach($this->selectedEquipment as $equip)
-                                            <span class="tag-badge tag-badge--warning">
+                                            <span class="tag-badge tag-badge--warning" wire:key="selected-equipment-{{ $equip->id }}">
                                                 {{ $equip->name }}
                                                 <i class="mdi mdi-close-circle" wire:click.stop="removeEquipment(@js($equip->id))"></i>
                                             </span>
                                         @endforeach
                                         <input type="text"
-                                               wire:model.live="equipmentSearch"
+                                               wire:model.live.debounce.300ms="equipmentSearch"
                                                class="tag-input"
                                                placeholder="{{ count($this->selectedEquipment) > 0 ? '' : 'Search or select equipment...' }}"
                                                autocomplete="off">
@@ -387,17 +390,16 @@
                                     @if($showEquipmentDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredEquipment as $equip)
-                                                @if(!in_array($equip->id, $analyteForm['equipment_id']))
-                                                    <div class="tag-dropdown-item" wire:click.stop="addEquipment(@js($equip->id))">
-                                                        {{ $equip->name }}
-                                                        @if($equip->equipment_number)
-                                                            <small class="text-muted ms-1">({{ $equip->equipment_number }})</small>
-                                                        @endif
-                                                    </div>
-                                                @endif
+                                                <div class="tag-dropdown-item" wire:key="equipment-option-{{ $equip->id }}" wire:click.stop="addEquipment(@js($equip->id))">
+                                                    {{ $equip->name }}
+                                                    @if($equip->equipment_number)
+                                                        <small class="text-muted ms-1">({{ $equip->equipment_number }})</small>
+                                                    @endif
+                                                </div>
                                             @empty
                                                 <div class="tag-dropdown-item text-muted">
-                                                    <i class="mdi mdi-information-outline me-2"></i>No active equipment found
+                                                    <i class="mdi mdi-information-outline me-2"></i>
+                                                    {{ $equipmentSearch !== '' ? 'No matching equipment found' : 'No active equipment available' }}
                                                 </div>
                                             @endforelse
                                         </div>

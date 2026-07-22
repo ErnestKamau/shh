@@ -1313,6 +1313,26 @@
 		display: none !important;
 	}
 
+	/* Receive / Move to In Review modal — match workflow board compact confirm */
+	.request-view-page #receive-sample-modal .modal-content {
+		max-height: calc(100vh - 2rem);
+	}
+
+	.request-view-page #receive-sample-modal .modal-body {
+		padding: 0 1.5rem 1.25rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		min-height: 4rem;
+	}
+
+	.request-view-page #receive-sample-modal.receive-sample-modal--compact .modal-body {
+		padding: 0 1.25rem 0.75rem;
+	}
+
+	.request-view-page #receive-sample-modal .receive-sample-modal-body {
+		padding: 0;
+	}
+
 	/* Request Info card — batch-details 4-col read-only */
 	.request-view-page .rv-request-info-panel {
 		margin-bottom: 0.75rem;
