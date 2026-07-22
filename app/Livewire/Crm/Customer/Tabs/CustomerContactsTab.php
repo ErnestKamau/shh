@@ -16,6 +16,8 @@ class CustomerContactsTab extends BaseCrmComponent
     public $perPage = 10;
     public $showForm = false;
     public $editingContact = null;
+    public string $flashMessage = '';
+    public string $flashType = 'success';
 
     protected $paginationTheme = 'bootstrap';
 
@@ -48,18 +50,62 @@ class CustomerContactsTab extends BaseCrmComponent
 
     public function openContactForm(?string $contactId = null): void
     {
+        $this->flashMessage = '';
         $this->editingContact = $contactId ? CustomerContact::find($contactId) : null;
         $this->showForm = true;
     }
 
-    #[On('contact-saved')]
-    #[On('contact-deleted')]
-    #[On('contact-form-closed')]
-    public function refreshContacts()
+    public function dismissFlash(): void
     {
-        $this->resetPage();
+        $this->flashMessage = '';
+        $this->flashType = 'success';
+    }
+
+    #[On('contact-saved')]
+    public function onContactSaved(mixed $message = null): void
+    {
         $this->showForm = false;
         $this->editingContact = null;
+        $this->resetPage();
+        $resolved = $this->resolveEventMessage($message, 'Contact saved successfully!');
+        $this->flashMessage = $resolved;
+        $this->flashType = 'success';
+        $this->showSuccess($resolved);
+    }
+
+    #[On('contact-deleted')]
+    public function onContactDeleted(mixed $message = null): void
+    {
+        $this->showForm = false;
+        $this->editingContact = null;
+        $this->resetPage();
+        $resolved = $this->resolveEventMessage($message, 'Contact deleted successfully.');
+        $this->flashMessage = $resolved;
+        $this->flashType = 'success';
+        $this->showSuccess($resolved);
+    }
+
+    #[On('contact-form-closed')]
+    public function onContactFormClosed(): void
+    {
+        $this->showForm = false;
+        $this->editingContact = null;
+    }
+
+    private function resolveEventMessage(mixed $message, string $fallback): string
+    {
+        if (is_string($message) && trim($message) !== '') {
+            return $message;
+        }
+
+        if (is_array($message)) {
+            $nested = $message['message'] ?? $message[0] ?? null;
+            if (is_string($nested) && trim($nested) !== '') {
+                return $nested;
+            }
+        }
+
+        return $fallback;
     }
 
     public function deleteContact(string $contactId): void
@@ -68,9 +114,13 @@ class CustomerContactsTab extends BaseCrmComponent
         
         if ($contact && $contact->crm_customer_id == $this->customer->id) {
             $contact->delete();
+            $this->flashMessage = 'Contact deleted successfully.';
+            $this->flashType = 'success';
             $this->showSuccess('Contact deleted successfully.');
             $this->resetPage();
         } else {
+            $this->flashMessage = 'Contact not found or unauthorized.';
+            $this->flashType = 'error';
             $this->showError('Contact not found or unauthorized.');
         }
     }

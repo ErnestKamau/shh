@@ -271,15 +271,29 @@ class ContactForm extends BaseCrmComponent
             return;
         }
 
+        $wasEditing = (bool) $this->contactId;
         $previousContactEmail = null;
 
-        if (!$this->contactId) {
+        if ($this->can_login) {
+            $existingUser = User::where('email', $this->email)->first();
+            if ($existingUser && ! $wasEditing) {
+                $this->showError('There is already a user with the given email!');
+                return;
+            }
+        }
+
+        if (! $this->contactId) {
             $this->checkPermission('crm.components.contacts.add');
             $contact = new CustomerContact();
         } else {
             $this->checkPermission('crm.components.contacts.edit');
             $contact = CustomerContact::find($this->contactId);
             $previousContactEmail = $contact?->email;
+        }
+
+        if (! $contact) {
+            $this->showError('Contact not found.');
+            return;
         }
 
         $contact->first_name = $this->first_name;
@@ -314,30 +328,6 @@ class ContactForm extends BaseCrmComponent
         }
 
         if ($this->can_login) {
-            // Check if user exists with this email
-            $user = User::where('email', $this->email)->first();
-            
-            // If user exists but it's not the current user associated with this contact (if any), check for conflict
-            if ($user && !$this->contactId) {
-                 $this->showError('There is already a user with the given email!');
-                 return;
-            }
-
-             if ($user && $this->contactId) {
-                // If editing, make sure we are not taking someone else's email
-                // This logic might need to be more robust depending on requirements, but for now strict check:
-                // If the found user is NOT the one associated with this contact... context missing in contact model relation
-                // But let's assume strict email check:
-                 // The controller logic:
-                 // $check_user = User::where('email',$request->email)->get();
-                 // if(isset($check_user->id)){ return redirect()->back()->with('error','There is a user with the given email!'); }
-                 // The controller logic seems to prevent creating a login if email exists in User table, BUT it also has logic to UPDATE if it exists in setCustomerContacts
-                 // In `add` method: strict check. In `edit` method: strict check.
-                 // However, if we are editing the contact and the user ALREADY exists for this contact, we should update it.
-                 // Let's refine based on Controller `edit`:
-                 // $user = User::where('email',$request->email)->first() ? User::where('email',$request->email)->first() : new User();
-             }
-             
             $user = User::where('email', $this->email)->first() ?? new User();
             
             // If it is a new user or we are updating, we update the fields
@@ -359,7 +349,7 @@ class ContactForm extends BaseCrmComponent
             $user->save();
 
             // Send welcome email only on new contact creation (not when editing credentials)
-            if ($this->password && !$this->contactId) {
+            if ($this->password && ! $wasEditing) {
                 $recipientName  = trim($user->name);
                 $recipientEmail = $user->email;
                 $plainPassword  = $this->password;
@@ -372,9 +362,10 @@ class ContactForm extends BaseCrmComponent
             }
         }
 
-        $this->showSuccess($this->contactId ? 'Contact edited successfully!' : 'Contact added successfully!');
-        $this->dispatch('contact-saved');
-        $this->close();
+        $successMessage = $wasEditing ? 'Contact edited successfully!' : 'Contact added successfully!';
+
+        // Close the modal first, then surface success on the parent contacts tab.
+        $this->dispatch('contact-saved', message: $successMessage);
     }
 
     public function delete()
@@ -385,8 +376,7 @@ class ContactForm extends BaseCrmComponent
             $contact->delete();
             
             $this->showSuccess('Contact deleted successfully');
-            $this->dispatch('contact-deleted');
-            $this->close();
+            $this->dispatch('contact-deleted', message: 'Contact deleted successfully');
         }
     }
 
