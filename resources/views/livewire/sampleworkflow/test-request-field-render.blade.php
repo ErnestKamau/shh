@@ -8,7 +8,7 @@
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
-@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'customer_email', 'email', 'customer_tax_id'], true))
+@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id'], true))
     <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
         {{ $field['label'] ?? $fieldName }}
         @if($field['required'] ?? false)
@@ -136,18 +136,6 @@
             @endforeach
         </select>
     @endif
-@elseif(($field['type'] ?? '') === 'checkbox' && $fieldName === 'test_requirements' && $rowIndex !== null)
-    @foreach(($field['options'] ?? []) as $opt)
-        @php
-            $optValue = is_array($opt) ? ($opt['value'] ?? '') : $opt;
-            $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
-        @endphp
-        <div class="custom-control custom-radio {{ $compact ? 'mb-0' : '' }}">
-            <input type="radio" id="field_{{ $fieldId }}_{{ $loop->index }}" wire:model="{{ $wirePrefix }}"
-                value="{{ $optValue }}" class="custom-control-input @error($wirePrefix) is-invalid @enderror">
-            <label class="custom-control-label {{ $compact ? 'small' : 'small' }}" style="{{ $compact ? 'font-size: 10px;' : '' }}" for="field_{{ $fieldId }}_{{ $loop->index }}">{{ $optLabel }}</label>
-        </div>
-    @endforeach
 @elseif(($field['type'] ?? '') === 'checkbox')
     @if(!empty($field['options']) && is_array($field['options']))
         <div class="{{ $compact ? '' : 'row pt-1' }}">
@@ -174,12 +162,16 @@
     @endif
 @elseif(($field['type'] ?? '') === 'client_contact_select' || $fieldName === 'contact_person')
     <div class="d-flex align-items-center justify-content-between mb-1">
-        <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
-            {{ $field['label'] ?? 'Contact person' }}
-            @if($field['required'] ?? false)
-                <span class="text-danger">*</span>
-            @endif
-        </label>
+        @if(! $hideLabel)
+            <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
+                {{ $field['label'] ?? 'Contact person' }}
+                @if($field['required'] ?? false)
+                    <span class="text-danger">*</span>
+                @endif
+            </label>
+        @else
+            <span></span>
+        @endif
         <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
             wire:click="openWalkInAddContactModal" title="Add customer contact">
             <i class="mdi mdi-plus"></i>
@@ -201,16 +193,21 @@
             <option value="{{ $contact->id }}">{{ $contactLabel !== '' ? $contactLabel : 'Contact' }}</option>
         @endforeach
     </select>
-@elseif(($field['type'] ?? '') === 'customer_sample_point_select' || $fieldName === 'sampling_location')
+@elseif(($field['type'] ?? '') === 'customer_sample_point_select' || in_array($fieldName, ['sampling_location', 'sampling_point'], true))
     <div class="d-flex align-items-center justify-content-between mb-1">
-        <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
-            {{ $field['label'] ?? 'Sampling location' }}
-            @if($field['required'] ?? false)
-                <span class="text-danger">*</span>
-            @endif
-        </label>
+        @if(! $hideLabel)
+            <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
+                {{ $field['label'] ?? 'Sampling location' }}
+                @if($field['required'] ?? false)
+                    <span class="text-danger">*</span>
+                @endif
+            </label>
+        @else
+            <span></span>
+        @endif
         <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
-            wire:click="openWalkInAddPointModal" title="Add sample point">
+            wire:click="openWalkInAddPointModal(@js($fieldName !== '' ? $fieldName : 'sampling_location'), @js($rowIndex))"
+            title="Add sample point">
             <i class="mdi mdi-plus"></i>
         </button>
     </div>
@@ -218,7 +215,7 @@
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif
         @if($field['readonly'] ?? false) disabled @endif>
-        <option value="">Select sampling location</option>
+        <option value="">Select sampling {{ $fieldName === 'sampling_point' ? 'point' : 'location' }}</option>
         @foreach($this->customerSamplePoints as $point)
             <option value="{{ $point->id }}">{{ $point->display_name }}</option>
         @endforeach
@@ -243,6 +240,10 @@
     <input type="date" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compact) style="font-size: 10px; height: auto; padding: 2px 4px;" @endif>
+@elseif(($field['type'] ?? '') === 'time' || $fieldName === 'sampling_time')
+    <input type="time" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
+        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
+        @if($compactStyle) style="{{ $compactStyle }}" @endif>
 @elseif(($field['type'] ?? '') === 'datetime-local')
     <input type="datetime-local" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"

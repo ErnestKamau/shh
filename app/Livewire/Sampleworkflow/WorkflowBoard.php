@@ -559,6 +559,25 @@ class WorkflowBoard extends Component
         if ($this->finishedFilterHasValues()) {
             $this->finishedFilter['has_filter'] = 1;
         }
+
+        // Mirror legacy All Samples query params into Livewire board filters.
+        $customerId = $this->allFilter['customer_id'] ?? 'All';
+        if ($customerId && $customerId !== 'All') {
+            $this->customerFilter = (int) $customerId;
+        }
+
+        $sampleTypeId = $this->allFilter['sample_type_id'] ?? 'All';
+        if ($sampleTypeId && $sampleTypeId !== 'All') {
+            $this->sampleTypeFilter = (int) $sampleTypeId;
+        }
+
+        if (! empty($this->allFilter['receipt_date_from'])) {
+            $this->receiptDateFrom = (string) $this->allFilter['receipt_date_from'];
+        }
+
+        if (! empty($this->allFilter['receipt_date_to'])) {
+            $this->receiptDateTo = (string) $this->allFilter['receipt_date_to'];
+        }
     }
 
     protected function trimFilterValue($value)
@@ -1604,34 +1623,44 @@ class WorkflowBoard extends Component
     {
         $query = $this->baseBatchQuery()->orderBy('receipt_date', 'desc');
 
-        if ($this->allFilter['customer_id'] && $this->allFilter['customer_id'] !== 'All') {
-            $query->where('crm_customer_id', $this->allFilter['customer_id']);
+        if (! empty($this->search)) {
+            $searchTerm = '%'.$this->search.'%';
+            $query->where(function ($q) use ($searchTerm): void {
+                $q->where('batch_code', 'like', $searchTerm)
+                    ->orWhereHas('samples', function ($sampleQuery) use ($searchTerm): void {
+                        $sampleQuery->where('sample_code', 'like', $searchTerm);
+                    });
+            });
         }
 
-        if ($this->allFilter['sample_type_id'] && $this->allFilter['sample_type_id'] !== 'All') {
-            $query->where('sample_type_id', $this->allFilter['sample_type_id']);
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
         }
 
-        if ($this->allFilter['receipt_date_from']) {
-            $query->whereDate('receipt_date', '>=', $this->allFilter['receipt_date_from']);
+        if ($this->sampleTypeFilter) {
+            $query->where('sample_type_id', $this->sampleTypeFilter);
         }
 
-        if ($this->allFilter['receipt_date_to']) {
-            $query->whereDate('receipt_date', '<=', $this->allFilter['receipt_date_to']);
+        if ($this->receiptDateFrom) {
+            $query->whereDate('receipt_date', '>=', $this->receiptDateFrom);
         }
 
-        if ($this->allFilter['tat_date_from']) {
+        if ($this->receiptDateTo) {
+            $query->whereDate('receipt_date', '<=', $this->receiptDateTo);
+        }
+
+        if (! empty($this->allFilter['tat_date_from'])) {
             $tatQuery = SampleDate::query()
                 ->where('name', 'Target Date')
                 ->whereDate('date', '>=', $this->allFilter['tat_date_from']);
 
-            if ($this->allFilter['tat_date_to']) {
+            if (! empty($this->allFilter['tat_date_to'])) {
                 $tatQuery->whereDate('date', '<=', $this->allFilter['tat_date_to']);
             }
 
             $tatBatchIds = $tatQuery->pluck('sample_header_id')->toArray();
             $query->whereIn('id', $tatBatchIds ?: [0]);
-        } elseif ($this->allFilter['tat_date_to']) {
+        } elseif (! empty($this->allFilter['tat_date_to'])) {
             $tatBatchIds = SampleDate::query()
                 ->where('name', 'Target Date')
                 ->whereDate('date', '<=', $this->allFilter['tat_date_to'])
@@ -1640,9 +1669,10 @@ class WorkflowBoard extends Component
             $query->whereIn('id', $tatBatchIds ?: [0]);
         }
 
-        if ($this->allFilter['schedule_sent'] === 'sent') {
+        $scheduleSent = $this->allFilter['schedule_sent'] ?? 'All';
+        if ($scheduleSent === 'sent') {
             $query->where('schedule_analysis_sent', 1);
-        } elseif ($this->allFilter['schedule_sent'] === 'not_sent') {
+        } elseif ($scheduleSent === 'not_sent') {
             $query->where('schedule_analysis_sent', 0);
         }
 
@@ -1818,6 +1848,43 @@ class WorkflowBoard extends Component
         $this->submissionFormsStatus = '';
         $this->submissionFormsPriority = '';
         $this->natureOfSampleFilter = '';
+        $this->allFilter = $this->defaultAllSamplesFilter();
+        $this->resetPage('batches_page');
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage('batches_page');
+    }
+
+    public function updatingReceiptDateFrom(): void
+    {
+        $this->resetPage('batches_page');
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingReceiptDateTo(): void
+    {
+        $this->resetPage('batches_page');
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingCustomerFilter(): void
+    {
+        $this->resetPage('batches_page');
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingSampleTypeFilter(): void
+    {
+        $this->resetPage('batches_page');
+        $this->resetPage('forms_page');
+    }
+
+    public function updatedAllFilter(): void
+    {
+        $this->resetPage('batches_page');
     }
 
     public function toggleFiltersPanel(): void
@@ -1862,6 +1929,15 @@ class WorkflowBoard extends Component
             $count++;
         }
         if ($this->submissionFormsStatus !== '') {
+            $count++;
+        }
+        if (! empty($this->allFilter['tat_date_from'] ?? '')) {
+            $count++;
+        }
+        if (! empty($this->allFilter['tat_date_to'] ?? '')) {
+            $count++;
+        }
+        if (($this->allFilter['schedule_sent'] ?? 'All') !== 'All') {
             $count++;
         }
 

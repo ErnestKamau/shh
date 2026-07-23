@@ -63,6 +63,10 @@ class ReceiveSampleRequest extends Component
 
     public string $walkInNewPointUnitId = '';
 
+    public string $walkInSamplePointTargetField = 'sampling_location';
+
+    public ?int $walkInSamplePointTargetRowIndex = null;
+
     public int $walkInActiveStepIndex = 0;
 
     public ?string $lastSelectedSampleTypeId = null;
@@ -512,17 +516,19 @@ class ReceiveSampleRequest extends Component
 
     private function defaultValueForElement(SubmissionFormElement $element): mixed
     {
+        $name = (string) ($element->name ?? '');
+
+        if (in_array($name, ['method_of_sampling', 'test_category', 'test_requirements'], true)) {
+            return [];
+        }
+
         if ($element->element_type === 'checkbox') {
             $options = $element->options ?? [];
-
-            if (($element->name ?? '') === 'test_requirements') {
-                return '';
-            }
 
             return is_array($options) && $options !== [] ? [] : false;
         }
 
-        if ($element->element_type === 'analysis_elements_select' || ($element->name ?? '') === 'parameters') {
+        if ($element->element_type === 'analysis_elements_select' || $name === 'parameters') {
             return [];
         }
 
@@ -1038,7 +1044,7 @@ class ReceiveSampleRequest extends Component
         $this->showWalkInAddContactModal = true;
     }
 
-    public function openWalkInAddPointModal(): void
+    public function openWalkInAddPointModal(string $fieldName = 'sampling_location', ?int $rowIndex = null): void
     {
         $customerId = $this->resolveSelectedCustomerId();
         if ($customerId === null) {
@@ -1048,6 +1054,8 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->resetWalkInPointModal();
+        $this->walkInSamplePointTargetField = $fieldName !== '' ? $fieldName : 'sampling_location';
+        $this->walkInSamplePointTargetRowIndex = $rowIndex;
         $this->walkInNewPointUnitId = (string) (CRMCompanyUnit::query()
             ->where('crm_customer_id', $customerId)
             ->where('active', 1)
@@ -1124,9 +1132,7 @@ class ReceiveSampleRequest extends Component
             'active' => 1,
         ]);
 
-        if (array_key_exists('sampling_location', $this->formData)) {
-            $this->formData['sampling_location'] = (string) $point->id;
-        }
+        $this->assignWalkInSamplePointSelection((string) $point->id);
 
         $this->showWalkInAddPointModal = false;
         $this->resetWalkInPointModal();
@@ -1160,10 +1166,40 @@ class ReceiveSampleRequest extends Component
     {
         $this->walkInNewPointName = '';
         $this->walkInNewPointUnitId = '';
+        $this->walkInSamplePointTargetField = 'sampling_location';
+        $this->walkInSamplePointTargetRowIndex = null;
         $this->resetValidation([
             'walkInNewPointName',
             'walkInNewPointUnitId',
         ]);
+    }
+
+    private function assignWalkInSamplePointSelection(string $pointId): void
+    {
+        $field = $this->walkInSamplePointTargetField !== ''
+            ? $this->walkInSamplePointTargetField
+            : 'sampling_location';
+        $rowIndex = $this->walkInSamplePointTargetRowIndex;
+
+        if ($rowIndex !== null) {
+            if (! isset($this->formData[$field]) || ! is_array($this->formData[$field])) {
+                $this->formData[$field] = [];
+            }
+
+            $this->formData[$field][$rowIndex] = $pointId;
+
+            return;
+        }
+
+        if (array_key_exists($field, $this->formData)) {
+            $this->formData[$field] = $pointId;
+
+            return;
+        }
+
+        if (array_key_exists('sampling_location', $this->formData)) {
+            $this->formData['sampling_location'] = $pointId;
+        }
     }
 
     public function resolveSelectedCustomerId(): ?string
@@ -1750,9 +1786,8 @@ class ReceiveSampleRequest extends Component
                 $this->addError('formData.test_category.'.$index, 'Test category is required for row '.($index + 1).'.');
             }
 
-            if ($this->isWater) {
-                $rules['formData.test_requirements.'.$index] = 'required';
-                $messages['formData.test_requirements.'.$index.'.required'] = 'Test requirement is required for row '.($index + 1).'.';
+            if ($this->isWater && ! $this->rowHasMultiOptionSelection($index, 'test_requirements')) {
+                $this->addError('formData.test_requirements.'.$index, 'Test requirement is required for row '.($index + 1).'.');
             }
         }
 
@@ -1778,8 +1813,7 @@ class ReceiveSampleRequest extends Component
 
     private function rowHasFoodCategorySelection(int $index): bool
     {
-        $testCategory = trim((string) ($this->formData['test_category'][$index] ?? ''));
-        if ($testCategory !== '') {
+        if ($this->rowHasMultiOptionSelection($index, 'test_category')) {
             return true;
         }
 
@@ -1796,6 +1830,27 @@ class ReceiveSampleRequest extends Component
         }
 
         return false;
+    }
+
+    private function rowHasMultiOptionSelection(int $index, string $fieldName): bool
+    {
+        $value = $this->formData[$fieldName][$index] ?? null;
+
+        if (is_array($value)) {
+            foreach ($value as $selected) {
+                if (is_bool($selected) && $selected) {
+                    return true;
+                }
+
+                if (! is_bool($selected) && trim((string) $selected) !== '') {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return trim((string) ($value ?? '')) !== '';
     }
 
     private function schemaRowHasContent(int $index): bool
