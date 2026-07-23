@@ -177,6 +177,11 @@ class PersonnelLanguageSeeder extends Seeder
             'accepted_signature_formats' => ['en' => 'Accepted formats: PNG, JPG, JPEG', 'sw' => 'Miundo inayokubalika: PNG, JPG, JPEG'],
             'work_history' => ['en' => 'Work History', 'sw' => 'Historia ya Kazi'],
             'no_work_history_found' => ['en' => 'No work history found.', 'sw' => 'Hakuna historia ya kazi iliyopatikana.'],
+            'add_work_history' => ['en' => 'Add Work History', 'sw' => 'Ongeza Historia ya Kazi'],
+            'add_work_history_hint' => ['en' => 'Add department and job description changes for this person.', 'sw' => 'Ongeza mabadiliko ya idara na maelezo ya kazi kwa mtu huyu.'],
+            'work_history_added' => ['en' => 'Work history added successfully.', 'sw' => 'Historia ya kazi imeongezwa.'],
+            'current_assignment' => ['en' => 'Current assignment', 'sw' => 'Mgawo wa sasa'],
+            'current_assignment_hint' => ['en' => 'Ends the previous open assignment and updates this person\'s department / job description.', 'sw' => 'Inafunga mgawo uliofunguliwa awali na kusasisha idara / maelezo ya kazi ya mtu huyu.'],
             'zone' => ['en' => 'Zone', 'sw' => 'Eneo'],
 
             // ── Module: Audit Logs ──────────────────────────────────────────

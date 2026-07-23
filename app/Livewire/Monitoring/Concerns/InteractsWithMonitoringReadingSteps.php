@@ -783,7 +783,7 @@ trait InteractsWithMonitoringReadingSteps
                 'description' => $step->description,
                 'lookup_config' => $step->lookup_config,
                 'derived_config' => $step->derived_config,
-                'analyte_id' => $step->analyte_id,
+                'analyte_id' => $this->nullableUuid($step->analyte_id),
                 'variable_slug' => $step->variable_slug,
                 'show_in_monitoring_logs' => (bool) $step->show_in_monitoring_logs,
             ])->values()->all();
@@ -866,7 +866,7 @@ trait InteractsWithMonitoringReadingSteps
                 'description' => $step['description'],
                 'lookup_config' => $step['lookup_config'],
                 'derived_config' => $step['derived_config'] ?? null,
-                'analyte_id' => $step['analyte_id'],
+                'analyte_id' => $this->nullableUuid($step['analyte_id'] ?? null),
                 'variable_slug' => $step['variable_slug'],
                 'show_in_monitoring_logs' => (bool) ($step['show_in_monitoring_logs'] ?? true),
             ]);
@@ -918,7 +918,7 @@ trait InteractsWithMonitoringReadingSteps
                     'variable_slug' => $step['variable_slug'] ?? '',
                     'lookup_config' => $step['lookup_config'] ?? null,
                     'derived_config' => $step['derived_config'] ?? null,
-                    'analyte_id' => $step['analyte_id'] ?? null,
+                    'analyte_id' => $this->nullableUuid($step['analyte_id'] ?? null),
                     'show_in_monitoring_logs' => (bool) ($step['show_in_monitoring_logs'] ?? true),
                 ],
             ]);
@@ -941,5 +941,16 @@ trait InteractsWithMonitoringReadingSteps
         return [
             'readingSteps' => 'required|array|min:1',
         ];
+    }
+
+    protected function nullableUuid(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $string = trim((string) $value);
+
+        return $string === '' ? null : $string;
     }
 }

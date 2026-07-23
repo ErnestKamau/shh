@@ -43,7 +43,7 @@
                         <div class="col-md-6">
                             <div class="form-group mb-0">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, code, or common name...">
+                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, report display, or common name...">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -121,7 +121,7 @@
                                     <tr>
                                         <th style="width: 120px;">Actions</th>
                                         <th>Name</th>
-                                        <th>Code</th>
+                                        <th>Report Display</th>
                                         <th>Common Name</th>
                                         <th style="width: 220px;">Methods</th>
                                         <th style="width: 200px;">Equipment</th>
@@ -252,7 +252,7 @@
                                 @error('analyteForm.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold small">Analyte Code <span class="text-danger">*</span></label>
+                                <label class="form-label fw-semibold small">Report Display <span class="text-danger">*</span></label>
                                 <input type="text"
                                        wire:model="analyteForm.code"
                                        class="form-control @error('analyteForm.code') is-invalid @enderror"

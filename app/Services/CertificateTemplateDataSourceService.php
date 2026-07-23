@@ -127,7 +127,7 @@ class CertificateTemplateDataSourceService
         return [
             'id' => 'ID',
             'sample_detail_code' => 'Sample Detail Code',
-            'analyte_code' => 'Analyte Code',
+            'analyte_code' => 'Report Display',
             'result' => 'Result',
             'result_reporting_symbol' => 'Reporting Symbol',
             'remark' => 'Remark',

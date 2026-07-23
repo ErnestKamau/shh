@@ -41,22 +41,22 @@ class DepreciationService
         $frequencies = $this->normalizeFrequencies($attributes['frequencies'] ?? $attributes['frequency'] ?? 'monthly');
 
         $payload = [
-            'depreciation_method_id' => $attributes['depreciation_method_id'] ?? null,
+            'depreciation_method_id' => $this->nullableString($attributes['depreciation_method_id'] ?? null),
             'enable_depreciation' => (bool) ($attributes['enable_depreciation'] ?? false),
             'currency' => $attributes['currency'] ?? 'USD',
             'freight_cost' => $freight,
             'capitalized_amount' => $capitalized,
-            'depreciation_start_date' => $attributes['depreciation_start_date'] ?? null,
+            'depreciation_start_date' => $this->nullableString($attributes['depreciation_start_date'] ?? null),
             'useful_life_years' => $attributes['useful_life_years'] ?? null,
             'salvage_value' => (float) ($attributes['salvage_value'] ?? 0),
             'frequencies' => $frequencies,
             'frequency' => $frequencies[0],
-            'depreciation_rate' => $attributes['depreciation_rate'] ?? null,
-            'declining_balance_type' => $attributes['declining_balance_type'] ?? null,
-            'expected_total_units' => $attributes['expected_total_units'] ?? null,
-            'unit_type' => $attributes['unit_type'] ?? null,
+            'depreciation_rate' => $this->nullableNumeric($attributes['depreciation_rate'] ?? null),
+            'declining_balance_type' => $this->nullableString($attributes['declining_balance_type'] ?? null),
+            'expected_total_units' => $this->nullableNumeric($attributes['expected_total_units'] ?? null),
+            'unit_type' => $this->nullableString($attributes['unit_type'] ?? null),
             'current_units_used' => (float) ($attributes['current_units_used'] ?? 0),
-            'usage_source' => $attributes['usage_source'] ?? null,
+            'usage_source' => $this->nullableString($attributes['usage_source'] ?? null),
             'status' => ($attributes['enable_depreciation'] ?? false)
                 ? DepreciationStatus::Pending->value
                 : DepreciationStatus::Disabled->value,
@@ -437,5 +437,25 @@ class DepreciationService
             'new_values' => $new,
             'user_id' => Auth::id(),
         ]);
+    }
+
+    protected function nullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $string = trim((string) $value);
+
+        return $string === '' ? null : $string;
+    }
+
+    protected function nullableNumeric(mixed $value): mixed
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return $value;
     }
 }

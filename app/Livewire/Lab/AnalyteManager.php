@@ -84,6 +84,15 @@ class AnalyteManager extends Component
         ];
     }
 
+    protected function validationAttributes(): array
+    {
+        return [
+            'analyteForm.code' => 'report display',
+            'analyteForm.name' => 'analyte name',
+            'analyteForm.decimal_places' => 'decimal places',
+        ];
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();

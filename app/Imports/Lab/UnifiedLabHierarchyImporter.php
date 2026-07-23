@@ -40,7 +40,7 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         }
 
         if (! empty($row['analyte_code']) && strlen($row['analyte_code']) > 100) {
-            $errors[] = 'Analyte Code must not exceed 100 characters';
+            $errors[] = 'Report Display must not exceed 100 characters';
         }
 
         if (! empty($row['standard_code']) && strlen($row['standard_code']) > 100) {

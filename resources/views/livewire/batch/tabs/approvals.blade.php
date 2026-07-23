@@ -379,7 +379,7 @@
                         <input type="text"
                             wire:model.live.debounce.300ms="resultsSearch"
                             class="form-control form-control-modern"
-                            placeholder="Search by sample code, analysis type, analyte, result, method, analyst, or remark...">
+                            placeholder="Search by sample code, analysis type, report display, result, method, standard, analyst, or remark...">
                     </div>
 
                     <div class="table-responsive">
@@ -388,10 +388,11 @@
                                 <tr>
                                     <th>Sample Code</th>
                                     <th>Analysis Type</th>
-                                    <th>Analyte</th>
+                                    <th>Report Display</th>
                                     <th>Result</th>
                                     <th>Unit</th>
                                     <th>Method</th>
+                                    <th>Standard</th>
                                     <th>Analyst</th>
                                     <th>Remark</th>
                                     <th>Limit</th>
@@ -412,6 +413,9 @@
                                     <td>
                                         <small>{{ $result->ltmethod->name ?? $result->analysisMethod->name ?? '—' }}</small>
                                     </td>
+                                    <td>
+                                        <small>{{ $result->standard_name_display ?? '—' }}</small>
+                                    </td>
                                     <td>{{ $result->operator->name ?? 'N/A' }}</td>
                                     <td>
                                         @if($result->remark)
@@ -428,7 +432,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-5 workflow-empty-state">
+                                    <td colspan="10" class="text-center py-5 workflow-empty-state">
                                         <i class="mdi mdi-clipboard-text-outline text-muted" style="font-size: 48px;"></i>
                                         <h6 class="mt-3 text-muted">No Results Found</h6>
                                         <p class="text-muted mb-0"><small>

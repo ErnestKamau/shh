@@ -123,17 +123,25 @@
     .trr-preview-watermark {
         pointer-events: none;
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-28deg);
-        font-size: 72px;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        overflow: hidden;
+        user-select: none;
+    }
+    .trr-preview-watermark span {
+        transform: rotate(-28deg);
+        font-size: clamp(48px, 9vw, 84px);
         font-weight: 800;
-        letter-spacing: 0.2em;
-        color: rgba(148, 163, 184, 0.12);
-        z-index: 0;
+        letter-spacing: 0.18em;
+        color: rgba(100, 116, 139, 0.32);
         text-transform: uppercase;
         white-space: nowrap;
         font-family: Georgia, 'Times New Roman', serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
     body.trr-preview-body .trr-page {
         position: relative;
@@ -625,14 +633,28 @@
     @media print {
         body { background: #fff; }
         .trr-toolbar,
-        .trr-preview-chrome,
-        .trr-preview-watermark { display: none !important; }
+        .trr-preview-chrome { display: none !important; }
         .trr-page {
             border: none;
             margin: 0;
             max-width: 100%;
             padding: 12px 18px;
             box-shadow: none;
+        }
+        /* Keep the draft watermark on printed / Save-as-PDF preview copies */
+        .trr-preview-watermark {
+            display: flex !important;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .trr-preview-watermark span {
+            color: rgba(100, 116, 139, 0.38) !important;
+            font-size: 64pt;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
     }
 </style>
@@ -643,8 +665,8 @@
 <div class="trr-embedded-root" dir="{{ !empty($isRTL) ? 'rtl' : 'ltr' }}">
 @endif
 
-@if(!empty($isPreviewMode) && empty($isEmbedded))
-    <div class="trr-preview-watermark" aria-hidden="true">Draft Preview</div>
+@if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
+    <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>
 @endif
 
 <main>

@@ -6,6 +6,7 @@ use App\Http\Controllers\PersonnelWorkHistoryController;
 use App\InventoryDepartment;
 use App\Lab;
 use App\ModulePreConfigs;
+use App\PersonnelWorkHistory;
 use App\SampleAnalysisStage;
 use App\User;
 use App\UserLabRelation;
@@ -76,6 +77,12 @@ class PersonnelDetailManager extends Component
 
     public string $workHistorySearch = '';
     public int $workHistoryPerPage = 10;
+
+    public bool $showWorkHistoryModal = false;
+    public string $workHistoryDepartmentId = '';
+    public string $workHistoryJobId = '';
+    public ?string $workHistoryEndDate = null;
+    public bool $workHistoryIsCurrent = true;
 
     public bool $showCertificationModal = false;
     public bool $showDeleteCertificationModal = false;
@@ -742,6 +749,79 @@ class PersonnelDetailManager extends Component
         $this->messageType = 'success';
     }
 
+    public function openWorkHistoryModal(): void
+    {
+        $this->resetWorkHistoryForm();
+
+        $user = $this->user;
+        $this->workHistoryDepartmentId = $user->department_id ? (string) $user->department_id : '';
+        $this->workHistoryJobId = $user->designation ? (string) $user->designation : '';
+        $this->workHistoryIsCurrent = true;
+        $this->workHistoryEndDate = null;
+        $this->showWorkHistoryModal = true;
+    }
+
+    public function closeWorkHistoryModal(): void
+    {
+        $this->showWorkHistoryModal = false;
+        $this->resetWorkHistoryForm();
+    }
+
+    public function updatedWorkHistoryIsCurrent(bool $value): void
+    {
+        if ($value) {
+            $this->workHistoryEndDate = null;
+        }
+    }
+
+    public function saveWorkHistory(): void
+    {
+        $rules = [
+            'workHistoryDepartmentId' => ['required', 'string', Rule::exists('inventory_departments', 'id')],
+            'workHistoryJobId' => [
+                'required',
+                'string',
+                Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description')),
+            ],
+            'workHistoryIsCurrent' => 'boolean',
+            'workHistoryEndDate' => 'nullable|date|before_or_equal:today',
+        ];
+
+        if (! $this->workHistoryIsCurrent) {
+            $rules['workHistoryEndDate'] = 'required|date|before_or_equal:today';
+        }
+
+        $this->validate($rules);
+
+        $user = User::query()->findOrFail($this->userId);
+
+        if ($this->workHistoryIsCurrent) {
+            (new PersonnelWorkHistoryController())->updateWorkHistory(
+                $user->id,
+                $this->workHistoryDepartmentId,
+                $this->workHistoryJobId
+            );
+
+            $user->department_id = $this->workHistoryDepartmentId;
+            $user->designation = $this->workHistoryJobId;
+            $user->save();
+        } else {
+            $history = new PersonnelWorkHistory();
+            $history->user_id = $user->id;
+            $history->department_id = $this->workHistoryDepartmentId;
+            $history->job_id = $this->workHistoryJobId;
+            $history->end_date = $this->workHistoryEndDate;
+            $history->save();
+        }
+
+        unset($this->user);
+        $this->showWorkHistoryModal = false;
+        $this->resetWorkHistoryForm();
+        $this->resetPage('workPage');
+        $this->message = 'Work history added successfully.';
+        $this->messageType = 'success';
+    }
+
     public function openCertificationModal(?string $certificationId = null): void
     {
         $this->resetCertificationForm();
@@ -1362,5 +1442,13 @@ class PersonnelDetailManager extends Component
         $this->certificationValidTo = null;
         $this->certificationAttachment = null;
         $this->certificationExistingAttachmentPath = null;
+    }
+
+    private function resetWorkHistoryForm(): void
+    {
+        $this->workHistoryDepartmentId = '';
+        $this->workHistoryJobId = '';
+        $this->workHistoryEndDate = null;
+        $this->workHistoryIsCurrent = true;
     }
 }

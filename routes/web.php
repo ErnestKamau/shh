@@ -1103,6 +1103,10 @@ Route::get('/equipment/monitoring/template/{template}/edit', [EquipmentAppContro
     ->name('equipment.monitoring.template.edit')
     ->middleware('can:equipment.permission');
 
+Route::get('/equipment/monitoring/export-lws-011', [\App\Http\Controllers\Monitoring\MonitoringExportController::class, 'exportLws011'])
+    ->name('equipment.monitoring.export-lws-011')
+    ->middleware('can:equipment.permission');
+
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('can:equipment.permission');
 Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('can:equipment.module.access');
 // Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('can:equipment.permission');

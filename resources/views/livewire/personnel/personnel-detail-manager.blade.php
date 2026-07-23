@@ -78,6 +78,10 @@
                     <button type="button" class="btn btn-outline-primary btn-sm rounded-pill cert-add-btn" wire:click="openCertificationModal">
                         <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
                     </button>
+                @elseif($activeTab === 'work_history')
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill cert-add-btn" wire:click="openWorkHistoryModal">
+                        <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
+                    </button>
                 @endif
             </div>
 
@@ -551,7 +555,10 @@
                     <div class="text-center py-5">
                         <i class="mdi mdi-briefcase-clock-outline" style="font-size: 3rem; color: #cbd5e0;"></i>
                         <h5 class="mt-3 text-muted">{{ __('personnel.no_work_history_found') }}</h5>
-                        <p class="text-muted small">{{ __('personnel.work_history') }}</p>
+                        <p class="text-muted small mb-3">Add department and job description changes for this person.</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" wire:click="openWorkHistoryModal">
+                            <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
+                        </button>
                     </div>
                 @else
                     <div class="table-responsive bg-light p-3">
@@ -740,6 +747,60 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-danger" wire:click="removeRole"><i class="mdi mdi-delete"></i> {{ __('personnel.delete') }}</button>
                         <button type="button" class="btn btn-default" wire:click="closeDeleteRoleModal">{{ __('personnel.cancel') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showWorkHistoryModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Work History</h4>
+                        <button type="button" class="close" wire:click="closeWorkHistoryModal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Record a department / job description assignment for this person.</p>
+                        <div class="form-group">
+                            <label>{{ __('personnel.department') }} <span class="text-danger">*</span></label>
+                            <select class="form-control @error('workHistoryDepartmentId') is-invalid @enderror" wire:model="workHistoryDepartmentId">
+                                <option value="">Select department...</option>
+                                @foreach($this->departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('workHistoryDepartmentId')<small class="text-danger">{{ $message }}</small>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label>{{ __('personnel.job_description') }} <span class="text-danger">*</span></label>
+                            <select class="form-control @error('workHistoryJobId') is-invalid @enderror" wire:model="workHistoryJobId">
+                                <option value="">Select job description...</option>
+                                @foreach($this->designations as $job)
+                                    <option value="{{ $job->id }}">{{ $job->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('workHistoryJobId')<small class="text-danger">{{ $message }}</small>@enderror
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="work_history_is_current" wire:model.live="workHistoryIsCurrent">
+                                <label class="form-check-label" for="work_history_is_current">{{ __('personnel.current') }} assignment</label>
+                            </div>
+                            <small class="text-muted">Ends the previous open assignment and updates this person's department / job description.</small>
+                        </div>
+                        @if(! $workHistoryIsCurrent)
+                            <div class="form-group mb-0">
+                                <label>{{ __('personnel.end_date') }} <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control @error('workHistoryEndDate') is-invalid @enderror" wire:model="workHistoryEndDate">
+                                @error('workHistoryEndDate')<small class="text-danger">{{ $message }}</small>@enderror
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" wire:click="saveWorkHistory"><i class="mdi mdi-content-save"></i> {{ __('personnel.save') }}</button>
+                        <button type="button" class="btn btn-default" wire:click="closeWorkHistoryModal">{{ __('personnel.close') }}</button>
                     </div>
                 </div>
             </div>

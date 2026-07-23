@@ -183,6 +183,10 @@ class Approvals extends Component
                     'standard_limit_display',
                     $limitDisplay->forCapturedResult($result)
                 );
+                $result->setAttribute(
+                    'standard_name_display',
+                    $limitDisplay->standardNameForCapturedResult($result)
+                );
             });
 
         if ($search === '') {
@@ -201,6 +205,7 @@ class Approvals extends Component
                     (string) ($result->remark ?? ''),
                     (string) ($result->operator->name ?? ''),
                     (string) ($result->ltmethod->name ?? $result->analysisMethod->name ?? ''),
+                    (string) ($result->standard_name_display ?? ''),
                     (string) ($result->standard_limit_display ?? ''),
                     (string) ($result->effectiveReportingUnitName() ?? ''),
                 ];

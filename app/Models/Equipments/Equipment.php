@@ -45,6 +45,7 @@ class Equipment extends Model implements Auditable
 		'preventive_maintainance_notification_days',
 		'asset_type_id',
 		'asset_location_id',
+		'lab_id',
 		'active',
 		'picture',
 		'company_id',
@@ -92,6 +93,75 @@ class Equipment extends Model implements Auditable
 		'end_of_service' => 'date',
 		'purchase_price' => 'decimal:2',
 	];
+
+	/**
+	 * First configured value type, used as the primary daily-log definition.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public function primaryDailyLogValueType(): ?array
+	{
+		$types = $this->daily_log_value_types;
+
+		if (! is_array($types) || $types === []) {
+			return null;
+		}
+
+		return $types[0];
+	}
+
+	public function getDailyLogValueTypeAttribute($value)
+	{
+		return filled($value) ? $value : ($this->primaryDailyLogValueType()['value_type'] ?? null);
+	}
+
+	public function getDailyLogNatureAttribute($value)
+	{
+		return filled($value) ? $value : ($this->primaryDailyLogValueType()['nature'] ?? null);
+	}
+
+	public function getDailyLogExpectedValueAttribute($value)
+	{
+		return filled($value) ? $value : ($this->primaryDailyLogValueType()['expected_value'] ?? null);
+	}
+
+	public function getDailyLogExpectedMinAttribute($value)
+	{
+		if ($value !== null && $value !== '') {
+			return $value;
+		}
+
+		$min = $this->primaryDailyLogValueType()['expected_min'] ?? null;
+
+		return $min === null || $min === '' ? null : $min;
+	}
+
+	public function getDailyLogExpectedMaxAttribute($value)
+	{
+		if ($value !== null && $value !== '') {
+			return $value;
+		}
+
+		$max = $this->primaryDailyLogValueType()['expected_max'] ?? null;
+
+		return $max === null || $max === '' ? null : $max;
+	}
+
+	public function getDailyLogReportingUnitAttribute($value)
+	{
+		return filled($value) ? $value : ($this->primaryDailyLogValueType()['reporting_unit'] ?? null);
+	}
+
+	public function getDailyLogToleranceAttribute($value)
+	{
+		if ($value !== null && $value !== '') {
+			return $value;
+		}
+
+		$tolerance = $this->primaryDailyLogValueType()['tolerance'] ?? null;
+
+		return $tolerance === null || $tolerance === '' ? null : $tolerance;
+	}
 
   public function calibration_date(){
 		$logs = $this->last_logs();
@@ -242,6 +312,21 @@ class Equipment extends Model implements Auditable
 	public function lab(): BelongsTo
 	{
 		return $this->belongsTo(\App\Lab::class, 'lab_id');
+	}
+
+	/**
+	 * @param  array<int, string>  $labIds
+	 */
+	public function scopeInLabs(Builder $query, array $labIds): Builder
+	{
+		if ($labIds === []) {
+			return $query->whereRaw('1 = 0');
+		}
+
+		return $query->where(function (Builder $q) use ($labIds): void {
+			$q->whereIn('lab_id', $labIds)
+				->orWhereHas('assetLocation', fn (Builder $location) => $location->whereIn('lab_id', $labIds));
+		});
 	}
 
 	/**

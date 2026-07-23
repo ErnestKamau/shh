@@ -6425,8 +6425,9 @@ class SampleWorkFlowController extends Controller
         $mode = strtolower((string) $request->query('mode', 'view'));
         $isPreviewMode = $mode === 'preview';
         $isPreviewDoc = $mode === 'preview-doc';
-        $isPdfMode = $mode === 'pdf';
-        $skipSequenceBump = $isPreviewMode || $isPreviewDoc;
+        $isPreviewPdf = $mode === 'preview-pdf';
+        $isPdfMode = $mode === 'pdf' || $isPreviewPdf;
+        $skipSequenceBump = $isPreviewMode || $isPreviewDoc || $isPreviewPdf;
 
         // Preview never bumps revision. Official generate only bumps when seq is absent
         // (processTestRequestReport already bumps and passes seq).
@@ -6499,12 +6500,15 @@ class SampleWorkFlowController extends Controller
                 'revisions',
                 'isRTL',
                 'isPdfMode',
-                'isPreviewMode',
                 'includeReferenceMethod',
                 'footerQrCode',
                 'verificationUrl',
-                'batchBackUrl'
-            ));
+                'batchBackUrl',
+                'reportNumber'
+            ), [
+                // preview-pdf keeps the draft watermark; official pdf does not
+                'isPreviewMode' => $isPreviewPdf,
+            ]);
 
             $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
             $dompdf = $pdf->getDomPDF();
@@ -6516,22 +6520,29 @@ class SampleWorkFlowController extends Controller
             $dompdf->set_option('isFontSubsettingEnabled', true);
             $pdf->setPaper('a4', 'portrait');
 
-            $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
-            $customerName = trim($customerName, '_') ?: 'customer';
-            $filename = 'TRR_' . $reportNumber . '.pdf';
-            $relativePath = '/reports/' . $customerName . '/' . $filename;
-            $absoluteDir = storage_path('app/reports/' . $customerName);
-
-            if (!is_dir($absoluteDir)) {
-                mkdir($absoluteDir, 0755, true);
+            if ($isPreviewPdf) {
+                $this->applyTestRequestReportPreviewWatermark($dompdf);
             }
 
-            $absolutePath = $absoluteDir . '/' . $filename;
-            $pdf->save($absolutePath);
+            $filename = ($isPreviewPdf ? 'TRR_PREVIEW_' : 'TRR_') . $reportNumber . '.pdf';
 
-            $batch->batch_report_url = $relativePath;
-            $batch->batch_report_online_url = url('/storage' . $relativePath);
-            $batch->save();
+            // Official generate persists the report path; preview-pdf does not.
+            if (! $isPreviewPdf) {
+                $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
+                $customerName = trim($customerName, '_') ?: 'customer';
+                $relativePath = '/reports/' . $customerName . '/' . $filename;
+                $absoluteDir = storage_path('app/reports/' . $customerName);
+
+                if (!is_dir($absoluteDir)) {
+                    mkdir($absoluteDir, 0755, true);
+                }
+
+                $pdf->save($absoluteDir . '/' . $filename);
+
+                $batch->batch_report_url = $relativePath;
+                $batch->batch_report_online_url = url('/storage' . $relativePath);
+                $batch->save();
+            }
 
             return $pdf->stream($filename, [
                 'Attachment' => false,
@@ -6564,12 +6575,14 @@ class SampleWorkFlowController extends Controller
             ]);
         }
 
-        // Bare report document for the in-app preview iframe (no revision bump)
+        // Bare report document for the in-app preview iframe (no revision bump).
+        // Keep isPreviewMode so the Draft Preview watermark still renders; hide the
+        // in-document chrome because the outer shell already provides it.
         if ($isPreviewDoc) {
             return view(
                 'layouts.lab.sample-workflow.report-formats.test_request_report',
                 array_merge($reportViewData, [
-                    'isPreviewMode' => false,
+                    'isPreviewMode' => true,
                     'isEmbedded' => false,
                     'isPdfMode' => false,
                     'hideScreenToolbar' => true,
@@ -6578,6 +6591,38 @@ class SampleWorkFlowController extends Controller
         }
 
         return view('layouts.lab.sample-workflow.report-formats.test_request_report', $reportViewData);
+    }
+
+    /**
+     * Diagonal "DRAFT PREVIEW" mark on every DomPDF page (preview-pdf only).
+     */
+    private function applyTestRequestReportPreviewWatermark(\Dompdf\Dompdf $dompdf): void
+    {
+        $canvas = $dompdf->getCanvas();
+
+        $canvas->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics): void {
+            $font = $fontMetrics->getFont('DejaVu Sans', 'bold')
+                ?: $fontMetrics->getFont('Helvetica', 'bold');
+
+            if (! $font) {
+                return;
+            }
+
+            $text = 'DRAFT PREVIEW';
+            $size = 46.0;
+            $angle = -28.0;
+            $color = [0.55, 0.60, 0.66];
+
+            $pageWidth = $canvas->get_width();
+            $pageHeight = $canvas->get_height();
+            $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+            $x = ($pageWidth - $textWidth) / 2;
+            $y = $pageHeight / 2;
+
+            $canvas->set_opacity(0.22);
+            $canvas->text($x, $y, $text, $font, $size, $color, 0.0, 0.0, $angle);
+            $canvas->set_opacity(1.0);
+        });
     }
 
     public function moveToVerificationApprovalLevel(Request $request)

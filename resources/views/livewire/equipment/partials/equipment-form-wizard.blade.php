@@ -460,6 +460,45 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            Lab
+                                            @if(!empty($equipmentForm['requires_daily_log']))
+                                                <span class="text-danger">*</span>
+                                            @endif
+                                        </label>
+                                        <div class="tag-select-container" wire:click="searchLabs">
+                                            <div class="tag-select-input">
+                                                @if($selectedLabName)
+                                                    <span class="tag-badge">
+                                                        {{ $selectedLabName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearLab"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text"
+                                                       wire:model.live="labSearch"
+                                                       wire:keyup="searchLabs"
+                                                       class="tag-input"
+                                                       placeholder="{{ $selectedLabName ? '' : 'Search labs...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showLabDropdown && count($filteredLabs) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredLabs as $lab)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}', @js($lab->name))">
+                                                            {{ $lab->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">Required for monitoring templates so the unit appears under the selected labs.</small>
+                                        @error('equipmentForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
                                         <label class="form-label">{{ __('equipment.active') }}</label>
                                         <div class="d-flex align-items-center" style="height:38px;">
                                             <div class="form-check">
@@ -489,6 +528,12 @@
                                     </div>
                                 </div>
                             @if(!empty($equipmentForm['requires_daily_log']))
+                            @error('equipmentForm.lab_id')
+                                <div class="alert alert-danger py-2">
+                                    <i class="mdi mdi-alert-circle-outline"></i> {{ $message }}
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" wire:click="goToStep(2)">Go to Assignment</button>
+                                </div>
+                            @enderror
                             @php $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
                             <div class="eq-section-header mt-4">
                                 <i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_configuration') }}
@@ -597,17 +642,23 @@
 
                             <div class="eq-section-header mt-4 d-flex justify-content-between align-items-center">
                                 <div>
-                                    <i class="mdi mdi-chart-line"></i> Value Types
+                                    <i class="mdi mdi-chart-line"></i> Value Types <span class="text-danger">*</span>
                                 </div>
                                 <button type="button" wire:click="addValueType" class="btn btn-sm btn-primary">
                                     <i class="mdi mdi-plus"></i> Add Value Type
                                 </button>
                             </div>
 
+                            @error('equipmentForm.daily_log_value_types')
+                                <div class="alert alert-danger py-2 mt-2">
+                                    <i class="mdi mdi-alert-circle-outline"></i> {{ $message }}
+                                </div>
+                            @enderror
+
                             @if(empty($equipmentForm['daily_log_value_types']))
-                                <div class="alert alert-info">
-                                    <i class="mdi mdi-information-outline"></i>
-                                    No value types configured. Click "Add Value Type" to add monitoring values.
+                                <div class="alert alert-warning mt-2">
+                                    <i class="mdi mdi-alert-outline"></i>
+                                    At least one value type is required before you can continue. Click <strong>Add Value Type</strong>, then set the expected value or range.
                                 </div>
                             @else
                                 @foreach($equipmentForm['daily_log_value_types'] as $index => $valueType)
@@ -652,7 +703,7 @@
                                                 <div class="col-md-6">
                                                     <div class="form-group mb-3">
                                                         <label class="form-label">Expected Value <span class="text-danger">*</span></label>
-                                                        <input type="text" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_value" class="form-control" placeholder="e.g. Good, Fair, Poor">
+                                                        <input type="text" wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.expected_value" class="form-control" placeholder="e.g. Good, Fair, Poor">
                                                         @error("equipmentForm.daily_log_value_types.{$index}.expected_value") <span class="text-danger">{{ $message }}</span> @enderror
                                                     </div>
                                                 </div>
@@ -664,7 +715,7 @@
                                                 <div class="col-md-6">
                                                     <div class="form-group mb-3">
                                                         <label class="form-label">Expected Value <span class="text-danger">*</span></label>
-                                                        <input type="number" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_value" class="form-control" step="any" placeholder="e.g. 25.5">
+                                                        <input type="number" wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.expected_value" class="form-control" step="any" placeholder="e.g. 25.5">
                                                         @error("equipmentForm.daily_log_value_types.{$index}.expected_value") <span class="text-danger">{{ $message }}</span> @enderror
                                                     </div>
                                                 </div>
@@ -676,14 +727,14 @@
                                                 <div class="col-md-6">
                                                     <div class="form-group mb-3">
                                                         <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
-                                                        <input type="number" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_min" class="form-control" step="any" placeholder="e.g. 0">
+                                                        <input type="number" wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.expected_min" class="form-control" step="any" placeholder="e.g. 0">
                                                         @error("equipmentForm.daily_log_value_types.{$index}.expected_min") <span class="text-danger">{{ $message }}</span> @enderror
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <div class="form-group mb-3">
                                                         <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
-                                                        <input type="number" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_max" class="form-control" step="any" placeholder="e.g. 4">
+                                                        <input type="number" wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.expected_max" class="form-control" step="any" placeholder="e.g. 4">
                                                         @error("equipmentForm.daily_log_value_types.{$index}.expected_max") <span class="text-danger">{{ $message }}</span> @enderror
                                                     </div>
                                                 </div>
@@ -695,7 +746,7 @@
                                                 <div class="col-md-6">
                                                     <div class="form-group mb-3">
                                                         <label class="form-label">Reporting Unit</label>
-                                                        <select wire:model="equipmentForm.daily_log_value_types.{{ $index }}.reporting_unit" class="form-control">
+                                                        <select wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.reporting_unit" class="form-control">
                                                             <option value="">Select unit</option>
                                                             @foreach($this->reportingUnits as $unit)
                                                                 <option value="{{ $unit->name }}">{{ $unit->name }}</option>
