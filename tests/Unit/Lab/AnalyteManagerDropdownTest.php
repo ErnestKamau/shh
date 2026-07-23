@@ -43,13 +43,16 @@ class AnalyteManagerDropdownTest extends TestCase
         $unitQuery->setAccessible(true);
         $units = $unitQuery->invoke($component, 'mg');
 
-        $this->assertSame([true, '%ICP%', '%ICP%'], $methods->getBindings());
-        $this->assertSame([true, '%HPLC%', '%HPLC%'], $equipment->getBindings());
+        // Non-pgsql drivers lower the search term for driver-aware case-insensitive matching.
+        $this->assertSame([true, '%icp%', '%icp%'], $methods->getBindings());
+        $this->assertSame([true, '%hplc%', '%hplc%'], $equipment->getBindings());
         $this->assertSame([true, '%mg%'], $units->getBindings());
 
         $this->assertStringContainsString('"active" = ?', $methods->toSql());
         $this->assertStringContainsString('"active" = ?', $equipment->toSql());
         $this->assertStringContainsString('"active" = ?', $units->toSql());
+        $this->assertStringContainsString('LOWER(name) LIKE ?', $methods->toSql());
+        $this->assertStringContainsString('LOWER(equipment_number) LIKE ?', $equipment->toSql());
     }
 
     public function test_filtered_collections_stay_empty_until_dropdown_is_opened(): void

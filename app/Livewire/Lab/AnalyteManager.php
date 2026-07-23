@@ -11,6 +11,7 @@ use App\ReportingUnit;
 use App\Result;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -408,46 +409,36 @@ class AnalyteManager extends Component
         $this->showReportingUnitDropdown = false;
     }
 
-    public function getFilteredMethodsProperty()
+    public function getFilteredMethodsProperty(): Collection
     {
-        $selectedIds = collect($this->analyteForm['method'] ?? [])
-            ->map(fn ($id): string => (string) $id)
-            ->filter()
-            ->values()
-            ->all();
+        if (! $this->showMethodDropdown) {
+            return collect();
+        }
 
-        $query = AnalysisMethod::query()
-            ->where('active', 1)
-            ->orderBy('name');
+        $query = $this->methodOptionsQuery($this->methodSearch);
+        $selectedIds = $this->normalizeIdList($this->analyteForm['method'] ?? []);
 
         if ($selectedIds !== []) {
             $query->whereNotIn('id', $selectedIds);
         }
 
-        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->methodSearch);
-
-        return $query->limit(30)->get();
+        return $query->limit($this->searchResultLimit)->get();
     }
 
-    public function getFilteredEquipmentProperty()
+    public function getFilteredEquipmentProperty(): Collection
     {
-        $selectedIds = collect($this->analyteForm['equipment_id'] ?? [])
-            ->map(fn ($id): string => (string) $id)
-            ->filter()
-            ->values()
-            ->all();
+        if (! $this->showEquipmentDropdown) {
+            return collect();
+        }
 
-        $query = Equipment::query()
-            ->where('active', 1)
-            ->orderBy('name');
+        $query = $this->equipmentOptionsQuery($this->equipmentSearch);
+        $selectedIds = $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []);
 
         if ($selectedIds !== []) {
             $query->whereNotIn('id', $selectedIds);
         }
 
-        $this->applyCaseInsensitiveSearch($query, ['name', 'equipment_number'], (string) $this->equipmentSearch);
-
-        return $query->limit(30)->get();
+        return $query->limit($this->searchResultLimit)->get();
     }
 
     public function getSelectedMethodsProperty(): Collection
@@ -478,6 +469,63 @@ class AnalyteManager extends Component
             ->get();
     }
 
+    /**
+     * @param  array<int, mixed>  $ids
+     * @return list<string>
+     */
+    protected function normalizeIdList(array $ids): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map(
+                static fn ($id): string => trim((string) ($id ?? '')),
+                $ids
+            ),
+            static fn (string $id): bool => $id !== ''
+        )));
+    }
+
+    /**
+     * @return Builder<\App\AnalysisMethod>
+     */
+    protected function methodOptionsQuery(?string $search = null): Builder
+    {
+        $query = AnalysisMethod::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $search);
+
+        return $query;
+    }
+
+    /**
+     * @return Builder<\App\Models\Equipments\Equipment>
+     */
+    protected function equipmentOptionsQuery(?string $search = null): Builder
+    {
+        $query = Equipment::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name', 'equipment_number'], (string) $search);
+
+        return $query;
+    }
+
+    /**
+     * @return Builder<\App\ReportingUnit>
+     */
+    protected function reportingUnitOptionsQuery(?string $search = null): Builder
+    {
+        $query = ReportingUnit::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $search);
+
+        return $query;
+    }
+
     public function openReportingUnitDropdown(): void
     {
         $this->showReportingUnitDropdown = true;
@@ -504,15 +552,15 @@ class AnalyteManager extends Component
         $this->showEquipmentDropdown = false;
     }
 
-    public function getFilteredReportingUnitsProperty()
+    public function getFilteredReportingUnitsProperty(): Collection
     {
-        $query = ReportingUnit::query()
-            ->where('active', 1)
-            ->orderBy('name');
+        if (! $this->showReportingUnitDropdown) {
+            return collect();
+        }
 
-        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->reportingUnitSearch);
-
-        return $query->limit(50)->get();
+        return $this->reportingUnitOptionsQuery($this->reportingUnitSearch)
+            ->limit($this->searchResultLimit)
+            ->get();
     }
 
     /**
