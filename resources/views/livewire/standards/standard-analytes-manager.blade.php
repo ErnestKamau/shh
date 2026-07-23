@@ -217,20 +217,22 @@
                                                     </span>
                                                 @else
                                                     <input type="text"
-                                                           wire:model.live="analyteSearch"
-                                                           wire:keyup="searchAnalytes"
+                                                           wire:model.live.debounce.250ms="analyteSearch"
+                                                           wire:focus="searchAnalytes"
                                                            class="tag-input"
                                                            placeholder="Search analytes..."
                                                            autocomplete="off">
                                                 @endif
                                             </div>
-                                            @if($showAnalyteDropdown && count($filteredAnalytes) > 0)
+                                            @if($showAnalyteDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredAnalytes as $analyte)
+                                                    @forelse($filteredAnalytes as $analyte)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectAnalyte('{{ $analyte->id }}')">
                                                             {{ $analyte->name }} ({{ $analyte->code }})
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No analytes found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -309,20 +311,22 @@
                                                                 </span>
                                                             @else
                                                                 <input type="text"
-                                                                       wire:model.live="standardValueSearch"
-                                                                       wire:keyup="searchStandardValues"
+                                                                       wire:model.live.debounce.250ms="standardValueSearch"
+                                                                       wire:focus="searchStandardValues"
                                                                        class="tag-input"
                                                                        placeholder="Search standard values..."
                                                                        autocomplete="off">
                                                             @endif
                                                         </div>
-                                                        @if($showStandardValueDropdown && count($filteredStandardValues) > 0)
+                                                        @if($showStandardValueDropdown)
                                                             <div class="tag-dropdown">
-                                                                @foreach($filteredStandardValues as $value)
+                                                                @forelse($filteredStandardValues as $value)
                                                                     <div class="tag-dropdown-item" wire:click.stop="selectStandardValue('{{ $value->id }}')">
                                                                         {{ $value->name }} ({{ $value->code }})
                                                                     </div>
-                                                                @endforeach
+                                                                @empty
+                                                                    <div class="tag-dropdown-item text-muted">No standard values found</div>
+                                                                @endforelse
                                                             </div>
                                                         @endif
                                                     </div>
@@ -675,8 +679,9 @@
         // Close searchable dropdowns when clicking outside
         document.addEventListener('click', function (e) {
             if (!e.target.closest('.tag-select-container')) {
-                @this.set('showAnalyteDropdown', false);
-                @this.set('showStandardValueDropdown', false);
+                if (@this.get('showAnalyteDropdown') || @this.get('showStandardValueDropdown')) {
+                    @this.call('closeAllDropdowns');
+                }
             }
         });
 
