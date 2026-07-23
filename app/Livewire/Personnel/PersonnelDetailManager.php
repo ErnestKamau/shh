@@ -6,6 +6,7 @@ use App\Http\Controllers\PersonnelWorkHistoryController;
 use App\InventoryDepartment;
 use App\Lab;
 use App\ModulePreConfigs;
+use App\PersonnelWorkHistory;
 use App\SampleAnalysisStage;
 use App\User;
 use App\UserLabRelation;
@@ -15,9 +16,11 @@ use App\Models\SkillsMatrix\SkillsMatrixDetail;
 use App\Models\SkillsMatrix\SkillsMatrixRoleRequirment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -74,6 +77,12 @@ class PersonnelDetailManager extends Component
 
     public string $workHistorySearch = '';
     public int $workHistoryPerPage = 10;
+
+    public bool $showWorkHistoryModal = false;
+    public string $workHistoryDepartmentId = '';
+    public string $workHistoryJobId = '';
+    public ?string $workHistoryEndDate = null;
+    public bool $workHistoryIsCurrent = true;
 
     public bool $showCertificationModal = false;
     public bool $showDeleteCertificationModal = false;
@@ -180,17 +189,33 @@ class PersonnelDetailManager extends Component
 
     public function setDetailsStep(int $step): void
     {
-        $this->detailsStep = max(1, min(3, $step));
+        $this->closeSelectDropdowns();
+        $target = max(1, min(3, $step));
+
+        // Moving forward through the stepper must validate (and persist) each skipped/current step.
+        if ($target > $this->detailsStep) {
+            for ($stepNumber = $this->detailsStep; $stepNumber < $target; $stepNumber++) {
+                $this->validateDetailsStep($stepNumber);
+                $this->persistDetailsStep($stepNumber);
+            }
+        }
+
+        $this->detailsStep = $target;
     }
 
     public function nextDetailsStep(): void
     {
+        $this->closeSelectDropdowns();
         $this->validateDetailsStep($this->detailsStep);
+        $this->persistDetailsStep($this->detailsStep);
         $this->detailsStep = min(3, $this->detailsStep + 1);
+        $this->message = 'Progress saved.';
+        $this->messageType = 'success';
     }
 
     public function previousDetailsStep(): void
     {
+        $this->closeSelectDropdowns();
         $this->detailsStep = max(1, $this->detailsStep - 1);
     }
 
@@ -256,6 +281,7 @@ class PersonnelDetailManager extends Component
         $this->showPositionDropdown = false;
         $this->showDepartmentDropdown = false;
         $this->showLabDropdown = false;
+        $this->showLabSectionDropdown = false;
         $this->showRoleDropdown = false;
     }
 
@@ -387,41 +413,33 @@ class PersonnelDetailManager extends Component
 
     public function saveUserDetails(): void
     {
-        $this->validateDetailsStep(1);
-        $this->validateDetailsStep(2);
-        $this->validateDetailsStep(3);
+        $this->closeSelectDropdowns();
+        $this->message = '';
 
-        $this->validate([
-            'detailsEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId, 'id')],
-            'detailsSignatureUpload' => 'nullable|image|max:3072',
-            'detailsSignatureData' => 'nullable|string',
-        ]);
+        try {
+            $this->validateDetailsStep(1);
+            $this->validateDetailsStep(2);
+            $this->validateDetailsStep(3);
 
-        $user = $this->user;
+            $this->validate([
+                'detailsEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId, 'id')],
+                'detailsSignatureUpload' => 'nullable|image|max:3072',
+                'detailsSignatureData' => 'nullable|string',
+            ]);
+        } catch (ValidationException $exception) {
+            $this->detailsStep = $this->resolveDetailsStepFromErrorKeys(array_keys($exception->errors()));
+            $this->message = 'Please resolve the highlighted fields before saving.';
+            $this->messageType = 'danger';
+            throw $exception;
+        }
+
+        $user = User::query()->findOrFail($this->userId);
         $originalDepartment = (string) ($user->department_id ?? '');
         $originalPosition = (string) ($user->position ?? '');
 
-        $user->first_name = trim($this->detailsFirstName);
-        $user->middle_name = trim($this->detailsMiddleName);
-        $user->last_name = trim($this->detailsLastName);
-        $user->name = trim(implode(' ', array_filter([
-            trim($this->detailsFirstName),
-            trim($this->detailsMiddleName),
-            trim($this->detailsLastName),
-        ], fn (string $part): bool => $part !== '')));
-        $user->email = trim($this->detailsEmail);
-        $user->phone = trim($this->detailsPhone);
-        $user->id_number = trim($this->detailsIdNumber) !== '' ? trim($this->detailsIdNumber) : null;
-        $user->date_of_birth = $this->detailsDateOfBirth ?: null;
-        $user->employment_date = $this->detailsEmploymentDate ?: null;
-        $user->designation = $this->selectedDesignationId ?: null;
-        $user->education_level = $this->selectedEducationId ?: null;
-        $user->position = $this->selectedPositionId ?: null;
-        $user->department_id = $this->selectedDepartmentId ?: null;
-        $user->analyst_is_gazzetted = $this->detailsAnalystIsGazzetted;
-        $user->date_of_gazzette = $this->detailsAnalystIsGazzetted ? ($this->detailsDateOfGazzette ?: null) : null;
-        $user->gazzette_no = $this->detailsAnalystIsGazzetted ? (trim($this->detailsGazzetteNo) !== '' ? trim($this->detailsGazzetteNo) : null) : null;
-        $user->start_of_career = $this->detailsStartOfCareer ?: null;
+        $this->applyPersonalFields($user);
+        $this->applyEmploymentFields($user);
+        $this->applyRecognitionFields($user);
 
         app(PersonnelSignatureService::class)->applyToUser(
             $user,
@@ -429,23 +447,19 @@ class PersonnelDetailManager extends Component
             $this->detailsSignatureData,
         );
 
-        $selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
-        $selectedLabSectionIds = array_values(array_unique(array_filter($this->selectedLabSectionIds, fn ($id): bool => (string) $id !== '')));
-
-        $user->lab_section_id = implode(',', $selectedLabSectionIds);
+        $this->syncLabAssignments($user);
 
         $user->save();
 
-        UserLabRelation::where('user_id', $user->id)->delete();
-        foreach ($selectedLabIds as $labId) {
-            UserLabRelation::create([
-                'user_id' => $user->id,
-                'lab_id' => (string) $labId,
-            ]);
-        }
-
         if ($originalDepartment !== (string) ($user->department_id ?? '') || $originalPosition !== (string) ($user->position ?? '')) {
-            (new PersonnelWorkHistoryController())->updateWorkHistory($user->id, $user->department_id, $user->position);
+            try {
+                (new PersonnelWorkHistoryController())->updateWorkHistory($user->id, $user->department_id, $user->position);
+            } catch (\Throwable $exception) {
+                Log::warning('Personnel work history update failed after user details save.', [
+                    'user_id' => $user->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         if ($this->selectedPositionId) {
@@ -460,8 +474,150 @@ class PersonnelDetailManager extends Component
 
         $this->detailsSignatureUpload = null;
         $this->detailsSignatureData = '';
+        unset($this->user);
         $this->message = 'User details saved.';
         $this->messageType = 'success';
+    }
+
+    private function persistDetailsStep(int $step): void
+    {
+        $user = User::query()->findOrFail($this->userId);
+
+        if ($step === 1) {
+            $this->applyPersonalFields($user);
+            app(PersonnelSignatureService::class)->applyToUser(
+                $user,
+                $this->detailsSignatureUpload,
+                $this->detailsSignatureData,
+            );
+            $user->save();
+            $this->detailsSignatureUpload = null;
+            $this->detailsSignatureData = '';
+            unset($this->user);
+
+            return;
+        }
+
+        if ($step === 2) {
+            $this->applyEmploymentFields($user);
+            $this->syncLabAssignments($user);
+            $user->save();
+
+            if ($this->selectedPositionId) {
+                $selectedRole = Role::query()
+                    ->where('guard_name', 'web')
+                    ->find($this->selectedPositionId);
+
+                if ($selectedRole && !$user->hasRole($selectedRole)) {
+                    $user->assignRole($selectedRole);
+                }
+            }
+
+            unset($this->user);
+
+            return;
+        }
+
+        if ($step === 3) {
+            $this->applyRecognitionFields($user);
+            $this->syncLabAssignments($user);
+            $user->save();
+            unset($this->user);
+        }
+    }
+
+    private function applyPersonalFields(User $user): void
+    {
+        $user->first_name = trim($this->detailsFirstName);
+        $user->middle_name = trim($this->detailsMiddleName);
+        $user->last_name = trim($this->detailsLastName);
+        $user->name = trim(implode(' ', array_filter([
+            trim($this->detailsFirstName),
+            trim($this->detailsMiddleName),
+            trim($this->detailsLastName),
+        ], fn (string $part): bool => $part !== '')));
+        $user->email = trim($this->detailsEmail);
+        $user->phone = trim($this->detailsPhone);
+        $user->id_number = trim($this->detailsIdNumber) !== '' ? trim($this->detailsIdNumber) : null;
+        $user->date_of_birth = $this->detailsDateOfBirth ?: null;
+    }
+
+    private function applyEmploymentFields(User $user): void
+    {
+        $user->employment_date = $this->detailsEmploymentDate ?: null;
+        $user->designation = $this->selectedDesignationId ?: null;
+        $user->education_level = $this->selectedEducationId ?: null;
+        $user->position = $this->selectedPositionId ?: null;
+        $user->department_id = $this->selectedDepartmentId ?: null;
+    }
+
+    private function applyRecognitionFields(User $user): void
+    {
+        $user->analyst_is_gazzetted = $this->detailsAnalystIsGazzetted;
+        $user->date_of_gazzette = $this->detailsAnalystIsGazzetted ? ($this->detailsDateOfGazzette ?: null) : null;
+        $user->gazzette_no = $this->detailsAnalystIsGazzetted
+            ? (trim($this->detailsGazzetteNo) !== '' ? trim($this->detailsGazzetteNo) : null)
+            : null;
+        $user->start_of_career = $this->detailsStartOfCareer ?: null;
+    }
+
+    private function syncLabAssignments(User $user): void
+    {
+        $selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
+        $selectedLabSectionIds = array_values(array_unique(array_filter($this->selectedLabSectionIds, fn ($id): bool => (string) $id !== '')));
+
+        $user->lab_section_id = implode(',', $selectedLabSectionIds);
+
+        UserLabRelation::where('user_id', $user->id)->delete();
+        foreach ($selectedLabIds as $labId) {
+            UserLabRelation::create([
+                'user_id' => $user->id,
+                'lab_id' => (string) $labId,
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $errorKeys
+     */
+    private function resolveDetailsStepFromErrorKeys(array $errorKeys): int
+    {
+        $step1Keys = [
+            'detailsFirstName',
+            'detailsMiddleName',
+            'detailsLastName',
+            'detailsEmail',
+            'detailsPhone',
+            'detailsIdNumber',
+            'detailsDateOfBirth',
+            'detailsSignatureUpload',
+            'detailsSignatureData',
+        ];
+        $step2Keys = [
+            'detailsEmploymentDate',
+            'selectedDesignationId',
+            'selectedEducationId',
+            'selectedPositionId',
+            'selectedDepartmentId',
+            'selectedLabIds',
+            'selectedLabSectionIds',
+        ];
+
+        foreach ($errorKeys as $key) {
+            $root = explode('.', (string) $key)[0];
+            if (in_array($root, $step1Keys, true)) {
+                return 1;
+            }
+        }
+
+        foreach ($errorKeys as $key) {
+            $root = explode('.', (string) $key)[0];
+            if (in_array($root, $step2Keys, true)) {
+                return 2;
+            }
+        }
+
+        return 3;
     }
 
     private function validateDetailsStep(int $step): void
@@ -486,27 +642,21 @@ class PersonnelDetailManager extends Component
                 'selectedEducationId' => ['nullable', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Educational Levels'))],
                 'selectedPositionId' => ['required', 'string', Rule::exists('spatie_roles', 'id')],
                 'selectedDepartmentId' => 'required|string|exists:inventory_departments,id',
+                'selectedLabIds' => 'array',
+                'selectedLabIds.*' => 'string|exists:labs,id',
+                'selectedLabSectionIds' => 'array',
+                'selectedLabSectionIds.*' => 'string|exists:sample_analysis_stages,id',
             ]);
             return;
         }
 
         if ($step === 3) {
             $this->validate([
-                'selectedLabIds' => 'array',
-                'selectedLabIds.*' => 'string|exists:labs,id',
-                'selectedLabSectionIds' => 'array',
-                'selectedLabSectionIds.*' => 'string|exists:sample_analysis_stages,id',
                 'detailsAnalystIsGazzetted' => 'boolean',
-                'detailsDateOfGazzette' => 'nullable|date',
+                'detailsDateOfGazzette' => 'nullable|required_if:detailsAnalystIsGazzetted,true|date',
                 'detailsGazzetteNo' => 'nullable|string|max:255',
                 'detailsStartOfCareer' => 'nullable|date',
             ]);
-
-            if ($this->detailsAnalystIsGazzetted && !$this->detailsDateOfGazzette) {
-                $this->addError('detailsDateOfGazzette', 'The date of gazzette field is required when analyst is gazzetted.');
-            }
-
-            return;
         }
     }
 
@@ -596,6 +746,79 @@ class PersonnelDetailManager extends Component
         $this->selectedRoleName = '';
         $this->expandedRoleRows = array_values(array_filter($this->expandedRoleRows, fn (string $id): bool => $id !== (string) $role->id));
         $this->message = 'User role deleted successfully.';
+        $this->messageType = 'success';
+    }
+
+    public function openWorkHistoryModal(): void
+    {
+        $this->resetWorkHistoryForm();
+
+        $user = $this->user;
+        $this->workHistoryDepartmentId = $user->department_id ? (string) $user->department_id : '';
+        $this->workHistoryJobId = $user->designation ? (string) $user->designation : '';
+        $this->workHistoryIsCurrent = true;
+        $this->workHistoryEndDate = null;
+        $this->showWorkHistoryModal = true;
+    }
+
+    public function closeWorkHistoryModal(): void
+    {
+        $this->showWorkHistoryModal = false;
+        $this->resetWorkHistoryForm();
+    }
+
+    public function updatedWorkHistoryIsCurrent(bool $value): void
+    {
+        if ($value) {
+            $this->workHistoryEndDate = null;
+        }
+    }
+
+    public function saveWorkHistory(): void
+    {
+        $rules = [
+            'workHistoryDepartmentId' => ['required', 'string', Rule::exists('inventory_departments', 'id')],
+            'workHistoryJobId' => [
+                'required',
+                'string',
+                Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description')),
+            ],
+            'workHistoryIsCurrent' => 'boolean',
+            'workHistoryEndDate' => 'nullable|date|before_or_equal:today',
+        ];
+
+        if (! $this->workHistoryIsCurrent) {
+            $rules['workHistoryEndDate'] = 'required|date|before_or_equal:today';
+        }
+
+        $this->validate($rules);
+
+        $user = User::query()->findOrFail($this->userId);
+
+        if ($this->workHistoryIsCurrent) {
+            (new PersonnelWorkHistoryController())->updateWorkHistory(
+                $user->id,
+                $this->workHistoryDepartmentId,
+                $this->workHistoryJobId
+            );
+
+            $user->department_id = $this->workHistoryDepartmentId;
+            $user->designation = $this->workHistoryJobId;
+            $user->save();
+        } else {
+            $history = new PersonnelWorkHistory();
+            $history->user_id = $user->id;
+            $history->department_id = $this->workHistoryDepartmentId;
+            $history->job_id = $this->workHistoryJobId;
+            $history->end_date = $this->workHistoryEndDate;
+            $history->save();
+        }
+
+        unset($this->user);
+        $this->showWorkHistoryModal = false;
+        $this->resetWorkHistoryForm();
+        $this->resetPage('workPage');
+        $this->message = 'Work history added successfully.';
         $this->messageType = 'success';
     }
 
@@ -1219,5 +1442,13 @@ class PersonnelDetailManager extends Component
         $this->certificationValidTo = null;
         $this->certificationAttachment = null;
         $this->certificationExistingAttachmentPath = null;
+    }
+
+    private function resetWorkHistoryForm(): void
+    {
+        $this->workHistoryDepartmentId = '';
+        $this->workHistoryJobId = '';
+        $this->workHistoryEndDate = null;
+        $this->workHistoryIsCurrent = true;
     }
 }

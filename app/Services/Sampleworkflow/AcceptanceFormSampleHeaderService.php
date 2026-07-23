@@ -157,6 +157,18 @@ class AcceptanceFormSampleHeaderService
         if ($primarySampleTypeId === '' && $form->relationLoaded('lines')) {
             $primarySampleTypeId = (string) ($form->lines->where('is_approved', true)->first()?->sample_type_id ?? '');
         }
+        if ($primarySampleTypeId === '' && is_array($form->sample_configuration_payload)) {
+            foreach ($form->sample_configuration_payload as $config) {
+                if (! is_array($config)) {
+                    continue;
+                }
+                $candidate = trim((string) ($config['sample_type_id'] ?? ''));
+                if ($candidate !== '') {
+                    $primarySampleTypeId = $candidate;
+                    break;
+                }
+            }
+        }
 
         $attributes = $this->buildCreateAttributes($form, $primarySampleTypeId, $primaryZoneId ?? $batch->zone_id);
 

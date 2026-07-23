@@ -50,7 +50,7 @@ class MethodDetail extends Component
         return [
             'methodForm.name' => 'required|string|max:255',
             'methodForm.code' => 'required|string|max:255',
-            'methodForm.description' => 'required|string',
+            'methodForm.description' => 'nullable|string',
             'methodForm.active' => 'boolean',
             'methodForm.is_sampling_method' => 'boolean',
             'methodForm.is_ltm' => 'boolean',
@@ -97,7 +97,7 @@ class MethodDetail extends Component
             $this->method->update([
                 'name' => $this->methodForm['name'],
                 'code' => $this->methodForm['code'],
-                'description' => $this->methodForm['description'],
+                'description' => $this->methodForm['description'] ?: null,
                 'active' => $this->methodForm['active'] ? 1 : 0,
                 'is_sampling_method' => $this->methodForm['is_sampling_method'] ? 1 : 0,
                 'is_ltm' => $this->methodForm['is_ltm'] ? 1 : 0,

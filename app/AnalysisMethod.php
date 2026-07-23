@@ -44,6 +44,15 @@ class AnalysisMethod extends Model implements Auditable
     	return $this->is_ltm == 0 ? AnalysisElements::where('method', $this->id)->get() :  AnalysisElements::where('ltm_method_id', $this->id)->get() ;
 	}
 
+	public function analytesCount(): int
+	{
+		if ((int) $this->is_ltm === 1) {
+			return AnalysisElements::where('ltm_method_id', $this->id)->count();
+		}
+
+		return AnalysisElements::where('method', $this->id)->count();
+	}
+
 	public function reagents(){
 		$reagents = MethodReagent::join('inventory_sub_categories as isc', 'isc.id', '=', 'method_reagents.inventory_sub_category_id')
 			->selectRaw('isc.id as reagent_id, isc.name as reagent_name, method_reagents.quantity, method_reagents.reporting_unit as reagent_unit')

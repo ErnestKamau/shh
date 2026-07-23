@@ -1728,7 +1728,7 @@
                                 <th>Rating</th>
                             @elseif($reportType === 'trend_analysis')
                                 <th>Matrix Type</th>
-                                <th>Analyte Code</th>
+                                <th>Report Display</th>
                                 <th>Min Value</th>
                                 <th>Max Value</th>
                                 <th>Trend Direction</th>

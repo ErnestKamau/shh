@@ -3,9 +3,12 @@
 namespace App\Livewire\Batch\Tabs;
 
 use App\BatchLabSectionApprover;
+use App\CapturedResult;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
+use App\Services\StandardLimitDisplayService;
 use App\Services\WorkflowService;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -23,6 +26,9 @@ class Approvals extends Component
     public bool $showDeleteModal = false;
     public bool $showEditModal = false;
     public bool $showChecklistRequiredModal = false;
+    public bool $showResultsModal = false;
+
+    public string $resultsSearch = '';
 
     public string $checklistRequiredMessage = '';
 
@@ -129,6 +135,90 @@ class Approvals extends Component
         ];
 
         $this->showEditModal = true;
+    }
+
+    public function openResultsModal(): void
+    {
+        if (!$this->canShowReviewActions()) {
+            return;
+        }
+
+        $this->resultsSearch = '';
+        $this->showResultsModal = true;
+    }
+
+    public function closeResultsModal(): void
+    {
+        $this->showResultsModal = false;
+        $this->resultsSearch = '';
+    }
+
+    public function canShowReviewActions(): bool
+    {
+        $status = (string) ($this->batch->status ?? '');
+        $prelimStatus = (string) ($this->batch->prelim_batch_status ?? '');
+
+        return in_array($status, ['Sample Verification', 'Sample Approval'], true)
+            || in_array($prelimStatus, ['Sample Verification', 'Sample Approval'], true);
+    }
+
+    /**
+     * @return Collection<int, CapturedResult>
+     */
+    public function getBatchResultsProperty(): Collection
+    {
+        if (!$this->showResultsModal) {
+            return collect();
+        }
+
+        $limitDisplay = app(StandardLimitDisplayService::class);
+        $search = trim($this->resultsSearch);
+
+        $results = CapturedResult::with(['sample', 'analysis_type', 'operator', 'ltmethod', 'analysisMethod'])
+            ->where('sample_header_id', $this->batch->id)
+            ->orderBy('sample_detail_id', 'ASC')
+            ->get()
+            ->each(function (CapturedResult $result) use ($limitDisplay): void {
+                $result->setAttribute(
+                    'standard_limit_display',
+                    $limitDisplay->forCapturedResult($result)
+                );
+                $result->setAttribute(
+                    'standard_name_display',
+                    $limitDisplay->standardNameForCapturedResult($result)
+                );
+            });
+
+        if ($search === '') {
+            return $results;
+        }
+
+        $term = mb_strtolower($search);
+
+        return $results
+            ->filter(function (CapturedResult $result) use ($term): bool {
+                $haystacks = [
+                    (string) ($result->sample->sample_code ?? ''),
+                    (string) ($result->analysis_type->name ?? ''),
+                    (string) ($result->analyte_code ?? ''),
+                    (string) ($result->result ?? ''),
+                    (string) ($result->remark ?? ''),
+                    (string) ($result->operator->name ?? ''),
+                    (string) ($result->ltmethod->name ?? $result->analysisMethod->name ?? ''),
+                    (string) ($result->standard_name_display ?? ''),
+                    (string) ($result->standard_limit_display ?? ''),
+                    (string) ($result->effectiveReportingUnitName() ?? ''),
+                ];
+
+                foreach ($haystacks as $haystack) {
+                    if ($haystack !== '' && str_contains(mb_strtolower($haystack), $term)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->values();
     }
 
     public function updateApproverStatus(): void
@@ -318,7 +408,9 @@ class Approvals extends Component
     public function render(): \Illuminate\View\View
     {
         return view('livewire.batch.tabs.approvals', [
-            'approvers' => $this->approvers
+            'approvers' => $this->approvers,
+            'batchResults' => $this->batchResults,
+            'canShowReviewActions' => $this->canShowReviewActions(),
         ]);
     }
 

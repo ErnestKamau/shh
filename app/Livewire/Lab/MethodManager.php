@@ -33,6 +33,7 @@ class MethodManager extends Component
     // Modal properties
     public $showMethodModal = false;
     public $editingMethod = null;
+    public bool $addToQcWorkflow = false;
 
     // Form data
     public $methodForm = [
@@ -79,26 +80,32 @@ class MethodManager extends Component
 
     protected function rules(): array
     {
-        return [
+        $rules = [
             'methodForm.name' => 'required|string|max:255',
             'methodForm.code' => 'required|string|max:255',
-            'methodForm.description' => 'required|string',
+            'methodForm.description' => 'nullable|string',
             'methodForm.method_type_id' => ['required', Rule::exists('system_configurations', 'id')],
             'methodForm.reference_type_id' => ['nullable', 'string', Rule::exists('analysis_methods', 'id')],
-            'methodForm.based_on_standard_id' => ['nullable', 'string', Rule::exists('standards', 'id')],
-            'methodForm.qc_scheme_ids' => ['array'],
-            'methodForm.qc_scheme_ids.*' => ['string', Rule::exists('qc_scheme', 'id')],
-            'methodForm.qc_scheme_mode' => ['required', Rule::in([
+            'methodForm.active' => 'boolean',
+            'addToQcWorkflow' => 'boolean',
+        ];
+
+        if ($this->addToQcWorkflow) {
+            $rules['methodForm.based_on_standard_id'] = ['nullable', 'string', Rule::exists('standards', 'id')];
+            $rules['methodForm.qc_scheme_ids'] = ['array'];
+            $rules['methodForm.qc_scheme_ids.*'] = ['string', Rule::exists('qc_scheme', 'id')];
+            $rules['methodForm.qc_scheme_mode'] = ['required', Rule::in([
                 QcSchemeBinding::MODE_OVERRIDE,
                 QcSchemeBinding::MODE_MERGE,
                 QcSchemeBinding::MODE_ADDITIVE,
-            ])],
-            'methodForm.qc_scheme_priority' => ['required', 'integer', 'min:1', 'max:1000'],
-            'methodForm.qc_condition_equipment_id' => ['nullable', 'string', Rule::exists('equipment', 'id')],
-            'methodForm.qc_condition_crm_customer_id' => ['nullable', 'string', Rule::exists('crm_customers', 'id')],
-            'methodForm.qc_condition_sample_type_id' => ['nullable', 'string', Rule::exists('sample_types', 'id')],
-            'methodForm.active' => 'boolean',
-        ];
+            ])];
+            $rules['methodForm.qc_scheme_priority'] = ['required', 'integer', 'min:1', 'max:1000'];
+            $rules['methodForm.qc_condition_equipment_id'] = ['nullable', 'string', Rule::exists('equipment', 'id')];
+            $rules['methodForm.qc_condition_crm_customer_id'] = ['nullable', 'string', Rule::exists('crm_customers', 'id')];
+            $rules['methodForm.qc_condition_sample_type_id'] = ['nullable', 'string', Rule::exists('sample_types', 'id')];
+        }
+
+        return $rules;
     }
 
     public function mount(): void
@@ -168,14 +175,8 @@ class MethodManager extends Component
     {
         $query = AnalysisMethod::with(['referencemethod', 'methodtype', 'basedOnStandard', 'qcSchemes']);
 
-        // Apply search filter
-        if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                    ->orWhere('code', 'like', '%' . $this->search . '%')
-                    ->orWhere('description', 'like', '%' . $this->search . '%');
-            });
-        }
+        // Apply search filter (case-insensitive for PostgreSQL and MySQL)
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code', 'description'], (string) $this->search);
 
         // Apply status filter
         if ($this->statusFilter === 'active') {
@@ -192,9 +193,42 @@ class MethodManager extends Component
         return $query->orderBy('name')->paginate($this->perPage);
     }
 
+    /**
+     * Apply a driver-aware case-insensitive LIKE filter across columns.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<int, string>  $columns
+     */
+    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
+    {
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+        $isPgsql = $driver === 'pgsql';
+        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
+
+        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
+            foreach ($columns as $index => $column) {
+                if ($isPgsql) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $builder->{$method}($column, 'ilike', $like);
+                    continue;
+                }
+
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
+            }
+        });
+    }
+
     public function showCreateMethodModal(): void
     {
         $this->reset(['methodForm', 'editingMethod', 'message']);
+        $this->addToQcWorkflow = false;
         $this->methodForm['active'] = true;
         $this->methodForm['qc_scheme_ids'] = [];
         $this->methodForm['qc_scheme_mode'] = QcSchemeBinding::MODE_OVERRIDE;
@@ -240,6 +274,8 @@ class MethodManager extends Component
                 'active' => (bool) $this->editingMethod->active,
             ];
 
+            $this->addToQcWorkflow = $this->methodHasQcWorkflowConfiguration();
+
             $this->loadStaticData();
             $this->showMethodModal = true;
             $this->dispatch('method-modal-opened');
@@ -253,6 +289,10 @@ class MethodManager extends Component
         try {
             DB::beginTransaction();
 
+            if (! $this->addToQcWorkflow) {
+                $this->clearQcWorkflowFormFields();
+            }
+
             $resolver = app(MethodConfigurationResolver::class);
             $methodTypeId = (string) $this->methodForm['method_type_id'];
             $flags = $resolver->legacyFlagsForTypeId($methodTypeId);
@@ -263,7 +303,7 @@ class MethodManager extends Component
             $data = [
                 'name' => $this->methodForm['name'],
                 'code' => $this->methodForm['code'],
-                'description' => $this->methodForm['description'],
+                'description' => $this->methodForm['description'] ?: null,
                 'method_type_id' => $methodTypeId,
                 'reference_type_id' => $referenceTypeId,
                 'based_on_standard_id' => $this->methodForm['based_on_standard_id'] ?: null,
@@ -313,7 +353,7 @@ class MethodManager extends Component
             
             if ($method) {
                 // Check if method has associated analytes
-                $analytesCount = $method->analytes()->count();
+                $analytesCount = $method->analytesCount();
                 
                 if ($analytesCount > 0) {
                     $this->setMessage('Cannot delete method with associated analytes. Please remove analytes first.', 'error');
@@ -332,8 +372,38 @@ class MethodManager extends Component
     public function closeMethodModal(): void
     {
         $this->showMethodModal = false;
+        $this->addToQcWorkflow = false;
         $this->reset(['methodForm', 'editingMethod']);
         $this->dispatch('method-modal-closed');
+    }
+
+    /**
+     * True when the loaded method already has QC workflow configuration.
+     */
+    protected function methodHasQcWorkflowConfiguration(): bool
+    {
+        if (! empty($this->methodForm['based_on_standard_id'])) {
+            return true;
+        }
+
+        if (! empty($this->methodForm['qc_scheme_ids'])) {
+            return true;
+        }
+
+        return filled($this->methodForm['qc_condition_equipment_id'] ?? null)
+            || filled($this->methodForm['qc_condition_crm_customer_id'] ?? null)
+            || filled($this->methodForm['qc_condition_sample_type_id'] ?? null);
+    }
+
+    protected function clearQcWorkflowFormFields(): void
+    {
+        $this->methodForm['based_on_standard_id'] = '';
+        $this->methodForm['qc_scheme_ids'] = [];
+        $this->methodForm['qc_scheme_mode'] = QcSchemeBinding::MODE_OVERRIDE;
+        $this->methodForm['qc_scheme_priority'] = 100;
+        $this->methodForm['qc_condition_equipment_id'] = '';
+        $this->methodForm['qc_condition_crm_customer_id'] = '';
+        $this->methodForm['qc_condition_sample_type_id'] = '';
     }
 
     public function clearFilters(): void

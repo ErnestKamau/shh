@@ -410,6 +410,7 @@ class EquipmentDetail extends Component
             'calibration_notification_in_days' => $e->calibration_notification_in_days,
             'asset_type_id' => $e->asset_type_id,
             'asset_location_id' => $e->asset_location_id,
+            'lab_id' => $e->lab_id,
             'active' => $e->active ?? true,
             'requires_daily_log' => $e->requires_daily_log ?? false,
             'has_logbook_tracking' => $e->has_logbook_tracking ?? false,
@@ -454,6 +455,14 @@ class EquipmentDetail extends Component
             $assetLocation = AssetLocation::find($e->asset_location_id);
             $this->selectedAssetLocationName = $assetLocation->name ?? '';
             $this->assetLocationSearch = $this->selectedAssetLocationName;
+        }
+
+        $this->selectedLabName = '';
+        $this->labSearch = '';
+        if ($e->lab_id) {
+            $lab = \App\Lab::query()->find($e->lab_id);
+            $this->selectedLabName = $lab?->name ?? '';
+            $this->labSearch = $this->selectedLabName;
         }
 
         $this->selectedReportingUnitName = '';

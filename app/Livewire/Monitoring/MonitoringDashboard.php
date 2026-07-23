@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Monitoring;
 
+use App\Actions\Monitoring\CloneMonitoringTemplateAction;
 use App\Actions\Monitoring\StoreMonitoringLogAction;
 use App\Actions\Monitoring\UpdateMonitoringLogAction;
 use App\Models\Monitoring\MonitoringLog;
@@ -363,21 +364,53 @@ class MonitoringDashboard extends Component
         );
     }
 
+    /**
+     * Equipment available for LWS-011 export on the equipment monitoring tab.
+     */
+    public function getEquipmentExportOptionsProperty()
+    {
+        if ($this->activeSection !== 'equipment' || blank($this->selectedLabId)) {
+            return collect();
+        }
+
+        $labId = (string) $this->selectedLabId;
+        $idsFromTemplates = [];
+
+        foreach ($this->templatesDueToday as $template) {
+            $metaField = $template->fields->firstWhere('field_key', '__meta_scope_items');
+            $cfg = is_array($metaField?->field_config) ? $metaField->field_config : [];
+            foreach ((array) ($cfg['equipment'] ?? []) as $equipmentId) {
+                if (filled($equipmentId)) {
+                    $idsFromTemplates[] = (string) $equipmentId;
+                }
+            }
+        }
+
+        return Equipment::query()
+            ->where('active', true)
+            ->where(function ($query) use ($labId, $idsFromTemplates) {
+                $query->inLabs([$labId]);
+
+                if ($idsFromTemplates !== []) {
+                    $query->orWhereIn('id', array_values(array_unique($idsFromTemplates)));
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'equipment_number']);
+    }
+
     public function getTemplateEngineTemplatesProperty()
     {
-        return MonitoringTemplate::query()
+        return $this->managedTemplatesQuery()
             ->withCount(['fields', 'formulaRules', 'logs'])
             ->latest()
-            ->limit(20)
+            ->limit(50)
             ->get();
     }
 
     public function openTemplateEdit(string $templateId): void
     {
-        $template = MonitoringTemplate::query()
-            ->where('id', $templateId)
-            ->where('company_id', Auth::user()?->company_id)
-            ->first();
+        $template = $this->findManagedTemplate($templateId);
 
         if (!$template) {
             return;
@@ -427,10 +460,7 @@ class MonitoringDashboard extends Component
             'templateEditInputs.is_active' => 'required|boolean',
         ]);
 
-        $template = MonitoringTemplate::query()
-            ->where('id', $this->editingTemplateId)
-            ->where('company_id', Auth::user()?->company_id)
-            ->first();
+        $template = $this->findManagedTemplate((string) $this->editingTemplateId);
 
         if (!$template) {
             $this->addError('templateEditInputs.name', 'Template not found.');
@@ -456,12 +486,11 @@ class MonitoringDashboard extends Component
 
     public function clearTemplateLogs(string $templateId): void
     {
-        $template = MonitoringTemplate::query()
-            ->where('id', $templateId)
-            ->where('company_id', Auth::user()?->company_id)
-            ->first();
+        $template = $this->findManagedTemplate($templateId);
 
         if (!$template) {
+            session()->flash('error', 'Template not found.');
+
             return;
         }
 
@@ -478,12 +507,11 @@ class MonitoringDashboard extends Component
 
     public function deleteTemplate(string $templateId): void
     {
-        $template = MonitoringTemplate::query()
-            ->where('id', $templateId)
-            ->where('company_id', Auth::user()?->company_id)
-            ->first();
+        $template = $this->findManagedTemplate($templateId);
 
         if (!$template) {
+            session()->flash('error', 'Template not found.');
+
             return;
         }
 
@@ -501,6 +529,31 @@ class MonitoringDashboard extends Component
         }
 
         session()->flash('success', 'Template deleted successfully, including captured logs.');
+    }
+
+    public function cloneTemplate(string $templateId): void
+    {
+        // Resolve by id only — list may include templates from shared/legacy company rows.
+        // The clone is always owned by the current user's company.
+        $template = MonitoringTemplate::query()->find($templateId);
+
+        if (! $template) {
+            session()->flash('error', 'Template not found.');
+
+            return;
+        }
+
+        try {
+            $clone = app(CloneMonitoringTemplateAction::class)->execute($template);
+            session()->flash('success', 'Template cloned as "'.$clone->name.'".');
+            $this->activeSection = 'templates';
+        } catch (\Throwable $e) {
+            Log::error('Failed to clone monitoring template', [
+                'template_id' => $templateId,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', 'Could not clone template: '.$e->getMessage());
+        }
     }
 
     public function getExecutionEquipmentsProperty()
@@ -1991,6 +2044,19 @@ class MonitoringDashboard extends Component
         }
 
         return $this->resolveFieldInputConfig($field, $equipmentId);
+    }
+
+    /**
+     * Templates shown/managed on the Template Engine tab.
+     */
+    protected function managedTemplatesQuery()
+    {
+        return MonitoringTemplate::query();
+    }
+
+    protected function findManagedTemplate(string $templateId): ?MonitoringTemplate
+    {
+        return $this->managedTemplatesQuery()->where('id', $templateId)->first();
     }
 
     public function render()

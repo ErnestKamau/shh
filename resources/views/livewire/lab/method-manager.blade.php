@@ -43,7 +43,7 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by name, code, or description...">
+                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, number, or description...">
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -119,7 +119,7 @@
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>No</th>
-                                        <th>Code</th>
+                                        <th>Number</th>
                                         <th>Name</th>
                                         <th>Description</th>
                                         <th>Reference</th>
@@ -140,7 +140,7 @@
                                             <td>{{ $method->referencemethod->name ?? '-' }}</td>
                                             <td>{{ $method->basedOnStandard->code ?? '-' }}</td>
                                             <td>
-                                                <span class="badge badge-info p-2">{{ number_format($method->analytes()->count()) }}</span>
+                                                <span class="badge badge-info p-2">{{ number_format($method->analytesCount()) }}</span>
                                             </td>
                                             <td>{{ $method->methodtype->value ?? 'Not Set' }}</td>
                                             <td>
@@ -222,12 +222,12 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">
-                                            Code <span class="text-danger">*</span>
+                                            Number <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" 
                                                wire:model="methodForm.code" 
                                                class="form-control @error('methodForm.code') is-invalid @enderror" 
-                                               placeholder="Analysis Method Code...">
+                                               placeholder="Analysis Method Number...">
                                         @error('methodForm.code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
@@ -235,12 +235,12 @@
                             
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
-                                    Description <span class="text-danger">*</span>
+                                    Description
                                 </label>
                                 <textarea wire:model="methodForm.description" 
                                           class="form-control @error('methodForm.description') is-invalid @enderror" 
                                           rows="3"
-                                          placeholder="Description..."></textarea>
+                                          placeholder="Description (optional)..."></textarea>
                                 @error('methodForm.description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
@@ -257,7 +257,21 @@
                                 </select>
                                 @error('methodForm.method_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
-                            
+
+                            <div class="form-group mb-3">
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           wire:model.live="addToQcWorkflow"
+                                           class="form-check-input"
+                                           id="add_to_qc_workflow">
+                                    <label class="form-check-label fw-bold" for="add_to_qc_workflow">
+                                        Add to QC workflow
+                                    </label>
+                                </div>
+                                <small class="text-muted">Show QC standard, scheme binding, and condition fields.</small>
+                            </div>
+
+                            @if($addToQcWorkflow)
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
@@ -348,6 +362,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
                             <div class="row">
                                 @if((string) ($methodForm['method_type_id'] ?? '') === (string) ($ltmMethodTypeId ?? ''))
                                     <div class="col-md-6">

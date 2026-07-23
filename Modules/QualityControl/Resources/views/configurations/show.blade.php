@@ -41,7 +41,7 @@
                     <thead>
                         <tr>
                             <th></th>
-                            <th>Analyte Code</th>
+                            <th>Report Display</th>
                             <th>Standard</th>
                             <th>Expected Value</th>
                             <th>Tolerance 1</th>

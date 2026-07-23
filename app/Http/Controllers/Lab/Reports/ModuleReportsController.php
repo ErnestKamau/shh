@@ -1568,7 +1568,7 @@ class ModuleReportsController extends Controller
             'decontamination_register' => ['Area/Room', 'Decontaminated Date', 'Chemical Used', 'Staff Officer', 'Status'],
             'backlog_analysis' => ['Lab Section', 'Backlog Count', 'Oldest Pending Sample', 'Target SLA', 'Risk Level'],
             'performance_report' => ['Lab Section', 'Samples Completed', 'Target Compliance', 'Analyst count', 'Rating'],
-            'trend_analysis' => ['Matrix Type', 'Analyte Code', 'Min Value', 'Max Value', 'Trend Direction'],
+            'trend_analysis' => ['Matrix Type', 'Report Display', 'Min Value', 'Max Value', 'Trend Direction'],
             'zonal_performance' => ['Zone Name', 'Target SLA', 'SLA Met', 'Volume Handled', 'Zonal Rating'],
             'proforma_invoice' => ['Proforma Ref', 'Client Name', 'Sample Count', 'Total Fee TZS', 'Status'],
             'payment_receipt' => ['Receipt Ref', 'Invoice Ref', 'Client Name', 'Amount Paid TZS', 'Payment Date'],

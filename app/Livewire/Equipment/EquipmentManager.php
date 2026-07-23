@@ -71,6 +71,7 @@ class EquipmentManager extends Component
         'calibration_notification_in_days' => null,
         'asset_type_id' => null,
         'asset_location_id' => null,
+        'lab_id' => null,
         'active' => true,
         'requires_daily_log' => false,
         'has_logbook_tracking' => false,
@@ -242,6 +243,7 @@ class EquipmentManager extends Component
             'calibration_notification_in_days' => $equipment->calibration_notification_in_days,
             'asset_type_id' => $equipment->asset_type_id,
             'asset_location_id' => $equipment->asset_location_id,
+            'lab_id' => $equipment->lab_id,
             'active' => $equipment->active ?? true,
             'requires_daily_log' => $equipment->requires_daily_log ?? false,
             'has_logbook_tracking' => $equipment->has_logbook_tracking ?? false,
@@ -287,6 +289,14 @@ class EquipmentManager extends Component
             $assetLocation = AssetLocation::find($equipment->asset_location_id);
             $this->selectedAssetLocationName = $assetLocation->name ?? '';
             $this->assetLocationSearch = $this->selectedAssetLocationName;
+        }
+
+        $this->selectedLabName = '';
+        $this->labSearch = '';
+        if ($equipment->lab_id) {
+            $lab = \App\Lab::query()->find($equipment->lab_id);
+            $this->selectedLabName = $lab?->name ?? '';
+            $this->labSearch = $this->selectedLabName;
         }
 
         if (!empty($equipment->daily_log_reporting_unit)) {
@@ -400,6 +410,7 @@ class EquipmentManager extends Component
             'calibration_notification_in_days' => null,
             'asset_type_id' => null,
             'asset_location_id' => null,
+            'lab_id' => null,
             'active' => true,
             'requires_daily_log' => false,
             'has_logbook_tracking' => false,
@@ -426,6 +437,7 @@ class EquipmentManager extends Component
         $this->departmentSearch = '';
         $this->assetTypeSearch = '';
         $this->assetLocationSearch = '';
+        $this->labSearch = '';
         $this->reportingUnitSearch = '';
         $this->monitoredEquipmentSearch = '';
 
@@ -433,6 +445,7 @@ class EquipmentManager extends Component
         $this->selectedDepartmentName = '';
         $this->selectedAssetTypeName = '';
         $this->selectedAssetLocationName = '';
+        $this->selectedLabName = '';
         $this->selectedReportingUnitName = '';
         $this->selectedMonitoredEquipmentLabel = '';
 

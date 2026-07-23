@@ -11,7 +11,6 @@
             ['link' => route('crm-dashboard'), 'name' => __('crm.module_name'), 'icon' => null],
             ['link' => route('crm-dashboard'), 'name' => __('crm.dashboard'), 'icon' => null],
         ];
-        $delta = $this->complaintsTrendDelta;
         $nps = $this->feedbackNpsPercent;
         $hiPri = $this->highPriorityOpenComplaints;
         $upcomingBookings = $this->labBookingsUpcoming;

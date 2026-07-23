@@ -58,8 +58,26 @@
                         <tr wire:key="approver-{{ $approver->id }}" class="{{$approver->batch_status != $batch->status ? 'bg-light' : ''}}">
                             <td>{{ $loop->iteration }}</td>
                             <td class="text-nowrap">
-                                @if($approver->status == 0)
                                 <div class="btn-group btn-group-sm" role="group" aria-label="Approver actions">
+                                    @if($canShowReviewActions)
+                                    <button type="button"
+                                        class="btn btn-outline-info"
+                                        title="View Results"
+                                        wire:click="openResultsModal">
+                                        <i class="mdi mdi-clipboard-text-outline"></i>
+                                    </button>
+                                    @can('laboratory.components.lab-reports.view')
+                                    <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                        class="btn btn-outline-secondary"
+                                        title="Preview Test Report"
+                                        target="_blank"
+                                        rel="noopener noreferrer">
+                                        <i class="mdi mdi-file-pdf-box"></i>
+                                    </a>
+                                    @endcan
+                                    @endif
+
+                                    @if($approver->status == 0)
                                     @if($approver->user_id == auth()->id())
                                     {{-- Approve / Decline --}}
                                     <button type="button"
@@ -85,10 +103,10 @@
                                         wire:click="openDeleteModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-delete-outline"></i>
                                     </button>
+                                    @elseif(!$canShowReviewActions)
+                                    <span class="text-muted small">—</span>
+                                    @endif
                                 </div>
-                                @else
-                                <span class="text-muted small">—</span>
-                                @endif
                             </td>
                             <td>
                                 @if($approver->status == 0)
@@ -337,6 +355,105 @@
                 </div>
                 <div class="modal-footer modal-footer-modern">
                     <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="closeChecklistRequiredModal">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- View Results Modal --}}
+    @if($showResultsModal)
+    <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-xl" role="document" style="max-width: 1100px; width: 94vw;">
+            <div class="modal-content modal-content-modern" style="max-height: calc(100vh - 3.5rem); overflow: hidden;">
+                <div class="modal-header modal-header-modern">
+                    <h5 class="modal-title modal-title-modern">
+                        <i class="mdi mdi-clipboard-text-outline"></i> Test Results — {{ $batch->batch_code }}
+                    </h5>
+                    <button type="button" class="close" wire:click="closeResultsModal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body modal-body-modern" style="overflow-y: auto; max-height: calc(100vh - 12rem);">
+                    <div class="mb-3">
+                        <input type="text"
+                            wire:model.live.debounce.300ms="resultsSearch"
+                            class="form-control form-control-modern"
+                            placeholder="Search by sample code, analysis type, report display, result, method, standard, analyst, or remark...">
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover workflow-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Sample Code</th>
+                                    <th>Analysis Type</th>
+                                    <th>Report Display</th>
+                                    <th>Result</th>
+                                    <th>Unit</th>
+                                    <th>Method</th>
+                                    <th>Standard</th>
+                                    <th>Analyst</th>
+                                    <th>Remark</th>
+                                    <th>Limit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($batchResults as $result)
+                                <tr wire:key="approval-result-{{ $result->id }}">
+                                    <td class="font-weight-bold">{{ $result->sample->sample_code ?? 'N/A' }}</td>
+                                    <td>{{ $result->analysis_type->name ?? 'N/A' }}</td>
+                                    <td>{{ $result->analyte_code ?? 'N/A' }}</td>
+                                    <td>
+                                        <strong class="{{ $result->remark == 'FAIL' ? 'text-danger' : ($result->remark == 'PASS' ? 'text-success' : '') }}">
+                                            {{ $result->result !== null && $result->result !== '' ? $result->result : '—' }}
+                                        </strong>
+                                    </td>
+                                    <td>{{ $result->effectiveReportingUnitName() ?? '—' }}</td>
+                                    <td>
+                                        <small>{{ $result->ltmethod->name ?? $result->analysisMethod->name ?? '—' }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ $result->standard_name_display ?? '—' }}</small>
+                                    </td>
+                                    <td>{{ $result->operator->name ?? 'N/A' }}</td>
+                                    <td>
+                                        @if($result->remark)
+                                        <span class="badge badge-{{ $result->remark == 'FAIL' ? 'danger' : ($result->remark == 'PASS' ? 'success' : 'light') }}">
+                                            {{ $result->remark }}
+                                        </span>
+                                        @else
+                                        <span class="text-muted">—</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ $result->standard_limit_display ?? $result->main_value ?? '—' }}</small>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="10" class="text-center py-5 workflow-empty-state">
+                                        <i class="mdi mdi-clipboard-text-outline text-muted" style="font-size: 48px;"></i>
+                                        <h6 class="mt-3 text-muted">No Results Found</h6>
+                                        <p class="text-muted mb-0"><small>
+                                            @if($resultsSearch)
+                                            No results match your search criteria
+                                            @else
+                                            There are no captured results for this batch yet
+                                            @endif
+                                        </small></p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-modern">
+                    <span class="text-muted small mr-auto">
+                        {{ $batchResults->count() }} result{{ $batchResults->count() === 1 ? '' : 's' }}
+                    </span>
+                    <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="closeResultsModal">Close</button>
                 </div>
             </div>
         </div>

@@ -1,4 +1,18 @@
 <div class="monitoring-create-shell container-fluid">
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="mdi mdi-alert-circle-outline"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <i class="mdi mdi-alert-circle-outline"></i>
+            {{ $errors->first() }}
+        </div>
+    @endif
+
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -297,7 +311,7 @@
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <span class="badge badge-secondary">{{ $equipment->lab?->name ?? 'N/A' }}</span>
+                                                        <span class="badge badge-secondary">{{ $equipment->lab?->name ?? $equipment->assetLocation?->lab?->name ?? 'N/A' }}</span>
                                                     </td>
                                                     <td><strong>{{ $equipment->name }}</strong></td>
                                                     <td>{{ $equipment->model ?? '—' }}</td>
@@ -343,6 +357,8 @@
                                 <div class="alert alert-warning">
                                     <i class="mdi mdi-alert-outline"></i>
                                     No equipment with daily logging enabled found in the selected labs.
+                                    Edit each unit under <strong>Equipment</strong>: assign a <strong>Lab</strong> on Assignment &amp; Location,
+                                    enable daily logging on the Monitoring step, then return here.
                                 </div>
                             @endif
 

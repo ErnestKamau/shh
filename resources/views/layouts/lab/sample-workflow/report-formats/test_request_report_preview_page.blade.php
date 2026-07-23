@@ -216,6 +216,12 @@
             'lang' => $language ?? 'en',
             'include_reference_method' => !empty($includeReferenceMethod) ? 1 : 0,
         ]);
+        $previewPdfUrl = route('generateTestRequestReport', [
+            'batch_id' => $batch->id,
+            'mode' => 'preview-pdf',
+            'lang' => $language ?? 'en',
+            'include_reference_method' => !empty($includeReferenceMethod) ? 1 : 0,
+        ]);
     @endphp
 
     <x-bread-crumb :items="$items"></x-bread-crumb>
@@ -228,7 +234,7 @@
             <span class="trr-preview-number">{{ $reportNumber }}</span>
         </div>
         <div class="trr-system-preview-actions">
-            <button type="button" class="btn-print" onclick="document.getElementById('trr-preview-frame')?.contentWindow?.print()">Print</button>
+            <a href="{{ $previewPdfUrl }}" class="btn-print" target="_blank" rel="noopener noreferrer">Open PDF</a>
             <a href="{{ $batchBackUrl }}" class="btn-back">Back to Batch</a>
         </div>
     </div>

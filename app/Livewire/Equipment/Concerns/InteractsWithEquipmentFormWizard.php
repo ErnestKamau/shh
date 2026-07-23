@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Equipment\Concerns;
 
+use App\Lab;
 use App\Models\Assets\AssetLocation;
 use App\Models\Assets\AssetType;
 use App\Models\Equipments\Equipment;
@@ -21,11 +22,20 @@ trait InteractsWithEquipmentFormWizard
 
     public string $reportingUnitSearch = '';
 
+    public string $labSearch = '';
+
+    public bool $showLabDropdown = false;
+
+    public string $selectedLabName = '';
+
     /** @var \Illuminate\Support\Collection<int, \App\Models\Equipments\Equipment> */
     public $filteredMonitoredEquipments = [];
 
     /** @var \Illuminate\Support\Collection<int, \App\ReportingUnit> */
     public $filteredReportingUnits = [];
+
+    /** @var \Illuminate\Support\Collection<int, \App\Lab> */
+    public $filteredLabs = [];
 
     protected function isEditingEquipmentInWizard(): bool
     {
@@ -85,6 +95,7 @@ trait InteractsWithEquipmentFormWizard
 
         if ($step === 3) {
             if (! empty($this->equipmentForm['requires_daily_log'])) {
+                $rules['equipmentForm.lab_id'] = 'required|string|exists:labs,id';
                 $rules['equipmentForm.daily_log_frequency'] = 'required|integer|min:1|max:6';
                 $rules['equipmentForm.daily_log_monitored_by_another_equipment'] = 'boolean';
                 if (! empty($this->equipmentForm['daily_log_monitored_by_another_equipment'])) {
@@ -143,7 +154,11 @@ trait InteractsWithEquipmentFormWizard
     {
         $rules = $this->getStepRules($this->currentStep);
         if (! empty($rules)) {
-            $this->validate($rules);
+            $this->validate($rules, [
+                'equipmentForm.daily_log_value_types.required' => 'Add at least one value type before continuing.',
+                'equipmentForm.daily_log_value_types.min' => 'Add at least one value type before continuing.',
+                'equipmentForm.lab_id.required' => 'Assign a lab on the Assignment & Location step so this equipment can appear in monitoring templates.',
+            ]);
         }
     }
 
@@ -238,6 +253,7 @@ trait InteractsWithEquipmentFormWizard
             'assigned_employee_id',
             'asset_type_id',
             'asset_location_id',
+            'lab_id',
             'daily_log_monitored_equipment_id',
         ];
 
@@ -287,6 +303,58 @@ trait InteractsWithEquipmentFormWizard
                 $data[$field] = null;
             }
         }
+
+        return $this->syncLegacyDailyLogColumns($data);
+    }
+
+    /**
+     * Keep legacy daily-log columns in sync with the first configured value type.
+     * Daily checks, detail views, and monitoring templates still read those columns.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function syncLegacyDailyLogColumns(array $data): array
+    {
+        if (empty($data['requires_daily_log'])) {
+            $data['daily_log_value_types'] = [];
+            $data['daily_log_value_type'] = null;
+            $data['daily_log_nature'] = null;
+            $data['daily_log_expected_value'] = null;
+            $data['daily_log_expected_min'] = null;
+            $data['daily_log_expected_max'] = null;
+            $data['daily_log_reporting_unit'] = null;
+            $data['daily_log_tolerance'] = null;
+
+            return $data;
+        }
+
+        $valueTypes = array_values(array_filter(
+            $data['daily_log_value_types'] ?? [],
+            fn ($item) => is_array($item) && ! empty($item['value_type'])
+        ));
+        $data['daily_log_value_types'] = $valueTypes;
+
+        $primary = $valueTypes[0] ?? null;
+        if ($primary === null) {
+            $data['daily_log_value_type'] = null;
+            $data['daily_log_nature'] = null;
+            $data['daily_log_expected_value'] = null;
+            $data['daily_log_expected_min'] = null;
+            $data['daily_log_expected_max'] = null;
+            $data['daily_log_reporting_unit'] = null;
+            $data['daily_log_tolerance'] = null;
+
+            return $data;
+        }
+
+        $data['daily_log_value_type'] = $primary['value_type'] ?? null;
+        $data['daily_log_nature'] = $primary['nature'] ?? null;
+        $data['daily_log_expected_value'] = $primary['expected_value'] ?? null;
+        $data['daily_log_expected_min'] = $primary['expected_min'] ?? null;
+        $data['daily_log_expected_max'] = $primary['expected_max'] ?? null;
+        $data['daily_log_reporting_unit'] = $primary['reporting_unit'] ?? null;
+        $data['daily_log_tolerance'] = $primary['tolerance'] ?? null;
 
         return $data;
     }
@@ -428,12 +496,21 @@ trait InteractsWithEquipmentFormWizard
         if ($name === null) {
             $assetLocation = AssetLocation::find($id);
             $name = $assetLocation?->name ?? '';
+        } else {
+            $assetLocation = AssetLocation::find($id);
         }
 
         $this->equipmentForm['asset_location_id'] = $id;
         $this->selectedAssetLocationName = $name;
         $this->assetLocationSearch = '';
         $this->showAssetLocationDropdown = false;
+
+        if (
+            empty($this->equipmentForm['lab_id'])
+            && ! empty($assetLocation?->lab_id)
+        ) {
+            $this->selectLab((string) $assetLocation->lab_id);
+        }
     }
 
     public function clearAssetLocation(): void
@@ -441,6 +518,39 @@ trait InteractsWithEquipmentFormWizard
         $this->equipmentForm['asset_location_id'] = null;
         $this->selectedAssetLocationName = '';
         $this->assetLocationSearch = '';
+    }
+
+    public function searchLabs(): void
+    {
+        $this->showLabDropdown = true;
+        $search = $this->labSearch;
+
+        $this->filteredLabs = Lab::query()
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            })
+            ->orderBy('name')
+            ->limit(15)
+            ->get();
+    }
+
+    public function selectLab(string $id, ?string $name = null): void
+    {
+        if ($name === null) {
+            $name = Lab::query()->find($id)?->name ?? '';
+        }
+
+        $this->equipmentForm['lab_id'] = $id;
+        $this->selectedLabName = $name;
+        $this->labSearch = '';
+        $this->showLabDropdown = false;
+    }
+
+    public function clearLab(): void
+    {
+        $this->equipmentForm['lab_id'] = null;
+        $this->selectedLabName = '';
+        $this->labSearch = '';
     }
 
     public function getDailyLogFrequencyRowsProperty(): array
@@ -488,12 +598,14 @@ trait InteractsWithEquipmentFormWizard
             'equipmentForm.calibration_notification_in_days' => 'required|integer|min:0',
             'equipmentForm.asset_type_id' => 'nullable|string',
             'equipmentForm.asset_location_id' => 'nullable|string',
+            'equipmentForm.lab_id' => 'nullable|string|exists:labs,id',
             'equipmentForm.active' => 'boolean',
             'equipmentForm.has_logbook_tracking' => 'boolean',
             'photo' => 'nullable|image|max:10240',
         ];
 
         if (! empty($this->equipmentForm['requires_daily_log'])) {
+            $rules['equipmentForm.lab_id'] = 'required|string|exists:labs,id';
             $rules['equipmentForm.daily_log_frequency'] = 'required|integer|min:1|max:6';
             $rules['equipmentForm.daily_log_monitored_by_another_equipment'] = 'boolean';
             if (! empty($this->equipmentForm['daily_log_monitored_by_another_equipment'])) {

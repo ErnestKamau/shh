@@ -98,12 +98,11 @@ class CreateMonitoringTemplate extends Component
         }
 
         return Equipment::query()
-            ->whereIn('lab_id', $this->selectedLabIds)
+            ->inLabs($this->selectedLabIds)
             ->where('requires_daily_log', true)
             ->where('active', true)
-            ->orderBy('lab_id')
             ->orderBy('name')
-            ->with(['latestCalibration'])
+            ->with(['lab', 'assetLocation.lab', 'latestCalibration'])
             ->get();
     }
 
@@ -279,16 +278,33 @@ class CreateMonitoringTemplate extends Component
 
     public function saveTemplate()
     {
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'documentControlNumber' => 'nullable|string|max:255',
-            'version' => 'required|string|max:255',
-            'effectiveDate' => 'nullable|date',
-            'selectedLabIds' => 'required|array|min:1',
-            'selectedSectionIds' => $this->templateType === 'environmental' ? 'required|array|min:1' : 'nullable',
-            'selectedEquipmentIds' => $this->templateType === 'equipment' ? 'required|array|min:1' : 'nullable',
-            ...$this->readingStructureValidationRules(),
-        ]);
+        try {
+            $this->validate([
+                'name' => 'required|string|max:255',
+                'documentControlNumber' => 'nullable|string|max:255',
+                'version' => 'required|string|max:255',
+                'effectiveDate' => 'nullable|date',
+                'selectedLabIds' => 'required|array|min:1',
+                'selectedSectionIds' => $this->templateType === 'environmental' ? 'required|array|min:1' : 'nullable',
+                'selectedEquipmentIds' => $this->templateType === 'equipment' ? 'required|array|min:1' : 'nullable',
+                ...$this->readingStructureValidationRules(),
+            ], [
+                'selectedLabIds.required' => 'Select at least one lab before saving.',
+                'selectedLabIds.min' => 'Select at least one lab before saving.',
+                'selectedSectionIds.required' => 'Select at least one environmental section before saving.',
+                'selectedSectionIds.min' => 'Select at least one environmental section before saving.',
+                'selectedEquipmentIds.required' => 'Select at least one equipment item before saving.',
+                'selectedEquipmentIds.min' => 'Select at least one equipment item before saving.',
+                'readingSteps.required' => 'Add at least one reading step before saving.',
+                'readingSteps.min' => 'Add at least one reading step before saving.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $firstError = collect($exception->validator->errors()->all())->first() ?? 'Please fix the highlighted fields.';
+            $this->dispatch('notify', ['type' => 'error', 'message' => $firstError]);
+            session()->flash('error', $firstError);
+
+            throw $exception;
+        }
 
         try {
             DB::beginTransaction();
@@ -333,7 +349,9 @@ class CreateMonitoringTemplate extends Component
         } catch (\Exception $e) {
             DB::rollBack();
 
-            $this->dispatch('notify', ['type' => 'error', 'message' => 'Error creating template: '.$e->getMessage()]);
+            $message = 'Error creating template: '.$e->getMessage();
+            session()->flash('error', $message);
+            $this->dispatch('notify', ['type' => 'error', 'message' => $message]);
         }
     }
 

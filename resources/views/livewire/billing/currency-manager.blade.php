@@ -12,13 +12,13 @@
                             </h2>
                             <p class="text-muted mb-0">Manage currencies for billing and quotations</p>
                         </div>
-                        <div class="d-flex gap-2">
-                            <button wire:click="showSyncConfirmationModal" class="btn btn-info">
+                        <div class="d-flex align-items-center" style="gap: 0.5rem;">
+                            <button type="button" wire:click="showCreateCurrencyModal" class="btn btn-primary">
+                                <i class="mdi mdi-plus"></i> Add Currency
+                            </button>
+                            <button type="button" wire:click="showSyncConfirmationModal" class="btn btn-info">
                                 <i class="mdi mdi-cloud-download"></i> Pull Currencies
                             </button>
-                            {{-- <button wire:click="showCreateCurrencyModal" class="btn btn-primary">
-                                <i class="mdi mdi-plus"></i> Add Currency
-                            </button> --}}
                         </div>
                     </div>
                 </div>
@@ -163,8 +163,11 @@
                                             <div style="padding: 3rem 1rem;">
                                                 <i class="mdi mdi-cloud-download text-muted" style="font-size: 4rem; opacity: 0.5;"></i>
                                                 <h5 class="text-muted mt-3 mb-2">No Currencies Found</h5>
-                                                <p class="text-muted mb-3">Get started by pulling currencies from Dynamics 365 Business Central</p>
-                                                <button wire:click="showSyncConfirmationModal" class="btn btn-info">
+                                                <p class="text-muted mb-3">Add a currency manually or pull currencies from Dynamics 365 Business Central</p>
+                                                <button type="button" wire:click="showCreateCurrencyModal" class="btn btn-primary mr-2">
+                                                    <i class="mdi mdi-plus"></i> Add Currency
+                                                </button>
+                                                <button type="button" wire:click="showSyncConfirmationModal" class="btn btn-info">
                                                     <i class="mdi mdi-cloud-download"></i> Pull Currencies from Dynamics
                                                 </button>
                                             </div>

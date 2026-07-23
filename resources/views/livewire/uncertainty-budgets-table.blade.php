@@ -69,7 +69,7 @@
                                     </select>
                             </div>
                             <div class="col-md-3">
-                        <label for="analyte_code" class="form-label fw-bold">Analyte Code</label>
+                        <label for="analyte_code" class="form-label fw-bold">Report Display</label>
                         <select wire:model.live="filters.analyte_code" class="form-select form-select-lg" id="analyte_code">
                             <option value="">All Codes</option>
                                         @foreach($availableAnalyteCodes as $code)
@@ -193,7 +193,7 @@
                             </th>
                             <th>
                                 <a href="#" wire:click.prevent="sortBy('analytes.code')" class="text-dark text-decoration-none">
-                                    Analyte Code
+                                    Report Display
                                 @if($sortField === 'analytes.code')
                                     <i class="mdi mdi-arrow-{{ $sortDirection === 'asc' ? 'up' : 'down' }}"></i>
                                 @endif

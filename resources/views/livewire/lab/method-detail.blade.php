@@ -51,20 +51,20 @@
                         </div>
 
                         <div class="form-group mb-3">
-                            <label class="form-label fw-bold">Code <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">Number <span class="text-danger">*</span></label>
                             <input type="text" 
                                    wire:model="methodForm.code" 
                                    class="form-control @error('methodForm.code') is-invalid @enderror" 
-                                   placeholder="Analysis Method Code...">
+                                   placeholder="Analysis Method Number...">
                             @error('methodForm.code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="form-group mb-3">
-                            <label class="form-label fw-bold">Description <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">Description</label>
                             <textarea wire:model="methodForm.description" 
                                       class="form-control @error('methodForm.description') is-invalid @enderror" 
                                       rows="4"
-                                      placeholder="Description..."></textarea>
+                                      placeholder="Description (optional)..."></textarea>
                             @error('methodForm.description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 

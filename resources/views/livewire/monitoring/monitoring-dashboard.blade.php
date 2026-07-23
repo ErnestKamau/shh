@@ -27,6 +27,14 @@
             </button>
         </div>
     @endif
+    @if(session()->has('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
 
     <div class="row g-3 mb-3 monitor-entry-cards-row">
         <div class="col-md-4 d-flex">
@@ -179,12 +187,42 @@
                         @endphp
 
                         <div class="card mb-3">
-                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <strong>
                                     {{ $selectedLab?->name ?? 'Selected Lab' }}
                                     <span class="text-muted">| Equipment Due Today</span>
                                 </strong>
-                                <span class="text-muted">{{ now()->toFormattedDateString() }}</span>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <form action="{{ $module === 'equipment' ? route('equipment.monitoring.export-lws-011') : route('monitoring.export-lws-011') }}"
+                                          method="GET"
+                                          target="_blank"
+                                          class="d-inline-flex align-items-center gap-2 flex-wrap">
+                                        <select name="template_id" class="form-control form-control-sm" style="min-width: 180px;" required>
+                                            <option value="">Select template</option>
+                                            @foreach($this->templatesDueToday as $exportTemplate)
+                                                <option value="{{ $exportTemplate->id }}">{{ $exportTemplate->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select name="equipment_id" class="form-control form-control-sm" style="min-width: 180px;" required>
+                                            <option value="">Select equipment</option>
+                                            @foreach($this->equipmentExportOptions as $exportEquipment)
+                                                <option value="{{ $exportEquipment->id }}">
+                                                    {{ $exportEquipment->name }}{{ $exportEquipment->equipment_number ? ' ('.$exportEquipment->equipment_number.')' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group input-group-sm" style="width: auto;">
+                                            <span class="input-group-text bg-light text-muted border-secondary-subtle">
+                                                <i class="mdi mdi-calendar"></i>
+                                            </span>
+                                            <input type="month" name="month" value="{{ date('Y-m') }}" required class="form-control form-control-sm border-secondary-subtle" style="max-width: 140px;">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
+                                                <i class="mdi mdi-file-pdf-box"></i> Export LWS-011 PDF
+                                            </button>
+                                        </div>
+                                    </form>
+                                    <span class="text-muted">{{ now()->toFormattedDateString() }}</span>
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-hover mb-0">
@@ -328,6 +366,14 @@
                                             class="rm-act-btn rm-act-btn--edit" title="Edit template">
                                             <i class="mdi mdi-pencil"></i>
                                         </a>
+                                        <button type="button" class="rm-act-btn rm-act-btn--clone"
+                                            wire:click="cloneTemplate('{{ $tpl->id }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="cloneTemplate('{{ $tpl->id }}')"
+                                            onclick="return confirm('Clone this template with all fields, reading steps, formulas, and configured fields? Captured logs will not be copied.')"
+                                            title="Clone template">
+                                            <i class="mdi mdi-content-copy"></i>
+                                        </button>
                                         <button type="button" class="rm-act-btn rm-act-btn--warning"
                                             wire:click="clearTemplateLogs('{{ $tpl->id }}')"
                                             onclick="return confirm('Clear all captured logs for this template? This cannot be undone.')"
@@ -1004,6 +1050,20 @@
             border-color: #93c5fd;
             transform: translateY(-1px);
             box-shadow: 0 2px 6px rgba(29, 78, 216, 0.15);
+        }
+
+        /* CLONE Button - Teal */
+        .rm-act-btn--clone {
+            border: 1px solid #99f6e4;
+            color: #0f766e;
+            background: #f0fdfa;
+        }
+
+        .rm-act-btn--clone:hover {
+            background: #ccfbf1;
+            border-color: #5eead4;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(15, 118, 110, 0.15);
         }
 
         /* WARNING Button - Yellow/Amber */

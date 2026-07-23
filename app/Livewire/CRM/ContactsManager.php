@@ -230,9 +230,13 @@ class ContactsManager extends Component
             }
 
             DB::commit();
-            
+
+            $successMessage = $this->editingContact
+                ? 'Contact updated successfully!'
+                : 'Contact created successfully!';
+
             $this->closeContactModal();
-            $this->message = $this->editingContact ? 'Contact updated successfully!' : 'Contact created successfully!';
+            $this->message = $successMessage;
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

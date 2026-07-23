@@ -10,7 +10,7 @@ use App\Result;
 use App\SampleType;
 use App\AnalysisType;
 use App\CapturedResult;
-use App\Models\System\SystemConfiguration;
+use App\Services\Lab\MethodConfigurationResolver;
 use App\User;
 use Illuminate\Http\Request;
 
@@ -128,11 +128,20 @@ class AnalysisTypeController extends Controller
   public function show(Request $request, $id){
     $analytes = Analyte::all();
     $analysis_type = AnalysisType::with(['analysis_elements'])->find($id);
-    $ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
-    $is_sampling_method = SystemConfiguration::where('key','sampling_method_type_id')->first();
+    $methodTypeResolver = app(MethodConfigurationResolver::class);
+    $methodTypeResolver->ensurePointerConfigurations();
+    $ltmTypeId = $methodTypeResolver->resolvePointerConfigValue('method_ltm_id');
+    $samplingTypeId = $methodTypeResolver->resolvePointerConfigValue('sampling_method_type_id');
 
-    $methods = AnalysisMethod::whereNotIn('method_type_id',[$ltm_id->value,$is_sampling_method->value])->where('active',1)->get();
-    $ltmethods = AnalysisMethod::where('method_type_id',$ltm_id->value)->where('active',1)->get();
+    $methodsQuery = AnalysisMethod::query()->where('active', 1);
+    $excludeTypeIds = array_values(array_filter([$ltmTypeId, $samplingTypeId]));
+    if ($excludeTypeIds !== []) {
+      $methodsQuery->whereNotIn('method_type_id', $excludeTypeIds);
+    }
+    $methods = $methodsQuery->get();
+    $ltmethods = $ltmTypeId !== null
+      ? AnalysisMethod::where('method_type_id', $ltmTypeId)->where('active', 1)->get()
+      : collect();
     $sample_types = SampleType::all();
     $labs = Lab::all();
     $usersAnalysts = User::role('Laboratory Analyst')->where('active', 1)->get();

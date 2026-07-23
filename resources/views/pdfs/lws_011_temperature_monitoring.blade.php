@@ -153,7 +153,7 @@
             <td class="label-cell">Month:</td>
             <td style="font-weight: bold;">{{ $monthName }}</td>
             <td class="label-cell">Location:</td>
-            <td style="font-weight: bold;">{{ $equipment?->assetLocation?->name ?? $section->name }}</td>
+            <td style="font-weight: bold;">{{ $equipment?->assetLocation?->name ?? $section?->name ?? $equipment?->lab?->name ?? '—' }}</td>
         </tr>
     </table>
 

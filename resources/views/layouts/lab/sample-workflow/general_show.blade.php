@@ -622,7 +622,7 @@
 																<th>Remark</th>
 																<th>Date of Reading</th>
 																<th>Testing Week</th>
-																<th>Analyte Code</th>
+																<th>Report Display</th>
 
 															</tr>
 														</thead>
@@ -674,7 +674,7 @@
 																	<th>Remark</th>
 																	<th>Date of Reading</th>
 																	<th>Testing Week</th>
-																	<th>Analyte Code</th>
+																	<th>Report Display</th>
 																	
 																</tr>
 															</thead>
@@ -1130,7 +1130,7 @@
 																<th>Remark</th>
 																<th>Date of Reading</th>
 																<th>Testing Week</th>
-																<th>Analyte Code</th>
+																<th>Report Display</th>
 
 															</tr>
 														</thead>
@@ -1182,7 +1182,7 @@
 																	<th>Remark</th>
 																	<th>Date of Reading</th>
 																	<th>Testing Week</th>
-																	<th>Analyte Code</th>
+																	<th>Report Display</th>
 																	
 																</tr>
 															</thead>

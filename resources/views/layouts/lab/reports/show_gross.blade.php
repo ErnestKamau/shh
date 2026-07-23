@@ -167,7 +167,7 @@
                                 <th>No</th>
                                 <th>Analysis Type</th>
                                 <th>Analyte Name</th>
-                                <th>Analyte Code</th>
+                                <th>Report Display</th>
                                 <th>Result</th>
                                 <th>Unit</th>
                                 <th>Reporting Symbol</th>

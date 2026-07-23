@@ -43,7 +43,7 @@
                         <div class="col-md-6">
                             <div class="form-group mb-0">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, code, or common name...">
+                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by name, report display, or common name...">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -121,7 +121,7 @@
                                     <tr>
                                         <th style="width: 120px;">Actions</th>
                                         <th>Name</th>
-                                        <th>Code</th>
+                                        <th>Report Display</th>
                                         <th>Common Name</th>
                                         <th style="width: 220px;">Methods</th>
                                         <th style="width: 200px;">Equipment</th>
@@ -252,7 +252,7 @@
                                 @error('analyteForm.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold small">Analyte Code <span class="text-danger">*</span></label>
+                                <label class="form-label fw-semibold small">Report Display <span class="text-danger">*</span></label>
                                 <input type="text"
                                        wire:model="analyteForm.code"
                                        class="form-control @error('analyteForm.code') is-invalid @enderror"
@@ -292,7 +292,7 @@
                                             </span>
                                         @endif
                                         <input type="text"
-                                               wire:model.live.debounce.300ms="reportingUnitSearch"
+                                               wire:model.live.debounce.200ms="reportingUnitSearch"
                                                class="tag-input"
                                                placeholder="{{ $analyteForm['reporting_unit'] ? '' : 'Search units...' }}"
                                                autocomplete="off">
@@ -341,7 +341,7 @@
                                             </span>
                                         @endforeach
                                         <input type="text"
-                                               wire:model.live.debounce.300ms="methodSearch"
+                                               wire:model.live.debounce.200ms="methodSearch"
                                                class="tag-input"
                                                placeholder="{{ count($this->selectedMethods) > 0 ? '' : 'Search or select methods...' }}"
                                                autocomplete="off">
@@ -349,7 +349,7 @@
                                     @if($showMethodDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredMethods as $method)
-                                                <div class="tag-dropdown-item" wire:key="method-option-{{ $method->id }}" wire:click.stop="addMethod(@js($method->id))">
+                                                <div class="tag-dropdown-item" wire:click.stop="addMethod(@js($method->id))">
                                                     {{ $method->name }}
                                                     @if($method->code)
                                                         <small class="text-muted ms-1">({{ $method->code }})</small>
@@ -357,8 +357,7 @@
                                                 </div>
                                             @empty
                                                 <div class="tag-dropdown-item text-muted">
-                                                    <i class="mdi mdi-information-outline me-2"></i>
-                                                    {{ $methodSearch !== '' ? 'No matching methods found' : 'No active methods available' }}
+                                                    <i class="mdi mdi-information-outline me-2"></i>No matching methods found
                                                 </div>
                                             @endforelse
                                         </div>
@@ -382,7 +381,7 @@
                                             </span>
                                         @endforeach
                                         <input type="text"
-                                               wire:model.live.debounce.300ms="equipmentSearch"
+                                               wire:model.live.debounce.200ms="equipmentSearch"
                                                class="tag-input"
                                                placeholder="{{ count($this->selectedEquipment) > 0 ? '' : 'Search or select equipment...' }}"
                                                autocomplete="off">
@@ -390,7 +389,7 @@
                                     @if($showEquipmentDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredEquipment as $equip)
-                                                <div class="tag-dropdown-item" wire:key="equipment-option-{{ $equip->id }}" wire:click.stop="addEquipment(@js($equip->id))">
+                                                <div class="tag-dropdown-item" wire:click.stop="addEquipment(@js($equip->id))">
                                                     {{ $equip->name }}
                                                     @if($equip->equipment_number)
                                                         <small class="text-muted ms-1">({{ $equip->equipment_number }})</small>
@@ -398,8 +397,7 @@
                                                 </div>
                                             @empty
                                                 <div class="tag-dropdown-item text-muted">
-                                                    <i class="mdi mdi-information-outline me-2"></i>
-                                                    {{ $equipmentSearch !== '' ? 'No matching equipment found' : 'No active equipment available' }}
+                                                    <i class="mdi mdi-information-outline me-2"></i>No matching equipment found
                                                 </div>
                                             @endforelse
                                         </div>

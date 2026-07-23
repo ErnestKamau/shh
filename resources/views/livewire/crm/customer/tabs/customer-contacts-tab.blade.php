@@ -1,4 +1,13 @@
 <div>
+    @if($flashMessage !== '')
+        <div class="alert alert-{{ $flashType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+            <i class="mdi mdi-{{ $flashType === 'success' ? 'check-circle' : 'alert-circle' }}"></i> {{ $flashMessage }}
+            <button type="button" class="close" wire:click="dismissFlash" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
             <span class="mr-2 d-flex align-items-center justify-content-center rounded"

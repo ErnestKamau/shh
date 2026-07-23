@@ -248,10 +248,13 @@
 
                     <tr style="">
                         <th class="parameter"
-                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                            style="font-size: 9px !important; width:20% !important;vertical-align: top !important;padding:5px !important;">
                             TESTS</th>
                         <th class="parameter"
-                            style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding:5px !important">
+                            style="font-size:9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                            LAB SECTION</th>
+                        <th class="parameter"
+                            style="font-size:9px !important;width:20% !important;vertical-align: top !important;padding:5px !important">
                             TEST METHODS</th>
                         <th class="parameter"
                             style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
@@ -270,13 +273,17 @@
                         <tr>
                             <td class="parameter"
                                 style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
-                                colspan="5">{{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
+                                colspan="6">{{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
                         </tr>
                         @foreach ($analysis_type_level->getCapturedResults() as $captured)
                             <tr>
                                 <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
                                     {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                </td>
+                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                    style="font-size: 9px !important;padding-left:3px !important;">
+                                    {{ $captured->labSection->name ?? '-' }}
                                 </td>
                                 <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
@@ -300,7 +307,7 @@
                     @endforeach
                     <tr>
                         <td style="font-size: 9px !important;padding-left:3px !important; text-align:center ;border: 0 transparent !important"
-                            colspan="5">******<small>End of Test Results</small>*******</td>
+                            colspan="6">******<small>End of Test Results</small>*******</td>
                     </tr>
                 </tbody>
             </table>

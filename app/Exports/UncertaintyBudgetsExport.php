@@ -27,7 +27,7 @@ class UncertaintyBudgetsExport implements FromCollection, WithHeadings, WithMapp
     {
         return [
             'Analyte Name',
-            'Analyte Code',
+            'Report Display',
             'Methods',
             'Coverage Factor (k)',
             'Confidence Level (%)',

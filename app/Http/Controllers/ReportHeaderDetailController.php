@@ -26,6 +26,7 @@ use setasign\Fpdi\Fpdi;
 use App\Company;
 use App\CapturedResult;
 use App\SamplesCategory;
+use App\SampleAnalysisStage;
 use App\BatchLabSectionApprover;
 use App\BatchAttachment;
 use App\User;
@@ -882,17 +883,21 @@ class ReportHeaderDetailController extends Controller
 				'captured_results.analyte_accredited',
 				'captured_results.reporting_unit_id',
 				'captured_results.main_value',
+				'captured_results.lab_section_id',
 				'sd.main_standard',
 				'captured_results.method_id',
 				'am.name as method_name',
 				'am.code as method_code',
 				'ru.name as reporting_unit_name',
-				'a.name as analyte_name'
+				'a.name as analyte_name',
+				'sas.name as lab_section_name',
+				'sas.code as lab_section_code'
 			)
 			->join('sample_details as sd', 'sd.id', '=', 'captured_results.sample_detail_id')
 			->leftJoin('analysis_methods as am', 'am.id', '=', 'captured_results.method_id')
 			->leftJoin('reporting_units as ru', 'ru.id', '=', 'captured_results.reporting_unit_id')
 			->leftJoin('analytes as a', 'a.id', '=', 'captured_results.analyte_id')
+			->leftJoin('sample_analysis_stages as sas', 'sas.id', '=', 'captured_results.lab_section_id')
 			->distinct()
 			->orderBy('analyte_code')
 			->get();
@@ -924,9 +929,26 @@ class ReportHeaderDetailController extends Controller
 		$testsRequired = ! empty($testsRequiredParts) ? implode(', ', $testsRequiredParts) : null;
 
 		$allResults = CapturedResult::where('captured_results.sample_header_id', $batch->id)
+			->with('labSection')
 			->select('captured_results.*')
 			->get()
 			->groupBy('sample_detail_id');
+
+		$labSectionIds = $allResults->flatten()
+			->pluck('lab_section_id')
+			->filter()
+			->map(fn ($id) => (string) $id)
+			->unique()
+			->values()
+			->all();
+
+		$labSectionNamesById = $labSectionIds === []
+			? []
+			: SampleAnalysisStage::query()
+				->whereIn('id', $labSectionIds)
+				->get()
+				->mapWithKeys(fn (SampleAnalysisStage $stage) => [(string) $stage->id => $stage->name])
+				->all();
 
 		$sampleDetailsById = SampleDetails::query()
 			->with('sample_point')
@@ -948,10 +970,14 @@ class ReportHeaderDetailController extends Controller
 			foreach ($parameters as $parameter) {
 				$result = $resultsByAnalyte->get($parameter->analyte_id);
 				if ($result) {
+					$labSectionId = $result->lab_section_id ? (string) $result->lab_section_id : null;
 					$sampleResults[$parameter->analyte_code] = [
 						'value' => $result->result,
 						'unit' => $result->reporting_unit_id,
-						'remark' => $result->remark ?? 'Pass'
+						'remark' => $result->remark ?? 'Pass',
+						'lab_section' => $labSectionId
+							? ($labSectionNamesById[$labSectionId] ?? $result->labSection?->name)
+							: null,
 					];
 					$sampleTotal++;
 					if (strtolower($result->remark ?? 'pass') === 'pass') {
@@ -961,7 +987,8 @@ class ReportHeaderDetailController extends Controller
 					$sampleResults[$parameter->analyte_code] = [
 						'value' => 'N/A',
 						'unit' => '',
-						'remark' => 'N/A'
+						'remark' => 'N/A',
+						'lab_section' => $parameter->lab_section_name ?? null,
 					];
 				}
 			}

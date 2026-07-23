@@ -94,6 +94,15 @@ class AnalyteManager extends Component
         ];
     }
 
+    protected function validationAttributes(): array
+    {
+        return [
+            'analyteForm.code' => 'report display',
+            'analyteForm.name' => 'analyte name',
+            'analyteForm.decimal_places' => 'decimal places',
+        ];
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -399,36 +408,46 @@ class AnalyteManager extends Component
         $this->showReportingUnitDropdown = false;
     }
 
-    public function getFilteredMethodsProperty(): Collection
+    public function getFilteredMethodsProperty()
     {
-        if (! $this->showMethodDropdown) {
-            return collect();
-        }
+        $selectedIds = collect($this->analyteForm['method'] ?? [])
+            ->map(fn ($id): string => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
 
-        $query = $this->methodOptionsQuery($this->methodSearch);
-        $selectedIds = $this->normalizeIdList($this->analyteForm['method'] ?? []);
+        $query = AnalysisMethod::query()
+            ->where('active', 1)
+            ->orderBy('name');
 
         if ($selectedIds !== []) {
             $query->whereNotIn('id', $selectedIds);
         }
 
-        return $query->limit($this->searchResultLimit)->get();
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->methodSearch);
+
+        return $query->limit(30)->get();
     }
 
-    public function getFilteredEquipmentProperty(): Collection
+    public function getFilteredEquipmentProperty()
     {
-        if (! $this->showEquipmentDropdown) {
-            return collect();
-        }
+        $selectedIds = collect($this->analyteForm['equipment_id'] ?? [])
+            ->map(fn ($id): string => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
 
-        $query = $this->equipmentOptionsQuery($this->equipmentSearch);
-        $selectedIds = $this->normalizeIdList($this->analyteForm['equipment_id'] ?? []);
+        $query = Equipment::query()
+            ->where('active', 1)
+            ->orderBy('name');
 
         if ($selectedIds !== []) {
             $query->whereNotIn('id', $selectedIds);
         }
 
-        return $query->limit($this->searchResultLimit)->get();
+        $this->applyCaseInsensitiveSearch($query, ['name', 'equipment_number'], (string) $this->equipmentSearch);
+
+        return $query->limit(30)->get();
     }
 
     public function getSelectedMethodsProperty(): Collection
@@ -485,78 +504,47 @@ class AnalyteManager extends Component
         $this->showEquipmentDropdown = false;
     }
 
-    public function getFilteredReportingUnitsProperty(): Collection
-    {
-        if (! $this->showReportingUnitDropdown) {
-            return collect();
-        }
-
-        return $this->reportingUnitOptionsQuery($this->reportingUnitSearch)
-            ->limit($this->searchResultLimit)
-            ->get();
-    }
-
-    protected function methodOptionsQuery(?string $search = null): Builder
-    {
-        $query = AnalysisMethod::query()
-            ->where('active', true)
-            ->orderBy('name');
-
-        $search = trim((string) $search);
-        if ($search !== '') {
-            $query->where(function (Builder $q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('code', 'like', '%'.$search.'%');
-            });
-        }
-
-        return $query;
-    }
-
-    protected function equipmentOptionsQuery(?string $search = null): Builder
-    {
-        $query = Equipment::query()
-            ->where('active', true)
-            ->orderBy('name');
-
-        $search = trim((string) $search);
-        if ($search !== '') {
-            $query->where(function (Builder $q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('equipment_number', 'like', '%'.$search.'%');
-            });
-        }
-
-        return $query;
-    }
-
-    protected function reportingUnitOptionsQuery(?string $search = null): Builder
+    public function getFilteredReportingUnitsProperty()
     {
         $query = ReportingUnit::query()
-            ->where('active', true)
+            ->where('active', 1)
             ->orderBy('name');
 
-        $search = trim((string) $search);
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->reportingUnitSearch);
 
-        return $query;
+        return $query->limit(50)->get();
     }
 
     /**
-     * @param  array<int, mixed>  $ids
-     * @return array<int, string>
+     * Apply a driver-aware case-insensitive LIKE filter across columns.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<int, string>  $columns
      */
-    protected function normalizeIdList(array $ids): array
+    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
     {
-        return array_values(array_unique(array_filter(
-            array_map(
-                static fn ($id): string => trim((string) ($id ?? '')),
-                $ids
-            ),
-            static fn (string $id): bool => $id !== ''
-        )));
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+        $isPgsql = $driver === 'pgsql';
+        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
+
+        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
+            foreach ($columns as $index => $column) {
+                if ($isPgsql) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $builder->{$method}($column, 'ilike', $like);
+                    continue;
+                }
+
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
+            }
+        });
     }
 
     public function render()
@@ -564,11 +552,7 @@ class AnalyteManager extends Component
         $query = Analyte::query()->where('company_id', getUserCompany());
 
         if ($this->search) {
-            $query->where(function ($q): void {
-                $q->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('code', 'like', '%'.$this->search.'%')
-                    ->orWhere('common_name', 'like', '%'.$this->search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code', 'common_name'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

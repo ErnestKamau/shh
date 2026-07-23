@@ -102,8 +102,8 @@
               <input type="text" class="form-control" name="common_name" placeholder="Common Name..." />
             </div>
             <div class="form-group">
-              <label class="control-label">Analyte Code <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="code" placeholder="Analyte Code..." required />
+              <label class="control-label">Report Display <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="code" placeholder="Report Display..." required />
 			</div>
 			<div class="form-group">
               <label class="control-label">Equivalent Weight</label>
@@ -200,8 +200,8 @@
 							<input type="text" class="form-control" name="common_name" value="${ $analyte.common_name }" placeholder="Analyte Name..." required />
 						</div>
 						<div class="form-group">
-							<label class="control-label">Analyte Code <span class="text-danger">*</span></label>
-							<input type="text" class="form-control" name="code" value="${ $analyte.code }" placeholder="Analyte Code..." required />
+							<label class="control-label">Report Display <span class="text-danger">*</span></label>
+							<input type="text" class="form-control" name="code" value="${ $analyte.code }" placeholder="Report Display..." required />
 						</div>
 						<div class="form-group">
 							<label class="control-label">Equivalent Weight</label>

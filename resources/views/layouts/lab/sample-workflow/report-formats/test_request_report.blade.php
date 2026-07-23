@@ -123,17 +123,25 @@
     .trr-preview-watermark {
         pointer-events: none;
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-28deg);
-        font-size: 72px;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        overflow: hidden;
+        user-select: none;
+    }
+    .trr-preview-watermark span {
+        transform: rotate(-28deg);
+        font-size: clamp(48px, 9vw, 84px);
         font-weight: 800;
-        letter-spacing: 0.2em;
-        color: rgba(148, 163, 184, 0.12);
-        z-index: 0;
+        letter-spacing: 0.18em;
+        color: rgba(100, 116, 139, 0.32);
         text-transform: uppercase;
         white-space: nowrap;
         font-family: Georgia, 'Times New Roman', serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
     body.trr-preview-body .trr-page {
         position: relative;
@@ -483,7 +491,8 @@
     @if(!empty($isPdfMode))
     @page {
         size: A4 portrait;
-        margin: 8mm 16mm 18mm 16mm;
+        /* Bottom margin reserves space for the fixed disclaimer footer + page number. */
+        margin: 8mm 16mm 48mm 16mm;
     }
     html {
         margin: 0;
@@ -559,11 +568,18 @@
         page-break-inside: avoid;
         page-break-before: avoid;
     }
+    /* Fixed on every PDF page (DomPDF repeats position:fixed elements). */
     .pdf-doc-footer {
-        page-break-inside: avoid;
-        margin-top: 6px;
-        padding-top: 6px;
+        position: fixed;
+        left: 16mm;
+        right: 16mm;
+        bottom: 6mm;
+        width: auto;
+        margin: 0;
+        padding: 4px 0 0;
         border-top: 1px solid #cfcfcf;
+        background: #fff;
+        page-break-inside: avoid;
     }
     .pdf-doc-footer .meta-top {
         font-size: 8px;
@@ -617,14 +633,28 @@
     @media print {
         body { background: #fff; }
         .trr-toolbar,
-        .trr-preview-chrome,
-        .trr-preview-watermark { display: none !important; }
+        .trr-preview-chrome { display: none !important; }
         .trr-page {
             border: none;
             margin: 0;
             max-width: 100%;
             padding: 12px 18px;
             box-shadow: none;
+        }
+        /* Keep the draft watermark on printed / Save-as-PDF preview copies */
+        .trr-preview-watermark {
+            display: flex !important;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .trr-preview-watermark span {
+            color: rgba(100, 116, 139, 0.38) !important;
+            font-size: 64pt;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
     }
 </style>
@@ -635,8 +665,8 @@
 <div class="trr-embedded-root" dir="{{ !empty($isRTL) ? 'rtl' : 'ltr' }}">
 @endif
 
-@if(!empty($isPreviewMode) && empty($isEmbedded))
-    <div class="trr-preview-watermark" aria-hidden="true">Draft Preview</div>
+@if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
+    <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>
 @endif
 
 <main>
@@ -824,17 +854,18 @@
                     <tr>
                         @php
                             $includeReferenceMethod = !empty($includeReferenceMethod);
-                            $resultsColspan = $includeReferenceMethod ? 8 : 7;
+                            $resultsColspan = $includeReferenceMethod ? 9 : 8;
                         @endphp
-                        <th style="width:{{ $includeReferenceMethod ? '18%' : '22%' }}">{{ $labels['analyte'] }}</th>
-                        <th style="width:10%">{{ $labels['results'] }}</th>
-                        <th style="width:7%">{{ $labels['unit'] }}</th>
-                        <th style="width:11%">{{ $labels['specification'] }}</th>
-                        <th style="width:12%">{{ $labels['standard_name'] ?? 'Standard Name' }}</th>
-                        <th style="width:7%">{{ $labels['mu_percent'] }}</th>
-                        <th style="width:{{ $includeReferenceMethod ? '17%' : '25%' }}">{{ $labels['method'] }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '16%' : '18%' }}">{{ $labels['analyte'] }}</th>
+                        <th style="width:12%">{{ $labels['lab_section'] ?? 'Lab Section' }}</th>
+                        <th style="width:9%">{{ $labels['results'] }}</th>
+                        <th style="width:6%">{{ $labels['unit'] }}</th>
+                        <th style="width:10%">{{ $labels['specification'] }}</th>
+                        <th style="width:10%">{{ $labels['standard_name'] ?? 'Standard Name' }}</th>
+                        <th style="width:6%">{{ $labels['mu_percent'] }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '14%' : '19%' }}">{{ $labels['method'] }}</th>
                         @if($includeReferenceMethod)
-                        <th style="width:18%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
+                        <th style="width:15%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
                         @endif
                     </tr>
                 </thead>
@@ -859,6 +890,7 @@
                                 <td>
                                     {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
                                 </td>
+                                <td>{{ $cr->labSection->name ?? '-' }}</td>
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
@@ -974,34 +1006,7 @@
         {{-- ══════════════ END OF TEXT ══════════════ --}}
         <div class="end-text">{{ $labels['end_of_text'] }}</div>
 
-        @if(!empty($isPdfMode))
-        {{-- Document footer in normal flow (after all content — never overlays data) --}}
-        <div class="pdf-doc-footer">
-            <div class="meta-top">
-                {{ $labels['results_relate'] }}<br>
-                {{ $labels['no_reproduce'] }}
-            </div>
-            <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-            <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
-            <table class="meta-legal-wrap">
-                <tr>
-                    <td class="meta-legal">
-                        This document is issued by the Company subject to the Terms and Conditions at
-                        https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                        information contained herein reflects the Company&#8217;s findings at the time and place of its
-                        intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                        responsibility is to its Client and the Company disclaims any liability to third parties.
-                        Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-                    </td>
-                    <td class="meta-qr">
-                        @if(!empty($footerQrCode))
-                            <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                        @endif
-                    </td>
-                </tr>
-            </table>
-        </div>
-        @else
+        @if(empty($isPdfMode))
         <div class="report-footer-text">
             {{ $labels['results_relate'] }}<br>
             {{ $labels['no_reproduce'] }}
@@ -1036,6 +1041,34 @@
 
 </main>
 @if(!empty($isPdfMode))
+{{-- Fixed footer: DomPDF repeats position:fixed on every page --}}
+<div class="pdf-doc-footer">
+    <div class="meta-top">
+        {{ $labels['results_relate'] }}<br>
+        {{ $labels['no_reproduce'] }}
+    </div>
+    <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
+    <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
+    <table class="meta-legal-wrap">
+        <tr>
+            <td class="meta-legal">
+                This document is issued by the Company subject to the Terms and Conditions at
+                https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
+                information contained herein reflects the Company&#8217;s findings at the time and place of its
+                intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
+                responsibility is to its Client and the Company disclaims any liability to third parties.
+                Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
+            </td>
+            <td class="meta-qr">
+                @if(!empty($footerQrCode))
+                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                @endif
+            </td>
+        </tr>
+    </table>
+</div>
+@endif
+@if(!empty($isPdfMode))
 @php
     $pageNumberText = match ($language ?? 'en') {
         'ar' => 'صفحة {PAGE_NUM} من {PAGE_COUNT}',
@@ -1049,9 +1082,9 @@
         $size = 8;
         $font = $fontMetrics->getFont("DejaVu Sans");
         $width = $fontMetrics->get_text_width("Page 99 of 99", $font, $size);
-        // Match @page right margin (16mm ≈ 45pt).
+        // Match @page right margin (16mm ≈ 45pt). Sit below the fixed footer.
         $x = $pdf->get_width() - $width - 45;
-        $y = $pdf->get_height() - 16;
+        $y = $pdf->get_height() - 14;
         $pdf->page_text($x, $y, $pageText, $font, $size);
     }
 </script>

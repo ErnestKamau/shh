@@ -78,6 +78,10 @@
                     <button type="button" class="btn btn-outline-primary btn-sm rounded-pill cert-add-btn" wire:click="openCertificationModal">
                         <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
                     </button>
+                @elseif($activeTab === 'work_history')
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill cert-add-btn" wire:click="openWorkHistoryModal">
+                        <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
+                    </button>
                 @endif
             </div>
 
@@ -256,31 +260,16 @@
                         </button>
                     </div>
 
-                    @if($detailsStep === 1)
-                    @if(
-                        $errors->has('detailsFirstName') ||
-                        $errors->has('detailsMiddleName') ||
-                        $errors->has('detailsLastName') ||
-                        $errors->has('detailsEmail') ||
-                        $errors->has('detailsPhone') ||
-                        $errors->has('detailsIdNumber') ||
-                        $errors->has('detailsDateOfBirth') ||
-                        $errors->has('detailsSignatureUpload') ||
-                        $errors->has('detailsSignatureData')
-                    )
+                    @if($errors->any())
                         <div class="alert alert-danger detail-step-alert" role="alert">
                             <div class="font-weight-semibold mb-1">Please resolve these items before continuing.</div>
-                            @error('detailsFirstName')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsMiddleName')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsLastName')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsEmail')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsPhone')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsIdNumber')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsDateOfBirth')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsSignatureUpload')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsSignatureData')<div class="small">{{ $message }}</div>@enderror
+                            @foreach($errors->all() as $errorMessage)
+                                <div class="small">{{ $errorMessage }}</div>
+                            @endforeach
                         </div>
                     @endif
+
+                    @if($detailsStep === 1)
                     <div class="detail-section mb-4">
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-account-outline mr-1"></i> {{ __('personnel.section_personal_information') }}</h6>
@@ -349,26 +338,6 @@
                     @endif
 
                     @if($detailsStep === 2)
-                    @if(
-                        $errors->has('detailsEmploymentDate') ||
-                        $errors->has('selectedDesignationId') ||
-                        $errors->has('selectedEducationId') ||
-                        $errors->has('selectedPositionId') ||
-                        $errors->has('selectedDepartmentId') ||
-                        $errors->has('selectedLabIds') ||
-                        $errors->has('selectedLabIds.*')
-                    )
-                        <div class="alert alert-danger detail-step-alert" role="alert">
-                            <div class="font-weight-semibold mb-1">Please resolve these items before continuing.</div>
-                            @error('detailsEmploymentDate')<div class="small">{{ $message }}</div>@enderror
-                            @error('selectedDesignationId')<div class="small">{{ $message }}</div>@enderror
-                            @error('selectedEducationId')<div class="small">{{ $message }}</div>@enderror
-                            @error('selectedPositionId')<div class="small">{{ $message }}</div>@enderror
-                            @error('selectedDepartmentId')<div class="small">{{ $message }}</div>@enderror
-                            @error('selectedLabIds')<div class="small">{{ $message }}</div>@enderror
-                            @error('selectedLabIds.*')<div class="small">{{ $message }}</div>@enderror
-                        </div>
-                    @endif
                     <div class="detail-section mb-4">
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-briefcase-outline mr-1"></i> {{ __('personnel.section_employment_details') }}</h6>
@@ -378,7 +347,7 @@
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.employment_date') }}</label><input type="date" wire:model.live="detailsEmploymentDate" class="form-control">@error('detailsEmploymentDate')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.designation') }} *</label>
-                                <div class="tag-select-container" wire:click="$set('showDesignationDropdown', true)" wire:click.outside="$set('showDesignationDropdown', false)">
+                                <div class="tag-select-container" wire:click="$set('showDesignationDropdown', true)">
                                     <div class="tag-select-input">
                                         @if($selectedDesignationId)
                                             @php $s = $this->designations->firstWhere('id', $selectedDesignationId); @endphp
@@ -394,7 +363,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.education_level') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showEducationDropdown', true)" wire:click.outside="$set('showEducationDropdown', false)">
+                                <div class="tag-select-container" wire:click="$set('showEducationDropdown', true)">
                                     <div class="tag-select-input">
                                         @if($selectedEducationId)
                                             @php $s = $this->educationLevels->firstWhere('id', $selectedEducationId); @endphp
@@ -409,8 +378,8 @@
                                 @error('selectedEducationId')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-md-4">
-                                <label>{{ __('personnel.position') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showPositionDropdown', true)" wire:click.outside="$set('showPositionDropdown', false)">
+                                <label>{{ __('personnel.position') }} *</label>
+                                <div class="tag-select-container" wire:click="$set('showPositionDropdown', true)">
                                     <div class="tag-select-input">
                                         @if($selectedPositionId)
                                             @php $s = $this->positions->firstWhere('id', $selectedPositionId); @endphp
@@ -425,12 +394,12 @@
                                 @error('selectedPositionId')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-md-4">
-                                <label>{{ __('personnel.department') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)" wire:click.outside="$set('showDepartmentDropdown', false)">
+                                <label>{{ __('personnel.department') }} *</label>
+                                <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)">
                                     <div class="tag-select-input">
                                         @if($selectedDepartmentId)
                                             @php $s = $this->departments->firstWhere('id', $selectedDepartmentId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment"></i></span>
+                                            <span class="tag-badge">{{ $s->name ?? 'Selected department' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment"></i></span>
                                         @endif
                                         <input class="tag-input" wire:model.live="departmentSearch" wire:keyup="searchDepartment" placeholder="{{ __('personnel.search_department') }}">
                                     </div>
@@ -442,7 +411,7 @@
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <label>{{ __('personnel.lab') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
+                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
                                     <div class="tag-select-input">
                                         @foreach($selectedLabIds as $selectedLabId)
                                             @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
@@ -463,7 +432,7 @@
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <label>{{ __('personnel.lab_sections') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
                                     <div class="tag-select-input">
                                         @foreach($selectedLabSectionIds as $selectedSectionId)
                                             @php $s = $this->labSections->firstWhere('id', $selectedSectionId); @endphp
@@ -492,20 +461,6 @@
                     @endif
 
                     @if($detailsStep === 3)
-                    @if(
-                        $errors->has('detailsAnalystIsGazzetted') ||
-                        $errors->has('detailsDateOfGazzette') ||
-                        $errors->has('detailsGazzetteNo') ||
-                        $errors->has('detailsStartOfCareer')
-                    )
-                        <div class="alert alert-danger detail-step-alert" role="alert">
-                            <div class="font-weight-semibold mb-1">Please resolve these items before continuing.</div>
-                            @error('detailsAnalystIsGazzetted')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsDateOfGazzette')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsGazzetteNo')<div class="small">{{ $message }}</div>@enderror
-                            @error('detailsStartOfCareer')<div class="small">{{ $message }}</div>@enderror
-                        </div>
-                    @endif
                     <div class="detail-section mb-1">
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-account-check-outline mr-1"></i> Professional Recognition</h6>
@@ -600,7 +555,10 @@
                     <div class="text-center py-5">
                         <i class="mdi mdi-briefcase-clock-outline" style="font-size: 3rem; color: #cbd5e0;"></i>
                         <h5 class="mt-3 text-muted">{{ __('personnel.no_work_history_found') }}</h5>
-                        <p class="text-muted small">{{ __('personnel.work_history') }}</p>
+                        <p class="text-muted small mb-3">Add department and job description changes for this person.</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" wire:click="openWorkHistoryModal">
+                            <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
+                        </button>
                     </div>
                 @else
                     <div class="table-responsive bg-light p-3">
@@ -744,7 +702,7 @@
                     <div class="modal-body">
                         <div class="form-group">
                             <label>{{ __('personnel.select_roles') }}</label>
-                            <div class="tag-select-container" wire:click="$set('showRoleDropdown', true)" wire:click.outside="$set('showRoleDropdown', false)">
+                            <div class="tag-select-container" wire:click="$set('showRoleDropdown', true)">
                                 <div class="tag-select-input">
                                     @foreach($selectedRoleIds as $roleId)
                                         @php $role = $this->allRoles->firstWhere('id', $roleId); @endphp
@@ -789,6 +747,60 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-danger" wire:click="removeRole"><i class="mdi mdi-delete"></i> {{ __('personnel.delete') }}</button>
                         <button type="button" class="btn btn-default" wire:click="closeDeleteRoleModal">{{ __('personnel.cancel') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showWorkHistoryModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Work History</h4>
+                        <button type="button" class="close" wire:click="closeWorkHistoryModal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Record a department / job description assignment for this person.</p>
+                        <div class="form-group">
+                            <label>{{ __('personnel.department') }} <span class="text-danger">*</span></label>
+                            <select class="form-control @error('workHistoryDepartmentId') is-invalid @enderror" wire:model="workHistoryDepartmentId">
+                                <option value="">Select department...</option>
+                                @foreach($this->departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('workHistoryDepartmentId')<small class="text-danger">{{ $message }}</small>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label>{{ __('personnel.job_description') }} <span class="text-danger">*</span></label>
+                            <select class="form-control @error('workHistoryJobId') is-invalid @enderror" wire:model="workHistoryJobId">
+                                <option value="">Select job description...</option>
+                                @foreach($this->designations as $job)
+                                    <option value="{{ $job->id }}">{{ $job->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('workHistoryJobId')<small class="text-danger">{{ $message }}</small>@enderror
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="work_history_is_current" wire:model.live="workHistoryIsCurrent">
+                                <label class="form-check-label" for="work_history_is_current">{{ __('personnel.current') }} assignment</label>
+                            </div>
+                            <small class="text-muted">Ends the previous open assignment and updates this person's department / job description.</small>
+                        </div>
+                        @if(! $workHistoryIsCurrent)
+                            <div class="form-group mb-0">
+                                <label>{{ __('personnel.end_date') }} <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control @error('workHistoryEndDate') is-invalid @enderror" wire:model="workHistoryEndDate">
+                                @error('workHistoryEndDate')<small class="text-danger">{{ $message }}</small>@enderror
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" wire:click="saveWorkHistory"><i class="mdi mdi-content-save"></i> {{ __('personnel.save') }}</button>
+                        <button type="button" class="btn btn-default" wire:click="closeWorkHistoryModal">{{ __('personnel.close') }}</button>
                     </div>
                 </div>
             </div>
@@ -1696,8 +1708,19 @@
         document.addEventListener('click', function (event) {
             const isSignaturePadClick = event.target.closest('#personnelSignatureCanvasWrap') || event.target.closest('#clearPersonnelSignaturePad');
             const isModuleTabClick = event.target.closest('.module-tab-btn');
+            const isTagSelectClick = event.target.closest('.tag-select-container');
+            // Avoid racing Livewire step/tab/save actions with a second closeSelectDropdowns request.
+            const isWireActionClick = event.target.closest(
+                '.detail-step-footer button, .detail-step, .detail-save-btn, [wire\\:click], [wire\\:submit], button[type="submit"], a'
+            );
 
-            if (!event.target.closest('.tag-select-container') && !isSignaturePadClick && !isModuleTabClick) {
+            if (
+                !isTagSelectClick &&
+                !isSignaturePadClick &&
+                !isModuleTabClick &&
+                !isWireActionClick &&
+                document.querySelector('.tag-dropdown')
+            ) {
                 $wire.closeSelectDropdowns();
             }
 
