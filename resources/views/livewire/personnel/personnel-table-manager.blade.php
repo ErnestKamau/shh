@@ -244,7 +244,10 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.first_name') }} <span class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control" wire:model="personnelForm.first_name" placeholder="{{ __('personnel.first_name') }}..." />
+                                                    <input type="text" class="form-control @error('personnelForm.first_name') is-invalid @enderror" wire:model="personnelForm.first_name" placeholder="{{ __('personnel.first_name') }}..." />
+                                                    @error('personnelForm.first_name')
+                                                        <span class="invalid-feedback d-block">{{ $message }}</span>
+                                                    @enderror
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
@@ -262,7 +265,10 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.email') }} <span class="text-danger">*</span></label>
-                                                    <input type="email" class="form-control" wire:model="personnelForm.email" placeholder="{{ __('personnel.email') }}..." />
+                                                    <input type="email" class="form-control @error('personnelForm.email') is-invalid @enderror" wire:model="personnelForm.email" placeholder="{{ __('personnel.email') }}..." />
+                                                    @error('personnelForm.email')
+                                                        <span class="invalid-feedback d-block">{{ $message }}</span>
+                                                    @enderror
                                                 </div>
                                             </div>
                                             <div class="col-md-4">

@@ -202,6 +202,42 @@ class PersonnelTableManager extends Component
         }
     }
 
+    /**
+     * @return array<string, string>
+     */
+    protected function validationAttributes(): array
+    {
+        return [
+            'personnelForm.first_name' => 'first name',
+            'personnelForm.middle_name' => 'middle name',
+            'personnelForm.last_name' => 'last name',
+            'personnelForm.email' => 'email',
+            'personnelForm.phone' => 'phone',
+            'personnelForm.id_number' => 'ID number',
+            'personnelForm.date_of_birth' => 'date of birth',
+            'personnelForm.employment_date' => 'employment date',
+            'personnelForm.educational_level' => 'educational level',
+            'personnelForm.designation' => 'designation/job description',
+            'personnelForm.position' => 'position/role',
+            'personnelForm.department' => 'department',
+            'personnelForm.date_of_gazzette' => 'date of gazzette',
+            'personnelForm.gazzette_no' => 'gazzette number',
+            'personnelForm.start_of_career' => 'start of career',
+            'personnelForm.lab_section_id' => 'lab section',
+            'signatureUpload' => 'signature upload',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [
+            'personnelForm.email.unique' => 'This email is already registered to another user.',
+        ];
+    }
+
     public function goToAddPersonnelStep(int $step): void
     {
         $this->addPersonnelStep = max(1, min(4, $step));

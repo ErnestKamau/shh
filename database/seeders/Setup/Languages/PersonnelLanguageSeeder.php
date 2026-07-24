@@ -93,7 +93,7 @@ class PersonnelLanguageSeeder extends Seeder
             'unauthorized_deactivate' => ['en' => 'You do not have permission to deactivate personnel accounts.', 'sw' => 'Huna ruhusa ya kuzima akaunti za wafanyakazi.'],
             'personnel_selected_count' => ['en' => ':count account(s) selected', 'sw' => 'Akaunti :count zimechaguliwa'],
             'department' => ['en' => 'Department', 'sw' => 'Idara'],
-            'designation' => ['en' => 'Designation', 'sw' => 'Jina la Kazi'],
+            'designation' => ['en' => 'Designation/Job Description', 'sw' => 'Jina la Kazi/Maelezo ya Kazi'],
             'designations_list' => ['en' => 'Designations', 'sw' => 'Majina ya Kazi'],
             'employed_from' => ['en' => 'Employed From', 'sw' => 'Ajiriwa Tangu'],
             'employed_to' => ['en' => 'Employed To', 'sw' => 'Ajiriwa Hadi'],
@@ -134,7 +134,7 @@ class PersonnelLanguageSeeder extends Seeder
             'error_unlocking_account' => ['en' => 'Error unlocking account', 'sw' => 'Hitilafu katika kufungua akaunti'],
 
             // ── Module: Personnel Detail/Profile ────────────────────────────
-            'add_modal_designation' => ['en' => 'Designation', 'sw' => 'Jina la Kazi'],
+            'add_modal_designation' => ['en' => 'Designation/Job Description', 'sw' => 'Jina la Kazi/Maelezo ya Kazi'],
             'add_personnel_title' => ['en' => 'Add Personnel', 'sw' => 'Ongeza Mfanyakazi'],
             'add_user_role' => ['en' => 'Add User Role', 'sw' => 'Ongeza Jukumu la Mtumiaji'],
             'choose_personnel' => ['en' => 'Choose Personnel', 'sw' => 'Chagua Mfanyakazi'],
@@ -153,7 +153,7 @@ class PersonnelLanguageSeeder extends Seeder
             'optional' => ['en' => 'Optional', 'sw' => 'Linaweza kuachwa'],
             'password' => ['en' => 'Password', 'sw' => 'Nywila'],
             'phone' => ['en' => 'Phone', 'sw' => 'Simu'],
-            'position' => ['en' => 'Position', 'sw' => 'Nafasi'],
+            'position' => ['en' => 'Position/Role', 'sw' => 'Nafasi/Jukumu'],
             'profile' => ['en' => 'Profile', 'sw' => 'Wasifu'],
             'required' => ['en' => 'Required', 'sw' => 'Lazima'],
             'roles' => ['en' => 'Roles', 'sw' => 'Majukumu'],
