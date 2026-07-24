@@ -180,10 +180,10 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     'ar' => 'أنواع العينات',
                 ],
                 'formulas' => [
-                    'en' => 'Formulas',
-                    'sw' => 'Fomula',
-                    'pt' => 'Fórmulas',
-                    'ar' => 'الصيغ',
+                    'en' => 'WorkSheets',
+                    'sw' => 'WorkSheets',
+                    'pt' => 'WorkSheets',
+                    'ar' => 'WorkSheets',
                 ],
                 'standards' => [
                     'en' => 'Standards',

@@ -283,7 +283,6 @@
                                                 @else
                                                     <input type="text" 
                                                            wire:model.live.debounce.250ms="analyteSearch" 
-                                                           wire:keyup="searchAnalytes"
                                                            wire:focus="openAnalyteDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search analytes..."
@@ -292,13 +291,15 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showAnalyteDropdown && count($filteredAnalytes) > 0)
+                                            @if($showAnalyteDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredAnalytes as $analyte)
+                                                    @forelse($filteredAnalytes as $analyte)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectAnalyte('{{ $analyte->id }}')">
                                                             {{ $analyte->name }} ({{ $analyte->code }})
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No analytes found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -321,7 +322,6 @@
                                                 @else
                                                     <input type="text" 
                                                            wire:model.live.debounce.250ms="methodSearch" 
-                                                           wire:keyup="searchMethods"
                                                            wire:focus="openMethodDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search methods..."
@@ -330,13 +330,15 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showMethodDropdown && count($filteredMethods) > 0)
+                                            @if($showMethodDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredMethods as $method)
+                                                    @forelse($filteredMethods as $method)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectMethod('{{ $method->id }}')">
                                                             {{ $method->name }}
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No methods found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -361,7 +363,6 @@
                                                 @else
                                                     <input type="text" 
                                                            wire:model.live.debounce.250ms="equipmentSearch" 
-                                                           wire:keyup="searchEquipment"
                                                            wire:focus="openEquipmentDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search equipment..."
@@ -370,13 +371,15 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showEquipmentDropdown && count($filteredEquipment) > 0)
+                                            @if($showEquipmentDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredEquipment as $equipment)
+                                                    @forelse($filteredEquipment as $equipment)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectEquipment('{{ $equipment->id }}')">
                                                             {{ $equipment->name }}
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No equipment found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -399,7 +402,6 @@
                                                 @else
                                                     <input type="text" 
                                                            wire:model.live.debounce.250ms="operatorSearch" 
-                                                           wire:keyup="searchOperators"
                                                            wire:focus="openOperatorDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search operators..."
@@ -408,13 +410,15 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showOperatorDropdown && count($filteredOperators) > 0)
+                                            @if($showOperatorDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredOperators as $operator)
+                                                    @forelse($filteredOperators as $operator)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectOperator('{{ $operator->id }}')">
                                                             {{ $operator->name }}
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No operators found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -439,7 +443,6 @@
                                                 @else
                                                     <input type="text" 
                                                            wire:model.live.debounce.250ms="reportingUnitSearch" 
-                                                           wire:keyup="searchReportingUnits"
                                                            wire:focus="openReportingUnitDropdown"
                                                            class="tag-input" 
                                                            placeholder="Search reporting units..."
@@ -448,13 +451,15 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showReportingUnitDropdown && count($filteredReportingUnits) > 0)
+                                            @if($showReportingUnitDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredReportingUnits as $unit)
+                                                    @forelse($filteredReportingUnits as $unit)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit('{{ $unit->name }}')">
                                                             {{ $unit->name }}
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No reporting units found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -502,20 +507,21 @@
                                                 @endif
                                                 <input type="text"
                                                        wire:model.live.debounce.250ms="labSectionSearch"
-                                                       wire:keyup="searchLabSections"
                                                        wire:focus="openLabSectionDropdown"
                                                        class="tag-input"
                                                        placeholder="{{ $selectedLabSectionName ? '' : 'Search lab sections...' }}"
                                                        autocomplete="off"
                                                        @if($selectedLabSectionName) style="min-width: 8rem;" @endif>
                                             </div>
-                                            @if($showLabSectionDropdown && count($filteredLabSections) > 0)
+                                            @if($showLabSectionDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($filteredLabSections as $section)
+                                                    @forelse($filteredLabSections as $section)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectLabSection('{{ $section->id }}')">
                                                             {{ $section->code ? $section->code.' — ' : '' }}{{ $section->name }}
                                                         </div>
-                                                    @endforeach
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No lab sections found</div>
+                                                    @endforelse
                                                 </div>
                                             @endif
                                         </div>
@@ -601,7 +607,6 @@
                                                             <!-- Search Input -->
                                                             <input type="text" 
                                                                    wire:model.live.debounce.250ms="formularSearch" 
-                                                                   wire:keyup="searchFormulars"
                                                                    wire:focus="openFormularDropdown"
                                                                    class="tag-input" 
                                                                    placeholder="{{ $selectedFormularName ? '' : 'Search formulars...' }}"
@@ -609,13 +614,15 @@
                                                         </div>
                                                         
                                                         <!-- Dropdown -->
-                                                        @if($showFormularDropdown && count($filteredFormulars) > 0)
+                                                        @if($showFormularDropdown)
                                                             <div class="tag-dropdown">
-                                                                @foreach($filteredFormulars as $formular)
+                                                                @forelse($filteredFormulars as $formular)
                                                                     <div class="tag-dropdown-item" wire:click.stop="selectFormular('{{ $formular->id }}')">
                                                                         {{ $formular->name }}
                                                                     </div>
-                                                                @endforeach
+                                                                @empty
+                                                                    <div class="tag-dropdown-item text-muted">No formulars found</div>
+                                                                @endforelse
                                                             </div>
                                                         @endif
                                                     </div>
@@ -642,19 +649,20 @@
                                                         @endif
                                                         <input type="text"
                                                                wire:model.live.debounce.250ms="logEntryWorksheetSearch"
-                                                               wire:keyup="searchLogEntryWorksheets"
                                                                wire:focus="openLogEntryWorksheetDropdown"
                                                                class="tag-input"
                                                                placeholder="{{ $selectedLogEntryWorksheetName ? '' : 'Search log entry worksheets...' }}"
                                                                autocomplete="off">
                                                     </div>
-                                                    @if($showLogEntryWorksheetDropdown && count($filteredLogEntryWorksheets) > 0)
+                                                    @if($showLogEntryWorksheetDropdown)
                                                         <div class="tag-dropdown">
-                                                            @foreach($filteredLogEntryWorksheets as $lew)
+                                                            @forelse($filteredLogEntryWorksheets as $lew)
                                                                 <div class="tag-dropdown-item" wire:click.stop="selectLogEntryWorksheet('{{ $lew->id }}')">
                                                                     {{ $lew->name }}
                                                                 </div>
-                                                            @endforeach
+                                                            @empty
+                                                                <div class="tag-dropdown-item text-muted">No log entry worksheets found</div>
+                                                            @endforelse
                                                         </div>
                                                     @endif
                                                 </div>
@@ -1076,9 +1084,13 @@ document.addEventListener('click', function (e) {
         'showLabSectionDropdown',
     ];
 
-    dropdownProperties.forEach(function (property) {
-        @this.set(property, false);
+    const anyOpen = dropdownProperties.some(function (property) {
+        return Boolean(@this.get(property));
     });
+
+    if (anyOpen) {
+        @this.call('closeAllDropdowns');
+    }
 });
 </script>
 

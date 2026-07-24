@@ -3,6 +3,7 @@
 namespace App\Services\SubmissionForm;
 
 use App\Models\SampleSubmissionRequest;
+use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
@@ -23,6 +24,8 @@ class RequestViewPagePresenter
 
     public const STAGE_IN_REVIEW = 'In Review';
 
+    public const STAGE_ACCEPTED = 'Accepted';
+
     /** @var list<string> */
     public const ENQUIRY_PROGRESS_STAGES = [
         self::STAGE_REQUESTED,
@@ -32,6 +35,7 @@ class RequestViewPagePresenter
         self::STAGE_QUOTATION_ACCEPTED,
         self::STAGE_READY_FOR_RECEPTION,
         self::STAGE_IN_REVIEW,
+        self::STAGE_ACCEPTED,
     ];
 
     /** @var list<string> */
@@ -130,6 +134,10 @@ class RequestViewPagePresenter
             return null;
         }
 
+        if ($this->isAccepted()) {
+            return self::STAGE_ACCEPTED;
+        }
+
         if ($this->isPastReception()) {
             return self::STAGE_IN_REVIEW;
         }
@@ -151,6 +159,7 @@ class RequestViewPagePresenter
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => self::STAGE_QUOTATION_ACCEPTED,
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => self::STAGE_READY_FOR_RECEPTION,
             SampleSubmissionRequest::STATUS_IN_REVIEW => self::STAGE_IN_REVIEW,
+            'received_at_lab' => self::STAGE_ACCEPTED,
             default => $commercial !== '' ? $commercial : ($raw !== '' ? $raw : null),
         };
     }
@@ -998,6 +1007,22 @@ class RequestViewPagePresenter
         ];
     }
 
+    private function isAccepted(): bool
+    {
+        if ($this->commercialEnquiry === null) {
+            return false;
+        }
+
+        $raw = (string) ($this->commercialEnquiry->status ?? '');
+        if ($raw === 'received_at_lab' || $this->commercialEnquiry->commercialStatus() === 'Accepted') {
+            return true;
+        }
+
+        return $this->instance->analysisAcceptanceForms->contains(
+            fn ($form): bool => (string) $form->status === AnalysisAcceptanceForm::STATUS_COMPLETED
+        );
+    }
+
     private function isPastReception(): bool
     {
         if ($this->commercialEnquiry === null) {
@@ -1014,6 +1039,7 @@ class RequestViewPagePresenter
                 SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
                 SampleSubmissionRequest::STATUS_IN_REVIEW,
                 'Received at Lab',
+                'received_at_lab',
             ], true)
                 || $this->instance->batches->isNotEmpty()
                 || $this->instance->analysisAcceptanceForms->isNotEmpty();
@@ -1334,6 +1360,14 @@ class RequestViewPagePresenter
                 'record_po',
                 'record_walk_in_acceptance',
                 'receive_samples',
+            ],
+            self::STAGE_ACCEPTED => [
+                'process_enquiry',
+                'record_po',
+                'record_walk_in_acceptance',
+                'receive_samples',
+                'send_for_review',
+                'accept_samples',
             ],
             self::STAGE_QUOTATION_ACCEPTED => [
                 'process_enquiry',

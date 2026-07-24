@@ -78,6 +78,40 @@ class RequestViewPageTest extends TestCase
             ->assertDontSee('Record PO');
     }
 
+    public function test_open_physical_receive_modal_dispatches_to_receive_sample_request(): void
+    {
+        [$form, $instance] = $this->createFormAndInstance();
+
+        \App\Models\SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'status' => \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            'source_channel' => 'walk_in',
+            'request_number' => 8,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(RequestViewPage::class, [
+                'submissionFormId' => $form->id,
+                'instanceId' => $instance->id,
+            ])
+            ->call('openPhysicalReceiveModal')
+            ->assertDispatched('receive-modal-open');
+    }
+
+    public function test_workflow_board_breadcrumb_omits_tab_query(): void
+    {
+        [$form, $instance] = $this->createFormAndInstance();
+
+        $receivingUrl = route('sample-workflow', ['status' => 'Samples Receiving']);
+
+        $this->actingAs($this->user)
+            ->get(route('submission-forms.instances.show', [$form, $instance]))
+            ->assertOk()
+            ->assertSee('href="'.$receivingUrl.'"', false)
+            ->assertDontSee('tab=in_review');
+    }
+
     public function test_add_internal_note_does_not_notify_customer(): void
     {
         [$form, $instance] = $this->createFormAndInstance(withCustomer: true);

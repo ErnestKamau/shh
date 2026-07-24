@@ -438,6 +438,53 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertDispatched('receive-completed');
     }
 
+    public function test_handle_receive_modal_open_with_instances_opens_livewire_physical_confirm(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+        $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class)
+            ->call('handleReceiveModalOpen', [$instance->id], [[
+                'id' => $instance->id,
+                'label' => 'TRF001',
+                'customer' => 'Acme',
+            ]])
+            ->assertSet('showPhysicalConfirmModal', true)
+            ->assertSet('selectedFormInstanceIds', [$instance->id])
+            ->assertSee('Move to In Review')
+            ->assertSee('Yes, move to In Review')
+            ->assertNotDispatched('show-receive-sample-modal');
+    }
+
+    public function test_handle_receive_modal_open_without_instances_opens_bootstrap_walk_in_shell(): void
+    {
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class)
+            ->call('handleReceiveModalOpen', [], [])
+            ->assertSet('showPhysicalConfirmModal', false)
+            ->assertDispatched('show-receive-sample-modal');
+    }
+
+    public function test_close_physical_confirm_modal_clears_selection(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class)
+            ->call('handleReceiveModalOpen', [$instance->id], [[
+                'id' => $instance->id,
+                'label' => 'TRF001',
+                'customer' => 'Acme',
+            ]])
+            ->assertSet('showPhysicalConfirmModal', true)
+            ->call('closePhysicalConfirmModal')
+            ->assertSet('showPhysicalConfirmModal', false)
+            ->assertSet('selectedFormInstanceIds', []);
+    }
+
     public function test_walk_in_modal_open_preserves_wizard_progress_for_duplicate_walk_in_open(): void
     {
         $sampleType = $this->createSampleType('Water', 'SMP-WTR-PRESERVE');

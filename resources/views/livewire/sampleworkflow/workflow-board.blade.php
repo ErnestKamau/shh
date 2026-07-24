@@ -1347,99 +1347,8 @@
 			</div>
 		</div>
 	@endif
-	@if($status == 'All Samples')
-		<div class="row">
-			<div class="col-12">
-				<div class="workflow-board-panel">
-					<div class="workflow-board-panel-header">
-						<h6>
-							<i class="mdi mdi-filter-variant"></i>
-							Apply filters
-						</h6>
-					</div>
-					<div class="workflow-board-panel-body">
-		<form action="{{route('sample-workflow', ['status' => $status])}}"
-			method="get">
-			<div class="row">
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">Customer</label>
-						<select name="customer_id" id="" class="form-control">
-							<option value="All" {{ ($allFilter['customer_id'] ?? 'All') == 'All' ? 'selected' : '' }}>All</option>
-							@foreach ($clients as $client)
-								<option value="{{$client->id}}" {{ ($allFilter['customer_id'] ?? 'All') == $client->id ? 'selected' : '' }}>{{$client->name}}</option>
-							@endforeach
-						</select>
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">Sample Types</label>
-						<select name="sample_type_id" id="" class="form-control">
-							<option value="All" {{ ($allFilter['sample_type_id'] ?? 'All') == 'All' ? 'selected' : '' }}>All</option>
-							@foreach ($sampletypes as $s_type)
-								<option value="{{$s_type->id}}" {{ ($allFilter['sample_type_id'] ?? 'All') == $s_type->id ? 'selected' : '' }}>{{$s_type->name}}</option>
-							@endforeach
-						</select>
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">Receipt Date From</label>
-						<input type="date" name="receipt_date_from" id="" value="{{$allFilter['receipt_date_from'] ?? ''}}" class="form-control">
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">Receipt Date To</label>
-						<input type="date" name="receipt_date_to" id="" value="{{$allFilter['receipt_date_to'] ?? ''}}" class="form-control">
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">TAT Date From</label>
-						<input type="date" name="tat_date_from" id="" value="{{$allFilter['tat_date_from'] ?? ''}}" class="form-control">
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">TAT Date To</label>
-						<input type="date" name="tat_date_to" id="" value="{{$allFilter['tat_date_to'] ?? ''}}" class="form-control">
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="form-group">
-						<label for="" class="control-label">Schedule of Analysis Status</label>
-						<select name="schedule_sent" id="" class="form-control">
-							<option value="All" {{ ($allFilter['schedule_sent'] ?? 'All') == 'All' ? 'selected' : '' }}>All</option>
-							<option value="sent" {{ ($allFilter['schedule_sent'] ?? 'All') == 'sent' ? 'selected' : '' }}>Sent</option>
-							<option value="not_sent" {{ ($allFilter['schedule_sent'] ?? 'All') == 'not_sent' ? 'selected' : '' }}>Not Sent</option>
-						</select>
-					</div>
-				</div>
-				<div class="col-md-12">
-					<button type="submit" class="btn btn-sm btn-outline-primary float-right btn-action-sm"><i class="mdi mdi-filter-outline"></i>
-						Apply</button>
-				</div>
-			</div>
-		</form>
-					</div>
-				</div>
-			</div>
-		</div>
-	@endif
-	
-	@if($status != 'All Samples' && $status != 'Finished Sample')
-		<!-- Livewire Filters -->
-		@if($status != 'Samples Reception')
-		@endif
-	@endif
-
-
-	
-	<!-- Submission Forms for status pages using form-instance workflow -->
-	@if($status != 'All Samples')
-		<div class="row mb-4 mt-2">
+	<!-- Submission forms / batches for workflow status pages (including All Samples) -->
+	<div class="row mb-4 mt-2">
 			<div class="col-12">
 				<div class="workflow-board-panel">
 					<div class="workflow-board-panel-header">
@@ -1538,7 +1447,7 @@
 									{{-- Former Samples Request Review selection actions are on Receiving → In Review above. --}}
 								</div>
 							@endif
-							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
+							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review' && $status !== 'All Samples')
 							<div class="d-flex align-items-center" style="gap: 15px;">
 								<div class="d-flex align-items-center">
 									<span class="mr-2 text-muted" style="font-size: 0.82rem;">Per page</span>
@@ -2006,7 +1915,162 @@
 								</div>
 							</div>
 						@endif
-						@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
+						@if($status === 'All Samples')
+							{{-- Match Samples Receiving filter chrome; All Samples keeps batch query semantics. --}}
+							<div class="workflow-brand-filters-card"
+								x-data="{ open: {{ $this->activeRequestFilterCount > 0 ? 'true' : 'false' }}, advanced: false }">
+								<button type="button"
+									class="workflow-filters-toggle"
+									@click="open = !open"
+									:aria-expanded="open.toString()">
+									<span class="workflow-filters-toggle__label">
+										<i class="mdi mdi-filter-variant"></i>
+										Filters
+										@if($this->activeRequestFilterCount > 0)
+											<span class="workflow-filters-toggle__badge">{{ $this->activeRequestFilterCount }} active</span>
+										@endif
+									</span>
+									<i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+								</button>
+								<div class="workflow-filters-panel" x-show="open" x-cloak x-transition.opacity.duration.150ms>
+									<div class="row workflow-filters-primary-row">
+										<div class="col-md-4">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Search</label>
+												<div class="position-relative">
+													<input type="text" wire:model.live.debounce.300ms="search" class="form-control form-control-sm" placeholder="Batch code or sample code...">
+													<div wire:loading wire:target="search" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+														<span class="spinner-border spinner-border-sm text-primary"></span>
+													</div>
+												</div>
+											</div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Receipt From</label>
+												<input type="date" wire:model.live="receiptDateFrom" class="form-control form-control-sm">
+											</div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Receipt To</label>
+												<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
+											</div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Per page</label>
+												<select wire:model.live="batchesPerPage" class="form-control form-control-sm">
+													@foreach($batchesPerPageOptions as $size)
+														<option value="{{ $size }}">{{ $size }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+										<div class="col-md-2 d-flex align-items-end">
+											<button type="button" @click="advanced = !advanced" class="btn btn-primary btn-sm btn-more-filters w-100" style="height: 31px;">
+												<i class="mdi mdi-filter-variant"></i>
+												<span x-text="advanced ? 'Fewer filters' : 'More filters'"></span>
+											</button>
+										</div>
+									</div>
+									<div class="workflow-filters-advanced" x-show="advanced" x-cloak x-transition.opacity.duration.150ms>
+										<div class="row">
+											<div class="col-md-3">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Customer</label>
+													<div class="position-relative">
+														<div class="tag-select-container form-control-sm py-0"
+															 wire:click="$set('showCustomerDropdown', true)"
+															 wire:click.outside="$set('showCustomerDropdown', false)"
+															 wire:key="all-samples-customer-dropdown-{{ $customerFilter }}">
+															<div class="tag-select-input" style="min-height: 29px;">
+																@if($this->selectedCustomer)
+																	<span class="tag-badge py-0 px-2" style="font-size: 11px;">
+																		{{ $this->selectedCustomer->name }}
+																		<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
+																	</span>
+																@endif
+																@if(!$this->selectedCustomer)
+																	<input type="text"
+																		   wire:model.live.debounce.300ms="customerSearch"
+																		   wire:click.stop="$set('showCustomerDropdown', true)"
+																		   class="tag-input customer-search-input py-0"
+																		   style="font-size: 12px; height: 28px;"
+																		   placeholder="Search customers..."
+																		   autocomplete="off">
+																@endif
+															</div>
+															@if($showCustomerDropdown)
+																<div class="tag-dropdown customer-dropdown-scroll" style="max-height: 250px; overflow-y: auto; z-index: 1000;">
+																	<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center py-2">
+																		<span class="spinner-border spinner-border-sm text-primary"></span>
+																	</div>
+																	<div wire:loading.remove wire:target="customerSearch,selectCustomer">
+																		@if(count($this->filteredCustomers) > 0)
+																			@foreach($this->filteredCustomers as $customer)
+																				<div class="tag-dropdown-item py-1 px-3" style="font-size: 12px;" wire:click.stop="selectCustomer({{ $customer->id }})">
+																					{{ $customer->name }}
+																				</div>
+																			@endforeach
+																			@if($this->hasMoreCustomers)
+																				<div class="tag-dropdown-item text-center text-primary py-1" wire:click.stop="loadMoreCustomers" style="cursor: pointer; font-weight: 600; font-size: 11px;">
+																					<i class="mdi mdi-chevron-down"></i> Load More
+																				</div>
+																			@endif
+																		@else
+																			<div class="tag-dropdown-item text-muted py-1 px-3" style="font-size: 12px;">No customers found</div>
+																		@endif
+																	</div>
+																</div>
+															@endif
+														</div>
+													</div>
+												</div>
+											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Sample Type</label>
+													<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
+														<option value="">All Sample Types</option>
+														@foreach($sampletypes as $sampleType)
+															<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+														@endforeach
+													</select>
+												</div>
+											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">TAT From</label>
+													<input type="date" wire:model.live="allFilter.tat_date_from" class="form-control form-control-sm">
+												</div>
+											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">TAT To</label>
+													<input type="date" wire:model.live="allFilter.tat_date_to" class="form-control form-control-sm">
+												</div>
+											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Schedule</label>
+													<select wire:model.live="allFilter.schedule_sent" class="form-control form-control-sm">
+														<option value="All">All</option>
+														<option value="sent">Sent</option>
+														<option value="not_sent">Not Sent</option>
+													</select>
+												</div>
+											</div>
+											<div class="col-md-1 d-flex align-items-end">
+												<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
+													<i class="mdi mdi-refresh"></i>
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						@elseif($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
 						@php
 							$boardUsesSubmissionSearch = $status === 'Samples In Lab'
 								|| ($this->isReceivingStage() && $workflowSubTab === 'requests');
@@ -2841,7 +2905,6 @@
 				</div>
 			</div>
 		</div>
-	@endif
 	@push('script2')
 		@if($showDecontaminationModal)
 			<div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(15, 23, 42, 0.45);">
@@ -6130,34 +6193,30 @@
 			}, 500);
 
 			Livewire.on('show-receive-sample-modal', function (payload) {
-				const physical = payload?.physicalCheckIn ?? false;
+				const data = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+				const physical = data.physicalCheckIn ?? false;
+				if (physical) {
+					return;
+				}
+
 				const modalEl = document.getElementById('receive-sample-modal');
 				const dialogEl = document.getElementById('receive-sample-modal-dialog');
 				const titleEl = document.getElementById('receive-sample-modal-title-text');
 				const iconEl = document.getElementById('receive-sample-modal-icon');
 				const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
+
 				if (modalEl) {
-					modalEl.classList.toggle('receive-sample-modal--compact', physical);
+					modalEl.classList.remove('receive-sample-modal--compact');
 				}
 				if (dialogEl) {
-					dialogEl.classList.toggle('modal-xl', !physical);
-					dialogEl.classList.toggle('modal-dialog-scrollable', !physical);
+					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');
 				}
 				if (titleEl && iconEl) {
-					if (physical) {
-						titleEl.textContent = 'Move to In Review';
-						iconEl.className = 'mdi mdi-clipboard-arrow-right text-primary mr-2';
-						if (subtitleEl) {
-							subtitleEl.textContent = '';
-							subtitleEl.classList.add('d-none');
-						}
-					} else {
-						titleEl.textContent = 'Test Request Form';
-						iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
-						if (subtitleEl) {
-							subtitleEl.textContent = '';
-							subtitleEl.classList.add('d-none');
-						}
+					titleEl.textContent = 'Test Request Form';
+					iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
+					if (subtitleEl) {
+						subtitleEl.textContent = '';
+						subtitleEl.classList.add('d-none');
 					}
 				}
 				$('#receive-sample-modal').modal('show');

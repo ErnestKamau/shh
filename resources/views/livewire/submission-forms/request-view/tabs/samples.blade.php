@@ -5,7 +5,7 @@
                 Acceptance form status:
                 <span class="badge badge-secondary">{{ str_replace('_', ' ', $acceptanceForm->status) }}</span>
             </span>
-            <a href="{{ route('sample-workflow', ['status' => $boardStatus, 'tab' => $boardTab ?? 'in_review']) }}" class="btn btn-sm btn-outline-primary">
+            <a href="{{ route('sample-workflow', ['status' => $boardStatus]) }}" class="btn btn-sm btn-outline-primary">
                 <i class="mdi mdi-open-in-new"></i> Open on workflow board
             </a>
         </div>

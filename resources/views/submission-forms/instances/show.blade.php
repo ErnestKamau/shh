@@ -14,13 +14,9 @@
     @php
         $formNumber = $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending';
         $boardStatus = 'Samples Receiving';
-        $boardTab = $instance->analysisAcceptanceForms()->exists()
-            || $instance->batches->first()?->status === 'Samples Request Review'
-            ? 'accepted'
-            : 'in_review';
         $items = [
             ['link' => route('dashboard-lab'), 'name' => 'Dashboard', 'icon' => null],
-            ['link' => route('sample-workflow', ['status' => $boardStatus, 'tab' => $boardTab]), 'name' => 'Workflow board', 'icon' => null],
+            ['link' => route('sample-workflow', ['status' => $boardStatus]), 'name' => 'Workflow board', 'icon' => null],
             ['link' => '#', 'name' => 'Request '.$formNumber, 'icon' => null],
         ];
     @endphp

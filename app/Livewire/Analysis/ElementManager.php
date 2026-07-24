@@ -647,6 +647,70 @@ class ElementManager extends Component
     }
 
     // Searchable Select Methods
+    public function updatedAnalyteSearch(): void
+    {
+        $this->searchAnalytes();
+    }
+
+    public function updatedMethodSearch(): void
+    {
+        $this->searchMethods();
+    }
+
+    public function updatedEquipmentSearch(): void
+    {
+        $this->searchEquipment();
+    }
+
+    public function updatedOperatorSearch(): void
+    {
+        $this->searchOperators();
+    }
+
+    public function updatedRemedyHeaderSearch(): void
+    {
+        $this->searchRemedyHeaders();
+    }
+
+    public function updatedFormularSearch(): void
+    {
+        $this->searchFormulars();
+    }
+
+    public function updatedLogEntryWorksheetSearch(): void
+    {
+        $this->searchLogEntryWorksheets();
+    }
+
+    public function updatedMethodSequenceSearch(): void
+    {
+        $this->searchMethodSequences();
+    }
+
+    public function updatedReportingUnitSearch(): void
+    {
+        $this->searchReportingUnits();
+    }
+
+    public function updatedLabSectionSearch(): void
+    {
+        $this->searchLabSections();
+    }
+
+    public function closeAllDropdowns(): void
+    {
+        $this->showAnalyteDropdown = false;
+        $this->showMethodDropdown = false;
+        $this->showEquipmentDropdown = false;
+        $this->showOperatorDropdown = false;
+        $this->showRemedyHeaderDropdown = false;
+        $this->showFormularDropdown = false;
+        $this->showLogEntryWorksheetDropdown = false;
+        $this->showMethodSequenceDropdown = false;
+        $this->showReportingUnitDropdown = false;
+        $this->showLabSectionDropdown = false;
+    }
+
     public function openAnalyteDropdown(): void
     {
         $this->searchAnalytes();
@@ -655,16 +719,8 @@ class ElementManager extends Component
     public function searchAnalytes(): void
     {
         $this->showAnalyteDropdown = true;
-        $search = trim((string) $this->analyteSearch);
-
         $query = Analyte::query()->where('active', 1)->orderBy('name');
-        if ($search !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('code', 'like', '%'.$search.'%');
-            });
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->analyteSearch);
         $this->filteredAnalytes = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -710,12 +766,7 @@ class ElementManager extends Component
             ->where('active', 1)
             ->orderBy('name');
 
-        if ($search !== null && $search !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('code', 'like', '%'.$search.'%');
-            });
-        }
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) ($search ?? ''));
 
         return $query->limit($this->searchResultLimit);
     }
@@ -750,13 +801,8 @@ class ElementManager extends Component
     public function searchEquipment(): void
     {
         $this->showEquipmentDropdown = true;
-        $search = trim((string) $this->equipmentSearch);
-
         $query = Equipment::query()->where('active', 1)->orderBy('name');
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->equipmentSearch);
         $this->filteredEquipment = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -788,16 +834,11 @@ class ElementManager extends Component
     public function searchOperators(): void
     {
         $this->showOperatorDropdown = true;
-        $search = trim((string) $this->operatorSearch);
-
         $query = User::query()
             ->where('active', 1)
             ->where('is_client', 0)
             ->orderBy('name');
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->operatorSearch);
         $this->filteredOperators = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -824,13 +865,8 @@ class ElementManager extends Component
     public function searchRemedyHeaders(): void
     {
         $this->showRemedyHeaderDropdown = true;
-        $search = trim((string) $this->remedyHeaderSearch);
-
         $query = \App\Models\RemedyHeader::query()->orderBy('name');
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->remedyHeaderSearch);
         $this->filteredRemedyHeaders = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -862,15 +898,10 @@ class ElementManager extends Component
     public function searchFormulars(): void
     {
         $this->showFormularDropdown = true;
-        $search = trim((string) $this->formularSearch);
-
         $query = \App\Models\Formulars\Formula::query()
             ->where('is_active', 1)
             ->orderBy('name');
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->formularSearch);
         $this->filteredFormulars = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -904,15 +935,10 @@ class ElementManager extends Component
     public function searchLogEntryWorksheets(): void
     {
         $this->showLogEntryWorksheetDropdown = true;
-        $search = trim((string) $this->logEntryWorksheetSearch);
-
         $query = \App\Models\LogEntryWorksheets\LogEntryWorksheet::query()
             ->where('is_active', true)
             ->orderBy('name');
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->logEntryWorksheetSearch);
         $this->filteredLogEntryWorksheets = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -941,16 +967,11 @@ class ElementManager extends Component
     public function searchMethodSequences(): void
     {
         $this->showMethodSequenceDropdown = true;
-        $search = trim((string) $this->methodSequenceSearch);
-
         $query = \App\Models\MethodSequences\MethodSequence::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->with(['activeVersion', 'latestVersion']);
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->methodSequenceSearch);
         $this->filteredMethodSequences = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -984,13 +1005,8 @@ class ElementManager extends Component
     public function searchReportingUnits(): void
     {
         $this->showReportingUnitDropdown = true;
-        $search = trim((string) $this->reportingUnitSearch);
-
         $query = ReportingUnit::query()->where('active', 1)->orderBy('name');
-        if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
-        }
-
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->reportingUnitSearch);
         $this->filteredReportingUnits = $query->limit($this->searchResultLimit)->get();
     }
 
@@ -1009,7 +1025,6 @@ class ElementManager extends Component
     public function searchLabSections(): void
     {
         $this->showLabSectionDropdown = true;
-        $search = trim((string) $this->labSectionSearch);
 
         $query = \App\SampleAnalysisStage::query()
             ->where('active', 1)
@@ -1025,14 +1040,40 @@ class ElementManager extends Component
             });
         }
 
-        if ($search !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('code', 'like', '%'.$search.'%');
-            });
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->labSectionSearch);
+        $this->filteredLabSections = $query->limit($this->searchResultLimit)->get();
+    }
+
+    /**
+     * Apply a driver-aware case-insensitive LIKE filter across columns.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<int, string>  $columns
+     */
+    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
+    {
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return;
         }
 
-        $this->filteredLabSections = $query->limit($this->searchResultLimit)->get();
+        $driver = DB::connection()->getDriverName();
+        $isPgsql = $driver === 'pgsql';
+        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
+
+        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
+            foreach ($columns as $index => $column) {
+                if ($isPgsql) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $builder->{$method}($column, 'ilike', $like);
+                    continue;
+                }
+
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
+            }
+        });
     }
 
     public function selectLabSection(string $labSectionId): void

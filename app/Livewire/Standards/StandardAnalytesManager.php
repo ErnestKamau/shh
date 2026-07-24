@@ -96,8 +96,8 @@ class StandardAnalytesManager extends Component
             ->where('standard_id', $this->standardId);
 
         if ($this->search) {
-            $query->whereHas('analyte', function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%');
+            $query->whereHas('analyte', function ($q): void {
+                $this->applyCaseInsensitiveSearch($q, ['name', 'code'], (string) $this->search);
             });
         }
 
@@ -339,26 +339,39 @@ class StandardAnalytesManager extends Component
         $this->resetSearchableSelectState();
     }
 
+    public function updatedAnalyteSearch(): void
+    {
+        $this->searchAnalytes();
+    }
+
+    public function updatedStandardValueSearch(): void
+    {
+        $this->searchStandardValues();
+    }
+
+    public function closeAllDropdowns(): void
+    {
+        $this->showAnalyteDropdown = false;
+        $this->showStandardValueDropdown = false;
+    }
+
     public function searchAnalytes(): void
     {
         $this->showAnalyteDropdown = true;
-        $search = $this->analyteSearch;
 
-        $this->filteredAnalytes = Analyte::query()
+        $query = Analyte::query()
             ->where('active', 1)
-            ->where(function ($query) use ($search) {
-                $query->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%');
-            })
-            ->orderBy('name')
-            ->limit(20)
-            ->get();
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->analyteSearch);
+
+        $this->filteredAnalytes = $query->limit(20)->get();
     }
 
     public function selectAnalyte(int|string $id): void
     {
-        $analyte = collect($this->analytes)->firstWhere('id', (string) $id);
-        if (!$analyte) {
+        $analyte = Analyte::query()->where('active', 1)->find($id);
+        if (! $analyte) {
             return;
         }
 
@@ -379,23 +392,20 @@ class StandardAnalytesManager extends Component
     public function searchStandardValues(): void
     {
         $this->showStandardValueDropdown = true;
-        $search = $this->standardValueSearch;
 
-        $this->filteredStandardValues = StandardValue::query()
+        $query = StandardValue::query()
             ->where('status', 1)
-            ->where(function ($query) use ($search) {
-                $query->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%');
-            })
-            ->orderBy('name')
-            ->limit(20)
-            ->get();
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->standardValueSearch);
+
+        $this->filteredStandardValues = $query->limit(20)->get();
     }
 
     public function selectStandardValue(int|string $id): void
     {
-        $standardValue = collect($this->standardValues)->firstWhere('id', (string) $id);
-        if (!$standardValue) {
+        $standardValue = StandardValue::query()->where('status', 1)->find($id);
+        if (! $standardValue) {
             return;
         }
 
@@ -555,6 +565,38 @@ class StandardAnalytesManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    /**
+     * Apply a driver-aware case-insensitive LIKE filter across columns.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<int, string>  $columns
+     */
+    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
+    {
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+        $isPgsql = $driver === 'pgsql';
+        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
+
+        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
+            foreach ($columns as $index => $column) {
+                if ($isPgsql) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $builder->{$method}($column, 'ilike', $like);
+                    continue;
+                }
+
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
+            }
+        });
     }
 
     public function render()

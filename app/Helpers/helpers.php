@@ -718,6 +718,7 @@ function getSampleWorkflowStageLabel($stage)
 	$labels = [
 		'Samples En-Route' => 'lab.workflow_samples_receiving',
 		'Samples Reception' => 'lab.workflow_samples_receiving',
+		'Samples Receiving' => 'lab.workflow_samples_receiving',
 		'All Samples' => 'lab.workflow_all_samples',
 		'Samples Request Review' => 'lab.workflow_samples_request_review',
 		'Samples In Lab' => 'lab.status_samples_in_lab',

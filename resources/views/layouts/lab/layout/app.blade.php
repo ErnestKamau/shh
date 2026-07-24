@@ -213,7 +213,23 @@
 					if ($requestForTestingLabel === 'lab.request_for_testing') {
 						$requestForTestingLabel = 'Request For Testing';
 					}
+					$pinnedWorkflowStages = ['All Samples', 'Samples Receiving', 'Samples Reception'];
 				@endphp
+				@if($canAllSamples)
+				<a href="{{ route('dashboard-lab-personal') }}" class="list-group-item list-group-item-action {{ $isLabPersonalDashboardActive ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.personal_dashboard') }}</span>
+					</div>
+				</a>
+				<a href="{{ route('sample-workflow', ['status' => 'All Samples']) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive('All Samples') ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i>{{ getSampleWorkflowStageLabel('All Samples') }}
+						</span>
+						<small class="badge badge-pill badge-dark">{{ $menuTotals['All Samples'] ?? 0 }}</small>
+					</div>
+				</a>
+				@endif
 				@if($canRftForms)
 				<a href="{{ route('sample-workflow.request-for-testing') }}" class="list-group-item list-group-item-action {{ $isRequestForTestingActive ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -222,17 +238,16 @@
 				</a>
 				@endif
 				@if($canAllSamples)
-				<a href="{{ route('dashboard-lab-personal') }}" class="list-group-item list-group-item-action {{ $isLabPersonalDashboardActive ? 'active' : '' }}">
+				<a href="{{ route('sample-workflow', ['status' => 'Samples Receiving']) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive('Samples Receiving') ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.personal_dashboard') }}</span>
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i>{{ getSampleWorkflowStageLabel('Samples Receiving') }}
+						</span>
+						<small class="badge badge-pill badge-dark">{{ $menuTotals['Samples Receiving'] ?? 0 }}</small>
 					</div>
 				</a>
 				@endif
-				@foreach (getSampleWorflowStages() as $item)
-				@if($item == 'Samples Reception')
-					@continue
-				@endif
-				@if($item == 'Samples In Lab' && $canInterLabLogs)
+				@if($canInterLabLogs)
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
@@ -241,6 +256,10 @@
 						<small class="badge badge-pill badge-success">{{getInterLabTotals()}}</small>
 					</div>
 				</a>
+				@endif
+				@foreach (getSampleWorflowStages() as $item)
+				@if(in_array($item, $pinnedWorkflowStages, true))
+					@continue
 				@endif
 				@if($canAllSamples)
 				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive($item) ? 'active' : '' }}">
@@ -327,11 +346,89 @@
 
 		</div>
 			@endif
+			{{-- Equipment Request temporarily hidden
 			@if($canEquipmentRequests)
 			<a href="{{ route('lab.equipment-requests.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.equipment-requests.*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.equipment_requests') }}</span>
+				</div>
+			</a>
+			@endif
+			--}}
+			@if($canMethodValidationRegistration || $canMethodValidationDataReview)
+				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+					<div class="d-flex w-100 justify-content-start align-items-center">
+						<span class="mdi mdi-clipboard-check-outline mr-3"></span>
+						<span class="menu-collapsed">{{ __('lab.method_validation') }}</span>
+						<span class="submenu-icon ml-auto"></span>
+					</div>
+				</a>
+				<div id="method-validation-menu" class="collapse sidebar-submenu">
+					<a href="/analysis-methods" class="list-group-item list-group-item-action">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.methods') }}</span>
+					</a>
+					@if($canMethodValidationRegistration)
+					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.method_registration') }}</span>
+					</a>
+					@endif
+					@if($canMethodValidationDataReview)
+					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.data_review_analysis') }}</span>
+					</a>
+					@endif
+				</div>
+			@endif
+			@if($canAnalytes)
+			<a href="/analytes" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-molecule fa-fw mr-3"></span>
+					<span class="menu-collapsed">{{ __('lab.analytes') }}</span>
+				</div>
+			</a>
+			@endif
+			@if($canSampleTypes)
+			<a href="{{ route('livewire.sample-types') }}" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-test-tube fa-fw mr-3"></span>
+					<span class="menu-collapsed">{{ __('lab.sample_types') }}</span>
+				</div>
+			</a>
+			<a href="{{ route('livewire.standards') }}" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
+					<span class="menu-collapsed">{{ __('lab.standards') }}</span>
+				</div>
+			</a>
+			<a href="{{ route('formulars.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('formulars.*') || request()->routeIs('stage-headers.*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-calculator fa-fw mr-3"></span>
+					<span class="menu-collapsed">WorkSheets</span>
+				</div>
+			</a>
+			@endif
+			@if($canLabs)
+			<a href="{{ route('labs') }}" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">{{ __('lab.labs') }}</span>
+				</div>
+			</a>
+			@endif
+			@if($canSampleTrackingStages)
+			<a href="/sample-analysis-stages" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
+					<span class="menu-collapsed">Lab Sections</span>
+				</div>
+			</a>
+			@endif
+			@if($canReportingUnits)
+			<a href="/reporting-units" class="list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
+					<span class="menu-collapsed">{{ __('lab.reporting_units') }}</span>
 				</div>
 			</a>
 			@endif
@@ -367,22 +464,6 @@
 
 			</div>
 			@endif
-			@if($canAnalytes)
-			<a href="/analytes" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-molecule fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.analytes') }}</span>
-				</div>
-			</a>
-			@endif
-			@if($canLabs)
-			<a href="{{ route('labs') }}" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.labs') }}</span>
-				</div>
-			</a>
-			@endif
 			@if($canMonitoring)
 			<a href="{{ route('livewire.monitoring') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
@@ -391,71 +472,10 @@
 				</div>
 			</a>
 			@endif
-			@if($canSampleTrackingStages)
-			<a href="/sample-analysis-stages" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
-					<span class="menu-collapsed">Lab Sections</span>
-				</div>
-			</a>
-			@endif
-			@if($canSampleTypes)
-			<a href="{{ route('livewire.sample-types') }}" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-test-tube fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.sample_types') }}</span>
-				</div>
-			</a>
-			<a href="{{ route('formulars.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('formulars.*') || request()->routeIs('stage-headers.*') ? 'active' : '' }}">
+			@if($canUncertaintyBudget)
+			<a href="{{ route('uncertainty-budgets.index') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calculator fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.formulas') }}</span>
-				</div>
-			</a>
-			<a href="{{ route('livewire.standards') }}" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.standards') }}</span>
-				</div>
-			</a>
-			@endif
-
-			@if($canReportingUnits)
-			<a href="/reporting-units" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('lab.reporting_units') }}</span>
-				</div>
-			</a>
-			@endif
-			@if($canMethodValidationRegistration || $canMethodValidationDataReview)
-				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
-					<div class="d-flex w-100 justify-content-start align-items-center">
-						<span class="mdi mdi-clipboard-check-outline mr-3"></span>
-						<span class="menu-collapsed">{{ __('lab.method_validation') }}</span>
-						<span class="submenu-icon ml-auto"></span>
-					</div>
-				</a>
-				<div id="method-validation-menu" class="collapse sidebar-submenu">
-					<a href="/analysis-methods" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.methods') }}</span>
-					</a>
-					@if($canMethodValidationRegistration)
-					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.method_registration') }}</span>
-					</a>
-					@endif
-					@if($canMethodValidationDataReview)
-					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.data_review_analysis') }}</span>
-					</a>
-					@endif
-				</div>
-				@endif
-				@if($canUncertaintyBudget)
-				<a href="{{ route('uncertainty-budgets.index') }}" class="list-group-item list-group-item-action">
-					<div class="d-flex w-100 justify-content-start align-items-center">
-						<span class="mdi mdi-calculator fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.uncertainty_budget') }}</span>
 				</div>
 			</a>

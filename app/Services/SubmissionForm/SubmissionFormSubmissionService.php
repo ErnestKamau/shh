@@ -580,10 +580,29 @@ class SubmissionFormSubmissionService
         }
 
         if (is_array($value)) {
+            if ($this->isAssociativeSelectionMap($value)) {
+                $selected = [];
+                foreach ($value as $key => $selectedFlag) {
+                    if ((bool) $selectedFlag) {
+                        $selected[] = (string) $key;
+                    }
+                }
+
+                return $selected === [] ? null : implode(',', $selected);
+            }
+
             $flat = [];
             foreach ($value as $item) {
                 if (is_array($item)) {
-                    foreach ($item as $nested) {
+                    foreach ($item as $nestedKey => $nested) {
+                        if (is_string($nestedKey) && is_bool($nested)) {
+                            if ($nested) {
+                                $flat[] = (string) $nestedKey;
+                            }
+
+                            continue;
+                        }
+
                         if ($nested !== null && $nested !== '') {
                             $flat[] = (string) $nested;
                         }

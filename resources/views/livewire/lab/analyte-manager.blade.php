@@ -282,8 +282,8 @@
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold small">Reporting Unit</label>
                                 <div class="tag-select-container"
-                                     wire:click="$set('showReportingUnitDropdown', true)"
-                                     wire:click.outside="$set('showReportingUnitDropdown', false)">
+                                     wire:click="openReportingUnitDropdown"
+                                     wire:click.outside="closeReportingUnitDropdown">
                                     <div class="tag-select-input">
                                         @if($analyteForm['reporting_unit'])
                                             <span class="tag-badge tag-badge--neutral">
@@ -297,13 +297,17 @@
                                                placeholder="{{ $analyteForm['reporting_unit'] ? '' : 'Search units...' }}"
                                                autocomplete="off">
                                     </div>
-                                    @if($showReportingUnitDropdown && count($this->filteredReportingUnits) > 0)
+                                    @if($showReportingUnitDropdown)
                                         <div class="tag-dropdown">
-                                            @foreach($this->filteredReportingUnits as $unit)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit('{{ $unit->name }}')">
+                                            @forelse($this->filteredReportingUnits as $unit)
+                                                <div class="tag-dropdown-item" wire:key="reporting-unit-{{ $unit->id }}" wire:click.stop="selectReportingUnit(@js($unit->name))">
                                                     {{ $unit->name }}
                                                 </div>
-                                            @endforeach
+                                            @empty
+                                                <div class="tag-dropdown-item text-muted">
+                                                    <i class="mdi mdi-information-outline me-2"></i>No reporting units found
+                                                </div>
+                                            @endforelse
                                         </div>
                                     @endif
                                 </div>
@@ -327,11 +331,11 @@
                                     <i class="mdi mdi-test-tube text-success me-1"></i>Analysis Methods
                                 </label>
                                 <div class="tag-select-container"
-                                     wire:click="$set('showMethodDropdown', true)"
-                                     wire:click.outside="$set('showMethodDropdown', false)">
+                                     wire:click="openMethodDropdown"
+                                     wire:click.outside="closeMethodDropdown">
                                     <div class="tag-select-input">
                                         @foreach($this->selectedMethods as $method)
-                                            <span class="tag-badge tag-badge--success">
+                                            <span class="tag-badge tag-badge--success" wire:key="selected-method-{{ $method->id }}">
                                                 {{ $method->name }}
                                                 <i class="mdi mdi-close-circle" wire:click.stop="removeMethod(@js($method->id))"></i>
                                             </span>
@@ -367,11 +371,11 @@
                                     <i class="mdi mdi-cog text-warning me-1"></i>Equipment
                                 </label>
                                 <div class="tag-select-container"
-                                     wire:click="$set('showEquipmentDropdown', true)"
-                                     wire:click.outside="$set('showEquipmentDropdown', false)">
+                                     wire:click="openEquipmentDropdown"
+                                     wire:click.outside="closeEquipmentDropdown">
                                     <div class="tag-select-input">
                                         @foreach($this->selectedEquipment as $equip)
-                                            <span class="tag-badge tag-badge--warning">
+                                            <span class="tag-badge tag-badge--warning" wire:key="selected-equipment-{{ $equip->id }}">
                                                 {{ $equip->name }}
                                                 <i class="mdi mdi-close-circle" wire:click.stop="removeEquipment(@js($equip->id))"></i>
                                             </span>

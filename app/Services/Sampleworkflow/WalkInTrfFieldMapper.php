@@ -24,7 +24,9 @@ final class WalkInTrfFieldMapper
             'customer_sample_point_select' => 'customer_sample_point_select',
             default => match ($name) {
                 'contact_person' => 'client_contact_select',
-                'sampling_location' => 'customer_sample_point_select',
+                'sampling_location', 'sampling_point' => 'customer_sample_point_select',
+                'sampling_time' => 'time',
+                'method_of_sampling', 'test_category', 'test_requirements' => 'checkbox',
                 default => $elementType,
             },
         };

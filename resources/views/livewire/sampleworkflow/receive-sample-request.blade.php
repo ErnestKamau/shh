@@ -1,4 +1,61 @@
 <div class="receive-sample-modal-body">
+    @if ($showPhysicalConfirmModal)
+        @teleport('body')
+            <div
+                class="modal fade show d-block"
+                tabindex="-1"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="receive-physical-confirm-title"
+                style="background: rgba(0,0,0,.45); z-index: 1055;"
+            >
+                <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: min(420px, calc(100vw - 2rem));">
+                    <div class="modal-content receive-sample-modal-content border-0 shadow">
+                        <div class="modal-header receive-sample-modal-header border-0">
+                            <h5 class="modal-title mb-0" id="receive-physical-confirm-title">
+                                <i class="mdi mdi-clipboard-arrow-right text-primary mr-2"></i>
+                                Move to In Review
+                            </h5>
+                            <button type="button" class="close" wire:click="closePhysicalConfirmModal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body px-4 pb-2">
+                            <section class="receive-sample-checkin-confirm text-center py-3 px-2">
+                                <i class="mdi mdi-clipboard-arrow-right text-primary" style="font-size: 2.5rem;"></i>
+                                <p class="mt-3 mb-0 h6 font-weight-normal">
+                                    Are you sure you want to move {{ count($selectedFormInstanceIds) === 1 ? 'this request' : 'these requests' }} to In Review?
+                                </p>
+                                @error('selection')
+                                    <div class="alert alert-danger py-2 px-3 mt-3 mb-0 small text-left">{{ $message }}</div>
+                                @enderror
+                            </section>
+                        </div>
+                        <div class="modal-footer receive-sample-modal-footer border-0 pt-0">
+                            <button type="button" class="btn btn-sm btn-light" wire:click="closePhysicalConfirmModal">Cancel</button>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-primary"
+                                wire:click="confirmReceive"
+                                wire:loading.attr="disabled"
+                                wire:target="confirmReceive"
+                            >
+                                <span wire:loading.remove wire:target="confirmReceive">
+                                    <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
+                                    Yes, move to In Review
+                                </span>
+                                <span wire:loading wire:target="confirmReceive">
+                                    <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
+                                    Processing…
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endteleport
+    @endif
+
     <style>
         .receive-sample-modal-body .check-in-trf-metadata {
             margin-top: 1rem;
@@ -100,6 +157,7 @@
     </style>
 
         @if ($pageMode && ! $wizardOnly && ! $this->isPhysicalCheckIn)
+            {{-- How it works section temporarily hidden
             <div class="rft-overview-section mb-3">
                 <div class="workflow-board-section-label mb-2">
                     <i class="mdi mdi-information-outline"></i> How it works
@@ -140,6 +198,7 @@
                     </div>
                 </div>
             </div>
+            --}}
 
             @if ($formTypeCards->isNotEmpty())
                 <div class="rft-overview-section mb-3">
@@ -313,12 +372,7 @@
             </div>
         @endif
 
-    @if ($this->isPhysicalCheckIn)
-        <section class="receive-sample-checkin-confirm text-center py-3 px-2">
-            <i class="mdi mdi-clipboard-arrow-right text-primary" style="font-size: 2.5rem;"></i>
-            <p class="mt-3 mb-0 h6 font-weight-normal">Are you sure you want to move {{ count($selectedFormInstanceIds) === 1 ? 'this request' : 'these requests' }} to In Review?</p>
-        </section>
-    @elseif ($selectedFormInstanceIds !== [])
+    @if (! $this->isPhysicalCheckIn && $selectedFormInstanceIds !== [])
             <section class="receive-sample-selected mb-3">
                 <p class="receive-sample-section-label font-weight-bold">Selected requests</p>
                 <div class="receive-sample-chips">
@@ -336,7 +390,7 @@
                 </div>
                 <p class="receive-sample-selected-hint text-muted small mt-1">Verify the enquiry summary below, then confirm check-in.</p>
             </section>
-        @endif
+    @endif
 
         @if ($checkInContexts !== [] && ! $this->isPhysicalCheckIn)
             <section class="receive-sample-checkin mb-3">
@@ -598,9 +652,9 @@
                 </a>
             </footer>
         @endif
-    @else
+    @elseif (! $showPhysicalConfirmModal)
         <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap rft-gap">
-            @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+            @if ($selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
                 <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
                     Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
                     · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
@@ -610,7 +664,7 @@
             @endif
 
             <div class="d-flex align-items-center rft-gap">
-                @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+                @if ($selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
                     @include('livewire.partials.walk-in-trf-wizard-nav')
                 @else
                     <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
@@ -621,11 +675,11 @@
                         wire:loading.attr="disabled"
                         wire:target="confirmReceive"
                         onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
-                        @if (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId) disabled @endif
+                        @if (! $selectedSampleTypeId) disabled @endif
                     >
                         <span wire:loading.remove wire:target="confirmReceive">
                             <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                            {{ $this->isPhysicalCheckIn ? 'Yes, move to In Review' : 'Submit walk-in request' }}
+                            Submit walk-in request
                         </span>
                         <span wire:loading wire:target="confirmReceive">
                             <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

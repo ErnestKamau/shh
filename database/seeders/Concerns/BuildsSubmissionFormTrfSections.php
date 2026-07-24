@@ -74,7 +74,7 @@ trait BuildsSubmissionFormTrfSections
     {
         return [
             ['textarea', 'Sample description', 'sample_description', 1],
-            ['text', 'Sampling point / location', 'sampling_point', 2],
+            ['customer_sample_point_select', 'Sampling point / location', 'sampling_point', 2],
             ['number', 'Qty', 'sample_quantity', 3],
             ['text', 'Unit', 'sample_quantity_unit', 4],
             ['radio', 'State of sample', 'state_of_sample', 5, [
@@ -87,7 +87,7 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Batch number', 'batch_number', 8],
             ['analysis_type_select', 'Analysis type', 'analysis_type_id', 9, null, true],
             ['analysis_elements_select', 'Parameters', 'parameters', 10],
-            ['radio', 'Test category', 'test_category', 11, [
+            ['checkbox', 'Test category', 'test_category', 11, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'chemistry', 'label' => 'Chemistry'],
             ]],
@@ -104,13 +104,7 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Location', 'location', 2],
             ['number', 'Qty', 'sample_quantity', 3],
             ['text', 'Unit', 'sample_quantity_unit', 4],
-            ['select', 'Sampling point', 'sampling_point', 5, [
-                ['value' => 'Tap', 'label' => 'Tap'],
-                ['value' => 'Tank', 'label' => 'Tank'],
-                ['value' => 'Pool', 'label' => 'Pool'],
-                ['value' => 'Shower Head', 'label' => 'Shower Head'],
-                ['value' => 'Others', 'label' => 'Others'],
-            ]],
+            ['customer_sample_point_select', 'Sampling point', 'sampling_point', 5],
             ['text', 'Field data - pH', 'field_ph', 6],
             ['text', 'Field data - Appearance', 'field_appearance', 7],
             ['text', 'Field data - Residual chlorine', 'field_residual_chlorine', 8],
@@ -118,7 +112,7 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Field data - Sample temp (°C)', 'field_sample_temp', 10],
             ['analysis_type_select', 'Analysis type', 'analysis_type_id', 11, null, true],
             ['analysis_elements_select', 'Parameters', 'parameters', 12],
-            ['radio', 'Test requirements', 'test_requirements', 13, [
+            ['checkbox', 'Test requirements', 'test_requirements', 13, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'legionella', 'label' => 'Legionella'],
                 ['value' => 'chemistry', 'label' => 'Chemistry'],
@@ -133,7 +127,7 @@ trait BuildsSubmissionFormTrfSections
     {
         return [
             ['textarea', 'Sample description', 'sample_description', 1],
-            ['text', 'Sampling point / location', 'sampling_point', 2],
+            ['customer_sample_point_select', 'Sampling point / location', 'sampling_point', 2],
             ['number', 'Qty', 'sample_quantity', 3],
             ['text', 'Unit', 'sample_quantity_unit', 4],
             ['sample_type_select', 'Type of sample', 'sample_type_id', 5, null, true],
@@ -360,10 +354,10 @@ trait BuildsSubmissionFormTrfSections
 
         $baseFields = [
             ['date', 'Sampling date', 'sampling_date', 1],
-            ['text', 'Sampling time', 'sampling_time', 2],
+            ['time', 'Sampling time', 'sampling_time', 2],
             ['customer_sample_point_select', 'Sampling location', 'sampling_location', 3],
             ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 4, $apparatusOptions],
-            ['radio', 'Method of sampling', 'method_of_sampling', 5, [
+            ['checkbox', 'Method of sampling', 'method_of_sampling', 5, [
                 ['value' => 'apha', 'label' => 'APHA'],
                 ['value' => 'saso', 'label' => 'SASO'],
                 ['value' => 'astm', 'label' => 'ASTM'],
@@ -806,10 +800,10 @@ trait BuildsSubmissionFormTrfSections
 
         $baseFields = [
             ['date', 'Sampling date', 'sampling_date', 1],
-            ['text', 'Sampling time', 'sampling_time', 2],
+            ['time', 'Sampling time', 'sampling_time', 2],
             ['customer_sample_point_select', 'Sampling location', 'sampling_location', 3],
             ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 4, $apparatusOptions],
-            ['radio', 'Method of sampling', 'method_of_sampling', 5, [
+            ['checkbox', 'Method of sampling', 'method_of_sampling', 5, [
                 ['value' => 'apha', 'label' => 'APHA'],
                 ['value' => 'saso', 'label' => 'SASO'],
                 ['value' => 'astm', 'label' => 'ASTM'],
