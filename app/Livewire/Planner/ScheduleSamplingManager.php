@@ -1277,6 +1277,39 @@ class ScheduleSamplingManager extends Component
         })->orderBy('name')->get();
     }
 
+    /**
+     * @return array{selected: list<string>, options: list<string>}
+     */
+    public function walkInParameterPickerState(int $rowIndex): array
+    {
+        $raw = $this->formData['parameters'][$rowIndex] ?? [];
+        $selected = is_array($raw)
+            ? array_values(array_map('strval', $raw))
+            : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
+
+        $options = $this->parametersForRow($rowIndex)
+            ->pluck('name')
+            ->map(fn ($name) => (string) $name)
+            ->values()
+            ->all();
+
+        return [
+            'selected' => $selected,
+            'options' => $options,
+        ];
+    }
+
+    /**
+     * @param  list<string|int|float>  $parameters
+     */
+    public function setWalkInParameters(int $rowIndex, array $parameters): void
+    {
+        $this->formData['parameters'][$rowIndex] = array_values(array_map(
+            static fn ($value): string => (string) $value,
+            $parameters
+        ));
+    }
+
     public function getCustomersProperty()
     {
         return CRMCustomer::where('active', 1)->orderBy('name')->get();

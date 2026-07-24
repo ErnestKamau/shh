@@ -703,11 +703,240 @@
     .schedule-sampling-form-modal .walk-in-trf-parameters-action-btns .btn-link:hover {
         text-decoration: underline;
     }
+    .schedule-sampling-form-modal {
+        --workflow-accent: var(--color-primary, #8a1a1f);
+        --workflow-accent-soft: rgba(138, 26, 31, 0.1);
+    }
+    .schedule-sampling-form-modal .rft-param-picker {
+        position: relative;
+        z-index: 5;
+    }
+    .schedule-sampling-form-modal .rft-param-picker__trigger {
+        min-height: 38px;
+        width: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 6px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        text-align: left;
+    }
+    .schedule-sampling-form-modal .rft-param-picker__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+        align-content: flex-start;
+        min-width: 0;
+        flex: 1 1 auto;
+        width: 100%;
+    }
+    .schedule-sampling-form-modal .rft-param-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--workflow-accent-soft);
+        color: var(--workflow-accent);
+        font-size: 0.68rem;
+        font-weight: 600;
+        max-width: 180px;
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+    .schedule-sampling-form-modal .rft-param-chip span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+    .schedule-sampling-form-modal .rft-param-chip__remove,
+    .schedule-sampling-form-modal .rft-param-chip button {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        line-height: 1;
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+    .schedule-sampling-form-modal .rft-param-picker__caret {
+        flex: 0 0 auto;
+        margin-top: 4px;
+    }
+    .schedule-sampling-form-modal .rft-param-picker__more {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: var(--workflow-accent);
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        flex: 0 0 auto;
+    }
+    .schedule-sampling-form-modal .rft-param-picker__panel {
+        position: absolute;
+        z-index: 1080;
+        left: 0;
+        right: 0;
+        top: calc(100% + 6px);
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+        padding: 10px;
+        max-height: min(320px, 55vh);
+        overflow: auto;
+    }
+    .schedule-sampling-form-modal .rft-param-picker__panel.is-up {
+        top: auto;
+        bottom: calc(100% + 6px);
+    }
+    .schedule-sampling-form-modal .rft-param-picker__grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 8px;
+    }
+    .schedule-sampling-form-modal .rft-param-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        border: 1px solid #e8ecf2;
+        border-radius: 8px;
+        padding: 6px 8px;
+        cursor: pointer;
+        font-size: 0.72rem;
+        color: #475569;
+        background: #fff;
+        margin: 0;
+        min-width: 0;
+    }
+    .schedule-sampling-form-modal .rft-param-option span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    .schedule-sampling-form-modal .rft-param-option.is-selected {
+        border-color: var(--workflow-accent);
+        background: var(--workflow-accent-soft);
+        color: var(--workflow-accent);
+        font-weight: 600;
+    }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     @script
     <script>
+        Alpine.data('rftParamPickerUi', (config = {}) => ({
+            open: false,
+            openUp: false,
+            search: '',
+            rowIndex: config.rowIndex ?? 0,
+            options: Array.isArray(config.options) ? config.options.slice() : [],
+            selected: Array.isArray(config.selected) ? config.selected.slice() : [],
+            hydrating: false,
+            init() {
+                this.hydrateFromWire();
+            },
+            get filtered() {
+                const query = String(this.search || '').trim().toLowerCase();
+                if (!query) {
+                    return this.options;
+                }
+
+                return this.options.filter((name) => String(name).toLowerCase().includes(query));
+            },
+            get visibleChips() {
+                return this.selected.slice(0, 8);
+            },
+            get hiddenCount() {
+                return Math.max(0, this.selected.length - 8);
+            },
+            isSelected(name) {
+                return this.selected.includes(name);
+            },
+            toggleOpen() {
+                this.open = !this.open;
+                if (this.open) {
+                    this.hydrateFromWire();
+                    this.$nextTick(() => this.decideDirection());
+                }
+            },
+            decideDirection() {
+                const rect = this.$el.getBoundingClientRect();
+                this.openUp = (window.innerHeight - rect.bottom) < 320;
+            },
+            toggle(name) {
+                if (this.isSelected(name)) {
+                    this.selected = this.selected.filter((item) => item !== name);
+                } else {
+                    this.selected = this.selected.concat([name]);
+                }
+                this.sync();
+            },
+            selectAll() {
+                this.selected = this.options.slice();
+                this.sync();
+            },
+            clearAll() {
+                this.selected = [];
+                this.search = '';
+                this.sync();
+            },
+            sync() {
+                if (this.$wire) {
+                    this.$wire.setWalkInParameters(this.rowIndex, this.selected.slice());
+                }
+            },
+            applySelectedFromWire() {
+                if (!this.$wire) {
+                    return;
+                }
+
+                const raw = this.$wire.get(`formData.parameters.${this.rowIndex}`);
+                if (Array.isArray(raw)) {
+                    this.selected = raw.map((value) => String(value));
+                } else if (raw !== null && raw !== undefined && raw !== '') {
+                    this.selected = [String(raw)];
+                } else {
+                    this.selected = [];
+                }
+            },
+            async hydrateFromWire() {
+                if (!this.$wire || this.hydrating) {
+                    return;
+                }
+
+                this.hydrating = true;
+                try {
+                    this.applySelectedFromWire();
+
+                    const state = await this.$wire.walkInParameterPickerState(this.rowIndex);
+                    if (state && Array.isArray(state.options)) {
+                        this.options = state.options.map((value) => String(value));
+                    }
+                    if (state && Array.isArray(state.selected)) {
+                        this.selected = state.selected.map((value) => String(value));
+                    }
+                } catch (error) {
+                    this.applySelectedFromWire();
+                } finally {
+                    this.hydrating = false;
+                }
+            },
+        }));
+
         (function () {
             const modalSelector = '#schedule-sampling-form-modal';
             let listenersBound = false;
