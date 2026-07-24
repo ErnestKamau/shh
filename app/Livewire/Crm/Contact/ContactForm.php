@@ -8,7 +8,8 @@ use App\Models\CRM\CRMCustomer;
 use Livewire\Attributes\On;
 use App\Livewire\Crm\BaseCrmComponent;
 use App\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -275,91 +276,116 @@ class ContactForm extends BaseCrmComponent
         $previousContactEmail = null;
 
         if ($this->can_login) {
-            $existingUser = User::where('email', $this->email)->first();
-            if ($existingUser && ! $wasEditing) {
+            $existingUser = User::whereRaw('LOWER(TRIM(email)) = ?', [$emailNormalized])->first();
+            if ($existingUser && ! $wasEditing && (int) $existingUser->is_client !== 1) {
                 $this->showError('There is already a user with the given email!');
                 return;
             }
         }
 
-        if (! $this->contactId) {
-            $this->checkPermission('crm.components.contacts.add');
-            $contact = new CustomerContact();
-        } else {
-            $this->checkPermission('crm.components.contacts.edit');
-            $contact = CustomerContact::find($this->contactId);
-            $previousContactEmail = $contact?->email;
-        }
+        try {
+            DB::beginTransaction();
 
-        if (! $contact) {
-            $this->showError('Contact not found.');
+            if (! $this->contactId) {
+                $this->checkPermission('crm.components.contacts.add');
+                $contact = new CustomerContact();
+            } else {
+                $this->checkPermission('crm.components.contacts.edit');
+                $contact = CustomerContact::find($this->contactId);
+                $previousContactEmail = $contact?->email;
+            }
+
+            if (! $contact) {
+                DB::rollBack();
+                $this->showError('Contact not found.');
+                return;
+            }
+
+            $contact->first_name = $this->first_name;
+            $contact->middle_name = $this->second_name;
+            $contact->last_name = $this->third_name;
+            $contact->job_occupation = $this->job_occupation;
+            $contact->unit_name = implode(",", $this->unit_name);
+            $contact->email = $this->email;
+            $contact->telephone = $this->telephone;
+            $contact->mobile = $this->mobile;
+            $contact->company_id = $this->getUserCompany();
+            $contact->crm_customer_id = $this->customerId;
+
+            // Cast back to integer
+            $contact->receive_price_list = $this->receive_price_list ? 1 : 0;
+            $contact->receive_invoice = $this->receive_invoice ? 1 : 0;
+            $contact->receive_report = $this->receive_report ? 1 : 0;
+            $contact->receive_feedback = $this->receive_feedback ? 1 : 0;
+            $contact->active = $this->active ? 1 : 0;
+            $contact->can_login = $this->can_login ? 1 : 0;
+
+            $contact->other_customers = is_array($this->other_customers) ? implode(',', $this->other_customers) : '';
+
+            $contact->save();
+
+            if (! $this->can_login) {
+                User::deactivatePortalUsersForCustomerContact(
+                    $contact,
+                    (string) $this->customerId,
+                    $previousContactEmail
+                );
+            }
+
+            if ($this->can_login) {
+                $user = User::whereRaw('LOWER(TRIM(email)) = ?', [$emailNormalized])->first() ?? new User();
+
+                $user->name = trim(implode(' ', array_filter([
+                    trim((string) $this->first_name),
+                    trim((string) $this->second_name),
+                    trim((string) $this->third_name),
+                ], fn (string $part): bool => $part !== '')));
+                $user->first_name = (string) $this->first_name;
+                $user->middle_name = (string) $this->second_name;
+                $user->last_name = (string) $this->third_name;
+
+                if ($this->password) {
+                    $user->password = bcrypt($this->password);
+                } elseif (! $user->exists) {
+                    throw new \RuntimeException('Password is required when creating portal access.');
+                }
+
+                $user->email = $this->email;
+                $user->company_id = $this->getUserCompany();
+                $user->is_client = 1;
+                $user->client_id = (string) $this->customerId;
+                $user->crm_contact_id = $contact->id;
+                $user->crmcontact_id = $contact->id;
+                $user->active = 1;
+
+                $user->save();
+
+                // Send welcome email only on new contact creation (not when editing credentials)
+                if ($this->password && ! $wasEditing) {
+                    $recipientName  = trim($user->name);
+                    $recipientEmail = $user->email;
+                    $plainPassword  = $this->password;
+
+                    dispatch(function () use ($recipientName, $recipientEmail, $plainPassword) {
+                        Mail::to($recipientEmail)->send(
+                            new ContactWelcomeMail($recipientName, $recipientEmail, $plainPassword)
+                        );
+                    })->afterResponse();
+                }
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('ContactForm: failed saving contact with portal access', [
+                'customer_id' => $this->customerId,
+                'email' => $this->email,
+                'can_login' => $this->can_login,
+                'error' => $e->getMessage(),
+            ]);
+            $this->showError('Could not save contact'.($this->can_login ? ' with portal access: ' : ': ').$e->getMessage());
+
             return;
-        }
-
-        $contact->first_name = $this->first_name;
-        $contact->middle_name = $this->second_name;
-        $contact->last_name = $this->third_name;
-        $contact->job_occupation = $this->job_occupation;
-        $contact->unit_name = implode(",", $this->unit_name);
-        $contact->email = $this->email;
-        $contact->telephone = $this->telephone;
-        $contact->mobile = $this->mobile;
-        $contact->company_id = $this->getUserCompany();
-        $contact->crm_customer_id = $this->customerId;
-        
-        // Cast back to integer
-        $contact->receive_price_list = $this->receive_price_list ? 1 : 0;
-        $contact->receive_invoice = $this->receive_invoice ? 1 : 0;
-        $contact->receive_report = $this->receive_report ? 1 : 0;
-        $contact->receive_feedback = $this->receive_feedback ? 1 : 0;
-        $contact->active = $this->active ? 1 : 0;
-        $contact->can_login = $this->can_login ? 1 : 0;
-        
-        $contact->other_customers = is_array($this->other_customers) ? implode(',', $this->other_customers) : '';
-
-        $contact->save();
-
-        if (! $this->can_login) {
-            User::deactivatePortalUsersForCustomerContact(
-                $contact,
-                (string) $this->customerId,
-                $previousContactEmail
-            );
-        }
-
-        if ($this->can_login) {
-            $user = User::where('email', $this->email)->first() ?? new User();
-            
-            // If it is a new user or we are updating, we update the fields
-            $user->name = $this->first_name . " " . $this->second_name . " " . $this->third_name;
-            
-            // Only update password if provided
-            if ($this->password) {
-                 $user->password = bcrypt($this->password);
-            }
-           
-            $user->email = $this->email;
-            $user->company_id = $this->getUserCompany();
-            $user->is_client = 1;
-            $user->client_id = (string) $this->customerId;
-            $user->crm_contact_id = $contact->id;
-            $user->crmcontact_id = $contact->id;
-            $user->active = 1;
-
-            $user->save();
-
-            // Send welcome email only on new contact creation (not when editing credentials)
-            if ($this->password && ! $wasEditing) {
-                $recipientName  = trim($user->name);
-                $recipientEmail = $user->email;
-                $plainPassword  = $this->password;
-
-                dispatch(function () use ($recipientName, $recipientEmail, $plainPassword) {
-                    Mail::to($recipientEmail)->send(
-                        new ContactWelcomeMail($recipientName, $recipientEmail, $plainPassword)
-                    );
-                })->afterResponse();
-            }
         }
 
         $successMessage = $wasEditing ? 'Contact edited successfully!' : 'Contact added successfully!';

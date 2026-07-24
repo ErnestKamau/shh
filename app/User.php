@@ -84,7 +84,8 @@ class User extends Authenticatable implements Auditable
 		'designation' => SafeEncrypted::class,
 		'date_of_birth' => SafeEncrypted::class,
 		'id_number' => SafeEncrypted::class,
-		'name' => SafeEncrypted::class,
+		// Display/join column: keep plaintext (varchar-safe). Decrypt any legacy ciphertext on read.
+		'name' => \App\Casts\PlaintextWithLegacyDecrypt::class,
 		'first_name' => SafeEncrypted::class,
 		'middle_name' => SafeEncrypted::class,
 		'last_name' => SafeEncrypted::class,
