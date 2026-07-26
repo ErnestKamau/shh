@@ -419,52 +419,50 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">{{ __('crm.fax') }}</label>
-                                        <input type="text" wire:model="customerForm.fax" class="form-control" placeholder="{{ __('crm.fax_number_placeholder') }}">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
                                         <label class="form-label fw-bold">{{ __('crm.vat_number') }}</label>
                                         <input type="text" wire:model="customerForm.vat_no" class="form-control" placeholder="{{ __('crm.vat_number_placeholder') }}">
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
-                                        <input type="number" wire:model="customerForm.credit_days" class="form-control" placeholder="{{ __('crm.credit_days_placeholder') }}">
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">{{ __('crm.customer_logo') }}</label>
+                                <input type="file" wire:model="logoFile" class="form-control" accept="image/*,.svg">
+                                @error('logoFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                <div wire:loading wire:target="logoFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                                <small class="text-muted d-block mt-1">{{ __('crm.customer_logo_help') }}</small>
+                                @if($logoFile)
+                                    <div class="mt-2">
+                                        @php
+                                            $logoExt = strtolower((string) $logoFile->getClientOriginalExtension());
+                                            $canPreviewLogo = ! in_array($logoExt, ['svg'], true);
+                                        @endphp
+                                        @if($canPreviewLogo)
+                                            <img src="{{ $logoFile->temporaryUrl() }}" alt="Logo preview" style="max-height:64px;max-width:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;">
+                                        @else
+                                            <small class="text-muted">{{ $logoFile->getClientOriginalName() }}</small>
+                                        @endif
                                     </div>
-                                </div>
+                                @elseif($existingLogoUrl)
+                                    <div class="mt-2 d-flex align-items-center" style="gap:12px;">
+                                        <img src="{{ $existingLogoUrl }}" alt="Customer logo" style="max-height:64px;max-width:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeCustomerLogo">
+                                            {{ __('crm.remove_logo') }}
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
 
                             <hr class="my-3">
 
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Customer Type <span class="text-danger">*</span></label>
-                                <div class="d-flex flex-wrap" style="gap: 1.25rem;">
-                                    <div class="form-check">
-                                        <input type="radio" wire:model.live="customerForm.engagement_type" class="form-check-input" id="engagement_contract" value="contract">
-                                        <label class="form-check-label" for="engagement_contract">Contract</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input type="radio" wire:model.live="customerForm.engagement_type" class="form-check-input" id="engagement_portal" value="portal">
-                                        <label class="form-check-label" for="engagement_portal">Portal</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input type="radio" wire:model.live="customerForm.engagement_type" class="form-check-input" id="engagement_walk_in" value="walk_in">
-                                        <label class="form-check-label" for="engagement_walk_in">Walk-in</label>
-                                    </div>
-                                </div>
-                                @error('customerForm.engagement_type') <span class="text-danger">{{ $message }}</span> @enderror
-                                @if(($customerForm['engagement_type'] ?? '') === 'portal')
-                                    <small class="text-muted d-block mt-1">Portal access is granted on customer contacts.</small>
-                                @endif
+                            <div class="form-check mb-3">
+                                <input type="checkbox" wire:model.live="customerForm.has_contract" class="form-check-input" id="has_contract">
+                                <label class="form-check-label fw-bold" for="has_contract">
+                                    Has contract?
+                                </label>
                             </div>
 
-                            @if(in_array($customerForm['engagement_type'] ?? '', ['contract', 'portal'], true))
+                            @if($customerForm['has_contract'] ?? false)
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
@@ -483,75 +481,29 @@
                                 </div>
 
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">
-                                        Contract Document
-                                        @if(($customerForm['engagement_type'] ?? '') === 'contract' && ! $editingCustomer && ! $hasExistingContractAttachment)
-                                            <span class="text-danger">*</span>
-                                        @endif
-                                    </label>
-                                    <input type="file" wire:model="contractFile" class="form-control" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg">
+                                    <label class="form-label fw-bold">Contract Document</label>
+                                    <input type="file" wire:model="contractFile" class="form-control">
                                     @error('contractFile') <span class="text-danger">{{ $message }}</span> @enderror
                                     <div wire:loading wire:target="contractFile" class="text-muted small mt-1">Uploading...</div>
+                                    <small class="text-muted d-block mt-1">Any document type up to 20 MB.</small>
                                     @if($hasExistingContractAttachment && ! $contractFile)
-                                        <small class="text-muted d-block mt-1">A contract document is already on file. Upload a new file to add another.</small>
+                                        <small class="text-muted d-block mt-1">A contract document is already on file. Upload a new file to replace it on the next save.</small>
                                     @endif
-                                </div>
-
-                                <div class="form-check mb-3">
-                                    <input type="checkbox" wire:model="customerForm.requires_sampling" class="form-check-input" id="requires_sampling">
-                                    <label class="form-check-label" for="requires_sampling">
-                                        Requires Sampling?
-                                    </label>
-                                </div>
-                            @endif
-
-                            @if(($customerForm['engagement_type'] ?? '') === 'walk_in')
-                                <div class="form-check mb-3">
-                                    <input type="checkbox" wire:model="customerForm.is_one_time" class="form-check-input" id="is_one_time">
-                                    <label class="form-check-label" for="is_one_time">
-                                        One-time customer?
-                                    </label>
-                                </div>
-                            @endif
-
-                            @if(count($duplicateMatches) > 0)
-                                <div class="alert alert-warning">
-                                    <strong>Possible duplicate customer(s) found.</strong>
-                                    Create was blocked. Open an existing customer instead.
-                                    <ul class="list-unstyled mb-0 mt-2">
-                                        @foreach($duplicateMatches as $match)
-                                            <li class="d-flex justify-content-between align-items-center border-bottom py-2">
-                                                <div>
-                                                    <div class="fw-semibold">{{ $match['name'] }}</div>
-                                                    <small class="text-muted">
-                                                        {{ $match['email'] ?? '—' }}
-                                                        @if(!empty($match['telephone1']))
-                                                            · {{ $match['telephone1'] }}
-                                                        @endif
-                                                        @if(!empty($match['engagement_type']))
-                                                            · {{ str_replace('_', '-', $match['engagement_type']) }}
-                                                        @endif
-                                                    </small>
-                                                </div>
-                                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openExistingCustomer('{{ $match['id'] }}')">
-                                                    Open
-                                                </button>
-                                            </li>
-                                        @endforeach
-                                    </ul>
                                 </div>
                             @endif
 
                             <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input type="checkbox" wire:model="customerForm.active" class="form-check-input" id="active">
-                                        <label class="form-check-label" for="active">
-                                            Is Active?
-                                        </label>
+                                @if($editingCustomer)
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input type="checkbox" wire:model="customerForm.active" class="form-check-input" id="active">
+                                            <label class="form-check-label" for="active">
+                                                Is Active?
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
+                                @endif
+                                <div class="{{ $editingCustomer ? 'col-md-6' : 'col-md-12' }}">
                                     <div class="form-check">
                                         <input type="checkbox" wire:model="customerForm.lpos_required" class="form-check-input" id="lpos">
                                         <label class="form-check-label" for="lpos">

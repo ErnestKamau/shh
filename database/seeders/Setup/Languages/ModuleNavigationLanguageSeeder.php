@@ -458,12 +458,41 @@ class ModuleNavigationLanguageSeeder extends Seeder
             'planner' => [
                 'module_name' => ['en' => 'System Planner', 'sw' => 'Mpangaji wa Mfumo', 'pt' => 'Planejador do Sistema', 'ar' => 'مخطط النظام'],
                 'dashboard' => ['en' => 'Dashboard', 'sw' => 'Dashibodi', 'pt' => 'Painel', 'ar' => 'لوحة التحكم'],
-                'schedule_sampling' => ['en' => 'Schedule Sampling', 'sw' => 'Panga Sampuli', 'pt' => 'Agendar Amostragem', 'ar' => 'جدولة أخذ العينات'],
+                'dashboard_subtitle' => ['en' => 'Overview of sampling schedules, collections, KPIs, and tasks', 'sw' => 'Muhtasari wa ratiba za sampuli, mikusanyo, KPI, na kazi', 'pt' => 'Visão geral de agendas de amostragem, coletas, KPIs e tarefas', 'ar' => 'نظرة عامة على جداول أخذ العينات والمجمعات ومؤشرات الأداء والمهام'],
+                'schedule_sampling' => ['en' => 'Sampling Schedule', 'sw' => 'Ratiba ya Sampuli', 'pt' => 'Agenda de Amostragem', 'ar' => 'جدول أخذ العينات'],
+                'sampling_schedule' => ['en' => 'Sampling Schedule', 'sw' => 'Ratiba ya Sampuli', 'pt' => 'Agenda de Amostragem', 'ar' => 'جدول أخذ العينات'],
+                'fill_sampling_forms' => ['en' => 'Fill Sampling Forms', 'sw' => 'Jaza Fomu za Sampuli', 'pt' => 'Preencher Formulários de Amostragem', 'ar' => 'تعبئة نماذج أخذ العينات'],
+                'fill_form' => ['en' => 'Fill form', 'sw' => 'Jaza fomu', 'pt' => 'Preencher formulário', 'ar' => 'تعبئة النموذج'],
+                'fill_sampling_forms_subtitle' => ['en' => 'Fill sampling forms for scheduled collections', 'sw' => 'Jaza fomu za sampuli kwa mikusanyo iliyopangwa', 'pt' => 'Preencha formulários de amostragem para coletas agendadas', 'ar' => 'عبّئ نماذج أخذ العينات للمجموعات المجدولة'],
+                'new_sampling_schedule' => ['en' => 'New Sampling Schedule', 'sw' => 'Ratiba Mpya ya Sampuli', 'pt' => 'Nova Agenda de Amostragem', 'ar' => 'جدول أخذ عينات جديد'],
+                'calendar' => ['en' => 'Calendar', 'sw' => 'Kalenda', 'pt' => 'Calendário', 'ar' => 'التقويم'],
                 'actual_collections' => ['en' => 'Actual Collections', 'sw' => 'Mikusanyo Halisi', 'pt' => 'Coletas Reais', 'ar' => 'الجمع الفعلي'],
                 'kpi_reports' => ['en' => 'KPI Reports', 'sw' => 'Ripoti za KPI', 'pt' => 'Relatórios de KPI', 'ar' => 'تقارير مؤشرات الأداء'],
                 'tasks' => ['en' => 'Tasks', 'sw' => 'Kazi', 'pt' => 'Tarefas', 'ar' => 'المهام'],
                 'sampling_schedules' => ['en' => 'Sampling Schedules', 'sw' => 'Ratiba za Sampuli', 'pt' => 'Agendas de Amostragem', 'ar' => 'جداول أخذ العينات'],
                 'sampling_schedules_subtitle' => ['en' => 'Plan and coordinate sampling runs for CRM customers', 'sw' => 'Panga na uratibu safari za sampuli kwa wateja wa CRM', 'pt' => 'Planeje e coordene coletas de amostras para clientes do CRM', 'ar' => 'خطط ونسق جولات أخذ العينات لعملاء إدارة علاقات العملاء'],
+                'upcoming_7_days' => ['en' => 'Upcoming (7 days)', 'sw' => 'Zijazo (siku 7)', 'pt' => 'Próximas (7 dias)', 'ar' => 'القادمة (7 أيام)'],
+                'overdue_schedules' => ['en' => 'Overdue', 'sw' => 'Zimechelewa', 'pt' => 'Atrasadas', 'ar' => 'متأخرة'],
+                'open_tasks' => ['en' => 'Open Tasks', 'sw' => 'Kazi Funguliwa', 'pt' => 'Tarefas Abertas', 'ar' => 'المهام المفتوحة'],
+                'completed_tasks' => ['en' => 'Completed Tasks', 'sw' => 'Kazi Zilizokamilika', 'pt' => 'Tarefas Concluídas', 'ar' => 'المهام المكتملة'],
+                'last_30_days' => ['en' => 'Last 30 days', 'sw' => 'Siku 30 zilizopita', 'pt' => 'Últimos 30 dias', 'ar' => 'آخر 30 يوماً'],
+                'collection_status_30d' => ['en' => 'Collection status (30 days)', 'sw' => 'Hali ya ukusanyaji (siku 30)', 'pt' => 'Status de coleta (30 dias)', 'ar' => 'حالة الجمع (30 يوماً)'],
+                'schedules_by_frequency' => ['en' => 'Schedules by frequency', 'sw' => 'Ratiba kwa mzunguko', 'pt' => 'Agendas por frequência', 'ar' => 'الجداول حسب التكرار'],
+                'task_status_breakdown' => ['en' => 'Task status', 'sw' => 'Hali ya kazi', 'pt' => 'Status das tarefas', 'ar' => 'حالة المهام'],
+                'scheduled_vs_collected_trend' => ['en' => 'Scheduled vs collected (6 months)', 'sw' => 'Zilizopangwa dhidi ya zilizokusanywa (miezi 6)', 'pt' => 'Agendado vs coletado (6 meses)', 'ar' => 'المجدول مقابل المجمع (6 أشهر)'],
+                'quick_actions' => ['en' => 'Quick actions', 'sw' => 'Vitendo vya haraka', 'pt' => 'Ações rápidas', 'ar' => 'إجراءات سريعة'],
+                'top_clients' => ['en' => 'Top clients by schedules', 'sw' => 'Wateja wakuu kwa ratiba', 'pt' => 'Principais clientes por agendas', 'ar' => 'أبرز العملاء حسب الجداول'],
+                'personnel_workload' => ['en' => 'Personnel workload', 'sw' => 'Mzigo wa wafanyakazi', 'pt' => 'Carga de trabalho do pessoal', 'ar' => 'عبء عمل الموظفين'],
+                'upcoming_schedules' => ['en' => 'Upcoming schedules', 'sw' => 'Ratiba zijazo', 'pt' => 'Agendas próximas', 'ar' => 'الجداول القادمة'],
+                'my_schedules' => ['en' => 'My Schedules', 'sw' => 'Ratiba Zangu', 'pt' => 'Minhas Agendas', 'ar' => 'جداولي'],
+                'my_schedules_subtitle' => ['en' => 'Sampling runs assigned to you', 'sw' => 'Safari za sampuli zilizokupwa', 'pt' => 'Coletas atribuídas a você', 'ar' => 'جولات أخذ العينات المسندة إليك'],
+                'samples_collected_progress' => ['en' => ':collected of :scheduled samples collected', 'sw' => 'Sampuli :collected kati ya :scheduled zimekusanywa', 'pt' => ':collected de :scheduled amostras coletadas', 'ar' => 'تم جمع :collected من :scheduled عينات'],
+                'recent_collections' => ['en' => 'Recent collections', 'sw' => 'Mikusanyo ya hivi karibuni', 'pt' => 'Coletas recentes', 'ar' => 'عمليات الجمع الأخيرة'],
+                'view_all' => ['en' => 'View all', 'sw' => 'Angalia zote', 'pt' => 'Ver tudo', 'ar' => 'عرض الكل'],
+                'no_upcoming_schedules' => ['en' => 'No upcoming schedules in the next 7 days.', 'sw' => 'Hakuna ratiba zijazo katika siku 7 zijazo.', 'pt' => 'Nenhuma agenda próxima nos próximos 7 dias.', 'ar' => 'لا توجد جداول قادمة خلال الأيام السبعة القادمة.'],
+                'no_overdue_schedules' => ['en' => 'No overdue schedules.', 'sw' => 'Hakuna ratiba zilizochelewa.', 'pt' => 'Nenhuma agenda atrasada.', 'ar' => 'لا توجد جداول متأخرة.'],
+                'no_recent_collections' => ['en' => 'No collections yet.', 'sw' => 'Bado hakuna mikusanyo.', 'pt' => 'Ainda não há coletas.', 'ar' => 'لا توجد عمليات جمع بعد.'],
+                'no_chart_data' => ['en' => 'No data to display.', 'sw' => 'Hakuna data ya kuonyesha.', 'pt' => 'Sem dados para exibir.', 'ar' => 'لا توجد بيانات للعرض.'],
                 'actual_collections_subtitle_all' => ['en' => 'All completed sampling collections for your organization', 'sw' => 'Mikusanyo yote ya sampuli yaliyokamilika kwa shirika lako', 'pt' => 'Todas as coletas de amostras concluídas para sua organização', 'ar' => 'جميع عمليات جمع العينات المكتملة لمؤسستك'],
                 'actual_collections_subtitle_assigned' => ['en' => 'Sampling collections assigned to you or submitted by you', 'sw' => 'Mikusanyo ya sampuli yaliyokupwa au uliyowasilisha', 'pt' => 'Coletas de amostras atribuídas a você ou enviadas por você', 'ar' => 'عمليات جمع العينات المسندة إليك أو المقدمة منك'],
                 'viewing_all_collections' => ['en' => 'Viewing all collections', 'sw' => 'Inaonyesha mikusanyo yote', 'pt' => 'Visualizando todas as coletas', 'ar' => 'عرض جميع عمليات الجمع'],
@@ -512,6 +541,7 @@ class ModuleNavigationLanguageSeeder extends Seeder
         ];
 
         $count = 0;
+        $touchedGroups = [];
 
         foreach ($groups as $group => $items) {
             foreach ($items as $key => $text) {
@@ -520,9 +550,23 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     ['text' => $text]
                 );
                 $count++;
+                $touchedGroups[$group] = true;
             }
         }
 
+        foreach (array_keys($touchedGroups) as $group) {
+            TranslationLanguageLine::flushGroupCacheForAllLocales($group);
+        }
+
+        // Spatie caches translation groups forever; clear app cache so production
+        // workers pick up newly seeded keys immediately.
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        } catch (\Throwable) {
+            // Ignore when cache clear is unavailable in constrained environments.
+        }
+
         $this->command?->info("Module navigation translations seeded: {$count} keys");
+        $this->command?->info('Translation cache flushed. If keys still show raw, run: php artisan cache:clear && php artisan view:clear');
     }
 }

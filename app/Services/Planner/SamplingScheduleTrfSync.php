@@ -5,6 +5,8 @@ namespace App\Services\Planner;
 use App\AnalysisElements;
 use App\Analyte;
 use App\AnalysisType;
+use App\Models\CRM\SamplePoint;
+use App\Models\CRM\CustomerContact;
 use App\Models\SamplingSchedule;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
@@ -12,6 +14,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -66,7 +69,27 @@ final class SamplingScheduleTrfSync
             $values['date_received'] = $schedule->sampling_datetime->format('Y-m-d');
         }
 
-        $location = trim((string) ($schedule->location ?? ''));
+        $location = '';
+        if (! empty($schedule->sample_point_id)) {
+            $location = (string) $schedule->sample_point_id;
+        } else {
+            $location = trim((string) ($schedule->location ?? ''));
+            if ($location !== '' && Str::isUuid($location) === false) {
+                // Keep legacy free-text for non-select fields; UUID fields get empty unless resolved.
+                $resolvedId = '';
+                if (! empty($schedule->crm_customer_id)) {
+                    $resolvedId = (string) (SamplePoint::query()
+                        ->where('crm_customer_id', $schedule->crm_customer_id)
+                        ->where('active', 1)
+                        ->where('name', $location)
+                        ->value('id') ?? '');
+                }
+                if ($resolvedId !== '') {
+                    $location = $resolvedId;
+                }
+            }
+        }
+
         if ($location !== '') {
             $values['sampling_location'] = $location;
             $values['sampling_point'] = $location;
@@ -109,7 +132,108 @@ final class SamplingScheduleTrfSync
             $values['sampled_by'] = $personnelName;
         }
 
+        $customerValues = $this->customerFieldValuesFromSchedule($schedule);
+        foreach ($customerValues as $key => $value) {
+            if ($value !== '' && $value !== null) {
+                $values[$key] = $value;
+            }
+        }
+
         return $values;
+    }
+
+    /**
+     * Customer / contact fields for TRF templates (walk-in parity).
+     *
+     * @return array<string, string>
+     */
+    public function customerFieldValuesFromSchedule(SamplingSchedule $schedule): array
+    {
+        $schedule->loadMissing(['client', 'contact']);
+        $customer = $schedule->client;
+        if ($customer === null) {
+            return [];
+        }
+
+        $contact = $this->resolvePrimaryContact($schedule);
+        $contactName = '';
+        $contactId = '';
+        $contactMobile = '';
+        $contactEmail = '';
+        $contactPhone = '';
+
+        if ($contact !== null) {
+            $contactName = trim(implode(' ', array_filter([
+                (string) ($contact->first_name ?? ''),
+                (string) ($contact->middle_name ?? ''),
+                (string) ($contact->last_name ?? ''),
+            ])));
+            $contactId = (string) $contact->id;
+            $contactMobile = (string) ($contact->mobile ?? $contact->telephone ?? '');
+            $contactPhone = (string) ($contact->telephone ?? $contact->mobile ?? '');
+            $contactEmail = (string) ($contact->email ?? '');
+        }
+
+        $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
+        $telFax = (string) ($contactPhone !== '' ? $contactPhone : ($customer->telephone1 ?? $customer->telephone2 ?? ''));
+        $mobile = (string) ($contactMobile !== '' ? $contactMobile : ($customer->telephone2 ?? $customer->telephone1 ?? ''));
+        $email = (string) ($contactEmail !== '' ? $contactEmail : ($customer->email ?? ''));
+        $customerName = (string) ($customer->name ?? '');
+
+        return [
+            'customer_name' => $customerName,
+            'client_name' => $customerName,
+            'customer' => $customerName,
+            'client' => $customerName,
+            'customer_address' => $address,
+            'address' => $address,
+            'physical_address' => (string) ($customer->physical_address ?? ''),
+            'postal_address' => (string) ($customer->postal_address ?? ''),
+            'customer_phone' => $telFax,
+            'phone' => $telFax,
+            'telephone' => $telFax,
+            'phone_number' => $telFax,
+            'telephone_number' => $telFax,
+            'tel_fax_no' => $telFax,
+            'mobile_number' => $mobile,
+            'customer_email' => $email,
+            'email' => $email,
+            'email_address' => $email,
+            // Prefer contact UUID for select fields; name for free-text aliases.
+            'contact_person' => $contactId !== '' ? $contactId : $contactName,
+            'contact' => $contactName,
+            'contact_name' => $contactName,
+            'customer_representative_name' => $contactName,
+            'customer_rep_name' => $contactName,
+            'customer_representative_contact' => $mobile !== '' ? $mobile : $telFax,
+            'customer_rep_contact' => $mobile !== '' ? $mobile : $telFax,
+            'crm_customer_id' => (string) $customer->id,
+            'crm_contact_id' => $contactId,
+        ];
+    }
+
+    private function resolvePrimaryContact(SamplingSchedule $schedule): ?CustomerContact
+    {
+        if ($schedule->relationLoaded('contact') && $schedule->contact) {
+            return $schedule->contact;
+        }
+
+        $contactIds = $schedule->resolvedContactIds();
+        if ($contactIds !== []) {
+            return CustomerContact::query()->whereIn('id', $contactIds)->orderBy('first_name')->first();
+        }
+
+        if (! empty($schedule->contact_id)) {
+            return CustomerContact::query()->find($schedule->contact_id);
+        }
+
+        if ($schedule->client) {
+            $schedule->client->loadMissing('contacts');
+
+            return $schedule->client->contacts->first();
+        }
+
+        return null;
     }
 
     /**
@@ -127,9 +251,23 @@ final class SamplingScheduleTrfSync
         $submissionForm->loadMissing(['sections.elementHolders.elements']);
         $scheduleValues = $this->fieldValuesFromSchedule($schedule, $sampleTypeId);
 
+        // Also apply customer values even when the form uses alias keys not returned above.
+        foreach ($this->customerFieldValuesFromSchedule($schedule) as $name => $value) {
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            if (! array_key_exists($name, $scheduleValues)) {
+                $scheduleValues[$name] = $value;
+            }
+        }
+
         foreach ($scheduleValues as $name => $value) {
             $meta = $this->elementMeta($submissionForm, (string) $name);
             if ($meta === null) {
+                // Still set keys present in formData (walk-in style aliases).
+                if (array_key_exists($name, $formData) && ! $this->isFilledFormValue($formData[$name])) {
+                    $formData[$name] = $value;
+                }
                 continue;
             }
 
@@ -137,6 +275,26 @@ final class SamplingScheduleTrfSync
         }
 
         return $formData;
+    }
+
+    private function isFilledFormValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+        if (is_array($value)) {
+            if ($value === []) {
+                return false;
+            }
+            $first = $value[0] ?? null;
+
+            return ! ($first === null || $first === '' || $first === []);
+        }
+
+        return true;
     }
 
     /**
@@ -400,6 +558,17 @@ final class SamplingScheduleTrfSync
 
     private function resolvePersonnelName(SamplingSchedule $schedule): string
     {
+        $names = $schedule->personnelMembers()
+            ->pluck('name')
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($names !== []) {
+            return implode(', ', $names);
+        }
+
         $personnelId = trim((string) ($schedule->personnel_id ?? ''));
         if ($personnelId === '') {
             return '';

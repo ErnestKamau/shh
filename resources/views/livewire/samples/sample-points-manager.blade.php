@@ -255,14 +255,24 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: #f0f2f5;
-            border-radius: 12px;
-            padding: 2px 8px;
+            background: #e8d5d9;
+            color: #4a1520;
+            border: 1px solid #c49aa3;
+            border-radius: 999px;
+            padding: 3px 10px;
             font-size: 0.85rem;
+            font-weight: 600;
+            line-height: 1.3;
         }
 
         .tag-badge i {
             cursor: pointer;
+            color: #7a1f2b;
+            font-size: 1rem;
+        }
+
+        .tag-badge i:hover {
+            color: #4a1520;
         }
 
         .tag-dropdown {

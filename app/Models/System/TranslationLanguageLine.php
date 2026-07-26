@@ -27,15 +27,26 @@ class TranslationLanguageLine extends LanguageLine implements Auditable
     {
         $locales = Language::query()->active()->pluck('code')->all();
 
-        if ($locales === []) {
-            $locales = array_filter([
-                config('app.locale'),
-                config('app.fallback_locale'),
-            ]);
-        }
+        $locales = array_merge($locales, array_filter([
+            config('app.locale'),
+            config('app.fallback_locale'),
+            'en',
+            'sw',
+            'pt',
+            'ar',
+        ]));
+
+        $locales = array_values(array_unique(array_map(
+            static fn ($locale): string => strtolower(trim((string) $locale)),
+            $locales,
+        )));
 
         foreach ($locales as $locale) {
-            Cache::forget(static::getCacheKey($group, strtolower((string) $locale)));
+            if ($locale === '') {
+                continue;
+            }
+
+            Cache::forget(static::getCacheKey($group, $locale));
         }
     }
 }

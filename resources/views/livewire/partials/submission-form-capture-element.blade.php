@@ -110,6 +110,65 @@
             <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
         @endif
         @break
+    @case('client_contact_select')
+        <div class="d-flex align-items-center justify-content-between mb-1">
+            <span></span>
+            @if(method_exists($this, 'openWalkInAddContactModal') || method_exists($this, 'openAddSamplePointModal'))
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+                @if(method_exists($this, 'openWalkInAddContactModal'))
+                    wire:click="openWalkInAddContactModal"
+                @endif
+                title="Add customer contact">
+                <i class="mdi mdi-plus"></i>
+            </button>
+            @endif
+        </div>
+        <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
+            <option value="">Select contact person</option>
+            @foreach(($this->customerContacts ?? collect()) as $contact)
+                @php
+                    $contactLabel = is_array($contact)
+                        ? ($contact['name'] ?? 'Contact')
+                        : trim(implode(' ', array_filter([
+                            (string) ($contact->first_name ?? ''),
+                            (string) ($contact->middle_name ?? ''),
+                            (string) ($contact->last_name ?? ''),
+                        ])));
+                    $contactId = is_array($contact) ? ($contact['id'] ?? '') : $contact->id;
+                @endphp
+                <option value="{{ $contactId }}">{{ $contactLabel !== '' ? $contactLabel : 'Contact' }}</option>
+            @endforeach
+        </select>
+        @break
+    @case('customer_sample_point_select')
+    @case('sample_point_select')
+        <div class="d-flex align-items-center justify-content-between mb-1">
+            <span></span>
+            @if(method_exists($this, 'openWalkInAddPointModal'))
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+                wire:click="openWalkInAddPointModal(@js($name !== '' ? $name : 'sampling_location'), @js($rowIndex))"
+                title="Add sample point">
+                <i class="mdi mdi-plus"></i>
+            </button>
+            @elseif(method_exists($this, 'openAddSamplePointModal'))
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+                wire:click="openAddSamplePointModal('trf', @js($name !== '' ? $name : 'sampling_location'), @js($rowIndex))"
+                title="Add sample point">
+                <i class="mdi mdi-plus"></i>
+            </button>
+            @endif
+        </div>
+        <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
+            <option value="">Select sampling {{ $name === 'sampling_point' ? 'point' : 'location' }}</option>
+            @foreach(($this->customerSamplePoints ?? collect()) as $point)
+                @php
+                    $pointId = is_array($point) ? ($point['id'] ?? '') : $point->id;
+                    $pointLabel = is_array($point) ? ($point['name'] ?? $pointId) : $point->display_name;
+                @endphp
+                <option value="{{ $pointId }}">{{ $pointLabel }}</option>
+            @endforeach
+        </select>
+        @break
     @default
         @if($name === 'analysis_type_id')
             <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
@@ -128,6 +187,52 @@
             @if($this->parametersForRow($rowIndex)->isEmpty())
                 <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
             @endif
+        @elseif(in_array($name, ['sampling_location', 'sampling_point', 'location'], true))
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span></span>
+                @if(method_exists($this, 'openWalkInAddPointModal'))
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+                    wire:click="openWalkInAddPointModal(@js($name), @js($rowIndex))"
+                    title="Add sample point">
+                    <i class="mdi mdi-plus"></i>
+                </button>
+                @elseif(method_exists($this, 'openAddSamplePointModal'))
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+                    wire:click="openAddSamplePointModal('trf', @js($name), @js($rowIndex))"
+                    title="Add sample point">
+                    <i class="mdi mdi-plus"></i>
+                </button>
+                @endif
+            </div>
+            <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
+                <option value="">Select sampling {{ $name === 'sampling_point' ? 'point' : 'location' }}</option>
+                @foreach(($this->customerSamplePoints ?? collect()) as $point)
+                    @php
+                        $pointId = is_array($point) ? ($point['id'] ?? '') : $point->id;
+                        $pointLabel = is_array($point) ? ($point['name'] ?? $pointId) : $point->display_name;
+                    @endphp
+                    <option value="{{ $pointId }}">{{ $pointLabel }}</option>
+                @endforeach
+            </select>
+        @elseif($name === 'contact_person')
+            <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
+                <option value="">Select contact person</option>
+                @foreach(($this->customerContacts ?? collect()) as $contact)
+                    @php
+                        $contactLabel = is_array($contact)
+                            ? ($contact['name'] ?? 'Contact')
+                            : trim(implode(' ', array_filter([
+                                (string) ($contact->first_name ?? ''),
+                                (string) ($contact->middle_name ?? ''),
+                                (string) ($contact->last_name ?? ''),
+                            ])));
+                        $contactId = is_array($contact) ? ($contact['id'] ?? '') : $contact->id;
+                    @endphp
+                    <option value="{{ $contactId }}">{{ $contactLabel !== '' ? $contactLabel : 'Contact' }}</option>
+                @endforeach
+            </select>
+        @elseif($name === 'sampling_time')
+            <input type="time" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}" class="form-control form-control-sm">
         @else
             <input type="text" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}" class="form-control form-control-sm">
         @endif

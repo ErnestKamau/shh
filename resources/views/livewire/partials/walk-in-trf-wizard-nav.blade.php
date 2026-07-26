@@ -1,7 +1,16 @@
 @if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
     <div class="rft-wizard-nav d-flex align-items-center flex-wrap">
         @if ($pageMode ?? false)
-            <a href="{{ ($wizardOnly ?? false) ? route('sample-workflow.request-for-testing') : route('sample-workflow', ['status' => 'Samples Receiving']) }}" class="btn btn-sm btn-light">
+            @php
+                $cancelRoute = ($plannerMode ?? false)
+                    ? (($wizardOnly ?? false)
+                        ? route('system-planner.fill-sampling-forms')
+                        : route('system-planner.dashboard'))
+                    : (($wizardOnly ?? false)
+                        ? route('sample-workflow.request-for-testing')
+                        : route('sample-workflow', ['status' => 'Samples Receiving']));
+            @endphp
+            <a href="{{ $cancelRoute }}" class="btn btn-sm btn-light">
                 Cancel
             </a>
         @else
@@ -49,7 +58,7 @@
             >
                 <span wire:loading.remove wire:target="confirmReceive">
                     <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                    Submit
+                    {{ ($plannerMode ?? false) ? 'Submit sampling form' : 'Submit' }}
                 </span>
                 <span wire:loading wire:target="confirmReceive">
                     <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

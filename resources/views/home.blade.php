@@ -550,7 +550,7 @@
 
         @if(isSystemModuleVisible('calendar'))
         @can('calendar.module.access')
-        <a class="app-card calendar" href="/full-calendar/view" data-app="calendar">
+        <a class="app-card calendar" href="{{ route('system-planner.dashboard') }}" data-app="calendar">
             <div class="app-icon" style="background: linear-gradient(135deg, #FFC107, #FF8F00);">
                 <i class="mdi mdi-calendar"></i>
             </div>

@@ -76,7 +76,7 @@
         
         <div class="detail-row">
             <span class="detail-label">Location:</span>
-            <span class="detail-value">{{ $schedule->location ?? 'N/A' }}</span>
+            <span class="detail-value">{{ $schedule->locationDisplayName() }}</span>
         </div>
         
         <div class="detail-row">
@@ -91,7 +91,7 @@
         
         <div class="detail-row">
             <span class="detail-label">Personnel:</span>
-            <span class="detail-value">{{ $schedule->personnel->name ?? 'N/A' }}</span>
+            <span class="detail-value">{{ $personnelNames ?? ($schedule->personnelNames() ?? ($schedule->personnel->name ?? 'N/A')) }}</span>
         </div>
         
         @if($schedule->description)

@@ -65,19 +65,41 @@
                     </div>
 
                     <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">{{ __('crm.fax_number') }}:</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control @error('fax') is-invalid @enderror" wire:model="fax" placeholder="{{ __('crm.fax') }}...">
-                            @error('fax') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    <div class="form-group row">
                         <label class="col-sm-4 col-form-label">{{ __('crm.website_url') }}:</label>
                         <div class="col-sm-8">
                             <input type="text" class="form-control @error('website') is-invalid @enderror"
                                 wire:model="website" placeholder="https://...">
                             @error('website') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.customer_logo') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="file" class="form-control @error('logoFile') is-invalid @enderror"
+                                wire:model="logoFile" accept="image/*,.svg">
+                            @error('logoFile') <span class="text-danger small">{{ $message }}</span> @enderror
+                            <div wire:loading wire:target="logoFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                            <small class="text-muted d-block mt-1">{{ __('crm.customer_logo_help') }}</small>
+                            @if($logoFile)
+                                @php
+                                    $logoExt = strtolower((string) $logoFile->getClientOriginalExtension());
+                                @endphp
+                                @if(! in_array($logoExt, ['svg'], true))
+                                    <img src="{{ $logoFile->temporaryUrl() }}" alt="Logo preview" class="mt-2"
+                                         style="max-height:48px;max-width:140px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:3px;background:#fff;">
+                                @else
+                                    <small class="text-muted d-block mt-1">{{ $logoFile->getClientOriginalName() }}</small>
+                                @endif
+                            @elseif($customer->logoUrl())
+                                <div class="mt-2 d-flex align-items-center" style="gap:10px;">
+                                    <img src="{{ $customer->logoUrl() }}" alt="{{ $customer->name }}"
+                                         style="max-height:48px;max-width:140px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:3px;background:#fff;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeLogo">
+                                        {{ __('crm.remove_logo') }}
+                                    </button>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -140,15 +162,6 @@
                         </div>
                     </div>
 
-                    <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">{{ __('crm.credit_days') }}:</label>
-                        <div class="col-sm-8">
-                            <input type="number" class="form-control @error('credit_days') is-invalid @enderror"
-                                wire:model="credit_days" placeholder="0">
-                            @error('credit_days') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
                     @if(data_get($account_settings, 'id'))
                         <div class="form-group row">
                             <label class="col-sm-4 col-form-label">{{ __('crm.account_setting') }}:</label>
@@ -201,10 +214,6 @@
                                 <input class="form-check-input" type="checkbox" wire:model="lpos_required" id="lpoCheck">
                                 <label class="form-check-label" for="lpoCheck">{{ __('crm.lpo_required_label') }}</label>
                             </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" wire:model="is_internal" id="internalCheck">
-                                <label class="form-check-label" for="internalCheck">{{ __('crm.internal') }}</label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -256,15 +265,22 @@
                             <td>{{ $customer->telephone2 ?: '—' }}</td>
                         </tr>
                         <tr>
-                            <th>{{ __('crm.fax') }}:</th>
-                            <td>{{ $customer->fax ?: '—' }}</td>
-                        </tr>
-                        <tr>
                             <th>{{ __('crm.website') }}:</th>
                             <td>
                                 @if($customer->website)
                                     <a href="{{ $customer->website }}" target="_blank"
                                     class="text-dark">{{ $customer->website }}</a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.customer_logo') }}:</th>
+                            <td>
+                                @if($customer->logoUrl())
+                                    <img src="{{ $customer->logoUrl() }}" alt="{{ $customer->name }}"
+                                         style="max-height:48px;max-width:140px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:3px;background:#fff;">
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif
@@ -292,10 +308,6 @@
                             <td>{{ $customer->postal_address ?: '—' }}</td>
                         </tr>
                         <tr>
-                            <th>{{ __('crm.credit_terms_days') }}:</th>
-                            <td>{{ $customer->credit_days ?? '—' }}</td>
-                        </tr>
-                        <tr>
                             <th>{{ __('crm.account_status') }}:</th>
                             <td>
                                 @if($customer->active == 1)
@@ -312,16 +324,6 @@
                                     <span class="crm-badge crm-badge-warning">{{ __('crm.required') }}</span>
                                 @else
                                     <span class="crm-badge crm-badge-neutral">{{ __('crm.not_required') }}</span>
-                                @endif
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>{{ __('crm.client_type') }}:</th>
-                            <td>
-                                @if($customer->is_internal ?? false)
-                                    <span class="crm-badge crm-badge-info">{{ __('crm.internal') }}</span>
-                                @else
-                                    <span class="crm-badge crm-badge-neutral">{{ __('crm.external') }}</span>
                                 @endif
                             </td>
                         </tr>

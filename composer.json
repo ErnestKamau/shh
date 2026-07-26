@@ -68,7 +68,8 @@
         },
         "classmap": [
             "database/seeds",
-            "database/factories"
+            "database/factories",
+            "app/Livewire/CRM"
         ],
         "exclude-from-classmap": [
             "Modules/*/Database/Migrations/*"

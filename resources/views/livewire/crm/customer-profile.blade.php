@@ -33,25 +33,8 @@
                             </h2>
                             <p class="text-muted mb-0">{{ $customer->code }} | {{ $customer->email }}</p>
                             <div class="mt-2 d-flex flex-wrap gap-2">
-                                @php
-                                    $engagementLabels = [
-                                        'contract' => 'Contract',
-                                        'portal' => 'Portal',
-                                        'walk_in' => 'Walk-in',
-                                    ];
-                                    $engagementType = $customer->engagement_type ?? null;
-                                @endphp
-                                @if($engagementType && isset($engagementLabels[$engagementType]))
-                                    <span class="badge badge-info-modern">{{ $engagementLabels[$engagementType] }}</span>
-                                @endif
-                                @if($customer->requires_sampling)
-                                    <span class="badge bg-warning text-dark">Requires Sampling</span>
-                                @endif
-                                @if($customer->is_one_time)
-                                    <span class="badge bg-secondary">One-time</span>
-                                @endif
-                                @if($engagementType === 'portal')
-                                    <span class="badge bg-light text-dark border">Portal access via contacts</span>
+                                @if($customer->has_contract)
+                                    <span class="badge badge-info-modern">Has Contract</span>
                                 @endif
                             </div>
                         </div>
@@ -580,16 +563,37 @@
                                                 </div>
                                                 <div class="info-value">
                                                     @php
-                                                        $contractDocs = $customer->contractAttachments ?? collect();
+                                                        $contractDocs = ($customer->contracts ?? collect())
+                                                            ->filter(fn ($contract) => filled($contract->file_path));
+                                                        $legacyContractDocs = ($customer->contractAttachments ?? collect())
+                                                            ->filter(fn ($attachment) => filled($attachment->file_path));
                                                     @endphp
-                                                    @if($contractDocs->isEmpty())
+                                                    @if($contractDocs->isEmpty() && $legacyContractDocs->isEmpty())
                                                         <span class="text-muted">No contract documents uploaded</span>
                                                     @else
                                                         <ul class="list-unstyled mb-0">
-                                                            @foreach($contractDocs as $attachment)
+                                                            @foreach($contractDocs as $contract)
+                                                                <li class="d-flex justify-content-between align-items-center py-1">
+                                                                    <span>
+                                                                        {{ $contract->original_name ?: 'Contract' }}
+                                                                        @if($contract->is_current)
+                                                                            <span class="badge bg-success ms-1">Current</span>
+                                                                        @endif
+                                                                        @if($contract->created_at)
+                                                                            <small class="text-muted">({{ $contract->created_at->format('d-M-Y') }})</small>
+                                                                        @endif
+                                                                    </span>
+                                                                    <a href="{{ route('crm.customer.contract.download', [$customer->id, $contract->id]) }}"
+                                                                       class="btn btn-sm btn-outline-primary">
+                                                                        <i class="mdi mdi-download"></i> Download
+                                                                    </a>
+                                                                </li>
+                                                            @endforeach
+                                                            @foreach($legacyContractDocs as $attachment)
                                                                 <li class="d-flex justify-content-between align-items-center py-1">
                                                                     <span>
                                                                         {{ $attachment->title ?: 'Contract' }}
+                                                                        <small class="text-muted">(legacy)</small>
                                                                         @if($attachment->created_at)
                                                                             <small class="text-muted">({{ $attachment->created_at->format('d-M-Y') }})</small>
                                                                         @endif

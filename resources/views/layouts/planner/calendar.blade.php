@@ -1,7 +1,7 @@
 @extends('layouts.planner.layout.app', ['dataTable' => true, 'select2' => true])
 
 @section('title2')
-<title>Sample Planner - Calendar</title>
+<title>System Planner - Calendar</title>
 @endsection
 
 @section('content2')
@@ -9,7 +9,7 @@
     <?php
     $items = array(
         array(
-            'link' => route('full-calendar'),
+            'link' => route('system-planner.dashboard'),
             'name' => 'System Planner',
             'icon' => null
         ),

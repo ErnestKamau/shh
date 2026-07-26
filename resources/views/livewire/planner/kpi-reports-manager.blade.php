@@ -511,11 +511,11 @@
                                         <i class="mdi mdi-check-circle"></i> {{ __('planner.collected') }}
                                     </span>
                                 @elseif($row['status'] === 'partial')
-                                    <span
+                                        <span
                                         class="kpi-badge kpi-badge-partial"
-                                        title="Collection started but fewer samples collected than scheduled ({{ $row['collected_samples'] }} of {{ $row['scheduled_samples'] }})"
+                                        title="{{ __('planner.samples_collected_progress', ['collected' => $row['collected_samples'], 'scheduled' => $row['scheduled_samples']]) }}"
                                     >
-                                        <i class="mdi mdi-alert-circle"></i> Partial
+                                        <i class="mdi mdi-alert-circle"></i> {{ __('planner.partial') }}
                                     </span>
                                 @else
                                     <span class="kpi-badge kpi-badge-pending">

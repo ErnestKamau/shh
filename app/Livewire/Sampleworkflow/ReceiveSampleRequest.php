@@ -6,10 +6,14 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
+use App\Models\SamplingSchedule;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormSection;
+use App\Services\Commercial\CommercialEnquirySyncService;
+use App\Services\Planner\SamplingScheduleCollectionProgress;
+use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Sampleworkflow\ReceivingLabMetadataService;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
@@ -77,9 +81,16 @@ class ReceiveSampleRequest extends Component
     /** When true, only the wizard is shown (dedicated fill page). */
     public bool $wizardOnly = false;
 
+    /** When true, use System Planner routes/wording and schedule-linked submit. */
+    public bool $plannerMode = false;
+
     public ?string $initialSampleTypeId = null;
 
-    /** Open Drafts / Today tab on the RFT list page. */
+    public ?string $initialScheduleId = null;
+
+    public ?string $selectedScheduleId = null;
+
+    /** Open Drafts / Today tab on the RFT list page (or pending/filled for planner). */
     public string $rftInstancesTab = 'today';
 
     public string $rftInstancesSearch = '';
@@ -91,13 +102,21 @@ class ReceiveSampleRequest extends Component
         array $selectedFormSummaries = [],
         bool $pageMode = false,
         bool $wizardOnly = false,
+        bool $plannerMode = false,
         ?string $initialSampleTypeId = null,
+        ?string $initialScheduleId = null,
     ): void {
         $this->pageMode = $pageMode;
         $this->wizardOnly = $wizardOnly;
+        $this->plannerMode = $plannerMode;
         $this->initialSampleTypeId = $initialSampleTypeId;
+        $this->initialScheduleId = $initialScheduleId;
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
         $this->selectedFormSummaries = $selectedFormSummaries;
+
+        if ($this->plannerMode) {
+            $this->rftInstancesTab = 'pending';
+        }
 
         $this->sampleTypes = \App\SampleType::orderBy('name')->get();
 
@@ -105,6 +124,10 @@ class ReceiveSampleRequest extends Component
             $this->selectedSampleTypeId = (string) $this->initialSampleTypeId;
             $this->lastSelectedSampleTypeId = (string) $this->initialSampleTypeId;
             $this->initializeFormDataForSampleType((string) $this->initialSampleTypeId);
+        }
+
+        if ($this->plannerMode && $this->initialScheduleId) {
+            $this->applyScheduleSelection((string) $this->initialScheduleId, forceSampleType: false);
         }
 
         // Auto-load form data if viewing an existing request
@@ -274,6 +297,10 @@ class ReceiveSampleRequest extends Component
                     return null;
                 }
 
+                $defaultDescription = $this->plannerMode
+                    ? 'Fill a sampling form for '.$sampleType->name.'.'
+                    : 'Capture a test request for '.$sampleType->name.'.';
+
                 return [
                     'sample_type_id' => (string) $sampleType->id,
                     'name' => (string) ($form->name ?: $sampleType->name),
@@ -282,8 +309,8 @@ class ReceiveSampleRequest extends Component
                     'sections_count' => $this->wizardStepCountForForm($form),
                     'description' => filled($form->description)
                         ? (string) $form->description
-                        : 'Capture a test request for '.$sampleType->name.'.',
-                    'icon' => 'mdi-flask-outline',
+                        : $defaultDescription,
+                    'icon' => $this->plannerMode ? 'mdi-clipboard-edit-outline' : 'mdi-flask-outline',
                 ];
             })
             ->filter()
@@ -307,7 +334,7 @@ class ReceiveSampleRequest extends Component
      */
     public function getRftInstancesProperty(): Collection
     {
-        if (! $this->pageMode || $this->wizardOnly) {
+        if (! $this->pageMode || $this->wizardOnly || $this->plannerMode) {
             return collect();
         }
 
@@ -347,15 +374,103 @@ class ReceiveSampleRequest extends Component
         return $query->limit(25)->get();
     }
 
+    /**
+     * Pending / recently filled sampling schedules for the planner fill page.
+     *
+     * @return Collection<int, SamplingSchedule>
+     */
+    public function getPlannerSchedulesProperty(): Collection
+    {
+        if (! $this->pageMode || $this->wizardOnly || ! $this->plannerMode) {
+            return collect();
+        }
+
+        $query = SamplingSchedule::query()
+            ->visibleTo()
+            ->with(['client', 'sample_type', 'submissionFormInstances.values.element'])
+            ->orderByDesc('sampling_datetime');
+
+        if ($this->rftInstancesTab === 'filled') {
+            $query->where('is_collected', true)
+                ->where(function ($q): void {
+                    $q->whereDate('updated_at', today())
+                        ->orWhereDate('sampling_datetime', today());
+                });
+        } else {
+            // Pending + partial (not yet fully collected)
+            $query->where(function ($q): void {
+                $q->where('is_collected', false)->orWhereNull('is_collected');
+            });
+        }
+
+        $search = trim($this->rftInstancesSearch);
+        if ($search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('location', 'like', '%'.$search.'%')
+                    ->orWhereHas('client', function ($customerQuery) use ($search): void {
+                        $customerQuery->where('name', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        return $query->limit(25)->get();
+    }
+
+    /**
+     * Schedules available to link on the planner wizard for the selected sample type.
+     *
+     * @return Collection<int, SamplingSchedule>
+     */
+    public function getPlannerScheduleOptionsProperty(): Collection
+    {
+        if (! $this->plannerMode || ! $this->selectedSampleTypeId) {
+            return collect();
+        }
+
+        $sampleTypeId = (string) $this->selectedSampleTypeId;
+
+        return SamplingSchedule::query()
+            ->visibleTo()
+            ->with(['client'])
+            ->where(function ($q): void {
+                $q->where('is_collected', false)->orWhereNull('is_collected');
+            })
+            ->orderBy('sampling_datetime')
+            ->limit(100)
+            ->get()
+            ->filter(function (SamplingSchedule $schedule) use ($sampleTypeId): bool {
+                if ((string) ($schedule->sample_type_id ?? '') === $sampleTypeId) {
+                    return true;
+                }
+
+                foreach ((array) ($schedule->sample_details ?? []) as $entry) {
+                    if ((string) ($entry['sample_type_id'] ?? '') === $sampleTypeId) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->take(50)
+            ->values();
+    }
+
     public function setRftInstancesTab(string $tab): void
     {
+        if ($this->plannerMode) {
+            $this->rftInstancesTab = in_array($tab, ['pending', 'filled'], true) ? $tab : 'pending';
+
+            return;
+        }
+
         $this->rftInstancesTab = in_array($tab, ['open', 'today'], true) ? $tab : 'open';
     }
 
     public function clearRftInstanceFilters(): void
     {
         $this->rftInstancesSearch = '';
-        $this->rftInstancesTab = 'today';
+        $this->rftInstancesTab = $this->plannerMode ? 'pending' : 'today';
     }
 
     public function deleteRftDraft(string $instanceId): void
@@ -371,8 +486,12 @@ class ReceiveSampleRequest extends Component
     public function startWalkInForSampleType(string $sampleTypeId): void
     {
         if ($this->pageMode && ! $this->wizardOnly) {
+            $route = $this->plannerMode
+                ? 'system-planner.fill-sampling-forms.fill'
+                : 'sample-workflow.request-for-testing.fill';
+
             $this->redirect(
-                route('sample-workflow.request-for-testing.fill', ['sampleType' => $sampleTypeId]),
+                route($route, ['sampleType' => $sampleTypeId]),
                 navigate: false,
             );
 
@@ -382,18 +501,110 @@ class ReceiveSampleRequest extends Component
         $this->selectedSampleTypeId = $sampleTypeId;
     }
 
+    public function startFillForSchedule(string $scheduleId): void
+    {
+        if (! $this->plannerMode) {
+            return;
+        }
+
+        $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($scheduleId);
+        $sampleTypeId = $this->resolveSampleTypeIdFromSchedule($schedule);
+        if ($sampleTypeId === null) {
+            $this->dispatch('notify', type: 'error', message: 'This schedule has no sample type. Edit the schedule first.');
+
+            return;
+        }
+
+        $this->redirect(
+            route('system-planner.fill-sampling-forms.fill', [
+                'sampleType' => $sampleTypeId,
+                'schedule' => $schedule->id,
+            ]),
+            navigate: false,
+        );
+    }
+
     public function clearSelectedSampleType(): void
     {
         if ($this->wizardOnly) {
-            $this->redirect(route('sample-workflow.request-for-testing'), navigate: false);
+            $hubRoute = $this->plannerMode
+                ? 'system-planner.fill-sampling-forms'
+                : 'sample-workflow.request-for-testing';
+            $this->redirect(route($hubRoute), navigate: false);
 
             return;
         }
 
         $this->selectedSampleTypeId = null;
         $this->lastSelectedSampleTypeId = null;
+        $this->selectedScheduleId = null;
         $this->formData = [];
         $this->walkInActiveStepIndex = 0;
+    }
+
+    public function updatedSelectedScheduleId(?string $value): void
+    {
+        if (! $this->plannerMode) {
+            return;
+        }
+
+        if ($value === null || trim($value) === '') {
+            $this->selectedScheduleId = null;
+
+            return;
+        }
+
+        $this->applyScheduleSelection((string) $value, forceSampleType: true);
+    }
+
+    private function applyScheduleSelection(string $scheduleId, bool $forceSampleType = false): void
+    {
+        $schedule = SamplingSchedule::query()->visibleTo()->find($scheduleId);
+        if ($schedule === null) {
+            $this->selectedScheduleId = null;
+
+            return;
+        }
+
+        $this->selectedScheduleId = (string) $schedule->id;
+
+        $sampleTypeId = $this->resolveSampleTypeIdFromSchedule($schedule);
+        if ($sampleTypeId !== null && ($forceSampleType || ! $this->selectedSampleTypeId)) {
+            $this->selectedSampleTypeId = $sampleTypeId;
+            $this->lastSelectedSampleTypeId = $sampleTypeId;
+            $this->initializeFormDataForSampleType($sampleTypeId);
+        }
+
+        $submissionForm = $this->submissionForm;
+        if ($submissionForm === null || ! $this->selectedSampleTypeId) {
+            return;
+        }
+
+        $this->formData = app(SamplingScheduleTrfSync::class)->mergeIntoFormData(
+            $this->formData,
+            $schedule,
+            (string) $this->selectedSampleTypeId,
+            $submissionForm,
+        );
+
+        $this->dispatch('submission-form-reinit-signatures');
+        $this->dispatch('trf-reinit-signatures');
+        $this->dispatch('trf-reset-all-parameter-selects');
+    }
+
+    private function resolveSampleTypeIdFromSchedule(SamplingSchedule $schedule): ?string
+    {
+        if (! empty($schedule->sample_type_id)) {
+            return (string) $schedule->sample_type_id;
+        }
+
+        foreach ((array) ($schedule->sample_details ?? []) as $entry) {
+            if (! empty($entry['sample_type_id'])) {
+                return (string) $entry['sample_type_id'];
+            }
+        }
+
+        return null;
     }
 
     public function toggleWalkInParameter(int $rowIndex, string $paramName): void
@@ -1527,6 +1738,14 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
+        if ($this->plannerMode && ($this->selectedScheduleId === null || trim((string) $this->selectedScheduleId) === '')) {
+            $message = 'Select a sampling schedule before submitting the sampling form.';
+            $this->addError('selectedScheduleId', $message);
+            $this->dispatch('notify', type: 'error', message: $message);
+
+            return;
+        }
+
         $this->prepareLabUseFields();
 
         $user = Auth::user();
@@ -1549,6 +1768,32 @@ class ReceiveSampleRequest extends Component
             }
         }
 
+        $schedule = null;
+        if ($this->plannerMode && $this->selectedScheduleId) {
+            $schedule = SamplingSchedule::query()->visibleTo()->find($this->selectedScheduleId);
+            if ($schedule === null) {
+                $message = 'The selected sampling schedule could not be found.';
+                $this->addError('selectedScheduleId', $message);
+                $this->dispatch('notify', type: 'error', message: $message);
+
+                return;
+            }
+
+            if ($schedule->crm_customer_id) {
+                $crmCustomerId = (string) $schedule->crm_customer_id;
+            }
+
+            $submissionFormForPrefill = $this->submissionForm;
+            if ($submissionFormForPrefill !== null && $this->selectedSampleTypeId) {
+                $this->formData = app(SamplingScheduleTrfSync::class)->mergeIntoFormData(
+                    $this->formData,
+                    $schedule,
+                    (string) $this->selectedSampleTypeId,
+                    $submissionFormForPrefill,
+                );
+            }
+        }
+
         $payload = $this->walkInSubmissionPayload();
 
         $submissionForm = $this->submissionForm;
@@ -1557,15 +1802,32 @@ class ReceiveSampleRequest extends Component
         }
 
         try {
+            DB::beginTransaction();
+
             $instance = app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
                 $submissionForm,
                 $payload,
                 $crmCustomerId !== null ? (string) $crmCustomerId : null,
                 (string) $this->selectedSampleTypeId,
+                $this->plannerMode
+                    ? CommercialEnquirySyncService::SOURCE_SCHEDULED
+                    : CommercialEnquirySyncService::SOURCE_WALK_IN,
+                $schedule?->id !== null ? (string) $schedule->id : null,
             );
+
+            if ($schedule !== null) {
+                $schedule->refresh();
+                $schedule->load('submissionFormInstances.values.element');
+                $progress = app(SamplingScheduleCollectionProgress::class)->refresh($schedule);
+            }
+
+            DB::commit();
         } catch (\Throwable $exception) {
+            DB::rollBack();
             report($exception);
-            $message = 'Could not submit walk-in request. '.$exception->getMessage();
+            $message = $this->plannerMode
+                ? 'Could not submit sampling form. '.$exception->getMessage()
+                : 'Could not submit walk-in request. '.$exception->getMessage();
             $this->addError('selection', $message);
             $this->dispatch('notify', type: 'error', message: $message);
 
@@ -1574,10 +1836,28 @@ class ReceiveSampleRequest extends Component
 
         $this->lastGeneratedSfiIds = [$instance->id];
 
-        session()->flash('success', 'Walk-in test request submitted successfully.');
+        $successMessage = $this->plannerMode
+            ? 'Sampling form submitted and linked to the schedule successfully.'
+            : 'Walk-in test request submitted successfully.';
+        if ($this->plannerMode && isset($progress)) {
+            $successMessage = $progress['is_complete']
+                ? 'Sampling form submitted. All '.$progress['scheduled'].' scheduled sample(s) are now collected.'
+                : 'Sampling form submitted. Collection progress: '.$progress['label'].' (partial until complete).';
+        }
+
+        session()->flash(
+            'success',
+            $successMessage,
+        );
         $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds);
 
         if ($this->pageMode) {
+            if ($this->plannerMode) {
+                $this->redirect(route('system-planner.fill-sampling-forms'), navigate: false);
+
+                return;
+            }
+
             $this->redirect(route('sample-workflow', ['status' => 'Samples Receiving']).'?tab=submitted', navigate: false);
 
             return;
@@ -2085,7 +2365,9 @@ class ReceiveSampleRequest extends Component
             'submissionForm' => $this->submissionForm,
             'walkInSections' => $this->walkInSections,
             'formTypeCards' => $this->pageMode ? $this->formTypeCards : collect(),
-            'rftInstances' => $this->pageMode && ! $this->wizardOnly ? $this->rftInstances : collect(),
+            'rftInstances' => $this->pageMode && ! $this->wizardOnly && ! $this->plannerMode ? $this->rftInstances : collect(),
+            'plannerSchedules' => $this->pageMode && ! $this->wizardOnly && $this->plannerMode ? $this->plannerSchedules : collect(),
+            'plannerScheduleOptions' => $this->plannerMode && $this->wizardOnly ? $this->plannerScheduleOptions : collect(),
         ]);
     }
 

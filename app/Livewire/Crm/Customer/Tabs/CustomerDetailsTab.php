@@ -3,9 +3,14 @@
 namespace App\Livewire\Crm\Customer\Tabs;
 
 use App\Livewire\Crm\BaseCrmComponent;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Livewire\WithFileUploads;
 
 class CustomerDetailsTab extends BaseCrmComponent
 {
+    use WithFileUploads;
+
     public $customer;
     public $isEditing = false;
     public $countries = [];
@@ -31,6 +36,8 @@ class CustomerDetailsTab extends BaseCrmComponent
     public $accountSearch = '';
     public $showCountryDropdown = false;
     public $showAccountDropdown = false;
+
+    public $logoFile = null;
 
     public function mount($customer)
     {
@@ -63,11 +70,13 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->lpos_required = (bool) $this->customer->lpos_required;
         $this->is_internal = (bool) ($this->customer->is_internal ?? false);
         $this->account_status = $this->customer->account_status;
+        $this->logoFile = null;
     }
 
     public function cancel()
     {
         $this->isEditing = false;
+        $this->logoFile = null;
         $this->resetValidation();
     }
 
@@ -155,6 +164,7 @@ class CustomerDetailsTab extends BaseCrmComponent
             'lpos_required' => 'boolean',
             'is_internal' => 'boolean',
             'account_status' => 'nullable|exists:system_configurations,id',
+            'logoFile' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
         ];
     }
 
@@ -179,10 +189,54 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->customer->is_internal = $this->is_internal ? 1 : 0;
         $this->customer->account_status = $this->account_status;
 
+        if ($this->logoFile) {
+            $this->storeCustomerLogo();
+        }
+
         $this->customer->save();
+        $this->customer = $this->customer->fresh(['country']);
 
         $this->showSuccess('Customer updated successfully.');
         $this->isEditing = false;
+        $this->logoFile = null;
+        $this->dispatch('customer-updated');
+    }
+
+    public function removeLogo(): void
+    {
+        $this->checkPermission('crm.components.customer-list.edit');
+
+        if (filled($this->customer->logo)) {
+            $relative = ltrim(preg_replace('#^/storage/#', '', (string) $this->customer->logo), '/');
+            if ($relative !== '' && Storage::disk('public')->exists($relative)) {
+                Storage::disk('public')->delete($relative);
+            }
+            $this->customer->logo = null;
+            $this->customer->save();
+            $this->customer = $this->customer->fresh(['country']);
+        }
+
+        $this->logoFile = null;
+        $this->dispatch('customer-updated');
+        $this->showSuccess(__('crm.logo_removed'));
+    }
+
+    protected function storeCustomerLogo(): void
+    {
+        $previousRelative = null;
+        if (filled($this->customer->logo)) {
+            $previousRelative = ltrim(preg_replace('#^/storage/#', '', (string) $this->customer->logo), '/');
+        }
+
+        $extension = strtolower((string) $this->logoFile->getClientOriginalExtension());
+        $storedName = (string) Str::uuid() . ($extension !== '' ? '.' . $extension : '.png');
+        $path = $this->logoFile->storeAs('crm-customer-logos', $storedName, 'public');
+
+        $this->customer->logo = '/storage/' . $path;
+
+        if ($previousRelative && $previousRelative !== $path && Storage::disk('public')->exists($previousRelative)) {
+            Storage::disk('public')->delete($previousRelative);
+        }
     }
 
     public function render()

@@ -122,6 +122,7 @@ class CustomerProfile extends Component
             'units.sample_points',
             'contacts',
             'contractAttachments',
+            'contracts',
         ])->findOrFail($this->customerId);
         
         $this->loadCustomerForm();

@@ -23,6 +23,7 @@ class CRMCustomer extends Model implements Auditable
 	protected $casts = [
 		'report_columns_config' => 'array',
 		'is_internal' => 'boolean',
+		'has_contract' => 'boolean',
 		'requires_sampling' => 'boolean',
 		'is_one_time' => 'boolean',
 		'quotation_acceptance_tat_minutes' => 'integer',
@@ -39,6 +40,25 @@ class CRMCustomer extends Model implements Auditable
 	public function country(){
     return $this->belongsTo('App\Country');
 	}
+
+  public function logoUrl(): ?string
+  {
+      if (! filled($this->logo)) {
+          return null;
+      }
+
+      $logo = (string) $this->logo;
+
+      if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://')) {
+          return $logo;
+      }
+
+      if (str_starts_with($logo, '/storage/')) {
+          return $logo;
+      }
+
+      return '/storage/' . ltrim($logo, '/');
+  }
 
   public function units(){
     return $this->hasMany('App\Models\CRM\CRMCompanyUnit', 'crm_customer_id');
@@ -135,6 +155,20 @@ class CRMCustomer extends Model implements Auditable
   public function documentAttachments()
   {
       return $this->hasMany(CrmCustomerAttachment::class, 'crm_customer_id');
+  }
+
+  public function contracts()
+  {
+      return $this->hasMany(CrmCustomerContract::class, 'crm_customer_id')
+          ->orderByDesc('created_at');
+  }
+
+  public function currentContract()
+  {
+      // Avoid latestOfMany(): it aggregates MAX(id) and fails on PostgreSQL UUID PKs.
+      return $this->hasOne(CrmCustomerContract::class, 'crm_customer_id')
+          ->where('is_current', true)
+          ->latest('created_at');
   }
 
   public function contractAttachments()

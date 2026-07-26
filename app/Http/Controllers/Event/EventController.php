@@ -213,6 +213,11 @@ class EventController extends Controller
         $events = Event::all();
         return response()->json($events);
     }
+    public function dashboard()
+    {
+        return view('layouts.planner.dashboard');
+    }
+
     public function index()
     {
         Event::where('status', 'Upcoming')
@@ -385,7 +390,13 @@ class EventController extends Controller
 
     public function getEventByUser(Request $request)
     {
-        $raw_data = Event::where('responsible_id', auth()->user()->id)
+        $raw_data = Event::where(function ($query) {
+                $userId = (string) auth()->user()->id;
+                $query->where('responsible_id', $userId)
+                    ->orWhere('responsible_id', 'like', $userId.',%')
+                    ->orWhere('responsible_id', 'like', '%,'.$userId.',%')
+                    ->orWhere('responsible_id', 'like', '%,'.$userId);
+            })
             ->where('status', '!=', 'Pending')
             ->where(function($query) {
                 $query->whereNull('parent_id')
@@ -730,6 +741,37 @@ class EventController extends Controller
     public function scheduleSamplingIndex()
     {
         return view('layouts.planner.schedule_sampling');
+    }
+
+    public function fillSamplingFormsIndex()
+    {
+        return view('layouts.planner.fill_sampling_forms');
+    }
+
+    public function fillSamplingFormsFill(string $sampleType)
+    {
+        $exists = \App\SampleType::query()->whereKey($sampleType)->exists();
+        if (! $exists) {
+            abort(404, 'Sample type not found.');
+        }
+
+        $scheduleId = request()->query('schedule');
+        if ($scheduleId !== null && $scheduleId !== '') {
+            $scheduleExists = \App\Models\SamplingSchedule::query()
+                ->visibleTo()
+                ->whereKey($scheduleId)
+                ->exists();
+            if (! $scheduleExists) {
+                abort(404, 'Sampling schedule not found.');
+            }
+        } else {
+            $scheduleId = null;
+        }
+
+        return view('layouts.planner.fill_sampling_forms_fill', [
+            'sampleTypeId' => $sampleType,
+            'scheduleId' => $scheduleId,
+        ]);
     }
 
     public function actualCollectionsIndex()

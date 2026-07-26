@@ -9,6 +9,8 @@ use App\Models\SamplingSchedule;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
+use App\Services\Planner\SamplingScheduleVisibility;
+use App\Services\Planner\SamplingScheduleCollectionProgress;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -17,6 +19,7 @@ final class PlannerKpiReportService
 {
     public function __construct(
         private readonly SubmissionFormValueNormalizer $valueNormalizer,
+        private readonly SamplingScheduleCollectionProgress $collectionProgress,
     ) {}
 
     /**
@@ -119,6 +122,8 @@ final class PlannerKpiReportService
         $query = SamplingSchedule::query()
             ->where('company_id', $companyId);
 
+        SamplingScheduleVisibility::constrain($query);
+
         if (! empty($filters['search'])) {
             $term = '%'.$filters['search'].'%';
             $query->where(function (Builder $searchQuery) use ($term): void {
@@ -210,7 +215,9 @@ final class PlannerKpiReportService
         }
 
         $scheduled = $this->extractScheduledInfo($schedule, $lookup);
+        $progress = $this->collectionProgress->progress($schedule);
         $collected = $this->extractCollectedInfo($schedule, $lookup);
+        $collected['samples_count'] = $progress['collected'];
         $client = $schedule->client;
         $contact = $schedule->contact;
 
@@ -229,7 +236,7 @@ final class PlannerKpiReportService
             ->sortDesc()
             ->first();
 
-        $status = $this->resolveCollectionStatus($schedule, $scheduled, $collected);
+        $status = $progress['status'];
 
         return [
             'schedule_id' => $schedule->id,
@@ -253,11 +260,12 @@ final class PlannerKpiReportService
             'scheduled_parameters' => $scheduled['parameters'],
             'collected_categories' => $collected['categories'],
             'collected_details' => $collected['details'],
-            'collected_samples' => $collected['samples_count'],
+            'collected_samples' => $progress['collected'],
             'collected_parameters' => $collected['parameters'],
-            'collected_at' => $collectedAt?->format('Y-m-d H:i') ?? ($schedule->is_collected ? $schedule->updated_at?->format('Y-m-d H:i') : null),
+            'collection_progress' => $progress['label'],
+            'collected_at' => $collectedAt?->format('Y-m-d H:i') ?? ($progress['is_complete'] ? $schedule->updated_at?->format('Y-m-d H:i') : null),
             'status' => $status,
-            'is_collected' => (bool) $schedule->is_collected,
+            'is_collected' => $progress['is_complete'],
         ];
     }
 
@@ -267,26 +275,7 @@ final class PlannerKpiReportService
      */
     private function resolveCollectionStatus(SamplingSchedule $schedule, array $scheduled, array $collected): string
     {
-        if (! $schedule->is_collected) {
-            return 'pending';
-        }
-
-        if ($schedule->submissionFormInstances->isEmpty()) {
-            return 'collected';
-        }
-
-        $scheduledCount = $scheduled['samples_count'];
-        $collectedCount = $collected['samples_count'];
-
-        if ($collectedCount <= 0) {
-            return 'partial';
-        }
-
-        if ($collectedCount < $scheduledCount) {
-            return 'partial';
-        }
-
-        return 'collected';
+        return $this->collectionProgress->status($schedule);
     }
 
     /**
@@ -360,30 +349,20 @@ final class PlannerKpiReportService
      */
     private function extractCollectedInfo(SamplingSchedule $schedule, array $lookup): array
     {
-        if (! $schedule->is_collected) {
-            return $this->emptyCollected();
-        }
-
         if ($schedule->submissionFormInstances->isEmpty()) {
-            return [
-                'categories' => 'Not recorded',
-                'details' => 'Not recorded',
-                'samples_count' => 0,
-                'parameters' => 'Not recorded',
-            ];
+            return $this->emptyCollected();
         }
 
         $categories = [];
         $details = [];
         $parameters = [];
-        $samplesCount = 0;
+        $samplesCount = $this->collectionProgress->collectedSamples($schedule);
 
         foreach ($schedule->submissionFormInstances as $instance) {
             $instanceData = $this->extractInstanceCollectedInfo($instance, $schedule, $lookup);
             $categories = array_merge($categories, $instanceData['category_names']);
             $details = array_merge($details, $instanceData['detail_names']);
             $parameters = array_merge($parameters, $instanceData['parameter_names']);
-            $samplesCount += $instanceData['samples_count'];
         }
 
         return [
