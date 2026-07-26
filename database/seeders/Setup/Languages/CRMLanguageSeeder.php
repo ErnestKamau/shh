@@ -619,6 +619,10 @@ class CRMLanguageSeeder extends Seeder
             'contract_created_previous_invalidated' => ['en' => 'New contract saved. Previous contract has been superseded.', 'sw' => 'Mkataba mpya umehifadhiwa. Mkataba wa awali umebatilishwa.'],
             'contract_save_failed' => ['en' => 'Could not save contract', 'sw' => 'Imeshindikana kuhifadhi mkataba'],
             'contract_end_after_start' => ['en' => 'Contract end date must be on or after the start date.', 'sw' => 'Tarehe ya mwisho ya mkataba lazima iwe sawa au baada ya tarehe ya kuanza.'],
+            'customer_logo' => ['en' => 'Customer Logo', 'sw' => 'Nembo ya Mteja'],
+            'customer_logo_help' => ['en' => 'Optional. JPG, PNG, GIF, WEBP, or SVG up to 5 MB.', 'sw' => 'Si lazima. JPG, PNG, GIF, WEBP, au SVG hadi MB 5.'],
+            'remove_logo' => ['en' => 'Remove logo', 'sw' => 'Ondoa nembo'],
+            'logo_removed' => ['en' => 'Customer logo removed.', 'sw' => 'Nembo ya mteja imeondolewa.'],
         ];
 
         $count = 0;

@@ -41,6 +41,25 @@ class CRMCustomer extends Model implements Auditable
     return $this->belongsTo('App\Country');
 	}
 
+  public function logoUrl(): ?string
+  {
+      if (! filled($this->logo)) {
+          return null;
+      }
+
+      $logo = (string) $this->logo;
+
+      if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://')) {
+          return $logo;
+      }
+
+      if (str_starts_with($logo, '/storage/')) {
+          return $logo;
+      }
+
+      return '/storage/' . ltrim($logo, '/');
+  }
+
   public function units(){
     return $this->hasMany('App\Models\CRM\CRMCompanyUnit', 'crm_customer_id');
   }

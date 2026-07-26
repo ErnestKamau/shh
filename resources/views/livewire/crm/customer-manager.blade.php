@@ -425,6 +425,34 @@
                                 </div>
                             </div>
 
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">{{ __('crm.customer_logo') }}</label>
+                                <input type="file" wire:model="logoFile" class="form-control" accept="image/*,.svg">
+                                @error('logoFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                <div wire:loading wire:target="logoFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                                <small class="text-muted d-block mt-1">{{ __('crm.customer_logo_help') }}</small>
+                                @if($logoFile)
+                                    <div class="mt-2">
+                                        @php
+                                            $logoExt = strtolower((string) $logoFile->getClientOriginalExtension());
+                                            $canPreviewLogo = ! in_array($logoExt, ['svg'], true);
+                                        @endphp
+                                        @if($canPreviewLogo)
+                                            <img src="{{ $logoFile->temporaryUrl() }}" alt="Logo preview" style="max-height:64px;max-width:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;">
+                                        @else
+                                            <small class="text-muted">{{ $logoFile->getClientOriginalName() }}</small>
+                                        @endif
+                                    </div>
+                                @elseif($existingLogoUrl)
+                                    <div class="mt-2 d-flex align-items-center" style="gap:12px;">
+                                        <img src="{{ $existingLogoUrl }}" alt="Customer logo" style="max-height:64px;max-width:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeCustomerLogo">
+                                            {{ __('crm.remove_logo') }}
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
+
                             <hr class="my-3">
 
                             <div class="form-check mb-3">

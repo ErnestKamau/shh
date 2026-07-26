@@ -5,6 +5,7 @@ namespace App\Services\Planner;
 use App\AnalysisElements;
 use App\Analyte;
 use App\AnalysisType;
+use App\Models\CRM\SamplePoint;
 use App\Models\SamplingSchedule;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
@@ -12,6 +13,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -66,7 +68,27 @@ final class SamplingScheduleTrfSync
             $values['date_received'] = $schedule->sampling_datetime->format('Y-m-d');
         }
 
-        $location = trim((string) ($schedule->location ?? ''));
+        $location = '';
+        if (! empty($schedule->sample_point_id)) {
+            $location = (string) $schedule->sample_point_id;
+        } else {
+            $location = trim((string) ($schedule->location ?? ''));
+            if ($location !== '' && Str::isUuid($location) === false) {
+                // Keep legacy free-text for non-select fields; UUID fields get empty unless resolved.
+                $resolvedId = '';
+                if (! empty($schedule->crm_customer_id)) {
+                    $resolvedId = (string) (SamplePoint::query()
+                        ->where('crm_customer_id', $schedule->crm_customer_id)
+                        ->where('active', 1)
+                        ->where('name', $location)
+                        ->value('id') ?? '');
+                }
+                if ($resolvedId !== '') {
+                    $location = $resolvedId;
+                }
+            }
+        }
+
         if ($location !== '') {
             $values['sampling_location'] = $location;
             $values['sampling_point'] = $location;
@@ -400,6 +422,17 @@ final class SamplingScheduleTrfSync
 
     private function resolvePersonnelName(SamplingSchedule $schedule): string
     {
+        $names = $schedule->personnelMembers()
+            ->pluck('name')
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($names !== []) {
+            return implode(', ', $names);
+        }
+
         $personnelId = trim((string) ($schedule->personnel_id ?? ''));
         if ($personnelId === '') {
             return '';

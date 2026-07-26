@@ -22,7 +22,7 @@ class SamplingScheduleNotification extends Mailable
      */
     public function __construct(SamplingSchedule $schedule)
     {
-        $this->schedule = $schedule->load(['client', 'contact', 'personnel']);
+        $this->schedule = $schedule->load(['client', 'contact', 'samplePoint', 'personnel']);
         
         $activeCompany = getActiveCompany();
         $this->companyName = $activeCompany->name ?? 'IMARA LIMS';
@@ -35,9 +35,18 @@ class SamplingScheduleNotification extends Mailable
      */
     public function build()
     {
-        $contactName = $this->schedule->contact 
-            ? trim(($this->schedule->contact->first_name ?? '') . ' ' . ($this->schedule->contact->last_name ?? ''))
-            : 'Valued Client';
+        $contacts = $this->schedule->contacts();
+        $contactName = $contacts->isNotEmpty()
+            ? $contacts->map(function ($contact) {
+                return trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+            })->filter()->implode(', ')
+            : ($this->schedule->contact
+                ? trim(($this->schedule->contact->first_name ?? '') . ' ' . ($this->schedule->contact->last_name ?? ''))
+                : 'Valued Client');
+
+        if ($contactName === '') {
+            $contactName = 'Valued Client';
+        }
 
         $subject = 'Sampling Scheduled: ' . $this->schedule->title;
 
@@ -48,6 +57,7 @@ class SamplingScheduleNotification extends Mailable
                         'contactName' => $contactName,
                         'schedule' => $this->schedule,
                         'companyName' => $this->companyName,
+                        'personnelNames' => $this->schedule->personnelNames(),
                     ]);
     }
 }

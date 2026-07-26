@@ -15,6 +15,7 @@ use App\ModulePreConfigs;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -49,6 +50,10 @@ class CustomerManager extends Component
     ];
 
     public $contractFile = null;
+
+    public $logoFile = null;
+
+    public ?string $existingLogoUrl = null;
 
     public bool $hasExistingContractAttachment = false;
 
@@ -117,6 +122,12 @@ class CustomerManager extends Component
                 'file',
                 'max:20480',
             ],
+            'logoFile' => [
+                'nullable',
+                'file',
+                'mimes:jpg,jpeg,png,gif,webp,svg',
+                'max:5120',
+            ],
         ];
 
         return $rules;
@@ -134,6 +145,8 @@ class CustomerManager extends Component
         'customerForm.account_status.in' => 'Please select a valid account setting from the list.',
         'customerForm.contract_valid_to.after_or_equal' => 'Contract validity end date must be on or after the start date.',
         'contractFile.max' => 'The contract file may not be greater than 20 MB.',
+        'logoFile.mimes' => 'The logo must be a JPG, PNG, GIF, WEBP, or SVG file.',
+        'logoFile.max' => 'The logo may not be greater than 5 MB.',
     ];
 
     public function mount()
@@ -453,6 +466,8 @@ class CustomerManager extends Component
         ];
 
         $this->contractFile = null;
+        $this->logoFile = null;
+        $this->existingLogoUrl = $customer->logoUrl();
         
         // Load data only when modal is opened to improve performance
         if (empty($this->countries)) {
@@ -561,6 +576,10 @@ class CustomerManager extends Component
 
             $customer->save();
 
+            if ($this->logoFile) {
+                $this->storeCustomerLogo($customer);
+            }
+
             if ($hasContract) {
                 $this->storeCustomerContract($customer);
             } else {
@@ -580,6 +599,49 @@ class CustomerManager extends Component
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    protected function storeCustomerLogo(CRMCustomer $customer): void
+    {
+        $previousRelative = null;
+        if (filled($customer->logo)) {
+            $previousRelative = ltrim(preg_replace('#^/storage/#', '', (string) $customer->logo), '/');
+        }
+
+        $extension = strtolower((string) $this->logoFile->getClientOriginalExtension());
+        $storedName = (string) Str::uuid() . ($extension !== '' ? '.' . $extension : '.png');
+        $path = $this->logoFile->storeAs('crm-customer-logos', $storedName, 'public');
+
+        $customer->logo = '/storage/' . $path;
+        $customer->save();
+
+        if ($previousRelative && $previousRelative !== $path && Storage::disk('public')->exists($previousRelative)) {
+            Storage::disk('public')->delete($previousRelative);
+        }
+    }
+
+    public function removeCustomerLogo(): void
+    {
+        if (! $this->editingCustomer) {
+            $this->logoFile = null;
+            $this->existingLogoUrl = null;
+
+            return;
+        }
+
+        $customer = $this->editingCustomer;
+        if (filled($customer->logo)) {
+            $relative = ltrim(preg_replace('#^/storage/#', '', (string) $customer->logo), '/');
+            if ($relative !== '' && Storage::disk('public')->exists($relative)) {
+                Storage::disk('public')->delete($relative);
+            }
+            $customer->logo = null;
+            $customer->save();
+        }
+
+        $this->logoFile = null;
+        $this->existingLogoUrl = null;
+        $this->editingCustomer = $customer->fresh();
     }
 
     protected function storeCustomerContract(CRMCustomer $customer): void
@@ -693,6 +755,8 @@ class CustomerManager extends Component
             'contract_valid_to' => '',
         ];
         $this->contractFile = null;
+        $this->logoFile = null;
+        $this->existingLogoUrl = null;
         $this->hasExistingContractAttachment = false;
         $this->editingCustomer = null;
     }

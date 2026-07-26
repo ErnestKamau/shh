@@ -72,6 +72,36 @@
                             @error('website') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
                     </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.customer_logo') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="file" class="form-control @error('logoFile') is-invalid @enderror"
+                                wire:model="logoFile" accept="image/*,.svg">
+                            @error('logoFile') <span class="text-danger small">{{ $message }}</span> @enderror
+                            <div wire:loading wire:target="logoFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                            <small class="text-muted d-block mt-1">{{ __('crm.customer_logo_help') }}</small>
+                            @if($logoFile)
+                                @php
+                                    $logoExt = strtolower((string) $logoFile->getClientOriginalExtension());
+                                @endphp
+                                @if(! in_array($logoExt, ['svg'], true))
+                                    <img src="{{ $logoFile->temporaryUrl() }}" alt="Logo preview" class="mt-2"
+                                         style="max-height:48px;max-width:140px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:3px;background:#fff;">
+                                @else
+                                    <small class="text-muted d-block mt-1">{{ $logoFile->getClientOriginalName() }}</small>
+                                @endif
+                            @elseif($customer->logoUrl())
+                                <div class="mt-2 d-flex align-items-center" style="gap:10px;">
+                                    <img src="{{ $customer->logoUrl() }}" alt="{{ $customer->name }}"
+                                         style="max-height:48px;max-width:140px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:3px;background:#fff;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeLogo">
+                                        {{ __('crm.remove_logo') }}
+                                    </button>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-md-6">
@@ -240,6 +270,17 @@
                                 @if($customer->website)
                                     <a href="{{ $customer->website }}" target="_blank"
                                     class="text-dark">{{ $customer->website }}</a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.customer_logo') }}:</th>
+                            <td>
+                                @if($customer->logoUrl())
+                                    <img src="{{ $customer->logoUrl() }}" alt="{{ $customer->name }}"
+                                         style="max-height:48px;max-width:140px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:3px;background:#fff;">
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif

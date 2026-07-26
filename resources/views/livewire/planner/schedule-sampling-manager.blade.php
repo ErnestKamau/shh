@@ -165,12 +165,13 @@
                             </td>
                             <td>
                                 {{ $s->client->name ?? 'N/A' }}
-                                @if($s->contact)
-                                <br><small class="text-muted">{{ trim(($s->contact->first_name ?? '').' '.($s->contact->last_name ?? '')) }}</small>
+                                @php $tableContacts = $s->contacts(); @endphp
+                                @if($tableContacts->isNotEmpty())
+                                <br><small class="text-muted">{{ $tableContacts->map(fn ($c) => trim(($c->first_name ?? '').' '.($c->last_name ?? '')))->filter()->implode(', ') }}</small>
                                 @endif
                             </td>
                             <td><span class="badge badge-light p-2 text-dark"><i class="mdi mdi-clock-outline text-primary mr-1"></i>{{ $s->sampling_datetime ? $s->sampling_datetime->format('Y-m-d H:i') : 'N/A' }}</span></td>
-                            <td><i class="mdi mdi-map-marker text-danger mr-1"></i>{{ $s->location }}</td>
+                            <td><i class="mdi mdi-map-marker text-danger mr-1"></i>{{ $s->locationDisplayName() }}</td>
                             <td>
                                 @php $details = $this->resolveSampleDetails($s); @endphp
                                 @foreach($details as $d)
@@ -182,7 +183,7 @@
                             </td>
                             <td class="text-center font-weight-bold">{{ $s->number_of_samples }}</td>
                             <td><span class="badge badge-outline-primary">{{ $s->frequency }}</span></td>
-                            <td><span class="badge badge-dark p-2"><i class="mdi mdi-account-tie mr-1"></i>{{ $s->personnel->name ?? 'N/A' }}</span></td>
+                            <td><span class="badge badge-dark p-2"><i class="mdi mdi-account-tie mr-1"></i>{{ $s->personnelNames() }}</span></td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center">
                                     <button wire:click="openScheduleFormModal('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--form" title="Fill Request Form"><i class="mdi mdi-file-document-edit"></i></button>
@@ -229,12 +230,20 @@
                     <div class="form-section-title"><i class="mdi mdi-account-outline"></i> Client Selection</div>
                     <div class="form-group">
                         <label class="font-weight-bold">Client / Customer Name <span class="text-danger">*</span></label>
-                        <select wire:model.live="form.crm_customer_id" class="form-control no-select2">
-                            <option value="">Select Customer</option>
-                            @foreach($clients as $c)
-                            <option value="{{ $c['id'] }}">{{ $c['name'] }}</option>
-                            @endforeach
-                        </select>
+                        <div wire:ignore wire:key="schedule-client-{{ $editingSchedule->id ?? 'create' }}">
+                            <select class="form-control no-select2"
+                                    x-data="scheduleSelect2Bridge({
+                                        model: 'form.crm_customer_id',
+                                        multiple: false,
+                                        placeholder: 'Search client...',
+                                        initial: @js($form['crm_customer_id'] ?: ''),
+                                    })">
+                                <option value="">Select Customer</option>
+                                @foreach($clients as $c)
+                                <option value="{{ $c['id'] }}">{{ $c['name'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         @error('form.crm_customer_id') <span class="text-danger small">{{ $message }}</span> @enderror
                     </div>
 
@@ -251,20 +260,40 @@
                     </div>
                     @endif
 
-                    @if(count($customerContacts) > 0)
-                    <div class="form-group">
+                    @if(!empty($form['crm_customer_id']))
+                    <div class="form-group" wire:key="schedule-contacts-{{ $form['crm_customer_id'] }}-{{ count($customerContactOptions) }}">
                         <label class="font-weight-bold">Customer Contact Personnel</label>
-                        <select wire:model.live="form.contact_id" class="form-control no-select2">
-                            <option value="">Select Contact</option>
-                            @foreach($customerContacts as $cc)
-                            <option value="{{ $cc['id'] }}">{{ $cc['name'] }}</option>
-                            @endforeach
-                        </select>
+                        @if(count($customerContactOptions) > 0)
+                        <div wire:ignore>
+                            <select class="form-control no-select2" multiple
+                                    x-data="scheduleSelect2Bridge({
+                                        model: 'form.contact_ids',
+                                        multiple: true,
+                                        placeholder: 'Search and select contacts...',
+                                        initial: @js(array_values(array_map('strval', $form['contact_ids'] ?? []))),
+                                    })">
+                                @foreach($customerContactOptions as $cc)
+                                <option value="{{ $cc['id'] }}">{{ $cc['name'] }}{{ !empty($cc['email']) ? ' — '.$cc['email'] : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <small class="text-muted">You can select more than one contact. Notify Client emails go to these contacts.</small>
+                        @else
+                        <p class="text-muted mb-1">No active contacts found for this customer.</p>
+                        @endif
+                        @error('form.contact_ids') <span class="text-danger small d-block">{{ $message }}</span> @enderror
                     </div>
-                    @if($selectedContactEmail || $selectedContactPhone)
-                    <div class="row">
-                        <div class="col-md-6"><div class="alert alert-light p-2 mb-2"><small class="text-muted d-block">Email</small><strong>{{ $selectedContactEmail }}</strong></div></div>
-                        <div class="col-md-6"><div class="alert alert-light p-2 mb-2"><small class="text-muted d-block">Phone</small><strong>{{ $selectedContactPhone }}</strong></div></div>
+                    @if(count($selectedContactsSummary) > 0)
+                    <div class="mb-3">
+                        @foreach($selectedContactsSummary as $summary)
+                        <div class="alert alert-light border p-2 mb-2" style="border-radius:8px;">
+                            <strong>{{ $summary['name'] }}</strong>
+                            <div class="d-flex flex-wrap" style="gap:12px;">
+                                <small class="text-muted">Email: <strong class="text-dark">{{ $summary['email'] ?: 'N/A' }}</strong></small>
+                                <small class="text-muted">Phone: <strong class="text-dark">{{ $summary['phone'] ?: 'N/A' }}</strong></small>
+                            </div>
+                        </div>
+                        @endforeach
                     </div>
                     @endif
                     @endif
@@ -278,9 +307,36 @@
                             @error('form.sampling_datetime') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
                         <div class="col-md-6 form-group">
-                            <label class="font-weight-bold">Location <span class="text-danger">*</span></label>
-                            <input type="text" wire:model="form.location" class="form-control" placeholder="Enter location/site">
-                            @error('form.location') <span class="text-danger small">{{ $message }}</span> @enderror
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <label class="font-weight-bold mb-0">Location (Sample Point) <span class="text-danger">*</span></label>
+                                <button type="button"
+                                        class="btn btn-xs btn-outline-primary py-0 px-2"
+                                        wire:click="openAddSamplePointModal('schedule')"
+                                        @disabled(empty($form['crm_customer_id']))
+                                        title="Add sample point">
+                                    <i class="mdi mdi-plus"></i>
+                                </button>
+                            </div>
+                            @if(!empty($form['crm_customer_id']))
+                            <div wire:ignore wire:key="schedule-sample-point-{{ $form['crm_customer_id'] }}-{{ count($customerSamplePointOptions) }}-{{ $form['sample_point_id'] ?: 'none' }}">
+                                <select class="form-control no-select2"
+                                        x-data="scheduleSelect2Bridge({
+                                            model: 'form.sample_point_id',
+                                            multiple: false,
+                                            placeholder: 'Search sample point...',
+                                            initial: @js($form['sample_point_id'] ?: ''),
+                                        })">
+                                    <option value="">Select sample point</option>
+                                    @foreach($customerSamplePointOptions as $point)
+                                    <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @else
+                            <input type="text" class="form-control bg-light" value="" placeholder="Select a customer first" disabled>
+                            @endif
+                            <small class="text-muted">Locations come from the customer's sample points.</small>
+                            @error('form.sample_point_id') <span class="text-danger small d-block">{{ $message }}</span> @enderror
                         </div>
                     </div>
 
@@ -318,22 +374,40 @@
                                 </div>
                             </div>
                             @if(!empty($entry['availableParameters']))
-                            <div class="form-group">
-                                <label class="font-weight-bold">Parameters / Analytes
-                                    <small class="text-muted font-weight-normal ml-1">({{ count($entry['parameters'] ?? []) }} selected)</small>
-                                </label>
-                                <div class="param-checkbox-list border rounded p-2" style="max-height:180px;overflow-y:auto;background:#fafbfc;">
-                                    @foreach($entry['availableParameters'] as $p)
-                                    <div class="form-check py-1 px-2 param-check-item" style="border-bottom:1px solid #f0f0f0;">
-                                        <input class="form-check-input" type="checkbox"
-                                            wire:model="sampleEntries.{{ $idx }}.parameters"
-                                            value="{{ $p['id'] }}"
-                                            id="param-{{ $idx }}-{{ $p['id'] }}">
-                                        <label class="form-check-label w-100 cursor-pointer" for="param-{{ $idx }}-{{ $p['id'] }}" style="cursor:pointer;">
-                                            {{ $p['name'] }}
-                                        </label>
+                            @php
+                                $selectedParamIds = array_values(array_unique(array_filter(array_map('strval', $entry['parameters'] ?? []))));
+                                $availableParamCount = count($entry['availableParameters']);
+                                $selectedParamCount = count($selectedParamIds);
+                            @endphp
+                            <div class="form-group mb-0 schedule-params-field"
+                                 wire:key="params-{{ $idx }}-{{ $entry['analysis_type_id'] }}">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="font-weight-bold mb-0">Parameters / Analytes
+                                        <small class="text-muted font-weight-normal ml-1 schedule-params-count">
+                                            ({{ $selectedParamCount }}/{{ $availableParamCount }} selected)
+                                        </small>
+                                    </label>
+                                    <div class="schedule-params-actions">
+                                        <button type="button" class="btn btn-link btn-sm p-0 mr-2 schedule-params-select-all" style="font-size:12px;">Select all</button>
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-danger schedule-params-clear" style="font-size:12px;">Clear</button>
                                     </div>
-                                    @endforeach
+                                </div>
+                                <div wire:ignore>
+                                    <select class="form-control no-select2 schedule-params-select"
+                                            multiple
+                                            data-placeholder="Search and select parameters..."
+                                            x-data="scheduleSelect2Bridge({
+                                                model: 'sampleEntries.{{ $idx }}.parameters',
+                                                multiple: true,
+                                                placeholder: 'Search and select parameters...',
+                                                initial: @js($selectedParamIds),
+                                                countSelector: '.schedule-params-count',
+                                                total: {{ $availableParamCount }},
+                                            })">
+                                        @foreach($entry['availableParameters'] as $p)
+                                        <option value="{{ $p['id'] }}">{{ $p['name'] }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                             </div>
                             @endif
@@ -350,7 +424,9 @@
                     <div class="row">
                         <div class="col-md-4 form-group">
                             <label class="font-weight-bold">No. of Samples</label>
-                            <input type="number" wire:model="form.number_of_samples" class="form-control" min="1" placeholder="Defaults to 1">
+                            <input type="number" class="form-control bg-light" value="{{ $form['number_of_samples'] }}" min="1" readonly
+                                   title="Automatically set from the number of sample entries added">
+                            <small class="text-muted">Auto-set from sample entries added above.</small>
                             @error('form.number_of_samples') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
                         <div class="col-md-4 form-group">
@@ -374,13 +450,21 @@
                     </div>
                     <div class="form-group">
                         <label class="font-weight-bold">Personnel Carrying Out Sampling <span class="text-danger">*</span></label>
-                        <select wire:model="form.personnel_id" class="form-control no-select2">
-                            <option value="">Select Personnel</option>
-                            @foreach($users as $u)
-                            <option value="{{ $u['id'] }}">{{ $u['name'] }}</option>
-                            @endforeach
-                        </select>
-                        @error('form.personnel_id') <span class="text-danger small">{{ $message }}</span> @enderror
+                        <div wire:ignore wire:key="schedule-personnel-{{ $editingSchedule->id ?? 'create' }}">
+                            <select class="form-control no-select2" multiple
+                                    x-data="scheduleSelect2Bridge({
+                                        model: 'form.personnel_ids',
+                                        multiple: true,
+                                        placeholder: 'Search and select personnel...',
+                                        initial: @js(array_values(array_map('strval', $form['personnel_ids'] ?? []))),
+                                    })">
+                                @foreach($users as $u)
+                                <option value="{{ $u['id'] }}">{{ $u['name'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @error('form.personnel_ids') <span class="text-danger small">{{ $message }}</span> @enderror
+                        @error('form.personnel_ids.*') <span class="text-danger small">{{ $message }}</span> @enderror
                     </div>
                     <div class="form-group">
                         <label class="font-weight-bold">Description / Special Instructions</label>
@@ -393,6 +477,43 @@
                         <span wire:loading.remove wire:target="save"><i class="mdi mdi-calendar-check mr-1"></i> {{ $editingSchedule ? 'Update' : 'Save' }} Schedule</span>
                         <span wire:loading wire:target="save"><span class="spinner-border spinner-border-sm"></span> Saving...</span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($showAddSamplePointModal)
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.45);z-index:1060;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0" style="border-radius:12px;">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title font-weight-bold mb-0">Add sample point</h5>
+                    <button type="button" class="close" wire:click="closeAddSamplePointModal" aria-label="Close"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" wire:model="newSamplePointName" placeholder="Sample point name">
+                        @error('newSamplePointName') <small class="text-danger">{{ $message }}</small> @enderror
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="small font-weight-bold">Client unit <span class="text-danger">*</span></label>
+                        <select class="form-control form-control-sm no-select2" wire:model="newSamplePointUnitId">
+                            <option value="">Select unit...</option>
+                            @foreach($customerCompanyUnitOptions as $unit)
+                            <option value="{{ $unit['id'] }}">{{ $unit['name'] }}</option>
+                            @endforeach
+                        </select>
+                        @error('newSamplePointUnitId') <small class="text-danger">{{ $message }}</small> @enderror
+                        @if(empty($customerCompanyUnitOptions))
+                        <small class="text-muted d-block mt-1">This customer has no active units. Add a unit in CRM first.</small>
+                        @endif
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-light" wire:click="closeAddSamplePointModal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary" wire:click="saveNewSamplePoint" wire:loading.attr="disabled">Save sample point</button>
                 </div>
             </div>
         </div>
@@ -441,9 +562,25 @@
                                     <div class="card-body p-3">
                                         <div class="d-flex align-items-center mb-2">
                                             <div style="width:36px;height:36px;border-radius:8px;background:#fce4ec;display:flex;align-items:center;justify-content:center;" class="mr-2"><i class="mdi mdi-account-tie text-danger"></i></div>
-                                            <small class="text-muted text-uppercase font-weight-bold" style="letter-spacing:0.5px;">Contact</small>
+                                            <small class="text-muted text-uppercase font-weight-bold" style="letter-spacing:0.5px;">Contact(s)</small>
                                         </div>
-                                        <h6 class="font-weight-bold mb-0">{{ $viewingSchedule->contact ? trim(($viewingSchedule->contact->first_name ?? '').' '.($viewingSchedule->contact->last_name ?? '')) : 'N/A' }}</h6>
+                                        @php $viewContacts = $viewingSchedule->contacts(); @endphp
+                                        @if($viewContacts->isNotEmpty())
+                                            @foreach($viewContacts as $vc)
+                                            <div class="{{ !$loop->last ? 'mb-2' : '' }}">
+                                                <h6 class="font-weight-bold mb-0">{{ trim(($vc->first_name ?? '').' '.($vc->last_name ?? '')) ?: 'Contact' }}</h6>
+                                                @if(!empty($vc->email))
+                                                <small class="text-muted d-block">{{ $vc->email }}</small>
+                                                @endif
+                                                @php $viewPhone = $vc->telephone ?: $vc->mobile; @endphp
+                                                @if(!empty($viewPhone))
+                                                <small class="text-muted d-block">{{ $viewPhone }}</small>
+                                                @endif
+                                            </div>
+                                            @endforeach
+                                        @else
+                                            <h6 class="font-weight-bold mb-0">N/A</h6>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -456,7 +593,7 @@
                                     <div class="card-body p-3 text-center">
                                         <i class="mdi mdi-map-marker-radius text-danger" style="font-size:24px;"></i>
                                         <small class="text-muted d-block mt-1">Location</small>
-                                        <strong>{{ $viewingSchedule->location ?? 'N/A' }}</strong>
+                                        <strong>{{ $viewingSchedule->locationDisplayName() }}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -474,7 +611,7 @@
                                     <div class="card-body p-3 text-center">
                                         <i class="mdi mdi-account-hard-hat text-warning" style="font-size:24px;"></i>
                                         <small class="text-muted d-block mt-1">Personnel</small>
-                                        <strong>{{ $viewingSchedule->personnel->name ?? 'N/A' }}</strong>
+                                        <strong>{{ $viewingSchedule->personnelNames() }}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -670,6 +807,41 @@
     .rm-act-btn--edit:hover{background:#dbeafe;border-color:#93c5fd;}
     .rm-act-btn--delete{border:1px solid #fecaca;color:#b91c1c;background:#fef2f2;}
     .rm-act-btn--delete:hover{background:#fee2e2;border-color:#fca5a5;}
+    .schedule-sampling-page .select2-container{width:100%!important;}
+    .schedule-sampling-page .select2-container--default .select2-selection--single,
+    .schedule-sampling-page .select2-container--default .select2-selection--multiple{
+        min-height:38px;border:1px solid #ced4da;border-radius:0.25rem;
+    }
+    .schedule-sampling-page .select2-container--default .select2-selection--multiple{
+        min-height:42px;max-height:140px;overflow-y:auto;padding:4px 6px;
+    }
+    .schedule-sampling-page .select2-container--default .select2-selection--multiple .select2-selection__choice{
+        background:var(--color-primary-soft, #f3e8e9);
+        border:1px solid var(--color-primary-highlight, #e2b8bb);
+        color:var(--color-primary, #8a1a1f);
+        border-radius:999px;
+        padding:2px 8px;
+        margin-top:4px;
+        font-size:12px;
+        font-weight:600;
+    }
+    .schedule-sampling-page .select2-container--default .select2-selection--multiple .select2-selection__choice__remove{
+        color:var(--color-primary, #8a1a1f);
+        margin-right:4px;
+    }
+    .schedule-sampling-page .select2-dropdown{
+        z-index:3000;
+        border-color:#ced4da;
+    }
+    .schedule-sampling-page .select2-results__option--highlighted[aria-selected]{
+        background:var(--color-primary, #8a1a1f);
+    }
+    .schedule-params-field .schedule-params-actions .btn-link{
+        text-decoration:none;
+    }
+    .schedule-params-field .schedule-params-actions .btn-link:hover{
+        text-decoration:underline;
+    }
     .schedule-sampling-form-modal .trf-signature-pad.acc-signature-pad {
         background: #fff;
         border: 1px dashed #cbd5e1;
@@ -838,6 +1010,130 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     @script
     <script>
+        Alpine.data('scheduleSelect2Bridge', (config = {}) => ({
+            model: config.model || '',
+            multiple: !!config.multiple,
+            placeholder: config.placeholder || 'Select...',
+            initial: config.initial ?? (config.multiple ? [] : ''),
+            countSelector: config.countSelector || null,
+            total: config.total ?? null,
+            syncing: false,
+            init() {
+                this.$nextTick(() => this.mount());
+            },
+            mount() {
+                if (typeof $ === 'undefined' || !$.fn.select2) {
+                    return;
+                }
+
+                const el = this.$el;
+                const $el = $(el);
+                const modal = el.closest('.modal');
+
+                if ($el.hasClass('select2-hidden-accessible')) {
+                    $el.off('change.scheduleSelect2');
+                    $el.select2('destroy');
+                }
+
+                $el.select2({
+                    width: '100%',
+                    placeholder: this.placeholder,
+                    allowClear: true,
+                    closeOnSelect: !this.multiple,
+                    dropdownParent: modal ? $(modal) : $(document.body),
+                });
+
+                const initial = this.multiple
+                    ? (Array.isArray(this.initial) ? this.initial.map(String) : [])
+                    : (this.initial === null || this.initial === undefined ? '' : String(this.initial));
+
+                this.syncing = true;
+                $el.val(initial).trigger('change.select2');
+                this.syncing = false;
+                this.updateCount($el.val());
+
+                $el.off('change.scheduleSelect2').on('change.scheduleSelect2', () => {
+                    if (this.syncing) {
+                        return;
+                    }
+
+                    let value = $el.val();
+                    if (this.multiple) {
+                        value = value || [];
+                    } else {
+                        value = value || '';
+                    }
+
+                    this.updateCount(value);
+
+                    if (this.$wire && this.model) {
+                        this.$wire.set(this.model, value);
+                    }
+                });
+
+                const field = el.closest('.schedule-params-field');
+                if (field) {
+                    const selectAllBtn = field.querySelector('.schedule-params-select-all');
+                    const clearBtn = field.querySelector('.schedule-params-clear');
+
+                    if (selectAllBtn) {
+                        selectAllBtn.onclick = (event) => {
+                            event.preventDefault();
+                            const all = $el.find('option').map(function () { return this.value; }).get().filter(Boolean);
+                            $el.val(all).trigger('change');
+                        };
+                    }
+
+                    if (clearBtn) {
+                        clearBtn.onclick = (event) => {
+                            event.preventDefault();
+                            $el.val([]).trigger('change');
+                        };
+                    }
+                }
+
+                if (this.$wire && this.model) {
+                    this.$wire.$watch(this.model, (value) => {
+                        const next = this.multiple
+                            ? (Array.isArray(value) ? value.map(String) : [])
+                            : (value === null || value === undefined ? '' : String(value));
+                        const current = $el.val() || (this.multiple ? [] : '');
+                        const currentNorm = this.multiple
+                            ? (Array.isArray(current) ? current.map(String) : [])
+                            : String(current || '');
+                        const nextNorm = this.multiple ? next.slice().sort().join('|') : next;
+                        const currNorm = this.multiple ? currentNorm.slice().sort().join('|') : currentNorm;
+                        if (nextNorm === currNorm) {
+                            return;
+                        }
+                        this.syncing = true;
+                        $el.val(next).trigger('change.select2');
+                        this.syncing = false;
+                        this.updateCount(next);
+                    });
+                }
+            },
+            updateCount(value) {
+                if (!this.countSelector) {
+                    return;
+                }
+
+                const field = this.$el.closest('.schedule-params-field');
+                if (!field) {
+                    return;
+                }
+
+                const countEl = field.querySelector(this.countSelector);
+                if (!countEl) {
+                    return;
+                }
+
+                const selected = Array.isArray(value) ? value.length : (value ? 1 : 0);
+                const total = this.total ?? this.$el.querySelectorAll('option').length;
+                countEl.textContent = `(${selected}/${total} selected)`;
+            },
+        }));
+
         Alpine.data('rftParamPickerUi', (config = {}) => ({
             open: false,
             openUp: false,
@@ -1403,7 +1699,6 @@
                         }
 
                         queueMicrotask(function () {
-                            // Soft init only — never wipe an in-progress signature mid-draw.
                             window.initScheduleTrfSignaturePads(false);
                             window.initScheduleTrfParameterSelects();
                         });

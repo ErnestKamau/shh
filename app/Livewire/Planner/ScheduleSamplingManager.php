@@ -5,16 +5,20 @@ namespace App\Livewire\Planner;
 use Livewire\Component;
 use App\Models\SamplingSchedule;
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CustomerContact;
+use App\Models\CRM\SamplePoint;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\SampleType;
 use App\AnalysisType;
 use App\AnalysisElements;
 use App\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
 use App\Services\Commercial\CommercialEnquirySyncService;
@@ -57,13 +61,14 @@ class ScheduleSamplingManager extends Component
     public $form = [
         'title' => '',
         'crm_customer_id' => '',
-        'contact_id' => '',
+        'contact_ids' => [],
         'sampling_datetime' => '',
         'location' => '',
-        'number_of_samples' => null, // Optional, defaults to 1
+        'sample_point_id' => '',
+        'number_of_samples' => 1,
         'frequency' => 'One-time',
         'notify_client' => false,
-        'personnel_id' => '',
+        'personnel_ids' => [],
         'description' => '',
     ];
 
@@ -73,9 +78,18 @@ class ScheduleSamplingManager extends Component
     // Customer prefill
     public $contractValidFrom = '';
     public $contractValidTo = '';
-    public $customerContacts = [];
-    public $selectedContactEmail = '';
-    public $selectedContactPhone = '';
+    public $customerContactOptions = [];
+    public $customerSamplePointOptions = [];
+    public $customerCompanyUnitOptions = [];
+    public $selectedContactsSummary = [];
+
+    // Inline add sample point (schedule form + TRF modal)
+    public bool $showAddSamplePointModal = false;
+    public string $newSamplePointName = '';
+    public string $newSamplePointUnitId = '';
+    public string $samplePointTargetField = 'sampling_location';
+    public ?int $samplePointTargetRowIndex = null;
+    public string $samplePointAssignTarget = 'schedule'; // schedule|trf
 
     // Supporting data
     public $clients = [];
@@ -109,7 +123,7 @@ class ScheduleSamplingManager extends Component
     {
         $companyId = getUserCompany();
 
-        $query = SamplingSchedule::with(['client', 'contact', 'sample_type', 'analysis_type', 'personnel'])
+        $query = SamplingSchedule::with(['client', 'contact', 'samplePoint', 'sample_type', 'analysis_type', 'personnel'])
             ->where('company_id', $companyId)
             ->orderBy('sampling_datetime', 'desc');
 
@@ -139,9 +153,12 @@ class ScheduleSamplingManager extends Component
             $query->where('crm_customer_id', $this->filterClientId);
         }
 
-        // Contact filter
+        // Contact filter (legacy single + multi JSON)
         if ($this->filterContactId) {
-            $query->where('contact_id', $this->filterContactId);
+            $query->where(function ($q) {
+                $q->where('contact_id', $this->filterContactId)
+                  ->orWhereJsonContains('contact_ids', $this->filterContactId);
+            });
         }
 
         // Sample type filter (from sample_details JSON)
@@ -288,13 +305,14 @@ class ScheduleSamplingManager extends Component
         $this->form = [
             'title' => $schedule->title,
             'crm_customer_id' => $schedule->crm_customer_id,
-            'contact_id' => $schedule->contact_id ?? '',
+            'contact_ids' => $schedule->resolvedContactIds(),
             'sampling_datetime' => $schedule->sampling_datetime ? $schedule->sampling_datetime->format('Y-m-d\TH:i') : '',
             'location' => $schedule->location ?? '',
+            'sample_point_id' => $this->resolveSamplePointIdForSchedule($schedule),
             'number_of_samples' => $schedule->number_of_samples ?? 1,
             'frequency' => $schedule->frequency ?? 'One-time',
             'notify_client' => $schedule->notify_client ?? false,
-            'personnel_id' => $schedule->personnel_id ?? '',
+            'personnel_ids' => $schedule->resolvedPersonnelIds(),
             'description' => $schedule->description ?? '',
         ];
 
@@ -304,7 +322,7 @@ class ScheduleSamplingManager extends Component
             foreach ($schedule->sample_details as $entry) {
                 $stId = $entry['sample_type_id'] ?? '';
                 $atId = $entry['analysis_type_id'] ?? '';
-                $params = $entry['parameters'] ?? [];
+                $params = array_values(array_filter(array_map('strval', $entry['parameters'] ?? [])));
 
                 $analysisTypes = [];
                 if ($stId) {
@@ -336,15 +354,18 @@ class ScheduleSamplingManager extends Component
             $this->sampleEntries[] = [
                 'sample_type_id' => $schedule->sample_type_id,
                 'analysis_type_id' => $schedule->analysis_type_id ?? '',
-                'parameters' => $schedule->parameters ?? [],
+                'parameters' => array_values(array_filter(array_map('strval', $schedule->parameters ?? []))),
                 'analysisTypes' => $analysisTypes,
                 'availableParameters' => $availableParameters,
             ];
         }
 
+        $this->syncNumberOfSamplesFromEntries();
+
         // Load customer data for prefill
         if ($schedule->crm_customer_id) {
             $this->loadCustomerDetails($schedule->crm_customer_id);
+            $this->refreshSelectedContactsSummary();
         }
 
         $this->showModal = true;
@@ -355,6 +376,7 @@ class ScheduleSamplingManager extends Component
         $this->viewingSchedule = SamplingSchedule::with([
             'client',
             'contact',
+            'samplePoint',
             'personnel',
             'submissionFormInstances.submissionForm.sampleTypes',
             'submissionFormInstances.submittedBy',
@@ -376,39 +398,45 @@ class ScheduleSamplingManager extends Component
         $this->form = [
             'title' => '',
             'crm_customer_id' => '',
-            'contact_id' => '',
+            'contact_ids' => [],
             'sampling_datetime' => '',
             'location' => '',
-            'number_of_samples' => null, // Optional, defaults to 1
+            'sample_point_id' => '',
+            'number_of_samples' => 1,
             'frequency' => 'One-time',
             'notify_client' => false,
-            'personnel_id' => '',
+            'personnel_ids' => [],
             'description' => '',
         ];
         $this->sampleEntries = [];
         $this->contractValidFrom = '';
         $this->contractValidTo = '';
-        $this->customerContacts = [];
-        $this->selectedContactEmail = '';
-        $this->selectedContactPhone = '';
+        $this->customerContactOptions = [];
+        $this->customerSamplePointOptions = [];
+        $this->customerCompanyUnitOptions = [];
+        $this->selectedContactsSummary = [];
         $this->editingSchedule = null;
         $this->viewingSchedule = null;
+        $this->closeAddSamplePointModal();
     }
 
     // ── Customer reactivity ──
 
     public function updatedFormCrmCustomerId($value)
     {
-        $this->form['contact_id'] = '';
-        $this->selectedContactEmail = '';
-        $this->selectedContactPhone = '';
+        $this->form['contact_ids'] = [];
+        $this->form['sample_point_id'] = '';
+        $this->form['location'] = '';
+        $this->selectedContactsSummary = [];
 
         if ($value) {
             $this->loadCustomerDetails($value);
         } else {
             $this->contractValidFrom = '';
             $this->contractValidTo = '';
-            $this->customerContacts = [];
+            $this->customerContactOptions = [];
+            $this->customerSamplePointOptions = [];
+            $this->customerCompanyUnitOptions = [];
         }
     }
 
@@ -424,33 +452,321 @@ class ScheduleSamplingManager extends Component
             ? (is_string($customer->contract_valid_to) ? substr($customer->contract_valid_to, 0, 10) : $customer->contract_valid_to->format('Y-m-d'))
             : 'N/A';
 
-        $this->customerContacts = CustomerContact::where('crm_customer_id', $customerId)
+        $this->customerContactOptions = CustomerContact::where('crm_customer_id', $customerId)
             ->where('active', 1)
             ->get()
             ->map(function ($c) {
                 return [
-                    'id' => $c->id,
+                    'id' => (string) $c->id,
                     'name' => trim(($c->first_name ?? '') . ' ' . ($c->middle_name ?? '') . ' ' . ($c->last_name ?? '')),
                     'email' => $c->email,
                     'telephone' => $c->telephone,
                     'mobile' => $c->mobile,
                 ];
             })
+            ->values()
+            ->toArray();
+
+        $this->refreshCustomerSamplePointOptions((string) $customerId);
+        $this->refreshCustomerCompanyUnitOptions((string) $customerId);
+    }
+
+    protected function refreshCustomerSamplePointOptions(string $customerId): void
+    {
+        $this->customerSamplePointOptions = SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (SamplePoint $point) => [
+                'id' => (string) $point->id,
+                'name' => (string) $point->display_name,
+            ])
+            ->values()
             ->toArray();
     }
 
-    public function updatedFormContactId($value)
+    protected function refreshCustomerCompanyUnitOptions(string $customerId): void
     {
-        $this->selectedContactEmail = '';
-        $this->selectedContactPhone = '';
+        $this->customerCompanyUnitOptions = CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($unit) => [
+                'id' => (string) $unit->id,
+                'name' => (string) $unit->name,
+            ])
+            ->values()
+            ->toArray();
+    }
 
-        if ($value) {
-            $contact = collect($this->customerContacts)->firstWhere('id', $value);
-            if ($contact) {
-                $this->selectedContactEmail = $contact['email'] ?? 'N/A';
-                $this->selectedContactPhone = $contact['telephone'] ?? $contact['mobile'] ?? 'N/A';
+    public function updatedFormContactIds(): void
+    {
+        $this->form['contact_ids'] = array_values(array_filter(array_map('strval', $this->form['contact_ids'] ?? [])));
+        $this->refreshSelectedContactsSummary();
+    }
+
+    public function updatedFormSamplePointId($value): void
+    {
+        $pointId = $value ? (string) $value : '';
+        $this->form['sample_point_id'] = $pointId;
+
+        if ($pointId === '') {
+            $this->form['location'] = '';
+
+            return;
+        }
+
+        $point = collect($this->customerSamplePointOptions)->firstWhere('id', $pointId);
+        if ($point) {
+            $this->form['location'] = $point['name'] ?? '';
+
+            return;
+        }
+
+        $model = SamplePoint::query()->find($pointId);
+        $this->form['location'] = $model ? (string) $model->display_name : '';
+    }
+
+    protected function refreshSelectedContactsSummary(): void
+    {
+        $selectedIds = array_values(array_filter(array_map('strval', $this->form['contact_ids'] ?? [])));
+        $this->selectedContactsSummary = collect($this->customerContactOptions)
+            ->filter(fn ($contact) => in_array((string) ($contact['id'] ?? ''), $selectedIds, true))
+            ->map(fn ($contact) => [
+                'name' => $contact['name'] ?? '',
+                'email' => $contact['email'] ?? '',
+                'phone' => $contact['telephone'] ?? $contact['mobile'] ?? '',
+            ])
+            ->values()
+            ->toArray();
+    }
+
+    protected function resolveSamplePointIdForSchedule(SamplingSchedule $schedule): string
+    {
+        if (! empty($schedule->sample_point_id)) {
+            return (string) $schedule->sample_point_id;
+        }
+
+        $location = trim((string) ($schedule->location ?? ''));
+        if ($location === '') {
+            return '';
+        }
+
+        if (Str::isUuid($location)) {
+            $byId = SamplePoint::query()->find($location);
+            if ($byId) {
+                return (string) $byId->id;
             }
         }
+
+        if (! empty($schedule->crm_customer_id)) {
+            $byName = SamplePoint::query()
+                ->where('crm_customer_id', $schedule->crm_customer_id)
+                ->where('active', 1)
+                ->where('name', $location)
+                ->first();
+
+            if ($byName) {
+                return (string) $byName->id;
+            }
+        }
+
+        return '';
+    }
+
+    protected function resolveCustomerIdForLookups(): ?string
+    {
+        if (! empty($this->form['crm_customer_id'])) {
+            return (string) $this->form['crm_customer_id'];
+        }
+
+        if ($this->selectedScheduleId) {
+            $scheduleCustomerId = SamplingSchedule::query()
+                ->whereKey($this->selectedScheduleId)
+                ->value('crm_customer_id');
+
+            return $scheduleCustomerId ? (string) $scheduleCustomerId : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return Collection<int, CustomerContact>
+     */
+    public function getCustomerContactsProperty(): Collection
+    {
+        $customerId = $this->resolveCustomerIdForLookups();
+        if ($customerId === null) {
+            return collect();
+        }
+
+        return CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, SamplePoint>
+     */
+    public function getCustomerSamplePointsProperty(): Collection
+    {
+        $customerId = $this->resolveCustomerIdForLookups();
+        if ($customerId === null) {
+            return collect();
+        }
+
+        return SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, CRMCompanyUnit>
+     */
+    public function getCustomerCompanyUnitsProperty(): Collection
+    {
+        $customerId = $this->resolveCustomerIdForLookups();
+        if ($customerId === null) {
+            return collect();
+        }
+
+        return CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function openAddSamplePointModal(string $assignTarget = 'schedule', string $fieldName = 'sampling_location', ?int $rowIndex = null): void
+    {
+        $customerId = $this->resolveCustomerIdForLookups();
+        if ($customerId === null) {
+            $this->addError('form.sample_point_id', 'Select a customer before adding a sample point.');
+
+            return;
+        }
+
+        $this->resetAddSamplePointModal();
+        $this->samplePointAssignTarget = in_array($assignTarget, ['schedule', 'trf'], true) ? $assignTarget : 'schedule';
+        $this->samplePointTargetField = $fieldName !== '' ? $fieldName : 'sampling_location';
+        $this->samplePointTargetRowIndex = $rowIndex;
+        $this->refreshCustomerCompanyUnitOptions($customerId);
+        $this->newSamplePointUnitId = (string) (($this->customerCompanyUnitOptions[0]['id'] ?? '') ?: '');
+        $this->showAddSamplePointModal = true;
+    }
+
+    public function openWalkInAddPointModal(string $fieldName = 'sampling_location', ?int $rowIndex = null): void
+    {
+        $this->openAddSamplePointModal('trf', $fieldName, $rowIndex);
+    }
+
+    public function closeAddSamplePointModal(): void
+    {
+        $this->showAddSamplePointModal = false;
+        $this->resetAddSamplePointModal();
+    }
+
+    public function closeWalkInAddPointModal(): void
+    {
+        $this->closeAddSamplePointModal();
+    }
+
+    protected function resetAddSamplePointModal(): void
+    {
+        $this->newSamplePointName = '';
+        $this->newSamplePointUnitId = '';
+        $this->samplePointTargetField = 'sampling_location';
+        $this->samplePointTargetRowIndex = null;
+        $this->samplePointAssignTarget = 'schedule';
+        $this->resetValidation([
+            'newSamplePointName',
+            'newSamplePointUnitId',
+        ]);
+    }
+
+    public function saveNewSamplePoint(): void
+    {
+        $customerId = $this->resolveCustomerIdForLookups();
+        if ($customerId === null) {
+            $this->addError('newSamplePointName', 'Select a customer first.');
+
+            return;
+        }
+
+        $this->validate([
+            'newSamplePointName' => 'required|string|max:255',
+            'newSamplePointUnitId' => 'required|exists:crm_company_units,id',
+        ], [
+            'newSamplePointName.required' => 'Sample point name is required.',
+            'newSamplePointUnitId.required' => 'Client unit is required.',
+        ]);
+
+        $unitBelongsToCustomer = CRMCompanyUnit::query()
+            ->where('id', $this->newSamplePointUnitId)
+            ->where('crm_customer_id', $customerId)
+            ->exists();
+
+        if (! $unitBelongsToCustomer) {
+            $this->addError('newSamplePointUnitId', 'Selected unit does not belong to this customer.');
+
+            return;
+        }
+
+        $point = SamplePoint::query()->create([
+            'crm_customer_id' => $customerId,
+            'crm_company_unit_id' => $this->newSamplePointUnitId,
+            'name' => trim($this->newSamplePointName),
+            'active' => 1,
+        ]);
+
+        $this->refreshCustomerSamplePointOptions($customerId);
+
+        if ($this->samplePointAssignTarget === 'trf') {
+            $this->assignTrfSamplePointSelection((string) $point->id);
+        } else {
+            $this->form['sample_point_id'] = (string) $point->id;
+            $this->form['location'] = (string) $point->display_name;
+        }
+
+        $this->closeAddSamplePointModal();
+    }
+
+    public function saveWalkInSamplePoint(): void
+    {
+        $this->saveNewSamplePoint();
+    }
+
+    protected function assignTrfSamplePointSelection(string $pointId): void
+    {
+        $field = $this->samplePointTargetField !== ''
+            ? $this->samplePointTargetField
+            : 'sampling_location';
+        $rowIndex = $this->samplePointTargetRowIndex;
+
+        if ($rowIndex !== null) {
+            if (! isset($this->formData[$field]) || ! is_array($this->formData[$field])) {
+                $this->formData[$field] = [];
+            }
+            $this->formData[$field][$rowIndex] = $pointId;
+
+            return;
+        }
+
+        if (array_key_exists($field, $this->formData)) {
+            $this->formData[$field] = $pointId;
+
+            return;
+        }
+
+        $this->formData[$field] = $pointId;
     }
 
     // ── Multi-sample entry management ──
@@ -464,12 +780,19 @@ class ScheduleSamplingManager extends Component
             'analysisTypes' => [],
             'availableParameters' => [],
         ];
+        $this->syncNumberOfSamplesFromEntries();
     }
 
     public function removeSampleEntry($index)
     {
         unset($this->sampleEntries[$index]);
         $this->sampleEntries = array_values($this->sampleEntries);
+        $this->syncNumberOfSamplesFromEntries();
+    }
+
+    protected function syncNumberOfSamplesFromEntries(): void
+    {
+        $this->form['number_of_samples'] = max(1, count($this->sampleEntries));
     }
 
     public function updatedSampleEntries($value, $key)
@@ -493,6 +816,8 @@ class ScheduleSamplingManager extends Component
             } else {
                 $this->sampleEntries[$index]['analysisTypes'] = [];
             }
+
+            $this->syncNumberOfSamplesFromEntries();
         }
 
         if ($field === 'analysis_type_id') {
@@ -504,6 +829,26 @@ class ScheduleSamplingManager extends Component
                 $this->sampleEntries[$index]['availableParameters'] = [];
             }
         }
+
+        if ($field === 'parameters') {
+            $params = $this->sampleEntries[$index]['parameters'] ?? [];
+            if (! is_array($params)) {
+                $params = $params !== null && $params !== '' ? [(string) $params] : [];
+            }
+            $this->sampleEntries[$index]['parameters'] = array_values(array_unique(array_filter(array_map('strval', $params))));
+        }
+    }
+
+    /**
+     * @param  list<string|int>  $parameterIds
+     */
+    public function setSampleEntryParameters(int $index, array $parameterIds): void
+    {
+        if (! isset($this->sampleEntries[$index])) {
+            return;
+        }
+
+        $this->sampleEntries[$index]['parameters'] = array_values(array_unique(array_filter(array_map('strval', $parameterIds))));
     }
 
     protected function loadParametersForAnalysisType($analysisTypeId)
@@ -514,9 +859,10 @@ class ScheduleSamplingManager extends Component
             ->get()
             ->filter(fn($el) => $el->analyte)
             ->map(fn($el) => [
-                'id' => $el->analyte->id,
+                'id' => (string) $el->analyte->id,
                 'name' => $el->analyte->name,
             ])
+            ->unique('id')
             ->values()
             ->toArray();
     }
@@ -525,22 +871,49 @@ class ScheduleSamplingManager extends Component
 
     public function save()
     {
+        $this->syncNumberOfSamplesFromEntries();
+
+        $this->form['contact_ids'] = array_values(array_filter(array_map('strval', $this->form['contact_ids'] ?? [])));
+        $this->form['personnel_ids'] = array_values(array_filter(array_map('strval', $this->form['personnel_ids'] ?? [])));
+
         $this->validate([
             'form.title' => 'required|string|max:255',
             'form.crm_customer_id' => 'required|string',
             'form.sampling_datetime' => 'required|date',
-            'form.location' => 'required|string|max:255',
-            'form.number_of_samples' => 'nullable|integer|min:1',
+            'form.sample_point_id' => 'required|string',
+            'form.number_of_samples' => 'required|integer|min:1',
             'form.frequency' => 'required|string',
-            'form.personnel_id' => 'required|string',
+            'form.personnel_ids' => 'required|array|min:1',
+            'form.personnel_ids.*' => 'required|string',
+            'form.contact_ids' => 'nullable|array',
+            'form.contact_ids.*' => 'string',
         ], [
             'form.title.required' => 'Schedule title is required.',
             'form.crm_customer_id.required' => 'Client / Customer is required.',
             'form.sampling_datetime.required' => 'Date & time of sampling is required.',
-            'form.location.required' => 'Location is required.',
+            'form.sample_point_id.required' => 'Location (sample point) is required.',
             'form.frequency.required' => 'Frequency is required.',
-            'form.personnel_id.required' => 'Personnel is required.',
+            'form.personnel_ids.required' => 'At least one personnel is required.',
+            'form.personnel_ids.min' => 'At least one personnel is required.',
         ]);
+
+        if (! empty($this->form['notify_client']) && empty($this->form['contact_ids'])) {
+            $this->addError('form.contact_ids', 'Select at least one customer contact to notify.');
+
+            return;
+        }
+
+        $samplePoint = SamplePoint::query()
+            ->where('id', $this->form['sample_point_id'])
+            ->where('crm_customer_id', $this->form['crm_customer_id'])
+            ->where('active', 1)
+            ->first();
+
+        if (! $samplePoint) {
+            $this->addError('form.sample_point_id', 'Select a valid sample point for this customer.');
+
+            return;
+        }
 
         try {
             DB::beginTransaction();
@@ -554,25 +927,36 @@ class ScheduleSamplingManager extends Component
                 $schedule->company_id = $companyId;
             }
 
+            $contactIds = $this->form['contact_ids'];
+            $personnelIds = $this->form['personnel_ids'];
+
             $schedule->title = $this->form['title'];
             $schedule->crm_customer_id = $this->form['crm_customer_id'];
-            $schedule->contact_id = $this->form['contact_id'] ?: null;
+            $schedule->contact_ids = $contactIds !== [] ? $contactIds : null;
+            $schedule->contact_id = $contactIds[0] ?? null;
             $schedule->sampling_datetime = $this->form['sampling_datetime'];
-            $schedule->location = $this->form['location'];
-            $schedule->number_of_samples = $this->form['number_of_samples'] ?: 1;
+            $schedule->sample_point_id = (string) $samplePoint->id;
+            $schedule->location = (string) $samplePoint->display_name;
+            $schedule->number_of_samples = (int) ($this->form['number_of_samples'] ?: max(1, count($this->sampleEntries)));
             $schedule->frequency = $this->form['frequency'];
             $schedule->notify_client = $this->form['notify_client'] ? true : false;
-            $schedule->personnel_id = $this->form['personnel_id'];
+            $schedule->personnel_ids = $personnelIds;
+            $schedule->personnel_id = $personnelIds[0] ?? null;
             $schedule->description = $this->form['description'];
 
             // Build sample_details from entries
             $sampleDetails = [];
             foreach ($this->sampleEntries as $entry) {
                 if (!empty($entry['sample_type_id'])) {
+                    $params = array_values(array_unique(array_filter(array_map(
+                        'strval',
+                        is_array($entry['parameters'] ?? null) ? $entry['parameters'] : []
+                    ))));
+
                     $sampleDetails[] = [
                         'sample_type_id' => $entry['sample_type_id'],
                         'analysis_type_id' => $entry['analysis_type_id'] ?? '',
-                        'parameters' => $entry['parameters'] ?? [],
+                        'parameters' => $params,
                     ];
                 }
             }
@@ -656,7 +1040,10 @@ class ScheduleSamplingManager extends Component
         foreach ($details as $entry) {
             $stName = '';
             $atName = '';
-            $paramsCount = count($entry['parameters'] ?? []);
+            $paramsCount = count(array_values(array_unique(array_filter(array_map(
+                'strval',
+                $entry['parameters'] ?? []
+            )))));
 
             if (!empty($entry['sample_type_id'])) {
                 $st = SampleType::find($entry['sample_type_id']);
@@ -704,7 +1091,10 @@ class ScheduleSamplingManager extends Component
             $stName = '';
             $atName = '';
             $paramNames = [];
-            $parameterIds = $entry['parameters'] ?? [];
+            $parameterIds = array_values(array_unique(array_filter(array_map(
+                'strval',
+                $entry['parameters'] ?? []
+            ))));
 
             if (!empty($entry['sample_type_id'])) {
                 $st = SampleType::find($entry['sample_type_id']);
@@ -732,32 +1122,35 @@ class ScheduleSamplingManager extends Component
     }
 
     /**
-     * Send notification email to client contact.
+     * Send notification emails to all selected customer contacts.
      */
     protected function sendClientNotification($schedule)
     {
         try {
-            $contactEmail = null;
-            
-            // Get contact email from the schedule's contact relationship
-            if ($schedule->contact && !empty($schedule->contact->email)) {
-                $contactEmail = $schedule->contact->email;
+            $contactIds = $schedule->resolvedContactIds();
+            if ($contactIds === [] && ! empty($this->form['contact_ids'])) {
+                $contactIds = array_values(array_filter(array_map('strval', $this->form['contact_ids'])));
             }
-            
-            // Fallback: try to get from selected contact in form
-            if (empty($contactEmail) && !empty($this->selectedContactEmail) && $this->selectedContactEmail !== 'N/A') {
-                $contactEmail = $this->selectedContactEmail;
-            }
-            
-            // If no contact email, log warning and return
-            if (empty($contactEmail)) {
-                Log::warning('Cannot send sampling schedule notification: No contact email found for schedule ' . $schedule->id);
+
+            $emails = CustomerContact::query()
+                ->whereIn('id', $contactIds)
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->pluck('email')
+                ->map(fn ($email) => trim((string) $email))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($emails === []) {
+                Log::warning('Cannot send sampling schedule notification: No contact emails found for schedule ' . $schedule->id);
                 return;
             }
-            
-            Mail::to($contactEmail)->send(new SamplingScheduleNotification($schedule));
-            Log::info('Sampling schedule notification sent to: ' . $contactEmail);
-            
+
+            Mail::to($emails)->send(new SamplingScheduleNotification($schedule));
+            Log::info('Sampling schedule notification sent to: ' . implode(', ', $emails));
+
         } catch (\Exception $e) {
             Log::error('Failed to send sampling schedule notification: ' . $e->getMessage());
         }
@@ -771,6 +1164,12 @@ class ScheduleSamplingManager extends Component
         $this->scheduleSampleTypes = [];
 
         $schedule = SamplingSchedule::findOrFail($scheduleId);
+
+        // Prefill customer lookups so TRF sample-point/contact selects match lab forms.
+        if ($schedule->crm_customer_id) {
+            $this->form['crm_customer_id'] = (string) $schedule->crm_customer_id;
+            $this->loadCustomerDetails((string) $schedule->crm_customer_id);
+        }
 
         // Get all sample types, just like on Samples Receiving page
         $this->scheduleSampleTypes = SampleType::orderBy('name')->get()->toArray();
@@ -1435,7 +1834,12 @@ class ScheduleSamplingManager extends Component
         );
 
         $matchingEntry = $this->matchingScheduleSampleEntry($schedule, (string) $this->selectedSampleTypeId);
-        $location = trim((string) ($schedule->location ?? ''));
+        $location = ! empty($schedule->sample_point_id)
+            ? (string) $schedule->sample_point_id
+            : $this->resolveSamplePointIdForSchedule($schedule);
+        if ($location === '') {
+            $location = trim((string) ($schedule->location ?? ''));
+        }
         $qty = max(1, (int) ($schedule->number_of_samples ?? 1));
         $parameterIds = is_array($matchingEntry['parameters'] ?? null) ? $matchingEntry['parameters'] : [];
         $parameterNames = $this->resolveParameterNames($parameterIds);

@@ -10,12 +10,20 @@
         {{-- Client Identity Card --}}
         <div class="px-4 pb-3 pt-1">
             <div class="d-flex align-items-center">
-                {{-- Avatar Initial --}}
-                <div class="mr-3 d-flex align-items-center justify-content-center rounded"
-                    style="width:48px;height:48px;background:#6366f1;flex-shrink:0;">
-                    <span class="text-white font-weight-bold"
-                        style="font-size:1.3rem;line-height:1;">{{ strtoupper(substr($customer->name, 0, 1)) }}</span>
-                </div>
+                {{-- Avatar / Logo --}}
+                @if($customer->logoUrl())
+                    <div class="mr-3 d-flex align-items-center justify-content-center rounded"
+                        style="width:48px;height:48px;background:#fff;border:1px solid #e5e7eb;flex-shrink:0;overflow:hidden;">
+                        <img src="{{ $customer->logoUrl() }}" alt="{{ $customer->name }}"
+                             style="width:100%;height:100%;object-fit:contain;padding:4px;">
+                    </div>
+                @else
+                    <div class="mr-3 d-flex align-items-center justify-content-center rounded"
+                        style="width:48px;height:48px;background:#6366f1;flex-shrink:0;">
+                        <span class="text-white font-weight-bold"
+                            style="font-size:1.3rem;line-height:1;">{{ strtoupper(substr($customer->name, 0, 1)) }}</span>
+                    </div>
+                @endif
                 {{-- Name Block --}}
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center flex-wrap">

@@ -83,20 +83,29 @@ class SamplingSchedulesExport implements FromCollection, WithHeadings, WithMappi
         $analysisTypes = implode('; ', array_filter(array_column($sampleDetailsList, 'analysis_type')));
         $allParameters = implode('; ', array_filter(array_column($sampleDetailsList, 'parameters')));
 
+        $contactNames = $schedule->contacts()
+            ->map(fn ($contact) => trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? '')))
+            ->filter()
+            ->implode(', ');
+
+        if ($contactNames === '' && $schedule->contact) {
+            $contactNames = trim(($schedule->contact->first_name ?? '') . ' ' . ($schedule->contact->last_name ?? ''));
+        }
+
         return [
             '',  // Row number will be added in collection or can be handled differently
             $schedule->title,
             $schedule->client->name ?? 'N/A',
-            $schedule->contact ? trim(($schedule->contact->first_name ?? '') . ' ' . ($schedule->contact->last_name ?? '')) : 'N/A',
+            $contactNames !== '' ? $contactNames : 'N/A',
             $schedule->sampling_datetime ? $schedule->sampling_datetime->format('Y-m-d') : 'N/A',
             $schedule->sampling_datetime ? $schedule->sampling_datetime->format('H:i') : 'N/A',
-            $schedule->location ?? 'N/A',
+            $schedule->locationDisplayName(),
             $sampleTypes ?: 'N/A',
             $analysisTypes ?: 'N/A',
             $allParameters ?: 'N/A',
             $schedule->number_of_samples ?? 1,
             $schedule->frequency ?? 'One-time',
-            $schedule->personnel->name ?? 'N/A',
+            $schedule->personnelNames(),
             $schedule->notify_client ? 'Yes' : 'No',
             $schedule->description ?? '',
         ];

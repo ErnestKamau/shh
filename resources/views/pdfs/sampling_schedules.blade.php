@@ -203,8 +203,15 @@
                 <td class="col-title">{{ $schedule->title }}</td>
                 <td class="col-client">
                     {{ $schedule->client->name ?? 'N/A' }}
-                    @if($schedule->contact)
-                        <div class="contact-info">{{ trim(($schedule->contact->first_name ?? '') . ' ' . ($schedule->contact->last_name ?? '')) }}</div>
+                    @php
+                        $pdfContacts = $schedule->contacts();
+                        $pdfContactNames = $pdfContacts->map(fn ($c) => trim(($c->first_name ?? '').' '.($c->last_name ?? '')))->filter()->implode(', ');
+                        if ($pdfContactNames === '' && $schedule->contact) {
+                            $pdfContactNames = trim(($schedule->contact->first_name ?? '').' '.($schedule->contact->last_name ?? ''));
+                        }
+                    @endphp
+                    @if($pdfContactNames !== '')
+                        <div class="contact-info">{{ $pdfContactNames }}</div>
                     @endif
                 </td>
                 <td class="col-datetime">
@@ -212,7 +219,7 @@
                     <br>
                     {{ $schedule->sampling_datetime ? $schedule->sampling_datetime->format('h:i A') : '' }}
                 </td>
-                <td>{{ $schedule->location ?? 'N/A' }}</td>
+                <td>{{ $schedule->locationDisplayName() }}</td>
                 <td>
                     @php
                         $sampleDetailsList = [];
@@ -268,7 +275,7 @@
                 </td>
                 <td class="col-samples">{{ $schedule->number_of_samples ?? 1 }}</td>
                 <td><span class="frequency-badge">{{ $schedule->frequency }}</span></td>
-                <td>{{ $schedule->personnel->name ?? 'N/A' }}</td>
+                <td>{{ $schedule->personnelNames() }}</td>
             </tr>
             @endforeach
         </tbody>
