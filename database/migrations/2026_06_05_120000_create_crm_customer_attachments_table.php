@@ -13,7 +13,7 @@ return new class extends Migration
             $table->timestamps();
             $table->string('title')->nullable();
             $table->string('type');
-            $table->enum('file_type', ['screenshot', 'document', 'other'])->default('document');
+            $table->enum('file_type', ['screenshot', 'document', 'other', 'pdf', 'docx'])->default('document');
             $table->unsignedInteger('file_size')->nullable();
             $table->string('file_path');
             $table->string('description')->nullable();
