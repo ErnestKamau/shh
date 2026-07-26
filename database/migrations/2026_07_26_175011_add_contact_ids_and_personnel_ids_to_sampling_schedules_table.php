@@ -13,9 +13,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sampling_schedules', function (Blueprint $table) {
-            $table->json('contact_ids')->nullable()->after('contact_id');
-            $table->json('personnel_ids')->nullable()->after('personnel_id');
+            if (! Schema::hasColumn('sampling_schedules', 'contact_ids')) {
+                $table->json('contact_ids')->nullable()->after('contact_id');
+            }
+            if (! Schema::hasColumn('sampling_schedules', 'personnel_ids')) {
+                $table->json('personnel_ids')->nullable()->after('personnel_id');
+            }
         });
+
+        if (! Schema::hasColumn('sampling_schedules', 'contact_ids')
+            || ! Schema::hasColumn('sampling_schedules', 'personnel_ids')) {
+            return;
+        }
 
         // Backfill from legacy single FK columns.
         foreach (DB::table('sampling_schedules')->select('id', 'contact_id', 'personnel_id')->cursor() as $row) {
@@ -37,7 +46,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sampling_schedules', function (Blueprint $table) {
-            $table->dropColumn(['contact_ids', 'personnel_ids']);
+            if (Schema::hasColumn('sampling_schedules', 'contact_ids')) {
+                $table->dropColumn('contact_ids');
+            }
+            if (Schema::hasColumn('sampling_schedules', 'personnel_ids')) {
+                $table->dropColumn('personnel_ids');
+            }
         });
     }
 };
