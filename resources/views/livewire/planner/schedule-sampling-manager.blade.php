@@ -137,93 +137,109 @@
     @endif
 
     <!-- Table -->
-    <div class="card shadow-sm border-0" style="border-radius:15px;">
+    <div class="card shadow-sm border-0 schedule-table-card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 schedule-sampling-table">
-                    <thead style="background:rgba(0,0,0,.03);">
+                <table class="table table-hover mb-0 schedule-sampling-table">
+                    <thead>
                         <tr>
-                            <th class="border-0" style="min-width:160px;">Title</th>
-                            <th class="border-0" style="min-width:140px;">Client</th>
-                            <th class="border-0" style="min-width:130px;">Date & Time</th>
-                            <th class="border-0" style="min-width:120px;">Location</th>
-                            <th class="border-0" style="min-width:220px;">Sample Details</th>
-                            <th class="border-0 text-center">Samples</th>
-                            <th class="border-0">Frequency</th>
-                            <th class="border-0" style="min-width:140px;">Personnel</th>
-                            <th class="border-0 text-center">Forms</th>
-                            <th class="border-0 text-center" style="min-width:150px;">Actions</th>
+                            <th>Schedule</th>
+                            <th>When</th>
+                            <th>Client / Location</th>
+                            <th>Tests</th>
+                            <th>Personnel</th>
+                            <th class="text-center">Forms</th>
+                            <th class="text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($this->schedules as $s)
+                        @php
+                            $details = $this->resolveSampleDetails($s);
+                            $tableContacts = $s->contacts();
+                            $contactNames = $tableContacts->map(fn ($c) => trim(($c->first_name ?? '').' '.($c->last_name ?? '')))->filter()->values();
+                            $personnelLabel = $s->personnelNames();
+                            $formCount = $s->submissionFormInstances->count();
+                            $visibleDetails = array_slice($details, 0, 2);
+                            $hiddenDetailsCount = max(0, count($details) - 2);
+                        @endphp
                         <tr>
-                            <td class="font-weight-bold">
-                                {{ $s->title }}
-                                @if($s->is_collected)
-                                    <span class="badge badge-success ml-1"><i class="mdi mdi-check-circle-outline mr-1"></i>Collected</span>
+                            <td class="ss-col-schedule">
+                                <div class="ss-title">{{ $s->title }}</div>
+                                <div class="ss-meta">
+                                    <span>{{ $s->frequency ?: 'One-time' }}</span>
+                                    <span class="ss-dot"></span>
+                                    <span>{{ (int) $s->number_of_samples }} sample{{ (int) $s->number_of_samples === 1 ? '' : 's' }}</span>
+                                    @if($s->is_collected)
+                                    <span class="ss-pill ss-pill--ok">Collected</span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="ss-col-when">
+                                @if($s->sampling_datetime)
+                                <div class="ss-when-date">{{ $s->sampling_datetime->format('d M Y') }}</div>
+                                <div class="ss-when-time">{{ $s->sampling_datetime->format('H:i') }}</div>
+                                @else
+                                <span class="text-muted">—</span>
                                 @endif
                             </td>
-                            <td>
-                                {{ $s->client->name ?? 'N/A' }}
-                                @php $tableContacts = $s->contacts(); @endphp
-                                @if($tableContacts->isNotEmpty())
-                                <br><small class="text-muted">{{ $tableContacts->map(fn ($c) => trim(($c->first_name ?? '').' '.($c->last_name ?? '')))->filter()->implode(', ') }}</small>
+                            <td class="ss-col-client">
+                                <div class="ss-client">{{ $s->client->name ?? 'N/A' }}</div>
+                                @if($contactNames->isNotEmpty())
+                                <div class="ss-sub">{{ $contactNames->take(2)->implode(', ') }}{{ $contactNames->count() > 2 ? ' +'.($contactNames->count() - 2) : '' }}</div>
                                 @endif
+                                <div class="ss-sub ss-location">{{ $s->locationDisplayName() }}</div>
                             </td>
-                            <td><span class="badge badge-light p-2 text-dark"><i class="mdi mdi-clock-outline text-primary mr-1"></i>{{ $s->sampling_datetime ? $s->sampling_datetime->format('Y-m-d H:i') : 'N/A' }}</span></td>
-                            <td><i class="mdi mdi-map-marker text-danger mr-1"></i>{{ $s->locationDisplayName() }}</td>
-                            <td>
-                                @php $details = $this->resolveSampleDetails($s); @endphp
-                                @if(!empty($details))
-                                <div class="schedule-sample-details">
-                                    @foreach($details as $d)
-                                    <div class="schedule-sample-detail-item">
-                                        <div class="schedule-sample-detail-type">{{ $d['type'] }}</div>
+                            <td class="ss-col-tests">
+                                @if(!empty($visibleDetails))
+                                <div class="ss-tests">
+                                    @foreach($visibleDetails as $d)
+                                    <div class="ss-test-line">
+                                        <span class="ss-test-type">{{ $d['type'] }}</span>
                                         @if(!empty($d['analysis']))
-                                        <div class="schedule-sample-detail-analysis">{{ $d['analysis'] }}</div>
+                                        <span class="ss-test-sep">·</span>
+                                        <span class="ss-test-analysis">{{ $d['analysis'] }}</span>
                                         @endif
-                                        <div class="schedule-sample-detail-params">{{ $d['params_count'] }} parameter{{ $d['params_count'] === 1 ? '' : 's' }}</div>
+                                        <span class="ss-test-params">{{ $d['params_count'] }}p</span>
                                     </div>
                                     @endforeach
+                                    @if($hiddenDetailsCount > 0)
+                                    <div class="ss-test-more">+{{ $hiddenDetailsCount }} more</div>
+                                    @endif
                                 </div>
                                 @else
                                 <span class="text-muted">—</span>
                                 @endif
                             </td>
-                            <td class="text-center font-weight-bold">{{ $s->number_of_samples }}</td>
-                            <td><span class="badge badge-outline-primary">{{ $s->frequency }}</span></td>
-                            <td>
-                                @php $personnelLabel = $s->personnelNames(); @endphp
-                                <span class="badge badge-dark p-2 text-wrap text-left" style="white-space:normal;max-width:180px;">
-                                    <i class="mdi mdi-account-tie mr-1"></i>{{ $personnelLabel }}
-                                </span>
+                            <td class="ss-col-personnel">
+                                @if($personnelLabel !== 'N/A' && $personnelLabel !== '')
+                                <div class="ss-personnel" title="{{ $personnelLabel }}">{{ $personnelLabel }}</div>
+                                @else
+                                <span class="text-muted">—</span>
+                                @endif
                             </td>
-                            <td class="text-center">
-                                @php $formCount = $s->submissionFormInstances->count(); @endphp
+                            <td class="text-center ss-col-forms">
                                 <button type="button"
-                                        class="btn btn-sm {{ $formCount > 0 ? 'btn-outline-info' : 'btn-outline-secondary' }}"
-                                        style="border-radius:20px;min-width:42px;"
+                                        class="ss-forms-btn {{ $formCount > 0 ? 'has-forms' : '' }}"
                                         wire:click="viewTrfForms('{{ $s->id }}')"
                                         title="View filled test request forms">
                                     {{ $formCount }}
                                 </button>
                             </td>
-                            <td class="text-center">
-                                <div class="d-flex justify-content-center flex-wrap">
-                                    <button wire:click="openScheduleFormModal('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--form" title="Fill Request Form"><i class="mdi mdi-file-document-edit"></i></button>
-                                    <button wire:click="viewTrfForms('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--forms" title="View Request Forms"><i class="mdi mdi-file-document-multiple-outline"></i></button>
-                                    <button wire:click="viewSchedule('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View"><i class="mdi mdi-eye"></i></button>
-                                    <button wire:click="showEditModal('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="Edit"><i class="mdi mdi-pencil"></i></button>
-                                    <button wire:click="delete('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this schedule?')"><i class="mdi mdi-delete"></i></button>
+                            <td class="text-right ss-col-actions">
+                                <div class="ss-actions">
+                                    <button wire:click="openScheduleFormModal('{{ $s->id }}')" class="ss-act ss-act--form" title="Fill request form"><i class="mdi mdi-file-document-edit-outline"></i></button>
+                                    <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="View schedule"><i class="mdi mdi-eye-outline"></i></button>
+                                    <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="Edit"><i class="mdi mdi-pencil-outline"></i></button>
+                                    <button wire:click="delete('{{ $s->id }}')" class="ss-act ss-act--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this schedule?')"><i class="mdi mdi-trash-can-outline"></i></button>
                                 </div>
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
-                                <i class="mdi mdi-calendar-blank fa-3x mb-3 text-secondary"></i>
-                                <p class="mb-0">No sampling schedules created yet.</p>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="mdi mdi-calendar-blank" style="font-size:2rem;"></i>
+                                <p class="mb-0 mt-2">No sampling schedules created yet.</p>
                             </td>
                         </tr>
                         @endforelse
@@ -910,21 +926,215 @@
     .rm-act-btn--form{border:1px solid #ffeeba;color:#856404;background:#fff3cd;}
     .rm-act-btn--form:hover{background:#ffeeba;border-color:#ffdf7e;}
     .rm-act-btn--forms{border:1px solid #bee5eb;color:#0c5460;background:#d1ecf1;}
-    .rm-act-btn--forms:hover{background:#bee5eb;border-color:#9fdbE5;}
+    .rm-act-btn--forms:hover{background:#bee5eb;border-color:#9fdbe5;}
     .rm-act-btn--view{border:1px solid #c3e6cb;color:#155724;background:#d4edda;}
     .rm-act-btn--view:hover{background:#c3e6cb;border-color:#a3d5b5;}
     .rm-act-btn--edit{border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;}
     .rm-act-btn--edit:hover{background:#dbeafe;border-color:#93c5fd;}
     .rm-act-btn--delete{border:1px solid #fecaca;color:#b91c1c;background:#fef2f2;}
     .rm-act-btn--delete:hover{background:#fee2e2;border-color:#fca5a5;}
-    .schedule-sampling-table td{vertical-align:top;padding-top:0.85rem;padding-bottom:0.85rem;}
-    .schedule-sample-details{display:flex;flex-direction:column;gap:8px;}
-    .schedule-sample-detail-item{
-        background:#f8fafc;border:1px solid #e8ecf2;border-radius:8px;padding:8px 10px;
+
+    .schedule-table-card{
+        border-radius:14px;
+        overflow:hidden;
+        border:1px solid #e8ecf1;
     }
-    .schedule-sample-detail-type{font-weight:700;font-size:12px;color:#1f2937;line-height:1.3;}
-    .schedule-sample-detail-analysis{font-size:11px;color:#4b5563;margin-top:2px;}
-    .schedule-sample-detail-params{font-size:11px;color:#6b7280;margin-top:2px;}
+    .schedule-sampling-table{
+        width:100%;
+        margin:0;
+    }
+    .schedule-sampling-table thead th{
+        background:#f7f8fa;
+        border:0;
+        border-bottom:1px solid #e8ecf1;
+        color:#6b7280;
+        font-size:11px;
+        font-weight:700;
+        letter-spacing:0.04em;
+        text-transform:uppercase;
+        padding:12px 14px;
+        white-space:nowrap;
+        vertical-align:middle;
+    }
+    .schedule-sampling-table tbody td{
+        border-top:1px solid #eef1f5;
+        padding:12px 14px;
+        vertical-align:middle;
+        color:#1f2937;
+    }
+    .schedule-sampling-table tbody tr:hover{
+        background:#fcfbfa;
+    }
+    .ss-title{
+        font-size:13.5px;
+        font-weight:700;
+        color:#111827;
+        line-height:1.3;
+        max-width:220px;
+    }
+    .ss-meta{
+        display:flex;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:6px;
+        margin-top:4px;
+        font-size:11px;
+        color:#6b7280;
+    }
+    .ss-dot{
+        width:3px;height:3px;border-radius:50%;background:#c4c9d2;display:inline-block;
+    }
+    .ss-pill{
+        display:inline-flex;
+        align-items:center;
+        padding:1px 7px;
+        border-radius:999px;
+        font-size:10px;
+        font-weight:700;
+        line-height:1.5;
+    }
+    .ss-pill--ok{
+        background:#e8f5e9;
+        color:#1b5e20;
+    }
+    .ss-when-date{
+        font-size:13px;
+        font-weight:600;
+        color:#111827;
+        white-space:nowrap;
+    }
+    .ss-when-time{
+        font-size:12px;
+        color:#6b7280;
+        margin-top:2px;
+    }
+    .ss-client{
+        font-size:13px;
+        font-weight:600;
+        color:#111827;
+        line-height:1.3;
+        max-width:180px;
+    }
+    .ss-sub{
+        font-size:11px;
+        color:#6b7280;
+        margin-top:2px;
+        max-width:180px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+    .ss-location{
+        color:#8a1a1f;
+    }
+    .ss-tests{
+        display:flex;
+        flex-direction:column;
+        gap:3px;
+        min-width:180px;
+        max-width:260px;
+    }
+    .ss-test-line{
+        display:flex;
+        align-items:baseline;
+        gap:4px;
+        font-size:12px;
+        line-height:1.35;
+        min-width:0;
+    }
+    .ss-test-type{
+        font-weight:700;
+        color:#1f2937;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        max-width:90px;
+        flex:0 1 auto;
+    }
+    .ss-test-sep{color:#c4c9d2;flex:0 0 auto;}
+    .ss-test-analysis{
+        color:#4b5563;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        min-width:0;
+        flex:1 1 auto;
+    }
+    .ss-test-params{
+        color:#6b7280;
+        font-size:11px;
+        flex:0 0 auto;
+        margin-left:auto;
+        padding-left:6px;
+    }
+    .ss-test-more{
+        font-size:11px;
+        color:#8a1a1f;
+        font-weight:600;
+    }
+    .ss-personnel{
+        font-size:12px;
+        color:#374151;
+        line-height:1.35;
+        max-width:150px;
+        display:-webkit-box;
+        -webkit-line-clamp:2;
+        -webkit-box-orient:vertical;
+        overflow:hidden;
+    }
+    .ss-forms-btn{
+        min-width:34px;
+        height:28px;
+        padding:0 10px;
+        border-radius:999px;
+        border:1px solid #d7dde5;
+        background:#fff;
+        color:#6b7280;
+        font-size:12px;
+        font-weight:700;
+        line-height:1;
+    }
+    .ss-forms-btn.has-forms{
+        border-color:#8a1a1f;
+        color:#8a1a1f;
+        background:rgba(138,26,31,0.06);
+    }
+    .ss-forms-btn:hover{
+        border-color:#8a1a1f;
+        color:#8a1a1f;
+    }
+    .ss-actions{
+        display:inline-flex;
+        align-items:center;
+        gap:4px;
+        white-space:nowrap;
+    }
+    .ss-act{
+        width:30px;
+        height:30px;
+        border-radius:8px;
+        border:1px solid transparent;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        font-size:15px;
+        padding:0;
+        background:transparent;
+        transition:background .15s ease,border-color .15s ease;
+    }
+    .ss-act--form{color:#856404;background:#fff8e8;border-color:#f0e0b2;}
+    .ss-act--view{color:#1b5e20;background:#edf7ee;border-color:#c9e6cb;}
+    .ss-act--edit{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe;}
+    .ss-act--delete{color:#b91c1c;background:#fef2f2;border-color:#fecaca;}
+    .ss-act:hover{filter:brightness(0.97);}
+    .ss-col-schedule{min-width:180px;}
+    .ss-col-when{min-width:96px;}
+    .ss-col-client{min-width:150px;}
+    .ss-col-tests{min-width:190px;}
+    .ss-col-personnel{min-width:120px;}
+    .ss-col-forms{width:70px;}
+    .ss-col-actions{width:140px;}
+
     .schedule-sampling-page .select2-container{width:100%!important;}
     .schedule-sampling-page .select2-container--default .select2-selection--single,
     .schedule-sampling-page .select2-container--default .select2-selection--multiple{
