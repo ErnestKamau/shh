@@ -122,12 +122,7 @@ class PlannerDashboard extends Component
                     'collected' => $progress['collected'],
                     'is_collected' => $progress['is_complete'],
                     'sample_type_id' => $sampleTypeId,
-                    'fill_url' => $sampleTypeId !== ''
-                        ? route('system-planner.fill-sampling-forms.fill', [
-                            'sampleType' => $sampleTypeId,
-                            'schedule' => $schedule->id,
-                        ])
-                        : route('system-planner.fill-sampling-forms'),
+                    'fill_url' => route('system-planner.fill-sampling-forms'),
                 ];
             })
             ->values()
@@ -286,12 +281,7 @@ class PlannerDashboard extends Component
                     'location' => $schedule->locationDisplayName(),
                     'personnel' => $schedule->personnelNames(),
                     'sample_type_id' => $sampleTypeId,
-                    'fill_url' => $sampleTypeId !== ''
-                        ? route('system-planner.fill-sampling-forms.fill', [
-                            'sampleType' => $sampleTypeId,
-                            'schedule' => $schedule->id,
-                        ])
-                        : route('system-planner.fill-sampling-forms'),
+                    'fill_url' => route('system-planner.fill-sampling-forms'),
                 ];
             })
             ->values()

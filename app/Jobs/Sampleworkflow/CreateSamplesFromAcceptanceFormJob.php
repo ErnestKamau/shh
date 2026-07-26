@@ -14,6 +14,7 @@ use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\Services\Billing\InvoiceNumberGenerator;
+use App\Services\Commercial\AccountPaymentTermsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
@@ -674,10 +675,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
         $invoice->save();
 
-        $creditDays = (int) ($customer->credit_days ?? 0);
-        $invoice->due_date = $creditDays > 0
-            ? now()->addDays($creditDays)->format('Y-m-d')
-            : now()->addDays(30)->format('Y-m-d');
+        app(AccountPaymentTermsService::class)->applyDueDateToInvoice($invoice, $customer);
 
         $invoice->invoice_number = $invoiceNumberGenerator->next();
         $invoice->save();

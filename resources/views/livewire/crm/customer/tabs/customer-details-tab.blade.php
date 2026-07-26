@@ -172,7 +172,7 @@
                                     <div class="tag-select-input">
                                         @if($this->selectedAccount)
                                             <span class="tag-badge">
-                                                {{ data_get($this->selectedAccount, 'key') }}
+                                                {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($this->selectedAccount) }}
                                                 <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
                                             </span>
                                         @endif
@@ -189,7 +189,7 @@
                                             @if(count($this->filteredAccounts) > 0)
                                                 @foreach($this->filteredAccounts as $account)
                                                     <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
-                                                        {{ data_get($account, 'key') }}
+                                                        {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($account) }}
                                                     </div>
                                                 @endforeach
                                             @else
@@ -201,6 +201,58 @@
                             </div>
                             @error('account_status') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
+
+                        @php $accountTerms = $this->selectedAccountTerms; @endphp
+                        @if(!empty($account_status))
+                            <div class="form-group row">
+                                <label class="col-sm-4 col-form-label">
+                                    {{ __('crm.credit_days') }}:
+                                    @if(($accountTerms['billing_type'] ?? '') === 'other')
+                                        <span class="text-danger">*</span>
+                                    @endif
+                                </label>
+                                <div class="col-sm-8">
+                                    <input type="number"
+                                        class="form-control @error('credit_days') is-invalid @enderror"
+                                        wire:model="credit_days"
+                                        min="0"
+                                        @if(!($accountTerms['allows_custom_days'] ?? false)) readonly @endif>
+                                    @if(($accountTerms['anchor'] ?? '') === 'test_report_delivery')
+                                        <small class="text-muted">Days counted from Test Report delivery.</small>
+                                    @elseif(($accountTerms['anchor'] ?? '') === 'immediate')
+                                        <small class="text-muted">Payment due immediately / in advance.</small>
+                                    @endif
+                                    @error('credit_days') <span class="text-danger small">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            @if(($accountTerms['billing_type'] ?? '') === 'other')
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">{{ __('crm.payment_method') }}: <span class="text-danger">*</span></label>
+                                    <div class="col-sm-8">
+                                        <select wire:model.live="payment_method" class="form-control @error('payment_method') is-invalid @enderror">
+                                            <option value="">{{ __('crm.select_payment_method') }}</option>
+                                            @foreach($this->paymentMethodOptions as $value => $label)
+                                                <option value="{{ $value }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('payment_method') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @if(($payment_method ?? '') === 'other')
+                                    <div class="form-group row">
+                                        <label class="col-sm-4 col-form-label">{{ __('crm.payment_terms_note') }}:</label>
+                                        <div class="col-sm-8">
+                                            <input type="text"
+                                                class="form-control @error('payment_terms_note') is-invalid @enderror"
+                                                wire:model="payment_terms_note"
+                                                maxlength="500"
+                                                placeholder="{{ __('crm.payment_terms_note_placeholder') }}">
+                                            @error('payment_terms_note') <span class="text-danger small">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                @endif
+                            @endif
+                        @endif
                     @endif
 
                     <div class="form-group row align-items-center">
@@ -332,9 +384,33 @@
                                 <th>{{ __('crm.account_setting') }}:</th>
                                 <td>
                                     @php
-                                        $accountName = data_get($accounts->firstWhere('id', $customer->account_status), 'key', '—');
+                                        $selectedAccount = $accounts->firstWhere('id', $customer->account_status);
+                                        $accountName = $selectedAccount
+                                            ? app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($selectedAccount)
+                                            : '—';
+                                        $terms = app(\App\Services\Commercial\AccountPaymentTermsService::class)
+                                            ->resolveFromCustomer($customer);
                                     @endphp
                                     {{ $accountName }}
+                                    @if($terms['days'] !== null)
+                                        <small class="text-muted d-block mt-1">
+                                            {{ $terms['days'] }} {{ __('crm.credit_days') }}
+                                            @if($terms['anchor'] === 'test_report_delivery')
+                                                — from Test Report delivery
+                                            @elseif($terms['anchor'] === 'immediate')
+                                                — due immediately
+                                            @endif
+                                        </small>
+                                    @endif
+                                    @if(filled($terms['payment_method']))
+                                        <small class="text-muted d-block mt-1">
+                                            {{ __('crm.payment_method') }}:
+                                            {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->paymentMethodLabel($terms['payment_method']) }}
+                                        </small>
+                                    @endif
+                                    @if(filled($customer->payment_terms_note))
+                                        <small class="text-muted d-block mt-1">{{ $customer->payment_terms_note }}</small>
+                                    @endif
                                 </td>
                             </tr>
                         @endif

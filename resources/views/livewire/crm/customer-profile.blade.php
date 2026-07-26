@@ -260,7 +260,7 @@
                                                 <div class="tag-select-input">
                                                     @if($this->selectedAccount)
                                                         <span class="tag-badge">
-                                                            {{ data_get($this->selectedAccount, 'key') }}
+                                                            {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($this->selectedAccount) }}
                                                             <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
                                                         </span>
                                                     @endif
@@ -277,7 +277,7 @@
                                                         @if(count($this->filteredAccounts) > 0)
                                                             @foreach($this->filteredAccounts as $account)
                                                                 <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
-                                                                    {{ data_get($account, 'key') }}
+                                                                    {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($account) }}
                                                                 </div>
                                                             @endforeach
                                                         @else
@@ -328,10 +328,48 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
-                                            <input type="number" wire:model="customerForm.credit_days" class="form-control">
+                                            @php $accountTerms = $this->selectedAccountTerms; @endphp
+                                            <input type="number"
+                                                wire:model="customerForm.credit_days"
+                                                class="form-control"
+                                                min="0"
+                                                @if(!($accountTerms['allows_custom_days'] ?? false)) readonly @endif>
+                                            @if(($accountTerms['anchor'] ?? '') === 'test_report_delivery')
+                                                <small class="text-muted">Days counted from Test Report delivery.</small>
+                                            @elseif(($accountTerms['anchor'] ?? '') === 'immediate')
+                                                <small class="text-muted">Payment due immediately / in advance.</small>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
+
+                                @if(($accountTerms['billing_type'] ?? '') === 'other')
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-3">
+                                                <label class="form-label fw-bold">{{ __('crm.payment_method') }} <span class="text-danger">*</span></label>
+                                                <select wire:model.live="customerForm.payment_method" class="form-control">
+                                                    <option value="">{{ __('crm.select_payment_method') }}</option>
+                                                    @foreach($this->paymentMethodOptions as $value => $label)
+                                                        <option value="{{ $value }}">{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                        @if(($this->customerForm['payment_method'] ?? '') === 'other')
+                                            <div class="col-md-6">
+                                                <div class="form-group mb-3">
+                                                    <label class="form-label fw-bold">{{ __('crm.payment_terms_note') }}</label>
+                                                    <input type="text"
+                                                        wire:model="customerForm.payment_terms_note"
+                                                        class="form-control"
+                                                        maxlength="500"
+                                                        placeholder="{{ __('crm.payment_terms_note_placeholder') }}">
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
 
                                 <div class="row">
                                     <div class="col-md-6">

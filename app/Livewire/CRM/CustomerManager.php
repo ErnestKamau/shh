@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Services\Commercial\AccountPaymentTermsService;
 
 class CustomerManager extends Component
 {
@@ -41,6 +42,9 @@ class CustomerManager extends Component
         'country_id' => null,
         'active' => true,
         'account_status' => null,
+        'credit_days' => null,
+        'payment_terms_note' => '',
+        'payment_method' => null,
         'vat_no' => '',
         'lpos_required' => false,
         'zoho_customer_id' => null,
@@ -102,6 +106,8 @@ class CustomerManager extends Component
             ->all();
 
         $hasContract = (bool) ($this->customerForm['has_contract'] ?? false);
+        $terms = app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId($this->customerForm['account_status'] ?? null);
 
         $rules = [
             'customerForm.name' => 'required|string|max:255',
@@ -111,6 +117,13 @@ class CustomerManager extends Component
             'customerForm.telephone1' => 'required|string|max:50',
             'customerForm.country_id' => 'required|exists:countries,id',
             'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
+            'customerForm.credit_days' => $terms['billing_type'] === 'other'
+                ? 'required|integer|min:0|max:3650'
+                : 'nullable|integer|min:0|max:3650',
+            'customerForm.payment_method' => $terms['billing_type'] === 'other'
+                ? ['required', Rule::in(array_keys(AccountPaymentTermsService::paymentMethodOptions()))]
+                : 'nullable|string|max:100',
+            'customerForm.payment_terms_note' => 'nullable|string|max:500',
             'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
             'customerForm.has_contract' => 'boolean',
             'customerForm.contract_valid_from' => $hasContract ? 'nullable|date' : 'nullable',
@@ -174,7 +187,18 @@ class CustomerManager extends Component
         if ($id) {
             $rawAccounts = getconfigByID($id);
             $this->accounts = collect($rawAccounts)
+                ->filter(fn ($account) => (bool) data_get($account, 'status', true))
                 ->values()
+                ->map(function ($account) {
+                    return [
+                        'id' => (string) data_get($account, 'id'),
+                        'key' => (string) data_get($account, 'key', ''),
+                        'value' => (string) data_get($account, 'value', ''),
+                        'meta' => is_array(data_get($account, 'meta')) ? data_get($account, 'meta') : [],
+                        'status' => (bool) data_get($account, 'status', true),
+                        'label' => app(AccountPaymentTermsService::class)->displayLabel($account),
+                    ];
+                })
                 ->toArray();
         } else {
             $this->accounts = [];
@@ -449,6 +473,9 @@ class CustomerManager extends Component
             'country_id' => $customer->country_id,
             'active' => $customer->active == 1,
             'account_status' => $customer->account_status,
+            'credit_days' => $customer->credit_days,
+            'payment_terms_note' => $customer->payment_terms_note ?? '',
+            'payment_method' => $customer->payment_method,
             'vat_no' => $customer->vat_no ?? '',
             'lpos_required' => $customer->lpos_required == 1,
             'zoho_customer_id' => $zohoCustomerId,
@@ -557,6 +584,15 @@ class CustomerManager extends Component
                 $customer->active = 1;
             }
             $customer->account_status = $this->customerForm['account_status'];
+            app(AccountPaymentTermsService::class)->syncCustomerFromAccountSetting(
+                $customer,
+                $this->customerForm['account_status'] ?? null,
+                is_numeric($this->customerForm['credit_days'] ?? null)
+                    ? (int) $this->customerForm['credit_days']
+                    : null,
+                $this->customerForm['payment_terms_note'] ?? null,
+                $this->customerForm['payment_method'] ?? null
+            );
             $customer->vat_no = $this->customerForm['vat_no'];
             $customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
             $customer->has_contract = $hasContract;
@@ -747,6 +783,9 @@ class CustomerManager extends Component
             'country_id' => null,
             'active' => true,
             'account_status' => null,
+            'credit_days' => null,
+            'payment_terms_note' => '',
+            'payment_method' => null,
             'vat_no' => '',
             'lpos_required' => false,
             'zoho_customer_id' => null,
@@ -797,6 +836,33 @@ class CustomerManager extends Component
         $this->showAccountDropdown = false;
         $this->accountSearch = '';
         $this->resetValidation('customerForm.account_status');
+
+        if (! $accountId) {
+            return;
+        }
+
+        $terms = app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId((string) $accountId);
+
+        if (! $terms['allows_custom_days']) {
+            $this->customerForm['credit_days'] = $terms['days'];
+            $this->customerForm['payment_terms_note'] = '';
+            $this->customerForm['payment_method'] = $terms['payment_method'];
+        } elseif ($terms['billing_type'] !== 'other') {
+            $this->customerForm['payment_terms_note'] = '';
+            $this->customerForm['payment_method'] = null;
+        }
+    }
+
+    public function getSelectedAccountTermsProperty(): array
+    {
+        return app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId($this->customerForm['account_status'] ?? null);
+    }
+
+    public function getPaymentMethodOptionsProperty(): array
+    {
+        return AccountPaymentTermsService::paymentMethodOptions();
     }
 
     public function getFilteredCountriesProperty()
@@ -827,7 +893,9 @@ class CustomerManager extends Component
                     return true;
                 }
 
-                return stripos((string) data_get($account, 'key', ''), $search) !== false;
+                return stripos((string) data_get($account, 'key', ''), $search) !== false
+                    || stripos((string) data_get($account, 'value', ''), $search) !== false
+                    || stripos((string) data_get($account, 'label', ''), $search) !== false;
             })
             ->values();
     }
@@ -848,7 +916,9 @@ class CustomerManager extends Component
                 return (string) data_get($account, 'id') === (string) $this->customerForm['account_status'];
             });
             if ($account) {
-                return data_get($account, 'key', '');
+                return data_get($account, 'label')
+                    ?: data_get($account, 'value')
+                    ?: data_get($account, 'key', '');
             }
         }
         return '';
@@ -943,6 +1013,8 @@ class CustomerManager extends Component
             $newCustomer->telephone2 = $this->customerToClone->telephone2;
             $newCustomer->country_id = $this->customerToClone->country_id;
             $newCustomer->credit_days = $this->customerToClone->credit_days;
+            $newCustomer->payment_terms_note = $this->customerToClone->payment_terms_note;
+            $newCustomer->payment_method = $this->customerToClone->payment_method;
             $newCustomer->active = $this->customerToClone->active;
             $newCustomer->account_status = $this->customerToClone->account_status;
             $newCustomer->vat_no = $this->customerToClone->vat_no;

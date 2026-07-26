@@ -14,6 +14,7 @@ use App\ZohoCustomers;
 use App\Models\Currency;
 use App\SampleAnalysisTypeRelationView;
 use App\TaxRegime;
+use App\Services\Commercial\AccountPaymentTermsService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -681,9 +682,7 @@ class SalesOrderWizard extends Component
             // Generate invoice number: FV-S-XXXX
             $invoice->invoice_number = 'FV-S-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT);
 
-            // Calculate due date
-            $creditDays = $this->customer->credit_days ?? 30;
-            $invoice->due_date = now()->addDays($creditDays);
+            app(AccountPaymentTermsService::class)->applyDueDateToInvoice($invoice, $this->customer);
 
             // Create invoice details from analysis mappings
             foreach ($this->analysisMappings as $analysisTypeId => $itemIds) {

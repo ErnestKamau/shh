@@ -127,13 +127,6 @@
                                     @error('telephone2') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="form-group">
-                                    <label class="control-label">Credit Days</label>
-                                    <input type="number" name="credit_days"
-                                        class="form-control @error('credit_days') is-invalid @enderror"
-                                        wire:model="credit_days" />
-                                    @error('credit_days') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                                <div class="form-group">
                                     <label class="control-label">Account Settings <span class="text-danger">*</span></label>
                                     <div class="tag-select-container @error('account_status') is-invalid @enderror"
                                         wire:click="$set('showAccountDropdown', true)"
@@ -141,7 +134,7 @@
                                         <div class="tag-select-input">
                                             @if($this->selectedAccount)
                                                 <span class="tag-badge">
-                                                    {{ data_get($this->selectedAccount, 'key') }}
+                                                    {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($this->selectedAccount) }}
                                                     <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
                                                 </span>
                                             @endif
@@ -158,7 +151,7 @@
                                                 @if(count($this->filteredAccounts) > 0)
                                                     @foreach($this->filteredAccounts as $account)
                                                         <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
-                                                            {{ data_get($account, 'key') }}
+                                                            {{ app(\App\Services\Commercial\AccountPaymentTermsService::class)->displayLabel($account) }}
                                                         </div>
                                                     @endforeach
                                                 @else
@@ -169,6 +162,51 @@
                                     </div>
                                     @error('account_status') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
+                                @php $accountTerms = $this->selectedAccountTerms; @endphp
+                                @if(!empty($account_status))
+                                    <div class="form-group">
+                                        <label class="control-label">
+                                            {{ __('crm.credit_days') }}
+                                            @if(($accountTerms['billing_type'] ?? '') === 'other')
+                                                <span class="text-danger">*</span>
+                                            @endif
+                                        </label>
+                                        <input type="number" name="credit_days"
+                                            class="form-control @error('credit_days') is-invalid @enderror"
+                                            wire:model="credit_days"
+                                            min="0"
+                                            @if(!($accountTerms['allows_custom_days'] ?? false)) readonly @endif />
+                                        @if(($accountTerms['anchor'] ?? '') === 'test_report_delivery')
+                                            <small class="text-muted">Days counted from Test Report delivery.</small>
+                                        @elseif(($accountTerms['anchor'] ?? '') === 'immediate')
+                                            <small class="text-muted">Payment due immediately / in advance.</small>
+                                        @endif
+                                        @error('credit_days') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                    @if(($accountTerms['billing_type'] ?? '') === 'other')
+                                        <div class="form-group">
+                                            <label class="control-label">{{ __('crm.payment_method') }} <span class="text-danger">*</span></label>
+                                            <select wire:model.live="payment_method" class="form-control @error('payment_method') is-invalid @enderror">
+                                                <option value="">{{ __('crm.select_payment_method') }}</option>
+                                                @foreach($this->paymentMethodOptions as $value => $label)
+                                                    <option value="{{ $value }}">{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('payment_method') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        @if(($payment_method ?? '') === 'other')
+                                            <div class="form-group">
+                                                <label class="control-label">{{ __('crm.payment_terms_note') }}</label>
+                                                <input type="text"
+                                                    class="form-control @error('payment_terms_note') is-invalid @enderror"
+                                                    wire:model="payment_terms_note"
+                                                    maxlength="500"
+                                                    placeholder="{{ __('crm.payment_terms_note_placeholder') }}" />
+                                                @error('payment_terms_note') <span class="text-danger">{{ $message }}</span> @enderror
+                                            </div>
+                                        @endif
+                                    @endif
+                                @endif
                             </div>
                         </div>
                         <div class="row border-top pt-3 mt-3">

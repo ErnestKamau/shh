@@ -25,6 +25,30 @@ final class EnquiryAccountSettingsService
             return self::TYPE_WALK_IN;
         }
 
+        $meta = is_array($config->meta) ? $config->meta : [];
+        $billingType = $meta['billing_type'] ?? null;
+
+        // Preserve legacy overdue behaviour (not treated as credit for PO rules).
+        $haystack = strtolower((string) ($config->key ?? '').' '.(string) ($config->value ?? ''));
+        if (str_contains($haystack, 'overdue')) {
+            return self::TYPE_WALK_IN;
+        }
+
+        if ($billingType === self::TYPE_ADVANCE) {
+            return self::TYPE_ADVANCE;
+        }
+
+        if ($billingType === self::TYPE_CREDIT) {
+            return self::TYPE_CREDIT;
+        }
+
+        if ($billingType === 'other') {
+            return ((int) ($customer->credit_days ?? 0) > 0)
+                ? self::TYPE_CREDIT
+                : self::TYPE_WALK_IN;
+        }
+
+        // Legacy configs without meta: fall back to key/value string matching.
         $key = strtolower((string) ($config->key ?? ''));
         $value = strtolower((string) ($config->value ?? ''));
 
@@ -35,6 +59,10 @@ final class EnquiryAccountSettingsService
 
         if ((str_contains($key, 'account holder') || str_contains($value, 'account holder'))
             && ! str_contains($key, 'overdue') && ! str_contains($value, 'overdue')) {
+            return self::TYPE_CREDIT;
+        }
+
+        if (str_contains($key, 'days after') || str_contains($value, 'test report')) {
             return self::TYPE_CREDIT;
         }
 
