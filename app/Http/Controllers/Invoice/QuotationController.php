@@ -164,19 +164,15 @@ class QuotationController extends Controller
         $headers = QuotationHeader::where('quotation_type', 'Analysis')->pluck('id')->toArray();
         $details = QuotationDetails::whereIn('quotation_header_id', $headers)->get();
         foreach ($details as $detail) {
-            $idsTypes = explode(',', $detail->part_no);
-            $insertArr = [];
-            foreach ($idsTypes as $id) {
-                array_push($insertArr, ['quotation_detail_id' => $detail->id, 'analysis_type_id' => $id]);
-            }
-            QuotationDetailAnalysisSplit::insert($insertArr);
+            $idsTypes = array_values(array_filter(array_map('trim', explode(',', (string) $detail->part_no))));
+            QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $idsTypes);
         }
         return response()->json('done');
     }
     public function add_quotation_header(Request $request)
     {
         $request->validate([
-            'currency_id' => ['nullable', 'uuid', 'exists:currencies,id'],
+            'currency_id' => ['required', 'uuid', 'exists:currencies,id'],
         ]);
 
         if (isset($request->quote_id)) {
@@ -200,18 +196,7 @@ class QuotationController extends Controller
         $header->quote_date = $request->quotation_date;
         $header->expiring_date = $request->expire_date;
         $header->prepared_by_id = auth()->user()->id;
-
-        // Handle Dynamics customer linking
-        if ($request->filled('zoho_customer_id')) {
-            // Update CRM customer with zoho_customer_id
-            $customer->zoho_customer_id = $request->zoho_customer_id;
-            $customer->save();
-        }
-
-        // Handle currency
-        if ($request->filled('currency_id')) {
-            $header->currency_id = $request->currency_id;
-        }
+        $header->currency_id = $request->currency_id;
 
         if (!isset($request->quote_id)) {
             $header->status = 'Quote In Reception';
@@ -583,14 +568,10 @@ class QuotationController extends Controller
                     );
                     $detail->save();
 
-                    QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
-                    $insertArr = [];
-                    foreach ($analysisTypeIds as $a_id) {
-                        $insertArr[] = ['analysis_type_id' => $a_id, 'quotation_detail_id' => $detail->id];
-                    }
-                    if ($insertArr !== []) {
-                        QuotationDetailAnalysisSplit::insert($insertArr);
-                    }
+                    QuotationDetailAnalysisSplit::syncForDetail(
+                        (string) $detail->id,
+                        $analysisTypeIds
+                    );
                 }
 
                 ++$count;
@@ -758,16 +739,7 @@ class QuotationController extends Controller
             $detail->sub_acc_analytes = isset($request->sub_acc) ? $request->sub_acc : $detail->sub_acc_analytes;
             $detail->default_analytes = isset($request->default_analytes) ? $request->default_analytes : $detail->default_analytes;
             $analysis_types_ids = array_values(array_filter(array_map('trim', explode(',', $partNoCsv))));
-            $insertArr = [];
-            QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
-
-            foreach ($analysis_types_ids as $a_id) {
-                $data = ["analysis_type_id" => $a_id, 'quotation_detail_id' => $detail->id];
-                array_push($insertArr, $data);
-            }
-            if ($insertArr !== []) {
-                QuotationDetailAnalysisSplit::insert($insertArr);
-            }
+            QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $analysis_types_ids);
 
             $elementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
             $computedTat = $this->quotationPricingResolver->maxTatForElements($elementIds, $partNoCsv);

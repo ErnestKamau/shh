@@ -753,36 +753,31 @@
 <div class="modal fade" id="edit-detail-analytes" role="dialog">
     <div class="modal-dialog modal-lg">
         <div class="modal-content bg-light">
-            <form action="">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-pencil text-primary"></i> Edit Quotation Parameters
-
-                    </h5>
-                    <span class="btn btn-success float-right btn-sm" id="save-edit"><i class="mdi mdi-content-save"></i>Save</span>
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="mdi mdi-pencil text-primary"></i> Edit Quotation Parameters
+                </h5>
+                <button type="button" class="btn btn-success float-right btn-sm" id="save-edit"><i class="mdi mdi-content-save"></i> Save</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table style="width: 100%;" class="table-condensed table-hover table-stripped table-sm table-bordered">
+                        <thead class="bg-light">
+                            <th>No <input type="checkbox" class="float-right" id="edit-analyte-all"></th>
+                            <th>Analyte Name</th>
+                            <th>Accredited <input type="checkbox" id="edit-accreditted" class="float-right"></th>
+                            <th>Sub-Contracted <input type="checkbox" id="edit-sub" class="float-right"></th>
+                            <th nowrap>LOQ</th>
+                            <th nowrap>MU</th>
+                            <th nowrap title="Turnaround time (days)">TAT</th>
+                        </thead>
+                        <tbody id="edit-description"></tbody>
+                    </table>
                 </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table style="width: 100%;" class="table-condensed table-hover table-stripped table-sm table-bordered">
-                            <thead class="bg-light">
-                                <th>No <input type="checkbox" class="float-right" id="edit-analyte-all"></th>
-                                <th>Analyte Name</th>
-                                <th>Accredited <input type="checkbox" id="edit-accreditted" class="float-right"></th>
-                                <th>Sub-Contracted <input type="checkbox" id="edit-sub" class="float-right"></th>
-                                <th nowrap>LOQ</th>
-                                <th nowrap>MU</th>
-                                <th nowrap title="Turnaround time (days)">TAT</th>
-                            </thead>
-                            <tbody id="edit-description"></tbody>
-                        </table>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-
-                    <button type="button" class="btn btn-outline-default" data-dismiss="modal">Close</button>
-                </div>
-            </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-default" data-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
@@ -882,32 +877,30 @@
 <div class="modal fade" id="quote-description-analytes" role="dialog">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form action="" method="post">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-google-circles-extended text-success"></i> Quotation Parameters
-                    </h5>
-                    <span type="submit" id="save-analytes" class="btn btn-outline-success btn-sm float-right"><i class="mdi mdi-content-save"></i> Save</span>
-                </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table-condensed table-hover table-stripped table-sm table-bordered" style="width: 100%;">
-                            <thead class="bg-light">
-                                <th>No <input type="checkbox" id="select-analyte-all" class="float-right"></th>
-                                <th>Analyte </th>
-                                <th>Accreditted <input type="checkbox" id="select-accredited-all" class="float-right"></th>
-                                <th>Subcontracted <input type="checkbox" id="select-sub-all" class="float-right"></th>
-                                <th nowrap>LOQ</th>
-                                <th nowrap>MU</th>
-                                <th nowrap title="Turnaround time (days)">TAT</th>
-                            </thead>
-                            <tbody id="analysis-analytes-holder">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="mdi mdi-google-circles-extended text-success"></i> Quotation Parameters
+                </h5>
+                <button type="button" id="save-analytes" class="btn btn-outline-success btn-sm float-right"><i class="mdi mdi-content-save"></i> Save</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table-condensed table-hover table-stripped table-sm table-bordered" style="width: 100%;">
+                        <thead class="bg-light">
+                            <th>No <input type="checkbox" id="select-analyte-all" class="float-right"></th>
+                            <th>Analyte </th>
+                            <th>Accredited <input type="checkbox" id="select-accredited-all" class="float-right"></th>
+                            <th>Subcontracted <input type="checkbox" id="select-sub-all" class="float-right"></th>
+                            <th nowrap>LOQ</th>
+                            <th nowrap>MU</th>
+                            <th nowrap title="Turnaround time (days)">TAT</th>
+                        </thead>
+                        <tbody id="analysis-analytes-holder">
 
-                            </tbody>
-                        </table>
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -1370,25 +1363,27 @@
             var sample_type = $('#detail-edit-mode').find('#sample-type-id').val();
             var analysis_s = $('#detail-edit-mode').find('#edit-part-no').val();
             var detail = $('#detail-edit-mode').find('#detail-id').val();
+            var savedState = readRowParameterState($('#detail-edit-mode'));
 
             $.ajax({
                 url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail,
                 beforeSend: function() {
                     $('#edit-description').empty();
+                    $('#edit-analyte-all, #edit-accreditted, #edit-sub').prop('checked', false);
                 },
                 success: function(data) {
-                    console.log(data);
                     $.each(data, function(i, e) {
                         var analysis_text = $(`<tr>
                                 <td colspan="7"><b>${i}</b></td>
                             </tr>`)
                         $('#edit-description').append(analysis_text);
                         $.each(e, function(j, s) {
-                            console.log(s);
                             var rows = quoteAnalytesRow(s);
                             $('#edit-description').append(rows);
                         })
                     });
+                    // Prefer in-modal edits that have not been submitted yet.
+                    applyParameterStateToModal($('#edit-detail-analytes'), savedState);
                 }
             })
         })
@@ -1422,6 +1417,83 @@
             return $.when.apply($, requests);
         }
 
+        function splitCsvIds(value) {
+            return String(value || '')
+                .split(',')
+                .map(function(id) { return id.trim(); })
+                .filter(function(id) { return id !== ''; });
+        }
+
+        function readRowParameterState($row) {
+            var accredited = splitCsvIds($row.find('input[name="accreditted_analytes[]"], input[name="accreditted_analytes"]').val());
+            var sub = splitCsvIds($row.find('input[name="sub_analytes[]"], input[name="sub_analytes"]').val());
+            var subAcc = splitCsvIds($row.find('input[name="sub_acc[]"], input[name="sub_acc"]').val());
+            var defaults = splitCsvIds($row.find('input[name="default_analytes[]"], input[name="default_analytes"]').val());
+            var loqMap = {};
+            var loqRaw = $row.find('input[name="element_loq_json[]"], input[name="element_loq_json"]').val();
+            if (loqRaw) {
+                try {
+                    var parsed = JSON.parse(loqRaw);
+                    if (parsed && typeof parsed === 'object') {
+                        loqMap = parsed;
+                    }
+                } catch (e) {
+                    loqMap = {};
+                }
+            }
+
+            return {
+                selectedIds: accredited.concat(sub, subAcc, defaults).filter(function(id, index, all) {
+                    return all.indexOf(id) === index;
+                }),
+                accreditedIds: accredited,
+                subIds: sub,
+                subAccIds: subAcc,
+                defaultIds: defaults,
+                loqMap: loqMap,
+                hasSavedState: accredited.length + sub.length + subAcc.length + defaults.length > 0,
+            };
+        }
+
+        function applyParameterStateToModal($scope, state) {
+            if (!state || !state.hasSavedState) {
+                return;
+            }
+
+            var selectedSet = {};
+            state.selectedIds.forEach(function(id) { selectedSet[id] = true; });
+            var accreditedSet = {};
+            state.accreditedIds.forEach(function(id) { accreditedSet[id] = true; });
+            var subSet = {};
+            state.subIds.forEach(function(id) { subSet[id] = true; });
+            var subAccSet = {};
+            state.subAccIds.forEach(function(id) { subAccSet[id] = true; });
+
+            $scope.find('tr').each(function() {
+                var $tr = $(this);
+                var $selected = $tr.find('.analyte-selected');
+                if (!$selected.length) {
+                    return;
+                }
+
+                var elementId = String($selected.val() || '');
+                $selected.prop('checked', !!selectedSet[elementId]);
+
+                var isBoth = !!subAccSet[elementId];
+                var isAcc = isBoth || !!accreditedSet[elementId];
+                var isSub = isBoth || !!subSet[elementId];
+                $tr.find('.analyte-accredited').prop('checked', isAcc);
+                $tr.find('.analyte-subcontracted').prop('checked', isSub);
+
+                if (Object.prototype.hasOwnProperty.call(state.loqMap, elementId)) {
+                    var $loq = $tr.find('input.analyte-loq');
+                    var loqValue = String(state.loqMap[elementId] ?? '');
+                    $loq.val(loqValue);
+                    $loq.data('original-loq', loqValue);
+                }
+            });
+        }
+
         function collectSelectedAnalyteState($scope) {
             var analytes_accreditted = [];
             var analyte_sub = [];
@@ -1431,14 +1503,15 @@
             var maxTat = null;
             var spans = [];
 
-            $scope.find('[name="selected_analyte[]"]').each(function() {
-                var parent_tr = $(this).closest('tr');
-                if (!$(this).prop('checked')) {
+            $scope.find('.analyte-selected').each(function() {
+                var $selected = $(this);
+                var parent_tr = $selected.closest('tr');
+                if (!$selected.prop('checked')) {
                     return;
                 }
 
-                var analyte_name = parent_tr.find('#analyte-name').val();
-                var analyte_id = parent_tr.find('#selected-analytes').val();
+                var analyte_name = parent_tr.find('.analyte-name').val();
+                var analyte_id = String($selected.val() || '');
                 var loqInput = parent_tr.find('input.analyte-loq');
                 if (analyte_id) {
                     loqMap[analyte_id] = String(loqInput.val() || '').trim();
@@ -1448,14 +1521,16 @@
                     maxTat = maxTat === null ? reportingTime : Math.max(maxTat, reportingTime);
                 }
 
+                var isAcc = parent_tr.find('.analyte-accredited').prop('checked');
+                var isSub = parent_tr.find('.analyte-subcontracted').prop('checked');
                 var analyte_text = '';
-                if (parent_tr.find('#accreditted').prop('checked') && !parent_tr.find('#sub_contracted').prop('checked')) {
+                if (isAcc && !isSub) {
                     analyte_text = `<span>${analyte_name} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`;
                     analytes_accreditted.push(analyte_id);
-                } else if (parent_tr.find('#sub_contracted').prop('checked') && !parent_tr.find('#accreditted').prop('checked')) {
+                } else if (isSub && !isAcc) {
                     analyte_text = `<span>${analyte_name}*, </span>`;
                     analyte_sub.push(analyte_id);
-                } else if (parent_tr.find('#accreditted').prop('checked') && parent_tr.find('#sub_contracted').prop('checked')) {
+                } else if (isAcc && isSub) {
                     analyte_text = `<span>${analyte_name} * <img src="/images/tick.png" alt="tick" height="8" width="8">,</span> `;
                     sub_acc.push(analyte_id);
                 } else {
@@ -1476,7 +1551,8 @@
             };
         }
 
-        $('#save-edit').off('click').on('click', function() {
+        $('#save-edit').off('click').on('click', function(e) {
+            e.preventDefault();
             var $modal = $('#edit-detail-analytes');
             persistEditedLoqs($modal).always(function() {
                 var state = collectSelectedAnalyteState($modal);
@@ -1489,6 +1565,7 @@
                 $holder.append($('<input type="hidden" name="sub_analytes">').val(state.analyte_sub.toString()));
                 $holder.append($('<input type="hidden" name="sub_acc">').val(state.sub_acc.toString()));
                 $holder.append($('<input type="hidden" name="default_analytes">').val(state.default_analytes.toString()));
+                $holder.append($('<input type="hidden" name="element_loq_json">').val(JSON.stringify(state.loqMap)));
                 var $tat = $('#detail-edit-mode').find('.quotation-edit-tat');
                 if (state.maxTat !== null) {
                     $tat.val(state.maxTat);
@@ -1505,12 +1582,15 @@
             quoteDescriptionModalRowNo = row_no;
             quoteDescriptionModalSampleCode = sample_code;
             quoteDescriptionModalTypeName = type_name;
-            var part_no_analysis = $('#create-detail').find('tr#detail-row-' + row_no).find('#select-part-final').val();
+            var $detailRow = $('#create-detail').find('tr#detail-row-' + row_no);
+            var part_no_analysis = $detailRow.find('#select-part-final').val();
+            var savedState = readRowParameterState($detailRow);
             if (sample_code != '') {
                 $.ajax({
                     url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis,
                     beforeSend: function() {
                         $('#analysis-analytes-holder').empty();
+                        $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
                     },
                     success: function(data) {
                         $.each(data, function(i, e) {
@@ -1523,6 +1603,7 @@
                                 $('#analysis-analytes-holder').append(rows);
                             });
                         });
+                        applyParameterStateToModal($('#quote-description-analytes'), savedState);
                     },
                     error: function(data) {
                         console.log(data);
@@ -1531,7 +1612,8 @@
             }
         });
 
-        $('#save-analytes').off('click').on('click', function() {
+        $('#save-analytes').off('click').on('click', function(e) {
+            e.preventDefault();
             var row_no = quoteDescriptionModalRowNo;
             var sample_code = quoteDescriptionModalSampleCode;
             var type_name = quoteDescriptionModalTypeName;
@@ -1572,29 +1654,30 @@
         });
 
         var quoteAnalytesRow = function(data) {
-            var check_acc = 'checked';
+            var check_acc = '';
             var check_sub = '';
             var selected = 'checked';
-            if (data.non_accredited == 0) {
-                check_acc = '';
-            }
-            if (data.acc == 1 && data.present == 1) {
+
+            // Element is accredited unless explicitly marked non-accredited.
+            if (!(parseInt(data.non_accredited, 10) === 1 || data.non_accredited === true || data.non_accredited === 'true')) {
                 check_acc = 'checked';
-            }
-            if (data.sub == 1) {
-                check_sub = 'checked'
             }
 
-            if (data.both == 1) {
-                check_acc = 'checked';
-                check_sub = 'checked';
-            }
-            if (data.default == 1 && data.present == 1) {
-                check_acc = '';
-                check_sub = '';
-            }
-            if (data.selected == 0) {
-                selected = ''
+            if (data.present == 1) {
+                check_acc = data.acc == 1 || data.both == 1 ? 'checked' : '';
+                check_sub = data.sub == 1 || data.both == 1 ? 'checked' : '';
+                selected = data.selected == 0 ? '' : 'checked';
+            } else {
+                if (data.sub == 1) {
+                    check_sub = 'checked';
+                }
+                if (data.both == 1) {
+                    check_acc = 'checked';
+                    check_sub = 'checked';
+                }
+                if (data.selected == 0) {
+                    selected = '';
+                }
             }
 
             var loqVal = (data.loq !== null && typeof data.loq !== 'undefined') ? data.loq : '';
@@ -1603,18 +1686,19 @@
                 ? data.reporting_time
                 : '';
             var tatDisplay = reportingTime !== '' ? reportingTime : '—';
+            var elementId = data.id || '';
 
-            var analyte_row = $(`
-                <tr data-reporting-time="${reportingTime}">
-                    <td><input type="checkbox" name="selected_analyte[]" id="selected-analytes" value="${data.id}" ${selected}></td>
+            return $(`
+                <tr data-reporting-time="${reportingTime}" data-element-id="${elementId}">
+                    <td><input type="checkbox" class="analyte-selected" name="selected_analyte[]" value="${elementId}" ${selected}></td>
                     <td>
-                        <input type="text" name="analyte_name[]" id="analyte-name" class="border-0" readonly="true" value="${data.analyte_name}" >
-                        <input type="hidden" name="analyte_id[]" id="analyte-id" class="border-0" readonly="true" value="${data.analyte_id}" >
+                        <input type="text" name="analyte_name[]" class="analyte-name border-0" readonly="true" value="${data.analyte_name}" >
+                        <input type="hidden" name="analyte_id[]" class="analyte-analyte-id border-0" readonly="true" value="${data.analyte_id}" >
                     </td>
-                    <td><input type="checkbox" name="accreditted" id="accreditted" ${check_acc}></td>
-                    <td><input type="checkbox" name="sub_contracted" id="sub_contracted" ${check_sub}></td>
+                    <td><input type="checkbox" class="analyte-accredited" name="accreditted" ${check_acc}></td>
+                    <td><input type="checkbox" class="analyte-subcontracted" name="sub_contracted" ${check_sub}></td>
                     <td style="min-width: 90px;">
-                        <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${data.id}">
+                        <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${elementId}">
                     </td>
                     <td style="min-width: 70px;">
                         <input type="text" class="form-control form-control-sm analyte-mu" value="${muVal}" readonly>
@@ -1624,76 +1708,24 @@
                     </td>
                 </tr>
             `);
-            var $row = analyte_row.clone();
-
-            return $row;
-
         }
-        $('#select-analyte-all').on('change',function(){
-            if($('#select-analyte-all').is(':checked')){
-                $.each( $('#quote-description-analytes').find('[id=selected-analytes]'),function(j,s){
-                    $(s).prop('checked',true);
-                });               
-            }else{
-                $.each( $('#quote-description-analytes').find('[id=selected-analytes]'),function(j,s){
-                    $(s).prop('checked',false);
-                }); 
-            }
+        $('#select-analyte-all').on('change', function() {
+            $('#quote-description-analytes').find('.analyte-selected').prop('checked', $(this).is(':checked'));
         });
-        $('#select-accredited-all').on('change',function(){
-            if($('#select-accredited-all').is(':checked')){
-                $.each( $('#quote-description-analytes').find('[id=accreditted]'),function(j,s){
-                    $(s).prop('checked',true);
-                }); 
-            }else{
-                $.each( $('#quote-description-analytes').find('[id=accreditted]'),function(j,s){
-                    $(s).prop('checked',false);
-                }); 
-            }
-        })
-        $('#select-sub-all').on('change',function(){
-            if($('#select-sub-all').is(':checked')){
-                $.each( $('#quote-description-analytes').find('[id=sub_contracted]'),function(j,s){
-                    $(s).prop('checked',true);
-                }); 
-            }else{
-                $.each( $('#quote-description-analytes').find('[id=sub_contracted]'),function(j,s){
-                    $(s).prop('checked',false);
-                }); 
-            }
+        $('#select-accredited-all').on('change', function() {
+            $('#quote-description-analytes').find('.analyte-accredited').prop('checked', $(this).is(':checked'));
         });
-        $('#edit-sub').on('change',function(){
-            if($('#edit-sub').is(':checked')){
-                $.each( $('#edit-detail-analytes').find('[id=sub_contracted]'),function(j,s){
-                    $(s).prop('checked',true);
-                }); 
-            }else{
-                $.each( $('#edit-detail-analytes').find('[id=sub_contracted]'),function(j,s){
-                    $(s).prop('checked',false);
-                }); 
-            }
+        $('#select-sub-all').on('change', function() {
+            $('#quote-description-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
         });
-        $('#edit-accreditted').on('change',function(){
-            if($('#edit-accreditted').is(':checked')){
-                $.each( $('#edit-detail-analytes').find('[id=accreditted]'),function(j,s){
-                    $(s).prop('checked',true);
-                }); 
-            }else{
-                $.each( $('#edit-detail-analytes').find('[id=accreditted]'),function(j,s){
-                    $(s).prop('checked',false);
-                }); 
-            }
-        })
-        $('#edit-analyte-all').on('change',function(){
-            if($('#edit-analyte-all').is(':checked')){
-                $.each( $('#edit-detail-analytes').find('[id=selected-analytes]'),function(j,s){
-                    $(s).prop('checked',true);
-                });               
-            }else{
-                $.each( $('#edit-detail-analytes').find('[id=selected-analytes]'),function(j,s){
-                    $(s).prop('checked',false);
-                }); 
-            }
+        $('#edit-sub').on('change', function() {
+            $('#edit-detail-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
+        });
+        $('#edit-accreditted').on('change', function() {
+            $('#edit-detail-analytes').find('.analyte-accredited').prop('checked', $(this).is(':checked'));
+        });
+        $('#edit-analyte-all').on('change', function() {
+            $('#edit-detail-analytes').find('.analyte-selected').prop('checked', $(this).is(':checked'));
         });
         
 

@@ -1,6 +1,6 @@
 @php
     $customers = $customers ?? collect();
-    $currencyById = \App\Models\Currency::query()->get()->keyBy('id');
+    $currencies = $currencies ?? \App\Models\Currency::query()->orderBy('code')->get();
 @endphp
 @include('layouts.lab.invoice.partials.add-quotation-modal-styles')
 <div class="modal fade" id="add-quotation" role="dialog" aria-labelledby="add-quotation-title">
@@ -26,21 +26,8 @@
                             <select name="client" class="form-control modern-select no-select2" id="select-client" required>
                                 <option value="" disabled>Choose Client...</option>
                                 @foreach ($customers as $customer)
-                                    @php
-                                        $zohoId = $customer->zoho_customer_id;
-                                        if (is_array($zohoId)) {
-                                            $zohoId = $zohoId[0] ?? '';
-                                        } elseif (is_string($zohoId) && str_starts_with(trim($zohoId), '[')) {
-                                            $decoded = json_decode($zohoId, true);
-                                            $zohoId = is_array($decoded) ? ($decoded[0] ?? '') : $zohoId;
-                                        }
-                                        $custCurrency = $customer->currency_id ? ($currencyById[$customer->currency_id] ?? null) : null;
-                                    @endphp
                                     <option value="{{ $customer->id }}"
-                                        data-zoho-customer-id="{{ $zohoId }}"
-                                        data-currency-id="{{ $customer->currency_id ?? '' }}"
-                                        data-currency-code="{{ $custCurrency?->code ?? '' }}"
-                                        data-currency-description="{{ $custCurrency?->description ?? '' }}">
+                                        data-currency-id="{{ $customer->currency_id ?? '' }}">
                                         {{ $customer->name }}
                                     </option>
                                 @endforeach
@@ -80,24 +67,15 @@
                     </div>
                 </div>
 
-                <div class="form-group mb-3">
-                    <label class="soft-label" for="select-zoho-customer">Dynamics Customer <small class="text-muted">(Optional)</small></label>
-                    <select name="zoho_customer_id" id="select-zoho-customer" class="form-control modern-select no-select2">
-                        <option value="">Select Dynamics Customer...</option>
-                        @foreach (\App\ZohoCustomers::where('status', 'Active')->orderBy('name')->get() as $zc)
-                            <option value="{{ $zc->id }}" data-currency-code="{{ $zc->currency_code }}">{{ $zc->name }} ({{ $zc->customer_no }})</option>
+                <div class="form-group mb-0">
+                    <label class="soft-label" for="select-currency">Currency <span class="text-danger">*</span></label>
+                    <select name="currency_id" id="select-currency" class="form-control modern-select no-select2" required>
+                        <option value="" disabled selected>Select Currency...</option>
+                        @foreach ($currencies as $currency)
+                            <option value="{{ $currency->id }}">{{ $currency->code }} - {{ $currency->description }}</option>
                         @endforeach
                     </select>
-                    <small class="form-text text-info mt-1" id="zoho-customer-info" style="display: none;">
-                        <i class="mdi mdi-information-outline"></i> Links Dynamics customer and may override currency.
-                    </small>
-                </div>
-
-                <div class="form-group mb-0">
-                    <label class="soft-label" for="display-currency">Currency</label>
-                    <input type="text" id="display-currency" class="form-control modern-input" readonly placeholder="Auto-populated from client or Dynamics customer...">
-                    <input type="hidden" name="currency_id" id="currency-id" required>
-                    <small class="form-text text-muted">Set from the CRM client by default, or from the Dynamics customer when selected.</small>
+                    <small class="form-text text-muted">Defaults from the selected client when available; you can change it.</small>
                 </div>
             </div>
 

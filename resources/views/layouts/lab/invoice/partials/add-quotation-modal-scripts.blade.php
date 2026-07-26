@@ -2,28 +2,6 @@
     $(function () {
         var $modal = $('#add-quotation');
 
-        function setCurrencyFields(currencyId, code, description) {
-            if (currencyId) {
-                var label = code || '';
-                if (description) {
-                    label = label ? (label + ' - ' + description) : description;
-                }
-                $('#display-currency').val(label);
-                $('#currency-id').val(currencyId);
-            } else {
-                $('#display-currency').val('');
-                $('#currency-id').val('');
-            }
-        }
-
-        function setCurrencyFromClientOption($option) {
-            setCurrencyFields(
-                $option.data('currency-id') || '',
-                $option.data('currency-code') || '',
-                $option.data('currency-description') || ''
-            );
-        }
-
         function loadCustomerContacts(clientId, selectedContactId) {
             var $contactSelect = $('#select-client-contact');
 
@@ -85,55 +63,13 @@
         $('#select-client').on('change', function () {
             var client = $(this).val();
             var $selectedOption = $(this).find('option:selected');
-            var zohoCustomerId = $selectedOption.data('zoho-customer-id');
+            var clientCurrencyId = $selectedOption.data('currency-id');
 
             loadCustomerContacts(client);
-            setCurrencyFromClientOption($selectedOption);
 
-            if (zohoCustomerId) {
-                $('#select-zoho-customer').val(String(zohoCustomerId)).trigger('change');
-                $('#zoho-customer-info').show();
-            } else {
-                $('#select-zoho-customer').val('');
-                $('#zoho-customer-info').hide();
-            }
-        });
-
-        $('#select-zoho-customer').on('change', function () {
-            var zohoCustomerId = $(this).val();
-            var $selectedOption = $(this).find('option:selected');
-            var currencyCode = $selectedOption.data('currency-code');
-
-            if (!zohoCustomerId) {
-                var $clientOption = $('#select-client').find('option:selected');
-                setCurrencyFromClientOption($clientOption);
-                $('#zoho-customer-info').hide();
-                return;
-            }
-
-            if (currencyCode) {
-                $.ajax({
-                    url: '/api/get-currency-by-code',
-                    method: 'POST',
-                    data: {
-                        currency_code: currencyCode,
-                        _token: '{{ csrf_token() }}'
-                    },
-                    success: function (currency) {
-                        if (currency && currency.id) {
-                            setCurrencyFields(currency.id, currency.code, currency.description);
-                            $('#zoho-customer-info').show();
-                        } else {
-                            setCurrencyFields('', '', '');
-                        }
-                    },
-                    error: function () {
-                        $('#display-currency').val('Error loading currency');
-                        $('#currency-id').val('');
-                    }
-                });
-            } else {
-                $('#zoho-customer-info').show();
+            var $currency = $('#select-currency');
+            if (clientCurrencyId && $currency.find('option[value="' + clientCurrencyId + '"]').length) {
+                $currency.val(String(clientCurrencyId));
             }
         });
 
