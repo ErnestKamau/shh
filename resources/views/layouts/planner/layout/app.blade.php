@@ -481,7 +481,7 @@
 			<a href="{{ route('system-planner.fill-sampling-forms') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.fill-sampling-forms*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-edit-outline fa-fw mr-1"></span>
-					<span class="menu-collapsed">{{ __('planner.fill_sampling_forms') === 'planner.fill_sampling_forms' ? 'Fill Sampling Forms' : __('planner.fill_sampling_forms') }}</span>
+					<span class="menu-collapsed">{{ __('planner.fill_sampling_forms') }}</span>
 				</div>
 			</a>
 

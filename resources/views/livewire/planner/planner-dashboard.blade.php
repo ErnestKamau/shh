@@ -83,8 +83,28 @@
                     </div>
                     <div class="pd-list-meta">{{ $row['client'] }} · {{ $row['when'] }}</div>
                     <div class="pd-list-sub">{{ $row['location'] }}</div>
-                    <div class="pd-progress-line">
-                        <span>{{ __('planner.samples_collected_progress', ['collected' => $row['collected'], 'scheduled' => $row['scheduled']]) }}</span>
+                    @php
+                        $collectedCount = (int) ($row['collected'] ?? 0);
+                        $scheduledCount = max(0, (int) ($row['scheduled'] ?? 0));
+                        $progressPct = $scheduledCount > 0
+                            ? (int) min(100, round(($collectedCount / $scheduledCount) * 100))
+                            : 0;
+                        $progressLabel = __('planner.samples_collected_progress', [
+                            'collected' => $collectedCount,
+                            'scheduled' => $scheduledCount,
+                        ]);
+                        if ($progressLabel === 'planner.samples_collected_progress') {
+                            $progressLabel = $collectedCount.' of '.$scheduledCount.' samples collected';
+                        }
+                    @endphp
+                    <div class="pd-progress">
+                        <div class="pd-progress-meta">
+                            <span>{{ $progressLabel }}</span>
+                            <span>{{ $progressPct }}%</span>
+                        </div>
+                        <div class="pd-progress-track" aria-hidden="true">
+                            <div class="pd-progress-fill" style="width: {{ $progressPct }}%;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -346,11 +366,29 @@
         .pd-status--overdue { background: #fff3e0; color: #e65100; }
         .pd-status--pending { background: #f3e8e9; color: #8a1a1f; }
         .pd-status--partial { background: #fff8e1; color: #f57f17; }
-        .pd-progress-line {
-            margin-top: 8px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #8a1a1f;
+        .pd-progress {
+            margin-top: 10px;
+        }
+        .pd-progress-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+        .pd-progress-track {
+            height: 6px;
+            border-radius: 999px;
+            background: #eef1f5;
+            overflow: hidden;
+        }
+        .pd-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #8a1a1f, #b4232a);
+            transition: width .2s ease;
         }
         @media (max-width: 991.98px) {
             .pd-kpi-value { font-size: 1.35rem; }

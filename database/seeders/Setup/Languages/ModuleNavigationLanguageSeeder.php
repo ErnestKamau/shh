@@ -558,6 +558,15 @@ class ModuleNavigationLanguageSeeder extends Seeder
             TranslationLanguageLine::flushGroupCacheForAllLocales($group);
         }
 
+        // Spatie caches translation groups forever; clear app cache so production
+        // workers pick up newly seeded keys immediately.
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        } catch (\Throwable) {
+            // Ignore when cache clear is unavailable in constrained environments.
+        }
+
         $this->command?->info("Module navigation translations seeded: {$count} keys");
+        $this->command?->info('Translation cache flushed. If keys still show raw, run: php artisan cache:clear && php artisan view:clear');
     }
 }
