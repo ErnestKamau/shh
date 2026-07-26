@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app')
+@extends('layouts.lab.layout.app', ['select2' => true])
 
 @section('title2')
     <title>Lab Sections Management</title>

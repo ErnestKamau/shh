@@ -41,12 +41,16 @@
 		--sys-sidebar-link-bg: var(--color-sidebar-link-bg);
 		--sys-sidebar-text: var(--color-sidebar-text);
 		--sys-sidebar-text-muted: var(--color-sidebar-text-muted);
-		--text-caption: 0.75rem;
+		/* Type scale — aligned to lab-surface (Receiving / Request View / RFT) density */
+		--text-xs: 0.6875rem;     /* 11px */
+		--text-caption: 0.75rem;  /* 12px */
 		--text-sidebar: 0.8rem;
-		--text-sm: 0.875rem;
-		--text-base: 1rem;
-		--text-lg: 1.125rem;
-		--text-xl: 1.25rem;
+		--text-sm: 0.8125rem;     /* 13px — default UI body (was 14px) */
+		--text-md: 0.875rem;      /* 14px */
+		--text-base: 0.8125rem;   /* alias of body; prefer --text-sm for UI */
+		--text-lg: 0.95rem;
+		--text-xl: 1.05rem;
+		--text-2xl: 1.25rem;
 		--text-metric: 1.5rem;
 		--font-normal: 400;
 		--font-medium: 500;
@@ -60,9 +64,29 @@
 		--space-md: 1rem;
 		--space-lg: 1.25rem;
 		--space-xl: 1.5rem;
-		--radius-sm: 8px;
-		--radius-md: 12px;
+		--radius-sm: 6px;
+		--radius-md: 8px;
+		--radius-lg: 10px;
+		--radius-xl: 12px;
 		--radius-pill: 999px;
+		--control-h: 34px;
+		--btn-h: 34px;
+		--btn-h-sm: 30px;
+		--page-max-width: 1280px;
+		--page-pad-x: 1.5rem;
+		--page-pad-x-md: 2rem;
+		--card-pad-y: 0.85rem;
+		--card-pad-x: 1rem;
+		--table-cell-y: 0.65rem;
+		--table-cell-x: 0.7rem;
+		--shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+		--shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+	}
+
+	@media (min-width: 768px) {
+		:root {
+			--page-pad-x: var(--page-pad-x-md);
+		}
 	}
 
 	html {
@@ -87,12 +111,15 @@
 		outline: none;
 	}
 
+	/* Soft chips — match Process Enquiry acc-param-tags (not solid primary slabs) */
 	.tag-badge {
-		background-color: var(--color-primary);
+		background-color: var(--color-primary-soft);
+		color: var(--color-primary);
+		border: 1px solid var(--color-primary-border-soft);
 	}
 
 	.tag-dropdown {
-		border: 1px solid var(--color-primary);
+		border: 1px solid var(--color-border);
 	}
 
 	.text-primary {

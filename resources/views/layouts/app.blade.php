@@ -36,6 +36,8 @@
     @include('layouts.partials.form-styles')
     @include('layouts.partials.button-styles')
     @include('layouts.partials.workflow-page-styles')
+    @include('layouts.lab.partials.lab-surface-theme-styles')
+    @include('layouts.partials.tag-select-styles')
     <style type="text/css">
         /* legacy layout rules — tokens in global-styling partial */
 
@@ -57,13 +59,13 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 6px;
-            min-height: 42px;
-            padding: 6px 12px;
+            gap: 0.35rem;
+            min-height: var(--control-h, 34px);
+            padding: 0.35rem 0.45rem;
             background: #fff;
-            border: 1px solid #ced4da;
-            border-radius: 8px;
-            transition: all 0.2s ease;
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: var(--radius-sm, 6px);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
             overflow: hidden;
         }
 
@@ -73,7 +75,7 @@
 
         .tag-select-input:focus-within {
             border-color: var(--color-primary);
-            box-shadow: 0 0 0 0.2rem var(--color-primary-focus);
+            box-shadow: 0 0 0 3px var(--color-primary-focus);
             outline: none;
         }
 
@@ -84,13 +86,15 @@
         .tag-badge {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            background-color: var(--color-primary);
-            color: white;
-            border-radius: 16px;
-            font-size: 0.875rem;
-            font-weight: 500;
+            gap: 0.25rem;
+            padding: 0.15rem 0.35rem 0.15rem 0.45rem;
+            background-color: var(--color-primary-soft);
+            color: var(--color-primary);
+            border: 1px solid var(--color-primary-border-soft);
+            border-radius: 999px;
+            font-size: var(--text-caption, 0.75rem);
+            font-weight: 600;
+            line-height: 1.25;
             max-width: 100%;
             min-width: 0;
         }
@@ -104,10 +108,11 @@
 
         .tag-badge i {
             cursor: pointer;
-            font-size: 1rem;
-            opacity: 0.8;
-            transition: opacity 0.2s;
+            font-size: 0.95rem;
+            opacity: 0.75;
+            transition: opacity 0.15s;
             flex-shrink: 0;
+            color: inherit;
         }
 
         .tag-badge i:hover {
@@ -119,37 +124,37 @@
             min-width: 120px;
             border: none;
             outline: none;
-            padding: 4px;
-            font-size: 0.9rem;
+            padding: 0.15rem;
+            font-size: var(--text-sm, 0.8125rem);
             background: transparent;
+            color: var(--color-text);
         }
 
         .tag-dropdown {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 4px);
             left: 0;
             right: 0;
             background: #fff;
-            border: 1px solid var(--color-primary);
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            max-height: 250px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: var(--radius-sm, 6px);
+            max-height: 240px;
             overflow-y: auto;
             z-index: 2000;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: -1px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+            margin-top: 0;
         }
 
         .tag-dropdown-item {
-            padding: 10px 16px;
+            padding: 0.5rem 0.75rem;
             cursor: pointer;
-            transition: background-color 0.2s;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
+            transition: background-color 0.15s;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: var(--text-sm, 0.8125rem);
         }
 
         .tag-dropdown-item:hover {
-            background-color: #f8f9fa;
+            background-color: #f8fafc;
         }
 
         .tag-dropdown-item:last-child {
@@ -2240,6 +2245,7 @@
 @endif
 @if (isset($select2))
 <script src="/select2/select2.min.js"></script>
+<script src="/js/ls-select2.js"></script>
 @endif
 @if (isset($datePicker))
 {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script> --}}
@@ -2519,26 +2525,38 @@
 
         @if(isset($select2))
         function initializeSelect2Elements(scope) {
+            if (typeof window.initLsSelect2 === 'function') {
+                window.initLsSelect2(scope);
+                return;
+            }
+
             var $scope = $(scope || document);
 
-            $scope.find('select').not('.hidden').each(function(i, e) {
+            $scope.find('select.ls-select2, select.livewire-select2').not('.hidden').each(function(i, e) {
                 var $el = $(e);
 
-                if ($el.hasClass('no-select2') || !$el.hasClass('livewire-select2')) {
+                if ($el.hasClass('no-select2') && !$el.hasClass('ls-select2')) {
                     return;
                 }
 
                 if ($el.data('select2')) {
-                    $el.select2('destroy');
+                    try { $el.select2('destroy'); } catch (err) {}
                 }
+
+                var $modal = $el.closest('.modal');
+                var $parent = $modal.length
+                    ? ($modal.find('.modal-content').first().length ? $modal.find('.modal-content').first() : $modal)
+                    : $(document.body);
 
                 $el.select2({
                     placeholder: $el.attr('placeholder') || $el.data('placeholder') || 'Select an option',
                     width: '100%',
-                    dropdownParent: $el.closest('.modal').length ? $el.closest('.modal') : undefined
+                    allowClear: true,
+                    closeOnSelect: !$el.prop('multiple'),
+                    dropdownParent: $parent
                 });
 
-                $el.attr('style', 'width: 100%');
+                $el.css('width', '100%');
             });
         }
 
@@ -2553,6 +2571,10 @@
         });
 
         if (typeof Livewire !== 'undefined') {
+            Livewire.hook('morphed', function ({ el }) {
+                initializeSelect2Elements(el);
+            });
+
             Livewire.hook('message.processed', function() {
                 initializeSelect2Elements();
             });

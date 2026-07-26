@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -462,7 +462,10 @@
                         placeholder: $el.data('placeholder') || $el.attr('placeholder') || 'Select an option',
                         width: '100%',
                         allowClear: !$el.prop('multiple'),
-                        dropdownParent: $modal,
+                        closeOnSelect: !$el.prop('multiple'),
+                        dropdownParent: $modal.find('.modal-content').first().length
+                            ? $modal.find('.modal-content').first()
+                            : $modal,
                     });
 
                     // select2 only fires jQuery events; dispatch a native change
@@ -503,27 +506,27 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 6px;
-            min-height: 42px;
-            padding: 6px 12px;
+            gap: 0.35rem;
+            min-height: var(--ls-control-h, 34px);
+            padding: 0.35rem 0.45rem;
             background: #fff;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            border: 1px solid var(--ls-color-border, var(--color-border));
+            border-radius: var(--ls-radius-sm, 6px);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .tag-select-input:hover {
-            border-color: #007bff;
+        .tag-select-input:hover,
+        .tag-select-input:focus-within {
+            border-color: var(--ls-color-primary, var(--color-primary));
         }
 
         .tag-select-input:focus-within {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            box-shadow: 0 0 0 3px var(--ls-color-primary-focus, var(--color-primary-focus));
             outline: none;
         }
 
         .status-filter-input {
-            padding: 0 12px;
+            padding: 0 0.45rem;
         }
 
         .tag-select-native {
@@ -532,9 +535,10 @@
             border: none;
             box-shadow: none;
             background-color: transparent;
-            padding: 10px 32px 10px 0;
-            min-height: 42px;
-            line-height: 1.5;
+            padding: 0.35rem 1.75rem 0.35rem 0;
+            min-height: calc(var(--ls-control-h, 34px) - 2px);
+            line-height: 1.4;
+            font-size: var(--ls-text-base, 0.8125rem);
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;

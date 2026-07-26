@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page ls-admin-page--size-only" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">

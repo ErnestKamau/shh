@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -52,7 +52,7 @@
                                 <div class="tag-select-container"
                                      wire:click="$set('showStatusDropdown', true)"
                                      wire:click.outside="$set('showStatusDropdown', false)">
-                                    <div class="tag-select-input" style="min-height: 38px; padding: 4px 12px;">
+                                    <div class="tag-select-input">
                                         @if($statusFilter !== '')
                                             <span class="tag-badge {{ $statusFilter == '1' ? 'tag-badge--success' : 'tag-badge--neutral' }}">
                                                 <i class="mdi mdi-{{ $statusFilter == '1' ? 'check-circle' : 'close-circle' }} me-1"></i>
@@ -211,12 +211,10 @@
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
 
-                {{-- ===== Gradient Header ===== --}}
-                 <div class="modal-header border-0 py-3 px-4"
-                     style="background: #ffffff; border-bottom: 1px solid #e9ecef;">
-                    <div class="d-flex align-items-center analyte-modal-title-wrap">
-                        <div style="width:44px;height:44px;background:#f4f6f9;border-radius:12px;
-                                    display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                {{-- Brand mono gradient header (modal-styles) --}}
+                <div class="modal-header border-0 py-3 px-4">
+                    <div class="d-flex align-items-center analyte-modal-title-wrap flex-grow-1">
+                        <div class="analyte-modal-icon-wrap">
                             <i class="mdi mdi-{{ $editingAnalyteId ? 'pencil-outline' : 'plus' }} fs-4"></i>
                         </div>
                         <div>
@@ -228,7 +226,9 @@
                             </small>
                         </div>
                     </div>
-                    <button type="button" class="btn-close ms-auto" wire:click.stop="closeModal"></button>
+                    <button type="button" class="ls-modal-close" wire:click.stop="closeModal" aria-label="Close">
+                        <i class="mdi mdi-close"></i>
+                    </button>
                 </div>
 
                 <div class="modal-body p-0">
@@ -459,7 +459,7 @@
                             <i class="mdi mdi-alert-circle-outline me-1"></i>{{ $message }}
                         </div>
                     @endif
-                    <div class="d-flex justify-content-end gap-2 w-100">
+                    <div class="d-flex justify-content-end w-100 analyte-modal-footer-actions">
                     <button type="button" class="btn btn-light px-4" wire:click.stop="closeModal">
                         <i class="mdi mdi-close me-1"></i> Cancel
                     </button>
@@ -539,8 +539,32 @@
         gap: 14px;
     }
 
+    .analyte-modal-icon-wrap {
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: #fff;
+    }
+
+    .analyte-modal-icon-wrap .mdi {
+        color: #fff !important;
+    }
+
     .analyte-section-head {
         gap: 12px;
+    }
+
+    /* Bootstrap 4 has no gap utilities — space footer actions */
+    .analyte-modal-footer-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.65rem;
     }
 
     .section-number-badge {
@@ -564,7 +588,7 @@
         margin-bottom: 14px;
     }
     
-    /* Tag-based Multi-Select Styling */
+    /* Tag-based Multi-Select — density matches Process Enquiry acc-param-tags */
     .tag-select-container {
         position: relative;
         cursor: text;
@@ -574,62 +598,64 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 6px;
-        min-height: 42px;
-        padding: 6px 12px;
+        gap: 0.35rem;
+        min-height: var(--ls-control-h, var(--control-h, 34px));
+        padding: 0.35rem 0.45rem;
         background: #fff;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        transition: all 0.3s ease;
+        border: 1px solid var(--ls-color-border, var(--color-border, #e2e8f0));
+        border-radius: var(--ls-radius-sm, 6px);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     
     .tag-select-input:hover {
-        border-color: #007bff;
+        border-color: var(--ls-color-primary, var(--color-primary));
     }
     
     .tag-select-input:focus-within {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: var(--ls-color-primary, var(--color-primary));
+        box-shadow: 0 0 0 3px var(--ls-color-primary-focus, var(--color-primary-focus));
         outline: none;
     }
     
     .tag-badge {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 4px 10px;
-        background-color: #eef2f6;
-        color: #475467;
-        border: 1px solid #d7dee7;
-        border-radius: 16px;
-        font-size: 0.875rem;
-        font-weight: 500;
+        gap: 0.25rem;
+        padding: 0.15rem 0.35rem 0.15rem 0.45rem;
+        background-color: var(--ls-color-primary-soft, var(--color-primary-soft));
+        color: var(--ls-color-primary, var(--color-primary));
+        border: 1px solid var(--ls-color-primary-border, var(--color-primary-border-soft));
+        border-radius: 999px;
+        font-size: var(--ls-text-sm, 0.75rem);
+        font-weight: 600;
+        line-height: 1.25;
         white-space: nowrap;
     }
 
     .tag-badge--neutral {
-        background: #f4f6f8;
-        color: #4b5563;
-        border-color: #d9dee5;
+        background: #f1f5f9;
+        color: #475569;
+        border-color: #e2e8f0;
     }
 
     .tag-badge--success {
-        background: #ecfdf3;
-        color: #027a48;
-        border-color: #abefc6;
+        background: var(--ls-color-success-soft, #dcfce7);
+        color: var(--ls-color-success-text, #166534);
+        border-color: #bbf7d0;
     }
 
     .tag-badge--warning {
-        background: #fffaeb;
-        color: #b54708;
-        border-color: #fedf89;
+        background: var(--ls-color-warning-soft, #fef3c7);
+        color: var(--ls-color-warning-text, #92400e);
+        border-color: #fde68a;
     }
     
     .tag-badge i {
         cursor: pointer;
-        font-size: 1rem;
-        opacity: 0.8;
-        transition: opacity 0.2s;
+        font-size: 0.95rem;
+        opacity: 0.75;
+        transition: opacity 0.15s;
+        color: inherit;
     }
     
     .tag-badge i:hover {
@@ -641,31 +667,32 @@
         min-width: 120px;
         border: none;
         outline: none;
-        padding: 4px;
-        font-size: 0.9rem;
+        padding: 0.15rem;
+        font-size: var(--ls-text-base, 0.8125rem);
+        background: transparent;
     }
     
     .tag-dropdown {
         position: absolute;
-        top: 100%;
+        top: calc(100% + 4px);
         left: 0;
         right: 0;
-        background: white;
-        border: 2px solid #007bff;
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        max-height: 250px;
+        background: #fff;
+        border: 1px solid var(--ls-color-border, var(--color-border));
+        border-radius: var(--ls-radius-sm, 6px);
+        max-height: 240px;
         overflow-y: auto;
         z-index: 1050;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-top: -2px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+        margin-top: 0;
     }
     
     .tag-dropdown-item {
-        padding: 10px 16px;
+        padding: 0.5rem 0.75rem;
         cursor: pointer;
-        transition: background-color 0.2s;
-        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.15s;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: var(--ls-text-base, 0.8125rem);
     }
     
     .tag-dropdown-item:hover {
