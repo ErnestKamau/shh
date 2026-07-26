@@ -14,6 +14,7 @@ class SystemConfigPermissionsSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissionNames = [
+            'settings.module.access',
             'system.configuration-types.view',
             'system.configuration-types.add',
             'system.configuration-types.edit',
@@ -65,9 +66,22 @@ class SystemConfigPermissionsSeeder extends Seeder
             $adminRole->givePermissionTo($permissions);
         }
 
+        $systemSettingsPermission = Permission::firstOrCreate([
+            'name' => 'settings.module.access',
+            'guard_name' => 'web',
+        ]);
+
+        $systemUserRole = Role::firstOrCreate([
+            'name' => 'System User',
+            'guard_name' => 'web',
+        ]);
+
+        $systemUserRole->givePermissionTo($systemSettingsPermission);
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $count = count($permissionNames);
         $this->command->info("System config permissions ensured: {$count}");
+        $this->command->info('System User role ensured with settings.module.access');
     }
 }

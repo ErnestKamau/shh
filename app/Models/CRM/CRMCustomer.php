@@ -23,7 +23,9 @@ class CRMCustomer extends Model implements Auditable
 	protected $casts = [
 		'report_columns_config' => 'array',
 		'is_internal' => 'boolean',
-    'quotation_acceptance_tat_minutes' => 'integer',
+		'requires_sampling' => 'boolean',
+		'is_one_time' => 'boolean',
+		'quotation_acceptance_tat_minutes' => 'integer',
 		'code' => \App\Casts\SafeEncrypted::class,
 		'postal_address' => \App\Casts\SafeEncrypted::class,
 		'physical_address' => \App\Casts\SafeEncrypted::class,
@@ -133,5 +135,14 @@ class CRMCustomer extends Model implements Auditable
   public function documentAttachments()
   {
       return $this->hasMany(CrmCustomerAttachment::class, 'crm_customer_id');
+  }
+
+  public function contractAttachments()
+  {
+      return $this->documentAttachments()
+          ->where('type', 'Contract')
+          ->where(function ($query) {
+              $query->whereNull('is_delete')->orWhere('is_delete', '!=', 1);
+          });
   }
 }

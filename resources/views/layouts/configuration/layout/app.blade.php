@@ -107,12 +107,14 @@
 			</a>
 			@endif
 
+			@can('settings.module.access')
 			<a href="{{ route('bulk-import') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-upload fa-fw mr-1"></span>
 					<span class="menu-collapsed">Bulk Data Import</span>
 				</div>
 			</a>
+			@endcan
 
 			@can('system.dashboard.export')
 			<a href="{{ route('system-settings.backups') }}" class="list-group-item list-group-item-action">
@@ -141,9 +143,11 @@
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.system_configurations') }}</span>
 				</a>
 				@endcan
+				@can('settings.module.access')
 				<a href="{{ route('system-settings.preferences') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> System Theming</span>
 				</a>
+				@endcan
 			</div>
 			<div class="list-group-item copyright-lims p-4 text-center">
 				{{ __('system.copyright') }} {{ date('Y') }} <span class="text-red">Imara LIMS</span>

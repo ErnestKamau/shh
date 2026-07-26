@@ -116,8 +116,13 @@ class CustomerProfile extends Component
 
     public function loadCustomerData()
     {
-        $this->customer = CRMCustomer::with(['country', 'currencyinfo', 'units.sample_points', 'contacts'])
-            ->findOrFail($this->customerId);
+        $this->customer = CRMCustomer::with([
+            'country',
+            'currencyinfo',
+            'units.sample_points',
+            'contacts',
+            'contractAttachments',
+        ])->findOrFail($this->customerId);
         
         $this->loadCustomerForm();
         $this->loadRelatedData();
