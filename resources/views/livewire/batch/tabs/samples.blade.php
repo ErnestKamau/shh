@@ -1360,14 +1360,28 @@
         }
 
         .sample-parameters-table .select2-selection--multiple {
-            min-height: 31px;
-            border-radius: 8px;
-            border-color: #e2e8f0;
+            min-height: var(--control-h, 34px);
+            border-radius: var(--radius-sm, 6px);
+            border-color: var(--color-border, #e2e8f0);
+            background: #fff;
+            padding: 0.2rem 0.35rem 0.15rem;
         }
 
         .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            margin-top: 3px;
+            margin: 0.15rem 0.25rem 0.15rem 0;
+            padding: 0.15rem 0.35rem 0.15rem 0.45rem;
             font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--color-primary-soft);
+            border: 1px solid var(--color-primary-border-soft);
+            border-radius: 999px;
+            color: var(--color-primary);
+        }
+
+        .sample-parameters-table .select2-container--default.select2-container--focus .select2-selection--multiple,
+        .sample-parameters-table .select2-container--default.select2-container--open .select2-selection--multiple {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-focus);
         }
     </style>
     @endif

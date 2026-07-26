@@ -1,5 +1,5 @@
 @extends('layouts.lab.layout.app', [
-    'select2' => in_array($componentType ?? '', ['methods'], true),
+    'select2' => true,
 ])
 
 @section('title2')

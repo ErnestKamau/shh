@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page ls-admin-page--size-only" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -579,99 +579,7 @@
         font-weight: 600;
     }
 
-    .btn-close {
-        filter: invert(1);
-    }
-
-    /* Searchable select styling */
-    .tag-select-container {
-        position: relative;
-        cursor: text;
-    }
-
-    .tag-select-input {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        min-height: 42px;
-        padding: 6px 12px;
-        background: #fff;
-        border: 2px solid #e9ecef;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-    }
-
-    .tag-select-input:hover,
-    .tag-select-input:focus-within {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        outline: none;
-    }
-
-    .tag-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 10px;
-        background-color: #007bff;
-        color: white;
-        border-radius: 16px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        white-space: nowrap;
-    }
-
-    .tag-badge i {
-        cursor: pointer;
-        font-size: 1rem;
-        opacity: 0.8;
-    }
-
-    .tag-badge i:hover {
-        opacity: 1;
-    }
-
-    .tag-input {
-        flex: 1;
-        min-width: 120px;
-        border: none;
-        outline: none;
-        padding: 4px;
-        font-size: 0.9rem;
-        background: transparent;
-    }
-
-    .tag-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 2px solid #007bff;
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        max-height: 250px;
-        overflow-y: auto;
-        z-index: 1060;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-top: -2px;
-    }
-
-    .tag-dropdown-item {
-        padding: 10px 16px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .tag-dropdown-item:hover {
-        background-color: #f8f9fa;
-    }
-
-    .tag-dropdown-item:last-child {
-        border-bottom: none;
-    }
+    /* Searchable select — density from layouts.partials.tag-select-styles */
     </style>
 
     <script>
