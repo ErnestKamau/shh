@@ -162,7 +162,13 @@ class PersonnelDashboard extends Component
         $designationNames = ModulePreConfigs::query()
             ->whereIn('id', $designationIds)
             ->where('type', 'Job Description')
-            ->pluck('name', 'id');
+            ->get(['id', 'name', 'description'])
+            ->mapWithKeys(function (ModulePreConfigs $item): array {
+                $description = trim((string) ($item->description ?? ''));
+                $label = $description !== '' ? $description : (string) $item->name;
+
+                return [(string) $item->id => $label];
+            });
 
         $counts = [];
         foreach ($users as $user) {

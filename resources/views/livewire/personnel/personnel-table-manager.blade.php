@@ -144,7 +144,7 @@
                                         </button>
                                     </div>
                                 </td>
-                                <td>{{ $item->designation }}</td>
+                                <td>{{ $item->designation_label }}</td>
                                 <td>
                                     {{ $item->first_name }}
                                     @if($item->analyst_is_gazzetted)
@@ -154,7 +154,7 @@
                                 <td>{{ $item->middle_name }}</td>
                                 <td>{{ $item->last_name }}</td>
                                 <td>{{ $item->department_name }}</td>
-                                <td>{{ $item->position }}</td>
+                                <td>{{ $item->position_label }}</td>
                                 <td>{{ $item->labsectionname }}</td>
                                 <td>{{ $item->email }}</td>
                                 <td>{{ $item->employment_date }}</td>
@@ -1069,7 +1069,10 @@
             border-radius: 16px;
             font-size: 0.875rem;
             font-weight: 500;
-            white-space: nowrap;
+            white-space: normal;
+            max-width: 100%;
+            word-break: break-word;
+            line-height: 1.3;
         }
 
         .tag-badge i {

@@ -127,20 +127,32 @@ class PersonnelTableManager extends Component
         $this->reloadDepartments();
 
         // Designation options come from Job Description configs (sidebar: Job Designation).
+        // Prefer description (full title) when present; name can be a short code.
         $this->designations = ModulePreConfigs::query()
             ->where('type', 'Job Description')
             ->whereIn('module', ['Personnel-Management', 'Skills-Matrix'])
             ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
+            ->get(['id', 'name', 'description'])
+            ->map(fn ($item): array => [
+                'id' => (string) $item->id,
+                'name' => $this->displayLabel((string) ($item->description ?? ''), (string) $item->name),
+            ])
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
             ->toArray();
 
         // Position options come from organizational Roles.
+        // Prefer description (full title) when present; name can be a short code (e.g. "admin").
         $this->positions = Role::query()
             ->where('guard_name', 'web')
             ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
+            ->get(['id', 'name', 'description'])
+            ->map(fn ($item): array => [
+                'id' => (string) $item->id,
+                'name' => $this->displayLabel((string) ($item->description ?? ''), (string) $item->name),
+            ])
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
             ->toArray();
         $this->educationLevels = ModulePreConfigs::query()
             ->where('type', 'Educational Levels')
@@ -623,14 +635,16 @@ class PersonnelTableManager extends Component
             ->orderBy('users.name')
             ->get();
 
+        $this->hydratePersonnelDisplayLabels($rows);
+
         $data = $rows->map(static function ($item): array {
             return [
-                'Designation' => (string) ($item->designation ?? ''),
+                'Designation' => (string) ($item->designation_label ?? ''),
                 'First Name' => (string) ($item->first_name ?? ''),
                 'Middle Name' => (string) ($item->middle_name ?? ''),
                 'Last Name' => (string) ($item->last_name ?? ''),
                 'Department' => (string) ($item->department_name ?? ''),
-                'Position' => (string) ($item->position ?? ''),
+                'Position' => (string) ($item->position_label ?? ''),
                 'Lab Sections' => (string) ($item->labsectionname ?? ''),
                 'Email' => (string) ($item->email ?? ''),
                 'Employment Date' => (string) ($item->employment_date ?? ''),
@@ -659,9 +673,13 @@ class PersonnelTableManager extends Component
 
     public function getPersonnelProperty()
     {
-        return $this->buildPersonnelQuery()
+        $paginator = $this->buildPersonnelQuery()
             ->orderBy('users.name')
             ->paginate($this->perPage);
+
+        $this->hydratePersonnelDisplayLabels($paginator->getCollection());
+
+        return $paginator;
     }
 
     private function buildPersonnelQuery()
@@ -670,10 +688,6 @@ class PersonnelTableManager extends Component
             ->leftJoin('inventory_departments as d', function ($join): void {
                 $join->whereRaw('d.id::text = users.department_id');
             })
-            ->leftJoin('module_pre_configs as de', function ($join): void {
-                $join->whereRaw('de.id::text = users.designation')
-                    ->where('de.type', '=', 'Job Description');
-            })
             ->leftJoin('module_pre_configs as e', function ($join): void {
                 $join->whereRaw('e.id::text = users.education_level')
                     ->where('e.type', '=', 'Educational Levels');
@@ -681,7 +695,12 @@ class PersonnelTableManager extends Component
             ->leftJoin('spatie_roles as p', function ($join): void {
                 $join->whereRaw('p.id::text = users.position::text');
             })
-            ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation')
+            ->selectRaw("
+                users.*,
+                d.name as department_name,
+                e.name as education,
+                COALESCE(NULLIF(TRIM(p.description), ''), p.name) as position_label
+            ")
             ->where(function ($builder): void {
                 $builder->where('users.is_client', 0)->orWhereNull('users.is_client');
             })
@@ -726,7 +745,7 @@ class PersonnelTableManager extends Component
                     ->orWhere('users.email', 'like', $searchText)
                     ->orWhere('d.name', 'like', $searchText)
                     ->orWhere('p.name', 'like', $searchText)
-                    ->orWhere('de.name', 'like', $searchText);
+                    ->orWhere('p.description', 'like', $searchText);
             });
         }
 
@@ -1071,6 +1090,53 @@ class PersonnelTableManager extends Component
             $this->validate([
                 'signatureUpload' => 'nullable|image|max:3072',
             ]);
+        }
+    }
+
+    /**
+     * Prefer a longer description/title when available; fall back to the short name/code.
+     */
+    private function displayLabel(string $description, string $name): string
+    {
+        $description = trim($description);
+        $name = trim($name);
+
+        return $description !== '' ? $description : $name;
+    }
+
+    /**
+     * Resolve full designation/role labels after Eloquent decrypts encrypted designation IDs.
+     *
+     * @param  \Illuminate\Support\Collection<int, User>  $rows
+     */
+    private function hydratePersonnelDisplayLabels($rows): void
+    {
+        $designationIds = $rows
+            ->map(fn (User $row): string => is_string($row->designation) ? $row->designation : '')
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values();
+
+        $designationLabels = ModulePreConfigs::query()
+            ->whereIn('id', $designationIds)
+            ->where('type', 'Job Description')
+            ->get(['id', 'name', 'description'])
+            ->mapWithKeys(fn (ModulePreConfigs $item): array => [
+                (string) $item->id => $this->displayLabel((string) ($item->description ?? ''), (string) $item->name),
+            ]);
+
+        foreach ($rows as $row) {
+            $designationId = is_string($row->designation) ? $row->designation : '';
+            $row->setAttribute(
+                'designation_label',
+                $designationId !== '' ? (string) ($designationLabels[$designationId] ?? '') : ''
+            );
+
+            $positionLabel = trim((string) ($row->position_label ?? ''));
+            if ($positionLabel === '') {
+                $positionLabel = trim((string) ($row->getAttributes()['position_label'] ?? ''));
+            }
+            $row->setAttribute('position_label', $positionLabel);
         }
     }
 }

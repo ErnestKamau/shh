@@ -1021,7 +1021,18 @@ class PersonnelDetailManager extends Component
             ->where('type', 'Job Description')
             ->whereIn('module', ['Personnel-Management', 'Skills-Matrix'])
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'description'])
+            ->map(function (ModulePreConfigs $item): ModulePreConfigs {
+                $description = trim((string) ($item->description ?? ''));
+                $item->setAttribute(
+                    'display_name',
+                    $description !== '' ? $description : (string) $item->name
+                );
+
+                return $item;
+            })
+            ->sortBy('display_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
     }
 
     public function getEducationLevelsProperty()
@@ -1034,7 +1045,18 @@ class PersonnelDetailManager extends Component
         return Role::query()
             ->where('guard_name', 'web')
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'description'])
+            ->map(function (Role $item): Role {
+                $description = trim((string) ($item->description ?? ''));
+                $item->setAttribute(
+                    'display_name',
+                    $description !== '' ? $description : (string) $item->name
+                );
+
+                return $item;
+            })
+            ->sortBy('display_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
     }
 
     public function getDepartmentsProperty()

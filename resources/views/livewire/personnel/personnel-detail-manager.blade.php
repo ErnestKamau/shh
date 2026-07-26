@@ -351,12 +351,12 @@
                                     <div class="tag-select-input">
                                         @if($selectedDesignationId)
                                             @php $s = $this->designations->firstWhere('id', $selectedDesignationId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDesignation"></i></span>
+                                            <span class="tag-badge">{{ $s->display_name ?? $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDesignation"></i></span>
                                         @endif
                                         <input class="tag-input" wire:model.live="designationSearch" wire:keyup="searchDesignation" placeholder="{{ __('personnel.search_designation') }}">
                                     </div>
                                     @if($showDesignationDropdown)
-                                        <div class="tag-dropdown">@foreach($this->designations->filter(fn($d)=>$designationSearch===''||stripos($d->name,$designationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDesignation('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->designations->filter(fn($d)=>$designationSearch===''||stripos($d->display_name ?? $d->name,$designationSearch)!==false||stripos($d->name,$designationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDesignation('{{ $d->id }}')">{{ $d->display_name ?? $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
                                 @error('selectedDesignationId')<small class="text-danger">{{ $message }}</small>@enderror
@@ -383,12 +383,12 @@
                                     <div class="tag-select-input">
                                         @if($selectedPositionId)
                                             @php $s = $this->positions->firstWhere('id', $selectedPositionId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearPosition"></i></span>
+                                            <span class="tag-badge">{{ $s->display_name ?? $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearPosition"></i></span>
                                         @endif
                                         <input class="tag-input" wire:model.live="positionSearch" wire:keyup="searchPosition" placeholder="{{ __('personnel.search_position') }}">
                                     </div>
                                     @if($showPositionDropdown)
-                                        <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->display_name ?? $d->name,$positionSearch)!==false||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition('{{ $d->id }}')">{{ $d->display_name ?? $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
                                 @error('selectedPositionId')<small class="text-danger">{{ $message }}</small>@enderror
