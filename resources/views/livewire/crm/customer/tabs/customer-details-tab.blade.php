@@ -65,14 +65,6 @@
                     </div>
 
                     <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">{{ __('crm.fax_number') }}:</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control @error('fax') is-invalid @enderror" wire:model="fax" placeholder="{{ __('crm.fax') }}...">
-                            @error('fax') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    <div class="form-group row">
                         <label class="col-sm-4 col-form-label">{{ __('crm.website_url') }}:</label>
                         <div class="col-sm-8">
                             <input type="text" class="form-control @error('website') is-invalid @enderror"
@@ -140,15 +132,6 @@
                         </div>
                     </div>
 
-                    <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">{{ __('crm.credit_days') }}:</label>
-                        <div class="col-sm-8">
-                            <input type="number" class="form-control @error('credit_days') is-invalid @enderror"
-                                wire:model="credit_days" placeholder="0">
-                            @error('credit_days') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
                     @if(data_get($account_settings, 'id'))
                         <div class="form-group row">
                             <label class="col-sm-4 col-form-label">{{ __('crm.account_setting') }}:</label>
@@ -201,10 +184,6 @@
                                 <input class="form-check-input" type="checkbox" wire:model="lpos_required" id="lpoCheck">
                                 <label class="form-check-label" for="lpoCheck">{{ __('crm.lpo_required_label') }}</label>
                             </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" wire:model="is_internal" id="internalCheck">
-                                <label class="form-check-label" for="internalCheck">{{ __('crm.internal') }}</label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -256,10 +235,6 @@
                             <td>{{ $customer->telephone2 ?: '—' }}</td>
                         </tr>
                         <tr>
-                            <th>{{ __('crm.fax') }}:</th>
-                            <td>{{ $customer->fax ?: '—' }}</td>
-                        </tr>
-                        <tr>
                             <th>{{ __('crm.website') }}:</th>
                             <td>
                                 @if($customer->website)
@@ -292,10 +267,6 @@
                             <td>{{ $customer->postal_address ?: '—' }}</td>
                         </tr>
                         <tr>
-                            <th>{{ __('crm.credit_terms_days') }}:</th>
-                            <td>{{ $customer->credit_days ?? '—' }}</td>
-                        </tr>
-                        <tr>
                             <th>{{ __('crm.account_status') }}:</th>
                             <td>
                                 @if($customer->active == 1)
@@ -312,16 +283,6 @@
                                     <span class="crm-badge crm-badge-warning">{{ __('crm.required') }}</span>
                                 @else
                                     <span class="crm-badge crm-badge-neutral">{{ __('crm.not_required') }}</span>
-                                @endif
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>{{ __('crm.client_type') }}:</th>
-                            <td>
-                                @if($customer->is_internal ?? false)
-                                    <span class="crm-badge crm-badge-info">{{ __('crm.internal') }}</span>
-                                @else
-                                    <span class="crm-badge crm-badge-neutral">{{ __('crm.external') }}</span>
                                 @endif
                             </td>
                         </tr>

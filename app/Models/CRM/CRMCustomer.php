@@ -23,6 +23,7 @@ class CRMCustomer extends Model implements Auditable
 	protected $casts = [
 		'report_columns_config' => 'array',
 		'is_internal' => 'boolean',
+		'has_contract' => 'boolean',
 		'requires_sampling' => 'boolean',
 		'is_one_time' => 'boolean',
 		'quotation_acceptance_tat_minutes' => 'integer',
@@ -135,6 +136,19 @@ class CRMCustomer extends Model implements Auditable
   public function documentAttachments()
   {
       return $this->hasMany(CrmCustomerAttachment::class, 'crm_customer_id');
+  }
+
+  public function contracts()
+  {
+      return $this->hasMany(CrmCustomerContract::class, 'crm_customer_id')
+          ->orderByDesc('created_at');
+  }
+
+  public function currentContract()
+  {
+      return $this->hasOne(CrmCustomerContract::class, 'crm_customer_id')
+          ->where('is_current', true)
+          ->latestOfMany('created_at');
   }
 
   public function contractAttachments()

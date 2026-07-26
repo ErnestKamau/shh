@@ -25,6 +25,9 @@
                         @else
                             <span class="crm-badge crm-badge-neutral mr-1">{{ __('crm.inactive') }}</span>
                         @endif
+                        @if($customer->has_contract)
+                            <span class="crm-badge crm-badge-info mr-1">{{ __('crm.has_contract') }}</span>
+                        @endif
                         <span class="badge border text-muted" style="font-size:0.68rem;padding:3px 8px;">{{ __('crm.crm_client') }}</span>
                     </div>
                     <small class="text-muted" style="font-size:0.72rem;">
@@ -110,6 +113,14 @@
                                     <i class="mdi mdi-paperclip"></i> {{ __('crm.documents') }}
                                 </a>
                             </li>
+                            @if($customer->has_contract)
+                            <li class="crm-tab-item">
+                                <a class="crm-tab-link {{ $activeTab == 'contracts' ? 'active' : '' }}"
+                                    wire:click.prevent="switchTab('contracts')" href="#Contracts" role="tab">
+                                    <i class="mdi mdi-file-sign"></i> {{ __('crm.contracts') }}
+                                </a>
+                            </li>
+                            @endif
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'details' ? 'active' : '' }}"
                                     wire:click.prevent="switchTab('details')" href="#Customer-Details" role="tab">
@@ -161,6 +172,10 @@
                         @elseif($activeTab == 'documents')
                             <div class="tab-pane fade show active p-3" id="Documents" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerAttachmentsTab::class, ['customer' => $customer], key('tab-documents'))
+                            </div>
+                        @elseif($customer->has_contract && $activeTab == 'contracts')
+                            <div class="tab-pane fade show active p-3" id="Contracts" role="tabpanel">
+                                @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerContractsTab::class, ['customer' => $customer], key('tab-contracts-' . $customer->id))
                             </div>
                         {{-- Configurations tab disabled
                         @elseif($activeTab == 'configurations')

@@ -6,13 +6,12 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use App\Models\CRM\CRMCustomer;
-use App\Models\CRM\CrmCustomerAttachment;
+use App\Models\CRM\CrmCustomerContract;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCompanySubUnit;
 use App\Models\CRM\SamplePoint;
 use App\Country;
 use App\ModulePreConfigs;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -23,10 +22,6 @@ class CustomerManager extends Component
 {
     use WithFileUploads;
     use WithPagination;
-
-    public const ENGAGEMENT_CONTRACT = 'contract';
-    public const ENGAGEMENT_PORTAL = 'portal';
-    public const ENGAGEMENT_WALK_IN = 'walk_in';
 
     // Customer Management
     public $selectedCustomer = null;
@@ -39,28 +34,21 @@ class CustomerManager extends Component
         'postal_address' => '',
         'physical_address' => '',
         'website' => '',
-        'fax' => '',
         'email' => '',
         'telephone1' => '',
         'telephone2' => '',
         'country_id' => null,
-        'credit_days' => null,
         'active' => true,
         'account_status' => null,
         'vat_no' => '',
         'lpos_required' => false,
         'zoho_customer_id' => null,
+        'has_contract' => false,
         'contract_valid_from' => '',
         'contract_valid_to' => '',
-        'engagement_type' => '',
-        'requires_sampling' => false,
-        'is_one_time' => false,
     ];
 
     public $contractFile = null;
-
-    /** @var array<int, array{id: string, name: string, email: string|null, telephone1: string|null, engagement_type: string|null}> */
-    public $duplicateMatches = [];
 
     public bool $hasExistingContractAttachment = false;
 
@@ -108,10 +96,7 @@ class CustomerManager extends Component
             ->map(fn ($id) => (string) $id)
             ->all();
 
-        $engagementType = $this->customerForm['engagement_type'] ?? '';
-        $contractFileRequired = $engagementType === self::ENGAGEMENT_CONTRACT
-            && ! $this->editingCustomer
-            && ! $this->hasExistingContractAttachment;
+        $hasContract = (bool) ($this->customerForm['has_contract'] ?? false);
 
         $rules = [
             'customerForm.name' => 'required|string|max:255',
@@ -122,19 +107,15 @@ class CustomerManager extends Component
             'customerForm.country_id' => 'required|exists:countries,id',
             'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
             'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
-            'customerForm.contract_valid_from' => 'nullable|date',
-            'customerForm.contract_valid_to' => 'nullable|date|after_or_equal:customerForm.contract_valid_from',
-            'customerForm.engagement_type' => ['required', Rule::in([
-                self::ENGAGEMENT_CONTRACT,
-                self::ENGAGEMENT_PORTAL,
-                self::ENGAGEMENT_WALK_IN,
-            ])],
-            'customerForm.requires_sampling' => 'boolean',
-            'customerForm.is_one_time' => 'boolean',
+            'customerForm.has_contract' => 'boolean',
+            'customerForm.contract_valid_from' => $hasContract ? 'nullable|date' : 'nullable',
+            'customerForm.contract_valid_to' => $hasContract
+                ? 'nullable|date|after_or_equal:customerForm.contract_valid_from'
+                : 'nullable',
             'contractFile' => [
-                $contractFileRequired ? 'required' : 'nullable',
+                'nullable',
                 'file',
-                'max:5120',
+                'max:20480',
             ],
         ];
 
@@ -151,11 +132,8 @@ class CustomerManager extends Component
         'customerForm.country_id.required' => 'Country selection is required.',
         'customerForm.account_status.required' => 'Account settings selection is required.',
         'customerForm.account_status.in' => 'Please select a valid account setting from the list.',
-        'customerForm.engagement_type.required' => 'Customer type is required.',
-        'customerForm.engagement_type.in' => 'Please select a valid customer type.',
         'customerForm.contract_valid_to.after_or_equal' => 'Contract validity end date must be on or after the start date.',
-        'contractFile.required' => 'A contract document is required for contract customers.',
-        'contractFile.max' => 'The contract file may not be greater than 5 MB.',
+        'contractFile.max' => 'The contract file may not be greater than 20 MB.',
     ];
 
     public function mount()
@@ -440,32 +418,41 @@ class CustomerManager extends Component
             $zohoCustomerId = $customer->zoho_customer_id[0];
         }
         
+        $this->hasExistingContractAttachment = $customer->contracts()
+            ->whereNotNull('file_path')
+            ->exists()
+            || $customer->contractAttachments()->exists();
+
+        $currentContract = $customer->currentContract;
+
         $this->customerForm = [
             'name' => $customer->name,
             'postal_address' => $customer->postal_address,
             'physical_address' => $customer->physical_address,
             'website' => $customer->website ?? '',
-            'fax' => $customer->fax ?? '',
             'email' => $customer->email,
             'telephone1' => $customer->telephone1,
             'telephone2' => $customer->telephone2 ?? '',
             'country_id' => $customer->country_id,
-            'credit_days' => $customer->credit_days,
             'active' => $customer->active == 1,
             'account_status' => $customer->account_status,
             'vat_no' => $customer->vat_no ?? '',
             'lpos_required' => $customer->lpos_required == 1,
             'zoho_customer_id' => $zohoCustomerId,
-            'contract_valid_from' => $customer->contract_valid_from ? substr($customer->contract_valid_from, 0, 10) : '',
-            'contract_valid_to' => $customer->contract_valid_to ? substr($customer->contract_valid_to, 0, 10) : '',
-            'engagement_type' => $customer->engagement_type ?? '',
-            'requires_sampling' => (bool) $customer->requires_sampling,
-            'is_one_time' => (bool) $customer->is_one_time,
+            'has_contract' => (bool) $customer->has_contract
+                || (bool) $currentContract
+                || $this->hasExistingContractAttachment
+                || filled($customer->contract_valid_from)
+                || filled($customer->contract_valid_to),
+            'contract_valid_from' => ($currentContract?->valid_from ?? $customer->contract_valid_from)
+                ? substr((string) ($currentContract?->valid_from ?? $customer->contract_valid_from), 0, 10)
+                : '',
+            'contract_valid_to' => ($currentContract?->valid_to ?? $customer->contract_valid_to)
+                ? substr((string) ($currentContract?->valid_to ?? $customer->contract_valid_to), 0, 10)
+                : '',
         ];
 
         $this->contractFile = null;
-        $this->duplicateMatches = [];
-        $this->hasExistingContractAttachment = $customer->contractAttachments()->exists();
         
         // Load data only when modal is opened to improve performance
         if (empty($this->countries)) {
@@ -479,27 +466,13 @@ class CustomerManager extends Component
         $this->showCustomerModal = true;
     }
 
-    public function updatedCustomerFormEngagementType($value): void
+    public function updatedCustomerFormHasContract($value): void
     {
-        if ($value !== self::ENGAGEMENT_WALK_IN) {
-            $this->duplicateMatches = [];
-            $this->customerForm['is_one_time'] = false;
-        }
-
-        if ($value !== self::ENGAGEMENT_CONTRACT && $value !== self::ENGAGEMENT_PORTAL) {
-            $this->customerForm['requires_sampling'] = false;
+        if (! $value) {
+            $this->customerForm['contract_valid_from'] = '';
+            $this->customerForm['contract_valid_to'] = '';
             $this->contractFile = null;
         }
-
-        if ($value === self::ENGAGEMENT_WALK_IN) {
-            $this->contractFile = null;
-        }
-    }
-
-    public function openExistingCustomer(string $id): void
-    {
-        $this->duplicateMatches = [];
-        $this->showEditCustomerModal($id);
     }
 
     public function saveCustomer()
@@ -517,13 +490,7 @@ class CustomerManager extends Component
 
         $this->validate();
 
-        $engagementType = $this->customerForm['engagement_type'];
-        $requiresSampling = in_array($engagementType, [self::ENGAGEMENT_CONTRACT, self::ENGAGEMENT_PORTAL], true)
-            ? (bool) $this->customerForm['requires_sampling']
-            : false;
-        $isOneTime = $engagementType === self::ENGAGEMENT_WALK_IN
-            ? (bool) $this->customerForm['is_one_time']
-            : false;
+        $hasContract = (bool) ($this->customerForm['has_contract'] ?? false);
 
         try {
             DB::beginTransaction();
@@ -546,36 +513,13 @@ class CustomerManager extends Component
                     return;
                 }
 
-                if ($engagementType === self::ENGAGEMENT_WALK_IN) {
-                    $matches = $this->findWalkInDuplicates(
-                        (string) $this->customerForm['name'],
-                        (string) $this->customerForm['email'],
-                        (string) $this->customerForm['telephone1']
-                    );
-
-                    if ($matches->isNotEmpty()) {
-                        DB::rollBack();
-                        $this->duplicateMatches = $matches->map(fn (CRMCustomer $match) => [
-                            'id' => $match->id,
-                            'name' => $match->name,
-                            'email' => $match->email,
-                            'telephone1' => $match->telephone1,
-                            'engagement_type' => $match->engagement_type,
-                        ])->all();
-                        $this->message = 'A matching customer already exists. Open an existing customer instead of creating a duplicate.';
-                        $this->messageType = 'error';
-
-                        return;
-                    }
-                } else {
-                    // Check for duplicate name
-                    $existingCustomer = CRMCustomer::where('name', $this->customerForm['name'])->first();
-                    if ($existingCustomer) {
-                        $this->message = 'Customer with this name already exists.';
-                        $this->messageType = 'error';
-                        DB::rollBack();
-                        return;
-                    }
+                // Check for duplicate name
+                $existingCustomer = CRMCustomer::where('name', $this->customerForm['name'])->first();
+                if ($existingCustomer) {
+                    $this->message = 'Customer with this name already exists.';
+                    $this->messageType = 'error';
+                    DB::rollBack();
+                    return;
                 }
 
                 // Create new customer
@@ -588,21 +532,25 @@ class CustomerManager extends Component
             $customer->physical_address = $this->customerForm['physical_address'];
             $customer->company_id = getUserCompany();
             $customer->website = $this->customerForm['website'];
-            $customer->fax = $this->customerForm['fax'];
             $customer->email = $this->customerForm['email'];
             $customer->telephone1 = $this->customerForm['telephone1'];
             $customer->telephone2 = $this->customerForm['telephone2'];
             $customer->country_id = $this->customerForm['country_id'];
-            $customer->credit_days = $this->customerForm['credit_days'];
-            $customer->active = $this->customerForm['active'] ? 1 : 0;
+            if ($this->editingCustomer) {
+                $customer->active = $this->customerForm['active'] ? 1 : 0;
+            } else {
+                $customer->active = 1;
+            }
             $customer->account_status = $this->customerForm['account_status'];
             $customer->vat_no = $this->customerForm['vat_no'];
             $customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
-            $customer->contract_valid_from = $this->customerForm['contract_valid_from'] ?: null;
-            $customer->contract_valid_to = $this->customerForm['contract_valid_to'] ?: null;
-            $customer->engagement_type = $engagementType;
-            $customer->requires_sampling = $requiresSampling;
-            $customer->is_one_time = $isOneTime;
+            $customer->has_contract = $hasContract;
+            $customer->contract_valid_from = $hasContract
+                ? ($this->customerForm['contract_valid_from'] ?: null)
+                : null;
+            $customer->contract_valid_to = $hasContract
+                ? ($this->customerForm['contract_valid_to'] ?: null)
+                : null;
             
             // Handle zoho_customer_id as JSON array
             if ($this->customerForm['zoho_customer_id']) {
@@ -613,11 +561,10 @@ class CustomerManager extends Component
 
             $customer->save();
 
-            if (
-                $this->contractFile
-                && in_array($engagementType, [self::ENGAGEMENT_CONTRACT, self::ENGAGEMENT_PORTAL], true)
-            ) {
-                $this->storeContractAttachment($customer);
+            if ($hasContract) {
+                $this->storeCustomerContract($customer);
+            } else {
+                $customer->contracts()->where('is_current', true)->update(['is_current' => false]);
             }
 
             $wasEditing = (bool) $this->editingCustomer;
@@ -635,57 +582,52 @@ class CustomerManager extends Component
         }
     }
 
-    /**
-     * @return Collection<int, CRMCustomer>
-     */
-    protected function findWalkInDuplicates(string $name, string $email, string $phone): Collection
+    protected function storeCustomerContract(CRMCustomer $customer): void
     {
-        $nameNormalized = strtolower(trim($name));
-        $emailNormalized = strtolower(trim($email));
-        $phoneNormalized = preg_replace('/\D+/', '', $phone) ?? '';
+        $current = $customer->contracts()->where('is_current', true)->latest('created_at')->first();
+        $validFrom = $this->customerForm['contract_valid_from'] ?: null;
+        $validTo = $this->customerForm['contract_valid_to'] ?: null;
+        $postedBy = Auth::user()->name ?? 'System';
 
-        $companyId = getUserCompany();
+        if ($this->contractFile) {
+            $customer->contracts()->where('is_current', true)->update(['is_current' => false]);
 
-        $query = CRMCustomer::query()
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId));
+            $extension = strtolower((string) $this->contractFile->getClientOriginalExtension());
+            $storedName = (string) Str::uuid() . ($extension !== '' ? '.' . $extension : '');
+            $path = $this->contractFile->storeAs('crm-customer-contracts', $storedName, 'public');
 
-        $byName = (clone $query)
-            ->whereRaw('LOWER(TRIM(name)) = ?', [$nameNormalized])
-            ->get(['id', 'name', 'email', 'telephone1', 'engagement_type', 'company_id', 'active']);
+            $contract = new CrmCustomerContract();
+            $contract->crm_customer_id = $customer->id;
+            $contract->valid_from = $validFrom;
+            $contract->valid_to = $validTo;
+            $contract->posted_by = $postedBy;
+            $contract->is_current = true;
+            $contract->original_name = $this->contractFile->getClientOriginalName();
+            $contract->file_path = '/storage/' . $path;
+            $contract->file_extension = $extension !== '' ? $extension : null;
+            $contract->mime_type = $this->contractFile->getMimeType();
+            $contract->file_size = $this->contractFile->getSize();
+            $contract->save();
 
-        // Email/telephone are encrypted — compare decrypted values in PHP within company scope.
-        $candidates = (clone $query)
-            ->where(function ($q) {
-                $q->whereNull('active')->orWhere('active', '!=', 0);
-            })
-            ->get(['id', 'name', 'email', 'telephone1', 'engagement_type', 'company_id', 'active']);
+            return;
+        }
 
-        $byContact = $candidates->filter(function (CRMCustomer $customer) use ($emailNormalized, $phoneNormalized) {
-            $emailMatch = $emailNormalized !== ''
-                && strtolower(trim((string) $customer->email)) === $emailNormalized;
-            $phoneMatch = $phoneNormalized !== ''
-                && (preg_replace('/\D+/', '', (string) $customer->telephone1) ?? '') === $phoneNormalized;
+        if ($current) {
+            $current->valid_from = $validFrom;
+            $current->valid_to = $validTo;
+            $current->posted_by = $postedBy;
+            $current->save();
 
-            return $emailMatch || $phoneMatch;
-        });
+            return;
+        }
 
-        return $byName->merge($byContact)->unique('id')->values();
-    }
-
-    protected function storeContractAttachment(CRMCustomer $customer): void
-    {
-        $path = $this->contractFile->store('crm-customers', 'public');
-
-        $attachment = new CrmCustomerAttachment();
-        $attachment->title = 'Contract';
-        $attachment->type = 'Contract';
-        $attachment->description = 'Uploaded from customer create/edit form';
-        $attachment->crm_customer_id = $customer->id;
-        $attachment->posted_by = Auth::user()->name ?? 'System';
-        $attachment->file_path = '/storage/' . $path;
-        $attachment->file_size = $this->contractFile->getSize();
-        $attachment->file_type = $this->contractFile->getClientOriginalExtension();
-        $attachment->save();
+        $contract = new CrmCustomerContract();
+        $contract->crm_customer_id = $customer->id;
+        $contract->valid_from = $validFrom;
+        $contract->valid_to = $validTo;
+        $contract->posted_by = $postedBy;
+        $contract->is_current = true;
+        $contract->save();
     }
 
     public function deleteCustomer($id)
@@ -737,25 +679,20 @@ class CustomerManager extends Component
             'postal_address' => '',
             'physical_address' => '',
             'website' => '',
-            'fax' => '',
             'email' => '',
             'telephone1' => '',
             'telephone2' => '',
             'country_id' => null,
-            'credit_days' => null,
             'active' => true,
             'account_status' => null,
             'vat_no' => '',
             'lpos_required' => false,
             'zoho_customer_id' => null,
+            'has_contract' => false,
             'contract_valid_from' => '',
             'contract_valid_to' => '',
-            'engagement_type' => '',
-            'requires_sampling' => false,
-            'is_one_time' => false,
         ];
         $this->contractFile = null;
-        $this->duplicateMatches = [];
         $this->hasExistingContractAttachment = false;
         $this->editingCustomer = null;
     }

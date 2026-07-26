@@ -25,7 +25,7 @@ class ContactWelcomeMail extends Mailable
 
         $activeCompany     = getActiveCompany();
         $this->companyName = $activeCompany?->name ?? config('app.name');
-        $this->loginUrl    = rtrim(config('app.url'), '/') . '/login';
+        $this->loginUrl = rtrim((string) config('services.customer_portal.url', 'https://amspec-portal.imaralims.com'), '/');
 
         if ($activeCompany && !empty($activeCompany->logo)) {
             $logoRaw = $activeCompany->logo;

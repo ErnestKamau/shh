@@ -5,7 +5,6 @@ namespace App\Livewire\Crm\Contact;
 use App\Mail\ContactWelcomeMail;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\CRMCustomer;
-use Livewire\Attributes\On;
 use App\Livewire\Crm\BaseCrmComponent;
 use App\User;
 use Illuminate\Support\Facades\DB;
@@ -30,16 +29,10 @@ class ContactForm extends BaseCrmComponent
     public $receive_report = false;
     public $receive_feedback = false;
     public $active = false;
-    public $other_customers = [];
     public $units = [];
-    public $customers = [];
     public $unitSearch = '';
-    public $otherCustomerSearch = '';
     public $showUnitDropdown = false;
-    public $showOtherCustomersDropdown = false;
 
-    public $password = '';
-    public $confirm_password = '';
     public $can_login = false;
 
     public function mount($customerId, $contactId = null)
@@ -47,10 +40,7 @@ class ContactForm extends BaseCrmComponent
         $this->initialize();
         $this->customerId = $customerId;
         $this->units = CRMCustomer::find($customerId)->units ?? [];
-        $this->customers = CRMCustomer::where('active', 1)
-            ->where('id', '!=', $customerId)
-            ->get();
-        
+
         if ($contactId) {
             $contact = CustomerContact::find($contactId);
             if ($contact) {
@@ -63,14 +53,12 @@ class ContactForm extends BaseCrmComponent
                 $this->email = $contact->email;
                 $this->telephone = $contact->telephone;
                 $this->mobile = $contact->mobile;
-                // Cast to boolean
                 $this->receive_price_list = (bool) ($contact->receive_price_list ?? 0);
                 $this->receive_invoice = (bool) ($contact->receive_invoice ?? 0);
                 $this->receive_report = (bool) ($contact->receive_report ?? 0);
                 $this->receive_feedback = (bool) ($contact->receive_feedback ?? 0);
                 $this->active = (bool) ($contact->active ?? 0);
                 $this->can_login = (bool) ($contact->can_login ?? 0);
-                $this->other_customers = $this->normalizeStoredCustomerIds($contact->other_customers);
             }
         }
     }
@@ -89,35 +77,12 @@ class ContactForm extends BaseCrmComponent
             ->values();
     }
 
-    public function getFilteredCustomersProperty()
-    {
-        $search = trim(strtolower($this->otherCustomerSearch));
-
-        return collect($this->customers)
-            ->when($search !== '', function ($customers) use ($search) {
-                return $customers->filter(function ($customer) use ($search) {
-                    return str_contains(strtolower($customer->name), $search);
-                });
-            })
-            ->take(80)
-            ->values();
-    }
-
     public function getSelectedUnitsProperty()
     {
         $selectedIds = $this->normalizedUnitIds();
 
         return collect($this->units)
-            ->filter(fn($unit) => in_array((string) $unit->id, $selectedIds, true))
-            ->values();
-    }
-
-    public function getSelectedOtherCustomersProperty()
-    {
-        $selectedIds = $this->normalizedCustomerIds();
-
-        return collect($this->customers)
-            ->filter(fn($customer) => in_array((string) $customer->id, $selectedIds, true))
+            ->filter(fn ($unit) => in_array((string) $unit->id, $selectedIds, true))
             ->values();
     }
 
@@ -127,7 +92,7 @@ class ContactForm extends BaseCrmComponent
         $selected = $this->normalizedUnitIds();
 
         if (in_array($unitId, $selected, true)) {
-            $selected = array_values(array_filter($selected, fn($id) => $id !== $unitId));
+            $selected = array_values(array_filter($selected, fn ($id) => $id !== $unitId));
         } else {
             $selected[] = $unitId;
         }
@@ -143,7 +108,7 @@ class ContactForm extends BaseCrmComponent
 
         $this->unit_name = array_values(array_filter(
             $this->normalizedUnitIds(),
-            fn($id) => $id !== $unitId
+            fn ($id) => $id !== $unitId
         ));
     }
 
@@ -152,51 +117,11 @@ class ContactForm extends BaseCrmComponent
         return in_array((string) $unitId, $this->normalizedUnitIds(), true);
     }
 
-    public function toggleOtherCustomerSelection(string $customerId): void
-    {
-        $customerId = (string) $customerId;
-        $selected = $this->normalizedCustomerIds();
-
-        if (in_array($customerId, $selected, true)) {
-            $selected = array_values(array_filter($selected, fn($id) => $id !== $customerId));
-        } else {
-            $selected[] = $customerId;
-        }
-
-        $this->other_customers = $selected;
-        $this->otherCustomerSearch = '';
-        $this->showOtherCustomersDropdown = false;
-    }
-
-    public function removeOtherCustomerSelection(string $customerId): void
-    {
-        $customerId = (string) $customerId;
-
-        $this->other_customers = array_values(array_filter(
-            $this->normalizedCustomerIds(),
-            fn($id) => $id !== $customerId
-        ));
-    }
-
-    public function isOtherCustomerSelected($customerId): bool
-    {
-        return in_array((string) $customerId, $this->normalizedCustomerIds(), true);
-    }
-
     protected function normalizedUnitIds(): array
     {
         return collect($this->unit_name)
-            ->map(fn($id) => trim((string) $id))
-            ->filter(fn($id) => $id !== '')
-            ->values()
-            ->all();
-    }
-
-    protected function normalizedCustomerIds(): array
-    {
-        return collect($this->other_customers)
-            ->map(fn($id) => trim((string) $id))
-            ->filter(fn($id) => $id !== '' && Str::isUuid($id))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '')
             ->values()
             ->all();
     }
@@ -205,7 +130,7 @@ class ContactForm extends BaseCrmComponent
     {
         $values = array_values(array_filter(
             array_map('trim', explode(',', $stored ?? '')),
-            fn($value) => $value !== ''
+            fn ($value) => $value !== ''
         ));
 
         return collect($values)
@@ -215,7 +140,7 @@ class ContactForm extends BaseCrmComponent
                 }
 
                 $matchedUnit = collect($this->units)->first(
-                    fn($unit) => strcasecmp((string) $unit->name, $value) === 0
+                    fn ($unit) => strcasecmp((string) $unit->name, $value) === 0
                 );
 
                 return $matchedUnit ? (string) $matchedUnit->id : null;
@@ -225,33 +150,16 @@ class ContactForm extends BaseCrmComponent
             ->all();
     }
 
-    protected function normalizeStoredCustomerIds(?string $stored): array
-    {
-        return collect(array_values(array_filter(
-            array_map('trim', explode(',', $stored ?? '')),
-            fn($value) => $value !== '' && Str::isUuid($value)
-        )))->values()->all();
-    }
-
     protected function rules()
     {
-        $rules = [
+        return [
             'first_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'telephone' => 'required|string|max:255', // Marked as required in new design
+            'telephone' => 'required|string|max:255',
             'mobile' => 'nullable|string|max:255',
-            'unit_name' => 'required|array', // Department/Unit is required
+            'unit_name' => 'required|array',
+            'job_occupation' => 'required|string|max:255',
         ];
-
-        if ($this->can_login && !$this->contactId) {
-            $rules['password'] = 'required|min:6';
-            $rules['confirm_password'] = 'required|same:password';
-        } elseif ($this->can_login && $this->password) {
-             $rules['password'] = 'min:6';
-             $rules['confirm_password'] = 'required|same:password';
-        }
-
-        return $rules;
     }
 
     public function save()
@@ -261,7 +169,6 @@ class ContactForm extends BaseCrmComponent
 
         $emailNormalized = strtolower(trim($this->email));
 
-        // Check if email already exists for this customer (exclude current contact when editing)
         $duplicateQuery = CustomerContact::where('crm_customer_id', $this->customerId)
             ->whereRaw('LOWER(TRIM(email)) = ?', [$emailNormalized]);
         if ($this->contactId) {
@@ -269,16 +176,19 @@ class ContactForm extends BaseCrmComponent
         }
         if ($duplicateQuery->exists()) {
             $this->showError('Email already exists in the system');
+
             return;
         }
 
         $wasEditing = (bool) $this->contactId;
         $previousContactEmail = null;
+        $portalCredentialsEmailed = false;
 
         if ($this->can_login) {
             $existingUser = User::whereRaw('LOWER(TRIM(email)) = ?', [$emailNormalized])->first();
             if ($existingUser && ! $wasEditing && (int) $existingUser->is_client !== 1) {
                 $this->showError('There is already a user with the given email!');
+
                 return;
             }
         }
@@ -298,6 +208,7 @@ class ContactForm extends BaseCrmComponent
             if (! $contact) {
                 DB::rollBack();
                 $this->showError('Contact not found.');
+
                 return;
             }
 
@@ -305,22 +216,19 @@ class ContactForm extends BaseCrmComponent
             $contact->middle_name = $this->second_name;
             $contact->last_name = $this->third_name;
             $contact->job_occupation = $this->job_occupation;
-            $contact->unit_name = implode(",", $this->unit_name);
+            $contact->unit_name = implode(',', $this->unit_name);
             $contact->email = $this->email;
             $contact->telephone = $this->telephone;
             $contact->mobile = $this->mobile;
             $contact->company_id = $this->getUserCompany();
             $contact->crm_customer_id = $this->customerId;
 
-            // Cast back to integer
             $contact->receive_price_list = $this->receive_price_list ? 1 : 0;
             $contact->receive_invoice = $this->receive_invoice ? 1 : 0;
             $contact->receive_report = $this->receive_report ? 1 : 0;
             $contact->receive_feedback = $this->receive_feedback ? 1 : 0;
             $contact->active = $this->active ? 1 : 0;
             $contact->can_login = $this->can_login ? 1 : 0;
-
-            $contact->other_customers = is_array($this->other_customers) ? implode(',', $this->other_customers) : '';
 
             $contact->save();
 
@@ -334,6 +242,7 @@ class ContactForm extends BaseCrmComponent
 
             if ($this->can_login) {
                 $user = User::whereRaw('LOWER(TRIM(email)) = ?', [$emailNormalized])->first() ?? new User();
+                $isNewPortalUser = ! $user->exists;
 
                 $user->name = trim(implode(' ', array_filter([
                     trim((string) $this->first_name),
@@ -344,10 +253,11 @@ class ContactForm extends BaseCrmComponent
                 $user->middle_name = (string) $this->second_name;
                 $user->last_name = (string) $this->third_name;
 
-                if ($this->password) {
-                    $user->password = bcrypt($this->password);
-                } elseif (! $user->exists) {
-                    throw new \RuntimeException('Password is required when creating portal access.');
+                $plainPassword = null;
+                if ($isNewPortalUser) {
+                    $plainPassword = $this->generatePortalPassword();
+                    $user->password = bcrypt($plainPassword);
+                    $user->password_changed_at = null;
                 }
 
                 $user->email = $this->email;
@@ -360,11 +270,10 @@ class ContactForm extends BaseCrmComponent
 
                 $user->save();
 
-                // Send welcome email only on new contact creation (not when editing credentials)
-                if ($this->password && ! $wasEditing) {
-                    $recipientName  = trim($user->name);
+                if ($plainPassword) {
+                    $recipientName = trim($user->name);
                     $recipientEmail = $user->email;
-                    $plainPassword  = $this->password;
+                    $portalCredentialsEmailed = true;
 
                     dispatch(function () use ($recipientName, $recipientEmail, $plainPassword) {
                         Mail::to($recipientEmail)->send(
@@ -389,9 +298,16 @@ class ContactForm extends BaseCrmComponent
         }
 
         $successMessage = $wasEditing ? 'Contact edited successfully!' : 'Contact added successfully!';
+        if ($portalCredentialsEmailed) {
+            $successMessage .= ' Portal credentials have been emailed to the contact.';
+        }
 
-        // Close the modal first, then surface success on the parent contacts tab.
         $this->dispatch('contact-saved', message: $successMessage);
+    }
+
+    protected function generatePortalPassword(): string
+    {
+        return $this->first_name . config('app.name') . date('Y');
     }
 
     public function delete()
@@ -400,7 +316,7 @@ class ContactForm extends BaseCrmComponent
             $this->checkPermission('crm.components.contacts.delete');
             $contact = CustomerContact::find($this->contactId);
             $contact->delete();
-            
+
             $this->showSuccess('Contact deleted successfully');
             $this->dispatch('contact-deleted', message: 'Contact deleted successfully');
         }
@@ -416,4 +332,3 @@ class ContactForm extends BaseCrmComponent
         return view('livewire.crm.contact.contact-form');
     }
 }
-

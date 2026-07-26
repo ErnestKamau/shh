@@ -39,6 +39,10 @@ return [
         'api_key' => env('PORTAL_GATEWAY_API_KEY'),
     ],
 
+    'customer_portal' => [
+        'url' => env('CUSTOMER_PORTAL_URL', 'https://amspec-portal.imaralims.com'),
+    ],
+
     'africastalking' => [
         'username' => env('AFRICASTALKING_USERNAME'),
         'api_key' => env('AFRICASTALKING_API_KEY'),

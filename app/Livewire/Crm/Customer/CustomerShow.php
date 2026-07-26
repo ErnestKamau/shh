@@ -36,10 +36,18 @@ class CustomerShow extends BaseCrmComponent
         $this->customerId = $customerId;
         $this->customer = CRMCustomer::with(['country'])->findOrFail($customerId);
         $this->isQplus = SystemConfiguration::where('key', 'is_qplus')->first();
+
+        if ($this->activeTab === 'contracts' && ! $this->customer->has_contract) {
+            $this->activeTab = 'details';
+        }
     }
 
     public function switchTab($tab)
     {
+        if ($tab === 'contracts' && ! $this->customer->has_contract) {
+            $tab = 'details';
+        }
+
         $this->activeTab = $tab;
     }
 
