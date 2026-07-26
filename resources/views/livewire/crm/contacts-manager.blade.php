@@ -176,6 +176,12 @@
                     <button type="button" class="btn-close" wire:click="closeContactModal"></button>
                 </div>
                 <div class="modal-body">
+                    @if($messageType === 'error' && $message)
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ $message }}
+                            <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+                        </div>
+                    @endif
                     <form wire:submit.prevent="saveContact">
                         <!-- Personal Information Section -->
                         <div class="form-section mb-4">

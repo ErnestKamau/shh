@@ -8,7 +8,9 @@ use App\Models\CRM\CRMCompanyUnit;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\WithFileUploads;
 
 class ContactsManager extends Component
@@ -68,17 +70,11 @@ class ContactsManager extends Component
         // Password is only required when can_login=true AND no existing portal user yet.
         // When editing a contact who already has a User record, the password field is
         // optional (leave blank to keep the current password).
-        $existingUser = $this->contactForm['can_login']
+        $existingUser = (bool) $this->contactForm['can_login']
             && $this->editingContact
             && User::where('email', $this->editingContact->email)->exists();
 
-        $passwordRule = $existingUser
-            ? 'nullable|min:8'
-            : 'required_if:contactForm.can_login,true|min:8';
-
-        $confirmRule = $existingUser
-            ? 'nullable|min:8|same:contactForm.main_password'
-            : 'required_if:contactForm.can_login,true|same:contactForm.main_password';
+        $passwordRequired = (bool) $this->contactForm['can_login'] && ! $existingUser;
 
         return [
             'contactForm.title_id'    => 'nullable|exists:module_pre_configs,id',
@@ -86,8 +82,18 @@ class ContactsManager extends Component
             'contactForm.email'       => 'required|email|max:255',
             'contactForm.telephone'   => 'required|string|max:50',
             'contactForm.unit_name'   => 'required|array|min:1',
-            'contactForm.main_password'    => $passwordRule,
-            'contactForm.confirm_password' => $confirmRule,
+            'contactForm.main_password' => [
+                Rule::requiredIf($passwordRequired),
+                'nullable',
+                'string',
+                'min:8',
+            ],
+            'contactForm.confirm_password' => [
+                Rule::requiredIf($passwordRequired || filled($this->contactForm['main_password'] ?? null)),
+                'nullable',
+                'string',
+                'same:contactForm.main_password',
+            ],
             'signatureFile'           => 'nullable|image|max:2048',
         ];
     }
@@ -239,30 +245,56 @@ class ContactsManager extends Component
             $this->message = $successMessage;
             $this->messageType = 'success';
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('ContactsManager: failed saving contact with portal access', [
+                'customer_id' => $this->customerId,
+                'email' => $this->contactForm['email'] ?? null,
+                'can_login' => $this->contactForm['can_login'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
+            $this->addError('contactForm.email', 'Could not save contact'.(
+                $this->contactForm['can_login'] ? ' with portal access: '.$e->getMessage() : ': '.$e->getMessage()
+            ));
         }
     }
 
     protected function createOrUpdateUser($contact)
     {
-        $user = User::where('email', $contact->email)->first();
-        
-        if (!$user) {
+        $email = strtolower(trim((string) $contact->email));
+        $user = User::whereRaw('LOWER(TRIM(email)) = ?', [$email])->first();
+
+        if (! $user) {
             $user = new User();
             $user->email = $contact->email;
+        } elseif ((int) $user->is_client !== 1 && (string) $user->crm_contact_id !== (string) $contact->id) {
+            throw new \RuntimeException(
+                'There is already a non-portal user account with this email. Use a different email for portal access.'
+            );
         }
 
-        $user->name = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
-        if (!empty($this->contactForm['main_password'])) {
+        $user->name = trim(implode(' ', array_filter([
+            trim((string) $contact->first_name),
+            trim((string) ($contact->middle_name ?? '')),
+            trim((string) ($contact->last_name ?? '')),
+        ], fn (string $part): bool => $part !== '')));
+        $user->first_name = (string) $contact->first_name;
+        $user->middle_name = (string) ($contact->middle_name ?? '');
+        $user->last_name = (string) ($contact->last_name ?? '');
+
+        if (! empty($this->contactForm['main_password'])) {
             $user->password = Hash::make($this->contactForm['main_password']);
+        } elseif (! $user->exists) {
+            throw new \RuntimeException('Password is required when creating portal access.');
         }
+
         $user->company_id = getUserCompany();
         $user->is_client = 1;
         $user->client_id = $this->customerId;
-        $user->crm_contact_id = $contact->id;  // links User → CustomerContact for portal auth check
+        $user->crm_contact_id = $contact->id;
+        $user->crmcontact_id = $contact->id;
         $user->active = 1;
         $user->save();
     }

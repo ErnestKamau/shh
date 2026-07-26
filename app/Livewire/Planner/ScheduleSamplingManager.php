@@ -14,8 +14,6 @@ use App\AnalysisElements;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
@@ -89,36 +87,7 @@ class ScheduleSamplingManager extends Component
 
     public function mount()
     {
-        $this->runMigrations();
         $this->loadSupportingData();
-    }
-
-    protected function runMigrations()
-    {
-        try {
-            Artisan::call('migrate');
-        } catch (\Throwable $e) {
-            Log::error("Migration failed in ScheduleSamplingManager: " . $e->getMessage());
-        }
-
-        // Direct schema fix for company_id type
-        try {
-            if (Schema::hasTable('sampling_schedules')) {
-                $type = Schema::getColumnType('sampling_schedules', 'company_id');
-                if ($type !== 'guid' && $type !== 'uuid' && $type !== 'string') {
-                    DB::statement('ALTER TABLE sampling_schedules DROP COLUMN IF EXISTS company_id');
-                    DB::statement('ALTER TABLE sampling_schedules ADD COLUMN company_id UUID');
-                    DB::statement('CREATE INDEX IF NOT EXISTS idx_sampling_schedules_company_id ON sampling_schedules(company_id)');
-                }
-
-                // Ensure sample_details column exists
-                if (!Schema::hasColumn('sampling_schedules', 'sample_details')) {
-                    DB::statement("ALTER TABLE sampling_schedules ADD COLUMN sample_details JSON NULL");
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error("Direct schema fix failed: " . $e->getMessage());
-        }
     }
 
     protected function loadSupportingData()
@@ -1306,6 +1275,39 @@ class ScheduleSamplingManager extends Component
         return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at): void {
             $q->where('analysis_type_id', $at->id)->where('active', true);
         })->orderBy('name')->get();
+    }
+
+    /**
+     * @return array{selected: list<string>, options: list<string>}
+     */
+    public function walkInParameterPickerState(int $rowIndex): array
+    {
+        $raw = $this->formData['parameters'][$rowIndex] ?? [];
+        $selected = is_array($raw)
+            ? array_values(array_map('strval', $raw))
+            : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
+
+        $options = $this->parametersForRow($rowIndex)
+            ->pluck('name')
+            ->map(fn ($name) => (string) $name)
+            ->values()
+            ->all();
+
+        return [
+            'selected' => $selected,
+            'options' => $options,
+        ];
+    }
+
+    /**
+     * @param  list<string|int|float>  $parameters
+     */
+    public function setWalkInParameters(int $rowIndex, array $parameters): void
+    {
+        $this->formData['parameters'][$rowIndex] = array_values(array_map(
+            static fn ($value): string => (string) $value,
+            $parameters
+        ));
     }
 
     public function getCustomersProperty()

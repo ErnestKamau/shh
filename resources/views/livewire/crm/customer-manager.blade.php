@@ -398,8 +398,6 @@
                                 </div>
                             </div>
 
-                            
-
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">{{ __('crm.postal_address') }} <span class="text-danger">*</span></label>
                                 <textarea wire:model="customerForm.postal_address" class="form-control" rows="3" placeholder="{{ __('crm.postal_address_placeholder') }}"></textarea>
@@ -441,22 +439,109 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Contract Validity From</label>
-                                        <input type="date" wire:model="customerForm.contract_valid_from" class="form-control">
-                                        @error('customerForm.contract_valid_from') <span class="text-danger">{{ $message }}</span> @enderror
+
+                            <hr class="my-3">
+
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Customer Type <span class="text-danger">*</span></label>
+                                <div class="d-flex flex-wrap" style="gap: 1.25rem;">
+                                    <div class="form-check">
+                                        <input type="radio" wire:model.live="customerForm.engagement_type" class="form-check-input" id="engagement_contract" value="contract">
+                                        <label class="form-check-label" for="engagement_contract">Contract</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="radio" wire:model.live="customerForm.engagement_type" class="form-check-input" id="engagement_portal" value="portal">
+                                        <label class="form-check-label" for="engagement_portal">Portal</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="radio" wire:model.live="customerForm.engagement_type" class="form-check-input" id="engagement_walk_in" value="walk_in">
+                                        <label class="form-check-label" for="engagement_walk_in">Walk-in</label>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Contract Validity To</label>
-                                        <input type="date" wire:model="customerForm.contract_valid_to" class="form-control">
-                                        @error('customerForm.contract_valid_to') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
+                                @error('customerForm.engagement_type') <span class="text-danger">{{ $message }}</span> @enderror
+                                @if(($customerForm['engagement_type'] ?? '') === 'portal')
+                                    <small class="text-muted d-block mt-1">Portal access is granted on customer contacts.</small>
+                                @endif
                             </div>
+
+                            @if(in_array($customerForm['engagement_type'] ?? '', ['contract', 'portal'], true))
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">Contract Validity From</label>
+                                            <input type="date" wire:model="customerForm.contract_valid_from" class="form-control">
+                                            @error('customerForm.contract_valid_from') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">Contract Validity To</label>
+                                            <input type="date" wire:model="customerForm.contract_valid_to" class="form-control">
+                                            @error('customerForm.contract_valid_to') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="form-label fw-bold">
+                                        Contract Document
+                                        @if(($customerForm['engagement_type'] ?? '') === 'contract' && ! $editingCustomer && ! $hasExistingContractAttachment)
+                                            <span class="text-danger">*</span>
+                                        @endif
+                                    </label>
+                                    <input type="file" wire:model="contractFile" class="form-control" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg">
+                                    @error('contractFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                    <div wire:loading wire:target="contractFile" class="text-muted small mt-1">Uploading...</div>
+                                    @if($hasExistingContractAttachment && ! $contractFile)
+                                        <small class="text-muted d-block mt-1">A contract document is already on file. Upload a new file to add another.</small>
+                                    @endif
+                                </div>
+
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model="customerForm.requires_sampling" class="form-check-input" id="requires_sampling">
+                                    <label class="form-check-label" for="requires_sampling">
+                                        Requires Sampling?
+                                    </label>
+                                </div>
+                            @endif
+
+                            @if(($customerForm['engagement_type'] ?? '') === 'walk_in')
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model="customerForm.is_one_time" class="form-check-input" id="is_one_time">
+                                    <label class="form-check-label" for="is_one_time">
+                                        One-time customer?
+                                    </label>
+                                </div>
+                            @endif
+
+                            @if(count($duplicateMatches) > 0)
+                                <div class="alert alert-warning">
+                                    <strong>Possible duplicate customer(s) found.</strong>
+                                    Create was blocked. Open an existing customer instead.
+                                    <ul class="list-unstyled mb-0 mt-2">
+                                        @foreach($duplicateMatches as $match)
+                                            <li class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                                <div>
+                                                    <div class="fw-semibold">{{ $match['name'] }}</div>
+                                                    <small class="text-muted">
+                                                        {{ $match['email'] ?? '—' }}
+                                                        @if(!empty($match['telephone1']))
+                                                            · {{ $match['telephone1'] }}
+                                                        @endif
+                                                        @if(!empty($match['engagement_type']))
+                                                            · {{ str_replace('_', '-', $match['engagement_type']) }}
+                                                        @endif
+                                                    </small>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openExistingCustomer('{{ $match['id'] }}')">
+                                                    Open
+                                                </button>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-check">

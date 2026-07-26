@@ -32,6 +32,28 @@
                                 {{ $customer->name }}
                             </h2>
                             <p class="text-muted mb-0">{{ $customer->code }} | {{ $customer->email }}</p>
+                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                @php
+                                    $engagementLabels = [
+                                        'contract' => 'Contract',
+                                        'portal' => 'Portal',
+                                        'walk_in' => 'Walk-in',
+                                    ];
+                                    $engagementType = $customer->engagement_type ?? null;
+                                @endphp
+                                @if($engagementType && isset($engagementLabels[$engagementType]))
+                                    <span class="badge badge-info-modern">{{ $engagementLabels[$engagementType] }}</span>
+                                @endif
+                                @if($customer->requires_sampling)
+                                    <span class="badge bg-warning text-dark">Requires Sampling</span>
+                                @endif
+                                @if($customer->is_one_time)
+                                    <span class="badge bg-secondary">One-time</span>
+                                @endif
+                                @if($engagementType === 'portal')
+                                    <span class="badge bg-light text-dark border">Portal access via contacts</span>
+                                @endif
+                            </div>
                         </div>
                         <div>
                             <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info pricelist-action-btn" title="{{ __('crm.edit_tab_names') }}">
@@ -545,6 +567,41 @@
                                                 </div>
                                                 <div class="info-value">
                                                     {{ $customer->contract_valid_to ? \Carbon\Carbon::parse($customer->contract_valid_to)->format('d-M-Y') : 'N/A' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-12">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-file-document-outline text-primary"></i> Contract Documents
+                                                </div>
+                                                <div class="info-value">
+                                                    @php
+                                                        $contractDocs = $customer->contractAttachments ?? collect();
+                                                    @endphp
+                                                    @if($contractDocs->isEmpty())
+                                                        <span class="text-muted">No contract documents uploaded</span>
+                                                    @else
+                                                        <ul class="list-unstyled mb-0">
+                                                            @foreach($contractDocs as $attachment)
+                                                                <li class="d-flex justify-content-between align-items-center py-1">
+                                                                    <span>
+                                                                        {{ $attachment->title ?: 'Contract' }}
+                                                                        @if($attachment->created_at)
+                                                                            <small class="text-muted">({{ $attachment->created_at->format('d-M-Y') }})</small>
+                                                                        @endif
+                                                                    </span>
+                                                                    <a href="{{ route('crm.customer.attachment.download', [$customer->id, $attachment->id]) }}"
+                                                                       class="btn btn-sm btn-outline-primary">
+                                                                        <i class="mdi mdi-download"></i> Download
+                                                                    </a>
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>

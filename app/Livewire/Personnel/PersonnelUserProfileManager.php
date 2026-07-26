@@ -451,7 +451,7 @@ class PersonnelUserProfileManager extends Component
                 'detailsLastName' => 'nullable|string|max:255',
                 'detailsEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user->id, 'id')],
                 'detailsPhone' => 'nullable|string|max:255',
-                'detailsIdNumber' => 'required|string|max:255',
+                'detailsIdNumber' => 'nullable|string|max:255',
                 'detailsDateOfBirth' => 'nullable|date',
                 'detailsKraPin' => 'nullable|string|max:255',
                 'detailsNssf' => 'nullable|string|max:255',

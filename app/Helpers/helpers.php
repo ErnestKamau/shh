@@ -1078,6 +1078,14 @@ function isSystemModuleVisible($moduleKey)
 		return false;
 	}
 
+	// System Settings is permission-gated, not only module-visibility toggled.
+	if ($moduleKey === 'settings') {
+		$user = auth()->user();
+		if (!$user || !$user->can('settings.module.access')) {
+			return false;
+		}
+	}
+
 	$visibility = getSystemModuleVisibilityMap();
 	return isset($visibility[$moduleKey]) ? (bool) $visibility[$moduleKey] : true;
 }

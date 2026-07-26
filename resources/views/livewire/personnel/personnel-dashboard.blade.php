@@ -64,41 +64,31 @@
                 </div>
 
                 <div class="row mb-4">
-                    <div class="col-md-8">
-                        <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-account-badge"></i> Analyst Gazzetted Matrix</h5>
-                            @foreach ($analystGazzettedMatrix as $item)
-                                @php
-                                    $limit = max($item['limit'], 1);
-                                    $percentage = min((int) round(($item['used'] / $limit) * 100), 100);
-                                @endphp
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">{{ $item['label'] }}</span>
-                                        <span class="font-weight-bold">{{ $item['used'] }}/{{ $item['limit'] }}</span>
-                                    </div>
-                                    <div class="progress" style="height: 8px;">
-                                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $percentage }}%;" aria-valuenow="{{ $percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="chart-container h-100">
+                    <div class="col-12">
+                        <div class="chart-container">
                             <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> {{ __('personnel.quick_actions') }}</h5>
-                            <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2" wire:click="$dispatchTo('personnel.personnel-table-manager', 'personnel-open-add-modal')">
-                                <i class="mdi mdi-plus"></i> {{ __('personnel.add_personnel') }}
-                            </button>
-                            <a href="{{ route('organizational-roles') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2">
-                                <i class="mdi mdi-account-key"></i> {{ __('personnel.manage_roles') }}
-                            </a>
-                            <a href="{{ route('show-organizational-departments') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2">
-                                <i class="mdi mdi-home-group"></i> {{ __('personnel.departments') }}
-                            </a>
-                            <a href="{{ route('personnel-certification-home') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
-                                <i class="mdi mdi-certificate"></i> {{ __('personnel.certifications') }}
-                            </a>
+                            <div class="row">
+                                <div class="col-md-3 col-sm-6 mb-2 mb-md-0">
+                                    <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100" wire:click="$dispatchTo('personnel.personnel-table-manager', 'personnel-open-add-modal')">
+                                        <i class="mdi mdi-plus"></i> {{ __('personnel.add_personnel') }}
+                                    </button>
+                                </div>
+                                <div class="col-md-3 col-sm-6 mb-2 mb-md-0">
+                                    <a href="{{ route('organizational-roles') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
+                                        <i class="mdi mdi-account-key"></i> {{ __('personnel.manage_roles') }}
+                                    </a>
+                                </div>
+                                <div class="col-md-3 col-sm-6 mb-2 mb-md-0">
+                                    <a href="{{ route('show-organizational-departments') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
+                                        <i class="mdi mdi-home-group"></i> {{ __('personnel.departments') }}
+                                    </a>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <a href="{{ route('personnel-certification-home') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
+                                        <i class="mdi mdi-certificate"></i> {{ __('personnel.certifications') }}
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

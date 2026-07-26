@@ -67,7 +67,7 @@
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             @else
-                                <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled(!$quotationBuilt || !$pdfGenerated)>
+                                <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled($lines === [])>
                                     <span wire:loading.remove wire:target="sendQuotation">
                                         <i class="mdi mdi-send"></i>
                                         {{ $quotationSent ? 'Send again' : 'Send to customer' }}

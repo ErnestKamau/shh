@@ -144,7 +144,7 @@
                                         </button>
                                     </div>
                                 </td>
-                                <td>{{ $item->designation }}</td>
+                                <td>{{ $item->designation_label }}</td>
                                 <td>
                                     {{ $item->first_name }}
                                     @if($item->analyst_is_gazzetted)
@@ -154,7 +154,7 @@
                                 <td>{{ $item->middle_name }}</td>
                                 <td>{{ $item->last_name }}</td>
                                 <td>{{ $item->department_name }}</td>
-                                <td>{{ $item->position }}</td>
+                                <td>{{ $item->position_label }}</td>
                                 <td>{{ $item->labsectionname }}</td>
                                 <td>{{ $item->email }}</td>
                                 <td>{{ $item->employment_date }}</td>
@@ -244,7 +244,10 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.first_name') }} <span class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control" wire:model="personnelForm.first_name" placeholder="{{ __('personnel.first_name') }}..." />
+                                                    <input type="text" class="form-control @error('personnelForm.first_name') is-invalid @enderror" wire:model="personnelForm.first_name" placeholder="{{ __('personnel.first_name') }}..." />
+                                                    @error('personnelForm.first_name')
+                                                        <span class="invalid-feedback d-block">{{ $message }}</span>
+                                                    @enderror
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
@@ -262,7 +265,10 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.email') }} <span class="text-danger">*</span></label>
-                                                    <input type="email" class="form-control" wire:model="personnelForm.email" placeholder="{{ __('personnel.email') }}..." />
+                                                    <input type="email" class="form-control @error('personnelForm.email') is-invalid @enderror" wire:model="personnelForm.email" placeholder="{{ __('personnel.email') }}..." />
+                                                    @error('personnelForm.email')
+                                                        <span class="invalid-feedback d-block">{{ $message }}</span>
+                                                    @enderror
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
@@ -1063,7 +1069,10 @@
             border-radius: 16px;
             font-size: 0.875rem;
             font-weight: 500;
-            white-space: nowrap;
+            white-space: normal;
+            max-width: 100%;
+            word-break: break-word;
+            line-height: 1.3;
         }
 
         .tag-badge i {

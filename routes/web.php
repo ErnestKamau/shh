@@ -169,12 +169,12 @@ Route::get('/system-settings/backups', [SystemBackupController::class, 'index'])
     ->middleware(['auth', 'can:settings.module.access']);
 Route::post('/system-settings/backups/export', [SystemBackupController::class, 'export'])
     ->name('system-settings.backups.export')
-    ->middleware(['auth', 'can:system.dashboard.export']);
+    ->middleware(['auth', 'can:settings.module.access', 'can:system.dashboard.export']);
 Route::get('/system-settings/database-export/{format}', SystemDatabaseExportController::class)
     ->name('system-settings.database-export')
-    ->middleware(['auth', 'can:system.dashboard.export']);
-Route::get('/system-settings/module-visibility', 'ConfigurationController@moduleVisibility')->name('system-settings.module-visibility')->middleware('can:system.module-switching.view');
-Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('can:system.translations.view');
+    ->middleware(['auth', 'can:settings.module.access', 'can:system.dashboard.export']);
+Route::get('/system-settings/module-visibility', 'ConfigurationController@moduleVisibility')->name('system-settings.module-visibility')->middleware(['can:settings.module.access', 'can:system.module-switching.view']);
+Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware(['can:settings.module.access', 'can:system.translations.view']);
 Route::get('/system-settings/preferences', 'ConfigurationController@preferences')->name('system-settings.preferences')->middleware('can:settings.module.access');
 Route::post('/system-settings/preferences', 'ConfigurationController@updatePreferences')->name('system-settings.preferences.update')->middleware('can:settings.module.access');
 Route::get('/lab/whatsapp-configuration', function () {
@@ -186,9 +186,9 @@ Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-imp
 
 Route::post('/import-my-users', 'PersonnelController@importUser')->name('importUser');
 /* COMPANIES */
-Route::get('/companies', 'CompanyController@index')->name('companies')->middleware('can:system.companies.view');
-Route::post('/companies', 'CompanyController@add')->name('add-companies')->middleware('can:system.companies.add');
-Route::post('/company/{id}', 'CompanyController@edit')->name('edit-company')->middleware('can:system.companies.edit');
+Route::get('/companies', 'CompanyController@index')->name('companies')->middleware(['can:settings.module.access', 'can:system.companies.view']);
+Route::post('/companies', 'CompanyController@add')->name('add-companies')->middleware(['can:settings.module.access', 'can:system.companies.add']);
+Route::post('/company/{id}', 'CompanyController@edit')->name('edit-company')->middleware(['can:settings.module.access', 'can:system.companies.edit']);
 
 Route::post('/company-activate', 'CompanyController@activate_company')->name('activate-company');
 
@@ -1689,14 +1689,14 @@ Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remov
 //###################################PRICELISTS#######################################
 
 //######################################SYSTEMS ##################################################################
-Route::get('/system/configuration-type/home', 'System\SystemConfigurationTypeController@index')->name('configuration-type-home')->middleware('can:system.configuration_type.view');
-Route::post('/edit/system/configuration-type/{id}', 'System\SystemConfigurationTypeController@edit')->name('edit-configuration-type')->middleware('can:system.configuration_type.edit');
-Route::post('/add/system/configuration-type/', 'System\SystemConfigurationTypeController@add')->name('add-configuration-type')->middleware('can:system.configuration_type.add');
+Route::get('/system/configuration-type/home', 'System\SystemConfigurationTypeController@index')->name('configuration-type-home')->middleware(['can:settings.module.access', 'can:system.configuration_type.view']);
+Route::post('/edit/system/configuration-type/{id}', 'System\SystemConfigurationTypeController@edit')->name('edit-configuration-type')->middleware(['can:settings.module.access', 'can:system.configuration_type.edit']);
+Route::post('/add/system/configuration-type/', 'System\SystemConfigurationTypeController@add')->name('add-configuration-type')->middleware(['can:settings.module.access', 'can:system.configuration_type.add']);
 
-Route::get('/system/configuration-home', 'System\SystemConfigurationsController@index')->name('configuration-system-home')->middleware('can:system.configuration.view');
-Route::post('/add/system/configuration/{id}', 'System\SystemConfigurationsController@add')->name('add-configuration')->middleware('can:system.configuration.add');
-Route::post('/edit/system/configuration/{id}', 'System\SystemConfigurationsController@edit')->name('edit-configuration')->middleware('can:system.configuration.edit');
-Route::post('/delete/system/configuration/{id}', 'System\SystemConfigurationsController@delete')->name('delete-configuration')->middleware('can:system.configuration.delete');
+Route::get('/system/configuration-home', 'System\SystemConfigurationsController@index')->name('configuration-system-home')->middleware(['can:settings.module.access', 'can:system.configuration.view']);
+Route::post('/add/system/configuration/{id}', 'System\SystemConfigurationsController@add')->name('add-configuration')->middleware(['can:settings.module.access', 'can:system.configuration.add']);
+Route::post('/edit/system/configuration/{id}', 'System\SystemConfigurationsController@edit')->name('edit-configuration')->middleware(['can:settings.module.access', 'can:system.configuration.edit']);
+Route::post('/delete/system/configuration/{id}', 'System\SystemConfigurationsController@delete')->name('delete-configuration')->middleware(['can:settings.module.access', 'can:system.configuration.delete']);
 //######################################SYSTEMS ##################################################################
 
 //##########################################CRM DASHBOARD#######################################

@@ -22,7 +22,7 @@ class PersonnelProfileService
      *     last_name?: string|null,
      *     email: string,
      *     phone?: string|null,
-     *     id_number: string,
+     *     id_number?: string|null,
      *     date_of_birth?: string|null,
      *     employment_date?: string|null,
      *     designation?: string|null,
@@ -61,7 +61,7 @@ class PersonnelProfileService
         $user->name = trim($firstName . ' ' . $middleName . ' ' . $lastName);
         $user->email = trim((string) ($attributes['email'] ?? ''));
         $user->phone = trim((string) ($attributes['phone'] ?? '')) ?: null;
-        $user->id_number = trim((string) ($attributes['id_number'] ?? ''));
+        $user->id_number = trim((string) ($attributes['id_number'] ?? '')) ?: null;
         $user->date_of_birth = ($attributes['date_of_birth'] ?? null) ?: null;
         $user->employment_date = ($attributes['employment_date'] ?? null) ?: null;
         $user->designation = ($attributes['designation'] ?? null) ?: null;
