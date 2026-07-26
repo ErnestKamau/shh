@@ -54,6 +54,7 @@ class ActualCollectionsManager extends Component
                 'client',
                 'contact',
                 'personnel',
+                'submissionFormInstances.values.element',
                 'submissionFormInstances.submissionForm.sampleTypes',
                 'submissionFormInstances.submittedBy',
             ])
@@ -62,10 +63,11 @@ class ActualCollectionsManager extends Component
             ->orderByDesc('updated_at');
 
         if (! $this->canViewAllCollections()) {
-            $userId = Auth::id();
+            $userId = (string) Auth::id();
             $query->where(function ($scopedQuery) use ($userId): void {
                 $scopedQuery
                     ->where('personnel_id', $userId)
+                    ->orWhereJsonContains('personnel_ids', $userId)
                     ->orWhereHas('submissionFormInstances', function ($instanceQuery) use ($userId): void {
                         $instanceQuery->where('submitted_by', $userId);
                     });
@@ -100,7 +102,10 @@ class ActualCollectionsManager extends Component
             $query->where('personnel_id', $this->filterPersonnelId);
         }
 
-        return $query->get();
+        // Only fully collected schedules (collected samples == scheduled).
+        return $query->get()
+            ->filter(fn (SamplingSchedule $schedule): bool => $schedule->collectionStatus() === 'collected')
+            ->values();
     }
 
     public function getClientsProperty(): Collection

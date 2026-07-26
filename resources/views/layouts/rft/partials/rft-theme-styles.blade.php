@@ -627,6 +627,11 @@
 		color: #92400e;
 	}
 
+	.rft-status-chip--partial {
+		background: #fff8e1;
+		color: #f57f17;
+	}
+
 	.rft-status-chip--submitted {
 		background: var(--rft-support-soft);
 		color: var(--rft-support-deep);

@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Services\Planner\SamplingScheduleVisibility;
+use App\User;
 
 class SamplingSchedule extends Model implements Auditable
 {
@@ -51,6 +54,24 @@ class SamplingSchedule extends Model implements Auditable
     public function client()
     {
         return $this->belongsTo(\App\Models\CRM\CRMCustomer::class, 'crm_customer_id');
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user = null): Builder
+    {
+        return SamplingScheduleVisibility::constrain($query, $user);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeAssignedTo(Builder $query, string $userId): Builder
+    {
+        return SamplingScheduleVisibility::constrainAssigned($query, $userId);
     }
 
     public function contact()
@@ -174,6 +195,29 @@ class SamplingSchedule extends Model implements Auditable
             ->all();
 
         return $names !== [] ? implode(', ', $names) : 'N/A';
+    }
+
+    /**
+     * @return array{
+     *     scheduled: int,
+     *     collected: int,
+     *     remaining: int,
+     *     status: string,
+     *     label: string,
+     *     is_complete: bool
+     * }
+     */
+    public function collectionProgress(): array
+    {
+        return app(\App\Services\Planner\SamplingScheduleCollectionProgress::class)->progress($this);
+    }
+
+    /**
+     * @return 'pending'|'partial'|'collected'
+     */
+    public function collectionStatus(): string
+    {
+        return app(\App\Services\Planner\SamplingScheduleCollectionProgress::class)->status($this);
     }
 
     public function submissionFormInstances()

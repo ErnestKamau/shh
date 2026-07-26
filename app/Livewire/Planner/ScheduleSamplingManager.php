@@ -23,6 +23,7 @@ use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Planner\SamplingScheduleTrfSync;
+use App\Services\Planner\SamplingScheduleCollectionProgress;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
@@ -132,9 +133,10 @@ class ScheduleSamplingManager extends Component
             'sample_type',
             'analysis_type',
             'personnel',
-            'submissionFormInstances',
+            'submissionFormInstances.values.element',
         ])
             ->where('company_id', $companyId)
+            ->visibleTo()
             ->orderBy('sampling_datetime', 'desc');
 
         // General search
@@ -309,7 +311,7 @@ class ScheduleSamplingManager extends Component
 
     public function showEditModal($id)
     {
-        $schedule = SamplingSchedule::findOrFail($id);
+        $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($id);
         $this->editingSchedule = $schedule;
 
         $this->form = [
@@ -388,9 +390,10 @@ class ScheduleSamplingManager extends Component
             'contact',
             'samplePoint',
             'personnel',
+            'submissionFormInstances.values.element',
             'submissionFormInstances.submissionForm.sampleTypes',
             'submissionFormInstances.submittedBy',
-        ])->findOrFail($id);
+        ])->visibleTo()->findOrFail($id);
         $this->showViewModal = true;
     }
 
@@ -405,7 +408,7 @@ class ScheduleSamplingManager extends Component
             },
             'submissionFormInstances.submissionForm.sampleTypes',
             'submissionFormInstances.submittedBy',
-        ])->findOrFail($id);
+        ])->visibleTo()->findOrFail($id);
         $this->showTrfFormsModal = true;
     }
 
@@ -1028,7 +1031,7 @@ class ScheduleSamplingManager extends Component
         try {
             DB::beginTransaction();
 
-            $schedule = SamplingSchedule::findOrFail($id);
+            $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($id);
             $schedule->delete();
 
             DB::commit();
@@ -1249,7 +1252,7 @@ class ScheduleSamplingManager extends Component
         $this->formData = [];
         $this->scheduleSampleTypes = [];
 
-        $schedule = SamplingSchedule::findOrFail($scheduleId);
+        $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($scheduleId);
 
         // Prefill customer lookups so TRF sample-point/contact selects match lab forms.
         if ($schedule->crm_customer_id) {
@@ -1478,100 +1481,54 @@ class ScheduleSamplingManager extends Component
                 }
             }
 
-            // Auto-prefill client/customer details from schedule client if available
-            if ($this->selectedScheduleId) {
-                $schedule = \App\Models\SamplingSchedule::with(['client', 'contact'])->find($this->selectedScheduleId);
-                if ($schedule && $schedule->client) {
-                    $crmCustomer = $schedule->client;
-                    $contact = $schedule->contact;
-                    foreach ($this->formData as $key => $val) {
-                        if (in_array($key, ['customer_name', 'client_name', 'customer', 'client'], true)) {
-                            $this->formData[$key] = $crmCustomer->name;
-                        }
-                        if (in_array($key, ['phone', 'telephone', 'phone_number', 'mobile_number', 'telephone_number', 'tel_fax_no'], true)) {
-                            if ($contact) {
-                                $this->formData[$key] = $contact->mobile ?: $contact->telephone ?: $crmCustomer->telephone1 ?: $crmCustomer->telephone2 ?: '';
-                            } else {
-                                $this->formData[$key] = $crmCustomer->telephone1 ?? $crmCustomer->telephone2 ?? '';
-                            }
-                        }
-                        if (in_array($key, ['email', 'email_address'], true)) {
-                            if ($contact && $contact->email) {
-                                $this->formData[$key] = $contact->email;
-                            } else {
-                                $this->formData[$key] = $crmCustomer->email ?? '';
-                            }
-                        }
-                        if (in_array($key, ['address', 'physical_address', 'postal_address', 'customer_address'], true)) {
-                            $this->formData[$key] = $crmCustomer->physical_address ?? $crmCustomer->postal_address ?? '';
-                        }
-                        if (in_array($key, ['contact_person', 'contact', 'contact_name'], true)) {
-                            if ($contact) {
-                                $this->formData[$key] = trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? ''));
-                            } else {
-                                $firstContact = method_exists($crmCustomer, 'contacts') ? $crmCustomer->contacts()->first() : null;
-                                if ($firstContact) {
-                                    $this->formData[$key] = trim(($firstContact->first_name ?? '') . ' ' . ($firstContact->middle_name ?? '') . ' ' . ($firstContact->last_name ?? ''));
-                                } else {
-                                    $this->formData[$key] = '';
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if ($schedule) {
-                    $matchingEntry = null;
-                    if (!empty($schedule->sample_details) && is_array($schedule->sample_details)) {
-                        foreach ($schedule->sample_details as $entry) {
-                            if (($entry['sample_type_id'] ?? '') === $value) {
-                                $matchingEntry = $entry;
-                                break;
-                            }
-                        }
-                    }
-                    if (!$matchingEntry && ($schedule->sample_type_id === $value)) {
-                        $matchingEntry = [
-                            'sample_type_id' => $schedule->sample_type_id,
-                            'analysis_type_id' => $schedule->analysis_type_id,
-                            'parameters' => $schedule->parameters ?? [],
-                        ];
-                    }
-
-                    if ($matchingEntry) {
-                        if (! empty($matchingEntry['analysis_type_id'])) {
-                            if (array_key_exists('analysis_type_id', $this->formData) && is_array($this->formData['analysis_type_id'])) {
-                                $this->formData['analysis_type_id'][0] = (string) $matchingEntry['analysis_type_id'];
-                            } elseif (array_key_exists('analysis_type_id', $this->formData)) {
-                                $this->formData['analysis_type_id'] = (string) $matchingEntry['analysis_type_id'];
-                            }
-                        }
-
-                        $parameterNames = [];
-                        $parameterIds = $matchingEntry['parameters'] ?? [];
-                        if (! empty($parameterIds) && is_array($parameterIds)) {
-                            $parameterNames = \App\Analyte::whereIn('id', $parameterIds)->pluck('name')->toArray();
-                        }
-
-                        if (! empty($parameterNames)) {
-                            if (array_key_exists('parameters', $this->formData) && is_array($this->formData['parameters'])) {
-                                $this->formData['parameters'][0] = $parameterNames;
-                            } elseif (array_key_exists('parameters', $this->formData)) {
-                                $this->formData['parameters'] = $parameterNames;
-                            }
-                        }
-
-                        // Re-initialize default sample_rows with updated parameters/checkboxes
-                        if ($this->isFood || $this->isWater) {
-                            $this->formData['sample_rows'] = [$this->getDefaultSampleRow()];
-                        }
-                    }
-                }
+            if ($this->selectedScheduleId && $submissionForm) {
+                $this->applyScheduleCustomerAndCollectionPrefill($submissionForm);
             }
         }
 
         if ($value) {
             $this->dispatch('schedule-trf-reinit-widgets');
+        }
+    }
+
+    /**
+     * Fill TRF customer/contact/collection fields from the selected sampling schedule.
+     */
+    private function applyScheduleCustomerAndCollectionPrefill(SubmissionForm $submissionForm): void
+    {
+        $schedule = SamplingSchedule::query()
+            ->with(['client.contacts', 'contact', 'samplePoint'])
+            ->find($this->selectedScheduleId);
+
+        if ($schedule === null) {
+            return;
+        }
+
+        $sync = app(SamplingScheduleTrfSync::class);
+        $customerValues = $sync->customerFieldValuesFromSchedule($schedule);
+        foreach ($customerValues as $key => $value) {
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            if (array_key_exists($key, $this->formData)) {
+                $this->formData[$key] = $value;
+            }
+        }
+
+        foreach (['customer_representative_name', 'customer_rep_name', 'customer_representative_contact', 'customer_rep_contact'] as $repKey) {
+            if (! empty($customerValues[$repKey])) {
+                $this->formData[$repKey] = $customerValues[$repKey];
+            }
+        }
+
+        $this->hydrateFormDataFromSchedule($submissionForm);
+
+        // Keep food/water sample rows aligned after schedule hydration.
+        if ($this->isFood || $this->isWater || $this->isWasteWater) {
+            if (empty($this->formData['sample_rows']) || ! is_array($this->formData['sample_rows'])) {
+                $this->formData['sample_rows'] = [$this->getDefaultSampleRow()];
+            }
+            $this->syncSampleRowsFromIndexedFields($submissionForm);
         }
     }
 
@@ -1877,13 +1834,18 @@ class ScheduleSamplingManager extends Component
                 (string) $this->selectedScheduleId,
             );
 
-            $schedule->is_collected = true;
-            $schedule->save();
+            $schedule->refresh();
+            $schedule->load('submissionFormInstances.values.element');
+            $progress = app(SamplingScheduleCollectionProgress::class)->refresh($schedule);
 
             DB::commit();
 
             $this->showFormModal = false;
-            $this->message = 'Form responses saved, request created, and tied to this sampling schedule successfully!';
+            if ($progress['is_complete']) {
+                $this->message = 'Form saved. All '.$progress['scheduled'].' scheduled sample(s) are now collected.';
+            } else {
+                $this->message = 'Form saved. Collection progress: '.$progress['label'].' samples (partial until complete).';
+            }
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

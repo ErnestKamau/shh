@@ -461,6 +461,9 @@ class ModuleNavigationLanguageSeeder extends Seeder
                 'dashboard_subtitle' => ['en' => 'Overview of sampling schedules, collections, KPIs, and tasks', 'sw' => 'Muhtasari wa ratiba za sampuli, mikusanyo, KPI, na kazi', 'pt' => 'Visão geral de agendas de amostragem, coletas, KPIs e tarefas', 'ar' => 'نظرة عامة على جداول أخذ العينات والمجمعات ومؤشرات الأداء والمهام'],
                 'schedule_sampling' => ['en' => 'Sampling Schedule', 'sw' => 'Ratiba ya Sampuli', 'pt' => 'Agenda de Amostragem', 'ar' => 'جدول أخذ العينات'],
                 'sampling_schedule' => ['en' => 'Sampling Schedule', 'sw' => 'Ratiba ya Sampuli', 'pt' => 'Agenda de Amostragem', 'ar' => 'جدول أخذ العينات'],
+                'fill_sampling_forms' => ['en' => 'Fill Sampling Forms', 'sw' => 'Jaza Fomu za Sampuli', 'pt' => 'Preencher Formulários de Amostragem', 'ar' => 'تعبئة نماذج أخذ العينات'],
+                'fill_form' => ['en' => 'Fill form', 'sw' => 'Jaza fomu', 'pt' => 'Preencher formulário', 'ar' => 'تعبئة النموذج'],
+                'fill_sampling_forms_subtitle' => ['en' => 'Fill sampling forms for scheduled collections', 'sw' => 'Jaza fomu za sampuli kwa mikusanyo iliyopangwa', 'pt' => 'Preencha formulários de amostragem para coletas agendadas', 'ar' => 'عبّئ نماذج أخذ العينات للمجموعات المجدولة'],
                 'new_sampling_schedule' => ['en' => 'New Sampling Schedule', 'sw' => 'Ratiba Mpya ya Sampuli', 'pt' => 'Nova Agenda de Amostragem', 'ar' => 'جدول أخذ عينات جديد'],
                 'calendar' => ['en' => 'Calendar', 'sw' => 'Kalenda', 'pt' => 'Calendário', 'ar' => 'التقويم'],
                 'actual_collections' => ['en' => 'Actual Collections', 'sw' => 'Mikusanyo Halisi', 'pt' => 'Coletas Reais', 'ar' => 'الجمع الفعلي'],
@@ -481,6 +484,9 @@ class ModuleNavigationLanguageSeeder extends Seeder
                 'top_clients' => ['en' => 'Top clients by schedules', 'sw' => 'Wateja wakuu kwa ratiba', 'pt' => 'Principais clientes por agendas', 'ar' => 'أبرز العملاء حسب الجداول'],
                 'personnel_workload' => ['en' => 'Personnel workload', 'sw' => 'Mzigo wa wafanyakazi', 'pt' => 'Carga de trabalho do pessoal', 'ar' => 'عبء عمل الموظفين'],
                 'upcoming_schedules' => ['en' => 'Upcoming schedules', 'sw' => 'Ratiba zijazo', 'pt' => 'Agendas próximas', 'ar' => 'الجداول القادمة'],
+                'my_schedules' => ['en' => 'My Schedules', 'sw' => 'Ratiba Zangu', 'pt' => 'Minhas Agendas', 'ar' => 'جداولي'],
+                'my_schedules_subtitle' => ['en' => 'Sampling runs assigned to you', 'sw' => 'Safari za sampuli zilizokupwa', 'pt' => 'Coletas atribuídas a você', 'ar' => 'جولات أخذ العينات المسندة إليك'],
+                'samples_collected_progress' => ['en' => ':collected of :scheduled samples collected', 'sw' => 'Sampuli :collected kati ya :scheduled zimekusanywa', 'pt' => ':collected de :scheduled amostras coletadas', 'ar' => 'تم جمع :collected من :scheduled عينات'],
                 'recent_collections' => ['en' => 'Recent collections', 'sw' => 'Mikusanyo ya hivi karibuni', 'pt' => 'Coletas recentes', 'ar' => 'عمليات الجمع الأخيرة'],
                 'view_all' => ['en' => 'View all', 'sw' => 'Angalia zote', 'pt' => 'Ver tudo', 'ar' => 'عرض الكل'],
                 'no_upcoming_schedules' => ['en' => 'No upcoming schedules in the next 7 days.', 'sw' => 'Hakuna ratiba zijazo katika siku 7 zijazo.', 'pt' => 'Nenhuma agenda próxima nos próximos 7 dias.', 'ar' => 'لا توجد جداول قادمة خلال الأيام السبعة القادمة.'],
@@ -535,6 +541,7 @@ class ModuleNavigationLanguageSeeder extends Seeder
         ];
 
         $count = 0;
+        $touchedGroups = [];
 
         foreach ($groups as $group => $items) {
             foreach ($items as $key => $text) {
@@ -543,7 +550,12 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     ['text' => $text]
                 );
                 $count++;
+                $touchedGroups[$group] = true;
             }
+        }
+
+        foreach (array_keys($touchedGroups) as $group) {
+            TranslationLanguageLine::flushGroupCacheForAllLocales($group);
         }
 
         $this->command?->info("Module navigation translations seeded: {$count} keys");

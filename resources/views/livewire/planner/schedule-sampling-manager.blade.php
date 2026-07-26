@@ -4,12 +4,12 @@
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap schedule-page-header">
+                        <div class="mb-2 mb-md-0 pr-md-3">
                             <h3 class="mb-1 font-weight-bold"><i class="mdi mdi-clock-outline text-primary"></i> {{ __('planner.sampling_schedules') }}</h3>
                             <p class="text-muted mb-0">{{ __('planner.sampling_schedules_subtitle') }}</p>
                         </div>
-                        <button wire:click="showCreateModal" class="btn btn-primary" style="border-radius:30px;padding:0.6rem 1.8rem;font-weight:600;">
+                        <button wire:click="showCreateModal" class="btn btn-primary schedule-page-cta" style="border-radius:30px;padding:0.6rem 1.8rem;font-weight:600;">
                             <i class="mdi mdi-plus-circle mr-1"></i> {{ __('planner.new_sampling_schedule') }}
                         </button>
                     </div>
@@ -26,18 +26,18 @@
     @endif
 
     <!-- Search & Filter Toggle -->
-    <div class="row mb-3">
-        <div class="col-md-6">
+    <div class="row mb-3 align-items-stretch">
+        <div class="col-12 col-md-6 mb-2 mb-md-0">
             <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="{{ __('planner.search_placeholder') }}" style="border-radius:10px;">
         </div>
-        <div class="col-md-6 text-right">
-            <button wire:click="toggleFilters" class="btn btn-outline-secondary mr-2" style="border-radius:10px;">
+        <div class="col-12 col-md-6 text-md-right schedule-toolbar-actions">
+            <button wire:click="toggleFilters" class="btn btn-outline-secondary mr-2 mb-2 mb-md-0" style="border-radius:10px;">
                 <i class="mdi mdi-filter-variant mr-1"></i> {{ $showFilters ? __('planner.hide_filters') : __('planner.show_filters') }}
             </button>
-            <button wire:click="exportToExcel" class="btn btn-success mr-2" style="border-radius:10px;">
+            <button wire:click="exportToExcel" class="btn btn-success mr-2 mb-2 mb-md-0" style="border-radius:10px;">
                 <i class="mdi mdi-file-excel mr-1"></i> {{ __('planner.export_excel') }}
             </button>
-            <button wire:click="exportToPdf" class="btn btn-danger" style="border-radius:10px;">
+            <button wire:click="exportToPdf" class="btn btn-danger mb-2 mb-md-0" style="border-radius:10px;">
                 <i class="mdi mdi-file-pdf mr-1"></i> {{ __('planner.export_pdf') }}
             </button>
         </div>
@@ -160,6 +160,7 @@
                             $contactNames = $tableContacts->map(fn ($c) => trim(($c->first_name ?? '').' '.($c->last_name ?? '')))->filter()->values();
                             $personnelLabel = $s->personnelNames();
                             $formCount = $s->submissionFormInstances->count();
+                            $collectionProgress = $s->collectionProgress();
                             $visibleDetails = array_slice($details, 0, 2);
                             $hiddenDetailsCount = max(0, count($details) - 2);
                         @endphp
@@ -169,9 +170,11 @@
                                 <div class="ss-meta">
                                     <span>{{ $s->frequency ?: 'One-time' }}</span>
                                     <span class="ss-dot"></span>
-                                    <span>{{ (int) $s->number_of_samples }} sample{{ (int) $s->number_of_samples === 1 ? '' : 's' }}</span>
-                                    @if($s->is_collected)
-                                    <span class="ss-pill ss-pill--ok">Collected</span>
+                                    <span>{{ $collectionProgress['collected'] }}/{{ $collectionProgress['scheduled'] }} sample{{ $collectionProgress['scheduled'] === 1 ? '' : 's' }}</span>
+                                    @if($collectionProgress['status'] === 'collected')
+                                    <span class="ss-pill ss-pill--ok">{{ __('planner.collected') }}</span>
+                                    @elseif($collectionProgress['status'] === 'partial')
+                                    <span class="ss-pill ss-pill--partial">{{ __('planner.partial') }}</span>
                                     @endif
                                 </div>
                             </td>
@@ -228,7 +231,23 @@
                             </td>
                             <td class="text-right ss-col-actions">
                                 <div class="ss-actions">
-                                    <button wire:click="openScheduleFormModal('{{ $s->id }}')" class="ss-act ss-act--form" title="Fill request form"><i class="mdi mdi-file-document-edit-outline"></i></button>
+                                    @php
+                                        $fillSampleTypeId = $s->sample_type_id
+                                            ?? collect($s->sample_details ?? [])->pluck('sample_type_id')->filter()->first();
+                                    @endphp
+                                    @if ($fillSampleTypeId)
+                                        <a href="{{ route('system-planner.fill-sampling-forms.fill', ['sampleType' => $fillSampleTypeId, 'schedule' => $s->id]) }}"
+                                           class="ss-act ss-act--form"
+                                           title="Fill sampling form">
+                                            <i class="mdi mdi-file-document-edit-outline"></i>
+                                        </a>
+                                    @else
+                                        <a href="{{ route('system-planner.fill-sampling-forms') }}"
+                                           class="ss-act ss-act--form"
+                                           title="Fill sampling form">
+                                            <i class="mdi mdi-file-document-edit-outline"></i>
+                                        </a>
+                                    @endif
                                     <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="View schedule"><i class="mdi mdi-eye-outline"></i></button>
                                     <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="Edit"><i class="mdi mdi-pencil-outline"></i></button>
                                     <button wire:click="delete('{{ $s->id }}')" class="ss-act ss-act--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this schedule?')"><i class="mdi mdi-trash-can-outline"></i></button>
@@ -573,6 +592,7 @@
                 </div>
                 <div class="modal-body p-0" style="overflow-y:auto;flex:1 1 auto;">
                     {{-- Title banner --}}
+                    @php $viewProgress = $viewingSchedule->collectionProgress(); @endphp
                     <div class="px-4 pt-4 pb-3" style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
                         <h4 class="mb-1 font-weight-bold"><i class="mdi mdi-calendar-check text-primary mr-1"></i> {{ $viewingSchedule->title }}</h4>
                         <span class="badge badge-pill" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-clock-outline mr-1"></i>{{ $viewingSchedule->sampling_datetime ? $viewingSchedule->sampling_datetime->format('D, d M Y \a\t H:i') : 'N/A' }}</span>
@@ -580,8 +600,10 @@
                         @if($viewingSchedule->notify_client)
                         <span class="badge badge-pill ml-1" style="background:#fff3e0;color:#e65100;padding:6px 14px;font-size:12px;"><i class="mdi mdi-bell-ring mr-1"></i>Client Notified</span>
                         @endif
-                        @if($viewingSchedule->is_collected)
-                        <span class="badge badge-pill ml-1" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-check-circle-outline mr-1"></i>Collected</span>
+                        @if($viewProgress['status'] === 'collected')
+                        <span class="badge badge-pill ml-1" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-check-circle-outline mr-1"></i>{{ __('planner.collected') }}</span>
+                        @elseif($viewProgress['status'] === 'partial')
+                        <span class="badge badge-pill ml-1" style="background:#fff8e1;color:#f57f17;padding:6px 14px;font-size:12px;"><i class="mdi mdi-progress-clock mr-1"></i>{{ __('planner.partial') }} ({{ $viewProgress['label'] }})</span>
                         @endif
                     </div>
 
@@ -643,8 +665,8 @@
                                 <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
                                     <div class="card-body p-3 text-center">
                                         <i class="mdi mdi-flask text-info" style="font-size:24px;"></i>
-                                        <small class="text-muted d-block mt-1">No. of Samples</small>
-                                        <strong style="font-size:20px;">{{ $viewingSchedule->number_of_samples }}</strong>
+                                        <small class="text-muted d-block mt-1">{{ __('planner.samples_collected_vs_scheduled') }}</small>
+                                        <strong style="font-size:20px;">{{ $viewProgress['label'] }}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -850,9 +872,20 @@
                 </div>
                 <div class="modal-footer bg-light p-3" style="flex-shrink:0;">
                     <button type="button" class="btn btn-secondary" wire:click="closeModal">Close</button>
-                    <button type="button" class="btn btn-primary" wire:click="openScheduleFormModal('{{ $viewingTrfSchedule->id }}')">
-                        <i class="mdi mdi-plus mr-1"></i>Fill Request Form
-                    </button>
+                    @php
+                        $fillSampleTypeId = $viewingTrfSchedule->sample_type_id
+                            ?? collect($viewingTrfSchedule->sample_details ?? [])->pluck('sample_type_id')->filter()->first();
+                    @endphp
+                    @if ($fillSampleTypeId)
+                        <a href="{{ route('system-planner.fill-sampling-forms.fill', ['sampleType' => $fillSampleTypeId, 'schedule' => $viewingTrfSchedule->id]) }}"
+                           class="btn btn-primary">
+                            <i class="mdi mdi-plus mr-1"></i>Fill Sampling Form
+                        </a>
+                    @else
+                        <a href="{{ route('system-planner.fill-sampling-forms') }}" class="btn btn-primary">
+                            <i class="mdi mdi-plus mr-1"></i>Fill Sampling Form
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -997,6 +1030,10 @@
         background:#e8f5e9;
         color:#1b5e20;
     }
+    .ss-pill--partial{
+        background:#fff8e1;
+        color:#f57f17;
+    }
     .ss-when-date{
         font-size:13px;
         font-weight:600;
@@ -1121,6 +1158,7 @@
         padding:0;
         background:transparent;
         transition:background .15s ease,border-color .15s ease;
+        text-decoration:none;
     }
     .ss-act--form{color:#856404;background:#fff8e8;border-color:#f0e0b2;}
     .ss-act--view{color:#1b5e20;background:#edf7ee;border-color:#c9e6cb;}
@@ -1134,6 +1172,32 @@
     .ss-col-personnel{min-width:120px;}
     .ss-col-forms{width:70px;}
     .ss-col-actions{width:140px;}
+    @media (max-width: 991.98px) {
+        .schedule-sampling-page .card-body.p-4{padding:1rem!important;}
+        .ss-title{max-width:160px;}
+        .ss-client,.ss-sub{max-width:140px;}
+        .ss-tests{min-width:150px;max-width:200px;}
+    }
+    @media (max-width: 767.98px) {
+        .schedule-page-header{gap:10px;}
+        .schedule-page-cta{width:100%;}
+        .schedule-toolbar-actions{text-align:left!important;}
+        .schedule-toolbar-actions .btn{margin-right:6px!important;}
+        .schedule-sampling-table thead th,
+        .schedule-sampling-table tbody td{padding:10px 12px;}
+        .ss-actions{gap:3px;}
+        .ss-act{width:28px;height:28px;font-size:14px;}
+        .schedule-sampling-form-modal .modal-dialog,
+        .schedule-sampling-page .modal-dialog{margin:0.5rem;max-width:calc(100% - 1rem);}
+    }
+    @media (max-width: 575.98px) {
+        .schedule-sampling-page h3{font-size:1.15rem;}
+        .ss-col-personnel,.ss-col-forms{display:none;}
+        .schedule-sampling-table thead th:nth-child(5),
+        .schedule-sampling-table tbody td:nth-child(5),
+        .schedule-sampling-table thead th:nth-child(6),
+        .schedule-sampling-table tbody td:nth-child(6){display:none;}
+    }
 
     .schedule-sampling-page .select2-container{width:100%!important;}
     .schedule-sampling-page .select2-container--default .select2-selection--single,

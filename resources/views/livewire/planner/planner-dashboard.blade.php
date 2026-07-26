@@ -64,96 +64,36 @@
         </div>
     </div>
 
-    <div class="row mb-3">
-        <div class="col-lg-4 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.collection_status_30d') }}</div>
-                <div class="pd-chart-wrap" wire:ignore>
-                    <canvas id="plannerCollectionStatusChart"></canvas>
-                </div>
+    @if($showMySchedules)
+    <div class="pd-card mb-3 pd-my-schedules">
+        <div class="pd-card-header d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <div>{{ __('planner.my_schedules') }}</div>
+                <div class="pd-kpi-hint mb-0">{{ __('planner.my_schedules_subtitle') }}</div>
             </div>
+            <a href="{{ route('system-planner.schedule-sampling') }}" class="small">{{ __('planner.view_all') }}</a>
         </div>
-        <div class="col-lg-4 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.schedules_by_frequency') }}</div>
-                <div class="pd-chart-wrap" wire:ignore>
-                    <canvas id="plannerFrequencyChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.task_status_breakdown') }}</div>
-                <div class="pd-chart-wrap" wire:ignore>
-                    <canvas id="plannerTaskStatusChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mb-3">
-        <div class="col-lg-8 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.scheduled_vs_collected_trend') }}</div>
-                <div class="pd-chart-wrap pd-chart-wrap--tall" wire:ignore>
-                    <canvas id="plannerMonthlyTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.quick_actions') }}</div>
-                <div class="pd-actions">
-                    <a href="{{ route('system-planner.schedule-sampling') }}" class="pd-action">
-                        <i class="mdi mdi-clock-outline"></i> {{ __('planner.sampling_schedule') }}
-                    </a>
-                    <a href="{{ route('system-planner.actual-collections') }}" class="pd-action">
-                        <i class="mdi mdi-clipboard-check-outline"></i> {{ __('planner.actual_collections') }}
-                    </a>
-                    <a href="{{ route('system-planner.kpi-reports') }}" class="pd-action">
-                        <i class="mdi mdi-chart-timeline-variant"></i> {{ __('planner.kpi_reports') }}
-                    </a>
-                    <a href="{{ route('system-planner.tasks') }}" class="pd-action">
-                        <i class="mdi mdi-calendar-text-outline"></i> {{ __('planner.tasks') }}
-                    </a>
-                    <a href="{{ route('full-calendar') }}" class="pd-action">
-                        <i class="mdi mdi-calendar-month-outline"></i> {{ __('planner.calendar') }}
-                    </a>
-                </div>
-                <div class="pd-stat-row mt-3">
-                    <div>
-                        <div class="pd-stat-value">{{ $pendingSchedules }}</div>
-                        <div class="pd-stat-label">{{ __('planner.pending') }}</div>
+        <div class="row">
+            @foreach($mySchedules as $row)
+            <div class="col-12 col-md-6 col-xl-4 mb-3">
+                <div class="pd-my-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="pd-list-title">{{ $row['title'] }}</div>
+                        <span class="pd-status pd-status--{{ strtolower($row['status']) }}">{{ $row['status'] }}</span>
                     </div>
-                    <div>
-                        <div class="pd-stat-value">{{ $completedTasks }}</div>
-                        <div class="pd-stat-label">{{ __('planner.completed_tasks') }}</div>
+                    <div class="pd-list-meta">{{ $row['client'] }} · {{ $row['when'] }}</div>
+                    <div class="pd-list-sub">{{ $row['location'] }}</div>
+                    <div class="pd-progress-line">
+                        <span>{{ __('planner.samples_collected_progress', ['collected' => $row['collected'], 'scheduled' => $row['scheduled']]) }}</span>
                     </div>
                 </div>
             </div>
+            @endforeach
         </div>
     </div>
+    @endif
 
     <div class="row mb-3">
-        <div class="col-lg-6 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.top_clients') }}</div>
-                <div class="pd-chart-wrap" wire:ignore>
-                    <canvas id="plannerTopClientsChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6 mb-3">
-            <div class="pd-card h-100">
-                <div class="pd-card-header">{{ __('planner.personnel_workload') }}</div>
-                <div class="pd-chart-wrap" wire:ignore>
-                    <canvas id="plannerPersonnelChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
         <div class="col-lg-4 mb-3">
             <div class="pd-card h-100">
                 <div class="pd-card-header d-flex justify-content-between align-items-center">
@@ -203,6 +143,99 @@
                 @empty
                 <div class="pd-empty">{{ __('planner.no_recent_collections') }}</div>
                 @endforelse
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-lg-4 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.collection_status_30d') }}</div>
+                <div class="pd-chart-wrap" wire:ignore>
+                    <canvas id="plannerCollectionStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.schedules_by_frequency') }}</div>
+                <div class="pd-chart-wrap" wire:ignore>
+                    <canvas id="plannerFrequencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.task_status_breakdown') }}</div>
+                <div class="pd-chart-wrap" wire:ignore>
+                    <canvas id="plannerTaskStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-lg-8 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.scheduled_vs_collected_trend') }}</div>
+                <div class="pd-chart-wrap pd-chart-wrap--tall" wire:ignore>
+                    <canvas id="plannerMonthlyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.quick_actions') }}</div>
+                <div class="pd-actions">
+                    <a href="{{ route('system-planner.schedule-sampling') }}" class="pd-action">
+                        <i class="mdi mdi-clock-outline"></i> {{ __('planner.sampling_schedule') }}
+                    </a>
+                    <a href="{{ route('system-planner.fill-sampling-forms') }}" class="pd-action">
+                        <i class="mdi mdi-clipboard-edit-outline"></i>
+                        {{ __('planner.fill_sampling_forms') === 'planner.fill_sampling_forms' ? 'Fill Sampling Forms' : __('planner.fill_sampling_forms') }}
+                    </a>
+                    <a href="{{ route('system-planner.actual-collections') }}" class="pd-action">
+                        <i class="mdi mdi-clipboard-check-outline"></i> {{ __('planner.actual_collections') }}
+                    </a>
+                    <a href="{{ route('system-planner.kpi-reports') }}" class="pd-action">
+                        <i class="mdi mdi-chart-timeline-variant"></i> {{ __('planner.kpi_reports') }}
+                    </a>
+                    <a href="{{ route('system-planner.tasks') }}" class="pd-action">
+                        <i class="mdi mdi-calendar-text-outline"></i> {{ __('planner.tasks') }}
+                    </a>
+                    <a href="{{ route('full-calendar') }}" class="pd-action">
+                        <i class="mdi mdi-calendar-month-outline"></i> {{ __('planner.calendar') }}
+                    </a>
+                </div>
+                <div class="pd-stat-row mt-3">
+                    <div>
+                        <div class="pd-stat-value">{{ $pendingSchedules }}</div>
+                        <div class="pd-stat-label">{{ __('planner.pending') }}</div>
+                    </div>
+                    <div>
+                        <div class="pd-stat-value">{{ $completedTasks }}</div>
+                        <div class="pd-stat-label">{{ __('planner.completed_tasks') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-lg-6 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.top_clients') }}</div>
+                <div class="pd-chart-wrap" wire:ignore>
+                    <canvas id="plannerTopClientsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+            <div class="pd-card h-100">
+                <div class="pd-card-header">{{ __('planner.personnel_workload') }}</div>
+                <div class="pd-chart-wrap" wire:ignore>
+                    <canvas id="plannerPersonnelChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -290,6 +323,55 @@
         .pd-list-meta { font-size: 0.78rem; color: #4b5563; margin-top: 2px; }
         .pd-list-sub { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .pd-empty { text-align: center; color: #94a3b8; font-size: 0.9rem; padding: 1.5rem 0.5rem; }
+        .pd-my-schedules { margin-top: 0.25rem; }
+        .pd-my-item {
+            border: 1px solid #e8ecf1;
+            border-radius: 12px;
+            padding: 12px 14px;
+            height: 100%;
+            background: #fcfcfd;
+        }
+        .pd-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+            margin-left: 8px;
+        }
+        .pd-status--collected { background: #e8f5e9; color: #1b5e20; }
+        .pd-status--upcoming { background: #e3f2fd; color: #0d47a1; }
+        .pd-status--overdue { background: #fff3e0; color: #e65100; }
+        .pd-status--pending { background: #f3e8e9; color: #8a1a1f; }
+        .pd-status--partial { background: #fff8e1; color: #f57f17; }
+        .pd-progress-line {
+            margin-top: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #8a1a1f;
+        }
+        @media (max-width: 991.98px) {
+            .pd-kpi-value { font-size: 1.35rem; }
+            .pd-chart-wrap { height: 220px; }
+            .pd-chart-wrap--tall { height: 240px; }
+        }
+        @media (max-width: 767.98px) {
+            .planner-dashboard h3 { font-size: 1.25rem; }
+            .pd-kpi { padding: 12px; }
+            .pd-kpi-value { font-size: 1.2rem; }
+            .pd-kpi-label { font-size: 0.72rem; }
+            .pd-card { padding: 12px; border-radius: 12px; }
+            .pd-chart-wrap { height: 200px; }
+            .pd-chart-wrap--tall { height: 220px; }
+            .pd-action { font-size: 0.85rem; padding: 9px 10px; }
+            .pd-my-item { padding: 10px 12px; }
+        }
+        @media (max-width: 575.98px) {
+            .planner-dashboard .d-flex.justify-content-between { flex-direction: column; gap: 6px; }
+            .pd-stat-row { grid-template-columns: 1fr 1fr; }
+        }
     </style>
 </div>
 

@@ -203,8 +203,55 @@
             @if ($formTypeCards->isNotEmpty())
                 <div class="rft-overview-section mb-3">
                     <div class="workflow-board-section-label mb-2">
-                        <i class="mdi mdi-form-select"></i> Test request forms
+                        <span>
+                            <i class="mdi mdi-form-select"></i>
+                            {{ $plannerMode ? 'Sampling forms' : 'Test request forms' }}
+                        </span>
+                        @if ($plannerMode)
+                            <span class="text-muted text-normal" style="text-transform:none;letter-spacing:0;font-weight:500;">
+                                Choose a form, then complete it for a schedule
+                            </span>
+                        @endif
                     </div>
+                    @if ($plannerMode)
+                        <div class="fsf-form-grid">
+                            @foreach ($formTypeCards as $card)
+                                <div class="rft-form-type-card {{ (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}"
+                                     wire:key="planner-form-card-{{ $card['sample_type_id'] }}">
+                                    <div class="rft-form-type-card-header">
+                                        <div class="rft-form-type-card-icon">
+                                            <i class="mdi {{ $card['icon'] }}"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-width-0">
+                                            <h6 class="mb-0">{{ $card['name'] }}</h6>
+                                            @if ($card['document_code'])
+                                                <span class="text-muted small">{{ $card['document_code'] }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <p class="rft-form-type-card-desc">{{ $card['description'] }}</p>
+                                    <div class="rft-form-type-card-meta">
+                                        <span><i class="mdi mdi-view-list"></i> {{ $card['sections_count'] }} sections</span>
+                                        <span><i class="mdi mdi-test-tube"></i> {{ $card['sample_type_name'] }}</span>
+                                    </div>
+                                    <div class="rft-form-type-card-actions">
+                                        <button type="button"
+                                                class="btn btn-sm btn-primary btn-action-sm"
+                                                wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
+                                                wire:loading.attr="disabled"
+                                                wire:target="startWalkInForSampleType">
+                                            <span wire:loading.remove wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                <i class="mdi mdi-file-document-edit-outline"></i> Fill form
+                                            </span>
+                                            <span wire:loading wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                <i class="mdi mdi-loading mdi-spin"></i>
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
                     <div class="row rft-card-row">
                         @foreach ($formTypeCards as $card)
                             <div class="col-lg-4 col-md-6 mb-3">
@@ -250,23 +297,148 @@
                             </div>
                         @endforeach
                     </div>
+                    @endif
                 </div>
             @else
                 <div class="alert alert-warning">
-                    No active Test Request Form templates are linked to sample types. Link a TRF template in Submission Forms, then try again.
+                    @if ($plannerMode)
+                        No active sampling form templates are linked to sample types. Link a TRF template in Submission Forms, then try again.
+                    @else
+                        No active Test Request Form templates are linked to sample types. Link a TRF template in Submission Forms, then try again.
+                    @endif
                 </div>
             @endif
 
             <div class="workflow-board-panel mb-3">
-                <div class="workflow-board-panel-header">
+                <div class="workflow-board-panel-header d-flex flex-wrap align-items-start justify-content-between">
                     <div>
                         <h5 class="mb-1">
-                            <i class="mdi mdi-clipboard-text-outline"></i> Request For Testing
+                            <i class="mdi mdi-clipboard-text-outline"></i>
+                            @if ($plannerMode)
+                                Scheduled collections
+                            @else
+                                {{ __('lab.request_for_testing') === 'lab.request_for_testing' ? 'Request For Testing' : __('lab.request_for_testing') }}
+                            @endif
                         </h5>
-                        <p class="text-muted mb-0 small">Capture and manage sample submission forms</p>
+                        <p class="text-muted mb-0 small">
+                            {{ $plannerMode ? 'Pending schedules ready for sampling forms' : 'Capture and manage sample submission forms' }}
+                        </p>
                     </div>
+                    @if ($plannerMode)
+                        <a href="{{ route('system-planner.schedule-sampling') }}" class="fsf-panel-link mt-1">
+                            View sampling schedule
+                        </a>
+                    @endif
                 </div>
                 <div class="workflow-board-panel-body">
+                    @if ($plannerMode)
+                        <div class="rft-segmented" role="tablist">
+                            <button type="button"
+                                    class="rft-segmented__btn {{ $rftInstancesTab === 'pending' ? 'is-active' : '' }}"
+                                    wire:click="setRftInstancesTab('pending')"
+                                    role="tab"
+                                    @if ($rftInstancesTab === 'pending') aria-selected="true" @endif>
+                                Pending schedules
+                            </button>
+                            <button type="button"
+                                    class="rft-segmented__btn {{ $rftInstancesTab === 'filled' ? 'is-active' : '' }}"
+                                    wire:click="setRftInstancesTab('filled')"
+                                    role="tab"
+                                    @if ($rftInstancesTab === 'filled') aria-selected="true" @endif>
+                                Filled today
+                            </button>
+                        </div>
+
+                        <div class="rft-toolbar">
+                            <input type="search"
+                                   wire:model.live.debounce.300ms="rftInstancesSearch"
+                                   class="form-control"
+                                   placeholder="Search schedule, client, location..."
+                                   autocomplete="off">
+                            <button type="button" wire:click="clearRftInstanceFilters" class="btn btn-outline-secondary">
+                                <i class="mdi mdi-refresh"></i> Clear
+                            </button>
+                        </div>
+
+                        @if ($plannerSchedules->isNotEmpty())
+                            <div class="rft-instance-list">
+                                @foreach ($plannerSchedules as $schedule)
+                                    @php
+                                        $progress = $schedule->collectionProgress();
+                                        $statusChip = match ($progress['status']) {
+                                            'collected' => 'rft-status-chip--submitted',
+                                            'partial' => 'rft-status-chip--partial',
+                                            default => 'rft-status-chip--draft',
+                                        };
+                                        $statusLabel = match ($progress['status']) {
+                                            'collected' => __('planner.collected'),
+                                            'partial' => __('planner.partial').' '.$progress['label'],
+                                            default => 'Pending',
+                                        };
+                                        $scheduleSampleTypeId = $schedule->sample_type_id
+                                            ?? collect($schedule->sample_details ?? [])->pluck('sample_type_id')->filter()->first();
+                                    @endphp
+                                    <article class="rft-instance-card" wire:key="planner-schedule-{{ $schedule->id }}">
+                                        <div class="rft-instance-card__main">
+                                            <span class="rft-instance-card__number">
+                                                {{ optional($schedule->sampling_datetime)->format('M d') ?? '—' }}
+                                            </span>
+                                            <div class="min-width-0">
+                                                <p class="rft-instance-card__title text-truncate mb-0">{{ $schedule->title }}</p>
+                                                <p class="rft-instance-card__subtitle text-truncate mb-0">
+                                                    {{ $schedule->client?->name ?? 'No client' }}
+                                                    @if ($schedule->sample_type?->name)
+                                                        · {{ $schedule->sample_type->name }}
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="rft-instance-card__meta">
+                                            <span class="rft-status-chip {{ $statusChip }}">
+                                                {{ $statusLabel }}
+                                            </span>
+                                            <time class="rft-instance-card__time" datetime="{{ optional($schedule->sampling_datetime)->toIso8601String() }}">
+                                                {{ optional($schedule->sampling_datetime)->format('M d, H:i') }}
+                                            </time>
+                                        </div>
+                                        <div class="rft-instance-card__actions">
+                                            @if ($progress['status'] !== 'collected' && $scheduleSampleTypeId)
+                                                <button type="button"
+                                                        wire:click="startFillForSchedule('{{ $schedule->id }}')"
+                                                        class="btn btn-sm btn-primary btn-action-sm"
+                                                        title="Fill sampling form"
+                                                        aria-label="Fill sampling form">
+                                                    <i class="mdi mdi-file-document-edit-outline"></i> Fill
+                                                </button>
+                                            @elseif ($progress['status'] === 'collected')
+                                                <a href="{{ route('system-planner.actual-collections') }}"
+                                                   class="btn btn-sm btn-outline-primary btn-action-sm"
+                                                   title="View collections"
+                                                   aria-label="View collections">
+                                                    <i class="mdi mdi-eye-outline"></i> View
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="workflow-empty-state text-center py-5">
+                                <i class="mdi mdi-clipboard-text-outline" style="font-size: 2.75rem; opacity: 0.35; color: var(--color-primary, #8a1a1f);"></i>
+                                <h5 class="text-muted mt-3 mb-1" style="font-size:1rem;">No schedules found</h5>
+                                <p class="text-muted small mb-3">
+                                    {{ $rftInstancesTab === 'pending'
+                                        ? 'Create a sampling schedule, then fill its sampling form here.'
+                                        : 'No sampling forms filled today yet.' }}
+                                </p>
+                                @if ($rftInstancesTab === 'pending')
+                                    <a href="{{ route('system-planner.schedule-sampling') }}" class="btn btn-sm btn-primary">
+                                        Go to Sampling Schedule
+                                    </a>
+                                @endif
+                            </div>
+                        @endif
+                    @else
                     <div class="rft-segmented" role="tablist">
                         <button type="button"
                                 class="rft-segmented__btn {{ $rftInstancesTab === 'open' ? 'is-active' : '' }}"
@@ -367,6 +539,7 @@
                                     : 'Nothing captured or submitted today yet.' }}
                             </p>
                         </div>
+                    @endif
                     @endif
                 </div>
             </div>
@@ -503,7 +676,11 @@
                         <div class="min-width-0">
                             <h5 class="mb-1">
                                 <i class="mdi mdi-clipboard-text-outline"></i>
-                                {{ __('lab.request_for_testing') === 'lab.request_for_testing' ? 'Request For Testing' : __('lab.request_for_testing') }}
+                                @if ($plannerMode)
+                                    {{ __('planner.fill_sampling_forms') === 'planner.fill_sampling_forms' ? 'Fill Sampling Forms' : __('planner.fill_sampling_forms') }}
+                                @else
+                                    {{ __('lab.request_for_testing') === 'lab.request_for_testing' ? 'Request For Testing' : __('lab.request_for_testing') }}
+                                @endif
                             </h5>
                             <p class="text-muted mb-0 small">{{ $submissionForm->name }} · {{ $this->selectedSampleType?->name }}</p>
                         </div>
@@ -512,6 +689,37 @@
                         </div>
                     </div>
                     <div class="workflow-board-panel-body">
+                        @if ($plannerMode)
+                            <div class="form-group mb-3">
+                                <label for="selectedScheduleId" class="font-weight-bold text-dark">
+                                    Sampling schedule <span class="text-danger">*</span>
+                                </label>
+                                <select id="selectedScheduleId"
+                                        wire:model.live="selectedScheduleId"
+                                        class="form-control form-control-sm @error('selectedScheduleId') is-invalid @enderror">
+                                    <option value="">-- Select schedule to fill --</option>
+                                    @foreach ($plannerScheduleOptions as $scheduleOption)
+                                        <option value="{{ $scheduleOption->id }}">
+                                            {{ optional($scheduleOption->sampling_datetime)->format('Y-m-d H:i') }}
+                                            · {{ $scheduleOption->title }}
+                                            @if ($scheduleOption->client?->name)
+                                                · {{ $scheduleOption->client->name }}
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('selectedScheduleId')
+                                    <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
+                                @enderror
+                                @if ($plannerScheduleOptions->isEmpty())
+                                    <p class="text-muted small mb-0 mt-1">
+                                        No pending schedules for this sample type.
+                                        <a href="{{ route('system-planner.schedule-sampling') }}">Create a schedule</a>
+                                        first, then return here to fill the sampling form.
+                                    </p>
+                                @endif
+                            </div>
+                        @endif
                         @include('livewire.partials.walk-in-trf-wizard-styles')
                         <div class="walk-in-trf-wizard-shell mb-0 border-0 bg-transparent p-0">
                             @include('livewire.partials.walk-in-trf-wizard-stepper')
@@ -526,7 +734,11 @@
                 </div>
             @elseif ($selectedSampleTypeId)
                 <div class="alert alert-warning py-2 px-3 mb-0 small">
-                    No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+                    @if ($plannerMode)
+                        No active sampling form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+                    @else
+                        No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+                    @endif
                 </div>
             @endif
         @else
@@ -644,7 +856,7 @@
     @endif
 
     @if ($pageMode)
-        @if ((! $selectedSampleTypeId || ! $submissionForm) && ! $this->isPhysicalCheckIn)
+        @if ((! $selectedSampleTypeId || ! $submissionForm) && ! $this->isPhysicalCheckIn && ! $plannerMode)
             <footer class="rft-touch-bar">
                 <span class="text-muted small mb-0">{{ $wizardOnly ? 'Loading form…' : 'Select a form type above to begin capture.' }}</span>
                 <a href="{{ $wizardOnly ? route('sample-workflow.request-for-testing') : route('sample-workflow', ['status' => 'Samples Receiving']) }}" class="btn btn-sm btn-light">

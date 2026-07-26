@@ -5,9 +5,11 @@ namespace App\Livewire\Planner;
 use App\Event;
 use App\Models\SamplingSchedule;
 use App\Services\Planner\PlannerKpiReportService;
+use App\Services\Planner\SamplingScheduleVisibility;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class PlannerDashboard extends Component
@@ -28,6 +30,8 @@ class PlannerDashboard extends Component
 
     public int $completedTasks = 0;
 
+    public bool $showMySchedules = false;
+
     /** @var list<array{label: string, value: int, color: string}> */
     public array $collectionStatusChart = [];
 
@@ -45,6 +49,9 @@ class PlannerDashboard extends Component
 
     /** @var list<array{label: string, value: int}> */
     public array $personnelWorkload = [];
+
+    /** @var list<array{id: string, title: string, client: string, when: string, location: string, personnel: string, status: string, progress: string, scheduled: int, collected: int, is_collected: bool}> */
+    public array $mySchedules = [];
 
     /** @var list<array{id: string, title: string, client: string, when: string, location: string, personnel: string}> */
     public array $upcomingList = [];
@@ -65,20 +72,59 @@ class PlannerDashboard extends Component
         $companyId = getUserCompany();
         $now = Carbon::now();
         $weekEnd = $now->copy()->addDays(7)->endOfDay();
+        $userId = (string) (Auth::id() ?? '');
 
         $schedules = SamplingSchedule::query()
             ->where('company_id', $companyId)
-            ->with(['client', 'samplePoint'])
+            ->visibleTo()
+            ->with(['client', 'samplePoint', 'submissionFormInstances.values.element'])
             ->orderByDesc('sampling_datetime')
             ->get();
 
+        $assignedSchedules = $userId !== ''
+            ? SamplingScheduleVisibility::assignedQuery($userId, $companyId)
+                ->with(['client', 'samplePoint', 'submissionFormInstances.values.element'])
+                ->orderBy('sampling_datetime')
+                ->get()
+            : collect();
+
+        $this->showMySchedules = $assignedSchedules->isNotEmpty();
+        $this->mySchedules = $assignedSchedules
+            ->take(12)
+            ->map(function (SamplingSchedule $schedule) use ($now) {
+                $progress = $schedule->collectionProgress();
+                $status = match ($progress['status']) {
+                    'collected' => 'Collected',
+                    'partial' => 'Partial',
+                    default => ($schedule->sampling_datetime && $schedule->sampling_datetime->lt($now) ? 'Overdue' : 'Upcoming'),
+                };
+
+                return [
+                    'id' => (string) $schedule->id,
+                    'title' => (string) $schedule->title,
+                    'client' => (string) ($schedule->client->name ?? 'N/A'),
+                    'when' => $schedule->sampling_datetime?->format('d M Y H:i') ?? '—',
+                    'location' => $schedule->locationDisplayName(),
+                    'personnel' => $schedule->personnelNames(),
+                    'status' => $status,
+                    'progress' => $progress['label'],
+                    'scheduled' => $progress['scheduled'],
+                    'collected' => $progress['collected'],
+                    'is_collected' => $progress['is_complete'],
+                ];
+            })
+            ->values()
+            ->all();
+
         $this->totalSchedules = $schedules->count();
-        $this->collectedSchedules = $schedules->where('is_collected', true)->count();
-        $this->pendingSchedules = $schedules->where('is_collected', false)->count();
+        $progressStatuses = $schedules->map(fn (SamplingSchedule $schedule) => $schedule->collectionStatus());
+        $this->collectedSchedules = $progressStatuses->filter(fn ($status) => $status === 'collected')->count();
+        $partialSchedules = $progressStatuses->filter(fn ($status) => $status === 'partial')->count();
+        $this->pendingSchedules = $progressStatuses->filter(fn ($status) => $status === 'pending')->count() + $partialSchedules;
 
         $this->upcomingSchedules = $schedules
             ->filter(function (SamplingSchedule $schedule) use ($now, $weekEnd) {
-                if ($schedule->is_collected || ! $schedule->sampling_datetime) {
+                if ($schedule->collectionStatus() === 'collected' || ! $schedule->sampling_datetime) {
                     return false;
                 }
 
@@ -88,7 +134,7 @@ class PlannerDashboard extends Component
 
         $this->overdueSchedules = $schedules
             ->filter(function (SamplingSchedule $schedule) use ($now) {
-                if ($schedule->is_collected || ! $schedule->sampling_datetime) {
+                if ($schedule->collectionStatus() === 'collected' || ! $schedule->sampling_datetime) {
                     return false;
                 }
 
@@ -109,12 +155,16 @@ class PlannerDashboard extends Component
 
         if (($kpiCollected + $kpiPartial + $kpiPending) === 0 && $this->totalSchedules > 0) {
             $kpiCollected = $this->collectedSchedules;
-            $kpiPending = $this->pendingSchedules;
-            $kpiPartial = 0;
+            $kpiPartial = $partialSchedules;
+            $kpiPending = $progressStatuses->filter(fn ($status) => $status === 'pending')->count();
         }
 
-        if ($this->collectionRate <= 0.0 && $this->totalSchedules > 0) {
-            $this->collectionRate = round(($this->collectedSchedules / $this->totalSchedules) * 100, 1);
+        if ($this->collectionRate <= 0.0) {
+            $scheduledSamples = (int) $schedules->sum(fn (SamplingSchedule $s) => $s->collectionProgress()['scheduled']);
+            $collectedSamples = (int) $schedules->sum(fn (SamplingSchedule $s) => $s->collectionProgress()['collected']);
+            $this->collectionRate = $scheduledSamples > 0
+                ? round($collectedSamples / $scheduledSamples * 100, 1)
+                : 0.0;
         }
 
         $this->collectionStatusChart = [
@@ -155,7 +205,7 @@ class PlannerDashboard extends Component
             $this->monthlyTrend[] = [
                 'month' => $month->format('M Y'),
                 'scheduled' => $inMonth->count(),
-                'collected' => $inMonth->where('is_collected', true)->count(),
+                'collected' => $inMonth->filter(fn (SamplingSchedule $s) => $s->collectionStatus() === 'collected')->count(),
             ];
         }
 
@@ -195,7 +245,7 @@ class PlannerDashboard extends Component
 
         $this->upcomingList = $schedules
             ->filter(function (SamplingSchedule $schedule) use ($now, $weekEnd) {
-                if ($schedule->is_collected || ! $schedule->sampling_datetime) {
+                if ($schedule->collectionStatus() === 'collected' || ! $schedule->sampling_datetime) {
                     return false;
                 }
 
@@ -216,7 +266,7 @@ class PlannerDashboard extends Component
 
         $this->overdueList = $schedules
             ->filter(function (SamplingSchedule $schedule) use ($now) {
-                if ($schedule->is_collected || ! $schedule->sampling_datetime) {
+                if ($schedule->collectionStatus() === 'collected' || ! $schedule->sampling_datetime) {
                     return false;
                 }
 
@@ -235,7 +285,7 @@ class PlannerDashboard extends Component
             ->all();
 
         $this->recentCollections = $schedules
-            ->where('is_collected', true)
+            ->filter(fn (SamplingSchedule $schedule) => $schedule->collectionStatus() === 'collected')
             ->sortByDesc('updated_at')
             ->take(8)
             ->map(fn (SamplingSchedule $schedule) => [

@@ -197,6 +197,8 @@ Route::get('/system-planner/dashboard', 'Event\EventController@dashboard')->name
 Route::get('/full-calendar/view/{date?}', 'Event\EventController@index')->name('full-calendar')->middleware('can:calendar.module.access');
 Route::get('/system-planner/tasks', 'Event\EventController@tasks')->name('system-planner.tasks')->middleware('can:calendar.module.access');
 Route::get('/system-planner/schedule-sampling', 'Event\EventController@scheduleSamplingIndex')->name('system-planner.schedule-sampling')->middleware('can:calendar.module.access');
+Route::get('/system-planner/fill-sampling-forms', 'Event\EventController@fillSamplingFormsIndex')->name('system-planner.fill-sampling-forms')->middleware('can:calendar.module.access');
+Route::get('/system-planner/fill-sampling-forms/fill/{sampleType}', 'Event\EventController@fillSamplingFormsFill')->name('system-planner.fill-sampling-forms.fill')->middleware('can:calendar.module.access');
 Route::get('/system-planner/actual-collections', 'Event\EventController@actualCollectionsIndex')->name('system-planner.actual-collections')->middleware('can:calendar.module.access');
 Route::get('/system-planner/kpi-reports', 'Event\EventController@kpiReportsIndex')->name('system-planner.kpi-reports')->middleware('can:calendar.module.access');
 Route::post('/full-calendar/add', 'Event\EventController@created')->name('full-calendar-create')->middleware('can:sampling-planner.components.all events.add');

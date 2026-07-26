@@ -743,6 +743,37 @@ class EventController extends Controller
         return view('layouts.planner.schedule_sampling');
     }
 
+    public function fillSamplingFormsIndex()
+    {
+        return view('layouts.planner.fill_sampling_forms');
+    }
+
+    public function fillSamplingFormsFill(string $sampleType)
+    {
+        $exists = \App\SampleType::query()->whereKey($sampleType)->exists();
+        if (! $exists) {
+            abort(404, 'Sample type not found.');
+        }
+
+        $scheduleId = request()->query('schedule');
+        if ($scheduleId !== null && $scheduleId !== '') {
+            $scheduleExists = \App\Models\SamplingSchedule::query()
+                ->visibleTo()
+                ->whereKey($scheduleId)
+                ->exists();
+            if (! $scheduleExists) {
+                abort(404, 'Sampling schedule not found.');
+            }
+        } else {
+            $scheduleId = null;
+        }
+
+        return view('layouts.planner.fill_sampling_forms_fill', [
+            'sampleTypeId' => $sampleType,
+            'scheduleId' => $scheduleId,
+        ]);
+    }
+
     public function actualCollectionsIndex()
     {
         return view('layouts.planner.actual_collections');
