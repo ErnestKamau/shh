@@ -898,7 +898,7 @@
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
                 <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
-                    <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-file-document-edit mr-2"></i> Fill Test Request Form</h5>
+                    <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-file-document-edit mr-2"></i> Fill Sampling Form</h5>
                     <button type="button" class="close text-white" wire:click="$set('showFormModal', false)"><span>&times;</span></button>
                 </div>
                 <div class="modal-body p-4" style="overflow-y:auto;flex:1 1 auto;">
