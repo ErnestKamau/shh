@@ -1245,44 +1245,33 @@ class ScheduleSamplingManager extends Component
 
     public function openScheduleFormModal($scheduleId)
     {
-        $this->showTrfFormsModal = false;
-        $this->viewingTrfSchedule = null;
-        $this->selectedScheduleId = $scheduleId;
-        $this->selectedSampleTypeId = null;
-        $this->formData = [];
-        $this->scheduleSampleTypes = [];
-
         $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($scheduleId);
 
-        // Prefill customer lookups so TRF sample-point/contact selects match lab forms.
-        if ($schedule->crm_customer_id) {
-            $this->form['crm_customer_id'] = (string) $schedule->crm_customer_id;
-            $this->loadCustomerDetails((string) $schedule->crm_customer_id);
-        }
-
-        // Get all sample types, just like on Samples Receiving page
-        $this->scheduleSampleTypes = SampleType::orderBy('name')->get()->toArray();
-
-        // Resolve preselected sample type from the schedule
-        $preselectedId = null;
+        $sampleTypeId = null;
         if ($schedule->sample_type_id) {
-            $preselectedId = $schedule->sample_type_id;
-        } elseif (!empty($schedule->sample_details) && is_array($schedule->sample_details)) {
+            $sampleTypeId = (string) $schedule->sample_type_id;
+        } elseif (! empty($schedule->sample_details) && is_array($schedule->sample_details)) {
             foreach ($schedule->sample_details as $entry) {
-                if (!empty($entry['sample_type_id'])) {
-                    $preselectedId = $entry['sample_type_id'];
+                if (! empty($entry['sample_type_id'])) {
+                    $sampleTypeId = (string) $entry['sample_type_id'];
                     break;
                 }
             }
         }
 
-        if ($preselectedId) {
-            $this->selectedSampleTypeId = $preselectedId;
-            $this->updatedSelectedSampleTypeId($preselectedId);
+        if ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $this->redirect(
+                route('system-planner.fill-sampling-forms.fill', [
+                    'sampleType' => $sampleTypeId,
+                    'schedule' => $schedule->id,
+                ]),
+                navigate: false,
+            );
+
+            return;
         }
 
-        $this->showFormModal = true;
-        $this->dispatch('schedule-trf-reinit-widgets');
+        $this->redirect(route('system-planner.fill-sampling-forms'), navigate: false);
     }
 
     public function updatedShowFormModal(bool $value): void

@@ -52,7 +52,8 @@ final class SamplingScheduleVisibility
         return $query->where(function (Builder $scoped) use ($userId): void {
             $scoped
                 ->where('personnel_id', $userId)
-                ->orWhereJsonContains('personnel_ids', $userId);
+                ->orWhereJsonContains('personnel_ids', $userId)
+                ->orWhereJsonContains('personnel_ids', (string) $userId);
         });
     }
 
