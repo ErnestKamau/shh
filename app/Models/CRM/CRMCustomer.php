@@ -146,9 +146,10 @@ class CRMCustomer extends Model implements Auditable
 
   public function currentContract()
   {
+      // Avoid latestOfMany(): it aggregates MAX(id) and fails on PostgreSQL UUID PKs.
       return $this->hasOne(CrmCustomerContract::class, 'crm_customer_id')
           ->where('is_current', true)
-          ->latestOfMany('created_at');
+          ->latest('created_at');
   }
 
   public function contractAttachments()
