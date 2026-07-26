@@ -41,4 +41,25 @@ class CrmCustomerContract extends Model implements Auditable
     {
         return filled($this->file_path);
     }
+
+    public function isPreviewable(): bool
+    {
+        $extension = strtolower((string) ($this->file_extension ?: pathinfo((string) $this->original_name, PATHINFO_EXTENSION)));
+        $mime = strtolower((string) $this->mime_type);
+
+        if (in_array($extension, ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp'], true)) {
+            return true;
+        }
+
+        return str_starts_with($mime, 'image/') || $mime === 'application/pdf';
+    }
+
+    public function isImagePreview(): bool
+    {
+        $extension = strtolower((string) ($this->file_extension ?: pathinfo((string) $this->original_name, PATHINFO_EXTENSION)));
+        $mime = strtolower((string) $this->mime_type);
+
+        return in_array($extension, ['png', 'jpg', 'jpeg', 'gif', 'webp'], true)
+            || str_starts_with($mime, 'image/');
+    }
 }

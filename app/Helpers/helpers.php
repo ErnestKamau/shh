@@ -983,7 +983,7 @@ function getSystemModules()
 		),
 		'calendar' => array(
 			'name' => 'System Planner',
-			'route' => '/full-calendar/view',
+			'route' => '/system-planner/dashboard',
 			'default_visible' => true,
 		),
 		'matrix' => array(
@@ -1326,7 +1326,14 @@ function getEventNotification($id)
 }
 function getUserEvents()
 {
-	return App\Event::where('responsible_id', auth()->user()->id)
+	$userId = (string) auth()->user()->id;
+
+	return App\Event::where(function ($query) use ($userId) {
+			$query->where('responsible_id', $userId)
+				->orWhere('responsible_id', 'like', $userId.',%')
+				->orWhere('responsible_id', 'like', '%,'.$userId.',%')
+				->orWhere('responsible_id', 'like', '%,'.$userId);
+		})
 		->where(function($query) {
 			$query->whereNull('parent_id')
 			      ->orWhereColumn('id', 'parent_id')
@@ -1334,6 +1341,24 @@ function getUserEvents()
 			      ->orWhereNotIn('frequency', [1, 7, 30]);
 		})
 		->get();
+}
+
+function getEventResponsibleNames($responsibleIds): string
+{
+	$ids = array_values(array_filter(array_map('trim', explode(',', (string) $responsibleIds))));
+	if ($ids === []) {
+		return '-';
+	}
+
+	$names = App\User::query()
+		->whereIn('id', $ids)
+		->orderBy('name')
+		->pluck('name')
+		->filter()
+		->values()
+		->all();
+
+	return $names !== [] ? implode(', ', $names) : '-';
 }
 function getUserChats()
 {

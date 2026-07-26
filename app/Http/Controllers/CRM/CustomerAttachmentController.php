@@ -74,4 +74,36 @@ class CustomerAttachmentController extends Controller
             ['Content-Type' => $mime]
         );
     }
+
+    public function viewContract(string $customer, string $contract)
+    {
+        CRMCustomer::findOrFail($customer);
+
+        $contractModel = CrmCustomerContract::where('id', $contract)
+            ->where('crm_customer_id', $customer)
+            ->firstOrFail();
+
+        if (empty($contractModel->file_path)) {
+            abort(404, 'Contract has no file.');
+        }
+
+        $relativePath = ltrim(preg_replace('#^/storage/#', '', $contractModel->file_path), '/');
+
+        if (! Storage::disk('public')->exists($relativePath)) {
+            abort(404, 'File not found.');
+        }
+
+        $mime = $contractModel->mime_type
+            ?: (Storage::disk('public')->mimeType($relativePath) ?: 'application/octet-stream');
+        $filename = $contractModel->original_name
+            ?: basename($contractModel->file_path);
+
+        return response()->file(
+            Storage::disk('public')->path($relativePath),
+            [
+                'Content-Type' => $mime,
+                'Content-Disposition' => 'inline; filename="' . addslashes($filename) . '"',
+            ]
+        );
+    }
 }

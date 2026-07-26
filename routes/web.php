@@ -193,6 +193,7 @@ Route::post('/company/{id}', 'CompanyController@edit')->name('edit-company')->mi
 Route::post('/company-activate', 'CompanyController@activate_company')->name('activate-company');
 
 //######################################SYSTEM###########################################
+Route::get('/system-planner/dashboard', 'Event\EventController@dashboard')->name('system-planner.dashboard')->middleware('can:calendar.module.access');
 Route::get('/full-calendar/view/{date?}', 'Event\EventController@index')->name('full-calendar')->middleware('can:calendar.module.access');
 Route::get('/system-planner/tasks', 'Event\EventController@tasks')->name('system-planner.tasks')->middleware('can:calendar.module.access');
 Route::get('/system-planner/schedule-sampling', 'Event\EventController@scheduleSamplingIndex')->name('system-planner.schedule-sampling')->middleware('can:calendar.module.access');
@@ -1219,6 +1220,7 @@ Route::post('/delete-customer', 'CRM\CRMCustomerController@delete_customer')->na
 
 Route::get('/crm/customer/{customer}/attachment/{attachment}/download', 'CRM\CustomerAttachmentController@download')->name('crm.customer.attachment.download')->middleware('can:crm.customers.view');
 Route::get('/crm/customer/{customer}/contract/{contract}/download', 'CRM\CustomerAttachmentController@downloadContract')->name('crm.customer.contract.download')->middleware('can:crm.customers.view');
+Route::get('/crm/customer/{customer}/contract/{contract}/view', 'CRM\CustomerAttachmentController@viewContract')->name('crm.customer.contract.view')->middleware('can:crm.customers.view');
 
 Route::post('/add/customer-certification/{id}', 'CRM\CustomerCertificationController@add')->name('add-customer-certification')->middleware('can:crm.certifications.add');
 Route::post('/edit/customer-certification/{id}', 'CRM\CustomerCertificationController@edit')->name('edit-customer-certification')->middleware('can:crm.certifications.edit');

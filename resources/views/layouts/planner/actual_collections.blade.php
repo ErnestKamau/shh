@@ -8,7 +8,7 @@
 <main class="container-fluid px-4">
     <?php
     $items = array(
-        array('link' => route('full-calendar'), 'name' => 'System Planner', 'icon' => null),
+        array('link' => route('system-planner.dashboard'), 'name' => 'System Planner', 'icon' => null),
         array('link' => route('system-planner.actual-collections'), 'name' => 'Actual Collections', 'icon' => null),
     );
     ?>

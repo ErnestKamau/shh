@@ -623,6 +623,10 @@ class CRMLanguageSeeder extends Seeder
             'customer_logo_help' => ['en' => 'Optional. JPG, PNG, GIF, WEBP, or SVG up to 5 MB.', 'sw' => 'Si lazima. JPG, PNG, GIF, WEBP, au SVG hadi MB 5.'],
             'remove_logo' => ['en' => 'Remove logo', 'sw' => 'Ondoa nembo'],
             'logo_removed' => ['en' => 'Customer logo removed.', 'sw' => 'Nembo ya mteja imeondolewa.'],
+            'view_file' => ['en' => 'View', 'sw' => 'Angalia'],
+            'view_contract' => ['en' => 'View Contract', 'sw' => 'Angalia Mkataba'],
+            'contract_preview_unavailable' => ['en' => 'Preview is not available for this file type. Download the file to open it.', 'sw' => 'Hakuna onyesho la awali kwa aina hii ya faili. Pakua faili ili kuifungua.'],
+            'contract_file_not_found' => ['en' => 'Contract file not found.', 'sw' => 'Faili ya mkataba haijapatikana.'],
         ];
 
         $count = 0;

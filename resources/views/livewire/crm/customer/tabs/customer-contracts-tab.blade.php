@@ -7,6 +7,12 @@
                 Livewire.on('close-customer-contract-modal', () => {
                    $('#customerContractModal').modal('hide');
                 });
+                Livewire.on('show-customer-contract-view-modal', () => {
+                   $('#customerContractViewModal').modal('show');
+                });
+                Livewire.on('close-customer-contract-view-modal', () => {
+                   $('#customerContractViewModal').modal('hide');
+                });
             }
         }">
 
@@ -51,17 +57,23 @@
                         @endif
                     </div>
                     @if($currentContract->hasFile())
-                        <a href="{{ route('crm.customer.contract.download', [$customer->id, $currentContract->id]) }}"
-                           class="btn btn-sm btn-outline-primary" target="_blank">
-                            <i class="mdi mdi-download"></i> {{ __('crm.download_file') }}
-                        </a>
+                        <div class="d-flex align-items-center" style="gap:8px;">
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                wire:click="openViewContractModal('{{ $currentContract->id }}')">
+                                <i class="mdi mdi-eye-outline"></i> {{ __('crm.view_file') }}
+                            </button>
+                            <a href="{{ route('crm.customer.contract.download', [$customer->id, $currentContract->id]) }}"
+                               class="btn btn-sm btn-outline-secondary" target="_blank">
+                                <i class="mdi mdi-download"></i> {{ __('crm.download_file') }}
+                            </a>
+                        </div>
                     @endif
                 </div>
             </div>
         @endif
 
         <div wire:loading
-            wire:target="openNewContractModal,saveContract"
+            wire:target="openNewContractModal,saveContract,openViewContractModal"
             class="crm-loading-indicator">
             <i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...
         </div>
@@ -75,7 +87,7 @@
                     <th>{{ __('crm.file') }}</th>
                     <th>{{ __('crm.posted_by') }}</th>
                     <th>{{ __('crm.created_at') }}</th>
-                    <th style="min-width:80px;">{{ __('crm.actions') }}</th>
+                    <th style="min-width:110px;">{{ __('crm.actions') }}</th>
                 </tr>
             </x-slot:header>
             @forelse($contracts as $contract)
@@ -94,6 +106,11 @@
                     <td>{{ $contract->created_at ? $contract->created_at->format('d-M-Y H:i') : '—' }}</td>
                     <td nowrap>
                         @if($contract->hasFile())
+                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                wire:click="openViewContractModal('{{ $contract->id }}')"
+                                title="{{ __('crm.view_file') }}">
+                                <i class="mdi mdi-eye-outline"></i>
+                            </button>
                             <a href="{{ route('crm.customer.contract.download', [$customer->id, $contract->id]) }}"
                                class="btn btn-sm rm-act-btn rm-act-btn--view" target="_blank" title="{{ __('crm.download_file') }}">
                                 <i class="mdi mdi-download"></i>
@@ -170,6 +187,69 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div wire:ignore.self class="modal fade" id="customerContractViewModal" tabindex="-1" role="dialog"
+        aria-labelledby="customerContractViewModalLabel" aria-hidden="true"
+        x-on:hidden.bs.modal="$wire.closeViewContractModal()">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customerContractViewModalLabel">
+                        <i class="mdi mdi-file-eye-outline mr-1 text-primary"></i>
+                        {{ __('crm.view_contract') }}
+                        @if($viewingContract?->original_name)
+                            <small class="text-muted ml-1">— {{ $viewingContract->original_name }}</small>
+                        @endif
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" wire:click="closeViewContractModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-0" style="background:#f8fafc;min-height:420px;">
+                    @if($viewingContract && $viewingContract->hasFile())
+                        @if($viewingContract->isImagePreview())
+                            <div class="d-flex align-items-center justify-content-center p-3" style="min-height:420px;">
+                                <img src="{{ route('crm.customer.contract.view', [$customer->id, $viewingContract->id]) }}"
+                                     alt="{{ $viewingContract->original_name }}"
+                                     style="max-width:100%;max-height:70vh;object-fit:contain;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                            </div>
+                        @elseif($viewingContract->isPreviewable())
+                            <iframe
+                                src="{{ route('crm.customer.contract.view', [$customer->id, $viewingContract->id]) }}"
+                                title="{{ $viewingContract->original_name }}"
+                                style="width:100%;height:70vh;border:0;background:#fff;"
+                            ></iframe>
+                        @else
+                            <div class="text-center p-5">
+                                <i class="mdi mdi-file-document-outline text-muted" style="font-size:3rem;"></i>
+                                <p class="mt-3 mb-1 font-weight-bold">{{ $viewingContract->original_name }}</p>
+                                <p class="text-muted mb-3">{{ __('crm.contract_preview_unavailable') }}</p>
+                                <a href="{{ route('crm.customer.contract.download', [$customer->id, $viewingContract->id]) }}"
+                                   class="btn btn-primary" target="_blank">
+                                    <i class="mdi mdi-download"></i> {{ __('crm.download_file') }}
+                                </a>
+                            </div>
+                        @endif
+                    @else
+                        <div class="text-center text-muted p-5">
+                            {{ __('crm.contract_file_not_found') }}
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer">
+                    @if($viewingContract && $viewingContract->hasFile())
+                        <a href="{{ route('crm.customer.contract.download', [$customer->id, $viewingContract->id]) }}"
+                           class="btn btn-outline-primary" target="_blank">
+                            <i class="mdi mdi-download"></i> {{ __('crm.download_file') }}
+                        </a>
+                    @endif
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" wire:click="closeViewContractModal">
+                        {{ __('crm.close') }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>

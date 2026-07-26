@@ -10,7 +10,7 @@
                             <p class="text-muted mb-0">{{ __('planner.sampling_schedules_subtitle') }}</p>
                         </div>
                         <button wire:click="showCreateModal" class="btn btn-primary" style="border-radius:30px;padding:0.6rem 1.8rem;font-weight:600;">
-                            <i class="mdi mdi-plus-circle mr-1"></i> {{ __('planner.schedule_sampling') }}
+                            <i class="mdi mdi-plus-circle mr-1"></i> {{ __('planner.new_sampling_schedule') }}
                         </button>
                     </div>
                 </div>

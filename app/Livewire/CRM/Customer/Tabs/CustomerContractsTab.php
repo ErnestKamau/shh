@@ -24,6 +24,8 @@ class CustomerContractsTab extends BaseCrmComponent
 
     public $contractFile = null;
 
+    public ?string $viewingContractId = null;
+
     public function mount(CRMCustomer $customer): void
     {
         $this->initialize();
@@ -53,6 +55,18 @@ class CustomerContractsTab extends BaseCrmComponent
                 ->first();
     }
 
+    public function getViewingContractProperty(): ?CrmCustomerContract
+    {
+        if (! $this->viewingContractId) {
+            return null;
+        }
+
+        return CrmCustomerContract::query()
+            ->where('crm_customer_id', $this->customer->id)
+            ->where('id', $this->viewingContractId)
+            ->first();
+    }
+
     public function openNewContractModal(): void
     {
         $this->checkPermission('crm.customers.edit');
@@ -60,6 +74,29 @@ class CustomerContractsTab extends BaseCrmComponent
         $this->reset(['valid_from', 'valid_to', 'contractFile']);
         $this->resetValidation();
         $this->dispatch('show-customer-contract-modal');
+    }
+
+    public function openViewContractModal(string $contractId): void
+    {
+        $contract = CrmCustomerContract::query()
+            ->where('crm_customer_id', $this->customer->id)
+            ->where('id', $contractId)
+            ->first();
+
+        if (! $contract || ! $contract->hasFile()) {
+            $this->showError(__('crm.contract_file_not_found'));
+
+            return;
+        }
+
+        $this->viewingContractId = $contract->id;
+        $this->dispatch('show-customer-contract-view-modal');
+    }
+
+    public function closeViewContractModal(): void
+    {
+        $this->viewingContractId = null;
+        $this->dispatch('close-customer-contract-view-modal');
     }
 
     public function saveContract(): void
@@ -127,6 +164,7 @@ class CustomerContractsTab extends BaseCrmComponent
         return view('livewire.crm.customer.tabs.customer-contracts-tab', [
             'contracts' => $this->contracts,
             'currentContract' => $this->currentContract,
+            'viewingContract' => $this->viewingContract,
         ]);
     }
 }

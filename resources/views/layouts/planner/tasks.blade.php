@@ -1,7 +1,7 @@
 @extends('layouts.planner.layout.app', ['dataTable' => true, 'select2' => true])
 
 @section('title2')
-<title>Sample Planner - Tasks</title>
+<title>System Planner - Tasks</title>
 @endsection
 
 @section('content2')
@@ -9,7 +9,7 @@
     <?php
     $items = array(
         array(
-            'link' => route('full-calendar'),
+            'link' => route('system-planner.dashboard'),
             'name' => 'System Planner',
             'icon' => null
         ),
@@ -22,66 +22,66 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
-    <div class="mb-2 mt-2 d-flex justify-content-around">
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:#2196f3">
+    <div class="mb-2 mt-2 d-flex justify-content-around flex-wrap">
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="upcoming-task" style="height:100%;background-color:#2196f3;cursor:pointer;min-width:140px;flex:1;margin:4px;">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-calendar-arrow-right fa-4x"></i>
                 </div>
-                <h6 class="text-uppercase">Upcoming Events</h6>
+                <h6 class="text-uppercase">Upcoming</h6>
                 <h1 class="display-4">{{$statusCounts['Upcoming'] ?? 0}}</h1>
             </div>
-        </div>
+        </button>
 
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:#2e7d32">
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="complete-task" style="height:100%;background-color:#2e7d32;cursor:pointer;min-width:140px;flex:1;margin:4px;">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-checkbox-multiple-marked-circle fa-4x"></i>
                 </div>
-                <h6 class="text-uppercase">Completed Events</h6>
+                <h6 class="text-uppercase">Completed</h6>
                 <h1 class="display-4">{{$statusCounts['Complete'] ?? 0}}</h1>
             </div>
-        </div>
+        </button>
 
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:#e1b200">
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="delayed-task" style="height:100%;background-color:#e1b200;cursor:pointer;min-width:140px;flex:1;margin:4px;">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-calendar-clock fa-4x"></i>
                 </div>
-                <h6 class="text-uppercase">Delayed Events</h6>
+                <h6 class="text-uppercase">Delayed</h6>
                 <h1 class="display-4">{{$statusCounts['Delayed'] ?? 0}}</h1>
             </div>
-        </div>
+        </button>
 
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:#e65100">
-            <div class="card-body">
-                <div class="rotate">
-                    <i class="mdi mdi-calendar-arrow-right fa-4x"></i>
-                </div>
-                <h6 class="text-uppercase">Expired Events</h6>
-                <h1 class="display-4">{{$statusCounts['Expired'] ?? 0}}</h1>
-            </div>
-        </div>
-
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:#c62828">
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="expired-task" style="height:100%;background-color:#e65100;cursor:pointer;min-width:140px;flex:1;margin:4px;">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-calendar-remove fa-4x"></i>
                 </div>
-                <h6 class="text-uppercase">Cancelled Events</h6>
-                <h1 class="display-4">{{$statusCounts['Cancelled'] ?? 0}}</h1>
+                <h6 class="text-uppercase">Expired</h6>
+                <h1 class="display-4">{{$statusCounts['Expired'] ?? 0}}</h1>
             </div>
-        </div>
+        </button>
 
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:blue">
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="cancelled-task" style="height:100%;background-color:#c62828;cursor:pointer;min-width:140px;flex:1;margin:4px;">
             <div class="card-body">
                 <div class="rotate">
-                    <i class="mdi mdi-calendar-arrow-right fa-4x"></i>
+                    <i class="mdi mdi-calendar-remove fa-4x"></i>
                 </div>
-                <h6 class="text-uppercase">Ongoing Events</h6>
+                <h6 class="text-uppercase">Cancelled</h6>
+                <h1 class="display-4">{{$statusCounts['Cancelled'] ?? 0}}</h1>
+            </div>
+        </button>
+
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="in-progress-task" style="height:100%;background-color:#1565c0;cursor:pointer;min-width:140px;flex:1;margin:4px;">
+            <div class="card-body">
+                <div class="rotate">
+                    <i class="mdi mdi-progress-clock fa-4x"></i>
+                </div>
+                <h6 class="text-uppercase">Ongoing</h6>
                 <h1 class="display-4">{{$ong}}</h1>
             </div>
-        </div>
+        </button>
     </div>
 
     <div class="row mt-3">
@@ -128,6 +128,7 @@
                                     <option value="complete-task">Completed Tasks</option>
                                     <option value="upcoming-task">Upcoming Tasks</option>
                                     <option value="delayed-task">Delayed Tasks</option>
+                                    <option value="expired-task">Expired Tasks</option>
                                     <option value="cancelled-task">Cancelled Tasks</option>
                                 </select>
                             </div>
@@ -156,6 +157,7 @@
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#0000ff"></i>In-progress</span>
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#2196f3"></i>Upcoming</span>
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#e65100"></i>Delayed</span>
+                                <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#e65100"></i>Expired</span>
                                 <span class="d-inline-block"><i class="mdi mdi-square mr-1" style="color:#c62828"></i>Cancelled</span>
                             </div>
                         </div>
@@ -200,7 +202,7 @@
                                         <td>{{$event->start_date}} {{$event->start_time}}</td>
                                         <td>{{$event->end_date}} {{$event->end_time}}</td>
                                         <td>{{ optional(getCrmCustomerByID($event->client_id))->name ?? '-' }}</td>
-                                        <td>{{ optional(getUserById($event->responsible_id))->name ?? '-' }}</td>
+                                        <td>{{ getEventResponsibleNames($event->responsible_id) }}</td>
                                         <td>{{getfrequency((int) $event->frequency)}}</td>
                                         <td class="text-center">
                                             @if($event->latitude != '')
@@ -377,6 +379,8 @@
                     if (status !== 'Delayed') return false;
                 } else if (selectedStatus === 'cancelled-task') {
                     if (status !== 'Cancelled') return false;
+                } else if (selectedStatus === 'expired-task') {
+                    if (status !== 'Expired') return false;
                 }
 
                 // Personnel filter
@@ -397,6 +401,14 @@
 
         $('#view-filter').on('change', function() {
             table.draw();
+        });
+
+        $('.tasks-status-filter').on('click', function() {
+            var filterValue = $(this).data('status-filter');
+            $('#view-filter').val(filterValue).trigger('change');
+            $('html, body').animate({
+                scrollTop: $('#tasks-table').offset().top - 80
+            }, 250);
         });
 
         $('#responsible_personnel').on('change', function() {

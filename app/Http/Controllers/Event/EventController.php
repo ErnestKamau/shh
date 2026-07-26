@@ -213,6 +213,11 @@ class EventController extends Controller
         $events = Event::all();
         return response()->json($events);
     }
+    public function dashboard()
+    {
+        return view('layouts.planner.dashboard');
+    }
+
     public function index()
     {
         Event::where('status', 'Upcoming')
@@ -385,7 +390,13 @@ class EventController extends Controller
 
     public function getEventByUser(Request $request)
     {
-        $raw_data = Event::where('responsible_id', auth()->user()->id)
+        $raw_data = Event::where(function ($query) {
+                $userId = (string) auth()->user()->id;
+                $query->where('responsible_id', $userId)
+                    ->orWhere('responsible_id', 'like', $userId.',%')
+                    ->orWhere('responsible_id', 'like', '%,'.$userId.',%')
+                    ->orWhere('responsible_id', 'like', '%,'.$userId);
+            })
             ->where('status', '!=', 'Pending')
             ->where(function($query) {
                 $query->whereNull('parent_id')

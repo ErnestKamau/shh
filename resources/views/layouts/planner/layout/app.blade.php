@@ -464,9 +464,9 @@
 				<span class="text-lg text-bold">{{ __('planner.module_name') }}</span>
 			</div>
 
-			<a href="{{ route('full-calendar') }}" class="list-group-item list-group-item-action {{ request()->routeIs('full-calendar') ? 'active' : '' }}">
+			<a href="{{ route('system-planner.dashboard') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.dashboard') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-calendar fa-fw mr-1"></span>
+					<span class="mdi mdi-view-dashboard-outline fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('planner.dashboard') }}</span>
 				</div>
 			</a>
@@ -474,7 +474,7 @@
 			<a href="{{ route('system-planner.schedule-sampling') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.schedule-sampling') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clock-outline fa-fw mr-1"></span>
-					<span class="menu-collapsed">{{ __('planner.schedule_sampling') }}</span>
+					<span class="menu-collapsed">{{ __('planner.sampling_schedule') }}</span>
 				</div>
 			</a>
 
@@ -491,11 +491,18 @@
 					<span class="menu-collapsed">{{ __('planner.kpi_reports') }}</span>
 				</div>
 			</a>
-			
+
 			<a href="{{ route('system-planner.tasks') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.tasks') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calendar-text-outline fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('planner.tasks') }}</span>
+				</div>
+			</a>
+
+			<a href="{{ route('full-calendar') }}" class="list-group-item list-group-item-action {{ request()->routeIs('full-calendar') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-calendar-month-outline fa-fw mr-1"></span>
+					<span class="menu-collapsed">{{ __('planner.calendar') }}</span>
 				</div>
 			</a>
 

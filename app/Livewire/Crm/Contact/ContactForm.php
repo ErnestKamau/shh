@@ -307,7 +307,9 @@ class ContactForm extends BaseCrmComponent
 
     protected function generatePortalPassword(): string
     {
-        return $this->first_name . config('app.name') . date('Y');
+        $appName = preg_replace('/\s+/', '', (string) config('app.name')) ?: 'Portal';
+
+        return $this->first_name . $appName . date('Y');
     }
 
     public function delete()
