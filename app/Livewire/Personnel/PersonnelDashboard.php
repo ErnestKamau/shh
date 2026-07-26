@@ -72,7 +72,7 @@ class PersonnelDashboard extends Component
     }
 
     /**
-     * Personnel accounts for the current company (excludes portal clients / tablets).
+     * Personnel accounts for the current company (excludes portal contacts / tablets).
      */
     private function personnelQuery(?string $companyId): Builder
     {
@@ -83,7 +83,9 @@ class PersonnelDashboard extends Component
             })
             ->where(function (Builder $query): void {
                 $query->where('users.is_tablet', 0)->orWhereNull('users.is_tablet');
-            });
+            })
+            ->whereNull('users.crm_contact_id')
+            ->whereNull('users.crmcontact_id');
     }
 
     /**

@@ -681,7 +681,20 @@ class PersonnelTableManager extends Component
             ->leftJoin('spatie_roles as p', function ($join): void {
                 $join->whereRaw('p.id::text = users.position::text');
             })
-            ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation');
+            ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation')
+            ->where(function ($builder): void {
+                $builder->where('users.is_client', 0)->orWhereNull('users.is_client');
+            })
+            ->where(function ($builder): void {
+                $builder->where('users.is_tablet', 0)->orWhereNull('users.is_tablet');
+            })
+            ->whereNull('users.crm_contact_id')
+            ->whereNull('users.crmcontact_id');
+
+        $companyId = getUserCompany();
+        if ($companyId) {
+            $query->where('users.company_id', $companyId);
+        }
 
         if ($this->activeTab === 'deactive') {
             $query->where('users.active', 0);
