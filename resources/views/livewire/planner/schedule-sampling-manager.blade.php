@@ -225,7 +225,7 @@
                                 <button type="button"
                                         class="ss-forms-btn {{ $formCount > 0 ? 'has-forms' : '' }}"
                                         wire:click="viewTrfForms('{{ $s->id }}')"
-                                        title="View filled test request forms">
+                                        title="View submitted sampling forms">
                                     {{ $formCount }}
                                 </button>
                             </td>
@@ -238,14 +238,16 @@
                                     @if ($fillSampleTypeId)
                                         <a href="{{ route('system-planner.fill-sampling-forms.fill', ['sampleType' => $fillSampleTypeId, 'schedule' => $s->id]) }}"
                                            class="ss-act ss-act--form"
-                                           title="Fill sampling form">
-                                            <i class="mdi mdi-file-document-edit-outline"></i>
+                                           title="Fill sampling form"
+                                           aria-label="Fill sampling form">
+                                            <i class="mdi mdi-clipboard-edit-outline"></i>
                                         </a>
                                     @else
                                         <a href="{{ route('system-planner.fill-sampling-forms') }}"
                                            class="ss-act ss-act--form"
-                                           title="Fill sampling form">
-                                            <i class="mdi mdi-file-document-edit-outline"></i>
+                                           title="Fill sampling form"
+                                           aria-label="Fill sampling form">
+                                            <i class="mdi mdi-clipboard-edit-outline"></i>
                                         </a>
                                     @endif
                                     <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="View schedule"><i class="mdi mdi-eye-outline"></i></button>

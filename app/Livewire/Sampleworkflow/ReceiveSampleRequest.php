@@ -128,6 +128,11 @@ class ReceiveSampleRequest extends Component
 
         if ($this->plannerMode && $this->initialScheduleId) {
             $this->applyScheduleSelection((string) $this->initialScheduleId, forceSampleType: false);
+        } elseif ($this->plannerMode && $this->wizardOnly && $this->selectedSampleTypeId && ! $this->selectedScheduleId) {
+            $firstPending = $this->plannerScheduleOptions->first();
+            if ($firstPending !== null) {
+                $this->applyScheduleSelection((string) $firstPending->id, forceSampleType: false);
+            }
         }
 
         // Auto-load form data if viewing an existing request
@@ -439,21 +444,28 @@ class ReceiveSampleRequest extends Component
             ->orderBy('sampling_datetime')
             ->limit(100)
             ->get()
-            ->filter(function (SamplingSchedule $schedule) use ($sampleTypeId): bool {
-                if ((string) ($schedule->sample_type_id ?? '') === $sampleTypeId) {
-                    return true;
-                }
-
-                foreach ((array) ($schedule->sample_details ?? []) as $entry) {
-                    if ((string) ($entry['sample_type_id'] ?? '') === $sampleTypeId) {
-                        return true;
-                    }
-                }
-
-                return false;
-            })
+            ->filter(fn (SamplingSchedule $schedule): bool => $schedule->isCompatibleWithSampleType($sampleTypeId))
+            ->sortBy([
+                fn (SamplingSchedule $schedule): int => $schedule->matchesSampleType($sampleTypeId) ? 0 : 1,
+                fn (SamplingSchedule $schedule): int => optional($schedule->sampling_datetime)?->timestamp ?? PHP_INT_MAX,
+            ])
             ->take(50)
             ->values();
+    }
+
+    private function findPendingScheduleForSampleType(string $sampleTypeId): ?SamplingSchedule
+    {
+        $candidates = SamplingSchedule::query()
+            ->visibleTo()
+            ->where(function ($q): void {
+                $q->where('is_collected', false)->orWhereNull('is_collected');
+            })
+            ->orderBy('sampling_datetime')
+            ->limit(100)
+            ->get();
+
+        return $candidates->first(fn (SamplingSchedule $schedule): bool => $schedule->matchesSampleType($sampleTypeId))
+            ?? $candidates->first(fn (SamplingSchedule $schedule): bool => $schedule->isCompatibleWithSampleType($sampleTypeId));
     }
 
     public function setRftInstancesTab(string $tab): void
@@ -486,12 +498,25 @@ class ReceiveSampleRequest extends Component
     public function startWalkInForSampleType(string $sampleTypeId): void
     {
         if ($this->pageMode && ! $this->wizardOnly) {
-            $route = $this->plannerMode
-                ? 'system-planner.fill-sampling-forms.fill'
-                : 'sample-workflow.request-for-testing.fill';
+            if ($this->plannerMode) {
+                $params = ['sampleType' => $sampleTypeId];
+
+                $pendingSchedule = $this->findPendingScheduleForSampleType((string) $sampleTypeId);
+
+                if ($pendingSchedule !== null) {
+                    $params['schedule'] = $pendingSchedule->id;
+                }
+
+                $this->redirect(
+                    route('system-planner.fill-sampling-forms.fill', $params),
+                    navigate: false,
+                );
+
+                return;
+            }
 
             $this->redirect(
-                route($route, ['sampleType' => $sampleTypeId]),
+                route('sample-workflow.request-for-testing.fill', ['sampleType' => $sampleTypeId]),
                 navigate: false,
             );
 
@@ -1739,7 +1764,7 @@ class ReceiveSampleRequest extends Component
         }
 
         if ($this->plannerMode && ($this->selectedScheduleId === null || trim((string) $this->selectedScheduleId) === '')) {
-            $message = 'Select a sampling schedule before submitting the sampling form.';
+            $message = 'Open this form from a sampling schedule (or pending schedule) so it can be linked on submit.';
             $this->addError('selectedScheduleId', $message);
             $this->dispatch('notify', type: 'error', message: $message);
 

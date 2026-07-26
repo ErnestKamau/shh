@@ -143,6 +143,56 @@ class SamplingSchedule extends Model implements Auditable
         return $this->belongsTo(\App\SampleType::class, 'sample_type_id');
     }
 
+    /**
+     * Sample type IDs explicitly set on the schedule (header and/or sample_details).
+     *
+     * @return list<string>
+     */
+    public function assignedSampleTypeIds(): array
+    {
+        $ids = [];
+
+        if (! empty($this->sample_type_id)) {
+            $ids[] = (string) $this->sample_type_id;
+        }
+
+        foreach ((array) ($this->sample_details ?? []) as $entry) {
+            $id = trim((string) ($entry['sample_type_id'] ?? ''));
+            if ($id !== '') {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * Whether this schedule is tied to the given sample type.
+     */
+    public function matchesSampleType(string $sampleTypeId): bool
+    {
+        $sampleTypeId = trim($sampleTypeId);
+        if ($sampleTypeId === '') {
+            return false;
+        }
+
+        return in_array($sampleTypeId, $this->assignedSampleTypeIds(), true);
+    }
+
+    /**
+     * True when the schedule matches the sample type, or has no sample type set
+     * (usable with any sampling form until typed).
+     */
+    public function isCompatibleWithSampleType(string $sampleTypeId): bool
+    {
+        $assigned = $this->assignedSampleTypeIds();
+        if ($assigned === []) {
+            return trim($sampleTypeId) !== '';
+        }
+
+        return $this->matchesSampleType($sampleTypeId);
+    }
+
     public function analysis_type()
     {
         return $this->belongsTo(\App\AnalysisType::class, 'analysis_type_id');

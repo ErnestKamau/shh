@@ -273,14 +273,27 @@ class PlannerDashboard extends Component
             })
             ->sortBy('sampling_datetime')
             ->take(8)
-            ->map(fn (SamplingSchedule $schedule) => [
-                'id' => (string) $schedule->id,
-                'title' => (string) $schedule->title,
-                'client' => (string) ($schedule->client->name ?? 'N/A'),
-                'when' => $schedule->sampling_datetime?->format('d M Y H:i') ?? '—',
-                'location' => $schedule->locationDisplayName(),
-                'personnel' => $schedule->personnelNames(),
-            ])
+            ->map(function (SamplingSchedule $schedule) {
+                $sampleTypeId = ! empty($schedule->sample_type_id)
+                    ? (string) $schedule->sample_type_id
+                    : (string) (collect($schedule->sample_details ?? [])->pluck('sample_type_id')->filter()->first() ?? '');
+
+                return [
+                    'id' => (string) $schedule->id,
+                    'title' => (string) $schedule->title,
+                    'client' => (string) ($schedule->client->name ?? 'N/A'),
+                    'when' => $schedule->sampling_datetime?->format('d M Y H:i') ?? '—',
+                    'location' => $schedule->locationDisplayName(),
+                    'personnel' => $schedule->personnelNames(),
+                    'sample_type_id' => $sampleTypeId,
+                    'fill_url' => $sampleTypeId !== ''
+                        ? route('system-planner.fill-sampling-forms.fill', [
+                            'sampleType' => $sampleTypeId,
+                            'schedule' => $schedule->id,
+                        ])
+                        : route('system-planner.fill-sampling-forms'),
+                ];
+            })
             ->values()
             ->all();
 
