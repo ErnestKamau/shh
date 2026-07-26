@@ -188,6 +188,7 @@ class CustomerAttachmentsTab extends BaseCrmComponent
             $path = $this->attachmentFile->store('crm-customers', 'public');
             $attachment->file_path = '/storage/' . $path;
             $attachment->file_size = $this->attachmentFile->getSize();
+            $attachment->file_type = $this->resolveFileType($this->attachmentFile->getClientOriginalExtension());
         }
 
         $attachment->save();
@@ -232,6 +233,7 @@ class CustomerAttachmentsTab extends BaseCrmComponent
             $path = $this->attachmentFile->store('crm-customers', 'public');
             $attachment->file_path = '/storage/' . $path;
             $attachment->file_size = $this->attachmentFile->getSize();
+            $attachment->file_type = $this->resolveFileType($this->attachmentFile->getClientOriginalExtension());
         }
 
         $attachment->save();
@@ -292,6 +294,19 @@ class CustomerAttachmentsTab extends BaseCrmComponent
         if (Storage::disk('public')->exists($relativePath)) {
             Storage::disk('public')->delete($relativePath);
         }
+    }
+
+    protected function resolveFileType(?string $extension): string
+    {
+        $extension = strtolower(trim((string) $extension));
+
+        return match ($extension) {
+            'pdf' => 'pdf',
+            'docx' => 'docx',
+            'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp' => 'screenshot',
+            '' => 'document',
+            default => 'other',
+        };
     }
 
     public function render()
