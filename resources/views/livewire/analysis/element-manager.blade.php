@@ -131,6 +131,7 @@
                                         <th>Reporting Unit</th>
                                         <th>LOD</th>
                                         <th>LOQ</th>
+                                        <th title="Turnaround time (days)">TAT</th>
                                         <th>Calculated</th>
                                         <th>Method Sequence</th>
                                         <th>Status</th>
@@ -169,6 +170,13 @@
                                             <td>{{ $element->reporting_unit }}</td>
                                             <td>{{ $element->lod ?? '—' }}</td>
                                             <td>{{ $element->hod ?? '—' }}</td>
+                                            <td>
+                                                @if($element->reporting_time)
+                                                    <span class="badge bg-info text-white">{{ $element->reporting_time }}d</span>
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
                                             <td>
                                                 @if($element->result_is_calculated)
                                                     <span class="em-pill em-pill--calc em-pill--on" title="Result is Calculated">
@@ -494,6 +502,16 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
+                                        <label class="form-label">TAT (days)</label>
+                                        <input type="number" wire:model="elementForm.reporting_time" class="form-control" min="0" placeholder="e.g., 7">
+                                        <small class="form-text text-muted">Leave blank or 0 to inherit the analysis type TAT.</small>
+                                        @error('elementForm.reporting_time') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="form-group mb-3">
                                         <label class="form-label">
                                             <i class="mdi mdi-view-grid-outline text-primary"></i> Lab Section
                                         </label>
@@ -529,8 +547,6 @@
                                         <small class="form-text text-muted">Defaults from the Analysis Type lab section.</small>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Significant Figures</label>

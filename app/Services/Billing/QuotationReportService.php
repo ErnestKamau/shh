@@ -11,6 +11,7 @@ use App\Models\System\SystemConfiguration;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleHeader;
+use App\Services\Commercial\AccountPaymentTermsService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
@@ -34,10 +35,10 @@ class QuotationReportService
         'Complaints and appeals will be handled in accordance with the laboratory\'s documented procedures.',
         'Samples will be retained and disposed of as per the laboratory\'s retention policy.',
         'Orders cancelled after confirmation may be subject to applicable charges for work already performed, materials procured, or commitments made by the laboratory.',
-        'Payment shall be made within the credit terms stated in the quotation.',
+        'Payment shall be made within 30 days credit terms stated in the quotation.',
         'This quotation is valid for a minimum order value of AED _____________.',
         'The laboratory shall not be liable for delays caused by circumstances beyond its reasonable control.',
-        'Acceptance of this quotation constitutes acceptance of the laboratory terms and conditions of service.',
+        'Acceptance of this quotation constitutes acceptance of terms and condition on webpage: NONDISCLOSURE AGREEMENT',
     ];
 
     /**
@@ -75,6 +76,7 @@ class QuotationReportService
     public function __construct(
         private readonly QuotationPricingResolver $pricingResolver,
         private readonly UncertaintyBudgetResolver $uncertaintyBudgetResolver,
+        private readonly AccountPaymentTermsService $accountPaymentTermsService,
     ) {}
 
     /**
@@ -98,6 +100,7 @@ class QuotationReportService
         $totals = $this->resolveTotals($header, $groups, ! $hasLineItems);
         $reportViewUrl = $this->resolveReportViewUrl($header);
         $company = getActiveCompany();
+        $columnVisibility = $this->resolveTestTableColumnVisibility($groups);
 
         return [
             'reportHeader' => $enrichedHeader,
@@ -115,11 +118,20 @@ class QuotationReportService
             'totals' => $totals,
             'company' => $company,
             'forPdf' => $forPdf,
-            'showLoqColumn' => true,
-            'showMuColumn' => (bool) ($header->show_mu_column ?? true),
-            'showUnitPriceColumn' => (bool) ($header->show_unit_price_column ?? true),
+            'showMethodColumn' => $columnVisibility['method'],
+            'showLoqColumn' => $columnVisibility['loq'],
+            'showMuColumn' => $columnVisibility['mu'],
+            'showTatColumn' => $columnVisibility['tat'],
+            'showQuantityColumn' => $columnVisibility['quantity'],
+            'showUnitPriceColumn' => $columnVisibility['unit_price'],
+            'showTotalPriceColumn' => $columnVisibility['total_price'],
             'reportViewUrl' => $reportViewUrl,
-            'qrCode' => $this->buildQrCode($reportViewUrl, $forPdf ? 56 : 90),
+            'qrCode' => $this->buildQrCode(
+                $copy['terms_url'] !== ''
+                    ? $copy['terms_url']
+                    : 'https://www.amspecgroup.com/terms-conditions',
+                $forPdf ? 56 : 90
+            ),
         ];
     }
 
@@ -195,17 +207,73 @@ class QuotationReportService
         $config = $this->resolveTermsOfSaleConfig();
         $updates = [];
 
-        foreach (['service_delivery', 'payments', 'quote_specification', 'additional_info'] as $field) {
+        foreach (['service_delivery', 'quote_specification', 'additional_info', 'payment_info'] as $field) {
             if (! $this->isUsableTermValue($header->{$field}) && ! empty($config[$field])) {
                 $updates[$field] = $this->plaintextValue((string) $config[$field]);
             }
         }
 
-        if (! $this->isUsableTermValue($header->payment_info)) {
-            $updates['payment_info'] = 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE';
+        if (! $this->isUsableTermValue($header->payments)) {
+            $paymentsDefault = $this->defaultPaymentsFromCustomer($header);
+            if ($paymentsDefault !== '') {
+                $updates['payments'] = $paymentsDefault;
+            } elseif (! empty($config['payments'])) {
+                $updates['payments'] = $this->plaintextValue((string) $config['payments']);
+            }
         }
 
         $this->persistQuotationHeaderColumns($header, $updates);
+    }
+
+    /**
+     * Resolve Payments default from the client's CRM Account Settings.
+     */
+    public function defaultPaymentsFromCustomer(QuotationHeader $header): string
+    {
+        $header->loadMissing('customer');
+        $customer = $header->customer;
+        if ($customer === null) {
+            return '';
+        }
+
+        $terms = $this->accountPaymentTermsService->resolveFromCustomer($customer);
+        if (! filled($terms['label'] ?? null)) {
+            return '';
+        }
+
+        if (($terms['billing_type'] ?? '') === 'other' && filled($customer->payment_terms_note)) {
+            return trim((string) $customer->payment_terms_note);
+        }
+
+        return (string) $terms['label'];
+    }
+
+    /**
+     * @return list<array{id: string, key: string, label: string, billing_type: string, allows_custom: bool}>
+     */
+    public function accountPaymentOptions(): array
+    {
+        $type = getConfigTypeByName('Account Settings');
+        if (! $type) {
+            return [];
+        }
+
+        return collect(getconfigByID($type->id))
+            ->filter(fn ($account) => (bool) data_get($account, 'status', true))
+            ->values()
+            ->map(function ($account) {
+                $meta = is_array(data_get($account, 'meta')) ? data_get($account, 'meta') : [];
+                $billingType = (string) ($meta['billing_type'] ?? 'credit');
+
+                return [
+                    'id' => (string) data_get($account, 'id'),
+                    'key' => (string) data_get($account, 'key', ''),
+                    'label' => $this->accountPaymentTermsService->displayLabel($account),
+                    'billing_type' => $billingType,
+                    'allows_custom' => $billingType === 'other',
+                ];
+            })
+            ->all();
     }
 
     /**
@@ -314,6 +382,27 @@ class QuotationReportService
     }
 
     /**
+     * Normalize system-config rich text into plain multi-line text for quotes/PDF.
+     */
+    public function configTextToPlain(?string $value): string
+    {
+        $value = $this->plaintextValue($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = preg_replace('/<\s*br\s*\/?\s*>/i', "\n", $value) ?? $value;
+        $value = preg_replace('/<\/\s*p\s*>/i', "\n", $value) ?? $value;
+        $value = preg_replace('/<\/\s*div\s*>/i', "\n", $value) ?? $value;
+        $value = strip_tags($value);
+        $value = preg_replace("/[ \t]+\n/", "\n", $value) ?? $value;
+        $value = preg_replace("/\n{3,}/", "\n\n", $value) ?? $value;
+
+        return trim($value);
+    }
+
+    /**
      * @return array<string, string>
      */
     public function resolveStructuredTermsConfig(): array
@@ -324,7 +413,7 @@ class QuotationReportService
 
         foreach ($configs as $config) {
             if (array_key_exists((string) $config->key, self::STRUCTURED_TERM_DEFINITIONS)) {
-                $result[(string) $config->key] = $this->plaintextValue((string) $config->value);
+                $result[(string) $config->key] = $this->configTextToPlain((string) $config->value);
             }
         }
 
@@ -364,7 +453,7 @@ class QuotationReportService
         $result = [];
 
         foreach ($configs as $config) {
-            $result[(string) $config->key] = $this->plaintextValue((string) $config->value);
+            $result[(string) $config->key] = $this->configTextToPlain((string) $config->value);
         }
 
         return $result;
@@ -384,7 +473,7 @@ class QuotationReportService
             'additional_info' => $this->resolveTermField($header->additional_info, $config['additional_info'] ?? ''),
             'payment_info' => $this->resolveTermField(
                 $header->payment_info,
-                'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE'
+                (string) ($config['payment_info'] ?? '')
             ),
             'prices' => (string) ($config['prices'] ?? ''),
         ];
@@ -460,7 +549,10 @@ class QuotationReportService
                     '',
                     '',
                     (float) $detail->unit_price,
-                    (int) $detail->quantity
+                    (int) $detail->quantity,
+                    false,
+                    false,
+                    null,
                 );
 
                 continue;
@@ -478,14 +570,20 @@ class QuotationReportService
                         : 'Analysis package';
                 }
 
-                $grouped[$sampleTypeName][] = $this->makeLineRow(
+                $packageTat = $this->resolveRowTat($detail);
+                $packageRow = $this->makeLineRow(
                     $packageLabel,
                     (string) ($detail->test_method ?? ''),
                     (string) ($detail->loq ?? ''),
                     (string) ($detail->mu_percent ?? ''),
                     (float) $detail->unit_price,
-                    (int) $detail->quantity
+                    (int) $detail->quantity,
+                    false,
+                    false,
+                    $packageTat,
                 );
+                $packageRow['is_package'] = true;
+                $grouped[$sampleTypeName][] = $packageRow;
 
                 foreach ($elementIds as $elementId) {
                     $element = $elementsById->get($elementId);
@@ -499,15 +597,27 @@ class QuotationReportService
                         $budgets,
                         $siblingsByAnalyte,
                     );
+                    $paramPrice = $this->pricingResolver->resolveLineUnitPrice(
+                        $header,
+                        (string) $detail->sample_type,
+                        (string) ($element->analysis_type_id ?? $detail->part_no),
+                        (string) $element->id,
+                        null,
+                        false,
+                    );
                     $subRow = $this->makeLineRow(
                         '· '.($analyte?->name ?? $element->parametername ?? 'Parameter'),
                         $metrics['test_method'],
                         $metrics['loq'],
                         $metrics['mu_percent'],
-                        0.0,
-                        (int) $detail->quantity
+                        (float) $paramPrice['unit_price'],
+                        (int) $detail->quantity,
+                        false,
+                        false,
+                        $this->pricingResolver->maxTatForElements([(string) $element->id], (string) ($element->analysis_type_id ?? '')),
                     );
                     $subRow['is_package_sub_item'] = true;
+                    $subRow['exclude_from_totals'] = true;
                     $grouped[$sampleTypeName][] = $subRow;
                 }
 
@@ -528,7 +638,10 @@ class QuotationReportService
                         '',
                         '',
                         (float) $detail->unit_price,
-                        (int) $detail->quantity
+                        (int) $detail->quantity,
+                        false,
+                        false,
+                        $this->resolveRowTat($detail),
                     );
                 }
 
@@ -691,7 +804,10 @@ class QuotationReportService
 
             $number = (int) str_replace('term_', '', (string) $config->key);
             if ($number > 0 && filled($config->value)) {
-                $items[$number] = ['number' => $number, 'text' => $config->value];
+                $text = $this->configTextToPlain((string) $config->value);
+                if ($text !== '') {
+                    $items[$number] = ['number' => $number, 'text' => $text];
+                }
             }
         }
 
@@ -732,7 +848,7 @@ class QuotationReportService
             'intro' => $this->configValue('quotation_intro_text', ''),
             'closing' => $this->configValue('quotation_closing_text', ''),
             'legal_entity' => $this->configValue('quotation_legal_entity', $company?->name ?? ''),
-            'terms_url' => $this->configValue('quotation_terms_url', ''),
+            'terms_url' => $this->configValue('quotation_terms_url', 'https://www.amspecgroup.com/terms-conditions'),
         ];
     }
 
@@ -765,6 +881,9 @@ class QuotationReportService
         $net = 0.0;
         foreach ($groups as $group) {
             foreach ($group['rows'] as $row) {
+                if (! empty($row['is_package_sub_item']) || ! empty($row['exclude_from_totals'])) {
+                    continue;
+                }
                 $net += ((float) $row['unit_price']) * ((int) ($row['quantity'] ?? 1));
             }
         }
@@ -788,7 +907,8 @@ class QuotationReportService
         float $unitPrice,
         int $quantity,
         bool $isAccredited = false,
-        bool $isSubcontracted = false
+        bool $isSubcontracted = false,
+        ?int $tat = null,
     ): array {
         return [
             'serial' => null,
@@ -796,9 +916,10 @@ class QuotationReportService
             'test_method' => $testMethod,
             'loq' => $loq,
             'mu_percent' => $muPercent,
+            'tat' => $tat,
             'unit_price' => $unitPrice,
-            'total_price' => round($unitPrice * $quantity, 2),
-            'quantity' => $quantity,
+            'total_price' => round($unitPrice * max(1, $quantity), 2),
+            'quantity' => max(1, $quantity),
             'is_placeholder' => false,
             'is_accredited' => $isAccredited,
             'is_subcontracted' => $isSubcontracted,
@@ -836,8 +957,87 @@ class QuotationReportService
             $resolved['unit_price'],
             (int) $detail->quantity,
             $sourceFlags['is_accredited'],
-            $sourceFlags['is_subcontracted']
+            $sourceFlags['is_subcontracted'],
+            $this->resolveRowTat($detail, $element),
         );
+    }
+
+    private function resolveRowTat(QuotationDetails $detail, ?AnalysisElements $element = null): ?int
+    {
+        if ($element !== null) {
+            return $this->pricingResolver->maxTatForElements(
+                [(string) $element->id],
+                (string) ($element->analysis_type_id ?? $detail->part_no ?? ''),
+            );
+        }
+
+        $fromSelectedElements = $this->pricingResolver->maxTatForElements(
+            $this->pricingResolver->collectElementIdsFromDetail($detail),
+            (string) ($detail->part_no ?? ''),
+        );
+
+        if ($fromSelectedElements !== null) {
+            return $fromSelectedElements;
+        }
+
+        if ($detail->tat !== null && (int) $detail->tat > 0) {
+            return (int) $detail->tat;
+        }
+
+        return null;
+    }
+
+    /**
+     * Hide PDF/report columns that have no values across all line rows.
+     *
+     * @param  list<array{sample_type_name: string, rows: list<array<string, mixed>>}>  $groups
+     * @return array{method: bool, loq: bool, mu: bool, tat: bool, quantity: bool, unit_price: bool, total_price: bool}
+     */
+    private function resolveTestTableColumnVisibility(array $groups): array
+    {
+        $hasMethod = false;
+        $hasLoq = false;
+        $hasMu = false;
+        $hasTat = false;
+        $hasQuantity = false;
+        $hasUnitPrice = false;
+        $hasTotalPrice = false;
+
+        foreach ($groups as $group) {
+            foreach ($group['rows'] as $row) {
+                if (trim((string) ($row['test_method'] ?? '')) !== '') {
+                    $hasMethod = true;
+                }
+                if (trim((string) ($row['loq'] ?? '')) !== '') {
+                    $hasLoq = true;
+                }
+                if (trim((string) ($row['mu_percent'] ?? '')) !== '') {
+                    $hasMu = true;
+                }
+                if (! empty($row['tat']) && (int) $row['tat'] > 0) {
+                    $hasTat = true;
+                }
+                if (! empty($row['quantity']) && (int) $row['quantity'] > 0) {
+                    $hasQuantity = true;
+                }
+                if ((float) ($row['unit_price'] ?? 0) > 0) {
+                    $hasUnitPrice = true;
+                }
+                if ((float) ($row['total_price'] ?? 0) > 0) {
+                    $hasTotalPrice = true;
+                }
+            }
+        }
+
+        return [
+            'method' => $hasMethod,
+            'loq' => $hasLoq,
+            'mu' => $hasMu,
+            'tat' => $hasTat,
+            'quantity' => $hasQuantity,
+            'unit_price' => $hasUnitPrice,
+            'total_price' => $hasTotalPrice || $hasUnitPrice,
+        ];
     }
 
     /**
@@ -925,7 +1125,13 @@ class QuotationReportService
     {
         $config = SystemConfiguration::query()->where('key', $key)->first();
 
-        return filled($config?->value) ? (string) $config->value : $default;
+        if (! filled($config?->value)) {
+            return $default;
+        }
+
+        $plain = $this->configTextToPlain((string) $config->value);
+
+        return $plain !== '' ? $plain : $default;
     }
 
     private function resolveCompanyLogoDataUri(): string

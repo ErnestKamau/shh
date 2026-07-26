@@ -427,7 +427,7 @@
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">{{ __('crm.payment_method') }} <span class="text-danger">*</span></label>
-                                                <select wire:model.live="customerForm.payment_method" class="form-control">
+                                                <select wire:model.live="customerForm.payment_method" class="form-select modern-select payment-method-select">
                                                     <option value="">{{ __('crm.select_payment_method') }}</option>
                                                     @foreach($this->paymentMethodOptions as $value => $label)
                                                         <option value="{{ $value }}">{{ $label }}</option>
@@ -750,6 +750,24 @@
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     }
     
+    /* Prevent select text from being vertically clipped in the modal */
+    .modal select.form-control,
+    .modal select.form-select,
+    .modal .payment-method-select {
+        min-height: 42px;
+        height: auto !important;
+        line-height: 1.5 !important;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        overflow: visible;
+        box-sizing: border-box;
+    }
+
+    .modal .payment-method-select {
+        width: 100%;
+        display: block;
+    }
+
     /* Make modal body scrollable */
     .modal-body {
         max-height: 70vh;

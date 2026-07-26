@@ -186,7 +186,7 @@
                                     @if(($accountTerms['billing_type'] ?? '') === 'other')
                                         <div class="form-group">
                                             <label class="control-label">{{ __('crm.payment_method') }} <span class="text-danger">*</span></label>
-                                            <select wire:model.live="payment_method" class="form-control @error('payment_method') is-invalid @enderror">
+                                            <select wire:model.live="payment_method" class="form-select form-control @error('payment_method') is-invalid @enderror" style="min-height:42px;height:auto;line-height:1.5;padding-top:10px;padding-bottom:10px;">
                                                 <option value="">{{ __('crm.select_payment_method') }}</option>
                                                 @foreach($this->paymentMethodOptions as $value => $label)
                                                     <option value="{{ $value }}">{{ $label }}</option>

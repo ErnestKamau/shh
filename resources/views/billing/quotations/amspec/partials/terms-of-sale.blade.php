@@ -4,15 +4,17 @@
         @if(! empty($termsOfSale['prices']))
             <strong>Prices:</strong> {{ $termsOfSale['prices'] }} {{ $currencyCode }}<br>
         @endif
-        <strong>Service Delivery:</strong> {{ $termsOfSale['service_delivery'] }}<br>
+        <strong>Delivery of results:</strong> {{ $termsOfSale['service_delivery'] }}<br>
         <strong>Payments:</strong> {{ $termsOfSale['payments'] }}<br>
-        <strong>Quote Specification:</strong> {{ $termsOfSale['quote_specification'] }}
+        <strong>Proposal Acceptance:</strong> {{ $termsOfSale['quote_specification'] }}
     </p>
 
     <p class="amspec-terms-title" style="font-weight: 700; margin-bottom: 8px;">Additional Information</p>
     <p style="margin-bottom: 8px;">
-        {{ $termsOfSale['additional_info'] }}<br>
-        <strong>{{ $termsOfSale['payment_info'] }}</strong>
+        <strong>Technical questions / Inquiries / Complaints:</strong><br>
+        {!! nl2br(e($termsOfSale['additional_info'] ?? '')) !!}<br>
+        <strong>Information for Purchase Order / Sample Shipment:</strong><br>
+        {!! nl2br(e($termsOfSale['payment_info'] ?? '')) !!}
     </p>
 
     @if(! empty(array_filter($bankDetails)))

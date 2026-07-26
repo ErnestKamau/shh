@@ -40,6 +40,7 @@ class ElementManager extends Component
         'significant_figures' => 3,
         'lod' => null,
         'hod' => null,
+        'reporting_time' => null,
         'lab_section_id' => null,
         'level' => 1,
         'active' => true,
@@ -138,6 +139,7 @@ class ElementManager extends Component
         'elementForm.significant_figures' => 'nullable|integer|min:1|max:10',
         'elementForm.lod' => 'nullable|numeric',
         'elementForm.hod' => 'nullable|numeric',
+        'elementForm.reporting_time' => 'nullable|integer|min:0',
         'elementForm.lab_section_id' => 'nullable|uuid|exists:sample_analysis_stages,id',
         'elementForm.level' => 'nullable|integer|min:1',
         'elementForm.remark_is_manual' => 'boolean',
@@ -300,6 +302,7 @@ class ElementManager extends Component
             'significant_figures' => $element->significant_figures,
             'lod' => $element->lod,
             'hod' => $element->hod,
+            'reporting_time' => $element->reporting_time,
             'lab_section_id' => $labSectionId,
             'level' => $element->level,
             'active' => $element->active,
@@ -360,6 +363,9 @@ class ElementManager extends Component
         $this->elementForm['decimal_places'] = $this->elementForm['decimal_places'] ?? 2;
         $this->elementForm['significant_figures'] = $this->elementForm['significant_figures'] ?? 3;
         $this->elementForm['level'] = $this->elementForm['level'] ?? 1;
+        $this->elementForm['reporting_time'] = ($this->elementForm['reporting_time'] === '' || $this->elementForm['reporting_time'] === null)
+            ? null
+            : (int) $this->elementForm['reporting_time'];
 
         if (! $this->elementForm['has_method_sequence']) {
             $this->elementForm['stage_header_id'] = null;
@@ -424,6 +430,7 @@ class ElementManager extends Component
             'significant_figures' => 3,
             'lod' => null,
             'hod' => null,
+            'reporting_time' => null,
             'lab_section_id' => null,
             'level' => 1,
             'active' => true,
@@ -499,6 +506,7 @@ class ElementManager extends Component
             'significant_figures' => 3,
             'lod' => null,
             'hod' => null,
+            'reporting_time' => null,
             'lab_section_id' => null,
             'level' => 1,
             'active' => true,

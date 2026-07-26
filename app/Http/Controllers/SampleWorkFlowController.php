@@ -4760,6 +4760,7 @@ class SampleWorkFlowController extends Controller
         foreach ($analysis_types as $type) {
             if (in_array($type->id, $selected_analysis)) {
                 $analysis_analytes = AnalysisElements::where('analysis_type_id', $type->id)->get();
+                $resolver = app(\App\Services\Lab\UncertaintyBudgetResolver::class);
                 foreach ($analysis_analytes as $aa) {
                     $analyte = getAnalyteByID($aa->analyte_id);
                     $aa->analyte_code = $analyte->code;
@@ -4778,6 +4779,16 @@ class SampleWorkFlowController extends Controller
                     } else {
                         $aa->selected = 1;
                     }
+
+                    $metrics = $resolver->resolveLabMetricsForElement($aa);
+                    $aa->loq = $metrics['loq'];
+                    $aa->mu_percent = $metrics['mu_percent'];
+                    $aa->test_method = $metrics['test_method'];
+                    $aa->reporting_time = is_numeric($aa->reporting_time) && (int) $aa->reporting_time > 0
+                        ? (int) $aa->reporting_time
+                        : (is_numeric($type->reporting_time) && (int) $type->reporting_time > 0
+                            ? (int) $type->reporting_time
+                            : null);
 
                     if (!isset($analytes[$type->name])) {
                         $analytes[$type->name] = [];

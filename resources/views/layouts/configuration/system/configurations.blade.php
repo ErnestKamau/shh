@@ -3,6 +3,20 @@
     <title>{{ __('system.system_configurations') }}</title>
 @endsection
 @section('content2')
+    @php
+        $richTextTypes = [
+            'Terms of Sale',
+            'Quotation Terms and Conditions',
+            'Quotation Structured Terms',
+            'Quotation Report',
+        ];
+        $richTextReportKeys = [
+            'quotation_intro_text',
+            'quotation_closing_text',
+            'quotation_legal_entity',
+            'quotation_terms_url',
+        ];
+    @endphp
     <main>
         <?php 
             $items = array(
@@ -21,6 +35,9 @@
         <?php
             $configs = getconfigByID($configuration->id)
         ?>
+            @php
+                $isRichTextType = in_array($configuration->configuration_type, $richTextTypes, true);
+            @endphp
             <div class="card" style="padding: 10px;margin-bottom:20px">
                 <h5 class="card-title"><i class="mdi mdi-cog-box"></i> {{$configuration->configuration_type}}
                 @can('system.configuration.add')
@@ -39,15 +56,21 @@
                         </thead>
                         <tbody>
                             @foreach($configs as $config)
+                            @php
+                                $useRichText = $isRichTextType && (
+                                    $configuration->configuration_type !== 'Quotation Report'
+                                    || in_array($config->key, $richTextReportKeys, true)
+                                );
+                            @endphp
                             <tr>
                                 <td>{{$loop->iteration}}</td>
                                 <td>{{$config->key}}</td>
-                                <td>{{$config->value}}</td>
+                                <td style="max-width: 420px; white-space: pre-wrap;">{{ \Illuminate\Support\Str::limit(strip_tags((string) $config->value), 180) }}</td>
                                 <td>
                                     @can('system.configuration.edit')
                                     <span class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#edit-configuration-{{$config->id}}"><i class="mdi mdi-pencil"></i></span>
                                     <div class="modal fade" id="edit-configuration-{{$config->id}}" role="dialog">
-                                        <div class="modal-dialog">
+                                        <div class="modal-dialog {{ $useRichText ? 'modal-lg' : '' }}">
                                             <form action="{{ route('edit-configuration',['id'=>$config->id]) }}" method="post" class="modal-content" enctype="multipart/form-data">
                                             @csrf 
                                                 <div class="modal-header">
@@ -61,7 +84,11 @@
                                                     </div>
                                                     <div class="form-group">
                                                         <label class="control-label">{{ __('system.value') }}</label>
-                                                        <input type="text" name="value" value="{{$config->value}}" placeholder="{{ __('system.configuration_value_placeholder') }}" class="form-control">
+                                                        @if($useRichText)
+                                                            <textarea name="value" rows="8" placeholder="{{ __('system.configuration_value_placeholder') }}" class="form-control system-config-editor">{{ $config->value }}</textarea>
+                                                        @else
+                                                            <input type="text" name="value" value="{{$config->value}}" placeholder="{{ __('system.configuration_value_placeholder') }}" class="form-control">
+                                                        @endif
                                                     </div>
                                                     <div class="form-group hidden">
                                                         <label class="control-label">{{ __('system.config_id') }}</label>
@@ -111,7 +138,7 @@
                     </table>
                 </div>
                 <div class="modal fade" id="add-configuration-{{$configuration->id}}" role="dialog">
-                    <div class="modal-dialog">
+                    <div class="modal-dialog {{ $isRichTextType ? 'modal-lg' : '' }}">
                         <form action="{{ route('add-configuration',['id'=>$configuration->id]) }}" method="post" class="modal-content" enctype="multipart/form-data">
                         @csrf 
                             <div class="modal-header">
@@ -136,7 +163,11 @@
                                 </div>
                                 <div class="form-group">
                                     <label class="control-label">{{ __('system.configuration_value') }}</label>
-                                    <input type="text" name="value" value=""  placeholder="{{ __('system.configuration_value') }}" class="form-control" required>
+                                    @if($isRichTextType)
+                                        <textarea name="value" rows="8" placeholder="{{ __('system.configuration_value') }}" class="form-control system-config-editor" required></textarea>
+                                    @else
+                                        <input type="text" name="value" value=""  placeholder="{{ __('system.configuration_value') }}" class="form-control" required>
+                                    @endif
                                 </div>
                                 @endif
                                 <input type="hidden" name="config_id" value="{{ $configuration->id }}">
@@ -152,4 +183,49 @@
         @endforeach  
     </main>
 
+@endsection
+
+@section('script2')
+<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+<script>
+    function initSystemConfigEditors(scope) {
+        var root = scope || document;
+        var editors = root.querySelectorAll('textarea.system-config-editor');
+        if (!editors.length || typeof tinymce === 'undefined') {
+            return;
+        }
+
+        editors.forEach(function (el) {
+            if (el.id && tinymce.get(el.id)) {
+                return;
+            }
+            if (!el.id) {
+                el.id = 'system-config-editor-' + Math.random().toString(36).slice(2);
+            }
+            tinymce.init({
+                selector: '#' + el.id,
+                menubar: false,
+                plugins: 'lists link',
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                height: 220,
+                branding: false,
+                convert_urls: false
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initSystemConfigEditors(document);
+
+        $(document).on('shown.bs.modal', '.modal', function () {
+            initSystemConfigEditors(this);
+        });
+
+        $(document).on('submit', 'form', function () {
+            if (typeof tinymce !== 'undefined') {
+                tinymce.triggerSave();
+            }
+        });
+    });
+</script>
 @endsection

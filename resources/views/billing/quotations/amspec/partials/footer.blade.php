@@ -19,7 +19,7 @@
             </td>
             <td class="amspec-footer-qr-cell" @if($isPdf) width="12%" @endif>
                 @if(!empty($qrCode))
-                    <img src="data:image/svg+xml;base64,{{ $qrCode }}" alt="Scan to view quotation" class="amspec-footer-qr" @if($isPdf) width="52" height="52" @endif>
+                    <img src="data:image/svg+xml;base64,{{ $qrCode }}" alt="Scan for Terms and Conditions" class="amspec-footer-qr" @if($isPdf) width="52" height="52" @endif>
                 @endif
             </td>
         </tr>

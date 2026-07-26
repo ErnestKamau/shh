@@ -1,5 +1,5 @@
 @php
-    $footerLabelColspan = $labelColspan ?? (3 + ($showMuColumn ? 1 : 0) + 1 + ($showUnitPriceColumn ? 1 : 0));
+    $footerLabelColspan = $labelColspan ?? 1;
 @endphp
 <tr class="amspec-totals">
     <td colspan="{{ $footerLabelColspan }}" class="text-right" style="font-weight: 700; border-top: 2px solid #999;">Net Amount ({{ $currencyCode }})</td>

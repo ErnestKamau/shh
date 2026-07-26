@@ -234,18 +234,8 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="control-label">Dynamics Customer <small class="text-muted">(Optional)</small></label>
-                                <select name="zoho_customer_id" id="select-zoho-customer-edit" class="form-control no-select2">
-                                    <option value="">Select Dynamics Customer...</option>
-                                    @foreach(\App\ZohoCustomers::where('status', 'Active')->orderBy('name')->get() as $zc)
-                                    <option value="{{$zc->id}}" data-currency-code="{{$zc->currency_code}}" {{($header->customer->zoho_customer_id ?? '') == $zc->id ? 'selected' : ''}}>{{$zc->name}} ({{$zc->customer_no}})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="form-group">
                                 <label class="control-label">Currency</label>
-                                <input type="text" id="display-currency-edit" class="form-control" readonly placeholder="Auto-populated from Dynamics customer..." value="{{$header->currency ? $header->currency->code . ' - ' . $header->currency->description : ''}}" style="background-color: #f5f5f5;">
+                                <input type="text" id="display-currency-edit" class="form-control" readonly placeholder="Set via Quote Currency..." value="{{$header->currency ? $header->currency->code . ' - ' . $header->currency->description : ''}}" style="background-color: #f5f5f5;">
                                 <input type="hidden" name="currency_id" id="currency-id-edit" value="{{$header->currency_id ?? ''}}" required>
                             </div>
 
@@ -278,17 +268,13 @@
                                 <input type="text" name="subject" class="form-control" value="{{ $header->subject }}" placeholder="Quotation for ...">
                             </div>
                             <div class="form-group">
-                                <label class="control-label">Sampling Location (Sample Point)</label>
+                                <label class="control-label">Sampling Location</label>
                                 <select name="sample_point_id" class="form-control no-select2">
                                     <option value="">Select sample point...</option>
                                     @foreach($samplePoints ?? [] as $point)
                                         <option value="{{ $point->id }}" {{ $header->sample_point_id == $point->id ? 'selected' : '' }}>{{ $point->display_name }}</option>
                                     @endforeach
                                 </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Sampling Location (Text)</label>
-                                <input type="text" name="sampling_location" class="form-control" value="{{ $header->sampling_location }}" placeholder="Override or free-text location">
                             </div>
                         </div>
 
@@ -397,18 +383,20 @@
                             </button>
                             @endif
                         </div>
-                        <div class="table-responsive ">
+                        <div class="table-responsive quotation-analysis-lines">
 
-                            <table class="table table-condensed table-stripped table-hover table-bordered" style="width: 130%;">
+                            <table class="table table-condensed table-striped table-hover table-bordered table-sm mb-0" style="width: 100%; min-width: 980px;">
                                 <thead class="bg-light">
 
-                                    <th>No</th>
+                                    <th style="width: 48px;">No</th>
                                     <th nowrap>Sample Type <span class="text-danger">*</span></th>
-                                    <th nowrap>Part No <span class="text-danger">*</span></th>
-                                    <th nowrap>Description<span class="text-danger">*</span></th>
-                                    <th nowrap>Quantiy<span class="text-danger">*</span></th>
-                                    <th nowrap>Unit Price <small class="text-muted font-weight-normal">(0 = pricelist)</small></th>
-                                    <th nowrap>Tax% <small class="text-muted font-weight-normal">(0 = pricelist)</small></th>
+                                    <th nowrap>Analysis Type <span class="text-danger">*</span></th>
+                                    <th nowrap>Parameters<span class="text-danger">*</span></th>
+                                    <th nowrap style="width: 88px;">Quantity<span class="text-danger">*</span></th>
+                                    <th nowrap style="width: 72px;">TAT</th>
+                                    <th nowrap style="width: 110px;">Pricing</th>
+                                    <th nowrap style="width: 130px;">Unit Price</th>
+                                    <th nowrap style="width: 90px;">Tax%</th>
 
 
 
@@ -416,28 +404,29 @@
                                 <tbody id="create-detail">
                                     @foreach($details as $detail)
                                     <tr>
-                                        <td style="display: flex;border:0px ">
+                                        <td class="text-nowrap align-middle">
 
-                                            <span style="font-size:11px; flex:1" data-sample="{{$detail->sample_type_name}}" data-detail={{$detail->id}} data-toggle="modal" data-target="#detail-edit-mode" class="btn mdi mdi-pencil " data-toggle="tooltip" title="Edit"></span>
+                                            <span style="font-size:11px;" data-sample="{{$detail->sample_type_name}}" data-detail={{$detail->id}} data-toggle="modal" data-target="#detail-edit-mode" class="btn btn-sm p-0 mdi mdi-pencil" data-toggle="tooltip" title="Edit"></span>
 
-                                            <span style="font-size:12px;flex:1 ;border-bottom:0px" data-toggle="modal" data-target="#delete-detail-{{$detail->id}}" class="btn mdi mdi-delete-empty text-danger" data-toggle="tooltip" title="Delete"></span>
+                                            <span style="font-size:12px;" data-toggle="modal" data-target="#delete-detail-{{$detail->id}}" class="btn btn-sm p-0 mdi mdi-delete-empty text-danger" data-toggle="tooltip" title="Delete"></span>
 
 
                                         </td>
-                                        <td style="min-width: 200px;">
+                                        <td class="align-middle" style="min-width: 120px;">
 
-                                            <div class="form-group" id="">
-                                                <input type="text" class="form-control" value="{{$detail->sample_type_name}}" disabled id="">
+                                            <div class="form-group mb-0" id="">
+                                                <input type="text" class="form-control form-control-sm" value="{{$detail->sample_type_name}}" disabled id="">
 
                                             </div>
 
                                         </td>
-                                        <td style="min-width: 300px;">
-                                            <p>{{$detail->part_no_final}}</p>
+                                        <td class="align-middle" style="min-width: 140px;">
+                                            <span class="small">{{$detail->part_no_final}}</span>
                                         </td>
-                                        <td style="min-width: 450px;">
-                                            <p class="mb-0"><b>{{$detail->sample_type_name}}</b></p>
-                                            <p class="mb-0"><b>Description:</b></p>
+                                        <td class="align-middle" style="min-width: 220px; max-width: 320px;">
+                                            <p class="mb-0 small"><b>{{$detail->sample_type_name}}</b></p>
+                                            <p class="mb-1 small text-muted">Parameters:</p>
+                                            <div class="small" style="white-space: normal;">
                                             @foreach($detail->default as $da)
                                             <span>{{$da}}, </span>
                                             @endforeach
@@ -451,26 +440,35 @@
                                             @foreach($detail->acc_analytes as $acc)
                                             <span class="">{{$acc}} <img src="/images/tick.png" height="8" width="8" alt="">, </span>
                                             @endforeach
-
-
-                                        </td>
-
-                                        <td>
-                                            <div class="form-group">
-                                                <input type="number" id="" class="form-control" value="{{$detail->quantity}}" disabled>
-                                            </div>
-                                        </td>
-                                        <td style="min-width: 150px;text-align:right !important">
-
-                                            <div class="form-group">
-                                                <input type="float" class="form-control" value="{{number_format($detail->unit_price,2)}}" disabled>
                                             </div>
 
-                                        </td>
-                                        <td style="min-width: 80px;">
 
-                                            <div class="form-group">
-                                                <input type="text" value="{{$detail->tax}}" readonly class="form-control" disabled>
+                                        </td>
+
+                                        <td class="align-middle">
+                                            <div class="form-group mb-0">
+                                                <input type="number" id="" class="form-control form-control-sm" value="{{$detail->quantity}}" disabled>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="form-group mb-0">
+                                                <input type="text" class="form-control form-control-sm text-center font-weight-bold" value="{{ $detail->tat !== null && $detail->tat !== '' ? $detail->tat : '—' }}" disabled title="Highest TAT of selected parameters">
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <span class="badge {{ ! empty($detail->is_package) ? 'badge-success' : 'badge-secondary' }}">{{ ! empty($detail->is_package) ? 'Package' : 'Per test' }}</span>
+                                        </td>
+                                        <td class="align-middle text-right">
+
+                                            <div class="form-group mb-0">
+                                                <input type="text" class="form-control form-control-sm text-right" value="{{number_format($detail->unit_price,2)}}" disabled>
+                                            </div>
+
+                                        </td>
+                                        <td class="align-middle">
+
+                                            <div class="form-group mb-0">
+                                                <input type="text" value="{{$detail->tax}}" readonly class="form-control form-control-sm" disabled>
                                             </div>
 
 
@@ -487,7 +485,7 @@
                         <div class="terms ml-4">
                             <div class="form-group">
                                 <label class="control-label">Quote Currency <span class="text-danger">*</span></label>
-                                <select name="currency_id" class="form-control" Required>
+                                <select name="currency_id" class="form-control" required>
                                     <option value="">Choose Currency...</option>
                                     @foreach($currencies as $currency)
                                     <option value="{{ $currency->id }}" {{ $header->currency_id == $currency->id ? 'selected' : '' }}>{{ $currency->code }} - {{ $currency->description }}</option>
@@ -496,16 +494,52 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="control-label">Service Delivery <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="service_delivery" placeholder="Service Delivery..." required>{{ $termsOfSale['service_delivery'] ?? '' }}</textarea>
+                                <label class="control-label">Delivery of results</label>
+                                <textarea class="form-control" rows="2" name="service_delivery" placeholder="Delivery of results...">{{ $termsOfSale['service_delivery'] ?? '' }}</textarea>
+                            </div>
+                            @php
+                                $paymentOptions = collect($accountPaymentOptions ?? []);
+                                $currentPayments = trim((string) ($termsOfSale['payments'] ?? ''));
+                                $matchedPaymentOption = $paymentOptions->firstWhere('label', $currentPayments);
+                                $otherOption = $paymentOptions->firstWhere('allows_custom', true);
+                                $isCustomPayment = $currentPayments !== '' && $matchedPaymentOption === null;
+                                $selectedPaymentId = $matchedPaymentOption['id']
+                                    ?? ($isCustomPayment && $otherOption ? $otherOption['id'] : '');
+                                $showPaymentsCustom = ($matchedPaymentOption['allows_custom'] ?? false)
+                                    || $isCustomPayment
+                                    || ($selectedPaymentId !== '' && $otherOption && $selectedPaymentId === ($otherOption['id'] ?? null));
+                                $paymentsCustomValue = $isCustomPayment
+                                    ? $currentPayments
+                                    : '';
+                                if ($paymentsCustomValue === '' && $showPaymentsCustom) {
+                                    $customerNote = trim((string) ($header->customer->payment_terms_note ?? ''));
+                                    if ($customerNote !== '') {
+                                        $paymentsCustomValue = $customerNote;
+                                    }
+                                }
+                            @endphp
+                            <div class="form-group">
+                                <label class="control-label">Payments</label>
+                                <select name="payments_account_id" id="quote-payments" class="form-control">
+                                    <option value="">Choose payment terms...</option>
+                                    @foreach($paymentOptions as $option)
+                                        <option
+                                            value="{{ $option['id'] }}"
+                                            data-allows-custom="{{ ! empty($option['allows_custom']) ? '1' : '0' }}"
+                                            data-label="{{ $option['label'] }}"
+                                            {{ (string) $selectedPaymentId === (string) $option['id'] ? 'selected' : '' }}
+                                        >{{ $option['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group" id="quote-payments-custom-wrap" style="{{ $showPaymentsCustom ? '' : 'display:none;' }}">
+                                <label class="control-label">Custom payment terms</label>
+                                <textarea class="form-control" rows="3" name="payments_custom" id="quote-payments-custom" placeholder="Enter custom payment terms for this quotation...">{{ $paymentsCustomValue }}</textarea>
+                                <small class="text-muted">Shown when “Other” is selected. Saved on this quotation only.</small>
                             </div>
                             <div class="form-group">
-                                <label class="control-label">Payments <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="payments" placeholder="Payment Information..." required>{{ $termsOfSale['payments'] ?? '' }}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Quote Specifications <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="quote_specification" placeholder="Quote Spcification..." required>{{ $termsOfSale['quote_specification'] ?? '' }}</textarea>
+                                <label class="control-label">Proposal Acceptance</label>
+                                <textarea class="form-control" rows="2" name="quote_specification" placeholder="Proposal Acceptance...">{{ $termsOfSale['quote_specification'] ?? '' }}</textarea>
                             </div>
 
                         </div>
@@ -513,40 +547,17 @@
 
                         <div class="additional-info ml-4">
                             <div class="form-group">
-                                <label class="control-label">Additional Information <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="additional_info" placeholder="Additional Info..." required>{{ $termsOfSale['additional_info'] ?? '' }}</textarea>
+                                <label class="control-label">Technical questions / Inquiries / Complaints</label>
+                                <textarea class="form-control" rows="2" name="additional_info" placeholder="Technical questions / Inquiries / Complaints...">{{ $termsOfSale['additional_info'] ?? '' }}</textarea>
                             </div>
                             <div class="form-group">
-                                <label class="control-label">Payment Instructions <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" name="payment_info" placeholder="Payment Instructions..." required>{{ $termsOfSale['payment_info'] ?? '' }}</textarea>
+                                <label class="control-label">Information for Purchase Order / Sample Shipment</label>
+                                <textarea class="form-control" rows="5" name="payment_info" placeholder="Information for Purchase Order / Sample Shipment...">{{ $termsOfSale['payment_info'] ?? '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Quotation T&amp;C Override <small class="text-muted">(optional — one term per line)</small></label>
                                 <textarea class="form-control" rows="4" name="terms_override" placeholder="Leave blank to use system Quotation Terms and Conditions">{{ $header->terms_override }}</textarea>
                             </div>
-
-                            <h5 style="font-size: 11px; margin-top:15px"><b><u>Structured Commercial Terms</u></b></h5>
-                            @php
-                                $storedStructuredTerms = is_array($header->structured_terms) ? $header->structured_terms : [];
-                            @endphp
-                            <div class="structured-terms ml-4">
-                                @foreach(\App\Services\Billing\QuotationReportService::STRUCTURED_TERM_DEFINITIONS as $termKey => $termLabel)
-                                    <div class="form-group">
-                                        <label class="control-label">{{ $termLabel }}</label>
-                                        <textarea class="form-control" rows="2" name="structured_terms[{{ $termKey }}]" placeholder="{{ $structuredTermsConfig[$termKey] ?? '' }}">{{ $storedStructuredTerms[$termKey] ?? ($structuredTermsConfig[$termKey] ?? '') }}</textarea>
-                                    </div>
-                                @endforeach
-                            </div>
-
-                            <div class="form-group form-check">
-                                <input type="checkbox" class="form-check-input" name="show_mu_column" value="1" id="show_mu_column" {{ ($header->show_mu_column ?? true) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="show_mu_column">Show Uncertainty column on quotation <small class="text-muted">(optional)</small></label>
-                            </div>
-                            <div class="form-group form-check">
-                                <input type="checkbox" class="form-check-input" name="show_unit_price_column" value="1" id="show_unit_price_column" {{ ($header->show_unit_price_column ?? true) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="show_unit_price_column">Show Unit Price column on quotation <small class="text-muted">(optional)</small></label>
-                            </div>
-                            <p class="text-muted mb-0" style="font-size: 11px;">LOQ and Total Price columns are always shown on the quotation report.</p>
                         </div>
 
                     </form>
@@ -745,7 +756,7 @@
             <form action="">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="mdi mdi-pencil text-primary"></i> Edit Quotation Detail Description
+                        <i class="mdi mdi-pencil text-primary"></i> Edit Quotation Parameters
 
                     </h5>
                     <span class="btn btn-success float-right btn-sm" id="save-edit"><i class="mdi mdi-content-save"></i>Save</span>
@@ -758,6 +769,9 @@
                                 <th>Analyte Name</th>
                                 <th>Accredited <input type="checkbox" id="edit-accreditted" class="float-right"></th>
                                 <th>Sub-Contracted <input type="checkbox" id="edit-sub" class="float-right"></th>
+                                <th nowrap>LOQ</th>
+                                <th nowrap>MU</th>
+                                <th nowrap title="Turnaround time (days)">TAT</th>
                             </thead>
                             <tbody id="edit-description"></tbody>
                         </table>
@@ -871,7 +885,7 @@
             <form action="" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="mdi mdi-google-circles-extended text-success"></i> Quotation Description
+                        <i class="mdi mdi-google-circles-extended text-success"></i> Quotation Parameters
                     </h5>
                     <span type="submit" id="save-analytes" class="btn btn-outline-success btn-sm float-right"><i class="mdi mdi-content-save"></i> Save</span>
                 </div>
@@ -883,6 +897,9 @@
                                 <th>Analyte </th>
                                 <th>Accreditted <input type="checkbox" id="select-accredited-all" class="float-right"></th>
                                 <th>Subcontracted <input type="checkbox" id="select-sub-all" class="float-right"></th>
+                                <th nowrap>LOQ</th>
+                                <th nowrap>MU</th>
+                                <th nowrap title="Turnaround time (days)">TAT</th>
                             </thead>
                             <tbody id="analysis-analytes-holder">
 
@@ -899,17 +916,29 @@
     $(function() {
         var quotationPricingConfig = {
             suggestUrl: @json(route('quotation.suggest_line_pricing', $header->id)),
+            updateLoqUrl: @json(route('quotation.update_element_loq')),
             csrf: @json(csrf_token()),
         };
 
         function applyPricelistSuggestionToRow($row, data) {
             $row.data('pricelistSuggestion', data);
             $row.find('.quotation-price-hint').text(data.hint || '');
-            if (data && parseFloat(data.unit_price) > 0) {
+            if (data && typeof data.unit_price !== 'undefined') {
                 $row.find('.quotation-unit-price').val(data.unit_price);
             }
-            if (data && parseFloat(data.tax) > 0) {
+            if (data && typeof data.tax !== 'undefined' && parseFloat(data.tax) > 0) {
                 $row.find('.quotation-tax').val(data.tax);
+            }
+            if (data && data.max_tat !== null && typeof data.max_tat !== 'undefined') {
+                $row.find('.quotation-tat').val(data.max_tat);
+            } else if (data && (data.max_tat === null || data.max_tat === '')) {
+                $row.find('.quotation-tat').val('');
+            }
+            if (data && data.pricing_mode) {
+                var $mode = $row.find('.quotation-pricing-mode');
+                if ($mode.length && $mode.val() === 'auto') {
+                    // keep auto selected; resolved mode is reflected in hint
+                }
             }
         }
 
@@ -946,16 +975,18 @@
             }
 
             if (elementIds.length === 0) {
-                $hint.text('Pick tests in Description to load pricelist total.');
+                $hint.text('Pick tests in Parameters to load pricelist total.');
                 $row.removeData('pricelistSuggestion');
                 return;
             }
 
+            var pricingMode = $row.find('.quotation-pricing-mode').val() || 'auto';
             $.post(quotationPricingConfig.suggestUrl, {
                 _token: quotationPricingConfig.csrf,
                 sample_type_id: sampleTypeId,
                 analysis_type_ids: analysisTypeIds,
                 element_ids: elementIds.join(','),
+                pricing_mode: pricingMode,
             }).done(function(data) {
                 if (applyValues) {
                     applyPricelistSuggestionToRow($row, data);
@@ -1141,6 +1172,20 @@
                                             <input type="number" name="quantity[]" id="" class="form-control" value="" required>
                                         </div>
                                     </td>
+                                    <td style="min-width: 70px;">
+                                        <div class="form-group mb-0">
+                                            <input type="text" name="tat[]" class="form-control quotation-tat" value="" readonly placeholder="-">
+                                        </div>
+                                    </td>
+                                    <td style="min-width: 120px;">
+                                        <div class="form-group mb-0">
+                                            <select name="pricing_mode[]" class="form-control form-control-sm quotation-pricing-mode">
+                                                <option value="auto" selected>Auto</option>
+                                                <option value="per_test">Per test</option>
+                                                <option value="per_package">Per package</option>
+                                            </select>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="form-group mb-1">
                                             <div class="input-group input-group-sm">
@@ -1196,6 +1241,9 @@
                 var value = $(this).val();
                 $row.find('input#select-part-final').val(value ? value.toString() : '');
                 refreshQuotationRowPricingHint($row);
+            });
+            $row.find('.quotation-pricing-mode').on('change', function() {
+                refreshQuotationRowPricingHint($row, true);
             });
 
             $('#create-detail').append($row);
@@ -1257,7 +1305,7 @@
                 <input type="hidden" name="detail_id" id="detail-id" value="${data.id}">
             </div>
             <div class="form-group">
-                <label class="control-label">Part No</label>
+                <label class="control-label">Analysis Type</label>
                 <select class="form-group select2" name="part_no[]" multiple id="edit-part-no">
                    
                     
@@ -1266,6 +1314,11 @@
             <div class="form-group">
                 <label class="control-label">Quantity</label>
                 <input type="text" name="quantity" value="${data.quantity}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="control-label">TAT (days)</label>
+                <input type="text" name="tat" class="form-control quotation-edit-tat" value="${data.tat !== null && typeof data.tat !== 'undefined' ? data.tat : ''}" readonly title="Highest TAT of selected parameters">
+                <small class="text-muted">Highest TAT among selected analysis elements.</small>
             </div>
             <div class="form-group">
                 <label class="control-label">Unit Price</label>
@@ -1277,7 +1330,7 @@
                 <input type="number" name="tax" value="${data.tax}" class="form-control" min="0" step="0.01" placeholder="0 = pricelist">
             </div>
             <div class="form-group">
-                <label class="control-label">Description</label>
+                <label class="control-label">Parameters</label>
                 <span data-toggle="modal" data-target="#edit-detail-analytes" class="float-right" ><i class="mdi mdi-pencil"></i></span>
                 <div class="description-analytes p-2" style="border:1px solid grey;">
                 </div>
@@ -1321,14 +1374,13 @@
             $.ajax({
                 url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail,
                 beforeSend: function() {
-                    $('.description-analytes').empty();
                     $('#edit-description').empty();
                 },
                 success: function(data) {
                     console.log(data);
                     $.each(data, function(i, e) {
                         var analysis_text = $(`<tr>
-                                <td colspan="4"><b>${i}</b></td>
+                                <td colspan="7"><b>${i}</b></td>
                             </tr>`)
                         $('#edit-description').append(analysis_text);
                         $.each(e, function(j, s) {
@@ -1339,60 +1391,122 @@
                     });
                 }
             })
-            $(this).find('#save-edit').on('click', function() {
-                var analytes_acc = [];
-                var sub_analytes = [];
-                var acc_sub = [];
-                var default_a = [];
-                $('#edit-description').find('[name="selected_analyte[]"]').each(function(e) {
-                    var tr = $(this).parents('tr');
-                    if ($(this).prop('checked')) {
-                        var analyte_name = tr.find('#analyte-name').val();
-                        var analyte_id = tr.find('#selected-analytes').val();
-                        var analyte_text = '';
-                        if (tr.find('#accreditted').prop('checked') && !tr.find('#sub_contracted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`)
-
-                            analytes_acc.push(analyte_id);
-                        }
-                        if (tr.find('#sub_contracted').prop('checked') && !tr.find('#accreditted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name}*, </span>`)
-                            sub_analytes.push(analyte_id);
-                        }
-                        if (tr.find('#accreditted').prop('checked') && tr.find('#sub_contracted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name} * <img src="/images/tick.png" alt="tick" height="8" width="8">,</span> `);
-                            acc_sub.push(analyte_id);
-                        }
-                        if (!tr.find('#accreditted').prop('checked') && !tr.find('#sub_contracted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name}, </span>`);
-                            default_a.push(analyte_id);
-                        }
-
-                        $('.description-analytes').append(analyte_text);
-                    }
-                });
-                var test = sub_analytes.toString();
-                var accredited_input = $(`<input type="hidden" name="accreditted_analytes" value="${analytes_acc.toString()}">`);
-                var sub_input = $(`<input type="hidden" name="sub_analytes" value="${test}">`);
-                var sub_acc_input = $(`<input type="hidden" name="sub_acc" value="${acc_sub.toString()}">`);
-                var default_input = $(`<input type="hidden" name="default_analytes" value="${default_a.toString()}">`);
-                $('.description-analytes').append(accredited_input);
-                $('.description-analytes').append(sub_input);
-                $('.description-analytes').append(sub_acc_input);
-                $('.description-analytes').append(default_input);
-
-                $('#edit-detail-analytes').modal('toggle');
-            })
         })
+
+        var quoteDescriptionModalRowNo = null;
+        var quoteDescriptionModalSampleCode = null;
+        var quoteDescriptionModalTypeName = null;
+
+        function persistEditedLoqs($modal) {
+            var requests = [];
+            $modal.find('input.analyte-loq').each(function() {
+                var $input = $(this);
+                var elementId = $input.data('element-id');
+                var original = String($input.data('original-loq') ?? '');
+                var current = String($input.val() ?? '').trim();
+                if (!elementId || current === original) {
+                    return;
+                }
+                requests.push($.post(quotationPricingConfig.updateLoqUrl, {
+                    _token: quotationPricingConfig.csrf,
+                    element_id: elementId,
+                    loq: current,
+                }).done(function(resp) {
+                    $input.data('original-loq', resp.loq || current);
+                    $input.val(resp.loq || current);
+                }));
+            });
+            if (requests.length === 0) {
+                return $.Deferred().resolve().promise();
+            }
+            return $.when.apply($, requests);
+        }
+
+        function collectSelectedAnalyteState($scope) {
+            var analytes_accreditted = [];
+            var analyte_sub = [];
+            var sub_acc = [];
+            var default_analytes = [];
+            var loqMap = {};
+            var maxTat = null;
+            var spans = [];
+
+            $scope.find('[name="selected_analyte[]"]').each(function() {
+                var parent_tr = $(this).closest('tr');
+                if (!$(this).prop('checked')) {
+                    return;
+                }
+
+                var analyte_name = parent_tr.find('#analyte-name').val();
+                var analyte_id = parent_tr.find('#selected-analytes').val();
+                var loqInput = parent_tr.find('input.analyte-loq');
+                if (analyte_id) {
+                    loqMap[analyte_id] = String(loqInput.val() || '').trim();
+                }
+                var reportingTime = parseInt(parent_tr.attr('data-reporting-time'), 10);
+                if (!isNaN(reportingTime) && reportingTime > 0) {
+                    maxTat = maxTat === null ? reportingTime : Math.max(maxTat, reportingTime);
+                }
+
+                var analyte_text = '';
+                if (parent_tr.find('#accreditted').prop('checked') && !parent_tr.find('#sub_contracted').prop('checked')) {
+                    analyte_text = `<span>${analyte_name} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`;
+                    analytes_accreditted.push(analyte_id);
+                } else if (parent_tr.find('#sub_contracted').prop('checked') && !parent_tr.find('#accreditted').prop('checked')) {
+                    analyte_text = `<span>${analyte_name}*, </span>`;
+                    analyte_sub.push(analyte_id);
+                } else if (parent_tr.find('#accreditted').prop('checked') && parent_tr.find('#sub_contracted').prop('checked')) {
+                    analyte_text = `<span>${analyte_name} * <img src="/images/tick.png" alt="tick" height="8" width="8">,</span> `;
+                    sub_acc.push(analyte_id);
+                } else {
+                    analyte_text = `<span>${analyte_name}, </span>`;
+                    default_analytes.push(analyte_id);
+                }
+                spans.push(analyte_text);
+            });
+
+            return {
+                analytes_accreditted: analytes_accreditted,
+                analyte_sub: analyte_sub,
+                sub_acc: sub_acc,
+                default_analytes: default_analytes,
+                loqMap: loqMap,
+                maxTat: maxTat,
+                spans: spans,
+            };
+        }
+
+        $('#save-edit').off('click').on('click', function() {
+            var $modal = $('#edit-detail-analytes');
+            persistEditedLoqs($modal).always(function() {
+                var state = collectSelectedAnalyteState($modal);
+                var $holder = $('#detail-edit-mode').find('.description-analytes').first();
+                $holder.empty();
+                state.spans.forEach(function(html) {
+                    $holder.append(html);
+                });
+                $holder.append($('<input type="hidden" name="accreditted_analytes">').val(state.analytes_accreditted.toString()));
+                $holder.append($('<input type="hidden" name="sub_analytes">').val(state.analyte_sub.toString()));
+                $holder.append($('<input type="hidden" name="sub_acc">').val(state.sub_acc.toString()));
+                $holder.append($('<input type="hidden" name="default_analytes">').val(state.default_analytes.toString()));
+                var $tat = $('#detail-edit-mode').find('.quotation-edit-tat');
+                if (state.maxTat !== null) {
+                    $tat.val(state.maxTat);
+                } else {
+                    $tat.val('');
+                }
+                $('#edit-detail-analytes').modal('hide');
+            });
+        });
         $('#quote-description-analytes').on('show.bs.modal', function(e) {
-
             var sample_code = $(e.relatedTarget).data('sampletype');
-            var type_name = $(e.relatedTarget).data('samplecode')
+            var type_name = $(e.relatedTarget).data('samplecode');
             var row_no = $(e.relatedTarget).data('row');
+            quoteDescriptionModalRowNo = row_no;
+            quoteDescriptionModalSampleCode = sample_code;
+            quoteDescriptionModalTypeName = type_name;
             var part_no_analysis = $('#create-detail').find('tr#detail-row-' + row_no).find('#select-part-final').val();
-            console.log(part_no_analysis);
             if (sample_code != '') {
-
                 $.ajax({
                     url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis,
                     beforeSend: function() {
@@ -1401,85 +1515,62 @@
                     success: function(data) {
                         $.each(data, function(i, e) {
                             var analysis_text = $(`<tr>
-                                <td colspan="4"><b>${i}</b></td>
-                            </tr>`)
+                                <td colspan="7"><b>${i}</b></td>
+                            </tr>`);
                             $('#analysis-analytes-holder').append(analysis_text);
                             $.each(e, function(j, s) {
-                                // console.log(s);
                                 var rows = quoteAnalytesRow(s);
                                 $('#analysis-analytes-holder').append(rows);
-                            })
+                            });
                         });
                     },
                     error: function(data) {
                         console.log(data);
                     }
-                })
+                });
+            }
+        });
+
+        $('#save-analytes').off('click').on('click', function() {
+            var row_no = quoteDescriptionModalRowNo;
+            var sample_code = quoteDescriptionModalSampleCode;
+            var type_name = quoteDescriptionModalTypeName;
+            if (!row_no) {
+                return;
             }
 
-            $(this).find('#save-analytes').on('click', function() {
-                // console.log(row_no)
-                var loop = 1;
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').empty();
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').removeClass('text-center');
+            var $modal = $('#quote-description-analytes');
+            persistEditedLoqs($modal).always(function() {
+                var state = collectSelectedAnalyteState($modal);
+                var $desc = $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description');
+                $desc.empty().removeClass('text-center');
                 var header = $(`
                                 <p class="mb-0"><b>${type_name}</b>
-                                <span data-target="#quote-description-analytes" data-row = ${row_no} data-samplecode = "${type_name}"  data-toggle="modal" data-sampletype=${sample_code} class="btn btn-outline-success btn-sm mdi mdi-pencil float-right"></span>
+                                <span data-target="#quote-description-analytes" data-row="${row_no}" data-samplecode="${type_name}" data-toggle="modal" data-sampletype="${sample_code}" class="btn btn-outline-success btn-sm mdi mdi-pencil float-right"></span>
                                 </p>
-                                <p class="mb-0"><b>Description:</b></p>
+                                <p class="mb-0"><b>Parameters:</b></p>
                             `);
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(header);
-                var analytes_accreditted = [];
-                var analyte_sub = [];
-                var sub_acc = [];
-                var default_analytes = [];
-                $('[name="selected_analyte[]"]').each(function(e) {
-                    // console.log(this);
-                    var parent_tr = $(this).parents('tr');
+                $desc.append(header);
+                state.spans.forEach(function(html) {
+                    $desc.append(html);
+                });
+                $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(state.analytes_accreditted.toString()));
+                $desc.append($('<input type="hidden" name="sub_analytes[]">').val(state.analyte_sub.toString()));
+                $desc.append($('<input type="hidden" name="sub_acc[]">').val(state.sub_acc.toString()));
+                $desc.append($('<input type="hidden" name="default_analytes[]">').val(state.default_analytes.toString()));
+                $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
 
-                    if ($(this).prop('checked')) {
-                        var analyte_name = parent_tr.find('#analyte-name').val();
-                        var analyte_id = parent_tr.find('#selected-analytes').val();
-                        var analyte_text = '';
-                        if (parent_tr.find('#accreditted').prop('checked') && !parent_tr.find('#sub_contracted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`)
-
-                            analytes_accreditted.push(analyte_id);
-                        }
-                        if (parent_tr.find('#sub_contracted').prop('checked') && !parent_tr.find('#accreditted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name}*, </span>`)
-                            analyte_sub.push(analyte_id);
-                        }
-                        if (parent_tr.find('#accreditted').prop('checked') && parent_tr.find('#sub_contracted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name} * <img src="/images/tick.png" alt="tick" height="8" width="8">,</span> `);
-                            sub_acc.push(analyte_id);
-                        }
-                        if (!parent_tr.find('#accreditted').prop('checked') && !parent_tr.find('#sub_contracted').prop('checked')) {
-                            analyte_text = $(`<span>${analyte_name}, </span>`);
-                            default_analytes.push(analyte_id);
-                        }
-
-
-                        $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(analyte_text);
-                    }
-                    ++loop;
-
-                })
-                var test = analyte_sub.toString();
-                var accredited_input = $(`<input type="hidden" name="accreditted_analytes[]" value="${analytes_accreditted.toString()}">`);
-                var sub_input = $(`<input type="hidden" name="sub_analytes[]" value="${test}">`);
-                var sub_acc_input = $(`<input type="hidden" name="sub_acc[]" value="${sub_acc.toString()}">`);
-                var default_a = $(`<input type="hidden" name="default_analytes[]" value="${default_analytes.toString()}">`);
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(accredited_input);
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(sub_input);
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(sub_acc_input);
-                $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description').append(default_a);
-                refreshQuotationRowPricingHint($('#create-detail').find('tr#detail-row-' + row_no), true);
-                row_no = '';
-                $('#quote-description-analytes').modal('toggle');
+                var $row = $('#create-detail').find('tr#detail-row-' + row_no);
+                if (state.maxTat !== null) {
+                    $row.find('.quotation-tat').val(state.maxTat);
+                } else {
+                    $row.find('.quotation-tat').val('');
+                }
+                refreshQuotationRowPricingHint($row, true);
+                $('#quote-description-analytes').modal('hide');
             });
-
         });
+
         var quoteAnalytesRow = function(data) {
             var check_acc = 'checked';
             var check_sub = '';
@@ -1488,7 +1579,7 @@
                 check_acc = '';
             }
             if (data.acc == 1 && data.present == 1) {
-                check_acc = '';
+                check_acc = 'checked';
             }
             if (data.sub == 1) {
                 check_sub = 'checked'
@@ -1506,15 +1597,31 @@
                 selected = ''
             }
 
+            var loqVal = (data.loq !== null && typeof data.loq !== 'undefined') ? data.loq : '';
+            var muVal = (data.mu_percent !== null && typeof data.mu_percent !== 'undefined') ? data.mu_percent : '';
+            var reportingTime = (data.reporting_time !== null && typeof data.reporting_time !== 'undefined' && data.reporting_time !== '')
+                ? data.reporting_time
+                : '';
+            var tatDisplay = reportingTime !== '' ? reportingTime : '—';
+
             var analyte_row = $(`
-                <tr>
+                <tr data-reporting-time="${reportingTime}">
                     <td><input type="checkbox" name="selected_analyte[]" id="selected-analytes" value="${data.id}" ${selected}></td>
                     <td>
                         <input type="text" name="analyte_name[]" id="analyte-name" class="border-0" readonly="true" value="${data.analyte_name}" >
                         <input type="hidden" name="analyte_id[]" id="analyte-id" class="border-0" readonly="true" value="${data.analyte_id}" >
-                    </td> 
+                    </td>
                     <td><input type="checkbox" name="accreditted" id="accreditted" ${check_acc}></td>
-                    <td><input type="checkbox" name="sub_contracted" id="sub_contracted" ${check_sub}></td>    
+                    <td><input type="checkbox" name="sub_contracted" id="sub_contracted" ${check_sub}></td>
+                    <td style="min-width: 90px;">
+                        <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${data.id}">
+                    </td>
+                    <td style="min-width: 70px;">
+                        <input type="text" class="form-control form-control-sm analyte-mu" value="${muVal}" readonly>
+                    </td>
+                    <td class="text-center align-middle" style="min-width: 56px;" title="Element TAT (days); line uses the highest selected">
+                        <span class="font-weight-bold">${tatDisplay}</span>
+                    </td>
                 </tr>
             `);
             var $row = analyte_row.clone();
@@ -1727,6 +1834,30 @@
         });
         $('tbody').append($row);
     }
+
+    (function () {
+        var select = document.getElementById('quote-payments');
+        var wrap = document.getElementById('quote-payments-custom-wrap');
+        var custom = document.getElementById('quote-payments-custom');
+        if (!select || !wrap || !custom) {
+            return;
+        }
+
+        function syncPaymentsCustom(clearWhenHidden) {
+            var option = select.options[select.selectedIndex];
+            var allowsCustom = option && option.getAttribute('data-allows-custom') === '1';
+            wrap.style.display = allowsCustom ? '' : 'none';
+            custom.required = false;
+            if (!allowsCustom && clearWhenHidden) {
+                custom.value = '';
+            }
+        }
+
+        select.addEventListener('change', function () {
+            syncPaymentsCustom(true);
+        });
+        syncPaymentsCustom(false);
+    })();
 </script>
 
 

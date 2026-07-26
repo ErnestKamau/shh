@@ -348,7 +348,7 @@
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">{{ __('crm.payment_method') }} <span class="text-danger">*</span></label>
-                                                <select wire:model.live="customerForm.payment_method" class="form-control">
+                                                <select wire:model.live="customerForm.payment_method" class="form-select modern-select payment-method-select">
                                                     <option value="">{{ __('crm.select_payment_method') }}</option>
                                                     @foreach($this->paymentMethodOptions as $value => $label)
                                                         <option value="{{ $value }}">{{ $label }}</option>

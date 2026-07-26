@@ -152,7 +152,7 @@
                     <th nowrap>Decimal Places</th>
                     <th nowrap>Reporting Symbol</th>
                     <th nowrap>Reporting Unit</th>
-                    <th>Reporting Time</th>
+                    <th nowrap title="Turnaround time (days)">TAT</th>
                     <th>L.O.D.</th>
                     <th>Significant Figures</th>
                     <th>Has Formular</th>
@@ -483,8 +483,9 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="" class="control-label">Reporting Time</label>
-          <input type="number" name="report_time" value="{{$analysis_type->reporting_time}}" class="form-control">
+          <label for="" class="control-label">TAT (days)</label>
+          <input type="number" name="report_time" value="{{$analysis_type->reporting_time}}" class="form-control" min="0" placeholder="Overrides analysis type TAT when set">
+          <small class="text-muted">Leave blank or 0 to inherit the analysis type TAT.</small>
         </div>
         <div class="form-group">
           <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" value="1" id=""> Remark Capture is Manual</label>
@@ -661,8 +662,9 @@
               </select>
             </div>
         <div class="form-group">
-          <label for="" class="control-label">Reporting Time</label>
-          <input type="number" name="report_time" value="${data.reporting_time}" class="form-control">
+          <label for="" class="control-label">TAT (days)</label>
+          <input type="number" name="report_time" value="${data.reporting_time}" class="form-control" min="0" placeholder="Overrides analysis type TAT when set">
+          <small class="text-muted">Leave blank or 0 to inherit the analysis type TAT.</small>
         </div>
         <div class="form-group">
           <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" ${data.remark_is_manual == 1 ? 'checked' : ''} value="1" id=""> Remark Capture is Manual</label>
