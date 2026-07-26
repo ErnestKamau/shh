@@ -71,7 +71,7 @@ class QuotationManager extends Component
 
     public function getQuotationsProperty()
     {
-        $query = QuotationHeaderView::where('is_draft', 0);
+        $query = QuotationHeaderView::with('preparedBy')->where('is_draft', 0);
 
         if ($this->search) {
             $query->where(function($q) {
@@ -100,7 +100,7 @@ class QuotationManager extends Component
 
     public function getDraftsProperty()
     {
-        return QuotationHeaderView::where('is_draft', 1)
+        return QuotationHeaderView::with('preparedBy')->where('is_draft', 1)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

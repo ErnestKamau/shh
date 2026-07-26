@@ -56,11 +56,11 @@ class QuotationController extends Controller
     public function index($stage = false)
     {
         if ($stage != false) {
-            $quotations = QuotationHeaderView::where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeaderView::where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
         } else {
-            $quotations = QuotationHeaderView::where('is_draft', 0)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->orderBy('id', 'desc')->get();
+            $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->orderBy('id', 'desc')->get();
             $stage = 'All Quotations';
         }
 
@@ -129,21 +129,21 @@ class QuotationController extends Controller
     {
 
 
-        $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
+        $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->orderBy('id', 'desc')->get();
         if ($request->quote_type == 'Analysis') {
             $quotations_d = QuotationDetails::query();
             $quotations_d = $request->sample_type_id != '' ? $quotations_d->where('sample_type', $request->sample_type_id) : $quotations_d;
             $analysis_detail_ids = $request->analysis_type_id != '' ? QuotationDetailAnalysisSplit::where('id', $request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
             $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id', $analysis_detail_ids) : $quotations_d;
             $quotations_d_ids = $quotations_d->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id', $quotations_d_ids);
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->whereIn('id', $quotations_d_ids);
 
             $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
             $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
         }
         if ($request->quote_type == 'General') {
             $quotations_d = QuotationDetails::where('description', 'LIKE', '%' . $request->item_description . '%')->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id', $quotations_d);
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->whereIn('id', $quotations_d);
 
             $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
             $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
