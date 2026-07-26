@@ -175,7 +175,7 @@
                             </div>
                         @elseif($customer->has_contract && $activeTab == 'contracts')
                             <div class="tab-pane fade show active p-3" id="Contracts" role="tabpanel">
-                                @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerContractsTab::class, ['customer' => $customer], key('tab-contracts-' . $customer->id))
+                                @livewire('crm.customer.tabs.customer-contracts-tab', ['customer' => $customer], key('tab-contracts-' . $customer->id))
                             </div>
                         {{-- Configurations tab disabled
                         @elseif($activeTab == 'configurations')

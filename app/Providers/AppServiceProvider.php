@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\View;
 use Livewire\Livewire;
 use App\Livewire\Personnel\Zones\ConfigurationManager as PersonnelZonesConfigurationManager;
 use App\Livewire\Personnel\Zones\Manager as PersonnelZonesManager;
+use App\Livewire\Crm\Customer\Tabs\CustomerContractsTab;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -105,5 +106,9 @@ class AppServiceProvider extends ServiceProvider
         Livewire::component('zone-manager', PersonnelZonesManager::class);
         Livewire::component('personnel.zones.zone-manager', PersonnelZonesManager::class);
         Livewire::component('personnel.zones.manager', PersonnelZonesManager::class);
+
+        // Explicit alias: namespace is App\Livewire\Crm\* while directory is app/Livewire/CRM
+        // (case mismatch breaks PSR-4 autoload on Linux without a classmap dump).
+        Livewire::component('crm.customer.tabs.customer-contracts-tab', CustomerContractsTab::class);
     }
 }
