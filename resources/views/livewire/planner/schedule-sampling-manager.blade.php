@@ -140,18 +140,19 @@
     <div class="card shadow-sm border-0" style="border-radius:15px;">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 schedule-sampling-table">
                     <thead style="background:rgba(0,0,0,.03);">
                         <tr>
-                            <th class="border-0">Title</th>
-                            <th class="border-0">Client</th>
-                            <th class="border-0">Date & Time</th>
-                            <th class="border-0">Location</th>
-                            <th class="border-0">Sample Details</th>
-                            <th class="border-0">Samples</th>
+                            <th class="border-0" style="min-width:160px;">Title</th>
+                            <th class="border-0" style="min-width:140px;">Client</th>
+                            <th class="border-0" style="min-width:130px;">Date & Time</th>
+                            <th class="border-0" style="min-width:120px;">Location</th>
+                            <th class="border-0" style="min-width:220px;">Sample Details</th>
+                            <th class="border-0 text-center">Samples</th>
                             <th class="border-0">Frequency</th>
-                            <th class="border-0">Personnel</th>
-                            <th class="border-0 text-center">Actions</th>
+                            <th class="border-0" style="min-width:140px;">Personnel</th>
+                            <th class="border-0 text-center">Forms</th>
+                            <th class="border-0 text-center" style="min-width:150px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -174,19 +175,44 @@
                             <td><i class="mdi mdi-map-marker text-danger mr-1"></i>{{ $s->locationDisplayName() }}</td>
                             <td>
                                 @php $details = $this->resolveSampleDetails($s); @endphp
-                                @foreach($details as $d)
-                                    <span class="badge badge-info p-1 mb-1 d-inline-block">{{ $d['type'] }}</span>
-                                    @if($d['analysis'])<span class="badge badge-secondary p-1 mb-1 d-inline-block">{{ $d['analysis'] }}</span>@endif
-                                    @if($d['params_count'] > 0)<small class="text-muted d-block" style="font-size:11px;">{{ $d['params_count'] }} params</small>@endif
-                                @endforeach
-                                @if(empty($details))<span class="text-muted">—</span>@endif
+                                @if(!empty($details))
+                                <div class="schedule-sample-details">
+                                    @foreach($details as $d)
+                                    <div class="schedule-sample-detail-item">
+                                        <div class="schedule-sample-detail-type">{{ $d['type'] }}</div>
+                                        @if(!empty($d['analysis']))
+                                        <div class="schedule-sample-detail-analysis">{{ $d['analysis'] }}</div>
+                                        @endif
+                                        <div class="schedule-sample-detail-params">{{ $d['params_count'] }} parameter{{ $d['params_count'] === 1 ? '' : 's' }}</div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @else
+                                <span class="text-muted">—</span>
+                                @endif
                             </td>
                             <td class="text-center font-weight-bold">{{ $s->number_of_samples }}</td>
                             <td><span class="badge badge-outline-primary">{{ $s->frequency }}</span></td>
-                            <td><span class="badge badge-dark p-2"><i class="mdi mdi-account-tie mr-1"></i>{{ $s->personnelNames() }}</span></td>
+                            <td>
+                                @php $personnelLabel = $s->personnelNames(); @endphp
+                                <span class="badge badge-dark p-2 text-wrap text-left" style="white-space:normal;max-width:180px;">
+                                    <i class="mdi mdi-account-tie mr-1"></i>{{ $personnelLabel }}
+                                </span>
+                            </td>
                             <td class="text-center">
-                                <div class="d-flex justify-content-center">
+                                @php $formCount = $s->submissionFormInstances->count(); @endphp
+                                <button type="button"
+                                        class="btn btn-sm {{ $formCount > 0 ? 'btn-outline-info' : 'btn-outline-secondary' }}"
+                                        style="border-radius:20px;min-width:42px;"
+                                        wire:click="viewTrfForms('{{ $s->id }}')"
+                                        title="View filled test request forms">
+                                    {{ $formCount }}
+                                </button>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center flex-wrap">
                                     <button wire:click="openScheduleFormModal('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--form" title="Fill Request Form"><i class="mdi mdi-file-document-edit"></i></button>
+                                    <button wire:click="viewTrfForms('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--forms" title="View Request Forms"><i class="mdi mdi-file-document-multiple-outline"></i></button>
                                     <button wire:click="viewSchedule('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View"><i class="mdi mdi-eye"></i></button>
                                     <button wire:click="showEditModal('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="Edit"><i class="mdi mdi-pencil"></i></button>
                                     <button wire:click="delete('{{ $s->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this schedule?')"><i class="mdi mdi-delete"></i></button>
@@ -195,7 +221,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="mdi mdi-calendar-blank fa-3x mb-3 text-secondary"></i>
                                 <p class="mb-0">No sampling schedules created yet.</p>
                             </td>
@@ -678,9 +704,18 @@
                         @endif
 
                         {{-- Tied Request Forms --}}
-                        @if($viewingSchedule->submissionFormInstances->count() > 0)
                         <div class="mb-4">
-                            <h6 class="font-weight-bold text-uppercase text-muted mb-2" style="font-size:12px;letter-spacing:1px;"><i class="mdi mdi-file-document-outline mr-1"></i>Tied Request Forms</h6>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold text-uppercase text-muted mb-0" style="font-size:12px;letter-spacing:1px;">
+                                    <i class="mdi mdi-file-document-outline mr-1"></i>Test Request Forms
+                                    <span class="badge badge-light ml-1">{{ $viewingSchedule->submissionFormInstances->count() }}</span>
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:16px;"
+                                        wire:click="viewTrfForms('{{ $viewingSchedule->id }}')">
+                                    View all
+                                </button>
+                            </div>
+                            @if($viewingSchedule->submissionFormInstances->count() > 0)
                             <div class="p-0" style="background:#fafbfc;border-radius:8px;border:1px solid #eee;overflow:hidden;max-height: 250px; overflow-y: auto;">
                                 <table class="table table-sm table-borderless mb-0">
                                     <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
@@ -692,7 +727,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($viewingSchedule->submissionFormInstances as $instance)
+                                        @foreach($viewingSchedule->submissionFormInstances->take(5) as $instance)
                                         <tr style="border-top: 1px solid #eee;">
                                             <td class="px-3 py-2">
                                                 <div class="font-weight-bold" style="font-size:13px;color:#333;">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
@@ -712,8 +747,12 @@
                                     </tbody>
                                 </table>
                             </div>
+                            @else
+                            <div class="alert alert-light border mb-0" style="border-radius:8px;">
+                                No test request forms have been filled for this schedule yet.
+                            </div>
+                            @endif
                         </div>
-                        @endif
 
                         {{-- Description --}}
                         @if($viewingSchedule->description)
@@ -729,6 +768,75 @@
                 <div class="modal-footer bg-light p-3" style="flex-shrink:0;">
                     <button type="button" class="btn btn-secondary" wire:click="closeModal"><i class="mdi mdi-close mr-1"></i>Close</button>
                     <button type="button" class="btn btn-primary" wire:click="showEditModal('{{ $viewingSchedule->id }}')"><i class="mdi mdi-pencil mr-1"></i>Edit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- ═══ TRF FORMS LIST MODAL ═══ -->
+    @if($showTrfFormsModal && $viewingTrfSchedule)
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
+                    <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-file-document-multiple-outline mr-2"></i>Test Request Forms</h5>
+                    <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body p-4" style="overflow-y:auto;flex:1 1 auto;">
+                    <div class="mb-3">
+                        <h5 class="font-weight-bold mb-1">{{ $viewingTrfSchedule->title }}</h5>
+                        <div class="text-muted small">
+                            {{ $viewingTrfSchedule->client->name ?? 'N/A' }}
+                            · {{ $viewingTrfSchedule->sampling_datetime ? $viewingTrfSchedule->sampling_datetime->format('Y-m-d H:i') : 'N/A' }}
+                            · {{ $viewingTrfSchedule->locationDisplayName() }}
+                        </div>
+                    </div>
+
+                    @if($viewingTrfSchedule->submissionFormInstances->count() > 0)
+                    <div class="table-responsive" style="border:1px solid #eee;border-radius:10px;overflow:hidden;">
+                        <table class="table table-hover mb-0">
+                            <thead style="background:#f8f9fa;">
+                                <tr>
+                                    <th class="border-0 px-3 py-2">Form</th>
+                                    <th class="border-0 px-3 py-2">Sample Type</th>
+                                    <th class="border-0 px-3 py-2">Submitted By</th>
+                                    <th class="border-0 px-3 py-2">Status</th>
+                                    <th class="border-0 px-3 py-2">Date</th>
+                                    <th class="border-0 px-3 py-2 text-center">Open</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($viewingTrfSchedule->submissionFormInstances as $instance)
+                                <tr>
+                                    <td class="px-3 py-2 font-weight-bold">{{ $instance->submissionForm?->name ?? 'Request Form' }}</td>
+                                    <td class="px-3 py-2">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</td>
+                                    <td class="px-3 py-2">{{ $instance->submittedBy?->name ?? 'N/A' }}</td>
+                                    <td class="px-3 py-2"><span class="badge badge-success">{{ ucfirst($instance->status) }}</span></td>
+                                    <td class="px-3 py-2 text-muted">{{ $instance->submitted_at?->format('M d, Y H:i') ?? $instance->created_at?->format('M d, Y H:i') }}</td>
+                                    <td class="px-3 py-2 text-center">
+                                        <a href="{{ route('test-request-form.preview', $instance->id) }}" target="_blank" class="btn btn-sm btn-outline-primary" style="border-radius:16px;">
+                                            <i class="mdi mdi-open-in-new"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="alert alert-light border mb-0" style="border-radius:10px;">
+                        <i class="mdi mdi-information-outline mr-1"></i>
+                        No test request forms have been filled for this schedule yet.
+                        Use the yellow form icon on the schedule row to fill one.
+                    </div>
+                    @endif
+                </div>
+                <div class="modal-footer bg-light p-3" style="flex-shrink:0;">
+                    <button type="button" class="btn btn-secondary" wire:click="closeModal">Close</button>
+                    <button type="button" class="btn btn-primary" wire:click="openScheduleFormModal('{{ $viewingTrfSchedule->id }}')">
+                        <i class="mdi mdi-plus mr-1"></i>Fill Request Form
+                    </button>
                 </div>
             </div>
         </div>
@@ -801,12 +909,22 @@
     .rm-act-btn:last-child{margin-right:0;}
     .rm-act-btn--form{border:1px solid #ffeeba;color:#856404;background:#fff3cd;}
     .rm-act-btn--form:hover{background:#ffeeba;border-color:#ffdf7e;}
+    .rm-act-btn--forms{border:1px solid #bee5eb;color:#0c5460;background:#d1ecf1;}
+    .rm-act-btn--forms:hover{background:#bee5eb;border-color:#9fdbE5;}
     .rm-act-btn--view{border:1px solid #c3e6cb;color:#155724;background:#d4edda;}
     .rm-act-btn--view:hover{background:#c3e6cb;border-color:#a3d5b5;}
     .rm-act-btn--edit{border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;}
     .rm-act-btn--edit:hover{background:#dbeafe;border-color:#93c5fd;}
     .rm-act-btn--delete{border:1px solid #fecaca;color:#b91c1c;background:#fef2f2;}
     .rm-act-btn--delete:hover{background:#fee2e2;border-color:#fca5a5;}
+    .schedule-sampling-table td{vertical-align:top;padding-top:0.85rem;padding-bottom:0.85rem;}
+    .schedule-sample-details{display:flex;flex-direction:column;gap:8px;}
+    .schedule-sample-detail-item{
+        background:#f8fafc;border:1px solid #e8ecf2;border-radius:8px;padding:8px 10px;
+    }
+    .schedule-sample-detail-type{font-weight:700;font-size:12px;color:#1f2937;line-height:1.3;}
+    .schedule-sample-detail-analysis{font-size:11px;color:#4b5563;margin-top:2px;}
+    .schedule-sample-detail-params{font-size:11px;color:#6b7280;margin-top:2px;}
     .schedule-sampling-page .select2-container{width:100%!important;}
     .schedule-sampling-page .select2-container--default .select2-selection--single,
     .schedule-sampling-page .select2-container--default .select2-selection--multiple{

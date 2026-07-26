@@ -32,8 +32,10 @@ class ScheduleSamplingManager extends Component
     // UI State
     public $showModal = false;
     public $showViewModal = false;
+    public $showTrfFormsModal = false;
     public $editingSchedule = null;
     public $viewingSchedule = null;
+    public $viewingTrfSchedule = null;
     public bool $showFormModal = false;
     public ?string $selectedScheduleId = null;
     public ?string $selectedSampleTypeId = null;
@@ -123,7 +125,15 @@ class ScheduleSamplingManager extends Component
     {
         $companyId = getUserCompany();
 
-        $query = SamplingSchedule::with(['client', 'contact', 'samplePoint', 'sample_type', 'analysis_type', 'personnel'])
+        $query = SamplingSchedule::with([
+            'client',
+            'contact',
+            'samplePoint',
+            'sample_type',
+            'analysis_type',
+            'personnel',
+            'submissionFormInstances',
+        ])
             ->where('company_id', $companyId)
             ->orderBy('sampling_datetime', 'desc');
 
@@ -384,10 +394,27 @@ class ScheduleSamplingManager extends Component
         $this->showViewModal = true;
     }
 
+    public function viewTrfForms($id)
+    {
+        $this->showViewModal = false;
+        $this->viewingSchedule = null;
+        $this->viewingTrfSchedule = SamplingSchedule::with([
+            'client',
+            'submissionFormInstances' => function ($query) {
+                $query->orderByDesc('submitted_at')->orderByDesc('created_at');
+            },
+            'submissionFormInstances.submissionForm.sampleTypes',
+            'submissionFormInstances.submittedBy',
+        ])->findOrFail($id);
+        $this->showTrfFormsModal = true;
+    }
+
     public function closeModal()
     {
         $this->showModal = false;
         $this->showViewModal = false;
+        $this->showTrfFormsModal = false;
+        $this->viewingTrfSchedule = null;
         $this->resetForm();
     }
 
@@ -417,6 +444,7 @@ class ScheduleSamplingManager extends Component
         $this->selectedContactsSummary = [];
         $this->editingSchedule = null;
         $this->viewingSchedule = null;
+        $this->viewingTrfSchedule = null;
         $this->closeAddSamplePointModal();
     }
 
@@ -1023,38 +1051,71 @@ class ScheduleSamplingManager extends Component
 
     /**
      * Resolve sample details to display names for the view/table.
+     *
+     * @return list<array{type: string, analysis: string, params_count: int, param_names?: list<string>}>
      */
     public function resolveSampleDetails($schedule)
     {
         $details = $schedule->sample_details;
-        if (empty($details) || !is_array($details)) {
-            // Fallback to legacy single FK
+        if (empty($details) || ! is_array($details)) {
             $info = [];
             if ($schedule->sample_type) {
-                $info[] = ['type' => $schedule->sample_type->name, 'analysis' => $schedule->analysis_type->name ?? '', 'params_count' => count($schedule->parameters ?? [])];
+                $info[] = [
+                    'type' => (string) $schedule->sample_type->name,
+                    'analysis' => (string) ($schedule->analysis_type->name ?? ''),
+                    'params_count' => count($schedule->parameters ?? []),
+                ];
             }
+
             return $info;
         }
 
+        $sampleTypeIds = [];
+        $analysisTypeIds = [];
+        foreach ($details as $entry) {
+            if (! empty($entry['sample_type_id'])) {
+                $sampleTypeIds[] = (string) $entry['sample_type_id'];
+            }
+            if (! empty($entry['analysis_type_id'])) {
+                $analysisTypeIds[] = (string) $entry['analysis_type_id'];
+            }
+        }
+
+        $sampleTypeNames = SampleType::query()
+            ->whereIn('id', array_values(array_unique($sampleTypeIds)))
+            ->pluck('name', 'id');
+        $analysisTypeNames = AnalysisType::query()
+            ->whereIn('id', array_values(array_unique($analysisTypeIds)))
+            ->pluck('name', 'id');
+
         $result = [];
         foreach ($details as $entry) {
-            $stName = '';
-            $atName = '';
+            $stId = (string) ($entry['sample_type_id'] ?? '');
+            $atId = (string) ($entry['analysis_type_id'] ?? '');
             $paramsCount = count(array_values(array_unique(array_filter(array_map(
                 'strval',
                 $entry['parameters'] ?? []
             )))));
 
-            if (!empty($entry['sample_type_id'])) {
-                $st = SampleType::find($entry['sample_type_id']);
-                $stName = $st ? $st->name : '';
+            $stName = trim((string) ($sampleTypeNames[$stId] ?? ''));
+            $atName = trim((string) ($analysisTypeNames[$atId] ?? ''));
+
+            if ($stName === '' && $stId !== '') {
+                $stName = 'Unknown sample type';
             }
-            if (!empty($entry['analysis_type_id'])) {
-                $at = AnalysisType::find($entry['analysis_type_id']);
-                $atName = $at ? $at->name : '';
+            if ($atName === '' && $atId !== '') {
+                $atName = 'Unknown analysis type';
             }
 
-            $result[] = ['type' => $stName, 'analysis' => $atName, 'params_count' => $paramsCount];
+            if ($stName === '' && $atName === '' && $paramsCount === 0) {
+                continue;
+            }
+
+            $result[] = [
+                'type' => $stName !== '' ? $stName : '—',
+                'analysis' => $atName,
+                'params_count' => $paramsCount,
+            ];
         }
 
         return $result;
@@ -1062,56 +1123,79 @@ class ScheduleSamplingManager extends Component
 
     /**
      * Resolve detailed sample info including parameter names for the view modal.
+     *
+     * @return list<array{type: string, analysis: string, params_count: int, param_names: list<string>}>
      */
     public function resolveDetailedSampleDetails($schedule)
     {
         $details = $schedule->sample_details;
-        if (empty($details) || !is_array($details)) {
+        if (empty($details) || ! is_array($details)) {
             $info = [];
             if ($schedule->sample_type) {
-                $parameterIds = $schedule->parameters ?? [];
-                $paramNames = [];
-                if (!empty($parameterIds)) {
-                    $paramNames = \App\Analyte::whereIn('id', $parameterIds)
-                        ->pluck('name')
-                        ->toArray();
-                }
+                $parameterIds = array_values(array_unique(array_filter(array_map('strval', $schedule->parameters ?? []))));
+                $paramNames = $parameterIds !== []
+                    ? \App\Analyte::whereIn('id', $parameterIds)->pluck('name')->toArray()
+                    : [];
                 $info[] = [
-                    'type' => $schedule->sample_type->name,
-                    'analysis' => $schedule->analysis_type->name ?? '',
+                    'type' => (string) $schedule->sample_type->name,
+                    'analysis' => (string) ($schedule->analysis_type->name ?? ''),
                     'params_count' => count($parameterIds),
                     'param_names' => $paramNames,
                 ];
             }
+
             return $info;
         }
 
+        $sampleTypeIds = [];
+        $analysisTypeIds = [];
+        $allParamIds = [];
+        foreach ($details as $entry) {
+            if (! empty($entry['sample_type_id'])) {
+                $sampleTypeIds[] = (string) $entry['sample_type_id'];
+            }
+            if (! empty($entry['analysis_type_id'])) {
+                $analysisTypeIds[] = (string) $entry['analysis_type_id'];
+            }
+            foreach (array_values(array_filter(array_map('strval', $entry['parameters'] ?? []))) as $paramId) {
+                $allParamIds[] = $paramId;
+            }
+        }
+
+        $sampleTypeNames = SampleType::query()
+            ->whereIn('id', array_values(array_unique($sampleTypeIds)))
+            ->pluck('name', 'id');
+        $analysisTypeNames = AnalysisType::query()
+            ->whereIn('id', array_values(array_unique($analysisTypeIds)))
+            ->pluck('name', 'id');
+        $paramNameMap = $allParamIds !== []
+            ? \App\Analyte::query()->whereIn('id', array_values(array_unique($allParamIds)))->pluck('name', 'id')
+            : collect();
+
         $result = [];
         foreach ($details as $entry) {
-            $stName = '';
-            $atName = '';
+            $stId = (string) ($entry['sample_type_id'] ?? '');
+            $atId = (string) ($entry['analysis_type_id'] ?? '');
+            $parameterIds = array_values(array_unique(array_filter(array_map('strval', $entry['parameters'] ?? []))));
             $paramNames = [];
-            $parameterIds = array_values(array_unique(array_filter(array_map(
-                'strval',
-                $entry['parameters'] ?? []
-            ))));
+            foreach ($parameterIds as $paramId) {
+                $name = trim((string) ($paramNameMap[$paramId] ?? ''));
+                if ($name !== '') {
+                    $paramNames[] = $name;
+                }
+            }
 
-            if (!empty($entry['sample_type_id'])) {
-                $st = SampleType::find($entry['sample_type_id']);
-                $stName = $st ? $st->name : '';
+            $stName = trim((string) ($sampleTypeNames[$stId] ?? ''));
+            $atName = trim((string) ($analysisTypeNames[$atId] ?? ''));
+            if ($stName === '' && $stId !== '') {
+                $stName = 'Unknown sample type';
             }
-            if (!empty($entry['analysis_type_id'])) {
-                $at = AnalysisType::find($entry['analysis_type_id']);
-                $atName = $at ? $at->name : '';
-            }
-            if (!empty($parameterIds)) {
-                $paramNames = \App\Analyte::whereIn('id', $parameterIds)
-                    ->pluck('name')
-                    ->toArray();
+            if ($atName === '' && $atId !== '') {
+                $atName = 'Unknown analysis type';
             }
 
             $result[] = [
-                'type' => $stName,
+                'type' => $stName !== '' ? $stName : '—',
                 'analysis' => $atName,
                 'params_count' => count($parameterIds),
                 'param_names' => $paramNames,
@@ -1158,6 +1242,8 @@ class ScheduleSamplingManager extends Component
 
     public function openScheduleFormModal($scheduleId)
     {
+        $this->showTrfFormsModal = false;
+        $this->viewingTrfSchedule = null;
         $this->selectedScheduleId = $scheduleId;
         $this->selectedSampleTypeId = null;
         $this->formData = [];
