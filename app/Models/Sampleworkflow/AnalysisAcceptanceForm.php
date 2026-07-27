@@ -34,7 +34,6 @@ class AnalysisAcceptanceForm extends Model
 
     protected $fillable = [
         'status',
-        'test_request_form_instance_id',
         'submission_form_instance_id',
         'sample_submission_request_id',
         'crm_customer_id',

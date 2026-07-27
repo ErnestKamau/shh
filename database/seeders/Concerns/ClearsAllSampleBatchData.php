@@ -21,12 +21,11 @@ trait ClearsAllSampleBatchData
         $deletedAcceptanceForms = $this->deleteAllFromTable($db, 'analysis_acceptance_forms');
         $deletedSampleHeaders = $this->deleteAllFromTable($db, 'sample_headers');
         $deletedQuotations = $this->deleteQuotationsLinkedToEnquiries($db);
-        $deletedTrfInstances = $this->deleteAllFromTable($db, 'test_request_form_instances');
         $deletedSubmissionInstances = $this->deleteAllFromTable($db, 'submission_form_instances');
         $deletedEnquiries = $this->deleteAllFromTable($db, 'sample_submission_requests');
 
         $this->command?->info(sprintf(
-            'Cleared all sample/batch workflow data: %d headers, %d details, %d captured results, %d results, %d TAT rows, %d QC results, %d acceptance forms, %d enquiries, %d TRF instances, %d submission instances, %d enquiry quotations.',
+            'Cleared all sample/batch workflow data: %d headers, %d details, %d captured results, %d results, %d TAT rows, %d QC results, %d acceptance forms, %d enquiries, %d submission instances, %d enquiry quotations.',
             $deletedSampleHeaders,
             $deletedSampleDetails,
             $deletedCaptured,
@@ -35,7 +34,6 @@ trait ClearsAllSampleBatchData
             $deletedQcResults,
             $deletedAcceptanceForms,
             $deletedEnquiries,
-            $deletedTrfInstances,
             $deletedSubmissionInstances,
             $deletedQuotations,
         ));

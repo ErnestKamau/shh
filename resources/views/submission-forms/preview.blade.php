@@ -2,79 +2,81 @@
 
 @section('title2')
   <title>Preview - {{ $submissionForm->name }}</title>
+  @include('submission-forms.partials.lab-theme-styles')
 @endsection
 
 @section('content2')
   <main>
-    <?php
-      $items = array(
-        array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.index'),
-          'name' => 'Submission Forms',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.show', $submissionForm),
+    @php
+      $fromRft = request()->query('from') === 'rft' || $submissionForm->isTestRequestTemplate();
+      $items = [
+        [
+          'link' => route('dashboard-lab'),
+          'name' => 'Dashboard',
+          'icon' => null,
+        ],
+        [
+          'link' => $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index'),
+          'name' => $fromRft ? 'Request For Testing' : 'Submission Forms',
+          'icon' => null,
+        ],
+        [
+          'link' => route('submission-forms.show', ['submissionForm' => $submissionForm, 'from' => $fromRft ? 'rft' : null]),
           'name' => $submissionForm->name,
-          'icon' => null
-        ),
-        array(
+          'icon' => null,
+        ],
+        [
           'link' => '#',
           'name' => 'Preview',
-          'icon' => null
-        )
-      );
-    ?>
+          'icon' => null,
+        ],
+      ];
+    @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <div>
-        <h2>
-          <i class="mdi mdi-eye-outline"></i> Form Preview
-          <small class="text-muted">{{ $submissionForm->name }}</small>
-        </h2>
-        <div class="alert alert-info mt-2 mb-0">
-          <i class="mdi mdi-information-outline"></i>
-          <strong>Preview Mode:</strong> This is how the form will appear to users. Test data entered here will not be saved.
+
+    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme sf-admin-page px-3 px-md-4 pt-2 pb-4">
+      <div class="workflow-board-panel mb-3">
+        <div class="workflow-board-panel-header">
+          <div>
+            <h5 class="sf-page-title mb-0">
+              <i class="mdi mdi-eye-outline"></i> Form Preview
+            </h5>
+            <p class="sf-page-subtitle">{{ $submissionForm->name }}</p>
+          </div>
+          <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
+            <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-sm btn-primary btn-action-sm">
+              <i class="mdi mdi-cog"></i> Edit Form
+            </a>
+            <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+              <i class="mdi mdi-arrow-left"></i> Back to Form
+            </a>
+          </div>
+        </div>
+        <div class="workflow-board-panel-body pt-0">
+          <div class="sf-alert-soft is-info mb-0">
+            <i class="mdi mdi-information-outline"></i>
+            <strong>Preview Mode:</strong> This is how the form will appear to users. Test data entered here will not be saved.
+          </div>
         </div>
       </div>
-      <div>
-        <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-primary">
-          <i class="mdi mdi-cog"></i> Edit Form
-        </a>
-        <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary">
-          <i class="mdi mdi-arrow-left"></i> Back to Form
-        </a>
-      </div>
-    </div>
 
-    <div class="bg-light p-4">
       <div class="row justify-content-center">
-        <div class="col-md-10">
-          <div class="card">
-            <div class="card-header">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h4 class="mb-1">{{ $submissionForm->name }}</h4>
-                  @if($submissionForm->description)
-                    <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
-                  @endif
-                </div>
-                <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $submissionForm->naming_convention_prefix }}/PREVIEW/001</strong></small>
-                </div>
+        <div class="col-lg-10">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <div>
+                <h6 class="mb-0">{{ $submissionForm->name }}</h6>
+                @if($submissionForm->description)
+                  <p class="sf-page-subtitle mb-0">{{ $submissionForm->description }}</p>
+                @endif
               </div>
+              <span class="sf-meta-chip">{{ $submissionForm->naming_convention_prefix }}/PREVIEW/001</span>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               @if($submissionForm->sections->count() > 0)
                 <form id="preview-form" novalidate>
                   @csrf
-                  
+
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
                       @include('submission-forms.partials.rows-section', [
@@ -82,17 +84,17 @@
                         'existingValues' => $existingValues
                       ])
                     @else
-                                            <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
-                                                <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
-                          <h5 class="text-primary border-bottom pb-2">
-                            <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
-                          </h5>
-                                                    @include('submission-forms.partials.section-logos', ['section' => $section])
+                      <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
+                        <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
+                          <h6 class="mb-2" style="color: var(--workflow-text-main);">
+                            <i class="mdi mdi-folder-outline text-primary"></i> {{ $section->title }}
+                          </h6>
+                          @include('submission-forms.partials.section-logos', ['section' => $section])
                           @if($section->description)
                             <p class="text-muted small mb-0">{!! nl2br(e($section->description)) !!}</p>
                           @endif
                         </div>
-                        
+
                         @foreach($section->elementHolders as $holder)
                           <div class="element-holder mb-3">
                             @if($holder->holder_type === 'field')
@@ -104,10 +106,9 @@
                                 @endforeach
                               </div>
                             @else
-                              {{-- Text holder - for static content --}}
                               @foreach($holder->elements as $element)
                                 <div class="text-element mb-3">
-                                  <div class="alert alert-light">
+                                  <div class="sf-alert-soft is-info mb-0">
                                     <strong>{{ $element->label }}</strong>
                                     @if($element->help_text)
                                       <p class="mb-0 mt-2">{{ $element->help_text }}</p>
@@ -121,61 +122,53 @@
                       </div>
                     @endif
                   @endforeach
-                  
-                  <div class="form-actions mt-4 pt-3 border-top">
-                    <div class="row">
-                      <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-secondary" id="save-draft-btn">
-                          <i class="mdi mdi-content-save-outline"></i> Save as Draft
-                        </button>
-                      </div>
-                      <div class="col-md-6 text-right">
-                        <button type="button" class="btn btn-outline-danger mr-2" id="clear-form-btn">
-                          <i class="mdi mdi-refresh"></i> Clear Form
-                        </button>
-                        <button type="submit" class="btn btn-primary" id="submit-form-btn">
-                          <i class="mdi mdi-check"></i> Submit Form
-                        </button>
-                      </div>
+
+                  <div class="sf-form-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm" id="save-draft-btn">
+                      <i class="mdi mdi-content-save-outline"></i> Save as Draft
+                    </button>
+                    <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
+                      <button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm" id="clear-form-btn">
+                        <i class="mdi mdi-refresh"></i> Clear Form
+                      </button>
+                      <button type="submit" class="btn btn-sm btn-primary btn-action-sm" id="submit-form-btn">
+                        <i class="mdi mdi-check"></i> Submit Form
+                      </button>
                     </div>
                   </div>
                 </form>
               @else
                 <div class="text-center py-5">
-                  <i class="mdi mdi-file-outline" style="font-size: 4rem; color: #ccc;"></i>
-                  <h5 class="text-muted mt-3">No Form Content</h5>
-                  <p class="text-muted">This form doesn't have any sections or elements yet.</p>
-                  <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-primary mt-2">
+                  <i class="mdi mdi-file-outline" style="font-size: 3rem; color: #cbd5e1;"></i>
+                  <h6 class="text-muted mt-3">No Form Content</h6>
+                  <p class="text-muted small">This form doesn't have any sections or elements yet.</p>
+                  <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-sm btn-primary btn-action-sm mt-2">
                     <i class="mdi mdi-cog"></i> Add Content
                   </a>
                 </div>
               @endif
             </div>
           </div>
-          
+
           @if($submissionForm->sections->count() > 0)
-            <!-- Form Validation Summary -->
-            <div class="card mt-3" id="validation-summary" style="display: none;">
-              <div class="card-header bg-danger text-white">
-                <h6 class="mb-0">
-                  <i class="mdi mdi-alert"></i> Please correct the following errors:
-                </h6>
+            <div class="workflow-board-panel mb-3" id="validation-summary" style="display: none;">
+              <div class="workflow-board-panel-header">
+                <h6 class="mb-0 text-danger"><i class="mdi mdi-alert"></i> Please correct the following errors</h6>
               </div>
-              <div class="card-body">
+              <div class="workflow-board-panel-body">
                 <ul id="validation-errors" class="mb-0"></ul>
               </div>
             </div>
-            
-            <!-- Form Data Preview -->
-            <div class="card mt-3">
-              <div class="card-header">
+
+            <div class="workflow-board-panel mb-3">
+              <div class="workflow-board-panel-header">
                 <h6 class="mb-0">
                   <i class="mdi mdi-code-json"></i> Form Data Preview
-                  <small class="text-muted">(for testing purposes)</small>
+                  <span class="sf-meta-chip ml-2">testing</span>
                 </h6>
               </div>
-              <div class="card-body">
-                <pre id="form-data-preview" class="bg-light p-3 rounded"><code>{}</code></pre>
+              <div class="workflow-board-panel-body">
+                <pre id="form-data-preview"><code>{}</code></pre>
               </div>
             </div>
           @endif
@@ -839,111 +832,6 @@ $(document).ready(function() {
 
 <!-- Include SweetAlert2 for better modals -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<style>
-.form-section {
-    border-left: 3px solid var(--color-primary);
-    padding-left: 20px;
-}
-
-.section-header h5 {
-    color: var(--color-primary);
-}
-
-.element-holder {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-/* Form group spacing */
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group:last-child {
-    margin-bottom: 0;
-}
-
-/* Ensure all form controls have minimum width */
-.form-control {
-    min-width: 145px !important;
-    margin-top: 0.5rem;
-}
-
-/* Custom element styling */
-.custom-element {
-    margin-bottom: 1.5rem;
-    min-width: 145px !important;
-}
-
-.custom-element .form-control {
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-}
-
-/* Select2 styling - ensure minimum width */
-.select2-container {
-    width: 100% !important;
-    min-width: 145px !important;
-}
-
-.select2-container--default .select2-selection--single {
-    height: 38px;
-    border: 1px solid #ced4da;
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-}
-
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 36px;
-    padding-left: 12px;
-    min-width: 145px !important;
-}
-
-/* Ensure custom element selects have minimum width */
-select.custom-element {
-    min-width: 145px !important;
-}
-
-/* Select2 dropdown minimum width */
-.select2-dropdown {
-    min-width: 145px !important;
-}
-
-.form-group label.required::after {
-    content: " *";
-    color: red;
-}
-
-.is-invalid {
-    border-color: #dc3545;
-}
-
-.file-info {
-    font-size: 0.875em;
-}
-
-#form-data-preview {
-    font-size: 0.875em;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.text-element .alert {
-    border-left: 4px solid #17a2b8;
-}
-
-.form-actions {
-    background-color: #f8f9fa;
-    margin: 0 -1.25rem -1.25rem -1.25rem;
-    padding: 1.25rem;
-    border-radius: 0 0 0.375rem 0.375rem;
-}
-</style>
 @endsection
 
 @php

@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Services\Sampleworkflow;
 
-use App\Models\TestRequestForm;
+use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
 use App\Company;
 use App\SampleType;
 use App\Services\Sampleworkflow\TestRequestFormReportDataBuilder;
@@ -14,12 +14,6 @@ class TestRequestFormReportDataBuilderTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
-    }
-
     public function test_resolve_report_variant_returns_food_for_food_sample_type(): void
     {
         $sampleType = SampleType::query()->create([
@@ -29,7 +23,7 @@ class TestRequestFormReportDataBuilderTest extends TestCase
             'active' => true,
         ]);
 
-        $this->assertSame('food', TestRequestForm::resolveReportVariant($sampleType));
+        $this->assertSame('food', app(TrfDocumentCodeForSampleType::class)->resolveReportVariant($sampleType));
     }
 
     public function test_resolve_report_variant_returns_water_for_water_and_other_types(): void
@@ -48,8 +42,9 @@ class TestRequestFormReportDataBuilderTest extends TestCase
             'active' => true,
         ]);
 
-        $this->assertSame('water', TestRequestForm::resolveReportVariant($water));
-        $this->assertSame('water', TestRequestForm::resolveReportVariant($other));
+        $resolver = app(TrfDocumentCodeForSampleType::class);
+        $this->assertSame('water', $resolver->resolveReportVariant($water));
+        $this->assertSame('water', $resolver->resolveReportVariant($other));
     }
 
     public function test_resolve_report_variant_returns_waste_water_for_waste_water_type(): void
@@ -61,7 +56,7 @@ class TestRequestFormReportDataBuilderTest extends TestCase
             'active' => true,
         ]);
 
-        $this->assertSame('waste_water', TestRequestForm::resolveReportVariant($wasteWater));
+        $this->assertSame('waste_water', app(TrfDocumentCodeForSampleType::class)->resolveReportVariant($wasteWater));
     }
 
     public function test_state_of_sample_checks_maps_full_words_and_abbreviations(): void

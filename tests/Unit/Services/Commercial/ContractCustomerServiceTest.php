@@ -4,7 +4,6 @@ namespace Tests\Unit\Services\Commercial;
 
 use App\Models\CRM\CRMCustomer;
 use App\Models\SampleSubmissionRequest;
-use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\ContractCustomerService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,7 +19,7 @@ class ContractCustomerServiceTest extends TestCase
         $service = app(ContractCustomerService::class);
 
         $scheduled = SampleSubmissionRequest::query()->make([
-            'source_channel' => TestRequestFormInstance::CHANNEL_SCHEDULED,
+            'source_channel' => 'scheduled',
         ]);
         $walkIn = SampleSubmissionRequest::query()->make([
             'source_channel' => 'walk_in',
@@ -53,7 +52,7 @@ class ContractCustomerServiceTest extends TestCase
         $service = app(ContractCustomerService::class);
 
         $scheduled = SampleSubmissionRequest::query()->make([
-            'source_channel' => TestRequestFormInstance::CHANNEL_SCHEDULED,
+            'source_channel' => 'scheduled',
             'crm_customer_id' => (string) Str::uuid(),
         ]);
 

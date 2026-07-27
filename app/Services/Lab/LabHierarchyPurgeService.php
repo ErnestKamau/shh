@@ -254,7 +254,6 @@ final class LabHierarchyPurgeService
         $this->purgeRequestWorkflowForms($instanceIdList, $requestIdList, $summary);
         $this->purgeInterzoneTransfersForInstances($instanceIdList, $summary);
         $this->purgeQuotationsForRequests($requestIdList, $summary);
-        $this->purgeTestRequestFormInstances($instanceIdList, $requestIdList, $summary);
         $this->purgeSupportingDocumentsForRequests($requestIdList, $summary);
         $this->purgeEnquiryChildTables($requestIdList, $summary);
         $this->purgeSubmissionFormInstanceChildTables($instanceIdList, $summary);
@@ -444,42 +443,6 @@ final class LabHierarchyPurgeService
         }
 
         $summary['quotation_headers'] = $this->deleteWhereIn('quotation_headers', 'id', $quotationHeaderIds);
-    }
-
-    /**
-     * @param  array<int, string>  $instanceIdList
-     * @param  array<int, string>  $requestIdList
-     * @param  array<string, int>  $summary
-     */
-    private function purgeTestRequestFormInstances(array $instanceIdList, array $requestIdList, array &$summary): void
-    {
-        if (! Schema::hasTable('test_request_form_instances')) {
-            return;
-        }
-
-        $hasInstanceColumn = Schema::hasColumn('test_request_form_instances', 'submission_form_instance_id');
-        $hasRequestColumn = Schema::hasColumn('test_request_form_instances', 'sample_submission_request_id');
-
-        if (($instanceIdList === [] || ! $hasInstanceColumn) && ($requestIdList === [] || ! $hasRequestColumn)) {
-            return;
-        }
-
-        $query = DB::table('test_request_form_instances')->where(function ($builder) use (
-            $instanceIdList,
-            $requestIdList,
-            $hasInstanceColumn,
-            $hasRequestColumn
-        ): void {
-            if ($instanceIdList !== [] && $hasInstanceColumn) {
-                $builder->orWhereIn('submission_form_instance_id', $instanceIdList);
-            }
-
-            if ($requestIdList !== [] && $hasRequestColumn) {
-                $builder->orWhereIn('sample_submission_request_id', $requestIdList);
-            }
-        });
-
-        $summary['test_request_form_instances'] = (int) $query->delete();
     }
 
     /**

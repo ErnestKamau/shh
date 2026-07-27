@@ -1,11 +1,11 @@
-# TRF layer deprecation manifest
+# TRF layer deprecation — COMPLETE
 
-Legacy parallel capture layer (`TestRequestForm` + `TestRequestFormInstance`) is replaced by
-`SubmissionFormInstance` + `submission_form_instance_values` + `SampleSubmissionRequest`.
+Legacy parallel capture layer (`TestRequestForm` + `TestRequestFormInstance`) has been
+**removed**. Canonical capture is:
 
-**Procedure:** replace call sites → verify grep is clean → comment out file body → delete in final PR.
+`SubmissionForm` template + `SubmissionFormInstance` + `submission_form_instance_values` + `SampleSubmissionRequest`.
 
-## Replacement map
+## Replacement map (done)
 
 | Deprecated | Replacement |
 |------------|-------------|
@@ -13,57 +13,25 @@ Legacy parallel capture layer (`TestRequestForm` + `TestRequestFormInstance`) is
 | `TestRequestFormSubmissionService` | `SubmissionFormSubmissionService` |
 | `TestRequestFormDataMapper` | `SubmissionFormValueNormalizer` |
 | `CommercialEnquiryFromTrfService` | `CommercialEnquirySyncService` |
-| `CommercialEnquiryFromFormService` | `CommercialEnquirySyncService` (alias kept temporarily) |
-| `TrfFormNumberGenerator` | `FormNumberGenerator` |
+| `TrfFormNumberGenerator` | Form numbering on `SubmissionForm` / SFI |
 | `TrfCheckInMetadataService` | `ReceivingLabMetadataService` |
-| `test-request-field-render.blade.php` | `submission-form-capture-sections.blade.php` |
+| Report variant helpers on `TestRequestForm` | `TrfDocumentCodeForSampleType` |
 
-## Models (Phase 6 delete)
+## Deleted
 
-- `app/Models/TestRequestForm.php`
-- `app/Models/TestRequestFormInstance.php`
-- `config/test_request_form_fields.php`
+- Models: `TestRequestForm`, `TestRequestFormInstance`
+- `app/Services/TestRequestForm/`
+- `CommercialEnquiryFromTrfService`
+- `TrfBackfillCanonicalLinksCommand`, `TrfRefreshFormTemplatesCommand`
+- Legacy seeders/factory that only wrapped or seeded JSON TRFs
+- Drop migration: `2026_06_26_160000_drop_deprecated_test_request_form_tables.php` (already applied in this environment)
 
-## Services / controllers (comment out after Phase 4)
+## Kept (not the capture layer)
 
-- `app/Services/TestRequestForm/` (entire directory)
-- `app/Services/Commercial/CommercialEnquiryFromTrfService.php`
-- `app/Http/Controllers/TestRequestFormController.php` (routes redirect to SFI-based controller)
-- `app/Console/Commands/TrfBackfillCanonicalLinksCommand.php`
-- `app/Console/Commands/TrfRefreshFormTemplatesCommand.php`
-- `app/Services/TestRequestForm/TestRequestFormTemplateProvisioner.php`
+- `test_request_report_*` (lab report delivery)
+- `TestRequestFormPdfService` / `TestRequestFormReportDataBuilder` / `TestRequestFormController` — SFI-based PDF/preview (names retained)
+- `config/test_request_form_fields.php` — field aliases still used by SFI normalizer / check-in UI
 
-## Views (comment out after Phase 2)
+## RFT admin entry
 
-- `resources/views/livewire/sampleworkflow/test-request-field-render.blade.php`
-
-## Migrations (Phase 6 drop — do not delete files until tables dropped)
-
-- `2026_06_08_182833_create_test_request_forms_table.php`
-- `2026_06_08_182854_create_test_request_form_instances_table.php`
-- `2026_06_18_144331_add_canonical_metadata_to_test_request_form_instances_table.php`
-- `2026_06_18_144333_add_test_request_form_instance_id_to_sample_submission_requests_table.php`
-- `2026_06_09_000001_add_test_request_form_instance_id_to_analysis_acceptance_forms.php`
-
-**Keep:** `test_request_report_*` migrations (lab report delivery, not capture layer).
-
-## Tests (comment out after Phase 5)
-
-- `tests/Feature/Api/Portal/Submissions/TrfPortalSubmitCreatesCanonicalTrfiTest.php`
-- `tests/Feature/Api/Portal/Submissions/TestRequestFormPortalPdfTest.php`
-- `tests/Feature/Console/TrfBackfillCommandTest.php`
-- `tests/Unit/Services/Commercial/CommercialEnquiryFromTrfServiceTest.php`
-- `tests/Unit/SubmissionForm/SubmissionRequestSampleLineServiceTrfiTest.php`
-- `tests/Unit/Services/SubmissionForm/TrfSampleLineQuantityTest.php`
-- `tests/Unit/TestRequestFormDataMapperTest.php`
-- `tests/Unit/Sampleworkflow/TestRequestFormPdfServiceTest.php`
-- `tests/Unit/Services/Sampleworkflow/TestRequestFormReportDataBuilderTest.php`
-
-## Verification checklist
-
-- [ ] Portal submit → SFI + enquiry, no new TRFI row
-- [ ] Walk-in modal → SFI + enquiry + Test Request Form PDF
-- [ ] Physical check-in unchanged
-- [ ] Process enquiry sample rows match SFI values
-- [ ] Acceptance wizard (Laboratory Analysis Acceptance Form labels)
-- [ ] `rg "use App\\\\Models\\\\TestRequestForm" app/` — only stubs/manifest
+Request For Testing cards now expose **View** / **Edit** / **Add TRF** against Submission Form routes.

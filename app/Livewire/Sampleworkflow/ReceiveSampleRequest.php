@@ -43,7 +43,7 @@ class ReceiveSampleRequest extends Component
 
     public string $remarks = '';
 
-    // New properties for dynamic TestRequestForms
+    // Dynamic SubmissionForm TRF capture state
     public ?string $selectedSampleTypeId = null;
 
     public array $formData = [];
@@ -89,6 +89,9 @@ class ReceiveSampleRequest extends Component
     public ?string $initialScheduleId = null;
 
     public ?string $selectedScheduleId = null;
+
+    /** Resolved CRM customer for walk-in contact/point actions (avoids fragile name-only matching). */
+    public ?string $selectedCrmCustomerId = null;
 
     /** Open Drafts / Today tab on the RFT list page (or pending/filled for planner). */
     public string $rftInstancesTab = 'today';
@@ -180,6 +183,7 @@ class ReceiveSampleRequest extends Component
         $submissionForm = $this->resolveSubmissionFormForSampleType($sampleTypeId);
         if ($submissionForm === null) {
             $this->formData = [];
+            $this->selectedCrmCustomerId = null;
 
             return;
         }
@@ -307,6 +311,7 @@ class ReceiveSampleRequest extends Component
                     : 'Capture a test request for '.$sampleType->name.'.';
 
                 return [
+                    'submission_form_id' => (string) $form->id,
                     'sample_type_id' => (string) $sampleType->id,
                     'name' => (string) ($form->name ?: $sampleType->name),
                     'sample_type_name' => (string) $sampleType->name,
@@ -316,6 +321,9 @@ class ReceiveSampleRequest extends Component
                         ? (string) $form->description
                         : $defaultDescription,
                     'icon' => $this->plannerMode ? 'mdi-clipboard-edit-outline' : 'mdi-flask-outline',
+                    'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
+                    'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
+                    'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
                 ];
             })
             ->filter()
@@ -564,6 +572,7 @@ class ReceiveSampleRequest extends Component
         $this->lastSelectedSampleTypeId = null;
         $this->selectedScheduleId = null;
         $this->formData = [];
+        $this->selectedCrmCustomerId = null;
         $this->walkInActiveStepIndex = 0;
     }
 
@@ -1206,6 +1215,7 @@ class ReceiveSampleRequest extends Component
 
         $this->lastSelectedSampleTypeId = $normalizedValue;
         $this->formData = [];
+        $this->selectedCrmCustomerId = null;
         $this->walkInActiveStepIndex = 0;
 
         if ($normalizedValue !== null) {
@@ -1224,26 +1234,29 @@ class ReceiveSampleRequest extends Component
         $this->dispatch('trf-reset-all-parameter-selects');
     }
 
+    public function updatedSelectedCrmCustomerId(?string $value): void
+    {
+        $this->handleCustomerFieldUpdated($value);
+    }
+
     public function updatedFormDataCustomerName(?string $value): void
     {
-        $this->resetValidation([
-            'formData.customer_name',
-            'formData.client_name',
-            'formData.customer',
-            'formData.client',
-        ]);
-        $this->prefillCustomerDetailsFromSelection($value);
+        $this->handleCustomerFieldUpdated($value);
     }
 
     public function updatedFormDataClientName(?string $value): void
     {
-        $this->resetValidation([
-            'formData.customer_name',
-            'formData.client_name',
-            'formData.customer',
-            'formData.client',
-        ]);
-        $this->prefillCustomerDetailsFromSelection($value);
+        $this->handleCustomerFieldUpdated($value);
+    }
+
+    public function updatedFormDataCustomer(?string $value): void
+    {
+        $this->handleCustomerFieldUpdated($value);
+    }
+
+    public function updatedFormDataClient(?string $value): void
+    {
+        $this->handleCustomerFieldUpdated($value);
     }
 
     public function updatedFormDataContactPerson(?string $value): void
@@ -1440,18 +1453,24 @@ class ReceiveSampleRequest extends Component
 
     public function resolveSelectedCustomerId(): ?string
     {
-        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-            $customerName = trim((string) ($this->formData[$key] ?? ''));
-            if ($customerName === '') {
-                continue;
+        if ($this->selectedCrmCustomerId !== null && trim($this->selectedCrmCustomerId) !== '') {
+            $exists = CRMCustomer::query()
+                ->whereKey($this->selectedCrmCustomerId)
+                ->exists();
+
+            if ($exists) {
+                return (string) $this->selectedCrmCustomerId;
             }
 
-            $customerId = CRMCustomer::query()
-                ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
-                ->value('id');
+            $this->selectedCrmCustomerId = null;
+        }
 
-            if ($customerId !== null) {
-                return (string) $customerId;
+        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
+            $customer = $this->findCrmCustomerBySelectedValue($this->formData[$key] ?? null);
+            if ($customer !== null) {
+                $this->selectedCrmCustomerId = (string) $customer->id;
+
+                return (string) $customer->id;
             }
         }
 
@@ -1614,6 +1633,7 @@ class ReceiveSampleRequest extends Component
             $this->selectedSampleTypeId = null;
             $this->lastSelectedSampleTypeId = null;
             $this->formData = [];
+            $this->selectedCrmCustomerId = null;
             $this->walkInActiveStepIndex = 0;
             $this->resetValidation();
         }
@@ -1780,18 +1800,7 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $crmCustomerId = null;
-        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-            if (! empty($this->formData[$key])) {
-                $customerName = trim((string) $this->formData[$key]);
-                if ($customerName !== '') {
-                    $crmCustomerId = CRMCustomer::query()
-                        ->whereRaw('LOWER(name) = ?', [strtolower($customerName)])
-                        ->value('id');
-                }
-                break;
-            }
-        }
+        $crmCustomerId = $this->resolveSelectedCustomerId();
 
         $schedule = null;
         if ($this->plannerMode && $this->selectedScheduleId) {
@@ -2303,24 +2312,57 @@ class ReceiveSampleRequest extends Component
             ->contains(fn ($element) => (string) ($element->name ?? '') === $name);
     }
 
+    private function handleCustomerFieldUpdated(?string $value): void
+    {
+        $this->resetValidation([
+            'formData.customer_name',
+            'formData.client_name',
+            'formData.customer',
+            'formData.client',
+        ]);
+        $this->prefillCustomerDetailsFromSelection($value);
+    }
+
     private function prefillCustomerDetailsFromSelection(?string $customerName): void
     {
         if ($customerName === null || trim($customerName) === '') {
+            $this->selectedCrmCustomerId = null;
+
             return;
         }
 
-        $customer = CRMCustomer::query()
-            ->with('contacts')
-            ->where('name', $customerName)
-            ->first();
+        $customer = $this->findCrmCustomerBySelectedValue($customerName);
 
         if ($customer) {
+            $customer->loadMissing('contacts');
+            $this->selectedCrmCustomerId = (string) $customer->id;
             $this->applyCustomerPrefillFromCrm($customer, onlyEmpty: false);
+
+            return;
         }
+
+        $this->selectedCrmCustomerId = null;
+    }
+
+    private function findCrmCustomerBySelectedValue(mixed $value): ?CRMCustomer
+    {
+        $normalized = trim((string) ($value ?? ''));
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (preg_match('/^[0-9a-fA-F-]{36}$/', $normalized) === 1) {
+            return CRMCustomer::query()->whereKey($normalized)->first();
+        }
+
+        return CRMCustomer::query()
+            ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($normalized)])
+            ->first();
     }
 
     private function applyCustomerPrefillFromCrm(CRMCustomer $customer, bool $onlyEmpty = false): void
     {
+        $this->selectedCrmCustomerId = (string) $customer->id;
         $customer->loadMissing('contacts');
         $contact = $customer->contacts->first();
 
@@ -2335,22 +2377,23 @@ class ReceiveSampleRequest extends Component
             $contactId = (string) $contact->id;
         }
 
+        $canonicalName = trim((string) ($customer->name ?? ''));
         $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
         $telFax = (string) ($customer->telephone1 ?? $customer->telephone2 ?? '');
         $mobile = (string) ($customer->telephone2 ?? $customer->telephone1 ?? '');
         $email = (string) ($customer->email ?? '');
 
         $prefill = [
-            'customer_name' => (string) ($customer->name ?? ''),
+            'customer_name' => $canonicalName,
             'customer_address' => $address,
             'customer_phone' => $telFax,
             'mobile_number' => $mobile,
             'contact_person' => $contactId !== '' ? $contactId : $contactName,
             'customer_email' => $email,
             'sampling_location' => '',
-            'client_name' => (string) ($customer->name ?? ''),
-            'customer' => (string) ($customer->name ?? ''),
-            'client' => (string) ($customer->name ?? ''),
+            'client_name' => $canonicalName,
+            'customer' => $canonicalName,
+            'client' => $canonicalName,
             'address' => $address,
             'physical_address' => (string) ($customer->physical_address ?? ''),
             'postal_address' => (string) ($customer->postal_address ?? ''),

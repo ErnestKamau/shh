@@ -156,7 +156,22 @@
                     ->values();
                 $clientElement = $allElements->first(fn ($el) => in_array((string) $el->name, $customerPrimaryFields, true));
                 $contactElement = $allElements->first(fn ($el) => in_array((string) $el->name, $customerContactFields, true));
-                $autofillElements = $allElements->filter(fn ($el) => in_array((string) $el->name, $customerAutofillFields, true));
+                $autofillElements = $allElements
+                    ->filter(fn ($el) => in_array((string) $el->name, $customerAutofillFields, true))
+                    ->unique(fn ($el) => (string) $el->name)
+                    ->values();
+                $remainingElements = $allElements
+                    ->filter(function ($el) use ($hiddenWalkInTrfFields, $customerPrimaryFields, $customerContactFields, $customerAutofillFields) {
+                        $elementName = (string) ($el->name ?? '');
+
+                        return $elementName !== ''
+                            && ! in_array($elementName, $hiddenWalkInTrfFields, true)
+                            && ! in_array($elementName, $customerPrimaryFields, true)
+                            && ! in_array($elementName, $customerContactFields, true)
+                            && ! in_array($elementName, $customerAutofillFields, true);
+                    })
+                    ->unique(fn ($el) => (string) $el->name)
+                    ->values();
             @endphp
             <div class="row">
                 @if($clientElement)
@@ -187,20 +202,12 @@
             </div>
             {{-- Render any remaining customer fields not covered above --}}
             <div class="row">
-                @foreach($allElements as $element)
-                    @php $elementName = (string) ($element->name ?? ''); @endphp
-                    @if(
-                        ! in_array($elementName, $hiddenWalkInTrfFields, true)
-                        && ! in_array($elementName, $customerPrimaryFields, true)
-                        && ! in_array($elementName, $customerContactFields, true)
-                        && ! in_array($elementName, $customerAutofillFields, true)
-                    )
-                        <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
-                            @include('livewire.sampleworkflow.test-request-field-render', [
-                                'field' => $fieldMapper->toField($element),
-                            ])
-                        </div>
-                    @endif
+                @foreach($remainingElements as $element)
+                    <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
+                        @include('livewire.sampleworkflow.test-request-field-render', [
+                            'field' => $fieldMapper->toField($element),
+                        ])
+                    </div>
                 @endforeach
             </div>
         @else

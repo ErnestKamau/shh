@@ -2,93 +2,84 @@
 
 @section('title2')
   <title>Form Builder - {{ $submissionForm->name }}</title>
+  @include('submission-forms.partials.lab-theme-styles')
 @endsection
 
 @section('content2')
   <main>
-    <?php
-      $items = array(
-        array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.index'),
-          'name' => 'Submission Forms',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.show', $submissionForm),
+    @php
+      $fromRft = request()->query('from') === 'rft' || $submissionForm->isTestRequestTemplate();
+      $items = [
+        [
+          'link' => route('dashboard-lab'),
+          'name' => 'Dashboard',
+          'icon' => null,
+        ],
+        [
+          'link' => $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index'),
+          'name' => $fromRft ? 'Request For Testing' : 'Submission Forms',
+          'icon' => null,
+        ],
+        [
+          'link' => route('submission-forms.show', ['submissionForm' => $submissionForm, 'from' => $fromRft ? 'rft' : null]),
           'name' => $submissionForm->name,
-          'icon' => null
-        ),
-        array(
+          'icon' => null,
+        ],
+        [
           'link' => '#',
           'name' => 'Form Builder',
-          'icon' => null
-        )
-      );
-    ?>
+          'icon' => null,
+        ],
+      ];
+    @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
-    @include('submission-forms.partials.horizontal-gutter-styles')
-    <div class="submission-forms-horizontal-gutter">
-
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow-sm border-0 bg-white" style="border-radius: 15px;">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
-              <div>
-                <h2 class="mb-1">
-                  <i class="mdi mdi-cog text-primary"></i> Form Builder
-                </h2>
-                <p class="text-muted mb-0">
-                  <strong>{{ $submissionForm->name }}</strong>
-                  @if($submissionForm->version)
-                    <span class="font-weight-normal"> · v{{ $submissionForm->version }}</span>
-                  @endif
-                </p>
-                <small class="text-muted d-block mt-2">Design sections and fields for this submission form.</small>
-              </div>
-              <div class="d-flex align-items-center flex-wrap justify-content-lg-end" style="gap: 8px;">
-                <button type="button" class="btn btn-outline-success" id="save-form" style="border-radius: 9px;">
-                  <i class="mdi mdi-content-save"></i> Save Changes
-                </button>
-                <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-outline-info" target="_blank" style="border-radius: 9px;">
-                  <i class="mdi mdi-eye-outline"></i> Preview
-                </a>
-                <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary" style="border-radius: 9px;">
-                  <i class="mdi mdi-arrow-left"></i> Back to Form
-                </a>
-              </div>
-            </div>
+    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme sf-admin-page px-3 px-md-4 pt-2 pb-4">
+      <div class="workflow-board-panel mb-3">
+        <div class="workflow-board-panel-header">
+          <div>
+            <h5 class="sf-page-title mb-0">
+              <i class="mdi mdi-cog"></i> Form Builder
+            </h5>
+            <p class="sf-page-subtitle">
+              <strong>{{ $submissionForm->name }}</strong>
+              @if($submissionForm->version)
+                · v{{ $submissionForm->version }}
+              @endif
+              — Design sections and fields for this submission form.
+            </p>
+          </div>
+          <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
+            <button type="button" class="btn btn-sm btn-primary btn-action-sm" id="save-form">
+              <i class="mdi mdi-content-save"></i> Save Changes
+            </button>
+            <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm" target="_blank">
+              <i class="mdi mdi-eye-outline"></i> Preview
+            </a>
+            <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+              <i class="mdi mdi-arrow-left"></i> Back to Form
+            </a>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="bg-light p-4">
       <div class="row">
         <!-- Form Builder Sidebar -->
-        <div class="col-md-3">
-          <div class="card">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-plus"></i> Add Components
-              </h6>
+        <div class="col-lg-3">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-plus"></i> Add Components</h6>
             </div>
-            <div class="card-body">
-              <button class="btn btn-primary btn-block mb-3" id="add-section-btn">
+            <div class="workflow-board-panel-body">
+              <button class="btn btn-sm btn-primary btn-action-sm btn-block mb-3" id="add-section-btn">
                 <i class="mdi mdi-folder-plus"></i> Add Section
               </button>
-              
-              <div class="mb-3">
-                <h6 class="text-muted">Element Types</h6>
+
+              <div class="mb-2">
+                <div class="text-muted small font-weight-semibold mb-1">Element Types</div>
                 <p class="small text-muted mb-2">
-                  <i class="mdi mdi-information-outline"></i> 
-                  First select an element holder (click on it), then click an element type to add it.
+                  <i class="mdi mdi-information-outline"></i>
+                  Select an element holder, then click an element type to add it.
                 </p>
                 <div class="element-types">
                   <div class="element-type" data-type="text">
@@ -136,7 +127,7 @@
                   <div class="element-type" data-type="contact_signature">
                     <i class="mdi mdi-account-check"></i> Contact Signature
                   </div>
-                  <h5 style="font-size:18px; padding: 5px; margin:0px">Custom Fields</h5>
+                  <p class="sf-builder-group-label">Custom Fields</p>
                   <div class="element-type" data-type="client_select">
                     <i class="mdi mdi-account-group"></i> Client Select
                   </div>
@@ -193,58 +184,50 @@
             </div>
           </div>
 
-          <div class="card mt-3">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-information-outline"></i> Builder Help
-              </h6>
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-information-outline"></i> Builder Help</h6>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <div class="small">
                 <p><strong>Sections:</strong> Organize your form into logical groups</p>
                 <p><strong>Element Holders:</strong> Containers that hold form elements</p>
-                <p><strong>Elements:</strong> Individual form fields</p>
-                <hr>
-                <p><strong>Tips:</strong></p>
-                <ul class="mb-0">
-                  <li>Drag elements to reorder them</li>
-                  <li>Click on items to edit properties</li>
-                  <li>Use preview to test your form</li>
-                </ul>
+                <p class="mb-2"><strong>Elements:</strong> Individual form fields</p>
+                <div class="sf-alert-soft is-info mb-0">
+                  <strong>Tips:</strong> Drag to reorder · Click items to edit · Use preview to test
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Form Builder Canvas -->
-        <div class="col-md-9">
-          <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <h6 class="mb-0">
-                <i class="mdi mdi-file-tree"></i> Form Structure
-              </h6>
-              <div>
-                <button class="btn btn-sm btn-outline-secondary" id="collapse-all">
+        <div class="col-lg-9">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-file-tree"></i> Form Structure</h6>
+              <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
+                <button class="btn btn-sm btn-outline-secondary btn-action-sm" id="collapse-all">
                   <i class="mdi mdi-collapse-all"></i> Collapse All
                 </button>
-                <button class="btn btn-sm btn-outline-secondary" id="expand-all">
+                <button class="btn btn-sm btn-outline-secondary btn-action-sm" id="expand-all">
                   <i class="mdi mdi-expand-all"></i> Expand All
                 </button>
               </div>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <div id="form-builder-canvas">
                 <div id="sections-container" class="sortable-sections">
                   @foreach($submissionForm->sections as $section)
                     @include('submission-forms.partials.section-builder', ['section' => $section])
                   @endforeach
                 </div>
-                
+
                 @if($submissionForm->sections->count() === 0)
                   <div id="empty-form-message" class="text-center py-5">
-                    <i class="mdi mdi-file-tree" style="font-size: 4rem; color: #ccc;"></i>
-                    <h5 class="text-muted mt-3">Start Building Your Form</h5>
-                    <p class="text-muted">Click "Add Section" to create your first section</p>
+                    <i class="mdi mdi-file-tree" style="font-size: 3rem; color: #cbd5e1;"></i>
+                    <h6 class="text-muted mt-3">Start Building Your Form</h6>
+                    <p class="text-muted small">Click "Add Section" to create your first section</p>
                   </div>
                 @endif
               </div>
@@ -253,18 +236,19 @@
         </div>
       </div>
     </div>
-
-    </div>
   </main>
 
   <!-- Section Modal -->
   <div class="modal fade" id="section-modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Section Details</h5>
-          <button type="button" class="close" data-dismiss="modal">
-            <span>&times;</span>
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content receive-sample-modal-content border-0 shadow">
+        <div class="modal-header receive-sample-modal-header border-0">
+          <h5 class="modal-title mb-0">
+            <i class="mdi mdi-folder-plus mr-2"></i>
+            <span class="section-modal-title-text">Section Details</span>
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
           </button>
         </div>
         <div class="modal-body">
@@ -296,7 +280,7 @@
                 <option value="right">Right</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-0">
               <label for="section-logos">Section Logos</label>
               <input type="file" class="form-control-file" id="section-logos" name="section_logos[]" accept="image/*" multiple>
               <small class="form-text text-muted">
@@ -308,9 +292,9 @@
             </div>
           </form>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="save-section">Save Section</button>
+        <div class="modal-footer receive-sample-modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary" id="save-section">Save Section</button>
         </div>
       </div>
     </div>
@@ -318,12 +302,14 @@
 
   <!-- Element Holder Modal -->
   <div class="modal fade" id="holder-modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Element Holder Details</h5>
-          <button type="button" class="close" data-dismiss="modal">
-            <span>&times;</span>
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content receive-sample-modal-content border-0 shadow">
+        <div class="modal-header receive-sample-modal-header border-0">
+          <h5 class="modal-title mb-0">
+            <i class="mdi mdi-view-grid-plus mr-2"></i> Element Holder Details
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
           </button>
         </div>
         <div class="modal-body">
@@ -337,16 +323,16 @@
                 <option value="text">Text Holder (for static content)</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-0">
               <label for="holder-max-elements" class="required">Maximum Elements</label>
               <input type="number" class="form-control" id="holder-max-elements" name="max_elements" required min="1" max="20" value="5">
               <small class="form-text text-muted">Maximum number of elements this holder can contain</small>
             </div>
           </form>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="save-holder">Save Holder</button>
+        <div class="modal-footer receive-sample-modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary" id="save-holder">Save Holder</button>
         </div>
       </div>
     </div>
@@ -354,12 +340,14 @@
 
   <!-- Element Modal -->
   <div class="modal fade" id="element-modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Form Element Details</h5>
-          <button type="button" class="close" data-dismiss="modal">
-            <span>&times;</span>
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+      <div class="modal-content receive-sample-modal-content border-0 shadow">
+        <div class="modal-header receive-sample-modal-header border-0">
+          <h5 class="modal-title mb-0">
+            <i class="mdi mdi-form-textbox mr-2"></i> Form Element Details
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
           </button>
         </div>
         <div class="modal-body">
@@ -442,14 +430,14 @@
             </div>
             
             <!-- Field Mapping Configuration -->
-            <div class="card mt-3">
-              <div class="card-header">
+            <div class="workflow-board-panel mt-3 mb-0">
+              <div class="workflow-board-panel-header py-2">
                 <h6 class="mb-0">
                   <i class="mdi mdi-database"></i> Field Mapping Configuration
-                  <small class="text-muted">(Optional)</small>
+                  <span class="sf-meta-chip ml-1">Optional</span>
                 </h6>
               </div>
-              <div class="card-body">
+              <div class="workflow-board-panel-body">
                 <div class="form-check mb-3">
                   <input type="checkbox" class="form-check-input" id="element-mapped" name="is_mapped">
                   <label class="form-check-label" for="element-mapped">
@@ -478,7 +466,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="alert alert-info">
+                  <div class="sf-alert-soft is-info mb-0">
                     <i class="mdi mdi-information"></i>
                     <strong>Note:</strong> When this form is submitted, the value of this field will be automatically mapped to the selected database field.
                   </div>
@@ -487,14 +475,14 @@
             </div>
             
             <!-- Depends On Configuration (for user_signature and contact_signature) -->
-            <div class="card mt-3" id="depends-config" style="display: none;">
-              <div class="card-header">
+            <div class="workflow-board-panel mt-3 mb-0" id="depends-config" style="display: none;">
+              <div class="workflow-board-panel-header py-2">
                 <h6 class="mb-0">
                   <i class="mdi mdi-link"></i> Dependency Configuration
-                  <small class="text-muted">(Required for User/Contact Signature)</small>
+                  <span class="sf-meta-chip ml-1">Required</span>
                 </h6>
               </div>
-              <div class="card-body">
+              <div class="workflow-board-panel-body">
                 <div class="form-group">
                   <label for="element-depends" class="required">Depends On Field</label>
                   <select class="form-control" id="element-depends" name="depends">
@@ -509,13 +497,13 @@
             </div>
 
             <!-- Depended Field Configuration -->
-            <div class="card mt-3" id="depended-config" style="display: none;">
-              <div class="card-header">
+            <div class="workflow-board-panel mt-3 mb-0" id="depended-config" style="display: none;">
+              <div class="workflow-board-panel-header py-2">
                 <h6 class="mb-0">
                   <i class="mdi mdi-link-variant"></i> Depended Field Configuration
                 </h6>
               </div>
-              <div class="card-body">
+              <div class="workflow-board-panel-body">
                 <div class="form-group">
                   <label for="depended-depends-on-field" class="required">Depends On Field</label>
                   <select class="form-control" id="depended-depends-on-field">
@@ -563,9 +551,9 @@
             </div>
           </form>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" id="save-element">Save Element</button>
+        <div class="modal-footer receive-sample-modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary" id="save-element">Save Element</button>
         </div>
       </div>
     </div>
@@ -757,7 +745,7 @@ const FormBuilder = {
           $('#section-alignment').val(section.section_alignment || 'left');
           this.renderSectionLogoPreview(section.section_logos || []);
           this.renderNewSectionLogos([]);
-            $('#section-modal .modal-title').text('Edit Section');
+            $('#section-modal .section-modal-title-text').text('Edit Section');
         } else {
             // Add new section
             $('#section-form')[0].reset();
@@ -766,7 +754,7 @@ const FormBuilder = {
           $('#section-alignment').val('left');
           this.renderSectionLogoPreview([]);
           this.renderNewSectionLogos([]);
-            $('#section-modal .modal-title').text('Add Section');
+            $('#section-modal .section-modal-title-text').text('Add Section');
         }
         
         console.log('Attempting to show modal...');
@@ -928,7 +916,7 @@ const FormBuilder = {
                         $('#holder-id').val(holderId);
                         $('#holder-type').val(holder.holder_type);
                         $('#holder-max-elements').val(holder.max_elements);
-                        $('.modal-title').text('Edit Element Holder');
+                        $('#holder-modal .modal-title').html('<i class="mdi mdi-view-grid-plus mr-2"></i> Edit Element Holder');
                         $('#holder-modal').modal('show');
                     } else {
                         this.showMessage('error', 'Failed to load holder data');
@@ -944,7 +932,7 @@ const FormBuilder = {
             $('#holder-form')[0].reset();
             $('#holder-id').val('');
             $('#holder-section-id').val(sectionId);
-            $('.modal-title').text('Add Element Holder');
+            $('#holder-modal .modal-title').html('<i class="mdi mdi-view-grid-plus mr-2"></i> Add Element Holder');
             $('#holder-modal').modal('show');
         }
     },
@@ -998,14 +986,14 @@ const FormBuilder = {
             // Edit existing element
             const element = this.findElementById(elementId);
             this.populateElementForm(element);
-            $('.modal-title').text('Edit Form Element');
+            $('#element-modal .modal-title').html('<i class="mdi mdi-form-textbox mr-2"></i> Edit Form Element');
         } else {
             // Add new element
             $('#element-form')[0].reset();
             $('#element-id').val('');
             $('#element-holder-id').val(holderId);
             $('#element-type').val(elementType);
-            $('.modal-title').text('Add Form Element');
+            $('#element-modal .modal-title').html('<i class="mdi mdi-form-textbox mr-2"></i> Add Form Element');
         }
         
         this.handleElementTypeChange();
@@ -2144,111 +2132,40 @@ $(document).on('change', '#mapping-table', function() {
 </script>
 
 <style>
-.element-types {
-    display: grid;
-    gap: 8px;
-}
-
-.element-type {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9em;
-}
-
-.element-type:hover {
-    background-color: #f8f9fa;
-    border-color: var(--color-primary);
-}
-
-.element-type i {
-    margin-right: 8px;
-    color: #6c757d;
-}
-
-.holder-item {
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 2px solid transparent !important;
-}
-
-.holder-item:hover {
-    background-color: #f8f9fa;
-}
-
-.holder-item.active {
-    border-color: var(--color-primary) !important;
-    background-color: var(--color-primary-soft-medium);
-}
-
-.holder-item.active .holder-header {
-    background-color: var(--color-primary-soft);
-}
-}
-
 .sortable-ghost {
     opacity: 0.5;
 }
 
 .sortable-chosen {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
 .sortable-drag {
-    opacity: 0.8;
-    transform: rotate(2deg);
+    opacity: 0.85;
 }
 
 .sortable-fallback {
     display: block !important;
     background: #fff;
-    border: 2px dashed var(--color-primary);
-    border-radius: 4px;
+    border: 2px dashed var(--workflow-accent, var(--color-primary));
+    border-radius: 8px;
     padding: 10px;
     margin: 5px 0;
 }
 
 .dragging {
     opacity: 0.7;
-    transform: scale(1.02);
     z-index: 1000;
 }
 
 .drop-zone-active {
-    border: 2px dashed #28a745 !important;
-    background-color: rgba(40, 167, 69, 0.1) !important;
+    border: 2px dashed var(--rft-support, #22c55e) !important;
+    background-color: rgba(34, 197, 94, 0.08) !important;
     border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.drop-zone-active::before {
-    content: "Drop here";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #28a745;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: bold;
-    z-index: 1001;
-    pointer-events: none;
-}
-
-.sortable-holders.drop-zone-active,
-.sortable-elements.drop-zone-active {
+    transition: all 0.2s ease;
     min-height: 60px;
     position: relative;
-}
-
-.required::after {
-    content: " *";
-    color: red;
 }
 
 #loading-overlay {
@@ -2257,7 +2174,7 @@ $(document).on('change', '#mapping-table', function() {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(15, 23, 42, 0.45);
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -2267,94 +2184,14 @@ $(document).on('change', '#mapping-table', function() {
 .loading-spinner {
     background: white;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 10px;
     text-align: center;
+    border: 1px solid #e2e8f0;
 }
 
 .loading-spinner i {
     font-size: 2rem;
-    color: var(--color-primary);
-}
-
-.section-item {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    background: white;
-}
-
-.section-header {
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #ddd;
-    border-radius: 8px 8px 0 0;
-}
-
-.holder-item {
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
-    margin: 8px 0;
-    background: #fafafa;
-}
-
-.holder-header {
-    padding: 8px 12px;
-    background: #f1f3f4;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.element-item {
-    padding: 6px 12px;
-    border-bottom: 1px solid #f0f0f0;
-    min-width: 145px;
-}
-
-.element-item:last-child {
-    border-bottom: none;
-}
-
-.element-item:hover {
-    background-color: #f8f9fa;
-}
-
-/* Custom element styling */
-.custom-element {
-    margin-bottom: 1rem;
-    min-width: 145px !important;
-}
-
-.custom-element .form-control {
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-}
-
-/* Select2 styling - ensure minimum width */
-.select2-container {
-    width: 100% !important;
-    min-width: 145px !important;
-}
-
-.select2-container--default .select2-selection--single {
-    height: 38px;
-    border: 1px solid #ced4da;
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-}
-
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 36px;
-    padding-left: 12px;
-    min-width: 145px !important;
-}
-
-/* Ensure custom element selects have minimum width */
-select.custom-element {
-    min-width: 145px !important;
-}
-
-/* Select2 dropdown minimum width */
-.select2-dropdown {
-    min-width: 145px !important;
+    color: var(--workflow-accent, var(--color-primary));
 }
 </style>
 @endsection

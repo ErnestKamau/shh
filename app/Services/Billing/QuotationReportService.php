@@ -12,8 +12,10 @@ use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleHeader;
 use App\Services\Commercial\AccountPaymentTermsService;
+use App\Services\Commercial\AmSpecQuotationNumberGenerator;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
@@ -175,12 +177,15 @@ class QuotationReportService
 
     public function generateLaboratoryRef(QuotationHeader $header): string
     {
-        $prefix = $this->configValue('quotation_lab_ref_prefix', 'AMSQ');
-        $quoteDate = $header->quote_date ?? now()->toDateString();
-        $datePart = date('ymd', strtotime($quoteDate));
-        $idPart = str_pad((string) (crc32((string) $header->id) % 1000), 3, '0', STR_PAD_LEFT);
+        if (! empty($header->quote_number)
+            && ! AmSpecQuotationNumberGenerator::isLegacyNumber($header->quote_number)
+        ) {
+            return (string) $header->quote_number;
+        }
 
-        return $prefix.$datePart.'-'.$idPart;
+        return AmSpecQuotationNumberGenerator::generate(
+            $header->quote_date ? Carbon::parse($header->quote_date) : null,
+        );
     }
 
     public function ensureHeaderMetadata(QuotationHeader $header): void

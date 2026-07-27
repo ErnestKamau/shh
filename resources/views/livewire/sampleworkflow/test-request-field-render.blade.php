@@ -20,12 +20,12 @@
 @if($fieldName === 'job_number' || $fieldName === 'crm_contact_id')
     {{-- Hidden in walk-in TRF modal --}}
 @elseif(in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client'], true))
-    <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
-        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
+    <select id="field_{{ $fieldId }}" wire:model.live="selectedCrmCustomerId"
+        class="{{ $controlClass }} @error('formData.customer_name') is-invalid @enderror @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif>
         <option value="">-- Select Customer --</option>
         @foreach($this->customers as $cust)
-            <option value="{{ $cust->name }}">{{ $cust->name }}</option>
+            <option value="{{ $cust->id }}">{{ $cust->name }}</option>
         @endforeach
     </select>
 @elseif(in_array($fieldName, ['analysis_type', 'analysis_types'], true))

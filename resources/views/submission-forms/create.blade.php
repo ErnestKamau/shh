@@ -2,64 +2,80 @@
 
 @section('title2')
   <title>Create Submission Form</title>
+  @include('submission-forms.partials.lab-theme-styles')
 @endsection
 
 @section('content2')
   <main>
-    <?php
-      $items = array(
-        array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.index'),
-          'name' => 'Submission Forms',
-          'icon' => null
-        ),
-        array(
+    @php
+      $fromRft = $fromRft ?? false;
+      $trfDefaults = $trfDefaults ?? [];
+      $default = function (string $key, $fallback = null) use ($trfDefaults) {
+          return old($key, $trfDefaults[$key] ?? $fallback);
+      };
+      $items = [
+        [
+          'link' => route('dashboard-lab'),
+          'name' => 'Dashboard',
+          'icon' => null,
+        ],
+        [
+          'link' => $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index'),
+          'name' => $fromRft ? 'Request For Testing' : 'Submission Forms',
+          'icon' => null,
+        ],
+        [
           'link' => '#',
-          'name' => 'Create Form',
-          'icon' => null
-        )
-      );
-    ?>
+          'name' => $fromRft ? 'Create TRF' : 'Create Form',
+          'icon' => null,
+        ],
+      ];
+    @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
-    @include('submission-forms.partials.horizontal-gutter-styles')
-    <div class="submission-forms-horizontal-gutter">
+    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme sf-admin-page px-3 px-md-4 pt-2 pb-4">
+      @if($errors->any())
+        <div class="alert alert-danger mt-2">
+          <strong>Please correct the following errors:</strong>
+          <ul class="mb-0 mt-2">
+            @foreach($errors->all() as $error)
+              <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+      @endif
 
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow-sm border-0 bg-white" style="border-radius: 15px;">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
-              <div>
-                <h2 class="mb-1">
-                  <i class="mdi mdi-form-select text-primary"></i> Create Submission Form
-                </h2>
-                <p class="text-muted mb-0">Provide form details, document control metadata, and placement for your new template.</p>
-              </div>
-              <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary" style="border-radius: 9px;">
-                <i class="mdi mdi-arrow-left"></i> Back to Forms
-              </a>
-            </div>
+      <div class="workflow-board-panel mb-3">
+        <div class="workflow-board-panel-header">
+          <div>
+            <h5 class="sf-page-title mb-0">
+              <i class="mdi mdi-form-select"></i>
+              {{ $fromRft ? 'Create Test Request Form' : 'Create Submission Form' }}
+            </h5>
+            <p class="sf-page-subtitle">
+              {{ $fromRft
+                ? 'Create a TRF template, link sample types, then add sections and fields in the builder.'
+                : 'Provide form details, document control metadata, and placement for your new template.' }}
+            </p>
           </div>
+          <a href="{{ $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index') }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+            <i class="mdi mdi-arrow-left"></i> {{ $fromRft ? 'Back to RFT' : 'Back to Forms' }}
+          </a>
         </div>
       </div>
-    </div>
 
-    <div class="bg-light p-4">
       <div class="row">
-        <div class="col-md-8">
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0">Form Details</h5>
+        <div class="col-lg-8">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-form-select"></i> Form Details</h6>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <form method="POST" action="{{ route('submission-forms.store') }}">
                 @csrf
+                @if ($fromRft)
+                  <input type="hidden" name="return_to" value="rft">
+                @endif
 
                 {{-- Form Type selector --}}
                 <div class="form-group">
@@ -67,7 +83,7 @@
                   <div class="d-flex gap-3 mt-1">
                     <div class="custom-control custom-radio custom-control-inline">
                       <input type="radio" id="form_type_template" name="form_type" value="template" class="custom-control-input"
-                        {{ old('form_type', 'template') === 'template' ? 'checked' : '' }}>
+                        {{ $default('form_type', 'template') === 'template' ? 'checked' : '' }}>
                       <label class="custom-control-label" for="form_type_template">
                         <strong>Template Form</strong>
                         <small class="d-block text-muted">Standalone form assigned to customers and sample types.</small>
@@ -75,7 +91,7 @@
                     </div>
                     <div class="custom-control custom-radio custom-control-inline ml-4">
                       <input type="radio" id="form_type_attachment" name="form_type" value="attachment" class="custom-control-input"
-                        {{ old('form_type') === 'attachment' ? 'checked' : '' }}>
+                        {{ $default('form_type') === 'attachment' ? 'checked' : '' }}>
                       <label class="custom-control-label" for="form_type_attachment">
                         <strong>Attachment Form</strong>
                         <small class="d-block text-muted">Optional form linked to one or more template forms.</small>
@@ -89,24 +105,24 @@
 
                 <div class="form-group">
                   <label for="name" class="required">Form Name</label>
-                  <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" required maxlength="255" placeholder="Enter a descriptive name for your form">
+                  <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ $default('name') }}" required maxlength="255" placeholder="Enter a descriptive name for your form">
                   @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
                 </div>
 
                 <div class="col-12 mt-3 mb-1 px-0">
-                  <h6 class="text-primary font-weight-bold small text-uppercase">
+                  <h6 class="sf-section-heading">
                     <i class="mdi mdi-certificate mr-1"></i> Form Quality Control Metadata
                   </h6>
-                  <p class="text-muted small mb-3">To get started, please provide the standard identification details for this form. These include the Document Control Number, Revision Number, and the official Issue Date which explain and identify this form.</p>
+                  <p class="text-muted small mb-3">Document Control Number, Revision Number, and Issue Date identify this form.</p>
                 </div>
 
                 <div class="row">
                   <div class="col-md-4">
                     <div class="form-group">
                       <label for="document_code" class="required">Document Control Number</label>
-                      <input type="text" class="form-control @error('document_code') is-invalid @enderror" id="document_code" name="document_code" value="{{ old('document_code') }}" required maxlength="50" placeholder="e.g. FM/QA/047">
+                      <input type="text" class="form-control @error('document_code') is-invalid @enderror" id="document_code" name="document_code" value="{{ $default('document_code') }}" required maxlength="50" placeholder="e.g. FM/QA/047">
                       @error('document_code')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
@@ -124,7 +140,7 @@
                   <div class="col-md-4">
                     <div class="form-group">
                       <label for="issue_date" class="required">Issue Date</label>
-                      <input type="date" class="form-control @error('issue_date') is-invalid @enderror" id="issue_date" name="issue_date" value="{{ old('issue_date') }}" required>
+                      <input type="date" class="form-control @error('issue_date') is-invalid @enderror" id="issue_date" name="issue_date" value="{{ $default('issue_date') }}" required>
                       @error('issue_date')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
@@ -134,7 +150,7 @@
 
                 <div class="form-group">
                   <label for="description">Description</label>
-                  <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3" maxlength="1000" placeholder="Provide a brief description of what this form is used for">{{ old('description') }}</textarea>
+                  <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3" maxlength="1000" placeholder="Provide a brief description of what this form is used for">{{ $default('description') }}</textarea>
                   @error('description')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
@@ -145,7 +161,7 @@
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="naming_convention_prefix" class="required">Form Number Prefix</label>
-                      <input type="text" class="form-control @error('naming_convention_prefix') is-invalid @enderror" id="naming_convention_prefix" name="naming_convention_prefix" value="{{ old('naming_convention_prefix', 'SF') }}" required maxlength="50" placeholder="SF">
+                      <input type="text" class="form-control @error('naming_convention_prefix') is-invalid @enderror" id="naming_convention_prefix" name="naming_convention_prefix" value="{{ $default('naming_convention_prefix', 'SF') }}" required maxlength="50" placeholder="SF">
                       @error('naming_convention_prefix')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
@@ -205,7 +221,7 @@
                 {{-- Linked Template Forms — only visible when form_type = attachment --}}
                 <div class="form-group" id="template_forms_section" style="display:none;">
                   <label for="template_form_ids" class="required">Template Form Type</label>
-                  <select class="form-control select2 @error('template_form_ids') is-invalid @enderror" id="template_form_ids" name="template_form_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('template_form_ids') is-invalid @enderror" id="template_form_ids" name="template_form_ids[]" multiple>
                     @php($selectedTemplateFormIds = old('template_form_ids', []))
                     @foreach($templateForms as $tf)
                       <option value="{{ $tf->id }}" {{ in_array($tf->id, $selectedTemplateFormIds) ? 'selected' : '' }}>
@@ -221,7 +237,7 @@
 
                 <div class="form-group">
                   <label for="customer_ids">Customers</label>
-                  <select class="form-control select2 @error('customer_ids') is-invalid @enderror" id="customer_ids" name="customer_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('customer_ids') is-invalid @enderror" id="customer_ids" name="customer_ids[]" multiple>
                     @php($selectedCustomers = old('customer_ids', []))
                     @foreach($customers as $customer)
                       <option value="{{ $customer->id }}" {{ in_array($customer->id, $selectedCustomers) ? 'selected' : '' }}>
@@ -237,7 +253,7 @@
 
                 <div class="form-group">
                   <label for="sample_type_ids">Sample Types</label>
-                  <select class="form-control select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
                     @php($selectedSampleTypes = old('sample_type_ids', []))
                     @foreach($sampleTypes as $sampleType)
                       <option value="{{ $sampleType->id }}" {{ in_array($sampleType->id, $selectedSampleTypes) ? 'selected' : '' }}>
@@ -253,7 +269,7 @@
 
                 <div class="form-group">
                   <label for="sample_analysis_stage_ids">Lab Sections</label>
-                  <select class="form-control select2 @error('sample_analysis_stage_ids') is-invalid @enderror" id="sample_analysis_stage_ids" name="sample_analysis_stage_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('sample_analysis_stage_ids') is-invalid @enderror" id="sample_analysis_stage_ids" name="sample_analysis_stage_ids[]" multiple>
                     @php($selectedStages = old('sample_analysis_stage_ids', []))
                     @foreach($labSections as $section)
                       <option value="{{ $section->id }}" {{ in_array($section->id, $selectedStages) ? 'selected' : '' }}>{{ $section->name }}</option>
@@ -266,9 +282,9 @@
                 </div>
 
                 <div class="form-group">
-                  <div class="checkbox-option-card d-flex align-items-start p-3" style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;gap:12px;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="gap:12px;">
                     <div class="mt-1">
-                      <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form') ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
+                      <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ $default('is_customer_portal_form') ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
                     </div>
                     <div>
                       <label class="form-check-label font-weight-semibold mb-0" for="is_customer_portal_form" style="cursor:pointer;font-size:0.92rem;">Filled only from customer portal</label>
@@ -278,7 +294,7 @@
                 </div>
 
                 <div class="form-group" id="customer-request-form-wrapper" style="display:none;">
-                  <div class="checkbox-option-card d-flex align-items-start p-3 ml-4" style="background:#f0f4ff;border:1px solid #c7d5f8;border-radius:8px;gap:12px;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3 ml-4" style="gap:12px;background:#eff6ff !important;border-color:#bfdbfe !important;">
                     <div class="mt-1">
                       <input class="form-check-input" type="checkbox" id="is_customer_request_form" name="is_customer_request_form" value="1" {{ old('is_customer_request_form') ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
                     </div>
@@ -291,7 +307,7 @@
 
                 <div class="form-group" id="target-pages-wrapper">
                   <label for="target_pages">Target Pages</label>
-                  <select class="form-control select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
+                  <select class="form-control ls-select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
                     @php($selectedPages = old('target_pages', []))
                     @foreach($availablePages as $page)
                       <option value="{{ $page['value'] }}" {{ in_array($page['value'], $selectedPages, true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
@@ -308,7 +324,7 @@
 
                 <div class="form-group" id="lims-destination-wrapper" style="display:none;">
                   <label for="lims_destination_pages">LIMS Destination Page(s)</label>
-                  <select class="form-control select2 @error('lims_destination_pages') is-invalid @enderror" id="lims_destination_pages" name="lims_destination_pages[]" multiple>
+                  <select class="form-control ls-select2 @error('lims_destination_pages') is-invalid @enderror" id="lims_destination_pages" name="lims_destination_pages[]" multiple>
                     @foreach($availablePages as $page)
                       <option value="{{ $page['value'] }}" {{ in_array($page['value'], old('lims_destination_pages', []), true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
                     @endforeach
@@ -325,8 +341,8 @@
                 <div class="form-group" id="placement-mode-wrapper">
                   <label for="placement_mode" class="required">How Should The Form Appear?</label>
                   <select class="form-control @error('placement_mode') is-invalid @enderror" id="placement_mode" name="placement_mode" required>
-                    <option value="button_trigger" {{ old('placement_mode', 'button_trigger') === 'button_trigger' ? 'selected' : '' }}>Open by button/action</option>
-                    <option value="page_section" {{ old('placement_mode') === 'page_section' ? 'selected' : '' }}>Render inside page section</option>
+                    <option value="button_trigger" {{ $default('placement_mode', 'button_trigger') === 'button_trigger' ? 'selected' : '' }}>Open by button/action</option>
+                    <option value="page_section" {{ $default('placement_mode') === 'page_section' ? 'selected' : '' }}>Render inside page section</option>
                   </select>
                   @error('placement_mode')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -349,7 +365,7 @@
                 {{-- Advanced Placement: per-page slot / button binding --}}
                 <div id="advanced-placement-section" class="d-none">
                   <div class="col-12 mt-2 mb-1 px-0">
-                    <h6 class="text-primary font-weight-bold small text-uppercase">
+                    <h6 class="sf-section-heading">
                       <i class="mdi mdi-map-marker-multiple mr-1"></i> Advanced Placement
                     </h6>
                     <p class="text-muted small mb-2">
@@ -362,7 +378,7 @@
                 </div>
 
                 <div class="form-group mt-3">
-                  <div class="checkbox-option-card d-flex align-items-start p-3" style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;gap:12px;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="gap:12px;">
                     <div class="mt-1">
                       <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
                     </div>
@@ -384,12 +400,12 @@
                   </small>
                 </div>
 
-                <div class="form-group mb-0 pt-3" style="border-top:1px solid #e9ecef;">
-                  <div class="d-flex align-items-center" style="gap:10px;">
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px;font-weight:600;box-shadow:0 2px 8px rgba(0,93,255,0.15);">
+                <div class="sf-form-actions">
+                  <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
+                    <button type="submit" class="btn btn-sm btn-primary btn-action-sm">
                       <i class="mdi mdi-content-save mr-1"></i> Create Form
                     </button>
-                    <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary" style="border-radius:8px;">
+                    <a href="{{ $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index') }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
                       <i class="mdi mdi-close mr-1"></i> Cancel
                     </a>
                   </div>
@@ -398,18 +414,16 @@
             </div>
           </div>
         </div>
-        
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-information-outline"></i> Getting Started
-              </h6>
+
+        <div class="col-lg-4">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-information-outline"></i> Getting Started</h6>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <div class="mb-3">
-                <h6>What happens next?</h6>
-                <ol class="small">
+                <div class="font-weight-semibold small mb-1">What happens next?</div>
+                <ol class="small mb-0 pl-3">
                   <li>Create your form template</li>
                   <li>Add sections to organize your fields</li>
                   <li>Add form elements (fields) to collect data</li>
@@ -417,59 +431,22 @@
                   <li>Publish the form for users</li>
                 </ol>
               </div>
-              
+
               <div class="mb-3">
-                <h6>Form Naming</h6>
-                <p class="small text-muted">
-                  Choose a clear, descriptive name that helps users understand the form's purpose. 
-                  This name will appear in form lists and user interfaces.
-                </p>
-              </div>
-              
-              <div class="mb-3">
-                <h6>Form Numbers</h6>
-                <p class="small text-muted">
-                  Each form submission gets a unique number based on your prefix and format settings. 
-                  This helps with tracking and referencing submissions.
+                <div class="font-weight-semibold small mb-1">Form Naming</div>
+                <p class="small text-muted mb-0">
+                  Choose a clear, descriptive name that helps users understand the form's purpose.
                 </p>
               </div>
 
               <div class="mb-3">
-                <h6>Template form types</h6>
-                <p class="small text-muted mb-2">
-                  A <strong>template form type</strong> groups and labels your <strong>template</strong> submission forms (for example by report family or workflow). It is metadata for discovery and configuration, not the same as linking an attachment to a template below.
+                <div class="font-weight-semibold small mb-1">Form Numbers</div>
+                <p class="small text-muted mb-0">
+                  Each form submission gets a unique number based on your prefix and format settings.
                 </p>
-                <ul class="small text-muted mb-0 pl-3">
-                  <li>Pick a type from <strong>Template Form Type</strong> when that field is shown, or use <strong>+ Add New Template Form Type</strong> to define a new label on the fly.</li>
-                  <li>Keeping types consistent makes it easier to find the right template when you have many forms.</li>
-                </ul>
               </div>
 
-              <div class="mb-3">
-                <h6>Attachment forms and template forms</h6>
-                <p class="small text-muted mb-2">
-                  Use <strong>Attachment Form</strong> when this form is optional or extra paperwork that goes with one or more standalone <strong>template</strong> forms (not the PDF/print layout).
-                </p>
-                <ul class="small text-muted mb-0 pl-3">
-                  <li><strong>Template Form</strong>: the main form (assigned to customers/sample types, etc.).</li>
-                  <li><strong>Attachment Form</strong>: after you select that type, use <strong>Linked Template Forms</strong> to choose which template form(s) this attachment is tied to. Users can then open the attachment in context of those templates.</li>
-                  <li><strong>Print Template</strong> (Dropdown in form details) controls how a filled form is rendered for printing—not the template form link above.</li>
-                </ul>
-              </div>
-
-              <div class="mb-3">
-                <h6>Filled only from customer portal</h6>
-                <p class="small text-muted mb-2">
-                  When <strong>Filled only from customer portal</strong> is checked, new instances are meant to be started and completed by customers through the <strong>customer portal</strong>, not from the usual in-lab form capture entry points.
-                </p>
-                <ul class="small text-muted mb-0 pl-3">
-                  <li>Set <strong>LIMS destination page(s)</strong> so that when a portal submission is received, the lab system opens the right area of the LIMS.</li>
-                  <li>For portal-only forms, placement options that target specific lab UI pages are hidden; routing is driven by those destination pages instead.</li>
-                  <li>Leave this unchecked if laboratory staff should launch or fill this form from inside the lab app as usual.</li>
-                </ul>
-              </div>
-              
-              <div class="alert alert-info small">
+              <div class="sf-alert-soft is-info small mb-0">
                 <i class="mdi mdi-lightbulb-outline"></i>
                 <strong>Tip:</strong> Start with a simple form structure. You can always add more sections and fields later.
               </div>
@@ -478,25 +455,7 @@
         </div>
       </div>
     </div>
-    </div>
   </main>
-
-  <!-- Validation Errors -->
-  @if($errors->any())
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <strong>Please correct the following errors:</strong>
-      <ul class="mb-0 mt-2">
-        @foreach($errors->all() as $error)
-          <li>{{ $error }}</li>
-        @endforeach
-      </ul>
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
-
-  <!-- (no additional modals) -->
 @endsection
 
 @section('script2')
@@ -610,7 +569,7 @@
 
   // ── Advanced Placement ────────────────────────────────────────────────────────
   const pageLayoutUrl = '{{ route('submission-forms.page-layout') }}';
-  const oldPlacementSlot    = @json(old('placement_slot', []));
+  const oldPlacementSlot    = @json(old('placement_slot', $trfDefaults['placement_slot'] ?? []));
   const oldTriggerButtonIds = @json(old('trigger_button_ids', []));
 
   function getSelectedRoutes() {
@@ -689,13 +648,13 @@
   }
 
   function buildPageCard(route, info, mode) {
-    const $card = $('<div class="card border-left border-primary mb-3 shadow-sm">');
-    const $header = $('<div class="card-header py-2 d-flex align-items-center">').html(
-      '<i class="mdi mdi-file-document-outline mr-2 text-primary"></i>' +
-      '<strong class="mr-1">' + escapeHtml(info.label) + '</strong>' +
-      '<small class="text-muted">(' + escapeHtml(route) + ')</small>'
+    const $card = $('<div class="workflow-board-panel mb-3">');
+    const $header = $('<div class="workflow-board-panel-header py-2">').html(
+      '<h6 class="mb-0"><i class="mdi mdi-file-document-outline"></i> ' +
+      escapeHtml(info.label) +
+      ' <small class="text-muted font-weight-normal">(' + escapeHtml(route) + ')</small></h6>'
     );
-    const $body = $('<div class="card-body py-3">');
+    const $body = $('<div class="workflow-board-panel-body py-3">');
 
     if (mode === 'page_section') {
       $body.append(buildSlotPicker(route, info.slots));
@@ -775,8 +734,4 @@
   });
 </script>
 
-<style>
-  .required::after { content: " *"; color: red; }
-  #advanced-placement-section .card { border-left-width: 3px !important; }
-</style>
 @endsection

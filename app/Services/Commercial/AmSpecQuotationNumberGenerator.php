@@ -2,54 +2,43 @@
 
 namespace App\Services\Commercial;
 
+use App\Models\System\SystemConfiguration;
 use App\QuotationHeader;
 use Illuminate\Support\Carbon;
 
 final class AmSpecQuotationNumberGenerator
 {
-    public static function generate(
-        string $customerId,
-        string $customerName,
-        ?Carbon $date = null,
-    ): string {
+    public static function generate(?Carbon $date = null, ?string $prefix = null): string
+    {
         $date ??= now();
-        $namePart = self::sanitizeCustomerName($customerName);
-        $prefix = $namePart.$date->format('Y');
+        $prefix ??= self::resolvePrefix();
+        $dayPrefix = $prefix.$date->format('ymd').'-';
 
-        $lastNumber = QuotationHeader::query()
-            ->where('crm_customer_id', $customerId)
-            ->where('quote_number', 'like', $prefix.'%')
-            ->orderByDesc('quote_number')
-            ->value('quote_number');
-
-        $sequence = 1;
-        if (is_string($lastNumber) && str_starts_with($lastNumber, $prefix)) {
-            $sequencePart = substr($lastNumber, strlen($prefix));
-            if (ctype_digit($sequencePart)) {
-                $sequence = (int) $sequencePart + 1;
-            }
-        }
+        $sequence = self::maxExistingSequence($dayPrefix) + 1;
 
         do {
-            $candidate = self::formatSequence($namePart, $date, $sequence);
+            $candidate = self::formatLabRef($date, $sequence, $prefix);
             $sequence++;
-        } while (QuotationHeader::query()->where('quote_number', $candidate)->exists());
+        } while (self::numberExists($candidate));
 
         return $candidate;
     }
 
-    public static function formatSequence(string $customerNamePart, Carbon $date, int $sequence): string
+    public static function formatLabRef(Carbon $date, int $sequence, string $prefix = 'AMSQ'): string
     {
-        return $customerNamePart
-            .$date->format('Y')
+        return $prefix
+            .$date->format('ymd')
+            .'-'
             .str_pad((string) max(1, $sequence), 3, '0', STR_PAD_LEFT);
     }
 
-    public static function sanitizeCustomerName(string $name): string
+    public static function isAmsqFormat(?string $value): bool
     {
-        $sanitized = preg_replace('/[^A-Za-z0-9]/', '', $name) ?? '';
+        if ($value === null || $value === '') {
+            return false;
+        }
 
-        return $sanitized !== '' ? $sanitized : 'Customer';
+        return (bool) preg_match('/^[A-Z]{2,10}\d{6}-\d{3,}$/', $value);
     }
 
     public static function isLegacyNumber(?string $quoteNumber): bool
@@ -63,19 +52,90 @@ final class AmSpecQuotationNumberGenerator
 
     public static function assignIfMissing(QuotationHeader $header): QuotationHeader
     {
-        if (! self::isLegacyNumber($header->quote_number)) {
-            return $header;
+        $dirty = false;
+
+        if (self::isLegacyNumber($header->quote_number)) {
+            $header->quote_number = self::resolveQuoteNumberForHeader($header);
+            $dirty = true;
         }
 
-        $header->loadMissing('customer');
+        if (empty($header->laboratory_ref)) {
+            $header->laboratory_ref = $header->quote_number;
+            $dirty = true;
+        }
 
-        $header->quote_number = self::generate(
-            (string) $header->crm_customer_id,
-            (string) ($header->customer?->name ?? 'Customer'),
-            $header->quote_date ? Carbon::parse($header->quote_date) : null,
-        );
-        $header->save();
+        if ($dirty) {
+            $header->save();
+        }
 
         return $header;
+    }
+
+    private static function resolveQuoteNumberForHeader(QuotationHeader $header): string
+    {
+        $labRef = trim((string) ($header->laboratory_ref ?? ''));
+        $date = $header->quote_date ? Carbon::parse($header->quote_date) : null;
+
+        if ($labRef !== '' && self::isAmsqFormat($labRef) && ! self::numberExists($labRef, (string) $header->id)) {
+            return $labRef;
+        }
+
+        return self::generate($date);
+    }
+
+    private static function maxExistingSequence(string $dayPrefix): int
+    {
+        $values = QuotationHeader::query()
+            ->where(function ($query) use ($dayPrefix): void {
+                $query->where('quote_number', 'like', $dayPrefix.'%')
+                    ->orWhere('laboratory_ref', 'like', $dayPrefix.'%');
+            })
+            ->get(['quote_number', 'laboratory_ref']);
+
+        $max = 0;
+
+        foreach ($values as $row) {
+            foreach ([$row->quote_number, $row->laboratory_ref] as $value) {
+                if (! is_string($value) || ! str_starts_with($value, $dayPrefix)) {
+                    continue;
+                }
+
+                $sequencePart = substr($value, strlen($dayPrefix));
+                if (ctype_digit($sequencePart)) {
+                    $max = max($max, (int) $sequencePart);
+                }
+            }
+        }
+
+        return $max;
+    }
+
+    private static function numberExists(string $candidate, ?string $exceptId = null): bool
+    {
+        return QuotationHeader::query()
+            ->when($exceptId !== null && $exceptId !== '', function ($query) use ($exceptId): void {
+                $query->where('id', '!=', $exceptId);
+            })
+            ->where(function ($query) use ($candidate): void {
+                $query->where('quote_number', $candidate)
+                    ->orWhere('laboratory_ref', $candidate);
+            })
+            ->exists();
+    }
+
+    private static function resolvePrefix(): string
+    {
+        $raw = SystemConfiguration::query()
+            ->where('key', 'quotation_lab_ref_prefix')
+            ->value('value');
+
+        if (! filled($raw)) {
+            return 'AMSQ';
+        }
+
+        $plain = trim(html_entity_decode(strip_tags((string) $raw), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $plain = preg_replace('/[^A-Za-z0-9]/', '', $plain) ?? '';
+
+        return $plain !== '' ? strtoupper($plain) : 'AMSQ';
     }
 }

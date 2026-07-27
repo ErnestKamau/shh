@@ -2,58 +2,80 @@
 
 @section('title2')
   <title>Edit Submission Form - {{ $submissionForm->name }}</title>
+  @include('submission-forms.partials.lab-theme-styles')
 @endsection
 
 @section('content2')
   <main>
-    <?php
-      $items = array(
-        array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.index'),
-          'name' => 'Submission Forms',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.show', $submissionForm),
+    @php
+      $fromRft = request()->query('from') === 'rft' || $submissionForm->isTestRequestTemplate();
+      $items = [
+        [
+          'link' => route('dashboard-lab'),
+          'name' => 'Dashboard',
+          'icon' => null,
+        ],
+        [
+          'link' => $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index'),
+          'name' => $fromRft ? 'Request For Testing' : 'Submission Forms',
+          'icon' => null,
+        ],
+        [
+          'link' => route('submission-forms.show', ['submissionForm' => $submissionForm, 'from' => $fromRft ? 'rft' : null]),
           'name' => $submissionForm->name,
-          'icon' => null
-        ),
-        array(
+          'icon' => null,
+        ],
+        [
           'link' => '#',
           'name' => 'Edit',
-          'icon' => null
-        )
-      );
-    ?>
+          'icon' => null,
+        ],
+      ];
+    @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <h2>
-        <i class="mdi mdi-pencil"></i> Edit Submission Form
-      </h2>
-      <div>
-        <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-info">
-          <i class="mdi mdi-eye"></i> View Form
-        </a>
-        <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary">
-          <i class="mdi mdi-arrow-left"></i> Back to Forms
-        </a>
-      </div>
-    </div>
 
-    <div class="bg-light p-4">
+    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme sf-admin-page px-3 px-md-4 pt-2 pb-4">
+      @if(session('success'))
+        <div class="alert alert-success mt-2">{{ session('success') }}</div>
+      @endif
+      @if(session('error'))
+        <div class="alert alert-danger mt-2">{{ session('error') }}</div>
+      @endif
+      @if($errors->any())
+        <div class="alert alert-danger mt-2">
+          <strong>Please correct the following errors:</strong>
+          <ul class="mb-0 mt-2">
+            @foreach($errors->all() as $error)
+              <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+      @endif
+
+      <div class="workflow-board-panel mb-3">
+        <div class="workflow-board-panel-header">
+          <div>
+            <h5 class="sf-page-title mb-0"><i class="mdi mdi-pencil"></i> Edit Submission Form</h5>
+            <p class="sf-page-subtitle">{{ $submissionForm->name }}</p>
+          </div>
+          <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
+            <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+              <i class="mdi mdi-eye"></i> View Form
+            </a>
+            <a href="{{ $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index') }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+              <i class="mdi mdi-arrow-left"></i> {{ $fromRft ? 'Back to RFT' : 'Back to Forms' }}
+            </a>
+          </div>
+        </div>
+      </div>
+
       <div class="row">
-        <div class="col-md-8">
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0">Form Details</h5>
+        <div class="col-lg-8">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-form-select"></i> Form Details</h6>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <form method="POST" action="{{ route('submission-forms.update', $submissionForm) }}">
                 @csrf
                 @method('PUT')
@@ -93,10 +115,10 @@
                 </div>
 
                 <div class="col-12 mt-3 mb-1 px-0">
-                  <h6 class="text-primary font-weight-bold small text-uppercase">
+                  <h6 class="sf-section-heading">
                     <i class="mdi mdi-certificate mr-1"></i> Form Quality Control Metadata
                   </h6>
-                  <p class="text-muted small mb-3">To get started, please provide the standard identification details for this form. These include the Document Control Number, Revision Number, and the official Issue Date which explain and identify this form.</p>
+                  <p class="text-muted small mb-3">Document Control Number, Revision Number, and Issue Date identify this form.</p>
                 </div>
 
                 <div class="row">
@@ -148,7 +170,7 @@
                       @enderror
                       <small class="form-text text-muted">Used to generate unique form numbers (e.g., SF for Submission Form).</small>
                       @if($submissionForm->instances()->exists())
-                        <div class="alert alert-warning small mt-2">
+                        <div class="sf-alert-soft is-warning small mt-2">
                           <i class="mdi mdi-alert"></i>
                           <strong>Warning:</strong> This form has existing instances. Changing the prefix may affect future form numbering.
                         </div>
@@ -208,7 +230,7 @@
                 {{-- Linked Template Forms — only visible when form_type = attachment --}}
                 <div class="form-group" id="template_forms_section" style="display:none;">
                   <label for="template_form_ids" class="required">Template Form Type</label>
-                  <select class="form-control select2 @error('template_form_ids') is-invalid @enderror" id="template_form_ids" name="template_form_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('template_form_ids') is-invalid @enderror" id="template_form_ids" name="template_form_ids[]" multiple>
                     @php($selectedTemplateFormIds = old('template_form_ids', $submissionForm->relationLoaded('templateForms') ? $submissionForm->templateForms->pluck('id')->toArray() : []))
                     @foreach($templateForms as $tf)
                       <option value="{{ $tf->id }}" {{ in_array($tf->id, $selectedTemplateFormIds) ? 'selected' : '' }}>
@@ -224,7 +246,7 @@
 
                 <div class="form-group">
                   <label for="customer_ids">Customers</label>
-                  <select class="form-control select2 @error('customer_ids') is-invalid @enderror" id="customer_ids" name="customer_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('customer_ids') is-invalid @enderror" id="customer_ids" name="customer_ids[]" multiple>
                     @php($selectedCustomers = old('customer_ids', $submissionForm->customers->pluck('id')->toArray()))
                     @foreach($customers as $customer)
                       <option value="{{ $customer->id }}" {{ in_array($customer->id, $selectedCustomers) ? 'selected' : '' }}>
@@ -240,7 +262,7 @@
 
                 <div class="form-group">
                   <label for="sample_type_ids">Sample Types</label>
-                  <select class="form-control select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
                     @php($selectedSampleTypes = old('sample_type_ids', $submissionForm->sampleTypes->pluck('id')->toArray()))
                     @foreach($sampleTypes as $sampleType)
                       <option value="{{ $sampleType->id }}" {{ in_array($sampleType->id, $selectedSampleTypes) ? 'selected' : '' }}>
@@ -256,7 +278,7 @@
 
                 <div class="form-group">
                   <label for="sample_analysis_stage_ids">Lab Sections</label>
-                  <select class="form-control select2 @error('sample_analysis_stage_ids') is-invalid @enderror" id="sample_analysis_stage_ids" name="sample_analysis_stage_ids[]" multiple>
+                  <select class="form-control ls-select2 @error('sample_analysis_stage_ids') is-invalid @enderror" id="sample_analysis_stage_ids" name="sample_analysis_stage_ids[]" multiple>
                     @php($selectedStages = old('sample_analysis_stage_ids', $submissionForm->sampleAnalysisStages->pluck('id')->toArray()))
                     @foreach($labSections as $section)
                       <option value="{{ $section->id }}" {{ in_array($section->id, $selectedStages) ? 'selected' : '' }}>{{ $section->name }}</option>
@@ -293,7 +315,7 @@
                 </div>
 
                 <div class="form-group">
-                  <div class="checkbox-option-card d-flex align-items-start p-3" style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;gap:12px;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="gap:12px;">
                     <div class="mt-1">
                       <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form', $submissionForm->is_customer_portal_form) ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
                     </div>
@@ -305,7 +327,7 @@
                 </div>
 
                 <div class="form-group" id="customer-request-form-wrapper" style="display:none;">
-                  <div class="checkbox-option-card d-flex align-items-start p-3 ml-4" style="background:#f0f4ff;border:1px solid #c7d5f8;border-radius:8px;gap:12px;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3 ml-4" style="gap:12px;background:#eff6ff !important;border-color:#bfdbfe !important;">
                     <div class="mt-1">
                       <input class="form-check-input" type="checkbox" id="is_customer_request_form" name="is_customer_request_form" value="1" {{ old('is_customer_request_form', $submissionForm->is_customer_request_form) ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
                     </div>
@@ -318,7 +340,7 @@
 
                 <div class="form-group" id="target-pages-wrapper">
                   <label for="target_pages">Target Pages</label>
-                  <select class="form-control select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
+                  <select class="form-control ls-select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
                     @php($selectedPages = old('target_pages', $submissionForm->target_pages ?? []))
                     @foreach($availablePages as $page)
                       <option value="{{ $page['value'] }}" {{ in_array($page['value'], $selectedPages, true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
@@ -335,7 +357,7 @@
 
                 <div class="form-group" id="lims-destination-wrapper" style="display:none;">
                   <label for="lims_destination_pages">LIMS Destination Page(s)</label>
-                  <select class="form-control select2 @error('lims_destination_pages') is-invalid @enderror" id="lims_destination_pages" name="lims_destination_pages[]" multiple>
+                  <select class="form-control ls-select2 @error('lims_destination_pages') is-invalid @enderror" id="lims_destination_pages" name="lims_destination_pages[]" multiple>
                     @php($selectedDestinations = old('lims_destination_pages', $submissionForm->lims_destination_pages ?? []))
                     @foreach($availablePages as $page)
                       <option value="{{ $page['value'] }}" {{ in_array($page['value'], $selectedDestinations, true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
@@ -353,7 +375,7 @@
                 {{-- Advanced Placement: per-page slot / button binding --}}
                 <div id="advanced-placement-section" class="d-none">
                   <div class="col-12 mt-2 mb-1 px-0">
-                    <h6 class="text-primary font-weight-bold small text-uppercase">
+                    <h6 class="sf-section-heading">
                       <i class="mdi mdi-map-marker-multiple mr-1"></i> Advanced Placement
                     </h6>
                     <p class="text-muted small mb-2">Fine-tune exactly <em>where</em> on each selected page this form should appear.</p>
@@ -362,7 +384,7 @@
                 </div>
 
                 <div class="form-group mt-3">
-                  <div class="checkbox-option-card d-flex align-items-start p-3" style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;gap:12px;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="gap:12px;">
                     <div class="mt-1">
                       <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" {{ old('is_active', $submissionForm->is_active) ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
                     </div>
@@ -370,7 +392,7 @@
                       <label class="form-check-label font-weight-semibold mb-0" for="is_active" style="cursor:pointer;font-size:0.92rem;">Active</label>
                       <p class="text-muted small mb-0 mt-1">Inactive forms cannot be used to create new instances.</p>
                       @if($submissionForm->instances()->exists() && !$submissionForm->is_active)
-                        <div class="alert alert-info small mt-2 mb-0 py-2">
+                        <div class="sf-alert-soft is-info small mt-2 mb-0">
                           <i class="mdi mdi-information-outline"></i>
                           This form has existing instances but is currently inactive.
                         </div>
@@ -388,12 +410,12 @@
                   <small class="form-text text-muted">Provide the start submission no for this submission form.</small>
                 </div>
 
-                <div class="form-group mb-0 pt-3" style="border-top:1px solid #e9ecef;">
-                  <div class="d-flex align-items-center" style="gap:10px;">
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px;font-weight:600;box-shadow:0 2px 8px rgba(0,93,255,0.15);">
+                <div class="sf-form-actions">
+                  <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
+                    <button type="submit" class="btn btn-sm btn-primary btn-action-sm">
                       <i class="mdi mdi-content-save mr-1"></i> Save Changes
                     </button>
-                    <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary" style="border-radius:8px;">
+                    <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
                       <i class="mdi mdi-close mr-1"></i> Cancel
                     </a>
                   </div>
@@ -402,35 +424,32 @@
             </div>
           </div>
         </div>
-        
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-information-outline"></i> Form Information
-              </h6>
+
+        <div class="col-lg-4">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-information-outline"></i> Form Information</h6>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <div class="mb-3">
-                <h6>Current Status</h6>
+                <div class="text-muted small mb-1">Current Status</div>
                 <div>
                   @if($submissionForm->is_published)
-                    <span class="badge badge-success">Published</span>
+                    <span class="sf-meta-chip is-success">Published</span>
                   @else
-                    <span class="badge badge-warning">Draft</span>
+                    <span class="sf-meta-chip is-warning">Draft</span>
                   @endif
-                  
                   @if($submissionForm->is_active)
-                    <span class="badge badge-outline-success ml-1">Active</span>
+                    <span class="sf-meta-chip is-success ml-1">Active</span>
                   @else
-                    <span class="badge badge-outline-danger ml-1">Inactive</span>
+                    <span class="sf-meta-chip is-danger ml-1">Inactive</span>
                   @endif
                 </div>
               </div>
-              
+
               <div class="mb-3">
-                <h6>Statistics</h6>
-                <ul class="list-unstyled small">
+                <div class="text-muted small mb-1">Statistics</div>
+                <ul class="list-unstyled small mb-0">
                   <li><strong>Version:</strong> {{ $submissionForm->version }}</li>
                   <li><strong>Created:</strong> {{ $submissionForm->created_at->format('M d, Y') }}</li>
                   <li><strong>Last Updated:</strong> {{ $submissionForm->updated_at->format('M d, Y') }}</li>
@@ -438,43 +457,39 @@
                   <li><strong>Instances:</strong> {{ $submissionForm->instances()->count() }}</li>
                 </ul>
               </div>
-              
+
               @if($submissionForm->instances()->exists())
-                <div class="alert alert-warning small">
+                <div class="sf-alert-soft is-warning small mb-3">
                   <i class="mdi mdi-alert"></i>
-                  <strong>Note:</strong> This form has {{ $submissionForm->instances()->count() }} existing instance(s). 
+                  <strong>Note:</strong> This form has {{ $submissionForm->instances()->count() }} existing instance(s).
                   Be careful when making changes that might affect data integrity.
                 </div>
               @endif
-              
-              <div class="alert alert-info small">
+
+              <div class="sf-alert-soft is-info small mb-0">
                 <i class="mdi mdi-lightbulb-outline"></i>
                 <strong>Tip:</strong> After updating form details, you can modify the form structure by adding or editing sections and fields.
               </div>
             </div>
           </div>
-          
-          <div class="card mt-3">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-cog"></i> Quick Actions
-              </h6>
+
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-lightning-bolt-outline"></i> Quick Actions</h6>
             </div>
-            <div class="card-body">
-              <div class="d-grid gap-2">
-                <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-outline-info btn-sm">
+            <div class="workflow-board-panel-body">
+              <div class="sf-action-stack">
+                <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
                   <i class="mdi mdi-eye-outline"></i> Preview Form
                 </a>
-                
-                <form method="POST" action="{{ route('submission-forms.clone', $submissionForm) }}" 
+                <form method="POST" action="{{ route('submission-forms.clone', $submissionForm) }}"
                       onsubmit="return confirm('Are you sure you want to clone this form?')">
                   @csrf
-                  <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary btn-action-sm w-100">
                     <i class="mdi mdi-content-copy"></i> Clone Form
                   </button>
                 </form>
-                
-                <a href="{{ route('submission-forms.export', $submissionForm) }}" class="btn btn-outline-info btn-sm">
+                <a href="{{ route('submission-forms.export', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
                   <i class="mdi mdi-download"></i> Export Structure
                 </a>
               </div>
@@ -484,42 +499,6 @@
       </div>
     </div>
   </main>
-
-  <!-- Success/Error Messages -->
-  @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      {{ session('success') }}
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
-
-  @if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      {{ session('error') }}
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
-
-  <!-- Validation Errors -->
-  @if($errors->any())
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <strong>Please correct the following errors:</strong>
-      <ul class="mb-0 mt-2">
-        @foreach($errors->all() as $error)
-          <li>{{ $error }}</li>
-        @endforeach
-      </ul>
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
-
-  <!-- (no additional modals) -->
 @endsection
 
 @section('script2')
@@ -718,13 +697,13 @@
   }
 
   function buildPageCard(route, info, mode) {
-    const $card = $('<div class="card border-left border-primary mb-3 shadow-sm">');
-    const $header = $('<div class="card-header py-2 d-flex align-items-center">').html(
-      '<i class="mdi mdi-file-document-outline mr-2 text-primary"></i>' +
-      '<strong class="mr-1">' + escapeHtml(info.label) + '</strong>' +
-      '<small class="text-muted">(' + escapeHtml(route) + ')</small>'
+    const $card = $('<div class="workflow-board-panel mb-3">');
+    const $header = $('<div class="workflow-board-panel-header py-2">').html(
+      '<h6 class="mb-0"><i class="mdi mdi-file-document-outline"></i> ' +
+      escapeHtml(info.label) +
+      ' <small class="text-muted font-weight-normal">(' + escapeHtml(route) + ')</small></h6>'
     );
-    const $body = $('<div class="card-body py-3">');
+    const $body = $('<div class="workflow-board-panel-body py-3">');
 
     if (mode === 'page_section') {
       $body.append(buildSlotPicker(route, info.slots));
@@ -793,10 +772,4 @@
   });
 </script>
 
-<style>
-  .required::after { content: " *"; color: red; }
-  .d-grid { display: grid; }
-  .gap-2 { gap: 0.5rem; }
-  #advanced-placement-section .card { border-left-width: 3px !important; }
-</style>
 @endsection

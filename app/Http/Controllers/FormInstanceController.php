@@ -1854,8 +1854,7 @@ class FormInstanceController extends Controller
         $submissionRequest = $instance->sampleSubmissionRequest;
         if (! $submissionRequest) {
             $submissionRequest = SampleSubmissionRequest::query()
-                ->where('test_request_form_instance_id', (string) $instance->id)
-                ->orWhere('portal_request_id', (string) $instance->id)
+                ->where('submission_form_instance_id', (string) $instance->id)
                 ->first();
         }
 

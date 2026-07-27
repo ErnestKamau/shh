@@ -4,7 +4,6 @@ namespace App\Services\Sampleworkflow;
 
 use App\Models\System\SystemConfiguration;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestFormInstance;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use Carbon\Carbon;
@@ -69,29 +68,6 @@ class TestRequestFormReportDataBuilder
             $instance,
             $forPdf,
             $instance->submittedBy,
-            null,
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function build(TestRequestFormInstance $instance, bool $forPdf = true): array
-    {
-        $instance->loadMissing([
-            'testRequestForm.sampleType',
-            'submissionFormInstance.crmCustomer.contacts',
-            'crmCustomer.contacts',
-            'creator',
-        ]);
-
-        return $this->buildPayload(
-            $instance->form_data ?? [],
-            $instance->testRequestForm?->sampleType,
-            $instance->submissionFormInstance,
-            $forPdf,
-            $instance->creator,
-            $instance,
         );
     }
 
@@ -120,7 +96,6 @@ class TestRequestFormReportDataBuilder
         $submission,
         bool $forPdf,
         $creator = null,
-        ?TestRequestFormInstance $trfi = null,
     ): array {
         $documentCode = null;
         if ($submission instanceof SubmissionFormInstance) {
@@ -133,7 +108,7 @@ class TestRequestFormReportDataBuilder
         $company = getActiveCompany();
         $branding = $this->resolveBranding($forPdf);
 
-        $customer = $this->resolveCustomerFields($formData, $submission, $trfi);
+        $customer = $this->resolveCustomerFields($formData, $submission);
         $collection = $this->resolveCollectionFields($formData, $variant);
         $wasteWaterFields = $variant === 'waste_water'
             ? $this->resolveWasteWaterFields($formData)
@@ -168,7 +143,7 @@ class TestRequestFormReportDataBuilder
             'variant' => $variant,
             'formTitle' => $formTitle,
             'documentRef' => $documentRef,
-            'serialNumber' => $this->resolveSerialNumber($submission, $trfi),
+            'serialNumber' => $this->resolveSerialNumber($submission),
             'company' => $company,
             'companyHeader' => $companyHeader,
             'branding' => $branding,
@@ -365,16 +340,16 @@ class TestRequestFormReportDataBuilder
      * @param  array<string, mixed>  $formData
      * @return array<string, string>
      */
-    private function resolveCustomerFields(array $formData, $submission, ?TestRequestFormInstance $trfi = null): array
+    private function resolveCustomerFields(array $formData, $submission): array
     {
-        $crm = $trfi?->crmCustomer ?? $submission?->crmCustomer;
+        $crm = $submission?->crmCustomer;
         $contact = $crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null;
 
         $customerTaxId = (string) ($formData['customer_tax_id'] ?? '');
         $customerEmail = (string) ($formData['customer_email'] ?? $crm?->email ?? '');
 
         return [
-            'job_number' => $this->resolveJobNumber($formData, $submission, $trfi),
+            'job_number' => $this->resolveJobNumber($formData, $submission),
             'customer_name' => (string) ($formData['customer_name'] ?? $formData['client_name'] ?? $crm?->name ?? ''),
             'customer_address' => (string) ($formData['customer_address'] ?? $formData['address'] ?? $crm?->physical_address ?? $crm?->postal_address ?? ''),
             'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
@@ -389,14 +364,10 @@ class TestRequestFormReportDataBuilder
     /**
      * @param  array<string, mixed>  $formData
      */
-    private function resolveJobNumber(array $formData, $submission, ?TestRequestFormInstance $trfi = null): string
+    private function resolveJobNumber(array $formData, $submission): string
     {
         if (! empty($formData['job_number'])) {
             return (string) $formData['job_number'];
-        }
-
-        if ($trfi?->form_number) {
-            return (string) $trfi->form_number;
         }
 
         if ($submission) {
@@ -547,12 +518,8 @@ class TestRequestFormReportDataBuilder
         ];
     }
 
-    private function resolveSerialNumber($submission, ?TestRequestFormInstance $trfi = null): string
+    private function resolveSerialNumber($submission): string
     {
-        if ($trfi?->form_number) {
-            return (string) $trfi->form_number;
-        }
-
         if (! $submission) {
             return '';
         }
