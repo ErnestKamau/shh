@@ -23,8 +23,8 @@
                     <div class="col-md-7">
                         <div class="form-group mb-3">
                             <label class="soft-label" for="select-client">Client <span class="text-danger">*</span></label>
-                            <select name="client" class="form-control modern-select no-select2" id="select-client" required>
-                                <option value="" disabled>Choose Client...</option>
+                            <select name="client" class="form-control modern-select ls-select2" id="select-client" required data-placeholder="Choose Client...">
+                                <option value=""></option>
                                 @foreach ($customers as $customer)
                                     <option value="{{ $customer->id }}"
                                         data-currency-id="{{ $customer->currency_id ?? '' }}">
@@ -47,8 +47,8 @@
 
                 <div class="form-group mb-3 contacts">
                     <label class="soft-label" for="select-client-contact">Client Contact <span class="text-danger">*</span></label>
-                    <select name="client_contact" id="select-client-contact" class="form-control modern-select no-select2" required>
-                        <option value="" disabled selected>Select client first...</option>
+                    <select name="client_contact" id="select-client-contact" class="form-control modern-select ls-select2" required data-placeholder="Select client first...">
+                        <option value=""></option>
                     </select>
                 </div>
 
@@ -69,8 +69,8 @@
 
                 <div class="form-group mb-0">
                     <label class="soft-label" for="select-currency">Currency <span class="text-danger">*</span></label>
-                    <select name="currency_id" id="select-currency" class="form-control modern-select no-select2" required>
-                        <option value="" disabled selected>Select Currency...</option>
+                    <select name="currency_id" id="select-currency" class="form-control modern-select ls-select2" required data-placeholder="Select Currency...">
+                        <option value=""></option>
                         @foreach ($currencies as $currency)
                             <option value="{{ $currency->id }}">{{ $currency->code }} - {{ $currency->description }}</option>
                         @endforeach
