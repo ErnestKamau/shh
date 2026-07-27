@@ -13,16 +13,18 @@ class WorkflowBoardSidebarCountsTest extends TestCase
     public function receiving_sidebar_status_keys_exclude_interzone_tab(): void
     {
         $keys = WorkflowBoard::receivingRequestStatusKeys();
+        $tabs = WorkflowBoard::receivingRequestTabs();
 
         $this->assertContains('submitted', $keys);
-        $this->assertContains('received', $keys);
         $this->assertContains('in_additional_info', $keys);
-        $this->assertContains('in_review', $keys);
+        $this->assertNotContains('in_review', $keys);
         $this->assertNotContains('interzone_transfers', $keys);
         $this->assertNotContains('complete', $keys);
         $this->assertNotContains('sub_contracting', $keys);
-        $this->assertSame('sub_contracting', array_key_last(WorkflowBoard::receivingRequestTabs()));
-        $this->assertArrayNotHasKey('complete', WorkflowBoard::receivingRequestTabs());
+        $this->assertArrayHasKey('ready_for_reception', $tabs);
+        $this->assertArrayNotHasKey('in_review', $tabs);
+        $this->assertSame('sub_contracting', array_key_last($tabs));
+        $this->assertArrayNotHasKey('complete', $tabs);
     }
 
     #[Test]
@@ -44,7 +46,7 @@ class WorkflowBoardSidebarCountsTest extends TestCase
             'sub_contracting' => 0,
             'submitted' => 0,
             'ready_for_reception' => 0,
-            'received' => 0,
+            'accepted' => 0,
             'todays_check_ins' => 0,
         ], $stats);
     }

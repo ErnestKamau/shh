@@ -3,13 +3,13 @@
         <h6 class="acc-wizard-section-title mb-0">Sample configuration</h6>
         @if($allowAddRemoveConfig ?? true)
             <div class="acc-sample-config-toolbar-actions">
-                @if(method_exists($this, 'syncFromContractPricelist'))
+                @if(method_exists($this, 'syncFromCustomerPricelist') || method_exists($this, 'syncFromContractPricelist'))
                     <button
                         type="button"
                         class="btn btn-sm btn-outline-secondary acc-sample-config-sync-btn"
-                        wire:click="syncFromContractPricelist"
-                        title="Sync from contract pricelist"
-                        aria-label="Sync from contract pricelist"
+                        wire:click="syncFromCustomerPricelist"
+                        title="Sync from customer pricelist"
+                        aria-label="Sync from customer pricelist"
                     >
                         <i class="mdi mdi-sync"></i>
                     </button>
@@ -115,7 +115,7 @@
                                     <th>{{ $compactTable ? 'Condition' : 'Condition of sample' }}</th>
                                 @endif
                                 @if($showMainStandard)
-                                    <th>{{ $compactTable ? 'Main std.' : 'Main standard' }}</th>
+                                    <th>{{ $compactTable ? 'Specification' : 'Main standard' }}</th>
                                 @endif
                                 @if($showSecondaryStandard)
                                     <th>Secondary standard</th>

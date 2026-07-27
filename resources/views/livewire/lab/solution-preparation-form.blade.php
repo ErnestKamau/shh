@@ -1,4 +1,4 @@
-<div class="solution-preparation-form container-fluid py-3">
+<div class="solution-preparation-form container-fluid py-3 lab-surface-theme ls-admin-page" data-ls-type="plex">
     <div class="scd-hero card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
             <a href="{{ route('solutions-preparation-index') }}" class="scd-back-btn mb-3 d-inline-flex"><i class="mdi mdi-arrow-left"></i></a>

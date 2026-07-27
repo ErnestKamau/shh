@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app')
+@extends('layouts.lab.layout.app', ['select2' => true])
 
 @section('title2')
   <title>Uncertainty Budgets</title>
@@ -6,7 +6,7 @@
 @endsection
 
 @section('content2')
-  <main>
+  <main class="lab-surface-theme ls-admin-page" data-ls-type="plex">
     <?php
       $items = array(
         array(
@@ -22,12 +22,12 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h2 class="p-4">
+    <h2 class="px-0 pt-2 pb-3">
       <i class="mdi mdi-calculator"></i> Uncertainty Budgets
       <span class="text-muted small">- Manage measurement uncertainty budgets</span>
     </h2>
     
-    <div class="container-fluid">
+    <div class="container-fluid px-0">
       @livewire('uncertainty-budgets-table')
     </div>
   </main>

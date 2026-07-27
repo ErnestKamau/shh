@@ -1,4 +1,4 @@
-<div class="container-fluid pricelist-show-page {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal) ? 'modal-active' : '' }}">
+<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal) ? 'modal-active' : '' }}" data-ls-type="plex">
     @if($message)
         <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
             {{ $message }}
@@ -81,16 +81,18 @@
 
         <div class="card border-0 shadow-sm workspace-card">
             <div class="card-body p-0">
-                <div class="workspace-tabs px-3 px-lg-4 pt-3 pt-lg-4">
+                <div class="workspace-tabs mx-3 mx-lg-4 mt-3 mt-lg-4">
                     <button type="button"
                             class="workspace-tab {{ $activeTab === 'customer-assignment' ? 'active' : '' }}"
-                            wire:click="setActiveTab('customer-assignment')">
+                            wire:click="setActiveTab('customer-assignment')"
+                            aria-selected="{{ $activeTab === 'customer-assignment' ? 'true' : 'false' }}">
                         <i class="mdi mdi-account-multiple-outline mr-1"></i>
                         Customer Assignment
                     </button>
                     <button type="button"
                             class="workspace-tab {{ $activeTab === 'pricelist-items' ? 'active' : '' }}"
-                            wire:click="setActiveTab('pricelist-items')">
+                            wire:click="setActiveTab('pricelist-items')"
+                            aria-selected="{{ $activeTab === 'pricelist-items' ? 'true' : 'false' }}">
                         <i class="mdi mdi-format-list-bulleted-square mr-1"></i>
                         Pricelist Items
                     </button>
@@ -500,15 +502,33 @@
                                             </span>
                                         </div>
 
-                                        <div class="item-filter-tabs" role="tablist" aria-label="Pricelist item commit filter">
-                                            <button type="button" class="item-filter-tab {{ $itemCommitFilter === 'all' ? 'active' : '' }}" wire:click="setItemCommitFilter('all')">
-                                                All <span class="item-filter-tab-count">({{ $items->count() }})</span>
+                                        <div class="pricelist-commit-tabs" role="tablist" aria-label="Pricelist item commit filter">
+                                            <button type="button"
+                                                    role="tab"
+                                                    aria-selected="{{ $itemCommitFilter === 'all' ? 'true' : 'false' }}"
+                                                    class="pricelist-commit-tab {{ $itemCommitFilter === 'all' ? 'is-active' : '' }}"
+                                                    wire:click="setItemCommitFilter('all')">
+                                                <i class="mdi mdi-view-list-outline"></i>
+                                                <span>All</span>
+                                                <span class="pricelist-commit-tab__count">{{ $items->count() }}</span>
                                             </button>
-                                            <button type="button" class="item-filter-tab {{ $itemCommitFilter === 'pending' ? 'active' : '' }}" wire:click="setItemCommitFilter('pending')">
-                                                Pending <span class="item-filter-tab-count">({{ $pendingItemsCount }})</span>
+                                            <button type="button"
+                                                    role="tab"
+                                                    aria-selected="{{ $itemCommitFilter === 'pending' ? 'true' : 'false' }}"
+                                                    class="pricelist-commit-tab {{ $itemCommitFilter === 'pending' ? 'is-active' : '' }}"
+                                                    wire:click="setItemCommitFilter('pending')">
+                                                <i class="mdi mdi-clock-outline"></i>
+                                                <span>Pending</span>
+                                                <span class="pricelist-commit-tab__count">{{ $pendingItemsCount }}</span>
                                             </button>
-                                            <button type="button" class="item-filter-tab {{ $itemCommitFilter === 'applied' ? 'active' : '' }}" wire:click="setItemCommitFilter('applied')">
-                                                Applied <span class="item-filter-tab-count">({{ $items->count() - $pendingItemsCount }})</span>
+                                            <button type="button"
+                                                    role="tab"
+                                                    aria-selected="{{ $itemCommitFilter === 'applied' ? 'true' : 'false' }}"
+                                                    class="pricelist-commit-tab {{ $itemCommitFilter === 'applied' ? 'is-active' : '' }}"
+                                                    wire:click="setItemCommitFilter('applied')">
+                                                <i class="mdi mdi-check-circle-outline"></i>
+                                                <span>Applied</span>
+                                                <span class="pricelist-commit-tab__count">{{ $items->count() - $pendingItemsCount }}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -518,28 +538,11 @@
                                     @if($filteredItemsCount > 0)
                                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pricelist-items-pagination-meta" style="gap: 8px;">
                                             <span class="text-muted small">
-                                                Showing {{ $itemPaginator->firstItem() ?? 0 }} to {{ $itemPaginator->lastItem() ?? 0 }} of {{ $itemPaginator->total() }} items
+                                                Showing {{ $this->itemsPageMeta['from'] }} to {{ $this->itemsPageMeta['to'] }} of {{ $this->itemsPageMeta['total'] }} items
                                                 @if($hasActiveItemFilters)
                                                     <span class="text-muted">(filtered from {{ $items->count() }} total)</span>
                                                 @endif
                                             </span>
-                                            @if($itemPaginator->hasPages())
-                                                <nav aria-label="Pricelist items pagination">
-                                                    <ul class="pagination pagination-sm mb-0">
-                                                        <li class="page-item {{ $itemPaginator->onFirstPage() ? 'disabled' : '' }}">
-                                                            <button type="button" class="page-link" wire:click="previousItemsPage" @disabled($itemPaginator->onFirstPage())>Previous</button>
-                                                        </li>
-                                                        @foreach($itemPaginator->getUrlRange(1, $itemPaginator->lastPage()) as $page => $url)
-                                                            <li class="page-item {{ $page === $itemPaginator->currentPage() ? 'active' : '' }}">
-                                                                <button type="button" class="page-link" wire:click="goToItemsPage({{ $page }})">{{ $page }}</button>
-                                                            </li>
-                                                        @endforeach
-                                                        <li class="page-item {{ $itemPaginator->onLastPage() ? 'disabled' : '' }}">
-                                                            <button type="button" class="page-link" wire:click="nextItemsPage" @disabled($itemPaginator->onLastPage())>Next</button>
-                                                        </li>
-                                                    </ul>
-                                                </nav>
-                                            @endif
                                         </div>
                                     @endif
 
@@ -558,8 +561,13 @@
 
                                                 <div class="sample-group-body">
                                                     @foreach($sampleGroup->analysis_groups as $analysisGroup)
-                                                        <details class="analysis-collapse mb-2">
-                                                            <summary class="analysis-collapse-summary">
+                                                        <div class="analysis-collapse mb-2"
+                                                             wire:key="analysis-collapse-{{ $sampleGroup->sample_type_id }}-{{ $analysisGroup->analysis_id }}"
+                                                             x-data="{ open: true, openPackages: {} }">
+                                                            <button type="button"
+                                                                    class="analysis-collapse-summary"
+                                                                    @click="open = !open"
+                                                                    :aria-expanded="open.toString()">
                                                                 <div class="analysis-collapse-meta">
                                                                     <strong>{{ $analysisGroup->analysis_type_name }}</strong>
                                                                     @if($analysisGroup->analysis_type_code)
@@ -570,9 +578,11 @@
                                                                     <span>Total Amount</span>
                                                                     <strong>{{ number_format((float) $analysisGroup->total_amount, 2) }}</strong>
                                                                 </div>
-                                                            </summary>
+                                                            </button>
 
-                                                            <div class="table-responsive modern-table-wrap mt-2">
+                                                            <div class="table-responsive modern-table-wrap mt-2"
+                                                                 x-show="open"
+                                                                 x-cloak>
                                                                 <table class="table table-hover modern-table mb-0">
                                                                     <thead>
                                                                         <tr>
@@ -589,12 +599,30 @@
                                                                     </thead>
                                                                     <tbody>
                                                                         @foreach($analysisGroup->rows as $item)
-                                                                            <tr class="{{ $item->has_pending_change ? 'pricelist-item-row--uncommitted' : '' }}">
+                                                                            @php
+                                                                                $isPackage = ! empty($item->is_package);
+                                                                                $packageItemId = (string) $item->id;
+                                                                                $packageParameters = is_array($item->package_parameters ?? null) ? $item->package_parameters : [];
+                                                                                $colspan = 9;
+                                                                            @endphp
+                                                                            <tr class="{{ $item->has_pending_change ? 'pricelist-item-row--uncommitted' : '' }}"
+                                                                                @if($isPackage)
+                                                                                    :class="{ 'pricelist-item-row--package-open': !!openPackages[@js($packageItemId)] }"
+                                                                                @endif>
                                                                                 <td class="fit-col">
                                                                                     <input type="checkbox" wire:model.live="selectedItemIds" value="{{ $item->id }}">
                                                                                 </td>
                                                                                 <td class="fit-col pricelist-actions-cell">
                                                                                     <div class="pricelist-row-actions">
+                                                                                        @if($isPackage)
+                                                                                            <button type="button"
+                                                                                                    class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                                                                                    @click.stop="openPackages[@js($packageItemId)] = !openPackages[@js($packageItemId)]"
+                                                                                                    :title="openPackages[@js($packageItemId)] ? 'Hide package parameters' : 'View package parameters'">
+                                                                                                <i class="mdi"
+                                                                                                   :class="openPackages[@js($packageItemId)] ? 'mdi-chevron-up' : 'mdi-eye'"></i>
+                                                                                            </button>
+                                                                                        @endif
                                                                                         <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click="showEditItemModal(@js($item->id))" title="Edit item">
                                                                                             <i class="mdi mdi-pencil-outline"></i>
                                                                                         </button>
@@ -605,9 +633,18 @@
                                                                                 </td>
                                                                                 <td>
                                                                                     <div class="table-primary-line">
-                                                                                        {{ $item->analyte_name ?? 'N/A' }}
-                                                                                        @if(!empty($item->is_package))
+                                                                                        @if($isPackage)
+                                                                                            <button type="button"
+                                                                                                    class="pricelist-package-toggle"
+                                                                                                    @click.stop="openPackages[@js($packageItemId)] = !openPackages[@js($packageItemId)]"
+                                                                                                    :title="openPackages[@js($packageItemId)] ? 'Hide package parameters' : 'View package parameters'">
+                                                                                                <i class="mdi"
+                                                                                                   :class="openPackages[@js($packageItemId)] ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
+                                                                                                <span>{{ $item->analyte_name ?? 'N/A' }}</span>
+                                                                                            </button>
                                                                                             <span class="badge badge-primary badge-pill ml-1">Package</span>
+                                                                                        @else
+                                                                                            {{ $item->analyte_name ?? 'N/A' }}
                                                                                         @endif
                                                                                     </div>
                                                                                     @if($item->analyte_code)
@@ -633,11 +670,35 @@
                                                                                     <span class="badge badge-{{ $item->active ? 'success' : 'danger' }}">{{ $item->active ? 'Active' : 'Inactive' }}</span>
                                                                                 </td>
                                                                             </tr>
+                                                                            @if($isPackage)
+                                                                                <tr class="pricelist-package-params-row"
+                                                                                    x-show="!!openPackages[@js($packageItemId)]"
+                                                                                    x-cloak>
+                                                                                    <td colspan="{{ $colspan }}">
+                                                                                        <div class="pricelist-package-params">
+                                                                                            <div class="pricelist-package-params__title">
+                                                                                                Package parameters ({{ count($packageParameters) }})
+                                                                                            </div>
+                                                                                            @if($packageParameters !== [])
+                                                                                                <ul class="pricelist-package-params__list">
+                                                                                                    @foreach($packageParameters as $parameter)
+                                                                                                        <li>
+                                                                                                            <span class="pricelist-package-params__code">{{ ($parameter['code'] ?? '') !== '' ? $parameter['code'] : ($parameter['name'] ?? 'Parameter') }}</span>
+                                                                                                        </li>
+                                                                                                    @endforeach
+                                                                                                </ul>
+                                                                                            @else
+                                                                                                <p class="mb-0 text-muted small">No parameters are linked to this package.</p>
+                                                                                            @endif
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            @endif
                                                                         @endforeach
                                                                     </tbody>
                                                                 </table>
                                                             </div>
-                                                        </details>
+                                                        </div>
                                                     @endforeach
                                                 </div>
                                             </section>
@@ -662,8 +723,11 @@
                                     @endif
 
                                     @if($groupedItems->count() > 0 && $itemPaginator->hasPages())
-                                        <div class="d-flex justify-content-center mt-3">
-                                            <nav aria-label="Pricelist items pagination bottom">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pricelist-items-pagination-meta" style="gap: 8px;">
+                                            <span class="text-muted small d-none d-md-inline">
+                                                Page {{ $itemPaginator->currentPage() }} of {{ $itemPaginator->lastPage() }}
+                                            </span>
+                                            <nav aria-label="Pricelist items pagination">
                                                 <ul class="pagination pagination-sm mb-0">
                                                     <li class="page-item {{ $itemPaginator->onFirstPage() ? 'disabled' : '' }}">
                                                         <button type="button" class="page-link" wire:click="previousItemsPage" @disabled($itemPaginator->onFirstPage())>Previous</button>
@@ -993,6 +1057,10 @@
     @endif
 
     <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
         .pricelist-show-page {
             --page-bg: linear-gradient(180deg, #f4f7fb 0%, #eef3f8 100%);
             --panel-border: rgba(148, 163, 184, 0.16);
@@ -1310,26 +1378,51 @@
         }
 
         .workspace-tabs {
-            display: flex;
+            display: inline-flex;
             flex-wrap: wrap;
-            gap: 10px;
-            border-bottom: 1px solid var(--slate-200);
+            gap: 6px;
+            padding: 6px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
         }
 
         .workspace-tab {
-            border: 0;
-            background: #e2e8f0;
-            color: var(--slate-700);
-            padding: 12px 18px;
-            border-radius: 14px 14px 0 0;
-            font-weight: 700;
-            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #64748b;
+            padding: 0.6rem 1.1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            line-height: 1.25;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+            cursor: pointer;
+        }
+
+        .workspace-tab:hover {
+            background: #fff;
+            border-color: var(--color-primary-border-soft, #e2b4b4);
+            color: var(--color-primary, #6D0A0E);
         }
 
         .workspace-tab.active {
-            background: var(--surface);
-            color: var(--blue-600);
-            box-shadow: 0 -6px 18px rgba(37, 99, 235, 0.08);
+            background: var(--color-primary, #6D0A0E);
+            border-color: var(--color-primary, #6D0A0E);
+            color: #fff;
+            box-shadow: 0 1px 3px rgb(109 10 14 / 0.28);
+        }
+
+        .workspace-tab.active:hover {
+            background: var(--color-primary-hover, #8B1E22);
+            border-color: var(--color-primary-hover, #8B1E22);
+            color: #fff;
+        }
+
+        .workspace-tab.active .mdi {
+            color: #fff;
         }
 
         .soft-label {
@@ -1600,38 +1693,49 @@
         }
 
         .assignment-tabs-wrap {
-            border-bottom: 1px solid var(--slate-200);
-            padding-bottom: 8px;
+            padding-bottom: 0;
+            border-bottom: none;
         }
 
         .assignment-tabs {
-            display: flex;
+            display: inline-flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 6px;
+            padding: 4px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
         }
 
         .assignment-tab {
-            border: 1px solid #cbd5e1;
-            background: #f8fafc;
-            color: #334155;
-            padding: 9px 14px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 700;
-            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #64748b;
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            cursor: pointer;
         }
 
         .assignment-tab:hover {
-            border-color: #93c5fd;
-            color: #1d4ed8;
-            background: #eff6ff;
+            background: #fff;
+            border-color: var(--color-primary-border-soft, #e2b4b4);
+            color: var(--color-primary, #6D0A0E);
         }
 
         .assignment-tab.active {
-            border-color: #93c5fd;
-            color: #1e3a8a;
-            background: #dbeafe;
-            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.12);
+            border-color: var(--color-primary, #6D0A0E);
+            color: #fff;
+            background: var(--color-primary, #6D0A0E);
+            box-shadow: 0 1px 3px rgb(109 10 14 / 0.28);
+        }
+
+        .assignment-tab.active:hover {
+            background: var(--color-primary-hover, #8B1E22);
+            border-color: var(--color-primary-hover, #8B1E22);
+            color: #fff;
         }
 
         .modern-table-wrap {
@@ -1675,35 +1779,80 @@
             background: #f59e0b;
         }
 
-        .item-filter-tabs {
+        .item-filter-tabs,
+        .pricelist-commit-tabs {
             display: inline-flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             flex-wrap: wrap;
+            padding: 4px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
         }
 
-        .item-filter-tab {
-            border: 1px solid #cbd5e1;
-            background: #ffffff;
-            color: #334155;
+        .item-filter-tab,
+        .pricelist-commit-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #475569;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            line-height: 1.25;
+            padding: 0.45rem 0.85rem;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+            cursor: pointer;
+        }
+
+        .item-filter-tab:hover,
+        .pricelist-commit-tab:hover {
+            background: #fff;
+            border-color: var(--color-primary-border-soft, #e2b4b4);
+            color: var(--color-primary, #6D0A0E);
+        }
+
+        .item-filter-tab.active,
+        .pricelist-commit-tab.is-active {
+            background: var(--color-primary, #6D0A0E);
+            border-color: var(--color-primary, #6D0A0E);
+            color: #fff;
+            box-shadow: 0 1px 3px rgb(109 10 14 / 0.28);
+        }
+
+        .item-filter-tab.active:hover,
+        .pricelist-commit-tab.is-active:hover {
+            background: var(--color-primary-hover, #8B1E22);
+            border-color: var(--color-primary-hover, #8B1E22);
+            color: #fff;
+        }
+
+        .pricelist-commit-tab .mdi {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .item-filter-tab-count,
+        .pricelist-commit-tab__count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.35rem;
+            padding: 2px 6px;
             border-radius: 999px;
-            font-size: 12px;
+            font-size: 0.6875rem;
             font-weight: 700;
-            letter-spacing: 0.02em;
-            padding: 7px 12px;
-            transition: all 0.2s ease;
+            background: #e2e8f0;
+            color: #475569;
         }
 
-        .item-filter-tab:hover {
-            border-color: #93c5fd;
-            color: #1d4ed8;
-            background: #eff6ff;
-        }
-
-        .item-filter-tab.active {
-            border-color: #f59e0b;
-            color: #92400e;
-            background: #fef3c7;
+        .pricelist-commit-tab.is-active .pricelist-commit-tab__count,
+        .item-filter-tab.active .item-filter-tab-count {
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
         }
 
         .grouped-items-layout {
@@ -1756,10 +1905,14 @@
             gap: 10px;
             padding: 12px 14px;
             background: #f8fafc;
+            width: 100%;
+            border: 0;
+            text-align: left;
         }
 
-        .analysis-collapse-summary::-webkit-details-marker {
-            display: none;
+        .analysis-collapse-summary:focus {
+            outline: 2px solid #93c5fd;
+            outline-offset: -2px;
         }
 
         .analysis-collapse-meta {
@@ -1916,51 +2069,6 @@
             background: #eff6ff;
         }
 
-        .pricelist-filter-hierarchy-hint {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-            border: 1px solid #e2e8f0;
-        }
-
-        .pricelist-filter-hierarchy-step {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #64748b;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-        }
-
-        .pricelist-filter-hierarchy-step.is-active {
-            color: #1d4ed8;
-            border-color: #93c5fd;
-            background: #eff6ff;
-        }
-
-        .pricelist-filter-hierarchy-step.is-complete {
-            color: #047857;
-            border-color: #6ee7b7;
-            background: #ecfdf5;
-        }
-
-        .pricelist-filter-hierarchy-step.is-disabled {
-            opacity: 0.55;
-        }
-
-        .pricelist-filter-hierarchy-arrow {
-            color: #94a3b8;
-            font-size: 16px;
-        }
-
         .pricelist-filter-tag-select.is-locked {
             cursor: not-allowed;
         }
@@ -2073,6 +2181,78 @@
             vertical-align: middle;
         }
 
+        .pricelist-package-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font-weight: 700;
+            padding: 0;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .pricelist-package-toggle:hover {
+            color: var(--color-primary, #6D0A0E);
+        }
+
+        .pricelist-package-toggle .mdi {
+            font-size: 1rem;
+            line-height: 1;
+            color: var(--color-primary, #6D0A0E);
+        }
+
+        .pricelist-package-params-row > td {
+            background: #f8fafc;
+            border-top: 0 !important;
+            padding-top: 0.35rem;
+            padding-bottom: 0.85rem;
+        }
+
+        .pricelist-package-params {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fff;
+            padding: 0.75rem 0.9rem;
+        }
+
+        .pricelist-package-params__title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            margin-bottom: 0.55rem;
+        }
+
+        .pricelist-package-params__list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 0.4rem 0.85rem;
+        }
+
+        .pricelist-package-params__list li {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            padding: 0.4rem 0.55rem;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #eef2f7;
+        }
+
+        .pricelist-package-params__code {
+            font-size: 0.8125rem;
+            font-weight: 400;
+            color: #1e293b;
+            word-break: break-all;
+        }
+
         .pricelist-filter-empty {
             margin-top: 0.25rem;
         }
@@ -2084,11 +2264,6 @@
         .fit-col {
             width: 1%;
             white-space: nowrap;
-        }
-
-        .item-filter-tab-count {
-            font-weight: 600;
-            opacity: 0.82;
         }
 
         .flag-stack {

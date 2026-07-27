@@ -138,7 +138,29 @@
     @livewire('sampleworkflow.process-enquiry-wizard')
     @livewire('sampleworkflow.sample-rejection-wizard')
     @livewire('sampleworkflow.acceptance-form-wizard')
-    @livewire('sampleworkflow.receive-sample-request', key('request-view-receive-'.$instance->id))
+
+    {{-- Keep receive/walk-in capture in a Bootstrap modal so it is not inline on the read-only view. --}}
+    <div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div id="receive-sample-modal-dialog" class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content receive-sample-modal-content border-0 shadow">
+                <div class="modal-header receive-sample-modal-header border-0">
+                    <div>
+                        <h5 class="modal-title mb-0" id="receive-sample-modal-title-wrap">
+                            <i id="receive-sample-modal-icon" class="mdi mdi-clipboard-text text-primary mr-2"></i>
+                            <span id="receive-sample-modal-title-text">Test Request Form</span>
+                        </h5>
+                        <p id="receive-sample-modal-subtitle" class="text-muted small mb-0 mt-1 d-none"></p>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @livewire('sampleworkflow.receive-sample-request', key('request-view-receive-'.$instance->id))
+                </div>
+            </div>
+        </div>
+    </div>
 
     @if($showPoCaptureModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
@@ -221,6 +243,23 @@
 
     Livewire.on('sample-rejection-completed', () => {
         window.location.reload();
+    });
+
+    Livewire.on('show-receive-sample-modal', (payload) => {
+        const data = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+        if (data.physicalCheckIn ?? false) {
+            return;
+        }
+
+        if (typeof window.$ === 'function') {
+            $('#receive-sample-modal').modal('show');
+        }
+    });
+
+    Livewire.on('hide-receive-sample-modal', () => {
+        if (typeof window.$ === 'function') {
+            $('#receive-sample-modal').modal('hide');
+        }
     });
 </script>
 @endscript

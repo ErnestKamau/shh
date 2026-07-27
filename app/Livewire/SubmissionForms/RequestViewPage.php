@@ -323,12 +323,10 @@ class RequestViewPage extends Component
     {
         $this->authorizeFormAccess(auth()->user());
 
-        $instanceStatus = strtolower((string) $this->instance->status);
-        $enquiryStatus = (string) ($this->commercialEnquiry?->status ?? '');
-
-        if (! in_array($instanceStatus, ['in_review', 'received'], true)
-            && $enquiryStatus !== SampleSubmissionRequest::STATUS_IN_REVIEW) {
-            session()->flash('request_view_message', 'Sample acceptance is only available after the request has been moved to In Review.');
+        $enquiry = $this->commercialEnquiry;
+        if ($enquiry === null
+            || ! app(EnquiryReceptionReadinessService::class)->isEligibleForSampleAcceptance($enquiry, $this->instance)) {
+            session()->flash('request_view_message', 'Sample acceptance is only available when the request is Ready for Reception.');
 
             return;
         }
@@ -336,7 +334,7 @@ class RequestViewPage extends Component
         $this->dispatch(
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->instance->id,
-            submissionRequestId: $this->commercialEnquiry?->id,
+            submissionRequestId: $enquiry->id,
         )->to(AcceptanceFormWizard::class);
     }
 
@@ -552,12 +550,17 @@ class RequestViewPage extends Component
         $auditLogs = $this->instance->auditLogs()->with('user')->latest()->get();
         foreach ($auditLogs as $log) {
             $userName = $log->user ? $log->user->name : 'Customer (Portal)';
-            $title = method_exists($log, 'getActionDisplayName') ? $log->getActionDisplayName() : ucfirst((string) $log->event);
+            $title = method_exists($log, 'getActionDisplayName') ? $log->getActionDisplayName() : ucfirst((string) ($log->action ?? $log->event ?? ''));
+            $fieldChanges = is_array($log->field_changes ?? null) ? $log->field_changes : (is_array($log->new_values ?? null) ? $log->new_values : []);
+            $statusTo = data_get($fieldChanges, 'status.to', data_get($fieldChanges, 'status', $this->instance->status));
 
-            if ($log->event === 'updated' && isset($log->new_values['status']) && $log->new_values['status'] === 'submitted') {
-                $title = 'Request Submitted (Portal)';
-            } elseif ($log->event === 'created') {
-                $title = 'Request Drafted (Portal)';
+            if (($log->action ?? $log->event ?? null) === 'submitted'
+                || (($log->action ?? $log->event ?? null) === 'updated' && $statusTo === 'submitted')) {
+                $title = 'Submitted Requests';
+            } elseif (($log->action ?? $log->event ?? null) === 'created') {
+                $title = 'Request Drafted';
+            } elseif (($log->action ?? $log->event ?? null) === 'received') {
+                $title = 'Received Request';
             }
 
             $occurredAt = \Carbon\Carbon::parse($log->created_at);
@@ -565,12 +568,12 @@ class RequestViewPage extends Component
                 continue;
             }
 
-            $badge = method_exists($log, 'getActionBadgeColor') ? $log->getActionBadgeColor() : ($log->event === 'created' ? 'info' : 'success');
+            $badge = method_exists($log, 'getActionBadgeColor') ? $log->getActionBadgeColor() : (($log->action ?? $log->event ?? null) === 'created' ? 'info' : 'success');
 
             $events->push((object) [
                 'source' => 'audit',
                 'title' => $title,
-                'subtitle' => 'Status: '.($log->new_values['status'] ?? $this->instance->status),
+                'subtitle' => 'Status: '.(is_string($statusTo) ? $statusTo : (string) $this->instance->status),
                 'user_name' => $userName,
                 'occurred_at' => $occurredAt,
                 'badge' => $badge,
@@ -788,8 +791,12 @@ class RequestViewPage extends Component
             return 'accepted';
         }
 
-        if (in_array((string) $this->instance->status, ['in_review', 'In Review', 'received'], true)) {
-            return 'in_review';
+        if ($this->commercialEnquiry !== null
+            && in_array((string) $this->commercialEnquiry->status, [
+                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+                SampleSubmissionRequest::STATUS_IN_REVIEW,
+            ], true)) {
+            return 'ready_for_reception';
         }
 
         return 'submitted';

@@ -4,7 +4,7 @@
     $isRegularStep = ($templateForm['step_type'] ?? $stepTypeRegular) === $stepTypeRegular;
 @endphp
 
-<div class="solution-preparation-templates">
+<div class="solution-preparation-templates lab-surface-theme ls-admin-page" data-ls-type="plex">
     @if($message)
         <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show spt-alert" role="alert">
             <i class="mdi mdi-{{ $messageType === 'success' ? 'check-circle' : 'alert-circle' }} me-1"></i>

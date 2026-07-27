@@ -1,4 +1,4 @@
-<div class="container-fluid actual-collections-page">
+<div class="container-fluid actual-collections-page lab-surface-theme" data-ls-type="plex">
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -45,7 +45,7 @@
     </div>
 
     @if($showFilters)
-        <div class="card shadow-sm border-0 mb-3" style="border-radius:15px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);">
+        <div class="card shadow-sm border-0 mb-3" style="border-radius:var(--ls-radius-xl,12px);background:var(--ls-color-bg,#f8fafc);border:1px solid var(--ls-color-border,#e2e8f0);">
             <div class="card-body p-4">
                 <div class="row">
                     <div class="col-md-3 mb-3">
@@ -185,7 +185,7 @@
         <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                    <div class="modal-header text-white" style="background:linear-gradient(135deg,#198754,#157347);flex-shrink:0;">
+                    <div class="modal-header text-white" style="flex-shrink:0;">
                         <h5 class="modal-title font-weight-bold m-0">
                             <i class="mdi mdi-clipboard-check mr-2"></i> Collection Details
                         </h5>

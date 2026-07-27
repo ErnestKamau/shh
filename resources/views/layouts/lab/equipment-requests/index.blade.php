@@ -1,12 +1,13 @@
-@extends('layouts.lab.layout.app')
+@extends('layouts.lab.layout.app', ['select2' => true])
 
 @section('title2')
     <title>Equipment Requests</title>
 @endsection
 
 @section('content2')
-    <main class="container-fluid workflow-board-page lab-panel-theme">
+    <main class="container-fluid workflow-board-page lab-panel-theme lab-surface-theme" data-ls-type="plex">
         @include('layouts.lab.partials.lab-panel-theme-styles')
+        @include('layouts.lab.partials.lab-surface-theme-styles')
         <?php
             $items = [
                 [

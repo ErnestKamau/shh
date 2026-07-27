@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\AnalysisElements;
+use App\AnalysisMethod;
 use App\Analyte;
 use App\CapturedResult;
 use App\ReportingUnit;
@@ -12,6 +13,7 @@ use App\SampleHeader;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
 use App\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -55,12 +57,19 @@ class SampleAnalysisSetupServiceCreationTest extends TestCase
         ]);
 
         $analysisTypeId = (string) Str::uuid();
-        $methodId = (string) Str::uuid();
+        $labSectionId = $this->createLabSection();
+
+        $method = AnalysisMethod::query()->create([
+            'name' => 'Valid Method '.Str::random(4),
+            'code' => 'M-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
 
         $element = AnalysisElements::query()->create([
             'analysis_type_id' => $analysisTypeId,
             'analyte_id' => $analyte->id,
-            'method' => $methodId,
+            'method' => $method->id,
+            'lab_section_id' => $labSectionId,
             'reporting_unit' => $unit->name,
             'active' => 1,
             'level' => 1,
@@ -84,12 +93,112 @@ class SampleAnalysisSetupServiceCreationTest extends TestCase
         $this->assertNotNull($captured);
         $this->assertSame((string) $element->id, (string) $captured->analysis_element_id);
         $this->assertSame((string) $unit->id, (string) $captured->reporting_unit_id);
-        $this->assertSame((string) $methodId, (string) $captured->method_id);
+        $this->assertSame((string) $method->id, (string) $captured->method_id);
         $this->assertNull($captured->operator_id);
 
         $result = Result::query()->where('captured_result_id', $captured->id)->first();
         $this->assertNotNull($result);
         $this->assertSame($unit->name, $result->unit_code);
+    }
+
+    public function test_create_captured_results_nulls_orphaned_method_id(): void
+    {
+        if (! extension_loaded('pdo_pgsql') && config('database.default') === 'pgsql') {
+            $this->markTestSkipped('pgsql unavailable in this environment');
+        }
+
+        $user = User::query()->create([
+            'name' => 'Orphan Method Tester',
+            'email' => 'orphan-method-'.Str::random(6).'@example.com',
+            'password' => bcrypt('password'),
+            'active' => 1,
+        ]);
+
+        $batch = SampleHeader::query()->create([
+            'batch_code' => 'JOB-ORPH-'.Str::random(4),
+            'status' => 'Samples In Lab',
+            'created_by' => $user->id,
+        ]);
+
+        $detail = SampleDetails::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_code' => 'CH-ORPH-001',
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'name' => 'BARIUM',
+            'code' => 'BA-'.Str::random(4),
+            'active' => 1,
+        ]);
+
+        $unit = ReportingUnit::query()->create([
+            'name' => 'mg_L_'.Str::random(4),
+            'active' => 1,
+        ]);
+
+        $analysisTypeId = (string) Str::uuid();
+        $orphanedMethodId = (string) Str::uuid();
+        $labSectionId = $this->createLabSection();
+
+        AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisTypeId,
+            'analyte_id' => $analyte->id,
+            'method' => $orphanedMethodId,
+            'lab_section_id' => $labSectionId,
+            'reporting_unit' => $unit->name,
+            'active' => 1,
+            'level' => 1,
+            'non_accredited' => 0,
+        ]);
+
+        $this->assertFalse(AnalysisMethod::query()->whereKey($orphanedMethodId)->exists());
+
+        app(SampleAnalysisSetupService::class)->createCapturedResultsForAnalysisType(
+            (string) $batch->id,
+            (string) $detail->id,
+            $analysisTypeId,
+            (string) $detail->sample_code,
+            (string) $user->id,
+        );
+
+        $captured = CapturedResult::query()
+            ->where('sample_header_id', $batch->id)
+            ->where('analyte_id', $analyte->id)
+            ->first();
+
+        $this->assertNotNull($captured);
+        $this->assertNull($captured->method_id);
+    }
+
+    private function createLabSection(): string
+    {
+        $sectionId = (string) Str::uuid();
+        $labId = (string) Str::uuid();
+        $companyId = (string) Str::uuid();
+
+        DB::table('labs')->insert([
+            'id' => $labId,
+            'code' => 'LAB-'.Str::upper(Str::random(3)),
+            'name' => 'Method Lab',
+            'phone1' => '000',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('sample_analysis_stages')->insert([
+            'id' => $sectionId,
+            'lab_id' => $labId,
+            'company_id' => $companyId,
+            'name' => 'CHEM',
+            'code' => 'CHM',
+            'active' => true,
+            'is_sample_stage' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $sectionId;
     }
 
     public function test_sync_batch_lab_section_ids_from_analysis_types(): void

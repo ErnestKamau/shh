@@ -973,6 +973,25 @@
 		gap: 0.5rem;
 	}
 
+	/* Nested footer action rows (BS4 has no gap-*) */
+	.lab-surface-theme.ls-admin-page .modal .modal-footer .d-flex {
+		gap: 0.65rem;
+	}
+
+	/* Force brand-mono header even when markup uses bg-light / white overrides */
+	.lab-surface-theme.ls-admin-page .modal .modal-header,
+	.lab-surface-theme.ls-admin-page .modal .modal-header.bg-light {
+		background: var(--ls-modal-header-gradient, linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)) !important;
+		color: #fff !important;
+		border-bottom-color: rgba(255, 255, 255, 0.15) !important;
+	}
+
+	.lab-surface-theme.ls-admin-page .modal .modal-header .modal-title,
+	.lab-surface-theme.ls-admin-page .modal .modal-header h5,
+	.lab-surface-theme.ls-admin-page .modal .modal-header .mdi {
+		color: #fff !important;
+	}
+
 	.lab-surface-theme.ls-admin-page .modal .form-control,
 	.lab-surface-theme.ls-admin-page .modal .form-select {
 		min-height: var(--ls-control-h);

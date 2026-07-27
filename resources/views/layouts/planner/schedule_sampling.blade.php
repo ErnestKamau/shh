@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main class="container-fluid px-4">
+<main class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <?php
     $items = array(
         array('link' => route('system-planner.dashboard'), 'name' => 'System Planner', 'icon' => null),

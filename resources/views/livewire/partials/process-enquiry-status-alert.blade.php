@@ -4,7 +4,7 @@
         @if($statusAutoDismiss)
             wire:key="enquiry-status-{{ md5($statusMessage) }}"
             x-data
-            x-init="window.clearTimeout($el._dismissTimer); $el._dismissTimer = window.setTimeout(() => $wire.clearStatus(), 3000)"
+            x-init="window.clearTimeout($el._dismissTimer); $el._dismissTimer = window.setTimeout(() => $wire.clearStatus(), 5000)"
         @endif
     >
         {{ $statusMessage }}

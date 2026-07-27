@@ -2,7 +2,6 @@
 
 namespace App\Services\Commercial;
 
-use App\Models\Billing\PricelistCustomer;
 use App\Models\CRM\CRMCustomer;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
@@ -119,8 +118,8 @@ final class CommercialEnquirySyncService
             $this->lineSync->syncSampleLines($enquiry, $lines);
             $this->lineSync->syncRequestedAnalyses($enquiry, $lines);
 
-            if ($instance->crm_customer_id && PricelistCustomer::query()->where('customer_id', $instance->crm_customer_id)->exists()) {
-                $enquiry->pricing_source = 'contract';
+            if ($instance->crm_customer_id && $this->contractCustomerService->hasAssignedPricelist((string) $instance->crm_customer_id)) {
+                $enquiry->pricing_source = 'customer_pricelist';
             }
 
             $enquiry->status = $status;
@@ -134,7 +133,7 @@ final class CommercialEnquirySyncService
             $asDraft = $status === SampleSubmissionRequest::STATUS_DRAFT;
 
             if (! $asDraft && $this->contractCustomerService->isScheduledEnquiry($enquiry)) {
-                if (! $this->contractCustomerService->hasContractPricelist((string) $enquiry->crm_customer_id)) {
+                if (! $this->contractCustomerService->hasAssignedPricelist((string) $enquiry->crm_customer_id)) {
                     $enquiry->pricing_source = 'sampling_contract';
                     $enquiry->save();
                 }

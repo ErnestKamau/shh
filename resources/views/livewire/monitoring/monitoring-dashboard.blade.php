@@ -1,4 +1,4 @@
-<div class="monitoring-shell container-fluid">
+<div class="monitoring-shell container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">

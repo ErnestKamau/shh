@@ -1,4 +1,4 @@
-<div class="lab-sub-category-details-page container-fluid py-3">
+<div class="lab-sub-category-details-page container-fluid py-3 lab-surface-theme ls-admin-page" data-ls-type="plex">
     {{-- Page header --}}
     <div class="scd-hero card border-0 shadow-sm mb-4">
         <div class="card-body p-4">

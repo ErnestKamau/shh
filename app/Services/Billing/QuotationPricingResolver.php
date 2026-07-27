@@ -3,6 +3,7 @@
 namespace App\Services\Billing;
 
 use App\AnalysisElements;
+use App\AnalysisType;
 use App\Models\Billing\Pricelist;
 use App\QuotationDetails;
 use App\QuotationHeader;
@@ -17,11 +18,12 @@ class QuotationPricingResolver
 
     public function resolvePricelist(?string $customerId): ?Pricelist
     {
-        return $this->acceptanceFormPricingService->resolvePricelist($customerId);
+        return $this->acceptanceFormPricingService->resolveCustomerAssignedPricelist($customerId)
+            ?? $this->acceptanceFormPricingService->resolvePricelist($customerId);
     }
 
     /**
-     * @return array{unit_price: float, source: string, invoicable_item_id: ?string}
+     * @return array{unit_price: float, source: string}
      */
     public function resolveLineUnitPrice(
         QuotationHeader $header,
@@ -35,7 +37,6 @@ class QuotationPricingResolver
             return [
                 'unit_price' => $storedUnitPrice,
                 'source' => 'manual',
-                'invoicable_item_id' => null,
             ];
         }
 
@@ -51,28 +52,17 @@ class QuotationPricingResolver
             return [
                 'unit_price' => $pricelistPrice,
                 'source' => 'pricelist',
-                'invoicable_item_id' => null,
-            ];
-        }
-
-        $invoicable = getPriceForAnalysisType($analysisTypeId, $header->currency_id);
-        if ($invoicable && ($invoicable['unit_price'] ?? 0) > 0) {
-            return [
-                'unit_price' => (float) $invoicable['unit_price'],
-                'source' => 'invoicable',
-                'invoicable_item_id' => $invoicable['invoicable_item_id'] ?? null,
             ];
         }
 
         return [
             'unit_price' => 0.0,
             'source' => 'none',
-            'invoicable_item_id' => null,
         ];
     }
 
     /**
-     * @return array{unit_price: float, source: string, invoicable_item_id: ?string}
+     * @return array{unit_price: float, source: string}
      */
     public function resolveElementPrice(
         QuotationHeader $header,
@@ -106,8 +96,6 @@ class QuotationPricingResolver
     }
 
     /**
-     * Sum of per-test pricelist prices for the selected elements.
-     *
      * @param  list<string>  $elementIds
      */
     public function suggestLineUnitPrice(
@@ -116,52 +104,19 @@ class QuotationPricingResolver
         string $analysisTypeIdsCsv,
         array $elementIds,
     ): float {
-        $pricelist = $this->resolvePricelist($header->crm_customer_id);
-        $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
-        $defaultAnalysisTypeId = $analysisTypeIds[0] ?? '';
-        $total = 0.0;
+        $suggestion = $this->suggestManualLinePricing(
+            $header,
+            $sampleTypeId,
+            $analysisTypeIdsCsv,
+            $elementIds,
+        );
 
-        if ($elementIds !== []) {
-            foreach ($elementIds as $elementId) {
-                $element = AnalysisElements::query()->find($elementId);
-                if (! $element) {
-                    continue;
-                }
-
-                $total += $this->suggestPrefillUnitPrice(
-                    $pricelist,
-                    $sampleTypeId,
-                    (string) ($element->analysis_type_id ?: $defaultAnalysisTypeId),
-                    (string) $elementId,
-                );
-            }
-
-            return $total;
-        }
-
-        foreach ($analysisTypeIds as $analysisTypeId) {
-            $elements = AnalysisElements::query()
-                ->where('analysis_type_id', $analysisTypeId)
-                ->pluck('id')
-                ->map(fn ($id) => (string) $id)
-                ->all();
-
-            foreach ($elements as $elementId) {
-                $total += $this->suggestPrefillUnitPrice(
-                    $pricelist,
-                    $sampleTypeId,
-                    $analysisTypeId,
-                    $elementId,
-                );
-            }
-        }
-
-        return $total;
+        return (float) $suggestion['unit_price'];
     }
 
     /**
      * @param  list<string>  $elementIds
-     * @return array{unit_price: float, tax: float, source: string, hint: string}
+     * @return array{unit_price: float, tax: float, source: string, hint: string, is_package: bool}
      */
     public function suggestManualLinePricing(
         QuotationHeader $header,
@@ -179,6 +134,59 @@ class QuotationPricingResolver
                 'tax' => 0.0,
                 'source' => 'none',
                 'hint' => 'Select tests in Description to load pricelist total.',
+                'is_package' => false,
+            ];
+        }
+
+        $packageMatch = $this->acceptanceFormPricingService->resolvePackageForGroup(
+            (string) $header->crm_customer_id,
+            $sampleTypeId,
+            $defaultAnalysisTypeId,
+            $elementIds,
+            $pricelist,
+        );
+
+        if ($packageMatch !== null) {
+            $packageItem = $packageMatch['item'];
+            $covered = $packageMatch['covered_element_ids'];
+            $packagePrice = (float) $packageItem->selling_price;
+            $extras = array_values(array_diff($elementIds, $covered));
+            $extraTotal = 0.0;
+            foreach ($extras as $extraId) {
+                $element = AnalysisElements::query()->find($extraId);
+                $analysisTypeId = (string) ($element?->analysis_type_id ?? $defaultAnalysisTypeId);
+                $extraTotal += $this->suggestPrefillUnitPrice(
+                    $packageMatch['pricelist'] ?? $pricelist,
+                    $sampleTypeId,
+                    $analysisTypeId,
+                    (string) $extraId,
+                );
+            }
+
+            $tax = $packageItem->vat
+                ? $this->quotationLineTaxResolver->activeTaxRegimePercent()
+                : 0.0;
+
+            $total = round($packagePrice + $extraTotal, 2);
+            $hint = $extras === []
+                ? sprintf(
+                    'Package price for %d parameter(s): %s',
+                    count($covered),
+                    number_format($packagePrice, 2)
+                )
+                : sprintf(
+                    'Package (%d params) + %d extra test(s): %s',
+                    count($covered),
+                    count($extras),
+                    number_format($total, 2)
+                );
+
+            return [
+                'unit_price' => $total,
+                'tax' => round($tax, 2),
+                'source' => 'pricelist_package',
+                'hint' => $hint,
+                'is_package' => $extras === [],
             ];
         }
 
@@ -210,11 +218,13 @@ class QuotationPricingResolver
             'hint' => $total > 0
                 ? sprintf('Pricelist total for %d test(s): %s', count($elementIds), number_format($total, 2))
                 : 'No pricelist prices for selected tests.',
+            'is_package' => false,
         ];
     }
 
     /**
-     * One quotation detail row per selected test (element).
+     * Prefer a single package detail row when selected tests fully cover a pricelist package.
+     * Extra uncovered tests remain as individual rows. Manual overrides still split across tests.
      *
      * @param  list<string>  $elementIds
      * @return list<array<string, mixed>>
@@ -243,6 +253,8 @@ class QuotationPricingResolver
                 'subcontracted_analytes' => $subcontractedAnalytes,
                 'default_analytes' => $defaultAnalytes,
                 'sub_acc_analytes' => $subAccAnalytes,
+                'is_package' => false,
+                'description' => '',
             ]];
         }
 
@@ -253,6 +265,14 @@ class QuotationPricingResolver
         $subcontractedList = array_values(array_filter(array_map('trim', explode(',', $subcontractedAnalytes))));
         $defaultList = array_values(array_filter(array_map('trim', explode(',', $defaultAnalytes))));
         $subAccList = array_values(array_filter(array_map('trim', explode(',', $subAccAnalytes))));
+
+        $packageMatch = $this->acceptanceFormPricingService->resolvePackageForGroup(
+            (string) $header->crm_customer_id,
+            $sampleTypeId,
+            $defaultAnalysisTypeId,
+            $elementIds,
+            $pricelist,
+        );
 
         $pricelistPrices = [];
         $pricelistTotal = 0.0;
@@ -271,6 +291,64 @@ class QuotationPricingResolver
         }
 
         $pricelistTotal = round($pricelistTotal, 2);
+        $packagePrice = $packageMatch !== null ? (float) $packageMatch['item']->selling_price : 0.0;
+        $usePackage = $packageMatch !== null
+            && ($unitPrice <= 0 || abs($unitPrice - $packagePrice) < 0.02 || abs($unitPrice - $pricelistTotal) < 0.02);
+
+        if ($usePackage && $packageMatch !== null) {
+            $coveredElementIds = $packageMatch['covered_element_ids'];
+            $extras = array_values(array_diff($elementIds, $coveredElementIds));
+            $analysisTypeName = $defaultAnalysisTypeId !== ''
+                ? (string) (AnalysisType::find($defaultAnalysisTypeId)?->name ?? 'Analysis')
+                : 'Analysis';
+            $packageTax = $tax > 0
+                ? $tax
+                : ($packageMatch['item']->vat
+                    ? $this->quotationLineTaxResolver->activeTaxRegimePercent()
+                    : 0.0);
+
+            $rows = [[
+                'sample_type' => $sampleTypeId,
+                'quantity' => $quantity,
+                'unit_price' => $packagePrice,
+                'tax' => $packageTax,
+                'part_no' => $defaultAnalysisTypeId,
+                'accredited_analytes' => implode(',', $coveredElementIds),
+                'subcontracted_analytes' => '',
+                'default_analytes' => implode(',', $coveredElementIds),
+                'sub_acc_analytes' => '',
+                'is_package' => true,
+                'description' => $analysisTypeName.' package ('.count($coveredElementIds).' parameters)',
+            ]];
+
+            foreach ($extras as $elementId) {
+                $element = AnalysisElements::query()->find($elementId);
+                $analysisTypeId = (string) ($element?->analysis_type_id ?? $defaultAnalysisTypeId);
+                $rows[] = [
+                    'sample_type' => $sampleTypeId,
+                    'quantity' => $quantity,
+                    'unit_price' => $pricelistPrices[$elementId] ?? 0.0,
+                    'tax' => $tax > 0
+                        ? $tax
+                        : $this->quotationLineTaxResolver->resolveLineTaxPercent(
+                            $pricelist,
+                            $sampleTypeId,
+                            $analysisTypeId,
+                            $elementId,
+                        ),
+                    'part_no' => $analysisTypeId,
+                    'accredited_analytes' => in_array($elementId, $accreditedList, true) ? $elementId : '',
+                    'subcontracted_analytes' => in_array($elementId, $subcontractedList, true) ? $elementId : '',
+                    'default_analytes' => in_array($elementId, $defaultList, true) ? $elementId : $elementId,
+                    'sub_acc_analytes' => in_array($elementId, $subAccList, true) ? $elementId : '',
+                    'is_package' => false,
+                    'description' => '',
+                ];
+            }
+
+            return $rows;
+        }
+
         $usePerTestPricelist = $unitPrice <= 0 || abs($unitPrice - $pricelistTotal) < 0.02;
 
         $rows = [];
@@ -316,6 +394,8 @@ class QuotationPricingResolver
                 'subcontracted_analytes' => in_array($elementId, $subcontractedList, true) ? $elementId : '',
                 'default_analytes' => in_array($elementId, $defaultList, true) ? $elementId : $elementId,
                 'sub_acc_analytes' => in_array($elementId, $subAccList, true) ? $elementId : '',
+                'is_package' => false,
+                'description' => '',
             ];
         }
 
@@ -344,17 +424,5 @@ class QuotationPricingResolver
         }
 
         return array_values(array_unique($ids));
-    }
-
-    public function persistInvoicableItemOnDetail(QuotationDetails $detail, ?string $analysisTypeId): void
-    {
-        if (! $analysisTypeId) {
-            return;
-        }
-
-        $priceData = getPriceForAnalysisType($analysisTypeId);
-        if ($priceData && ! empty($priceData['invoicable_item_id'])) {
-            $detail->invoicable_item_id = $priceData['invoicable_item_id'];
-        }
     }
 }

@@ -1,15 +1,15 @@
-<div class="container-fluid planner-kpi-reports-page">
+<div class="container-fluid planner-kpi-reports-page lab-surface-theme" data-ls-type="plex">
     <style>
         .planner-kpi-reports-page {
-            --kpi-primary: #1e40af;
-            --kpi-primary-soft: #eff6ff;
-            --kpi-success: #059669;
-            --kpi-success-soft: #ecfdf5;
-            --kpi-warning: #d97706;
-            --kpi-warning-soft: #fffbeb;
-            --kpi-muted: #64748b;
-            --kpi-border: #e2e8f0;
-            --kpi-surface: #ffffff;
+            --kpi-primary: var(--ls-color-primary, var(--color-primary, #6D0A0E));
+            --kpi-primary-soft: var(--ls-color-primary-soft, var(--color-primary-soft, #f8ecec));
+            --kpi-success: var(--ls-color-success, #16a34a);
+            --kpi-success-soft: var(--ls-color-success-soft, #ecfdf5);
+            --kpi-warning: var(--ls-color-warning, #d97706);
+            --kpi-warning-soft: var(--ls-color-warning-soft, #fffbeb);
+            --kpi-muted: var(--ls-color-muted, #64748b);
+            --kpi-border: var(--ls-color-border, #e2e8f0);
+            --kpi-surface: var(--ls-color-surface, #ffffff);
         }
 
         .kpi-hero-card {

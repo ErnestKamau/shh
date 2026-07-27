@@ -10,6 +10,7 @@ use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
 use App\Services\Sampleworkflow\CustomerContactVerificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -153,8 +154,7 @@ class AcceptanceFormWizard extends Component
                     SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => 'Complete enquiry processing and send the quotation before accepting samples.',
                     SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Record customer acceptance on the request view page first.',
                     SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the customer.',
-                    SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before physical reception.',
-                    SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => 'Move the request to In Review (Receive) before accepting samples.',
+                    SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before accepting samples.',
                     default => 'This request is not ready for sample acceptance yet.',
                 };
                 $this->dispatch('notify', type: 'error', message: $message);
@@ -228,6 +228,12 @@ class AcceptanceFormWizard extends Component
                 }
             }
         }
+
+        $this->sampleConfigs = app(CustomerAnalysisTypeStandardService::class)
+            ->applyPrefillToConfigs(
+                $this->sampleConfigs,
+                $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
+            );
 
         $this->applySampleConfigAssignmentDefaults();
         $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
@@ -394,6 +400,11 @@ class AcceptanceFormWizard extends Component
 
             return;
         }
+
+        app(CustomerAnalysisTypeStandardService::class)->syncPreferencesFromConfigs(
+            $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
+            $normalizedConfigs,
+        );
 
         $batchId = (string) ($form->sample_header_id ?? '');
 

@@ -61,6 +61,7 @@ class ModuleVisibilityManager extends Component
 
             $configuration = SystemConfiguration::where('configuration_type_id', $configType->id)
                 ->where('key', 'system_module_visibility')
+                ->orderByDesc('updated_at')
                 ->first();
 
             if (!$configuration) {
@@ -72,6 +73,12 @@ class ModuleVisibilityManager extends Component
             $configuration->value = json_encode($normalizedVisibility, JSON_UNESCAPED_UNICODE);
             $configuration->status = 1;
             $configuration->save();
+
+            // Keep a single canonical JSON row so home visibility reads stay consistent.
+            SystemConfiguration::where('configuration_type_id', $configType->id)
+                ->where('key', 'system_module_visibility')
+                ->where('id', '!=', $configuration->id)
+                ->delete();
 
             foreach (array_keys($this->modules) as $moduleKey) {
                 $isVisible = $normalizedVisibility[$moduleKey] ?? false;

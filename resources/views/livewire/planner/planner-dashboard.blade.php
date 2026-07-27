@@ -1,4 +1,4 @@
-<div class="planner-dashboard">
+<div class="planner-dashboard lab-surface-theme" data-ls-type="plex">
     <div class="d-flex flex-wrap justify-content-between align-items-start mb-4">
         <div>
             <h3 class="mb-1 font-weight-bold">
@@ -22,7 +22,7 @@
     <div class="row mb-3">
         <div class="col-6 col-md-4 col-xl-2 mb-3">
             <a href="{{ route('system-planner.schedule-sampling') }}" class="pd-kpi-link">
-                <div class="pd-kpi" style="border-left-color:#8a1a1f;">
+                <div class="pd-kpi pd-kpi--primary">
                     <div class="pd-kpi-value">{{ $totalSchedules }}</div>
                     <div class="pd-kpi-label"><i class="mdi mdi-calendar-multiple pd-card-icon"></i>{{ __('planner.total_schedules') }}</div>
                 </div>
@@ -30,7 +30,7 @@
         </div>
         <div class="col-6 col-md-4 col-xl-2 mb-3">
             <a href="{{ route('system-planner.schedule-sampling') }}" class="pd-kpi-link">
-                <div class="pd-kpi" style="border-left-color:#2563eb;">
+                <div class="pd-kpi pd-kpi--info">
                     <div class="pd-kpi-value">{{ $upcomingSchedules }}</div>
                     <div class="pd-kpi-label"><i class="mdi mdi-calendar-clock pd-card-icon"></i>{{ __('planner.upcoming_7_days') }}</div>
                 </div>
@@ -38,7 +38,7 @@
         </div>
         <div class="col-6 col-md-4 col-xl-2 mb-3">
             <a href="{{ route('system-planner.schedule-sampling') }}" class="pd-kpi-link">
-                <div class="pd-kpi" style="border-left-color:#e65100;">
+                <div class="pd-kpi pd-kpi--warning">
                     <div class="pd-kpi-value">{{ $overdueSchedules }}</div>
                     <div class="pd-kpi-label"><i class="mdi mdi-alert-circle-outline pd-card-icon"></i>{{ __('planner.overdue_schedules') }}</div>
                 </div>
@@ -46,7 +46,7 @@
         </div>
         <div class="col-6 col-md-4 col-xl-2 mb-3">
             <a href="{{ route('system-planner.actual-collections') }}" class="pd-kpi-link">
-                <div class="pd-kpi" style="border-left-color:#2e7d32;">
+                <div class="pd-kpi pd-kpi--success">
                     <div class="pd-kpi-value">{{ $collectedSchedules }}</div>
                     <div class="pd-kpi-label"><i class="mdi mdi-clipboard-check-outline pd-card-icon"></i>{{ __('planner.collected') }}</div>
                 </div>
@@ -54,7 +54,7 @@
         </div>
         <div class="col-6 col-md-4 col-xl-2 mb-3">
             <a href="{{ route('system-planner.kpi-reports') }}" class="pd-kpi-link">
-                <div class="pd-kpi" style="border-left-color:#0d9488;">
+                <div class="pd-kpi pd-kpi--teal">
                     <div class="pd-kpi-value">{{ number_format($collectionRate, 1) }}%</div>
                     <div class="pd-kpi-label"><i class="mdi mdi-percent pd-card-icon"></i>{{ __('planner.collection_rate') }}</div>
                     <div class="pd-kpi-hint">{{ __('planner.last_30_days') }}</div>
@@ -63,7 +63,7 @@
         </div>
         <div class="col-6 col-md-4 col-xl-2 mb-3">
             <a href="{{ route('system-planner.tasks') }}" class="pd-kpi-link">
-                <div class="pd-kpi" style="border-left-color:#1565c0;">
+                <div class="pd-kpi pd-kpi--info">
                     <div class="pd-kpi-value">{{ $openTasks }}</div>
                     <div class="pd-kpi-label"><i class="mdi mdi-checkbox-marked-circle-outline pd-card-icon"></i>{{ __('planner.open_tasks') }}</div>
                 </div>
@@ -303,38 +303,43 @@
         .planner-dashboard { padding-bottom: 1rem; }
         .pd-kpi-link { text-decoration: none !important; color: inherit !important; display: block; height: 100%; }
         .pd-kpi {
-            background: #fff;
-            border: 1px solid #e8ecf1;
-            border-left: 4px solid #8a1a1f;
-            border-radius: 12px;
+            background: var(--ls-color-surface, #fff);
+            border: 1px solid var(--ls-color-border, #e8ecf1);
+            border-left: 4px solid var(--ls-color-primary, var(--color-primary, #6D0A0E));
+            border-radius: var(--ls-radius-xl, 12px);
             padding: 14px 16px;
             height: 100%;
-            box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+            box-shadow: var(--ls-shadow-sm, 0 1px 3px rgba(15,23,42,0.04));
             transition: transform .15s ease, box-shadow .15s ease;
         }
+        .pd-kpi--primary { border-left-color: var(--ls-color-primary, var(--color-primary, #6D0A0E)); }
+        .pd-kpi--info { border-left-color: var(--ls-color-info, #0284c7); }
+        .pd-kpi--warning { border-left-color: var(--ls-color-warning, #d97706); }
+        .pd-kpi--success { border-left-color: var(--ls-color-success, #16a34a); }
+        .pd-kpi--teal { border-left-color: #0d9488; }
         .pd-kpi-link:hover .pd-kpi {
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(15,23,42,0.08);
+            box-shadow: var(--ls-shadow-md, 0 6px 16px rgba(15,23,42,0.08));
         }
-        .pd-kpi-value { font-size: 1.65rem; font-weight: 700; color: #111827; line-height: 1.1; }
-        .pd-kpi-label { font-size: 0.8rem; color: #6b7280; margin-top: 6px; font-weight: 600; }
-        .pd-kpi-hint { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+        .pd-kpi-value { font-size: 1.65rem; font-weight: 700; color: var(--ls-color-ink, #111827); line-height: 1.1; }
+        .pd-kpi-label { font-size: 0.8rem; color: var(--ls-color-muted, #6b7280); margin-top: 6px; font-weight: 600; }
+        .pd-kpi-hint { font-size: 0.7rem; color: var(--ls-color-slate-400, #94a3b8); margin-top: 2px; }
         .pd-card {
-            background: #fff;
-            border: 1px solid #e8ecf1;
+            background: var(--ls-color-surface, #fff);
+            border: 1px solid var(--ls-color-border, #e8ecf1);
             border-radius: 14px;
             padding: 16px;
-            box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+            box-shadow: var(--ls-shadow-sm, 0 1px 3px rgba(15,23,42,0.04));
         }
         .pd-card-header {
             font-size: 0.85rem;
             font-weight: 700;
-            color: #374151;
+            color: var(--ls-color-ink, #374151);
             margin-bottom: 12px;
             letter-spacing: 0.01em;
         }
         .pd-card-icon {
-            color: #8a1a1f;
+            color: var(--ls-color-primary, var(--color-primary, #6D0A0E));
             margin-right: 4px;
             vertical-align: -1px;
         }
@@ -343,14 +348,14 @@
             align-items: center;
             padding: 3px 8px;
             border-radius: 999px;
-            background: #f3e8e9;
-            color: #8a1a1f;
+            background: var(--ls-color-primary-soft, #f3e8e9);
+            color: var(--ls-color-primary, var(--color-primary, #6D0A0E));
             font-weight: 600;
             font-size: 0.7rem;
         }
         .pd-scope-chip--all {
-            background: #e8f5e9;
-            color: #1b5e20;
+            background: var(--ls-color-success-soft, #e8f5e9);
+            color: var(--ls-color-success-text, #1b5e20);
         }
         .pd-fill-link {
             display: inline-flex;
@@ -359,7 +364,7 @@
             margin-top: 10px;
             font-size: 0.78rem;
             font-weight: 700;
-            color: #8a1a1f;
+            color: var(--ls-color-primary, var(--color-primary, #6D0A0E));
             text-decoration: none !important;
         }
         .pd-fill-link:hover { text-decoration: underline !important; }
@@ -373,36 +378,40 @@
             gap: 10px;
             padding: 10px 12px;
             border-radius: 10px;
-            border: 1px solid #e8ecf1;
-            color: #1f2937;
+            border: 1px solid var(--ls-color-border, #e8ecf1);
+            color: var(--ls-color-ink, #1f2937);
             text-decoration: none !important;
             font-weight: 600;
             font-size: 0.9rem;
             transition: background .15s ease, border-color .15s ease;
         }
-        .pd-action i { color: #8a1a1f; font-size: 1.15rem; }
-        .pd-action:hover { background: #faf7f7; border-color: #e2b8bb; color: #8a1a1f; }
+        .pd-action i { color: var(--ls-color-primary, var(--color-primary, #6D0A0E)); font-size: 1.15rem; }
+        .pd-action:hover {
+            background: var(--ls-color-primary-soft, #faf7f7);
+            border-color: var(--ls-color-primary-border, #e2b8bb);
+            color: var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        }
         .pd-stat-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
         }
-        .pd-stat-value { font-size: 1.35rem; font-weight: 700; color: #111827; }
-        .pd-stat-label { font-size: 0.75rem; color: #6b7280; font-weight: 600; }
+        .pd-stat-value { font-size: 1.35rem; font-weight: 700; color: var(--ls-color-ink, #111827); }
+        .pd-stat-label { font-size: 0.75rem; color: var(--ls-color-muted, #6b7280); font-weight: 600; }
         .pd-list-item {
             padding: 10px 0;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--ls-color-border, #f1f5f9);
         }
         .pd-list-item:last-child { border-bottom: 0; }
         .pd-list-item--warn .pd-list-title { color: #9a3412; }
-        .pd-list-title { font-size: 0.9rem; font-weight: 700; color: #111827; }
+        .pd-list-title { font-size: 0.9rem; font-weight: 700; color: var(--ls-color-ink, #111827); }
         .pd-list-meta { font-size: 0.78rem; color: #4b5563; margin-top: 2px; }
-        .pd-list-sub { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .pd-empty { text-align: center; color: #94a3b8; font-size: 0.9rem; padding: 1.5rem 0.5rem; }
+        .pd-list-sub { font-size: 0.75rem; color: var(--ls-color-slate-400, #94a3b8); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pd-empty { text-align: center; color: var(--ls-color-slate-400, #94a3b8); font-size: 0.9rem; padding: 1.5rem 0.5rem; }
         .pd-my-schedules { margin-top: 0.25rem; }
         .pd-my-item {
-            border: 1px solid #e8ecf1;
-            border-radius: 12px;
+            border: 1px solid var(--ls-color-border, #e8ecf1);
+            border-radius: var(--ls-radius-xl, 12px);
             padding: 12px 14px;
             height: 100%;
             background: #fcfcfd;
@@ -417,10 +426,10 @@
             white-space: nowrap;
             margin-left: 8px;
         }
-        .pd-status--collected { background: #e8f5e9; color: #1b5e20; }
-        .pd-status--upcoming { background: #e3f2fd; color: #0d47a1; }
-        .pd-status--overdue { background: #fff3e0; color: #e65100; }
-        .pd-status--pending { background: #f3e8e9; color: #8a1a1f; }
+        .pd-status--collected { background: var(--ls-color-success-soft, #e8f5e9); color: var(--ls-color-success-text, #1b5e20); }
+        .pd-status--upcoming { background: var(--ls-color-info-soft, #e3f2fd); color: var(--ls-color-info-text, #0d47a1); }
+        .pd-status--overdue { background: var(--ls-color-warning-soft, #fff3e0); color: var(--ls-color-warning-text, #e65100); }
+        .pd-status--pending { background: var(--ls-color-primary-soft, #f3e8e9); color: var(--ls-color-primary, var(--color-primary, #6D0A0E)); }
         .pd-status--partial { background: #fff8e1; color: #f57f17; }
         .pd-progress {
             margin-top: 10px;
@@ -431,7 +440,7 @@
             gap: 8px;
             font-size: 0.72rem;
             font-weight: 600;
-            color: #6b7280;
+            color: var(--ls-color-muted, #6b7280);
             margin-bottom: 6px;
         }
         .pd-progress-track {
@@ -443,7 +452,7 @@
         .pd-progress-fill {
             height: 100%;
             border-radius: 999px;
-            background: linear-gradient(90deg, #8a1a1f, #b4232a);
+            background: var(--ls-modal-header-gradient, linear-gradient(90deg, var(--color-primary, #6D0A0E), var(--color-primary-hover, #8B1E22)));
             transition: width .2s ease;
         }
         @media (max-width: 991.98px) {
@@ -575,8 +584,8 @@
                         {
                             label: 'Scheduled',
                             data: monthlyTrend.map((i) => i.scheduled),
-                            borderColor: '#8a1a1f',
-                            backgroundColor: 'rgba(138,26,31,0.12)',
+                            borderColor: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#6D0A0E',
+                            backgroundColor: 'rgba(109,10,14,0.12)',
                             fill: true,
                             tension: 0.3
                         },
@@ -599,7 +608,7 @@
             });
         }
 
-        bar('plannerTopClientsChart', payload.topClients || [], '#8a1a1f');
+        bar('plannerTopClientsChart', payload.topClients || [], (getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#6D0A0E'));
         bar('plannerPersonnelChart', payload.personnel || [], '#1565c0');
     };
 

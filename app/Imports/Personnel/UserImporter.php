@@ -95,14 +95,27 @@ class UserImporter extends BaseImporter
             $position = ModulePreConfigs::where('type', 'Job Description')
                 ->where(function ($q) use ($positionName) {
                     $q->where('name', (string) $positionName)
-                        ->orWhere('name', 'like', "%$positionName%");
+                        ->orWhere('description', (string) $positionName)
+                        ->orWhere('name', 'like', "%$positionName%")
+                        ->orWhere('description', 'like', "%$positionName%");
                 })
                 ->first();
         }
 
         $phone = $this->fuzzyGet($row, ['phone', 'telephone', 'phone_number', 'contact_number', 'mobile', 'cell']);
         $gender = $this->fuzzyGet($row, ['gender', 'sex']);
-        $designation = $this->fuzzyGet($row, ['designation', 'job_description', 'designation_name']);
+        $designationName = $this->fuzzyGet($row, ['designation', 'job_description', 'designation_name']);
+        $designation = null;
+        if ($designationName) {
+            $designation = ModulePreConfigs::where('type', 'Job Description')
+                ->where(function ($q) use ($designationName) {
+                    $q->where('name', (string) $designationName)
+                        ->orWhere('description', (string) $designationName)
+                        ->orWhere('name', 'like', "%$designationName%")
+                        ->orWhere('description', 'like', "%$designationName%");
+                })
+                ->first();
+        }
         $dateOfBirth = $this->fuzzyGet($row, ['date_of_birth', 'dob', 'birth_date']);
         $idNumber = $this->fuzzyGet($row, ['id_number', 'national_id', 'passport_number', 'national_id_number', 'nida']);
 
@@ -165,7 +178,7 @@ class UserImporter extends BaseImporter
             'email_verified_at' => now(),
             'phone' => $phone,
             'gender' => $gender,
-            'designation' => $designation ?: ($position?->name ?? null),
+            'designation' => $designation?->id ?? $position?->id,
             'date_of_birth' => ! empty($dateOfBirth) ? \Carbon\Carbon::parse($dateOfBirth)->toDateString() : null,
             'id_number' => $idNumber,
             'location_id' => $locationId,

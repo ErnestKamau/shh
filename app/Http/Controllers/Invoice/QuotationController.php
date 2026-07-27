@@ -86,7 +86,9 @@ class QuotationController extends Controller
             ? $this->resolveKpiPeriodMetrics(request())
             : null;
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod'));
+        $stageCounts = $this->quotationStageCounts();
+
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod', 'stageCounts'));
     }
 
     public function exportQuotationKpi(Request $request)
@@ -156,9 +158,29 @@ class QuotationController extends Controller
         $sample_types = SampleType::where('active', 1)->get();
         $metrics = $this->quotationStatisticsService->getOverviewMetrics();
         $kpiPeriod = $this->resolveKpiPeriodMetrics($request);
+        $stageCounts = $this->quotationStageCounts();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod'));
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod', 'stageCounts'));
     }
+
+    /**
+     * @return array{all: int, Quote In Preparation: int, Quote Complete: int}
+     */
+    private function quotationStageCounts(): array
+    {
+        return [
+            'all' => QuotationHeaderView::query()->where('is_draft', 0)->count(),
+            'Quote In Preparation' => QuotationHeaderView::query()
+                ->where('is_draft', 0)
+                ->where('status', 'Quote In Preparation')
+                ->count(),
+            'Quote Complete' => QuotationHeaderView::query()
+                ->where('is_draft', 0)
+                ->where('status', 'Quote Complete')
+                ->count(),
+        ];
+    }
+
     public function populateQuotationDetailSplit()
     {
         $headers = QuotationHeader::where('quotation_type', 'Analysis')->pluck('id')->toArray();
@@ -225,6 +247,13 @@ class QuotationController extends Controller
 
         $header->status = 'Quote In Preparation';
         // return response()->json($header,200);
+        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
+        if ($pricelist !== null) {
+            $header->pricelist_id = $pricelist->id;
+            if (empty($header->currency_id) && $pricelist->currency_id) {
+                $header->currency_id = $pricelist->currency_id;
+            }
+        }
         $header->save();
         AmSpecQuotationNumberGenerator::assignIfMissing($header);
         if (! isset($request->quote_id) && empty($header->laboratory_ref)) {
@@ -285,9 +314,10 @@ class QuotationController extends Controller
         // return response()->json($header,200);
 
 
-        // Pricelist no longer used - using invoicable items instead
-        $pricelist = null;
-        $pricelist_items = [];
+        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
+        $pricelist_items = $pricelist
+            ? $pricelist->items()->where('active', 1)->orderBy('level')->get()
+            : collect();
         $details = QuotationDetails::where('quotation_header_id', $id)->get();
         $count = 1;
 
@@ -545,15 +575,12 @@ class QuotationController extends Controller
                     $detail->subcontracted_analytes = $rowPayload['subcontracted_analytes'];
                     $detail->default_analytes = $rowPayload['default_analytes'];
                     $detail->sub_acc_analytes = $rowPayload['sub_acc_analytes'];
+                    $detail->is_package = (bool) ($rowPayload['is_package'] ?? false);
+                    $detail->description = (string) ($rowPayload['description'] ?? '');
                     $detail->quotation_header_id = $header->id;
-
-                    $analysisTypeIds = array_filter(explode(',', (string) $rowPayload['part_no']));
-                    $this->quotationPricingResolver->persistInvoicableItemOnDetail(
-                        $detail,
-                        $analysisTypeIds[0] ?? null
-                    );
                     $detail->save();
 
+                    $analysisTypeIds = array_filter(explode(',', (string) $rowPayload['part_no']));
                     QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
                     $insertArr = [];
                     foreach ($analysisTypeIds as $a_id) {
@@ -612,8 +639,13 @@ class QuotationController extends Controller
             $header->currency_id = $request->currency_id;
         }
 
-        // Pricelist no longer used - using invoicable items instead
-        $header->pricelist_id = null;
+        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
+        if ($pricelist !== null) {
+            $header->pricelist_id = $pricelist->id;
+            if (! $request->filled('currency_id') && $pricelist->currency_id) {
+                $header->currency_id = $pricelist->currency_id;
+            }
+        }
         $header->save();
         $this->quotationReportService->ensureHeaderMetadata($header);
 
@@ -825,7 +857,8 @@ class QuotationController extends Controller
         $header_clone->expiring_date = $header->expiring_date;
         $header_clone->prepared_by_id = auth()->user()->id;
 
-        $header_clone->pricelist_id = null; // No longer using pricelists
+        $header_clone->pricelist_id = $header->pricelist_id
+            ?? $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id)?->id;
         $header_clone->save();
 
         AmSpecQuotationNumberGenerator::assignIfMissing($header_clone);

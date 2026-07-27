@@ -1,4 +1,4 @@
-<div>
+<div class="lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Error Messages -->
     @if($errors->has('filters.created_date_from'))
         <div class="alert alert-warning alert-dismissible fade show" role="alert">

@@ -112,6 +112,17 @@
 		.batch-show-page .workflow-board-panel-body.flush-top {
 			padding: 0;
 		}
+
+		.batch-show-page .batch-tabs-panel #batch-tabs-content {
+			margin-top: 1rem !important;
+			padding: 0 14px 14px !important;
+			border-top: none !important;
+		}
+
+		.batch-show-page .batch-tabs-panel #batch-tabs-content > .tab-pane > .workflow-board-panel {
+			margin-left: 0;
+			margin-right: 0;
+		}
 		.batch-show-page .workflow-table thead th {
 			padding: 8px 10px;
 			font-size: 0.68rem;
@@ -359,7 +370,7 @@
 
 		.batch-show-page .batch-tabs-panel #batch-tabs-content {
 			margin-top: 1rem !important;
-			padding-top: 0 !important;
+			padding: 0 14px 14px !important;
 			border-top: none !important;
 		}
 

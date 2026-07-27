@@ -50,10 +50,30 @@ class RequestViewPageTest extends TestCase
             ->assertSee('Notes')
             ->assertSee('Attachments')
             ->assertSee('Chain of custody')
-            ->assertDontSee('Captured request details');
+            ->assertDontSee('Captured request details')
+            ->assertSee('x-data="{ open: false }"', false)
+            ->assertSee('id="receive-sample-modal"', false);
     }
 
-    public function test_ready_for_reception_view_hides_process_enquiry_action(): void
+    public function test_show_route_keeps_walk_in_capture_inside_hidden_modal(): void
+    {
+        [$form, $instance] = $this->createFormAndInstance();
+
+        $html = $this->actingAs($this->user)
+            ->get(route('submission-forms.instances.show', [$form, $instance]))
+            ->assertOk()
+            ->getContent();
+
+        $modalPos = strpos($html, 'id="receive-sample-modal"');
+        $walkInPos = strpos($html, 'Submit walk-in request');
+
+        $this->assertNotFalse($modalPos);
+        $this->assertNotFalse($walkInPos);
+        $this->assertGreaterThan($modalPos, $walkInPos);
+        $this->assertStringNotContainsString('class="modal fade show', $html);
+    }
+
+    public function test_ready_for_reception_view_shows_accept_sample_action(): void
     {
         [$form, $instance] = $this->createFormAndInstance();
 
@@ -70,7 +90,8 @@ class RequestViewPageTest extends TestCase
                 'submissionFormId' => $form->id,
                 'instanceId' => $instance->id,
             ])
-            ->assertSeeHtml('wire:click="openPhysicalReceiveModal"')
+            ->assertSeeHtml('wire:click="openAcceptSampleWizard"')
+            ->assertDontSeeHtml('wire:click="openPhysicalReceiveModal"')
             ->assertDontSee('Receive physical samples')
             ->assertDontSee('Open on receiving board')
             ->assertSee('Ready for Reception')
@@ -78,11 +99,11 @@ class RequestViewPageTest extends TestCase
             ->assertDontSee('Record PO');
     }
 
-    public function test_open_physical_receive_modal_dispatches_to_receive_sample_request(): void
+    public function test_open_accept_sample_wizard_from_ready_for_reception_dispatches_wizard(): void
     {
         [$form, $instance] = $this->createFormAndInstance();
 
-        \App\Models\SampleSubmissionRequest::query()->create([
+        $enquiry = \App\Models\SampleSubmissionRequest::query()->create([
             'id' => (string) Str::uuid7(),
             'submission_form_instance_id' => $instance->id,
             'status' => \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
@@ -95,8 +116,11 @@ class RequestViewPageTest extends TestCase
                 'submissionFormId' => $form->id,
                 'instanceId' => $instance->id,
             ])
-            ->call('openPhysicalReceiveModal')
-            ->assertDispatched('receive-modal-open');
+            ->call('openAcceptSampleWizard')
+            ->assertDispatched('open-acceptance-wizard', function ($eventName, $params) use ($instance, $enquiry): bool {
+                return ($params['submissionFormInstanceId'] ?? null) === $instance->id
+                    && ($params['submissionRequestId'] ?? null) === $enquiry->id;
+            });
     }
 
     public function test_workflow_board_breadcrumb_omits_tab_query(): void

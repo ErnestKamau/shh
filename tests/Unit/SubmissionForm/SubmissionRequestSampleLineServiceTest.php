@@ -8,6 +8,9 @@ use App\Models\SubmissionFormElementHolder;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormSection;
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\SamplePoint;
 use App\Analyte;
 use App\AnalysisElements;
 use App\AnalysisType;
@@ -423,6 +426,66 @@ class SubmissionRequestSampleLineServiceTest extends TestCase
         $this->assertSame((string) $cooked->id, $lines[0]['analysis_type_id']);
         $this->assertSame((string) $correctElement->id, $lines[0]['analysis_element_id']);
         $this->assertSame('Cooked', $lines[0]['attributes']['food_sample_type'] ?? null);
+    }
+
+    public function test_resolves_sampling_point_uuid_to_sample_point_name(): void
+    {
+        $customer = CRMCustomer::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Location Customer',
+            'code' => 'LOC001',
+        ]);
+        $unit = CRMCompanyUnit::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $customer->id,
+            'company_id' => (string) Str::uuid7(),
+            'name' => 'Main Unit',
+            'active' => 1,
+        ]);
+        $samplePoint = SamplePoint::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $customer->id,
+            'crm_company_unit_id' => $unit->id,
+            'name' => 'Ruiru Gate',
+            'active' => 1,
+        ]);
+
+        $form = $this->createTemplateForm();
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Samples',
+            'section_type' => 'rows_section',
+            'sort_order' => 0,
+        ]);
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'rows',
+            'sort_order' => 0,
+        ]);
+
+        $descriptionEl = $this->createElement($holder, 'text', 'sample_description', 0);
+        $samplingPointEl = $this->createElement($holder, 'customer_sample_point_select', 'sampling_point', 1);
+
+        $instance = SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Sampling point instance',
+            'form_number' => 'CR-POINT',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'priority' => 'normal',
+        ]);
+
+        $this->createValue($instance, $descriptionEl, 'Chicken', 0);
+        $this->createValue($instance, $samplingPointEl, (string) $samplePoint->id, 0);
+
+        $lines = app(SubmissionRequestSampleLineService::class)->linesForInstance($instance);
+
+        $this->assertCount(1, $lines);
+        $this->assertSame('Ruiru Gate', $lines[0]['sampling_point']);
+        $this->assertNotSame((string) $samplePoint->id, $lines[0]['sampling_point']);
     }
 
     private function createTemplateForm(): SubmissionForm

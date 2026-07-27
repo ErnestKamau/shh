@@ -17,8 +17,6 @@
     }
 
     #event-modal .modal-header {
-      background-color: #ffffff !important;
-      border-bottom: 1px solid #e2e8f0 !important;
       padding: 1.25rem 1.5rem !important;
     }
 
@@ -33,16 +31,9 @@
     #event-modal .modal-header .close {
       font-size: 1.5rem !important;
       font-weight: 400 !important;
-      color: #94a3b8 !important;
-      opacity: 0.8 !important;
       transition: all 0.2s ease !important;
       outline: none !important;
       margin-top: -5px !important;
-    }
-
-    #event-modal .modal-header .close:hover {
-      color: #0f172a !important;
-      opacity: 1 !important;
     }
 
     #event-modal .tab-card {
@@ -88,8 +79,8 @@
     }
 
     #event-modal .tab-card-header > .nav-tabs > li > a.active {
-      color: #2563eb !important;
-      border-bottom: 2px solid #2563eb !important;
+      color: var(--color-primary, #6D0A0E) !important;
+      border-bottom: 2px solid var(--color-primary, #6D0A0E) !important;
       font-weight: 600 !important;
       background: transparent !important;
     }
@@ -112,7 +103,7 @@
     }
 
     #event-modal .form-section-title i {
-      color: #2563eb !important;
+      color: var(--color-primary, #6D0A0E) !important;
       font-size: 14px !important;
     }
 
@@ -159,9 +150,9 @@
     #event-modal .form-control:focus, 
     #event-modal .select2-container--default.select2-container--focus .select2-selection--single, 
     #event-modal .select2-container--default.select2-container--focus .select2-selection--multiple {
-      border-color: #3b82f6 !important;
+      border-color: var(--color-primary, #6D0A0E) !important;
       background-color: #ffffff !important;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+      box-shadow: 0 0 0 3px var(--color-primary-focus, rgba(109, 10, 14, 0.18)) !important;
       outline: none !important;
     }
 
@@ -220,9 +211,9 @@
       width: 10px !important;
       height: 10px !important;
       border-radius: 50% !important;
-      background-color: #3b82f6 !important;
+      background-color: var(--color-primary, #6D0A0E) !important;
       border: 2px solid #ffffff !important;
-      box-shadow: 0 0 0 2px #3b82f6 !important;
+      box-shadow: 0 0 0 2px var(--color-primary, #6D0A0E) !important;
     }
 
     #event-modal .history-card:hover {
@@ -249,14 +240,18 @@
       width: 80px !important;
     }
 
-    /* Modal Header Styling */
+    /* Modal Header — brand mono (global lab/surface theme) */
     #event-modal .modal-header {
-      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%) !important;
+      background-color: var(--color-primary, #6D0A0E) !important;
+      background-image: var(--ls-modal-header-background-image, var(--ls-modal-header-gradient, linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%))) !important;
+      background-size: var(--ls-modal-header-background-size, auto) !important;
+      background-repeat: no-repeat !important;
       border-bottom: none !important;
       padding: 1rem 1.5rem !important;
       color: #ffffff !important;
       border-top-left-radius: 4px !important;
       border-top-right-radius: 4px !important;
+      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.12);
     }
     #event-modal .modal-header .modal-title,
     #event-modal .modal-header .modal-title i {

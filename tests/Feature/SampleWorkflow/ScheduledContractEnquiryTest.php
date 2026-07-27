@@ -82,7 +82,7 @@ class ScheduledContractEnquiryTest extends TestCase
             'crm_customer_id' => $customerId,
             'status' => SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
             'source_channel' => 'walk_in',
-            'pricing_source' => 'contract',
+            'pricing_source' => 'customer_pricelist',
         ]);
 
         $contractService = app(ContractCustomerService::class);

@@ -2,7 +2,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
-                <div class="modal-header bg-light border-0 p-4">
+                <div class="modal-header border-0 p-4">
                     <h5 class="modal-title font-weight-bold">
                         <i class="mdi mdi-plus-box-outline text-primary me-2"></i> Define New Variable
                     </h5>

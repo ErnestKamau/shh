@@ -258,6 +258,23 @@
                                 @error('methodForm.method_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
 
+                            <div class="row">
+                                @if((string) ($methodForm['method_type_id'] ?? '') === (string) ($ltmMethodTypeId ?? ''))
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold"><i class="mdi mdi-book-open-variant text-info"></i> Reference Method</label>
+                                            <x-searchable-select
+                                                wire:model.live="methodForm.reference_type_id"
+                                                :options="collect($referenceMethods)->map(fn($ref) => ['id' => $ref->id, 'name' => $ref->name])"
+                                                placeholder="Search reference methods..."
+                                                empty-label="Select reference method..."
+                                            />
+                                            @error('methodForm.reference_type_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+
                             <div class="form-group mb-3">
                                 <div class="form-check">
                                     <input type="checkbox"
@@ -363,22 +380,6 @@
                                 </div>
                             </div>
                             @endif
-                            <div class="row">
-                                @if((string) ($methodForm['method_type_id'] ?? '') === (string) ($ltmMethodTypeId ?? ''))
-                                    <div class="col-md-6">
-                                        <div class="form-group mb-3">
-                                            <label class="form-label fw-bold"><i class="mdi mdi-book-open-variant text-info"></i> Reference Method</label>
-                                            <x-searchable-select
-                                                wire:model.live="methodForm.reference_type_id"
-                                                :options="collect($referenceMethods)->map(fn($ref) => ['id' => $ref->id, 'name' => $ref->name])"
-                                                placeholder="Search reference methods..."
-                                                empty-label="Select reference method..."
-                                            />
-                                            @error('methodForm.reference_type_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
                             
                             <div class="form-group mb-3">
                                 <div class="form-check">

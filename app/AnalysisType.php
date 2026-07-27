@@ -37,6 +37,7 @@ class AnalysisType extends Model implements Auditable
     'procedure_worksheet_id',
     'grouped_worksheet_holder_id',
     'hybrid_worksheet_id',
+    'default_standard_id',
   ];
 
   protected $casts = [
@@ -132,6 +133,11 @@ class AnalysisType extends Model implements Auditable
   public function hybridWorksheet()
   {
       return $this->belongsTo(\App\Models\HybridWorksheets\HybridWorksheet::class, 'hybrid_worksheet_id');
+  }
+
+  public function defaultStandard()
+  {
+      return $this->belongsTo(Standards::class, 'default_standard_id');
   }
 
 }

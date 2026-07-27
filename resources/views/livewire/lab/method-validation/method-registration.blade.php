@@ -1,4 +1,4 @@
-<div>
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <style>
         .advanced-filters-section {
             transition: all 0.3s ease;

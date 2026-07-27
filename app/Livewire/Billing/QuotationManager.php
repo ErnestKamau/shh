@@ -119,6 +119,24 @@ class QuotationManager extends Component
         ];
     }
 
+    /**
+     * @return array{all: int, Quote In Preparation: int, Quote Complete: int}
+     */
+    public function getStageCountsProperty(): array
+    {
+        return [
+            'all' => QuotationHeaderView::query()->where('is_draft', 0)->count(),
+            'Quote In Preparation' => QuotationHeaderView::query()
+                ->where('is_draft', 0)
+                ->where('status', 'Quote In Preparation')
+                ->count(),
+            'Quote Complete' => QuotationHeaderView::query()
+                ->where('is_draft', 0)
+                ->where('status', 'Quote Complete')
+                ->count(),
+        ];
+    }
+
     public function clearFilters(): void
     {
         $this->search = '';
@@ -195,9 +213,8 @@ class QuotationManager extends Component
         }
     }
 
-    public function cloneQuotation($quotationId): void
+    public function cloneQuotation($quotationId)
     {
-        // Redirect to controller method
         return redirect()->route('clone_quotation', ['id' => $quotationId]);
     }
 
@@ -226,6 +243,7 @@ class QuotationManager extends Component
             'customers' => $this->customers,
             'quotationStages' => $this->quotationStages,
             'selectedQuotation' => $this->selectedQuotation,
+            'stageCounts' => $this->stageCounts,
         ]);
     }
 }

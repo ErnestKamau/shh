@@ -3,6 +3,7 @@
 namespace App\Services\Sampleworkflow;
 
 use App\AnalysisElements;
+use App\AnalysisMethod;
 use App\AnalysisType;
 use App\CapturedResult;
 use App\Lab;
@@ -21,6 +22,9 @@ class SampleAnalysisSetupService
 {
     /** @var array<string, bool> */
     private array $labSectionValidityCache = [];
+
+    /** @var array<string, bool> */
+    private array $methodValidityCache = [];
 
     /** @var array<string, ReportingUnit|null> */
     private array $reportingUnitCache = [];
@@ -182,9 +186,9 @@ class SampleAnalysisSetupService
                 'user_id' => $userId,
                 'analysis_type_id' => $analysisTypeId,
                 'operator_id' => null,
-                'method_id' => $element->method,
+                'method_id' => $this->resolveValidMethodId($element->method),
                 'reporting_unit_id' => $reportingUnit?->id,
-                'ltm_method_id' => $element->ltm_method_id,
+                'ltm_method_id' => $this->resolveValidMethodId($element->ltm_method_id),
                 'analyte_accredited' => $this->resolveAccreditedFlag($element, $elementFlagOverrides),
                 'analyte_status_contracted' => $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides),
                 'lab_section_id' => $labSectionId,
@@ -387,6 +391,28 @@ class SampleAnalysisSetupService
         }
 
         return $this->labSectionValidityCache[$id] ? $id : null;
+    }
+
+    /**
+     * Avoid FK violations when analysis_elements.method / ltm_method_id
+     * still points at a deleted analysis_methods row.
+     */
+    private function resolveValidMethodId(mixed $candidate): ?string
+    {
+        if ($candidate === null || $candidate === '' || $candidate === '0' || $candidate === 0) {
+            return null;
+        }
+
+        $id = (string) $candidate;
+        if (! Str::isUuid($id)) {
+            return null;
+        }
+
+        if (! array_key_exists($id, $this->methodValidityCache)) {
+            $this->methodValidityCache[$id] = AnalysisMethod::query()->whereKey($id)->exists();
+        }
+
+        return $this->methodValidityCache[$id] ? $id : null;
     }
 
     private function resolveLabForHeader(?SampleHeader $sampleHeader): ?Lab

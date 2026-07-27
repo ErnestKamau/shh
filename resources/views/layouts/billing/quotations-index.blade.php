@@ -1,12 +1,11 @@
-@extends('layouts.lab.layout.app', ['select2' => true])
+@extends('layouts.lab.layout.app', ['select2' => true, 'dataTable' => false])
 
 @section('title2')
     <title>Quotations Management</title>
 @endsection
 
 @section('content2')
-    <main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
-        @include('layouts.lab.partials.lab-panel-theme-styles')
+    <main class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
         <?php
             $items = [
                 [

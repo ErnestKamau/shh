@@ -42,6 +42,7 @@ class Attachments extends Component
     {
         $this->batch = $batch;
         $this->syncMissingWorkflowDocuments();
+        $this->syncSamplePhotoAttachments();
     }
 
     private function syncMissingWorkflowDocuments(): void
@@ -67,6 +68,22 @@ class Attachments extends Component
 
         app(BatchWorkflowDocumentAttachmentService::class)
             ->attachForAcceptedBatch($this->batch, Auth::id() ? (string) Auth::id() : null);
+    }
+
+    private function syncSamplePhotoAttachments(): void
+    {
+        $details = SampleDetails::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->whereNotNull('photo_url')
+            ->where('photo_url', '!=', '')
+            ->get();
+
+        if ($details->isEmpty()) {
+            return;
+        }
+
+        app(BatchWorkflowDocumentAttachmentService::class)
+            ->attachSamplePhotos($this->batch, $details, Auth::id() ? (string) Auth::id() : null);
     }
 
     public function updatingSearch(): void
@@ -253,8 +270,11 @@ class Attachments extends Component
 
     public function syncWorkflowDocuments(): void
     {
-        app(BatchWorkflowDocumentAttachmentService::class)
-            ->attachForAcceptedBatch($this->batch, Auth::id() ? (string) Auth::id() : null);
+        $service = app(BatchWorkflowDocumentAttachmentService::class);
+        $userId = Auth::id() ? (string) Auth::id() : null;
+
+        $service->attachForAcceptedBatch($this->batch, $userId);
+        $this->syncSamplePhotoAttachments();
 
         $this->dispatch('attachmentsUpdated');
         session()->flash('success', 'Workflow documents synced to this batch.');

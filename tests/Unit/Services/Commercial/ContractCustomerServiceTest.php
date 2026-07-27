@@ -75,4 +75,24 @@ class ContractCustomerServiceTest extends TestCase
 
         $this->assertTrue($service->bypassesCommercialQuotationGate($walkInWithContract));
     }
+
+    public function test_has_assigned_pricelist_detects_customer_assignment(): void
+    {
+        $customerId = (string) Str::uuid();
+        $pricelist = \App\Models\Billing\Pricelist::query()->create([
+            'name' => 'Assigned',
+            'active' => true,
+        ]);
+        \App\Models\Billing\PricelistCustomer::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'customer_id' => $customerId,
+        ]);
+
+        $service = app(ContractCustomerService::class);
+
+        $this->assertTrue($service->hasAssignedPricelist($customerId));
+        $this->assertTrue($service->hasContractPricelist($customerId));
+        $this->assertFalse($service->hasAssignedPricelist((string) Str::uuid()));
+    }
 }

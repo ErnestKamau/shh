@@ -4,7 +4,6 @@ namespace App\Services\Commercial;
 
 use App\AnalysisElements;
 use App\AnalysisType;
-use App\Models\Billing\PricelistCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationDetailAnalysisSplit;
@@ -98,9 +97,6 @@ final class QuotationFromEnquiryService
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
-            if ($this->hasContractPricelist((string) $enquiry->crm_customer_id)) {
-                $enquiry->pricing_source = 'contract';
-            }
             $enquiry->save();
 
             return $header->fresh(['details']);
@@ -324,9 +320,7 @@ final class QuotationFromEnquiryService
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->accepted_quotation_header_id = (string) $header->id;
-            if ($this->hasContractPricelist((string) $enquiry->crm_customer_id)) {
-                $enquiry->pricing_source = 'contract';
-            } elseif ((string) $enquiry->pricing_source === '') {
+            if ((string) $enquiry->pricing_source === '') {
                 $enquiry->pricing_source = 'sampling_contract';
             }
             $enquiry->save();
@@ -787,6 +781,120 @@ final class QuotationFromEnquiryService
         return $fallback !== null ? (string) $fallback : null;
     }
 
+    /**
+     * Complete, unexpired quotations for a customer (eligible for Process Enquiry "use existing").
+     *
+     * @return \Illuminate\Support\Collection<int, QuotationHeader>
+     */
+    public function eligibleQuotationsForCustomer(string $customerId): \Illuminate\Support\Collection
+    {
+        if ($customerId === '') {
+            return collect();
+        }
+
+        return QuotationHeader::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('status', 'Quote Complete')
+            ->whereNotNull('expiring_date')
+            ->whereDate('expiring_date', '>=', now()->toDateString())
+            ->orderByDesc('quote_date')
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    /**
+     * Bind an existing saved quotation to the enquiry without rebuilding lines.
+     */
+    public function attachExistingQuotation(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $header,
+    ): QuotationHeader {
+        if ((string) $header->crm_customer_id !== (string) $enquiry->crm_customer_id) {
+            throw new RuntimeException('Selected quotation belongs to a different customer.');
+        }
+
+        if ((string) $header->status !== 'Quote Complete') {
+            throw new RuntimeException('Only completed quotations can be selected.');
+        }
+
+        $expiresOn = $header->expiring_date !== null
+            ? \Carbon\Carbon::parse($header->expiring_date)->startOfDay()
+            : null;
+        if ($expiresOn === null || $expiresOn->lt(now()->startOfDay())) {
+            throw new RuntimeException('Selected quotation has expired.');
+        }
+
+        $header->sample_submission_request_id = $enquiry->id;
+        $header->from_enquiry = true;
+        $header->save();
+
+        $enquiry->current_quotation_header_id = $header->id;
+        if ($enquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
+            || $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW) {
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
+        }
+        $enquiry->save();
+
+        return $header->fresh(['details', 'currency']) ?? $header;
+    }
+
+    /**
+     * Soft mismatch messages: Step 2 parameter keys vs elements covered by the quotation.
+     *
+     * @param  list<array<string, mixed>>  $sampleConfigs
+     * @return list<string>
+     */
+    public function quotationMismatchWarnings(array $sampleConfigs, QuotationHeader $header): array
+    {
+        $header->loadMissing('details');
+
+        $configElementIds = [];
+        foreach ($sampleConfigs as $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+            foreach (is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [] as $key) {
+                $id = trim((string) $key);
+                if ($id !== '') {
+                    $configElementIds[$id] = true;
+                }
+            }
+        }
+        $configIds = array_keys($configElementIds);
+
+        $quoteElementIds = [];
+        foreach ($header->details as $detail) {
+            foreach ($this->quotationPricingResolver->collectElementIdsFromDetail($detail) as $elementId) {
+                $quoteElementIds[$elementId] = true;
+            }
+        }
+        $quoteIds = array_keys($quoteElementIds);
+
+        $warnings = [];
+        $missingOnQuote = array_values(array_diff($configIds, $quoteIds));
+        $extraOnQuote = array_values(array_diff($quoteIds, $configIds));
+
+        if ($missingOnQuote !== []) {
+            $warnings[] = sprintf(
+                'Sample configuration includes %d parameter(s) not covered by the selected quotation. The quotation terms still apply.',
+                count($missingOnQuote)
+            );
+        }
+
+        if ($extraOnQuote !== [] && $configIds !== []) {
+            $warnings[] = sprintf(
+                'Selected quotation includes %d parameter(s) not in the current sample configuration.',
+                count($extraOnQuote)
+            );
+        }
+
+        if ($configIds === [] && $quoteIds !== []) {
+            $warnings[] = 'Sample configuration has no selected parameters; the quotation will still be sent as saved.';
+        }
+
+        return $warnings;
+    }
+
     public function syncHeaderPricelistAndCurrency(
         QuotationHeader $header,
         SampleSubmissionRequest $enquiry,
@@ -839,15 +947,6 @@ final class QuotationFromEnquiryService
         }
 
         return $header->fresh(['customer', 'contact']) ?? $header;
-    }
-
-    private function hasContractPricelist(string $customerId): bool
-    {
-        if ($customerId === '') {
-            return false;
-        }
-
-        return PricelistCustomer::query()->where('customer_id', $customerId)->exists();
     }
 
     private function emailQuotation(QuotationHeader $header, SampleSubmissionRequest $enquiry): void

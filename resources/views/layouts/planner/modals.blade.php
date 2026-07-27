@@ -28,7 +28,7 @@
             <form action="{{route('full-calendar-create')}}" method="post" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
-                    <h4 class="modal-title"><i class="mdi mdi-plus text-primary"></i> Create Event</h4>
+                    <h4 class="modal-title"><i class="mdi mdi-plus"></i> Create Event</h4>
                 </div>
                 <div class="modal-body ">
                     <div class="row">

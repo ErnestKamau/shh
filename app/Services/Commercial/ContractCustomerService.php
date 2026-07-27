@@ -9,13 +9,24 @@ use Carbon\Carbon;
 
 final class ContractCustomerService
 {
-    public function hasContractPricelist(?string $customerId): bool
+    /**
+     * True when the customer has an assigned pricelist (pricelist_customers).
+     */
+    public function hasAssignedPricelist(?string $customerId): bool
     {
         if ($customerId === null || $customerId === '') {
             return false;
         }
 
         return PricelistCustomer::query()->where('customer_id', $customerId)->exists();
+    }
+
+    /**
+     * @deprecated Use hasAssignedPricelist().
+     */
+    public function hasContractPricelist(?string $customerId): bool
+    {
+        return $this->hasAssignedPricelist($customerId);
     }
 
     public function isScheduledEnquiry(SampleSubmissionRequest $enquiry): bool

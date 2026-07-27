@@ -1,24 +1,26 @@
-{{-- Request Info — collapsible 4-column read-only card --}}
+{{-- Request Info — collapsible 4-column read-only card (collapsed by default) --}}
 <div class="workflow-board-panel rv-request-info-panel"
      id="request-info-panel"
-     x-data="{ open: true }">
+     x-data="{ open: false }">
     <button type="button"
         class="workflow-board-panel-header rv-request-info-toggle"
         @click="open = !open"
+        aria-expanded="false"
         :aria-expanded="open"
         aria-controls="request-info-body">
         <h5>
             <i class="mdi mdi-information-outline" aria-hidden="true"></i>
             Request Info
         </h5>
-        <i class="mdi rv-request-info-chevron"
-           :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+        <i class="mdi rv-request-info-chevron mdi-chevron-down"
+           :class="{ 'mdi-chevron-up': open, 'mdi-chevron-down': !open }"
            aria-hidden="true"></i>
     </button>
     <div class="workflow-board-panel-body"
          id="request-info-body"
          x-show="open"
-         x-collapse>
+         x-collapse
+         x-cloak>
         <div class="row w-100 mx-0 rv-request-info-grid">
             @forelse($requestInfoCard['fields'] as $field)
                 @php

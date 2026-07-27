@@ -206,7 +206,7 @@ class PricelistShowManager extends Component
                 'analysisType:id,name,code',
                 'analysisElement:id,analyte_id',
                 'analysisElement.analyte:id,name,code',
-                'packageElements',
+                'packageElements.analysisElement.analyte:id,name,code',
             ])
             ->where('pricelist_id', $this->pricelistId)
             ->get();
@@ -224,7 +224,24 @@ class PricelistShowManager extends Component
                     : (float) $changedRaw;
                 $displaySelling = $changed;
                 $profit = $displaySelling - $cost;
-                $coveredCount = $item->is_package ? count($item->coveredElementIds()) : 0;
+                $packageParameters = [];
+                if ($item->is_package) {
+                    $packageParameters = $item->packageElements
+                        ->map(function ($packageElement): array {
+                            $analyte = $packageElement->analysisElement?->analyte;
+
+                            return [
+                                'id' => (string) ($packageElement->analysis_element_id ?? ''),
+                                'name' => (string) ($analyte?->name ?? 'Parameter'),
+                                'code' => (string) ($analyte?->code ?? ''),
+                            ];
+                        })
+                        ->filter(fn (array $row): bool => $row['id'] !== '')
+                        ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+                        ->values()
+                        ->all();
+                }
+                $coveredCount = count($packageParameters);
 
                 $item->sample_type_name = $sampleType->name ?? null;
                 $item->sample_type_code = $sampleType->code ?? null;
@@ -240,6 +257,7 @@ class PricelistShowManager extends Component
                 $item->profit_margin = $displaySelling > 0 ? (($profit / $displaySelling) * 100) : 0;
                 $item->has_pending_change = abs($selling - $changed) > 0.004;
                 $item->package_element_count = $coveredCount;
+                $item->package_parameters = $packageParameters;
 
                 return $item;
             })
@@ -306,30 +324,51 @@ class PricelistShowManager extends Component
 
     public function getPaginatedFilteredItemsProperty(): Collection
     {
-        $filtered = $this->filteredItems;
-        $perPage = max(1, $this->itemsPerPage);
-        $page = $this->resolvedItemsPage($filtered->count(), $perPage);
-
-        return $filtered->forPage($page, $perPage)->values();
+        return $this->groupedItems
+            ->flatMap(function ($sampleGroup) {
+                return $sampleGroup->analysis_groups->flatMap(
+                    fn ($analysisGroup) => $analysisGroup->rows
+                );
+            })
+            ->values();
     }
 
     public function getItemPaginatorProperty(): LengthAwarePaginator
     {
-        $filtered = $this->filteredItems;
-        $perPage = max(1, $this->itemsPerPage);
-        $total = $filtered->count();
-        $page = $this->resolvedItemsPage($total, $perPage);
+        $pages = $this->sampleGroupPages();
+        $totalItems = $this->filteredItems->count();
+        $lastPage = max(1, $pages->count());
+        $page = max(1, min($this->itemsPage, $lastPage));
+        $this->itemsPage = $page;
 
+        $currentPageItems = $this->paginatedFilteredItems;
+
+        // Use a stable per-page of 1 relative to group-pages so lastPage()/hasPages() match sample-group pages.
         return new LengthAwarePaginator(
-            $this->paginatedFilteredItems->all(),
-            $total,
-            $perPage,
+            $currentPageItems->all(),
+            $lastPage,
+            1,
             $page,
             [
                 'path' => request()->url(),
                 'pageName' => 'itemsPage',
             ]
         );
+    }
+
+    public function getItemsPageMetaProperty(): array
+    {
+        $pages = $this->sampleGroupPages();
+        $page = max(1, min($this->itemsPage, max(1, $pages->count())));
+        $itemsBefore = $this->countItemsInSampleGroups($pages->take($page - 1));
+        $onPage = $this->paginatedFilteredItems->count();
+        $total = $this->filteredItems->count();
+
+        return [
+            'from' => $total === 0 ? 0 : $itemsBefore + 1,
+            'to' => $total === 0 ? 0 : $itemsBefore + $onPage,
+            'total' => $total,
+        ];
     }
 
     public function getHasActiveItemFiltersProperty(): bool
@@ -484,7 +523,15 @@ class PricelistShowManager extends Component
 
     public function getGroupedItemsProperty(): Collection
     {
-        return $this->groupItems($this->paginatedFilteredItems);
+        $pages = $this->sampleGroupPages();
+        if ($pages->isEmpty()) {
+            return collect();
+        }
+
+        $page = max(1, min($this->itemsPage, $pages->count()));
+        $this->itemsPage = $page;
+
+        return $pages->get($page - 1, collect())->values();
     }
 
     public function setItemCommitFilter(string $filter): void
@@ -528,9 +575,7 @@ class PricelistShowManager extends Component
 
     public function goToItemsPage(int $page): void
     {
-        $perPage = max(1, $this->itemsPerPage);
-        $total = $this->filteredItems->count();
-        $lastPage = max(1, (int) ceil($total / $perPage) ?: 1);
+        $lastPage = max(1, $this->sampleGroupPages()->count());
         $this->itemsPage = max(1, min($page, $lastPage));
     }
 
@@ -2145,6 +2190,62 @@ class PricelistShowManager extends Component
                 return mb_strtolower((string) ($group->sample_type_name ?? ''));
             })
             ->values();
+    }
+
+    /**
+     * Pack complete sample-type groups into pages without splitting a sample type across pages.
+     *
+     * @return Collection<int, Collection<int, object>>
+     */
+    private function sampleGroupPages(): Collection
+    {
+        $groups = $this->groupItems($this->filteredItems);
+        $perPage = max(1, $this->itemsPerPage);
+        $pages = collect();
+        $current = collect();
+        $currentItemCount = 0;
+
+        foreach ($groups as $group) {
+            $groupItemCount = $this->countItemsInSampleGroups(collect([$group]));
+
+            if ($current->isNotEmpty() && ($currentItemCount + $groupItemCount) > $perPage) {
+                $pages->push($current->values());
+                $current = collect();
+                $currentItemCount = 0;
+            }
+
+            $current->push($group);
+            $currentItemCount += $groupItemCount;
+
+            // Oversized groups still occupy a single page so the sample type appears once.
+            if ($groupItemCount >= $perPage) {
+                $pages->push($current->values());
+                $current = collect();
+                $currentItemCount = 0;
+            }
+        }
+
+        if ($current->isNotEmpty()) {
+            $pages->push($current->values());
+        }
+
+        return $pages->values();
+    }
+
+    /**
+     * @param  Collection<int, object>|Collection<int, Collection<int, object>>  $groupsOrPages
+     */
+    private function countItemsInSampleGroups(Collection $groupsOrPages): int
+    {
+        return (int) $groupsOrPages->sum(function ($group): int {
+            if ($group instanceof Collection) {
+                return $this->countItemsInSampleGroups($group);
+            }
+
+            return (int) collect($group->analysis_groups ?? [])->sum(
+                fn ($analysisGroup): int => collect($analysisGroup->rows ?? [])->count()
+            );
+        });
     }
 
     private function itemMatchesSearch(mixed $item): bool

@@ -58,6 +58,7 @@ class QuotationPricingResolverTest extends TestCase
         $this->assertCount(2, $rows);
         $this->assertSame($elementA, $rows[0]['default_analytes']);
         $this->assertSame($elementB, $rows[1]['default_analytes']);
+        $this->assertFalse($rows[0]['is_package']);
     }
 
     public function test_normalize_manual_detail_rows_splits_manual_override_when_no_pricelist(): void
@@ -106,5 +107,30 @@ class QuotationPricingResolverTest extends TestCase
 
         $this->assertSame(0.0, $suggestion['unit_price']);
         $this->assertStringContainsString('Select tests', $suggestion['hint']);
+        $this->assertFalse($suggestion['is_package']);
+    }
+
+    public function test_resolve_line_unit_price_does_not_use_invoicable_fallback(): void
+    {
+        $header = new QuotationHeader([
+            'id' => (string) Str::uuid(),
+            'crm_customer_id' => (string) Str::uuid(),
+            'currency_id' => (string) Str::uuid(),
+        ]);
+
+        $resolver = app(QuotationPricingResolver::class);
+
+        $resolved = $resolver->resolveLineUnitPrice(
+            $header,
+            (string) Str::uuid(),
+            (string) Str::uuid(),
+            (string) Str::uuid(),
+            null,
+            true,
+        );
+
+        $this->assertSame(0.0, $resolved['unit_price']);
+        $this->assertSame('none', $resolved['source']);
+        $this->assertArrayNotHasKey('invoicable_item_id', $resolved);
     }
 }

@@ -100,6 +100,14 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $batchCode = (string) $headerAttributes['batch_code'];
                 $header = SampleHeader::query()->create($headerAttributes);
 
+                app(\App\Services\Sampleworkflow\BatchWorkflowStageSyncService::class)
+                    ->recordChainOfCustodyTransition(
+                        $header,
+                        (string) ($header->status ?? 'Samples Request Review'),
+                        is_string($header->sample_tracking_stage) ? $header->sample_tracking_stage : null,
+                        'Batch created — Samples Request Review (from Samples Receiving).'
+                    );
+
                 if ($instance !== null && $numberingService->isJobNumberFormat($batchCode)) {
                     $numberingService->persistJobNumberOnSubmissionInstance($instance, $batchCode);
                 }

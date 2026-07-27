@@ -65,12 +65,15 @@ class ActualCollectionsManager extends Component
         if (! $this->canViewAllCollections()) {
             $userId = (string) Auth::id();
             $query->where(function ($scopedQuery) use ($userId): void {
-                $scopedQuery
-                    ->where('personnel_id', $userId)
-                    ->orWhereJsonContains('personnel_ids', $userId)
-                    ->orWhereHas('submissionFormInstances', function ($instanceQuery) use ($userId): void {
-                        $instanceQuery->where('submitted_by', $userId);
-                    });
+                $scopedQuery->where('personnel_id', $userId);
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('sampling_schedules', 'personnel_ids')) {
+                    $scopedQuery->orWhereJsonContains('personnel_ids', $userId);
+                }
+
+                $scopedQuery->orWhereHas('submissionFormInstances', function ($instanceQuery) use ($userId): void {
+                    $instanceQuery->where('submitted_by', $userId);
+                });
             });
         }
 

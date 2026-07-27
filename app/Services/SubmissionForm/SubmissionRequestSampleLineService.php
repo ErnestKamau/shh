@@ -4,6 +4,7 @@ namespace App\Services\SubmissionForm;
 
 use App\AnalysisElements;
 use App\AnalysisType;
+use App\Models\CRM\SamplePoint;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
@@ -475,10 +476,11 @@ class SubmissionRequestSampleLineService
                 $line['attributes']['tests_requested'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'state_of_sample') {
                 $line['state_of_sample'] = $display !== '' ? $display : $rawValue;
-            } elseif ($name === 'sampling_point') {
-                $line['sampling_point'] = $display !== '' ? $display : $rawValue;
+            } elseif (in_array($name, ['sampling_point', 'sampling_location'], true)
+                || in_array($type, ['sample_point_select', 'customer_sample_point_select'], true)) {
+                $line['sampling_point'] = $this->resolveSamplingPointLabel($display !== '' ? $display : $rawValue);
             } elseif ($name === 'location') {
-                $line['location'] = $display !== '' ? $display : $rawValue;
+                $line['location'] = $this->resolveSamplingPointLabel($display !== '' ? $display : $rawValue);
             } elseif ($name === 'production_date') {
                 $line['production_date'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'expiration_date') {
@@ -980,8 +982,12 @@ class SubmissionRequestSampleLineService
             'sample_quantity_unit' => $quantityData['sample_quantity_unit'],
             'sample_condition' => $this->nullableString($row['sample_condition'] ?? null),
             'state_of_sample' => $this->nullableString($row['state_of_sample'] ?? null),
-            'sampling_point' => $this->nullableString($row['sampling_point'] ?? null),
-            'location' => $this->nullableString($row['location'] ?? null),
+            'sampling_point' => $this->resolveSamplingPointLabel(
+                $this->nullableString($row['sampling_point'] ?? $row['sampling_location'] ?? null)
+            ),
+            'location' => $this->resolveSamplingPointLabel(
+                $this->nullableString($row['location'] ?? null)
+            ),
             'production_date' => $this->nullableString($row['production_date'] ?? null),
             'expiration_date' => $this->nullableString($row['expiration_date'] ?? null),
             'batch_number' => $this->nullableString($row['batch_number'] ?? null),
@@ -1118,6 +1124,24 @@ class SubmissionRequestSampleLineService
         $string = $this->normalizeCellText($value);
 
         return $string !== '' ? $string : null;
+    }
+
+    /**
+     * Resolve sample-point UUID references to their display names.
+     */
+    private function resolveSamplingPointLabel(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (! Str::isUuid($value)) {
+            return $value;
+        }
+
+        $name = SamplePoint::query()->whereKey($value)->value('name');
+
+        return $name !== null && $name !== '' ? (string) $name : $value;
     }
 
     private function normalizeCellText(mixed $value): string

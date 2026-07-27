@@ -97,6 +97,24 @@ class ProcessEnquiryWizard extends Component
 
     public bool $showBuildQuotationModal = false;
 
+    /** Step 3 mode: build_new | use_existing */
+    public string $quotationMode = 'build_new';
+
+    /** Bumps wire:key so Step 3 remounts when quotation mode is re-applied. */
+    public int $quotationModeRenderKey = 0;
+
+    public ?string $selectedExistingQuotationId = null;
+
+    public string $existingQuotationSearch = '';
+
+    public bool $showExistingQuotationDropdown = false;
+
+    /** @var list<array{id: string, label: string, quote_number: string, expiring_date: string, total: string}> */
+    public array $existingQuotationOptions = [];
+
+    /** Soft mismatch warning when using an existing quotation. */
+    public string $quotationMismatchWarning = '';
+
     /** Hides the Condition of sample column on the sample config table (Process Enquiry does not need it). */
     public bool $showSampleConditionOnConfig = false;
 
@@ -291,6 +309,13 @@ class ProcessEnquiryWizard extends Component
         $this->quotationSent = $this->enquiryQuotationWasSent($enquiry, $header);
         $this->quotationManuallyEdited = false;
         $this->showBuildQuotationModal = false;
+        $this->quotationMode = 'build_new';
+        $this->quotationModeRenderKey = 0;
+        $this->selectedExistingQuotationId = null;
+        $this->existingQuotationSearch = '';
+        $this->showExistingQuotationDropdown = false;
+        $this->quotationMismatchWarning = '';
+        $this->refreshExistingQuotationOptions();
 
         if ($header !== null && $header->details->isNotEmpty()) {
             $this->lines = $quotationService->buildInlineLinesFromQuotationHeader($header);
@@ -310,13 +335,17 @@ class ProcessEnquiryWizard extends Component
         $this->statusMessage = $this->quotationSent
             ? 'Quotation '.$this->quoteNumber.' has been sent. Saved sample configuration and pricing are shown below.'
             : '';
-        $this->statusLevel = $this->quotationSent ? 'info' : 'info';
+        $this->statusLevel = 'info';
+        $this->statusAutoDismiss = $this->statusMessage !== '';
         $this->showModal = true;
     }
 
     public function closeWizard(): void
     {
         $this->showModal = false;
+        $this->existingQuotationSearch = '';
+        $this->showExistingQuotationDropdown = false;
+        $this->quotationMismatchWarning = '';
     }
 
     public function goToStep(string $step): void
@@ -326,17 +355,24 @@ class ProcessEnquiryWizard extends Component
         }
 
         if ($step === 'pricing') {
-            $this->rebuildQuotationLinesFromSampleConfigs();
-            $this->quotationBuilt = false;
-            if ($this->quotationHeaderId === null) {
-                try {
-                    $header = $this->ensureQuotationHeader();
-                    $this->pdfGenerated = ! empty($header->upload_url);
-                } catch (Throwable) {
-                    // Header shell may be created on build quotation.
+            $this->refreshExistingQuotationOptions();
+            if ($this->quotationMode === 'use_existing') {
+                if ($this->selectedExistingQuotationId) {
+                    $this->applySelectedExistingQuotation();
                 }
-            } elseif ($header = $this->resolveQuotationHeader()) {
-                $this->pdfGenerated = ! empty($header->upload_url);
+            } else {
+                $this->rebuildQuotationLinesFromSampleConfigs();
+                $this->quotationBuilt = false;
+                if ($this->quotationHeaderId === null) {
+                    try {
+                        $header = $this->ensureQuotationHeader();
+                        $this->pdfGenerated = ! empty($header->upload_url);
+                    } catch (Throwable) {
+                        // Header shell may be created on build quotation.
+                    }
+                } elseif ($header = $this->resolveQuotationHeader()) {
+                    $this->pdfGenerated = ! empty($header->upload_url);
+                }
             }
         }
 
@@ -381,6 +417,271 @@ class ProcessEnquiryWizard extends Component
 
             return $config;
         }, $this->sampleConfigs));
+    }
+
+    public function setQuotationMode(string $value): void
+    {
+        if (! in_array($value, ['build_new', 'use_existing'], true)) {
+            return;
+        }
+
+        // Re-apply even when unchanged so a stale Step 3 DOM can recover without
+        // requiring the user to leave and re-enter the pricing step.
+        if ($this->quotationMode === $value) {
+            $this->syncQuotationModeState($value);
+            $this->quotationModeRenderKey++;
+
+            return;
+        }
+
+        $this->quotationMode = $value;
+        $this->quotationModeRenderKey++;
+    }
+
+    public function updatedQuotationMode(string $value): void
+    {
+        if (! in_array($value, ['build_new', 'use_existing'], true)) {
+            $this->quotationMode = 'build_new';
+            $this->syncQuotationModeState('build_new');
+
+            return;
+        }
+
+        $this->syncQuotationModeState($value);
+    }
+
+    private function syncQuotationModeState(string $value): void
+    {
+        $this->quotationMismatchWarning = '';
+        $this->existingQuotationSearch = '';
+        $this->showExistingQuotationDropdown = false;
+
+        if ($value === 'use_existing') {
+            $this->refreshExistingQuotationOptions();
+            if ($this->selectedExistingQuotationId) {
+                $this->applySelectedExistingQuotation();
+            } else {
+                $this->lines = [];
+                $this->quotationBuilt = false;
+                $this->pdfGenerated = false;
+                $this->quoteNumber = '';
+                $this->quotationHeaderId = null;
+            }
+
+            return;
+        }
+
+        $this->selectedExistingQuotationId = null;
+        $this->rebuildQuotationLinesFromSampleConfigs();
+        $this->quotationBuilt = false;
+        $this->clearStatus();
+    }
+
+    public function openExistingQuotationDropdown(): void
+    {
+        $this->showExistingQuotationDropdown = true;
+    }
+
+    public function closeExistingQuotationDropdown(): void
+    {
+        $this->showExistingQuotationDropdown = false;
+    }
+
+    public function selectExistingQuotation(string $quotationId): void
+    {
+        $quotationId = trim($quotationId);
+        $this->selectedExistingQuotationId = $quotationId !== '' ? $quotationId : null;
+        $this->existingQuotationSearch = '';
+        $this->showExistingQuotationDropdown = false;
+    }
+
+    public function clearExistingQuotation(): void
+    {
+        $this->selectedExistingQuotationId = null;
+        $this->existingQuotationSearch = '';
+        $this->showExistingQuotationDropdown = false;
+    }
+
+    /**
+     * @return list<array{id: string, label: string, quote_number: string, expiring_date: string, total: string}>
+     */
+    public function filteredExistingQuotationOptions(): array
+    {
+        $needle = mb_strtolower(trim($this->existingQuotationSearch));
+        if ($needle === '') {
+            return $this->existingQuotationOptions;
+        }
+
+        return array_values(array_filter(
+            $this->existingQuotationOptions,
+            function (array $option) use ($needle): bool {
+                $haystack = mb_strtolower(implode(' ', [
+                    (string) ($option['quote_number'] ?? ''),
+                    (string) ($option['label'] ?? ''),
+                    (string) ($option['expiring_date'] ?? ''),
+                    (string) ($option['total'] ?? ''),
+                ]));
+
+                return str_contains($haystack, $needle);
+            }
+        ));
+    }
+
+    public function existingQuotationLabel(?string $quotationId): string
+    {
+        if ($quotationId === null || $quotationId === '') {
+            return '';
+        }
+
+        foreach ($this->existingQuotationOptions as $option) {
+            if (($option['id'] ?? '') === $quotationId) {
+                $number = (string) ($option['quote_number'] ?? '');
+
+                return $number !== '' ? $number : (string) ($option['label'] ?? 'Quotation');
+            }
+        }
+
+        return '';
+    }
+
+    public function updatedSelectedExistingQuotationId(?string $value): void
+    {
+        if ($this->quotationMode !== 'use_existing') {
+            return;
+        }
+
+        if ($value === null || $value === '') {
+            $this->lines = [];
+            $this->quotationBuilt = false;
+            $this->pdfGenerated = false;
+            $this->quotationMismatchWarning = '';
+            $this->quotationHeaderId = null;
+            $this->quoteNumber = '';
+
+            return;
+        }
+
+        $this->applySelectedExistingQuotation();
+    }
+
+    public function refreshExistingQuotationOptions(): void
+    {
+        $this->existingQuotationOptions = [];
+
+        if ($this->crmCustomerId === '') {
+            return;
+        }
+
+        $quotes = app(QuotationFromEnquiryService::class)
+            ->eligibleQuotationsForCustomer($this->crmCustomerId);
+
+        foreach ($quotes as $quote) {
+            $number = (string) ($quote->quote_number ?? '');
+            $expires = $quote->expiring_date
+                ? \Carbon\Carbon::parse($quote->expiring_date)->format('Y-m-d')
+                : '—';
+            $total = number_format((float) ($quote->total_amount ?? 0), 2);
+
+            $this->existingQuotationOptions[] = [
+                'id' => (string) $quote->id,
+                'quote_number' => $number,
+                'expiring_date' => $expires,
+                'total' => $total,
+                'label' => $number !== '' ? $number : 'Quotation',
+            ];
+        }
+    }
+
+    public function applySelectedExistingQuotation(): void
+    {
+        if ($this->enquiryId === null || ! $this->selectedExistingQuotationId) {
+            return;
+        }
+
+        try {
+            $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+            $header = QuotationHeader::query()
+                ->with('details')
+                ->find($this->selectedExistingQuotationId);
+
+            if ($enquiry === null || $header === null) {
+                throw new \RuntimeException('Selected quotation was not found.');
+            }
+
+            $service = app(QuotationFromEnquiryService::class);
+            $header = $service->attachExistingQuotation($enquiry, $header);
+            $this->quotationHeaderId = $header->id;
+            $this->quoteNumber = (string) ($header->quote_number ?? '');
+            $this->lines = $service->buildInlineLinesFromQuotationHeader($header);
+            $this->quotationBuilt = true;
+            $this->quotationManuallyEdited = false;
+            $this->pdfGenerated = ! empty($header->upload_url);
+
+            $warnings = $service->quotationMismatchWarnings($this->sampleConfigs, $header);
+            $this->quotationMismatchWarning = implode(' ', $warnings);
+
+            if ($this->quotationMismatchWarning !== '') {
+                $this->clearStatus();
+            } else {
+                $this->setStatus('success', 'Using quotation '.$this->quoteNumber.'. Review and send when ready.');
+            }
+        } catch (Throwable $exception) {
+            $this->selectedExistingQuotationId = null;
+            $this->lines = [];
+            $this->quotationBuilt = false;
+            $this->quotationMismatchWarning = '';
+            $this->setStatus('error', $exception->getMessage());
+        }
+    }
+
+    public function syncFromCustomerPricelist(): void
+    {
+        if ($this->enquiryId === null || $this->crmCustomerId === '') {
+            $this->setStatus('error', 'Customer is required to sync from the customer pricelist.');
+
+            return;
+        }
+
+        $pricing = app(AcceptanceFormPricingService::class);
+        $pricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
+        if ($pricelist === null) {
+            $this->setStatus('error', 'No pricelist is assigned to this customer.');
+
+            return;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()
+            ->with(['requestedAnalyses', 'submissionFormInstance'])
+            ->find($this->enquiryId);
+        if ($enquiry === null) {
+            $this->setStatus('error', 'Enquiry not found.');
+
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $trfSeeds = $configService->resolveTrfSampleLines($enquiry);
+        $this->sampleConfigs = app(\App\Services\Commercial\CommercialEnquiryConfigSyncService::class)
+            ->mergePricelistIntoSampleConfigs(
+                $this->crmCustomerId,
+                $this->sampleConfigs,
+                is_array($trfSeeds) ? $trfSeeds : [],
+                false,
+                $pricelist,
+            );
+        $this->normalizeSampleConfigs();
+        $this->setStatus('success', 'Sample configuration synced with TRF lines using the customer pricelist.');
+    }
+
+    /** @deprecated Use syncFromCustomerPricelist() */
+    public function syncFromContractPricelist(): void
+    {
+        $this->syncFromCustomerPricelist();
+    }
+
+    public function getIsUsingExistingQuotationProperty(): bool
+    {
+        return $this->quotationMode === 'use_existing';
     }
 
     public function saveReviewAndContinue(): void
@@ -471,10 +772,10 @@ class ProcessEnquiryWizard extends Component
             $this->quoteNumber = (string) ($header->quote_number ?? '');
             $this->pdfGenerated = ! empty($header->upload_url);
             $this->activeStep = 'pricing';
-            $this->setStatus('info', 'Review pricing and build the quotation when ready.');
+            $this->clearStatus();
         } catch (Throwable $exception) {
             $this->activeStep = 'pricing';
-            $this->setStatus('info', 'Review pricing and build the quotation when ready.');
+            $this->clearStatus();
         }
     }
 
@@ -590,22 +891,47 @@ class ProcessEnquiryWizard extends Component
     public function viewQuotation(): void
     {
         if ($this->enquiryId === null || $this->lines === []) {
-            $this->setStatus('error', 'No quotation lines to view. Complete sample configuration and sync prices first.');
+            $this->setStatus(
+                'error',
+                $this->quotationMode === 'use_existing'
+                    ? 'Select an existing quotation before viewing.'
+                    : 'No quotation lines to view. Complete sample configuration and sync prices first.'
+            );
 
             return;
         }
 
         try {
-            $this->normalizeQuotationLineQuantities();
-            $this->refreshLineLabMetrics();
-            $header = $this->ensureQuotationHeader();
-            $header->show_unit_price_column = true;
-            $header->save();
+            $quotationService = app(QuotationFromEnquiryService::class);
 
-            $this->persistQuotationLines();
-            $this->persistSampleConfiguration();
+            if ($this->quotationMode === 'use_existing') {
+                if (! $this->selectedExistingQuotationId) {
+                    throw new \RuntimeException('Select an existing quotation before viewing.');
+                }
 
-            $header = app(QuotationFromEnquiryService::class)->generatePdf($header->fresh() ?? $header);
+                $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+                $header = QuotationHeader::query()->find($this->selectedExistingQuotationId);
+                if ($enquiry === null || $header === null) {
+                    throw new \RuntimeException('Selected quotation was not found.');
+                }
+
+                $header = $quotationService->attachExistingQuotation($enquiry, $header);
+                if (empty($header->upload_url)) {
+                    $header = $quotationService->generatePdf($header);
+                }
+            } else {
+                $this->normalizeQuotationLineQuantities();
+                $this->refreshLineLabMetrics();
+                $header = $this->ensureQuotationHeader();
+                $header->show_unit_price_column = true;
+                $header->save();
+
+                $this->persistQuotationLines();
+                $this->persistSampleConfiguration();
+
+                $header = $quotationService->generatePdf($header->fresh() ?? $header);
+            }
+
             $header->refresh();
 
             $this->quotationHeaderId = $header->id;
@@ -623,7 +949,7 @@ class ProcessEnquiryWizard extends Component
                 'open-quotation-preview',
                 url: route('quotation.preview', ['id' => $this->quotationHeaderId]),
             );
-            $this->setStatus('success', 'Quotation built and opened in a new tab.');
+            $this->setStatus('success', 'Quotation opened in a new tab.');
         } catch (Throwable $exception) {
             $this->pdfGenerated = false;
             $this->setStatus('error', $exception->getMessage());
@@ -785,6 +1111,12 @@ class ProcessEnquiryWizard extends Component
         $pricing = app(AcceptanceFormPricingService::class);
         $pricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
 
+        if ($pricelist === null) {
+            $this->setStatus('error', 'No pricelist is assigned to this customer.');
+
+            return;
+        }
+
         $line = $this->lines[$index];
         $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
         $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
@@ -812,7 +1144,7 @@ class ProcessEnquiryWizard extends Component
             $this->quotationManuallyEdited = true;
             $this->quotationBuilt = false;
             $this->refreshLineLabMetrics();
-            $this->setStatus('success', 'Package price reset from contract pricelist.');
+            $this->setStatus('success', 'Package price reset from customer pricelist.');
 
             return;
         }
@@ -838,7 +1170,7 @@ class ProcessEnquiryWizard extends Component
         $this->quotationManuallyEdited = true;
         $this->quotationBuilt = false;
         $this->refreshLineLabMetrics();
-        $this->setStatus('success', 'Line price reset from contract pricelist.');
+        $this->setStatus('success', 'Line price reset from customer pricelist.');
     }
 
     public function sendQuotation(): void
@@ -863,7 +1195,12 @@ class ProcessEnquiryWizard extends Component
         }
 
         if ($this->enquiryId === null || $this->lines === []) {
-            $this->setStatus('error', 'No quotation lines to send. Complete sample configuration and sync prices first.');
+            $this->setStatus(
+                'error',
+                $this->quotationMode === 'use_existing'
+                    ? 'Select a valid existing quotation before sending.'
+                    : 'No quotation lines to send. Complete sample configuration and sync prices first.'
+            );
 
             return;
         }
@@ -877,19 +1214,39 @@ class ProcessEnquiryWizard extends Component
                 throw new \RuntimeException('Enquiry not found.');
             }
 
-            $this->normalizeQuotationLineQuantities();
-            $this->refreshLineLabMetrics();
+            $quotationService = app(QuotationFromEnquiryService::class);
 
-            $header = $this->ensureQuotationHeader();
-            $header->show_unit_price_column = true;
-            $header->save();
+            if ($this->quotationMode === 'use_existing') {
+                if (! $this->selectedExistingQuotationId) {
+                    throw new \RuntimeException('Select an existing quotation before sending.');
+                }
 
-            $this->persistQuotationLines();
-            $this->persistSampleConfiguration($enquiry);
+                $header = QuotationHeader::query()
+                    ->with('details')
+                    ->find($this->selectedExistingQuotationId);
+                if ($header === null) {
+                    throw new \RuntimeException('Selected quotation was not found.');
+                }
+
+                $header = $quotationService->attachExistingQuotation($enquiry, $header);
+                $warnings = $quotationService->quotationMismatchWarnings($this->sampleConfigs, $header);
+                $this->quotationMismatchWarning = implode(' ', $warnings);
+                $this->persistSampleConfiguration($enquiry);
+            } else {
+                $this->normalizeQuotationLineQuantities();
+                $this->refreshLineLabMetrics();
+
+                $header = $this->ensureQuotationHeader();
+                $header->show_unit_price_column = true;
+                $header->save();
+
+                $this->persistQuotationLines();
+                $this->persistSampleConfiguration($enquiry);
+            }
 
             $header = $header->fresh() ?? $header;
             if (empty($header->upload_url)) {
-                $header = app(QuotationFromEnquiryService::class)->generatePdf($header);
+                $header = $quotationService->generatePdf($header);
             }
 
             $this->quotationHeaderId = $header->id;
@@ -902,7 +1259,7 @@ class ProcessEnquiryWizard extends Component
                 throw new \RuntimeException('Quotation PDF could not be generated before sending.');
             }
 
-            app(QuotationFromEnquiryService::class)->sendToCustomer(
+            $quotationService->sendToCustomer(
                 $enquiry,
                 $header->fresh() ?? $header,
                 $this->sendPortal,
@@ -914,7 +1271,7 @@ class ProcessEnquiryWizard extends Component
                 ->find($this->enquiryId);
 
             if ($enquiry !== null) {
-                $enquiry = app(QuotationFromEnquiryService::class)->ensureEnquiryReflectsSentQuotation($enquiry);
+                $enquiry = $quotationService->ensureEnquiryReflectsSentQuotation($enquiry);
                 $this->enquiryStatus = (string) $enquiry->status;
                 $this->quotationSent = true;
             }
@@ -925,8 +1282,8 @@ class ProcessEnquiryWizard extends Component
                 ? 'Quotation sent by email. Record walk-in acceptance on the request view page, then capture the PO.'
                 : 'Quotation sent to customer.';
 
-            $this->closeWizard();
-            session()->flash('message', $flashMessage);
+            $this->dispatch('notify', type: 'success', message: $flashMessage);
+            $this->setStatus('success', $flashMessage, true);
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
         }
@@ -1190,16 +1547,17 @@ class ProcessEnquiryWizard extends Component
         $this->statusAutoDismiss = false;
     }
 
+    public function clearQuotationMismatchWarning(): void
+    {
+        $this->quotationMismatchWarning = '';
+    }
+
     private function setStatus(string $level, string $message, bool $autoDismiss = false): void
     {
         $this->statusLevel = $level;
         $this->statusMessage = $message;
-        $this->statusAutoDismiss = $autoDismiss || $this->isTransientStatusMessage($message);
-    }
-
-    private function isTransientStatusMessage(string $message): bool
-    {
-        return str_contains($message, 'No contract pricelist is assigned to this customer.');
+        $this->statusAutoDismiss = $autoDismiss
+            || ($message !== '' && $level !== 'error');
     }
 
     private function finalizeQuotationLineMutation(): void

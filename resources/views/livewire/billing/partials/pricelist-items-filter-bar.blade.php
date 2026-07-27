@@ -17,7 +17,7 @@
                         @php $selectedSt = $itemFilterSampleTypes->firstWhere('id', $selectedSampleTypeId); @endphp
                         @if($selectedSt)
                             <span class="tag-badge">
-                                {{ $selectedSt->code }} — {{ $selectedSt->name }}
+                                {{ $selectedSt->name }}
                                 <i class="mdi mdi-close-circle" wire:click.stop="removeItemFilterSampleType(@js($selectedSampleTypeId))" role="button" tabindex="0"></i>
                             </span>
                         @endif
@@ -35,7 +35,6 @@
                             @php $isSelected = in_array((string) $sampleType->id, $itemSampleTypeFilterIds, true); @endphp
                             <div class="tag-dropdown-item {{ $isSelected ? 'tag-dropdown-item--selected' : '' }}"
                                  wire:click.stop="toggleItemFilterSampleType(@js($sampleType->id))">
-                                <span class="tag-dropdown-code">{{ $sampleType->code }}</span>
                                 <span class="tag-dropdown-name">{{ $sampleType->name }}</span>
                                 @if($isSelected)
                                     <i class="mdi mdi-check ml-auto text-primary"></i>
@@ -69,22 +68,8 @@
 
     @if($showItemAdvancedFilters)
         <div class="pricelist-items-filter-advanced mt-3 pt-3">
-            <div class="pricelist-filter-hierarchy-hint mb-3">
-                <span class="pricelist-filter-hierarchy-step {{ count($itemSampleTypeFilterIds) > 0 ? 'is-complete' : 'is-active' }}">
-                    <i class="mdi mdi-flask-outline"></i> Sample type
-                </span>
-                <i class="mdi mdi-chevron-right pricelist-filter-hierarchy-arrow"></i>
-                <span class="pricelist-filter-hierarchy-step {{ count($itemAnalysisTypeFilterIds) > 0 ? 'is-complete' : (count($itemSampleTypeFilterIds) > 0 ? 'is-active' : 'is-disabled') }}">
-                    <i class="mdi mdi-chart-timeline-variant"></i> Analysis type
-                </span>
-                <i class="mdi mdi-chevron-right pricelist-filter-hierarchy-arrow"></i>
-                <span class="pricelist-filter-hierarchy-step {{ count($itemAnalysisElementFilterIds) > 0 ? 'is-complete' : (count($itemAnalysisTypeFilterIds) > 0 ? 'is-active' : 'is-disabled') }}">
-                    <i class="mdi mdi-atom"></i> Parameter
-                </span>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-lg-6">
+            <div class="row">
+                <div class="col-lg-6 mb-3">
                     <label class="soft-label mb-1">Analysis Type</label>
                     <div class="item-tag-select tag-select-container pricelist-filter-tag-select {{ $canFilterByAnalysisType ? '' : 'is-locked' }}"
                          @if($canFilterByAnalysisType) wire:click="$set('showItemFilterAnalysisTypeDropdown', true)" @endif>
@@ -128,7 +113,7 @@
                         @endif
                     </div>
                 </div>
-                <div class="col-lg-6">
+                <div class="col-lg-6 mb-3">
                     <label class="soft-label mb-1">Parameter</label>
                     <div class="item-tag-select tag-select-container pricelist-filter-tag-select {{ $canFilterByParameter ? '' : 'is-locked' }}"
                          @if($canFilterByParameter) wire:click="$set('showItemFilterAnalysisElementDropdown', true)" @endif>

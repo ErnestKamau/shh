@@ -35,7 +35,7 @@ final class CommercialEnquiryConfigSyncService
         $seeds = $trfLineSeeds;
 
         if ($includeAllContractParameters) {
-            // Legacy: expand every contract pricelist parameter into config seeds.
+            // Legacy: expand every customer-pricelist parameter into config seeds.
             // Prefer request/TRF seeds only; pricing belongs on quotation lines.
             $params = $assignedPricelist !== null
                 ? $this->parametersForPricelist($assignedPricelist)

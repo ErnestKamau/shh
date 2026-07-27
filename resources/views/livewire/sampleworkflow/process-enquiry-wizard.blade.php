@@ -160,35 +160,126 @@
                         @endif
 
                         @if($activeStep === 'pricing')
+                            <div wire:key="enquiry-wizard-pricing-{{ $quotationMode }}-{{ $quotationModeRenderKey }}">
                             @include('livewire.partials.process-enquiry-status-alert')
 
                             <section class="acc-wizard-section acc-pricing-section">
+                                <div class="acc-pricing-mode mb-3" wire:key="enquiry-pricing-mode-{{ $quotationMode }}-{{ $quotationModeRenderKey }}">
+                                    <label class="acc-label d-block mb-2">Quotation source</label>
+                                    <div class="d-flex flex-wrap" style="gap: 1rem 1.5rem;" role="radiogroup" aria-label="Quotation source">
+                                        <label class="mb-0 d-flex align-items-center">
+                                            <input
+                                                type="radio"
+                                                class="mr-2"
+                                                name="enquiry-quotation-mode"
+                                                value="build_new"
+                                                wire:click="setQuotationMode('build_new')"
+                                                @checked($quotationMode === 'build_new')
+                                            >
+                                            Build new from this enquiry
+                                        </label>
+                                        <label class="mb-0 d-flex align-items-center">
+                                            <input
+                                                type="radio"
+                                                class="mr-2"
+                                                name="enquiry-quotation-mode"
+                                                value="use_existing"
+                                                wire:click="setQuotationMode('use_existing')"
+                                                @checked($quotationMode === 'use_existing')
+                                            >
+                                            Use existing quotation
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div wire:key="enquiry-existing-quotation-panel-{{ $quotationMode }}-{{ $quotationModeRenderKey }}">
+                                @if($quotationMode === 'use_existing')
+                                    <div class="form-group mb-3">
+                                        <label class="acc-label" for="existing-quotation-search">Customer quotations</label>
+                                        <div
+                                            class="tag-select-container acc-existing-quotation-select {{ $showExistingQuotationDropdown ? 'is-open' : '' }}"
+                                            wire:click="openExistingQuotationDropdown"
+                                            wire:click.outside="closeExistingQuotationDropdown"
+                                        >
+                                            <div class="tag-select-input">
+                                                @if($selectedExistingQuotationId)
+                                                    <span class="tag-badge" wire:key="existing-quote-badge-{{ $selectedExistingQuotationId }}">
+                                                        {{ $this->existingQuotationLabel($selectedExistingQuotationId) }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearExistingQuotation" role="button" tabindex="0" aria-label="Clear selected quotation"></i>
+                                                    </span>
+                                                @endif
+                                                <input
+                                                    id="existing-quotation-search"
+                                                    type="text"
+                                                    class="tag-input"
+                                                    wire:model.live.debounce.200ms="existingQuotationSearch"
+                                                    wire:focus="openExistingQuotationDropdown"
+                                                    placeholder="{{ $selectedExistingQuotationId ? 'Search to change…' : 'Search quotations…' }}"
+                                                    autocomplete="off"
+                                                >
+                                            </div>
+                                            @if($showExistingQuotationDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($this->filteredExistingQuotationOptions() as $option)
+                                                        <div
+                                                            class="tag-dropdown-item {{ $selectedExistingQuotationId === $option['id'] ? 'is-selected' : '' }}"
+                                                            wire:key="existing-quote-option-{{ $option['id'] }}"
+                                                            wire:click.stop="selectExistingQuotation('{{ $option['id'] }}')"
+                                                        >
+                                                            {{ $option['quote_number'] !== '' ? $option['quote_number'] : $option['label'] }}
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">
+                                                            {{ $existingQuotationOptions === [] ? 'No quotations available' : 'No matching quotations' }}
+                                                        </div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @if($existingQuotationOptions === [])
+                                            <p class="small text-muted mt-2 mb-0">
+                                                No complete, unexpired quotations for this customer. Create one under Billing → Quotations, or switch to Build new.
+                                            </p>
+                                        @endif
+                                    </div>
+                                    @if($quotationMismatchWarning !== '')
+                                        <div
+                                            class="alert alert-warning py-2 px-3 small"
+                                            wire:key="enquiry-mismatch-{{ md5($quotationMismatchWarning) }}"
+                                            x-data
+                                            x-init="window.clearTimeout($el._dismissTimer); $el._dismissTimer = window.setTimeout(() => $wire.clearQuotationMismatchWarning(), 5000)"
+                                        >
+                                            {{ $quotationMismatchWarning }}
+                                        </div>
+                                    @endif
+                                @endif
+                                </div>
+
                                 <div class="acc-pricing-toolbar mb-3 d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
-                                    <h6 class="acc-wizard-section-title mb-0">Parameters &amp; pricing</h6>
-                                    <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
-                                        @if($this->currencyDisplay !== '')
-                                            <span class="small text-muted">Currency: <strong>{{ $this->currencyDisplay }}</strong></span>
-                                        @endif
-                                        <span class="small text-muted">Physical samples: <strong>{{ $this->physicalSampleCount }}</strong></span>
-                                        @if($quotationBuilt)
-                                            <span class="badge badge-success">Quotation saved</span>
+                                    <h6 class="acc-wizard-section-title mb-0">
+                                        @if($quotationMode === 'use_existing')
+                                            Selected quotation
                                         @else
-                                            <span class="badge badge-secondary">Draft pricing</span>
+                                            Parameters &amp; pricing
                                         @endif
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
-                                            <i class="mdi mdi-sync"></i> Sync from pricelist
-                                        </button>
-                                        {{-- Build quotation temporarily disabled
-                                        <button type="button" class="btn btn-primary btn-sm" wire:click="openBuildQuotationModal">
-                                            <i class="mdi mdi-file-document-check-outline"></i> Build quotation
-                                        </button>
-                                        --}}
+                                    </h6>
+                                    <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
+                                        @if($quotationSent)
+                                            <span class="badge badge-success">Quotation Sent</span>
+                                        @elseif($quotationBuilt && $quotationMode === 'build_new')
+                                            <span class="badge badge-success">Quotation saved</span>
+                                        @endif
+                                        @if($quotationMode === 'build_new')
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
+                                                <i class="mdi mdi-sync"></i> Sync from pricelist
+                                            </button>
+                                        @endif
                                         <button
                                             type="button"
                                             class="btn btn-outline-primary btn-sm"
                                             wire:click="viewQuotation"
                                             wire:loading.attr="disabled"
-                                            @disabled($lines === [])
+                                            @disabled($lines === [] || ($quotationMode === 'use_existing' && ! $selectedExistingQuotationId))
                                         >
                                             <span wire:loading.remove wire:target="viewQuotation">
                                                 <i class="mdi mdi-file-eye-outline"></i> View Quotation
@@ -213,7 +304,9 @@
                                                 <th class="text-right">Line total</th>
                                                 <th class="text-right">Tax %</th>
                                                 <th class="text-center">Subcontract</th>
-                                                <th class="text-center" style="width: 90px;">Actions</th>
+                                                @if($quotationMode === 'build_new')
+                                                    <th class="text-center" style="width: 90px;">Actions</th>
+                                                @endif
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -222,6 +315,7 @@
                                                     $sampleCount = max(1, (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1));
                                                     $unitPrice = (float) ($line['unit_price'] ?? 0);
                                                     $lineTotal = $sampleCount * $unitPrice;
+                                                    $readOnly = $quotationMode === 'use_existing';
                                                 @endphp
                                                 <tr wire:key="ql-{{ $index }}">
                                                     <td>{{ $index + 1 }}</td>
@@ -258,48 +352,68 @@
                                                     <td class="text-center text-muted small">{{ $line['loq'] ?? '—' }}</td>
                                                     <td class="text-center text-muted small">{{ $line['mu_percent'] ?? '—' }}</td>
                                                     <td class="text-right">
-                                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
-                                                               wire:model.blur="lines.{{ $index }}.unit_price">
+                                                        @if($readOnly)
+                                                            {{ number_format($unitPrice, 2) }}
+                                                        @else
+                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
+                                                                   wire:model.blur="lines.{{ $index }}.unit_price">
+                                                        @endif
                                                     </td>
                                                     <td class="text-center text-muted">{{ $sampleCount }}</td>
                                                     <td class="text-right text-muted">{{ number_format($lineTotal, 2) }}</td>
                                                     <td class="text-right">
-                                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
-                                                               wire:model.blur="lines.{{ $index }}.tax">
+                                                        @if($readOnly)
+                                                            {{ number_format((float) ($line['tax'] ?? 0), 2) }}
+                                                        @else
+                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
+                                                                   wire:model.blur="lines.{{ $index }}.tax">
+                                                        @endif
                                                     </td>
                                                     <td class="text-center">
-                                                        <input type="checkbox" wire:model.live="lines.{{ $index }}.subcontracted">
+                                                        @if($readOnly)
+                                                            {{ !empty($line['subcontracted']) ? 'Yes' : 'No' }}
+                                                        @else
+                                                            <input type="checkbox" wire:model.live="lines.{{ $index }}.subcontracted">
+                                                        @endif
                                                     </td>
-                                                    <td class="text-center">
-                                                        <div class="btn-group btn-group-sm">
-                                                            <button type="button" class="btn btn-outline-secondary btn-sm" title="Reset price from pricelist"
-                                                                    wire:click="resetLinePriceFromPricelist({{ $index }})">
-                                                                <i class="mdi mdi-currency-usd"></i>
-                                                            </button>
-                                                            <button type="button" class="btn btn-outline-danger btn-sm" title="Remove line"
-                                                                    wire:click="removeQuotationLine({{ $index }})">
-                                                                <i class="mdi mdi-trash-can-outline"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
+                                                    @if($quotationMode === 'build_new')
+                                                        <td class="text-center">
+                                                            <div class="btn-group btn-group-sm">
+                                                                <button type="button" class="btn btn-outline-secondary btn-sm" title="Reset price from pricelist"
+                                                                        wire:click="resetLinePriceFromPricelist({{ $index }})">
+                                                                    <i class="mdi mdi-currency-usd"></i>
+                                                                </button>
+                                                                <button type="button" class="btn btn-outline-danger btn-sm" title="Remove line"
+                                                                        wire:click="removeQuotationLine({{ $index }})">
+                                                                    <i class="mdi mdi-trash-can-outline"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    @endif
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="10" class="text-muted text-center py-4">No pricing lines yet. Complete sample configuration, then sync prices from the pricelist.</td>
+                                                    <td colspan="{{ $quotationMode === 'use_existing' ? 9 : 10 }}" class="text-muted text-center py-4">
+                                                        @if($quotationMode === 'use_existing')
+                                                            Select an existing quotation to preview lines and send.
+                                                        @else
+                                                            No pricing lines yet. Complete sample configuration, then sync prices from the pricelist.
+                                                        @endif
+                                                    </td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <th colspan="8" class="text-right">Subtotal</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Subtotal</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="8" class="text-right">Tax</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Tax</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="8" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['total'], 2) }}</th>
                                             </tr>
                                         </tfoot>
@@ -321,6 +435,7 @@
                                     </div>
                                 </div>
                             </section>
+                            </div>
                         @endif
                     </div>
                 </div>
@@ -510,6 +625,32 @@
         .acc-wizard-root--enquiry .acc-sample-config-card-title {
             color: #111827;
         }
+
+        .acc-wizard-root--enquiry .acc-existing-quotation-select .tag-select-input {
+            border: 1px solid #475569;
+            box-shadow: none;
+        }
+
+        .acc-wizard-root--enquiry .acc-existing-quotation-select .tag-select-input:hover {
+            border-color: #334155;
+            box-shadow: none;
+        }
+
+        .acc-wizard-root--enquiry .acc-existing-quotation-select.is-open .tag-select-input,
+        .acc-wizard-root--enquiry .acc-existing-quotation-select .tag-select-input:focus-within {
+            border-color: transparent;
+            box-shadow: none;
+            outline: none;
+        }
+
+        .acc-wizard-root--enquiry .acc-existing-quotation-select .tag-dropdown-item {
+            font-weight: 400;
+        }
+
+        .acc-wizard-root--enquiry .acc-existing-quotation-select .tag-dropdown-item.is-selected {
+            background: #f8fafc;
+        }
+
         .acc-wizard-root--enquiry .acc-pricing-table-wrap--scroll {
             overflow: auto;
             max-height: min(360px, 50vh);

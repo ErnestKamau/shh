@@ -6,6 +6,7 @@ use App\Models\SamplingSchedule;
 use App\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 final class SamplingScheduleVisibility
 {
@@ -50,10 +51,13 @@ final class SamplingScheduleVisibility
     public static function constrainAssigned(Builder $query, string $userId): Builder
     {
         return $query->where(function (Builder $scoped) use ($userId): void {
-            $scoped
-                ->where('personnel_id', $userId)
-                ->orWhereJsonContains('personnel_ids', $userId)
-                ->orWhereJsonContains('personnel_ids', (string) $userId);
+            $scoped->where('personnel_id', $userId);
+
+            if (Schema::hasColumn('sampling_schedules', 'personnel_ids')) {
+                $scoped
+                    ->orWhereJsonContains('personnel_ids', $userId)
+                    ->orWhereJsonContains('personnel_ids', (string) $userId);
+            }
         });
     }
 

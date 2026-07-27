@@ -20,23 +20,23 @@
 		<div>
 			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['ready_for_reception'] ?? 0 }}</p>
 			<p class="workflow-stat-strip__label">Ready for reception</p>
-			<p class="workflow-stat-strip__meta">Awaiting check-in</p>
+			<p class="workflow-stat-strip__meta">Awaiting acceptance</p>
 		</div>
 	</div>
 	<div class="workflow-stat-strip__item">
 		<span class="workflow-stat-strip__dot workflow-stat-strip__dot--success" aria-hidden="true"></span>
 		<div>
-			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['in_review'] ?? 0 }}</p>
-			<p class="workflow-stat-strip__label">In review</p>
-			<p class="workflow-stat-strip__meta">Checked in at lab</p>
+			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['accepted'] ?? 0 }}</p>
+			<p class="workflow-stat-strip__label">Accepted</p>
+			<p class="workflow-stat-strip__meta">Jobs created</p>
 		</div>
 	</div>
 	<div class="workflow-stat-strip__item">
 		<span class="workflow-stat-strip__dot workflow-stat-strip__dot--primary" aria-hidden="true"></span>
 		<div>
 			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['todays_check_ins'] ?? 0 }}</p>
-			<p class="workflow-stat-strip__label">Today&rsquo;s check-ins</p>
-			<p class="workflow-stat-strip__meta">Checked in today</p>
+			<p class="workflow-stat-strip__label">Today&rsquo;s acceptances</p>
+			<p class="workflow-stat-strip__meta">Accepted today</p>
 		</div>
 	</div>
 </div>

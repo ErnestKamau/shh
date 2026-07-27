@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class PersonnelDashboard extends Component
@@ -153,29 +154,44 @@ class PersonnelDashboard extends Component
             ->where('users.active', 1)
             ->get(['users.id', 'users.designation']);
 
-        $designationIds = $users
+        $designationValues = $users
             ->pluck('designation')
             ->filter(fn ($id) => is_string($id) && $id !== '')
             ->unique()
             ->values();
 
-        $designationNames = ModulePreConfigs::query()
-            ->whereIn('id', $designationIds)
-            ->where('type', 'Job Description')
-            ->get(['id', 'name', 'description'])
-            ->mapWithKeys(function (ModulePreConfigs $item): array {
-                $description = trim((string) ($item->description ?? ''));
-                $label = $description !== '' ? $description : (string) $item->name;
+        // users.designation may be a ModulePreConfigs UUID or legacy plain-text job title.
+        $designationUuids = $designationValues
+            ->filter(fn (string $id): bool => Str::isUuid($id))
+            ->values();
 
-                return [(string) $item->id => $label];
-            });
+        $designationNames = $designationUuids->isEmpty()
+            ? collect()
+            : ModulePreConfigs::query()
+                ->whereIn('id', $designationUuids)
+                ->where('type', 'Job Description')
+                ->get(['id', 'name', 'description'])
+                ->mapWithKeys(function (ModulePreConfigs $item): array {
+                    $description = trim((string) ($item->description ?? ''));
+                    $label = $description !== '' ? $description : (string) $item->name;
+
+                    return [(string) $item->id => $label];
+                });
 
         $counts = [];
         foreach ($users as $user) {
-            $designationId = is_string($user->designation) ? $user->designation : '';
-            $label = ($designationId !== '' && isset($designationNames[$designationId]))
-                ? (string) $designationNames[$designationId]
-                : 'Not Set';
+            $designationValue = is_string($user->designation) ? $user->designation : '';
+
+            if ($designationValue === '') {
+                $label = 'Not Set';
+            } elseif (isset($designationNames[$designationValue])) {
+                $label = (string) $designationNames[$designationValue];
+            } elseif (! Str::isUuid($designationValue)) {
+                $label = $designationValue;
+            } else {
+                $label = 'Not Set';
+            }
+
             $counts[$label] = ($counts[$label] ?? 0) + 1;
         }
 

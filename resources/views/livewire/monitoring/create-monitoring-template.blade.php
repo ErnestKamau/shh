@@ -1,4 +1,4 @@
-<div class="monitoring-create-shell container-fluid">
+<div class="monitoring-create-shell container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     @if (session('error'))
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <i class="mdi mdi-alert-circle-outline"></i> {{ session('error') }}

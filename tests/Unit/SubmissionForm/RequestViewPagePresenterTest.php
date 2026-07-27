@@ -14,7 +14,7 @@ class RequestViewPagePresenterTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_ready_for_reception_hides_process_enquiry_and_record_po(): void
+    public function test_ready_for_reception_shows_accept_sample_action(): void
     {
         [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION
@@ -35,23 +35,24 @@ class RequestViewPagePresenterTest extends TestCase
         $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
-        $this->assertSame('receive_samples', $actions['primary']['key'] ?? null);
-        $this->assertSame('Receive', $actions['primary']['label'] ?? null);
+        $this->assertSame('accept_samples', $actions['primary']['key'] ?? null);
+        $this->assertSame('Accept sample', $actions['primary']['label'] ?? null);
         $this->assertNotContains('process_enquiry', $keys);
         $this->assertNotContains('record_po', $keys);
         $this->assertNotContains('record_walk_in_acceptance', $keys);
         $this->assertNotContains('open_receiving_board', $keys);
         $this->assertNotContains('edit', $keys);
-        $this->assertContains('receive_samples', $keys);
+        $this->assertNotContains('receive_samples', $keys);
+        $this->assertContains('accept_samples', $keys);
     }
 
-    public function test_past_reception_shows_in_review_not_ready_for_reception(): void
+    public function test_legacy_in_review_enquiry_maps_to_ready_for_reception_with_accept(): void
     {
         [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
-            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION
+            SampleSubmissionRequest::STATUS_IN_REVIEW
         );
 
-        $instance->update(['status' => 'received']);
+        $instance->update(['status' => 'in_review']);
         $instance = $instance->fresh(['batches', 'analysisAcceptanceForms']);
 
         $presenter = new RequestViewPagePresenter(
@@ -61,11 +62,11 @@ class RequestViewPagePresenterTest extends TestCase
         );
 
         $this->assertSame(
-            RequestViewPagePresenter::STAGE_IN_REVIEW,
+            RequestViewPagePresenter::STAGE_READY_FOR_RECEPTION,
             $presenter->enquiryDisplayStatus()
         );
 
-        $actions = $presenter->nextStepActions('Samples Request Review');
+        $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
         $this->assertSame('accept_samples', $actions['primary']['key'] ?? null);

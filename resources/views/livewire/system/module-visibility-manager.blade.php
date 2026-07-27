@@ -28,7 +28,7 @@
                                 type="checkbox"
                                 class="custom-control-input"
                                 id="module-{{ $moduleKey }}"
-                                wire:model="visibility.{{ $moduleKey }}"
+                                wire:model.live="visibility.{{ $moduleKey }}"
                                 {{ $moduleKey === 'settings' ? 'disabled' : '' }}
                             >
                             <label class="custom-control-label" for="module-{{ $moduleKey }}"></label>

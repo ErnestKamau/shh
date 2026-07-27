@@ -504,22 +504,28 @@ class AcceptanceFormService
 
         $actingUserId = $this->resolveActingUserId($form, $batch, $leadAnalystId);
 
-        $this->closeOpenChainOfCustody($batch, sprintf(
-            'Moved to %s after laboratory manager approval (from %s).',
-            $targetStatus,
-            $previousStatus ?: 'unknown'
-        ), $actingUserId);
+        $previousAuthId = Auth::id();
+        if ($actingUserId) {
+            Auth::loginUsingId($actingUserId);
+        }
 
-        $custody = new ChainOfCustody();
-        $custody->sample_header_id = $batch->id;
-        $custody->workflow_stage = $targetStatus;
-        $custody->tracking_stage_id = $batch->sample_tracking_stage;
-        $custody->moved_in_by = $actingUserId;
-        $custody->comments = sprintf(
-            'Analysis acceptance form completed by manager (from %s).',
-            $previousStatus ?: 'unknown'
-        );
-        $custody->save();
+        try {
+            app(BatchWorkflowStageSyncService::class)->recordChainOfCustodyTransition(
+                $batch,
+                $targetStatus,
+                is_string($targetTrackingStage) ? $targetTrackingStage : null,
+                sprintf(
+                    'Analysis acceptance form completed by manager (from %s).',
+                    $previousStatus ?: 'unknown'
+                )
+            );
+        } finally {
+            if ($previousAuthId) {
+                Auth::loginUsingId($previousAuthId);
+            } elseif (Auth::id() && (string) Auth::id() === (string) $actingUserId) {
+                Auth::logout();
+            }
+        }
 
         $this->syncAssignedAnalystsOnBatch($batch, $assignedAnalystIds, $leadAnalystId, $targetStatus);
 

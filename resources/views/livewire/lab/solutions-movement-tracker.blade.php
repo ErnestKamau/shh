@@ -1,4 +1,4 @@
-<div class="solutions-movement-tracker container-fluid py-3">
+<div class="solutions-movement-tracker container-fluid py-3 lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">

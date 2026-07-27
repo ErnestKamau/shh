@@ -16,7 +16,7 @@
     $cards = [
         ['key' => 'total', 'label' => 'Total Active Jobs', 'sublabel' => 'All active batches', 'icon' => 'mdi-clipboard-text-multiple', 'color' => '#3498db', 'link' => route('sample-workflow')],
         ['key' => 'samples_receiving', 'label' => 'Samples Receiving', 'sublabel' => 'Registration pipeline', 'icon' => 'mdi-truck-delivery', 'color' => '#17a2b8', 'link' => route('sample-workflow', ['status' => 'Samples Receiving'])],
-        ['key' => 'request_review', 'label' => 'In Review', 'sublabel' => 'Awaiting accept/reject', 'icon' => 'mdi-clipboard-check-outline', 'color' => '#6f42c1', 'link' => route('sample-workflow', ['status' => 'Samples Receiving', 'tab' => 'in_review'])],
+        ['key' => 'ready_for_reception', 'label' => 'Ready for Reception', 'sublabel' => 'Awaiting accept samples', 'icon' => 'mdi-clipboard-check-outline', 'color' => '#6f42c1', 'link' => route('sample-workflow', ['status' => 'Samples Receiving', 'tab' => 'ready_for_reception'])],
         ['key' => 'samples_in_lab', 'label' => 'Samples In Lab', 'sublabel' => 'Testing in progress', 'icon' => 'mdi-flask', 'color' => '#fd7e14', 'link' => route('sample-workflow', ['status' => 'Samples In Lab'])],
         ['key' => 'verification', 'label' => 'Verification', 'sublabel' => 'Results verification', 'icon' => 'mdi-check-decagram', 'color' => '#20c997', 'link' => route('sample-workflow', ['status' => 'Sample Verification'])],
         ['key' => 'approval', 'label' => 'Approval', 'sublabel' => 'Pending approval', 'icon' => 'mdi-stamper', 'color' => '#28a745', 'link' => route('sample-workflow', ['status' => 'Sample Approval'])],

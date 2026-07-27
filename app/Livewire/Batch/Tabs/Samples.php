@@ -27,7 +27,6 @@ use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\Services\ResultRemarkService;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -35,8 +34,6 @@ use Illuminate\Support\Str;
 
 class Samples extends Component
 {
-    use WithFileUploads;
-
     public $batchId;
     public SampleHeader $batch;
     public $not_captured = [];
@@ -112,7 +109,6 @@ class Samples extends Component
     public $storageLocations = [];
 
     public $sampleForms = [];
-    public $samplePhotos = [];
     public $samples = [];
     // View parameters modal
     public $showParametersModal = false;
@@ -565,13 +561,6 @@ class Samples extends Component
         $sample->lab_id = ! empty($sampleData['lab_id']) ? (string) $sampleData['lab_id'] : null;
         $sample->sample_condition_id = ! empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
         $sample->sample_point_id = ! empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
-
-        if (isset($this->samplePhotos[$index])) {
-            $path = $this->samplePhotos[$index]->store('sample_photos', 'public');
-            $sampleData['photo_url'] = $path;
-            $this->sampleForms[$index]['photo_url'] = $path;
-            unset($this->samplePhotos[$index]);
-        }
 
         $sample->photo_url = ! empty($sampleData['photo_url']) ? $sampleData['photo_url'] : null;
         $sample->sample_no = ! empty($sampleData['sample_no']) ? $sampleData['sample_no'] : null;
@@ -1944,7 +1933,7 @@ class Samples extends Component
             "sampleForms.$index.sample_type_id" => 'nullable',
             "sampleForms.$index.customer_sample_id" => 'nullable',
             "sampleForms.$index.main_standard" => 'required',
-            "sampleForms.$index.quantity" => 'required|numeric|min:0',
+            "sampleForms.$index.quantity" => 'nullable',
         ], [
             "sampleForms.$index.analysis_type_id.required" => 'Matrix is required',
             "sampleForms.$index.analysis_type_id.min" => 'At least one matrix option must be selected',
@@ -2013,7 +2002,7 @@ class Samples extends Component
             'sampleForms.*.sample_type_id' => 'nullable',
             'sampleForms.*.customer_sample_id' => 'nullable',
             'sampleForms.*.main_standard' => 'required',
-            'sampleForms.*.quantity' => 'required|numeric|min:0',
+            'sampleForms.*.quantity' => 'nullable',
         ], [
             'sampleForms.*.analysis_type_id.required' => 'Matrix is required',
             'sampleForms.*.analysis_type_id.min' => 'At least one matrix option must be selected',

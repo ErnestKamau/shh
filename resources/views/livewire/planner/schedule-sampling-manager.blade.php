@@ -1,4 +1,4 @@
-<div class="container-fluid schedule-sampling-page">
+<div class="container-fluid schedule-sampling-page lab-surface-theme" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -9,7 +9,7 @@
                             <h3 class="mb-1 font-weight-bold"><i class="mdi mdi-clock-outline text-primary"></i> {{ __('planner.sampling_schedules') }}</h3>
                             <p class="text-muted mb-0">{{ __('planner.sampling_schedules_subtitle') }}</p>
                         </div>
-                        <button wire:click="showCreateModal" class="btn btn-primary schedule-page-cta" style="border-radius:30px;padding:0.6rem 1.8rem;font-weight:600;">
+                        <button wire:click="showCreateModal" class="btn btn-outline-primary schedule-page-cta px-3" style="border-radius:8px;">
                             <i class="mdi mdi-plus-circle mr-1"></i> {{ __('planner.new_sampling_schedule') }}
                         </button>
                     </div>
@@ -45,7 +45,7 @@
 
     <!-- Advanced Filters -->
     @if($showFilters)
-    <div class="card shadow-sm border-0 mb-3" style="border-radius:15px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);">
+    <div class="card shadow-sm border-0 mb-3" style="border-radius:var(--ls-radius-xl,12px);background:var(--ls-color-bg,#f8fafc);border:1px solid var(--ls-color-border,#e2e8f0);">
         <div class="card-body p-4">
             <div class="row">
                 {{-- Date Range --}}
@@ -273,7 +273,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-clock-outline mr-2"></i>{{ $editingSchedule ? 'Edit' : 'Schedule' }} Sampling Run</h5>
                     <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
                 </div>
@@ -586,7 +586,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-eye mr-2"></i> Schedule Details</h5>
                     <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
                 </div>
@@ -817,7 +817,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-file-document-multiple-outline mr-2"></i>Test Request Forms</h5>
                     <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
                 </div>
@@ -897,7 +897,7 @@
     <div id="schedule-sampling-form-modal" class="modal fade show d-block schedule-sampling-form-modal" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="background:linear-gradient(135deg,var(--color-primary),#8a1a1f);flex-shrink:0;">
+                <div class="modal-header text-white" style="flex-shrink:0;">
                     <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-file-document-edit mr-2"></i> Fill Sampling Form</h5>
                     <button type="button" class="close text-white" wire:click="$set('showFormModal', false)"><span>&times;</span></button>
                 </div>
@@ -1062,7 +1062,7 @@
         white-space:nowrap;
     }
     .ss-location{
-        color:#8a1a1f;
+        color:var(--color-primary, #6D0A0E);
     }
     .ss-tests{
         display:flex;
@@ -1106,7 +1106,7 @@
     }
     .ss-test-more{
         font-size:11px;
-        color:#8a1a1f;
+        color:var(--color-primary, #6D0A0E);
         font-weight:600;
     }
     .ss-personnel{
@@ -1132,13 +1132,13 @@
         line-height:1;
     }
     .ss-forms-btn.has-forms{
-        border-color:#8a1a1f;
-        color:#8a1a1f;
+        border-color:var(--color-primary, #6D0A0E);
+        color:var(--color-primary, #6D0A0E);
         background:rgba(138,26,31,0.06);
     }
     .ss-forms-btn:hover{
-        border-color:#8a1a1f;
-        color:#8a1a1f;
+        border-color:var(--color-primary, #6D0A0E);
+        color:var(--color-primary, #6D0A0E);
     }
     .ss-actions{
         display:inline-flex;
@@ -1210,7 +1210,7 @@
     .schedule-sampling-page .select2-container--default .select2-selection--multiple .select2-selection__choice{
         background:var(--color-primary-soft, #f3e8e9);
         border:1px solid var(--color-primary-highlight, #e2b8bb);
-        color:var(--color-primary, #8a1a1f);
+        color:var(--color-primary, #6D0A0E);
         border-radius:999px;
         padding:2px 8px;
         margin-top:4px;
@@ -1218,7 +1218,7 @@
         font-weight:600;
     }
     .schedule-sampling-page .select2-container--default .select2-selection--multiple .select2-selection__choice__remove{
-        color:var(--color-primary, #8a1a1f);
+        color:var(--color-primary, #6D0A0E);
         margin-right:4px;
     }
     .schedule-sampling-page .select2-dropdown{
@@ -1226,7 +1226,7 @@
         border-color:#ced4da;
     }
     .schedule-sampling-page .select2-results__option--highlighted[aria-selected]{
-        background:var(--color-primary, #8a1a1f);
+        background:var(--color-primary, #6D0A0E);
     }
     .schedule-params-field .schedule-params-actions .btn-link{
         text-decoration:none;
@@ -1268,7 +1268,7 @@
         text-decoration: underline;
     }
     .schedule-sampling-form-modal {
-        --workflow-accent: var(--color-primary, #8a1a1f);
+        --workflow-accent: var(--color-primary, #6D0A0E);
         --workflow-accent-soft: rgba(138, 26, 31, 0.1);
     }
     .schedule-sampling-form-modal .rft-param-picker {

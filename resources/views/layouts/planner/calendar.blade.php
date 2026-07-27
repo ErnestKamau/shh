@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main>
+<main class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <?php
     $items = array(
         array(
@@ -23,7 +23,7 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
     <div class="mb-2 mt-2 d-flex justify-content-around">
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:#2196f3">
+        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:var(--color-primary, #6D0A0E)">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-calendar-arrow-right fa-4x"></i>
@@ -73,7 +73,7 @@
             </div>
         </div>
 
-        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:blue">
+        <div class="card card-widget text-white text-center no-overflow" style="height:100%;background-color:var(--color-info, #0284c7)">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-calendar-arrow-right fa-4x"></i>

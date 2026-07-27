@@ -1043,29 +1043,32 @@ function getSystemModuleVisibilityMap()
 
 	$configurations = App\Models\System\SystemConfiguration::where('configuration_type_id', $configType->id)
 		->where('key', 'system_module_visibility')
+		->orderByDesc('updated_at')
 		->get();
 
-	// Preferred shape: a single JSON map in value, e.g. {"laboratory":true,"inventory":false}
-	if ($configurations->count() === 1) {
-		$single = $configurations->first();
-		$decoded = json_decode((string) $single->value, true);
+	// Prefer newest JSON map even when duplicate rows exist from older saves.
+	// Shape: {"laboratory":true,"inventory":false,"calendar":true,...}
+	foreach ($configurations as $configuration) {
+		$decoded = json_decode((string) $configuration->value, true);
 
-		if (is_array($decoded)) {
-			foreach ($decoded as $moduleKey => $isVisible) {
-				// Only update visibility for modules that exist in the base modules array
-				if (isset($visibility[$moduleKey])) {
-					$visibility[$moduleKey] = (bool) $isVisible;
-				}
-			}
-
-			return $visibility;
+		if (!is_array($decoded)) {
+			continue;
 		}
+
+		foreach ($decoded as $moduleKey => $isVisible) {
+			if (isset($visibility[$moduleKey])) {
+				$visibility[$moduleKey] = (bool) $isVisible;
+			}
+		}
+
+		return $visibility;
 	}
 
+	// Legacy shape: value is a module key, status is visibility.
 	foreach ($configurations as $configuration) {
-		// Only update visibility for modules that exist in the base modules array
-		if (isset($visibility[$configuration->value])) {
-			$visibility[$configuration->value] = (bool) $configuration->status;
+		$value = (string) $configuration->value;
+		if (isset($visibility[$value])) {
+			$visibility[$value] = (bool) $configuration->status;
 		}
 	}
 

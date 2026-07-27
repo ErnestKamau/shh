@@ -1,4 +1,4 @@
-<div class="equipment-requests-page">
+<div class="equipment-requests-page lab-surface-theme ls-admin-page" data-ls-type="plex">
 <style>
     .equipment-requests-page {
         width: 100%;

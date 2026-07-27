@@ -70,22 +70,26 @@ final class EnquiryReceptionReadinessService
     }
 
     /**
-     * True when samples have been checked in and are ready for lab acceptance.
+     * True when the enquiry is ready for dual-signature sample acceptance
+     * (Ready for Reception → Accept creates the batch/job and samples).
+     *
+     * Legacy "In Review" enquiry/instance statuses remain eligible so existing
+     * records can still be accepted after the In Review step was removed.
      */
     public function isEligibleForSampleAcceptance(
         SampleSubmissionRequest $enquiry,
         ?SubmissionFormInstance $instance = null,
     ): bool {
-        if ((string) $enquiry->status === SampleSubmissionRequest::STATUS_IN_REVIEW) {
+        if (in_array((string) $enquiry->status, [
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_IN_REVIEW,
+        ], true)) {
             return true;
         }
 
-        if ($instance !== null
-            && in_array(strtolower((string) $instance->status), ['in_review', 'received'], true)) {
-            return true;
-        }
-
-        return false;
+        // Legacy physical check-in left the instance in in_review/received.
+        return $instance !== null
+            && in_array(strtolower((string) $instance->status), ['in_review', 'received'], true);
     }
 
     public function resolveAcceptedQuotation(SampleSubmissionRequest $enquiry): ?QuotationHeader

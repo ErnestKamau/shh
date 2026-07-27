@@ -22,6 +22,7 @@ class RequestViewPagePresenter
 
     public const STAGE_READY_FOR_RECEPTION = 'Ready for Reception';
 
+    /** @deprecated In Review was removed; Accept Samples runs from Ready for Reception. */
     public const STAGE_IN_REVIEW = 'In Review';
 
     public const STAGE_ACCEPTED = 'Accepted';
@@ -34,7 +35,6 @@ class RequestViewPagePresenter
         self::STAGE_QUOTATION_UNDER_REVIEW,
         self::STAGE_QUOTATION_ACCEPTED,
         self::STAGE_READY_FOR_RECEPTION,
-        self::STAGE_IN_REVIEW,
         self::STAGE_ACCEPTED,
     ];
 
@@ -138,15 +138,16 @@ class RequestViewPagePresenter
             return self::STAGE_ACCEPTED;
         }
 
+        // Past physical check-in (legacy In Review) still awaits Accept Samples.
         if ($this->isPastReception()) {
-            return self::STAGE_IN_REVIEW;
+            return self::STAGE_READY_FOR_RECEPTION;
         }
 
         $raw = (string) ($this->commercialEnquiry->status ?? '');
         $commercial = $this->commercialEnquiry->commercialStatus();
 
         if ($commercial === 'Sales Order Created' || $raw === 'Received at Lab') {
-            return self::STAGE_IN_REVIEW;
+            return self::STAGE_READY_FOR_RECEPTION;
         }
 
         return match ($raw) {
@@ -157,8 +158,8 @@ class RequestViewPagePresenter
             SampleSubmissionRequest::STATUS_QUOTATION_SENT => self::STAGE_QUOTATION_SENT,
             SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => self::STAGE_QUOTATION_UNDER_REVIEW,
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => self::STAGE_QUOTATION_ACCEPTED,
-            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => self::STAGE_READY_FOR_RECEPTION,
-            SampleSubmissionRequest::STATUS_IN_REVIEW => self::STAGE_IN_REVIEW,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_IN_REVIEW => self::STAGE_READY_FOR_RECEPTION,
             'received_at_lab' => self::STAGE_ACCEPTED,
             default => $commercial !== '' ? $commercial : ($raw !== '' ? $raw : null),
         };
@@ -1328,8 +1329,6 @@ class RequestViewPagePresenter
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');
         } elseif ($stage === self::STAGE_READY_FOR_RECEPTION) {
-            $primary = $this->action('receive_samples', 'Receive', 'mdi-package-variant-closed', 'wire', 'openPhysicalReceiveModal');
-        } elseif ($stage === self::STAGE_IN_REVIEW) {
             $primary = $this->action(
                 'accept_samples',
                 'Accept sample',
@@ -1353,12 +1352,6 @@ class RequestViewPagePresenter
                 'record_po',
                 'record_walk_in_acceptance',
                 'send_for_review',
-                'accept_samples',
-            ],
-            self::STAGE_IN_REVIEW => [
-                'process_enquiry',
-                'record_po',
-                'record_walk_in_acceptance',
                 'receive_samples',
             ],
             self::STAGE_ACCEPTED => [

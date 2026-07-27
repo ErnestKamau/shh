@@ -147,7 +147,7 @@ class ProcessEnquiryWizardTest extends TestCase
             'crm_customer_id' => $customerId,
             'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
             'source_channel' => 'walk_in',
-            'pricing_source' => 'contract',
+            'pricing_source' => 'customer_pricelist',
         ]);
 
         $acceptanceLines = [

@@ -7,7 +7,7 @@
     $panel = $this->preparationPanel;
 @endphp
 
-<div class="solution-preparation-workbench container-fluid py-3" wire:key="prep-{{ $prep->id }}">
+<div class="solution-preparation-workbench container-fluid py-3 lab-surface-theme ls-admin-page" data-ls-type="plex" wire:key="prep-{{ $prep->id }}">
     {{-- Hero --}}
     <div class="spw-hero card border-0 shadow-sm mb-4">
         <div class="card-body p-4">

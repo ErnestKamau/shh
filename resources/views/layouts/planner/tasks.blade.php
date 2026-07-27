@@ -5,7 +5,7 @@
 @endsection
 
 @section('content2')
-<main>
+<main class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <?php
     $items = array(
         array(
@@ -23,7 +23,7 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
     <div class="mb-2 mt-2 d-flex justify-content-around flex-wrap">
-        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="upcoming-task" style="height:100%;background-color:#2196f3;cursor:pointer;min-width:140px;flex:1;margin:4px;">
+        <button type="button" class="card card-widget text-white text-center no-overflow border-0 tasks-status-filter" data-status-filter="upcoming-task" style="height:100%;background-color:var(--color-primary, #6D0A0E);cursor:pointer;min-width:140px;flex:1;margin:4px;">
             <div class="card-body">
                 <div class="rotate">
                     <i class="mdi mdi-calendar-arrow-right fa-4x"></i>
@@ -155,7 +155,7 @@
                             <div class="legend-container d-inline-block text-left" style="font-size: 11px; line-height: 1.4;">
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#33691e"></i>Completed</span>
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#0000ff"></i>In-progress</span>
-                                <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#2196f3"></i>Upcoming</span>
+                                <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:var(--color-primary, #6D0A0E)"></i>Upcoming</span>
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#e65100"></i>Delayed</span>
                                 <span class="d-inline-block mr-2"><i class="mdi mdi-square mr-1" style="color:#e65100"></i>Expired</span>
                                 <span class="d-inline-block"><i class="mdi mdi-square mr-1" style="color:#c62828"></i>Cancelled</span>

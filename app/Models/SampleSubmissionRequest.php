@@ -226,7 +226,8 @@ class SampleSubmissionRequest extends Model
             'submitted', 'Submitted' => self::STATUS_REQUESTED,
             'Quotation Ready to Send', 'Pending Quotation' => 'Quotation Pending',
             self::STATUS_READY_FOR_RECEPTION => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
-            self::STATUS_IN_REVIEW => 'In Review',
+            // Legacy In Review folds into Ready for Reception (Accept Samples).
+            self::STATUS_IN_REVIEW => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
             'received_at_lab' => 'Accepted',
             'Received at Lab' => 'Sales Order Created',
             default => $status,

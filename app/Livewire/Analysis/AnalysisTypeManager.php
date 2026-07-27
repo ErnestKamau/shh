@@ -10,6 +10,7 @@ use App\Lab;
 use App\Analyte;
 use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
+use App\Standards;
 use App\User;
 use App\InvoicableItem;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,7 @@ class AnalysisTypeManager extends Component
         'uses_grouped_procedures' => false,
         'grouped_worksheet_holder_id' => null,
         'hybrid_worksheet_id' => null,
+        'default_standard_id' => null,
     ];
 
     // Elements Management
@@ -86,6 +88,7 @@ class AnalysisTypeManager extends Component
     public $equipment = [];
     public $operators = [];
     public $remedyHeaders = [];
+    public $standards = [];
 
     // Search and Filter
     public $search = '';
@@ -148,6 +151,7 @@ class AnalysisTypeManager extends Component
         $this->equipment = Equipment::where('active', 1)->get();
         $this->operators = User::where('active', 1)->get();
         $this->remedyHeaders = \App\Models\RemedyHeader::all();
+        $this->standards = Standards::query()->orderBy('name')->get(['id', 'name', 'code']);
     }
 
     public function getAnalysisTypesProperty()
@@ -251,6 +255,7 @@ class AnalysisTypeManager extends Component
             'uses_grouped_procedures' => ! empty($analysisType->grouped_worksheet_holder_id) || ! empty($analysisType->hybrid_worksheet_id),
             'grouped_worksheet_holder_id' => $analysisType->grouped_worksheet_holder_id,
             'hybrid_worksheet_id' => $analysisType->hybrid_worksheet_id,
+            'default_standard_id' => $analysisType->default_standard_id,
         ];
         $this->editingAnalysisType = $id;
         $this->showAnalysisTypeModal = true;
@@ -267,6 +272,7 @@ class AnalysisTypeManager extends Component
             'analysisTypeForm.grouped_worksheet_holder_id' => 'nullable|uuid|exists:grouped_worksheet_holders,id',
             'analysisTypeForm.hybrid_worksheet_id' => 'nullable|uuid|exists:hybrid_worksheets,id',
             'analysisTypeForm.procedure_worksheet_id' => 'nullable|uuid|exists:procedure_worksheets,id',
+            'analysisTypeForm.default_standard_id' => 'nullable|uuid|exists:standards,id',
         ]);
 
         $usesGroupedProcedures = (bool) ($this->analysisTypeForm['uses_grouped_procedures'] ?? false);
@@ -322,6 +328,7 @@ class AnalysisTypeManager extends Component
                     'procedure_worksheet_id' => $procedureWorksheetId,
                     'grouped_worksheet_holder_id' => $groupedHolderId,
                     'hybrid_worksheet_id' => $hybridWorksheetId,
+                    'default_standard_id' => $this->analysisTypeForm['default_standard_id'] ?: null,
                 ]);
                 
                 // Cascade update to elements if "Has No Result Captured" and worksheet is set
@@ -355,6 +362,7 @@ class AnalysisTypeManager extends Component
                     'procedure_worksheet_id' => $procedureWorksheetId,
                     'grouped_worksheet_holder_id' => $groupedHolderId,
                     'hybrid_worksheet_id' => $hybridWorksheetId,
+                    'default_standard_id' => $this->analysisTypeForm['default_standard_id'] ?: null,
                 ]);
                 
                 // Create invoicable item mapping
@@ -431,6 +439,7 @@ class AnalysisTypeManager extends Component
             'uses_grouped_procedures' => false,
             'grouped_worksheet_holder_id' => null,
             'hybrid_worksheet_id' => null,
+            'default_standard_id' => null,
         ];
         $this->editingAnalysisType = null;
         $this->labSearch = '';

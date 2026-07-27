@@ -259,7 +259,6 @@
                         <th style="min-width: 100px;">Code</th>
                         <th style="min-width: 150px;">Matrix<sup class="text-danger">*</sup></th>
                         <th style="min-width: 150px;">Sample Type</th>
-                        <th style="min-width: 120px;">Customer Sample ID</th>
                         <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
                         <th style="min-width: 130px;">
                             Main Standard<sup class="text-danger">*</sup>
@@ -275,19 +274,8 @@
                                 <i class="mdi mdi-plus"></i>
                             </button>
                         </th>
-                        <th style="min-width: 150px;">
-                            Sample photo
-                        </th>
                         <th style="min-width: 150px;">Description</th>
                         <th style="min-width: 110px;">Disposal Date</th>
-                        <th style="min-width: 120px;">
-                            Storage
-                            <button type="button" class="btn btn-xs btn-outline-primary ml-1"
-                                wire:click="openAddModal('store_id', null)" title="Add New Storage Location">
-                                <i class="mdi mdi-plus"></i>
-                            </button>
-                        </th>
-                        <th style="min-width: 80px;">Quantity</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -471,13 +459,6 @@
                             @enderror
                         </td>
 
-                        {{-- Customer Sample ID --}}
-                        <td>
-                            <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model="sampleForms.{{ $index }}.customer_sample_id"
-                                placeholder="Customer sample ID...">
-                        </td>
-
                         {{-- Lab Section --}}
                         <td>
                             @if($isReadOnly)
@@ -565,31 +546,6 @@
                             @endif
                         </td>
 
-                        {{-- Sample photo --}}
-                        <td>
-                            @if($isReadOnly)
-                                @if(!empty($sampleForm['photo_url']))
-                                    <a href="{{ Storage::url($sampleForm['photo_url']) }}" target="_blank" class="btn btn-xs btn-outline-info" title="View Photo">
-                                        <i class="mdi mdi-image"></i> View
-                                    </a>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            @else
-                                <div class="d-flex align-items-center flex-wrap" style="gap: 5px;">
-                                    <input type="file" class="form-control-file" style="font-size: 0.8rem; max-width: 150px;"
-                                        wire:model="samplePhotos.{{ $index }}" accept="image/*">
-                                    <div wire:loading wire:target="samplePhotos.{{ $index }}">
-                                        <i class="mdi mdi-loading mdi-spin"></i>
-                                    </div>
-                                    @if(!empty($sampleForm['photo_url']))
-                                        <a href="{{ Storage::url($sampleForm['photo_url']) }}" target="_blank" class="text-info" style="font-size: 0.8rem;">Current</a>
-                                    @endif
-                                </div>
-                                @error('samplePhotos.'.$index) <small class="text-danger">{{ $message }}</small> @enderror
-                            @endif
-                        </td>
-
                         {{-- Description --}}
                         <td>
                             <div class="d-flex align-items-start gap-2">
@@ -610,30 +566,6 @@
                                 wire:model="sampleForms.{{ $index }}.disposal_date" @if($isReadOnly) readonly
                                 style="background: #f8f9fa;" @endif>
                         </td>
-
-                        {{-- Storage --}}
-                        <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($storageLocations)->firstWhere('id', $sampleForm['store_id'])['name'] ?? '-' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select no-select2"
-                                wire:model="sampleForms.{{ $index }}.store_id">
-                                <option value="">Select...</option>
-                                @foreach($storageLocations as $store)
-                                <option value="{{ $store['id'] }}">{{ $store['name'] }}</option>
-                                @endforeach
-                            </select>
-                            @endif
-                        </td>
-
-                        {{-- Quantity --}}
-                        <td>
-                            <input type="number" class="form-control form-control-sm modern-input"
-                                wire:model="sampleForms.{{ $index }}.quantity" step="0.01" min="0"
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
-                        </td>
                     </tr>
                     @php
                         $interpretationHeader = trim(strip_tags($sampleForm['header_body'] ?? ''));
@@ -643,7 +575,7 @@
                     @endphp
                     @if($hasInterpretations)
                     <tr wire:key="sample-interpretations-{{ $index }}" class="sample-interpretations-row">
-                        <td colspan="16" class="bg-light border-top-0 pt-0">
+                        <td colspan="12" class="bg-light border-top-0 pt-0">
                             <div class="sample-interpretations-panel p-2">
                                 <div class="d-flex align-items-center mb-1">
                                     <small class="font-weight-bold text-muted text-uppercase">
@@ -677,7 +609,7 @@
                     @endif
                     @empty
                     <tr>
-                        <td colspan="16" class="text-center text-muted py-4">
+                        <td colspan="12" class="text-center text-muted py-4">
                             <i class="mdi mdi-information-outline"></i> No items configured yet. Click "Add" to create
                             entries.
                         </td>

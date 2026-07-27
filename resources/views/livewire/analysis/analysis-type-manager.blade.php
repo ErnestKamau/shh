@@ -343,6 +343,21 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Default standard</label>
+                                        <select wire:model="analysisTypeForm.default_standard_id" class="form-control @error('analysisTypeForm.default_standard_id') is-invalid @enderror">
+                                            <option value="">— None —</option>
+                                            @foreach($standards as $standard)
+                                                <option value="{{ $standard->id }}">{{ $standard->name }}@if($standard->code) ({{ $standard->code }})@endif</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="form-text text-muted">Prefills Specification on Analysis Acceptance</small>
+                                        @error('analysisTypeForm.default_standard_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
                             
                             <!-- Analysis Options Section -->
                             <div class="at-options-panel mb-3">

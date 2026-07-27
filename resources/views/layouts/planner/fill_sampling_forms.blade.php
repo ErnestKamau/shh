@@ -369,7 +369,7 @@
 @endsection
 
 @section('content2')
-<main>
+<main class="lab-surface-theme ls-admin-page" data-ls-type="plex">
     @php
         $items = [
             [
