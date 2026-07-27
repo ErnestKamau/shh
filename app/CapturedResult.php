@@ -83,6 +83,11 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo(SampleAnalysisStage::class, 'lab_section_id');
 	}
 
+	public function subcontractedLab()
+	{
+		return $this->belongsTo(Lab::class, 'subcontracted_lab_id');
+	}
+
 	public function analysis_type()
 	{
 		return $this->belongsTo('App\AnalysisType');

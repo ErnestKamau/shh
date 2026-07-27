@@ -3,6 +3,7 @@
 namespace App\Services\Sampleworkflow;
 
 use App\AnalysisType;
+use App\Lab;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
@@ -415,6 +416,7 @@ class AcceptanceFormSampleHeaderService
             $context['instance']?->reviewedBy?->lab_id,
             $context['mappedRaw']['lab_id'] ?? null,
             $configLabIdFallback,
+            Lab::defaultLabId(),
         ]);
 
         return $labId !== null && $labId !== '' ? (string) $labId : null;

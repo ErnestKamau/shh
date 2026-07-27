@@ -699,6 +699,7 @@ class DashboardRepository
         return match (true) {
             str_contains(strtolower($type), 'urgent'),
             str_contains(strtolower($type), 'overdue') => 'high',
+            str_contains(strtolower($type), 'additional information'),
             str_contains(strtolower($type), 'sign') => 'medium',
             default => 'info',
         };
@@ -706,9 +707,22 @@ class DashboardRepository
 
     private function notificationActionUrl(CustomerNotification $notification): ?string
     {
-        return match ($notification->entity_type) {
-            \App\Models\Sampleworkflow\AnalysisAcceptanceForm::class => '/portal/acceptance-forms/'.$notification->entity_id,
-            default => null,
-        };
+        if ($notification->entity_type === \App\Models\Sampleworkflow\AnalysisAcceptanceForm::class) {
+            return '/portal/acceptance-forms/'.$notification->entity_id;
+        }
+
+        if ($notification->entity_type === SubmissionFormInstance::class
+            || $notification->notification_type === CustomerNotification::TYPE_ADDITIONAL_INFO_REQUIRED
+            || $notification->notification_type === CustomerNotification::TYPE_REQUEST_NOTE) {
+            $instance = SubmissionFormInstance::query()
+                ->select(['id', 'submission_form_id'])
+                ->find($notification->entity_id);
+
+            if ($instance?->submission_form_id) {
+                return '/forms/'.$instance->submission_form_id.'/fill?instance='.$instance->id;
+            }
+        }
+
+        return null;
     }
 }

@@ -278,7 +278,7 @@ class Approvals extends Component
             $new_ammendment->created_by_id = auth()->user()->id;
             $new_ammendment->reason = $this->statusForm['remark'];
             $new_ammendment->batch_id = $this->batch->id;
-            $new_ammendment->report_url = $this->batch->batch_report_url;
+            $new_ammendment->report_url = \App\BatchAmmendment::snapshotReportUrl($this->batch);
             $new_ammendment->version_number = $this->batch->is_amendment + 1;
             $new_ammendment->save();
 
@@ -291,6 +291,9 @@ class Approvals extends Component
                 'Sent back to lab for amendment by ' . auth()->user()->name . '. Reason: ' . $this->statusForm['remark']
             );
             $this->batch->save();
+
+            app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+                ->syncReportNumbersForBatch($this->batch, (int) $this->batch->is_amendment);
 
             $approver->status = $persistedStatus;
             $approver->remark = $this->statusForm['remark'];

@@ -24,6 +24,7 @@ use App\Exports\SamplingSchedulesExport;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Planner\SamplingScheduleCollectionProgress;
+use App\Services\Planner\SamplingScheduleSamplePlanHistoryRecorder;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
@@ -311,6 +312,13 @@ class ScheduleSamplingManager extends Component
 
     public function showEditModal($id)
     {
+        // Close other overlays first — view modal is rendered after edit in the DOM
+        // and shares the same z-index, so leaving it open hides the edit form.
+        $this->showViewModal = false;
+        $this->viewingSchedule = null;
+        $this->showTrfFormsModal = false;
+        $this->viewingTrfSchedule = null;
+
         $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($id);
         $this->editingSchedule = $schedule;
 
@@ -372,6 +380,16 @@ class ScheduleSamplingManager extends Component
             ];
         }
 
+        if ($this->sampleEntries === []) {
+            $this->sampleEntries[] = [
+                'sample_type_id' => '',
+                'analysis_type_id' => '',
+                'parameters' => [],
+                'analysisTypes' => [],
+                'availableParameters' => [],
+            ];
+        }
+
         $this->syncNumberOfSamplesFromEntries();
 
         // Load customer data for prefill
@@ -385,6 +403,10 @@ class ScheduleSamplingManager extends Component
 
     public function viewSchedule($id)
     {
+        $this->showModal = false;
+        $this->showTrfFormsModal = false;
+        $this->viewingTrfSchedule = null;
+
         $this->viewingSchedule = SamplingSchedule::with([
             'client',
             'contact',
@@ -393,6 +415,7 @@ class ScheduleSamplingManager extends Component
             'submissionFormInstances.values.element',
             'submissionFormInstances.submissionForm.sampleTypes',
             'submissionFormInstances.submittedBy',
+            'samplePlanHistories.changedByUser',
         ])->visibleTo()->findOrFail($id);
         $this->showViewModal = true;
     }
@@ -950,9 +973,13 @@ class ScheduleSamplingManager extends Component
             DB::beginTransaction();
 
             $companyId = getUserCompany();
+            $wasEditing = $this->editingSchedule !== null;
+            $historyRecorder = app(SamplingScheduleSamplePlanHistoryRecorder::class);
+            $previousPlan = null;
 
             if ($this->editingSchedule) {
                 $schedule = $this->editingSchedule;
+                $previousPlan = $historyRecorder->currentPlanFromSchedule($schedule);
             } else {
                 $schedule = new SamplingSchedule();
                 $schedule->company_id = $companyId;
@@ -1006,6 +1033,16 @@ class ScheduleSamplingManager extends Component
 
             $schedule->save();
 
+            if ($wasEditing && $previousPlan !== null) {
+                $historyRecorder->recordIfChanged(
+                    $schedule,
+                    $previousPlan['sample_details'],
+                    $previousPlan['number_of_samples'],
+                    $sampleDetails,
+                    (int) $schedule->number_of_samples,
+                );
+            }
+
             // Send notification email if notify_client is checked
             if ($this->form['notify_client']) {
                 $this->sendClientNotification($schedule);
@@ -1014,7 +1051,7 @@ class ScheduleSamplingManager extends Component
             DB::commit();
 
             $this->closeModal();
-            $this->message = $this->editingSchedule
+            $this->message = $wasEditing
                 ? 'Schedule updated successfully!'
                 : 'Sampling scheduled successfully!';
             $this->messageType = 'success';

@@ -2,6 +2,7 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\BatchAmmendment;
 use App\Models\TestRequestReportLanguageFile;
 use App\Models\TestRequestReportRevision;
 use App\SampleHeader;
@@ -54,10 +55,13 @@ class TestRequestReportPdfService
             ->orderByDesc('revision_no')
             ->get();
 
+        $ammendment = BatchAmmendment::resolveForBatch($batch);
+
         $viewData = array_merge($reportData, [
             'language' => $language,
             'labels' => $labels,
             'revisions' => $revisions,
+            'ammendment' => $ammendment,
             'isRTL' => $isRTL,
             'isPdfMode' => true,
             'includeReferenceMethod' => $includeReferenceMethod,
@@ -188,6 +192,8 @@ class TestRequestReportPdfService
                 'end_of_text' => 'نهاية النص',
                 'issued_on' => 'صدر في',
                 'disclaimer' => 'إخلاء المسؤولية: تمت اختبار جميع العينات في مختبر طرف ثالث',
+                'supersedes_original' => 'هذا التقرير يحل محل التقرير الأصلي',
+                'amendment_reason' => 'سبب التعديل',
             ],
             'pt' => [
                 'report_title' => 'RELATÓRIO DE ENSAIO',
@@ -241,6 +247,8 @@ class TestRequestReportPdfService
                 'end_of_text' => 'Fim do texto',
                 'issued_on' => 'Emitido em',
                 'disclaimer' => 'AVISO: TODAS AS AMOSTRAS FORAM ENSAIADAS NUM LABORATÓRIO EXTERNO',
+                'supersedes_original' => 'Este relatório substitui o relatório original',
+                'amendment_reason' => 'Motivo da emenda',
             ],
             default => [
                 'report_title' => 'TEST REPORT',
@@ -294,6 +302,8 @@ class TestRequestReportPdfService
                 'end_of_text' => 'End of text',
                 'issued_on' => 'Issued on',
                 'disclaimer' => 'DISCLAIMER: ALL THE SAMPLES WERE TESTED AT A THIRD-PARTY LABORATORY',
+                'supersedes_original' => 'This report supersedes the original report',
+                'amendment_reason' => 'Amendment Reason',
             ],
         };
     }

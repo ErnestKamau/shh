@@ -326,7 +326,8 @@
     /* ── REMARKS / NOTES ────────────────────────── */
     .sample-remarks,
     .sample-interpretations,
-    .sample-notes {
+    .sample-notes,
+    .sample-amendment {
         font-size: 10px;
         padding: 6px 2px;
         line-height: 1.55;
@@ -337,9 +338,16 @@
         margin-top: 2px;
         margin-bottom: 4px;
     }
+    .sample-amendment {
+        border: 1px solid #d4b896;
+        background: #fffaf0;
+        padding: 8px 10px;
+        margin: 8px 0 6px;
+    }
     .sample-remarks strong,
     .sample-interpretations strong,
-    .sample-notes strong {
+    .sample-notes strong,
+    .sample-amendment strong {
         color: #111;
     }
     .sample-notes ol {
@@ -939,6 +947,16 @@
         @empty
             <div style="padding:14px 0;font-style:italic;color:#888;">{{ $labels['no_samples'] }}</div>
         @endforelse
+
+        @if(!empty($ammendment?->id))
+        <div class="sample-amendment">
+            <div><strong>{{ $labels['supersedes_original'] ?? 'This report supersedes the original report' }}</strong></div>
+            <div style="margin-top:4px;">
+                <strong>{{ $labels['amendment_reason'] ?? 'Amendment Reason' }}:</strong>
+                {{ $ammendment->reason }}
+            </div>
+        </div>
+        @endif
 
         {{-- ══════════════ ANALYSIS CONDUCTED / TEST METHOD ══════════════ --}}
         <table class="meta-box">

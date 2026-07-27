@@ -6066,18 +6066,35 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Batch not found.');
         }
 
-        // Bump revision sequence
-        $batch->test_request_report_sequence = ($batch->test_request_report_sequence ?? 0) + 1;
+        $ammendment = BatchAmmendment::resolveForBatch($batch);
+        $wasInAmendment = (int) ($batch->in_ammendment_proccess ?? 0) === 1;
+
+        // Align TRR revision with batch amendment version when re-issuing after amendment.
+        $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+        $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+        $batch->test_request_report_sequence = max($nextFromSequence, $amendmentVersion);
+
+        if ($wasInAmendment) {
+            $batch->in_ammendment_proccess = 0;
+        }
         $batch->save();
+
+        $notes = trim((string) ($request->notes ?? ''));
+        if ($notes === '' && $ammendment) {
+            $notes = (string) $ammendment->reason;
+        }
 
         // Record revision
         \App\Models\TestRequestReportRevision::create([
             'batch_id'     => $batch->id,
             'revision_no'  => $batch->test_request_report_sequence,
             'language'     => $request->language,
-            'notes'        => $request->notes,
+            'notes'        => $notes !== '' ? $notes : null,
             'generated_by' => auth()->id(),
         ]);
+
+        app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+            ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
 
         return redirect()->route('generateTestRequestReport', [
             'batch_id' => $batch->id,
@@ -6460,13 +6477,24 @@ class SampleWorkFlowController extends Controller
         // Preview never bumps revision. Official generate only bumps when seq is absent
         // (processTestRequestReport already bumps and passes seq).
         if (! $skipSequenceBump && ! $request->has('seq')) {
-            $batch->test_request_report_sequence = ($batch->test_request_report_sequence ?? 0) + 1;
+            $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+            $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+            $batch->test_request_report_sequence = max($nextFromSequence, $amendmentVersion);
+
+            if ((int) ($batch->in_ammendment_proccess ?? 0) === 1) {
+                $batch->in_ammendment_proccess = 0;
+            }
+
             $batch->save();
+
+            app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+                ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
         }
 
         if ($skipSequenceBump) {
             // Show the next provisional revision without persisting a bump
-            $sequence = max(1, (int) ($batch->test_request_report_sequence ?? 0) + 1);
+            $provisionalNext = max(1, (int) ($batch->test_request_report_sequence ?? 0) + 1);
+            $sequence = max($provisionalNext, max(1, (int) ($batch->is_amendment ?? 1)));
         } else {
             $sequence = $batch->test_request_report_sequence ?: 1;
         }
@@ -6514,6 +6542,8 @@ class SampleWorkFlowController extends Controller
             ->orderByDesc('revision_no')
             ->get();
 
+        $ammendment = BatchAmmendment::resolveForBatch($batch);
+
         $batchBackUrl = route('view-batch-details', [
             'batch' => $batch->id,
             'client' => 0,
@@ -6526,6 +6556,7 @@ class SampleWorkFlowController extends Controller
                 'language',
                 'labels',
                 'revisions',
+                'ammendment',
                 'isRTL',
                 'isPdfMode',
                 'includeReferenceMethod',
@@ -6569,6 +6600,9 @@ class SampleWorkFlowController extends Controller
 
                 $batch->batch_report_url = $relativePath;
                 $batch->batch_report_online_url = url('/storage' . $relativePath);
+                if ((int) ($batch->in_ammendment_proccess ?? 0) === 1) {
+                    $batch->in_ammendment_proccess = 0;
+                }
                 $batch->save();
             }
 
@@ -6581,6 +6615,7 @@ class SampleWorkFlowController extends Controller
             'language',
             'labels',
             'revisions',
+            'ammendment',
             'isRTL',
             'isPdfMode',
             'isPreviewMode',
@@ -6845,7 +6880,7 @@ class SampleWorkFlowController extends Controller
         $amendment->created_by_id = $labManager->id;
         $amendment->reason = $request->amendment_reason ?? 'Lab Manager requested amendment for further analysis';
         $amendment->samples = json_encode($request->selected_samples ?? []);
-        $amendment->report_url = $batch->batch_report_url ?? '';
+        $amendment->report_url = BatchAmmendment::snapshotReportUrl($batch);
         $amendment->version_number = ($batch->is_amendment ?? 0) + 1;
         $amendment->save();
 

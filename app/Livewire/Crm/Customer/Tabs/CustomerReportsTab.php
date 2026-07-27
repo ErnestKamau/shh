@@ -10,6 +10,8 @@ use App\ChainOfCustody;
 use App\SampleDetails;
 use Illuminate\Support\Facades\Auth;
 use App\BatchLabSectionApprover;
+use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
 
 class CustomerReportsTab extends BaseCrmComponent
 {
@@ -77,39 +79,49 @@ class CustomerReportsTab extends BaseCrmComponent
         return $query->orderBy('sample_headers.id', 'desc') // Be specific here too
             ->paginate($this->perPage)
             ->through(function ($s) {
-                $reason_ids = explode(",", $s->reason_for_submission ?? '');
-                $reasons = \App\RequestType::whereIn('id', $reason_ids)->get()->pluck('name')->toArray();
-                
+                $reason_ids = collect(explode(',', (string) ($s->reason_for_submission ?? '')))
+                    ->map(fn ($id) => trim($id))
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                $reasons = $reason_ids === []
+                    ? []
+                    : \App\RequestType::whereIn('id', $reason_ids)->get()->pluck('name')->toArray();
+
                 // Assign the reasons to a temporary property to access in blade if needed
-                $s->fetched_reasons = $reasons; 
-                
+                $s->fetched_reasons = $reasons;
+
                 // Eager load without overwriting
-                $s->load('samples'); 
+                $s->load('samples');
                 return $s;
             });
     }
 
     public function loadAmendment($batchId)
     {
-        $this->selectedBatchId = $batchId;
+        $this->selectedBatchId = (string) $batchId;
         
-        // Validate that the batch actually exists
-        $batch = SampleHeader::find($batchId);
+        // Validate that the batch actually exists for this customer
+        $batch = SampleHeader::query()
+            ->where('id', $this->selectedBatchId)
+            ->where('crm_customer_id', $this->customer->id)
+            ->first();
         if (!$batch) {
              $this->dispatch('alert', ['type' => 'error', 'message' => 'Batch not found.']);
              return;
         }
         
         // Fetch samples for this batch to populate the dropdown
-        $samples = SampleDetails::join('sample_headers', 'sample_headers.id', '=', 'sample_details.sample_header_id')
-            ->where('sample_details.sample_header_id', $batchId)
-            ->where('sample_headers.crm_customer_id', $this->customer->id)
-            ->select('sample_details.id', 'sample_details.sample_code')
+        $samples = SampleDetails::query()
+            ->where('sample_header_id', $batch->id)
+            ->select('id', 'sample_code')
+            ->orderBy('sample_code')
             ->get();
 
         $this->availableAmendmentSamples = $samples->map(function ($sample) {
             return [
-                'id' => (int) $sample->id,
+                'id' => (string) $sample->id,
                 'sample_code' => (string) $sample->sample_code,
             ];
         })->values()->toArray();
@@ -118,7 +130,7 @@ class CustomerReportsTab extends BaseCrmComponent
         $this->amendmentSearch = '';
         $this->showAmendmentDropdown = false;
 
-        $this->dispatch('open-amendment-modal', batchId: $batchId);
+        $this->dispatch('open-amendment-modal', batchId: $this->selectedBatchId);
     }
 
     public function getFilteredAmendmentOptionsProperty()
@@ -138,21 +150,28 @@ class CustomerReportsTab extends BaseCrmComponent
 
     public function getSelectedAmendmentSampleBadgesProperty()
     {
-        $selectedIds = collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all();
+        $selectedIds = collect($this->amendmentSamples)
+            ->map(fn ($id) => (string) (is_array($id) ? ($id['id'] ?? '') : $id))
+            ->filter()
+            ->all();
 
         return collect($this->availableAmendmentSamples)
-            ->filter(fn($sample) => in_array((int) $sample['id'], $selectedIds, true))
+            ->filter(fn ($sample) => in_array((string) $sample['id'], $selectedIds, true))
             ->values()
             ->all();
     }
 
     public function toggleAmendmentSample($sampleId)
     {
-        $sampleId = (int) $sampleId;
-        $selected = collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all();
+        $sampleId = (string) $sampleId;
+        $selected = collect($this->amendmentSamples)
+            ->map(fn ($id) => (string) (is_array($id) ? ($id['id'] ?? '') : $id))
+            ->filter()
+            ->values()
+            ->all();
 
         if (in_array($sampleId, $selected, true)) {
-            $selected = array_values(array_filter($selected, fn($id) => $id !== $sampleId));
+            $selected = array_values(array_filter($selected, fn ($id) => $id !== $sampleId));
         } else {
             $selected[] = $sampleId;
         }
@@ -162,26 +181,32 @@ class CustomerReportsTab extends BaseCrmComponent
 
     public function clearAmendmentSample($sampleId)
     {
-        $sampleId = (int) $sampleId;
+        $sampleId = (string) $sampleId;
 
         $this->amendmentSamples = array_values(array_filter(
-            collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all(),
-            fn($id) => $id !== $sampleId
+            collect($this->amendmentSamples)
+                ->map(fn ($id) => (string) (is_array($id) ? ($id['id'] ?? '') : $id))
+                ->filter()
+                ->all(),
+            fn ($id) => $id !== $sampleId
         ));
     }
 
     public function isAmendmentSampleSelected($sampleId)
     {
-        $sampleId = (int) $sampleId;
-        $selected = collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all();
+        $sampleId = (string) $sampleId;
+        $selected = collect($this->amendmentSamples)
+            ->map(fn ($id) => (string) (is_array($id) ? ($id['id'] ?? '') : $id))
+            ->filter()
+            ->all();
 
         return in_array($sampleId, $selected, true);
     }
 
     public function loadReturn($batchId)
     {
-        $this->selectedBatchId = $batchId;
-        $this->dispatch('open-return-modal', batchId: $batchId);
+        $this->selectedBatchId = (string) $batchId;
+        $this->dispatch('open-return-modal', batchId: $this->selectedBatchId);
     }
 
     public function saveAmendment()
@@ -199,17 +224,16 @@ class CustomerReportsTab extends BaseCrmComponent
             return;
         }
 
-        // Flatten and cast IDs to integers for security
         $sampleIds = collect($this->amendmentSamples)->map(function ($s) {
-            return (int) (is_array($s) ? $s['id'] : $s);
-        })->unique()->toArray();
+            return (string) (is_array($s) ? ($s['id'] ?? '') : $s);
+        })->filter()->unique()->values()->all();
 
-        // Efficient single query (Refactored from N+1 loop)
-        $samples = SampleDetails::whereIn('id', $sampleIds)->get();
+        $samples = SampleDetails::whereIn('id', $sampleIds)
+            ->where('sample_header_id', $batch->id)
+            ->get();
 
         $t = [];
         foreach ($samples as $sample) {
-            // Controller logic uses the ID as value
             $t[$sample->sample_code] = $sample->id;
         }
         $y = json_encode($t);
@@ -219,24 +243,30 @@ class CustomerReportsTab extends BaseCrmComponent
         $new_ammendment->created_by_id = Auth::id();
         $new_ammendment->reason = $this->amendmentReason;
         $new_ammendment->batch_id = $batch->id;
-        $new_ammendment->report_url = $batch->batch_report_url;
-        $new_ammendment->version_number = $batch->is_amendment + 1;
+        $new_ammendment->report_url = BatchAmmendment::snapshotReportUrl($batch);
+        $new_ammendment->version_number = ((int) ($batch->is_amendment ?? 0)) + 1;
         $new_ammendment->save();
 
         $batch->is_amendment = $new_ammendment->version_number;
-        $batch->status = 'Sample Verification';
         $batch->in_ammendment_proccess = 1;
-        
-        // Nullify verification and approval data
+
+        // Nullify verification and approval data so the batch can re-enter lab workflow.
         $batch->verify_user_id = null;
         $batch->approve_user_id = null;
         $batch->approval_date = null;
         $batch->report_verified_date = null;
-        
+
+        app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+            $batch,
+            'Samples In Lab',
+            'CRM amendment raised: ' . $this->amendmentReason
+        );
         $batch->save();
 
-        // Refined Logic based on discussion:
-        // 1. Reset Verification records (status 0, clear date) to preserve assignments
+        app(JobSampleNumberingService::class)
+            ->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
+
+        // Reset Verification records (status 0, clear date) to preserve assignments for the next cycle.
         BatchLabSectionApprover::where('batch_id', $batch->id)
             ->where('batch_status', 'Sample Verification')
             ->update([
@@ -244,14 +274,14 @@ class CustomerReportsTab extends BaseCrmComponent
                 'approval_date' => null
             ]);
 
-        // 2. Delete Approval records entirely (to be re-picked after re-verification)
+        // Delete Approval records entirely (to be re-picked after re-verification).
         BatchLabSectionApprover::where('batch_id', $batch->id)
             ->where('batch_status', 'Sample Approval')
             ->delete();
 
-        $this->reset(['selectedBatchId', 'amendmentSamples', 'amendmentReason']);
+        $this->reset(['selectedBatchId', 'amendmentSamples', 'amendmentReason', 'availableAmendmentSamples', 'amendmentSearch', 'showAmendmentDropdown']);
         $this->dispatch('close-modal', id: 'ammendment-detail');
-        $this->dispatch('alert', type: 'success', message: 'Amendment added successfully!');
+        $this->dispatch('alert', type: 'success', message: 'Amendment raised. Batch ' . $batch->batch_code . ' is now in Samples In Lab.');
     }
 
     public function saveReturnVerification()

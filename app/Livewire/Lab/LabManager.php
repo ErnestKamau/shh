@@ -27,12 +27,15 @@ class LabManager extends Component
         'phone2' => '',
         'phone3' => '',
         'is_external' => false,
+        'is_default' => false,
         'active' => true,
     ];
 
     public $search = '';
 
     public string $statusFilter = '1';
+
+    public string $activeTab = 'internal';
 
     public $showLabModal = false;
 
@@ -57,9 +60,16 @@ class LabManager extends Component
         //
     }
 
+    public function setActiveTab(string $tab): void
+    {
+        $this->activeTab = in_array($tab, ['internal', 'external'], true) ? $tab : 'internal';
+        $this->resetPage();
+    }
+
     public function getLabsProperty()
     {
-        $query = Lab::query();
+        $query = Lab::query()
+            ->where('is_external', $this->activeTab === 'external' ? 1 : 0);
 
         if (! empty($this->search)) {
             $query->where(function ($q) {
@@ -76,6 +86,28 @@ class LabManager extends Component
         return $query->orderBy('name')->paginate($this->perPage);
     }
 
+    public function getTabCountsProperty(): array
+    {
+        $base = Lab::query();
+
+        if (! empty($this->search)) {
+            $base->where(function ($q) {
+                $q->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('code', 'like', '%'.$this->search.'%')
+                    ->orWhere('email', 'like', '%'.$this->search.'%');
+            });
+        }
+
+        if ($this->statusFilter !== '') {
+            $base->where('active', $this->statusFilter);
+        }
+
+        return [
+            'internal' => (clone $base)->where('is_external', 0)->count(),
+            'external' => (clone $base)->where('is_external', 1)->count(),
+        ];
+    }
+
     protected function authorizeLabEdit(): void
     {
         abort_unless(Auth::user()?->can('laboratory.components.labs.edit') ?? false, 403);
@@ -85,6 +117,7 @@ class LabManager extends Component
     {
         $this->authorizeLabEdit();
         $this->resetLabForm();
+        $this->labForm['is_external'] = $this->activeTab === 'external';
         $this->editingLab = null;
         $this->showLabModal = true;
     }
@@ -108,6 +141,7 @@ class LabManager extends Component
             'phone2' => $lab->phone2,
             'phone3' => $lab->phone3,
             'is_external' => (bool) $lab->is_external,
+            'is_default' => (bool) ($lab->is_default ?? false),
             'active' => (bool) $lab->active,
         ];
 
@@ -136,6 +170,7 @@ class LabManager extends Component
             'phone2' => '',
             'phone3' => '',
             'is_external' => false,
+            'is_default' => false,
             'active' => true,
         ];
         $this->editingLab = null;
@@ -172,20 +207,33 @@ class LabManager extends Component
                 'phone2' => $this->labForm['phone2'],
                 'phone3' => $this->labForm['phone3'],
                 'is_external' => $this->labForm['is_external'] ? 1 : 0,
+                'is_default' => ! empty($this->labForm['is_default']) ? 1 : 0,
                 'active' => $this->labForm['active'] ? 1 : 0,
                 'company_id' => getUserCompany(),
             ];
 
             if ($this->editingLab) {
-                Lab::findOrFail($this->editingLab)->update($data);
+                $lab = Lab::findOrFail($this->editingLab);
+                $lab->update($data);
+                $savedLabId = (string) $lab->id;
                 $this->message = 'Lab updated successfully!';
             } else {
-                Lab::create($data);
+                $lab = Lab::create($data);
+                $savedLabId = (string) $lab->id;
                 $this->message = 'Lab created successfully!';
+            }
+
+            if (! empty($data['is_default'])) {
+                Lab::synchronizeDefaultFlag($savedLabId);
+            } elseif ($this->editingLab) {
+                // Explicitly cleared: ensure this lab is not left as default.
+                Lab::query()->whereKey($savedLabId)->update(['is_default' => false]);
             }
 
             DB::commit();
 
+            $this->activeTab = ! empty($data['is_external']) ? 'external' : 'internal';
+            $this->resetPage();
             $this->messageType = 'success';
             $this->closeLabModal();
         } catch (\Exception $e) {
@@ -243,6 +291,11 @@ class LabManager extends Component
     {
         $this->search = '';
         $this->statusFilter = '';
+        $this->resetPage();
+    }
+
+    public function updatingActiveTab(): void
+    {
         $this->resetPage();
     }
 

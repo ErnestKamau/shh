@@ -149,12 +149,15 @@ class AcceptanceFormWizard extends Component
             }
 
             if (! $readiness->isEligibleForSampleAcceptance($enquiry, $instance)) {
-                $message = match ((string) $enquiry->status) {
-                    SampleSubmissionRequest::STATUS_REQUESTED,
-                    SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => 'Complete enquiry processing and send the quotation before accepting samples.',
-                    SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Record customer acceptance on the request view page first.',
-                    SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the customer.',
-                    SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before accepting samples.',
+                $message = match (true) {
+                    $enquiry->needsSubcontractDispatch() => 'This request has subcontracted tests. Dispatch it from Samples Receiving → Sub-contracting before accepting into Samples In Lab.',
+                    in_array((string) $enquiry->status, [
+                        SampleSubmissionRequest::STATUS_REQUESTED,
+                        SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+                    ], true) => 'Complete enquiry processing and send the quotation before accepting samples.',
+                    (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Record customer acceptance on the request view page first.',
+                    (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the customer.',
+                    (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before accepting samples.',
                     default => 'This request is not ready for sample acceptance yet.',
                 };
                 $this->dispatch('notify', type: 'error', message: $message);

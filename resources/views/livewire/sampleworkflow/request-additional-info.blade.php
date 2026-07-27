@@ -20,7 +20,7 @@
                 @endif
             </div>
             <p class="receive-sample-selected-hint text-muted small mb-0">
-                The customer will be asked to provide more information. Requests move to the <strong>Request Additional Info</strong> tab.
+                Only <strong>portal-submitted</strong> requests can be moved here. The customer will be asked to provide more information on the customer portal.
             </p>
         </section>
 

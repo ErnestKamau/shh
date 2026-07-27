@@ -13,7 +13,8 @@
                         </div>
                         @can('laboratory.components.labs.edit')
                             <button wire:click="showCreateLabModal" class="btn btn-primary">
-                                <i class="mdi mdi-plus"></i> Add Lab
+                                <i class="mdi mdi-plus"></i>
+                                {{ $activeTab === 'external' ? 'Add External Lab' : 'Add Lab' }}
                             </button>
                         @endcan
                     </div>
@@ -69,11 +70,40 @@
         </div>
     </div>
 
+    <div class="card tab-card mb-4">
+        <div class="card-header tab-card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link {{ $activeTab === 'internal' ? 'active' : '' }}"
+                       wire:click.prevent="setActiveTab('internal')"
+                       href="#"
+                       style="cursor: pointer;">
+                        <i class="mdi mdi-home-city-outline"></i>
+                        Internal Labs
+                        <span class="badge bg-secondary ms-1">{{ $this->tabCounts['internal'] ?? 0 }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ $activeTab === 'external' ? 'active' : '' }}"
+                       wire:click.prevent="setActiveTab('external')"
+                       href="#"
+                       style="cursor: pointer;">
+                        <i class="mdi mdi-earth"></i>
+                        External (Subcontracted)
+                        <span class="badge bg-secondary ms-1">{{ $this->tabCounts['external'] ?? 0 }}</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Labs</h5>
+                    <h5 class="card-title mb-0">
+                        {{ $activeTab === 'external' ? 'External (Subcontracted) Labs' : 'Internal Labs' }}
+                    </h5>
                     <div class="d-flex align-items-center">
                         <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
                         <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
@@ -95,7 +125,7 @@
                                         <th>Start Sample</th>
                                         <th>Email</th>
                                         <th>Phone 1</th>
-                                        <th>Internal Lab</th>
+                                        <th>Default</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -128,15 +158,13 @@
                                             <td>{{ $lab->start_sample_no ?? '-' }}</td>
                                             <td>{{ $lab->email }}</td>
                                             <td>{{ $lab->phone1 ?? '-' }}</td>
-                                            <td class="text-center">
-                                                @if($lab->is_external == 0)
-                                                    <span class="lab-badge lab-badge--internal">
-                                                        <i class="mdi mdi-check-circle"></i> Internal
+                                            <td>
+                                                @if(!empty($lab->is_default))
+                                                    <span class="lab-badge lab-badge--default">
+                                                        <i class="mdi mdi-star"></i> Default
                                                     </span>
                                                 @else
-                                                    <span class="lab-badge lab-badge--external">
-                                                        <i class="mdi mdi-earth"></i> External
-                                                    </span>
+                                                    <span class="text-muted">—</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -160,8 +188,16 @@
                     @else
                         <div class="text-center py-5">
                             <i class="mdi mdi-flask-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No labs found</h5>
-                            <p class="text-muted">Create your first lab to get started.</p>
+                            <h5 class="text-muted mt-3">
+                                {{ $activeTab === 'external' ? 'No external (subcontracted) labs found' : 'No internal labs found' }}
+                            </h5>
+                            <p class="text-muted">
+                                @if($activeTab === 'external')
+                                    Add an external lab and mark it as external to use it for subcontracting dispatch.
+                                @else
+                                    Create your first internal lab to get started.
+                                @endif
+                            </p>
                         </div>
                     @endif
                 </div>
@@ -253,8 +289,16 @@
                                     <div class="form-group mb-3">
                                         <div class="form-check">
                                             <input type="checkbox" wire:model="labForm.is_external" class="form-check-input" id="is_external">
-                                            <label class="form-check-label" for="is_external">Is an External Lab?</label>
+                                            <label class="form-check-label" for="is_external">External (subcontracted) lab?</label>
                                         </div>
+                                        <small class="text-muted">External labs appear under the External (Subcontracted) tab and can be selected during subcontracting dispatch.</small>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <div class="form-check">
+                                            <input type="checkbox" wire:model="labForm.is_default" class="form-check-input" id="is_default">
+                                            <label class="form-check-label" for="is_default">Default lab?</label>
+                                        </div>
+                                        <small class="text-muted">Only one lab can be default. It is auto-selected in sample workflow lab fields.</small>
                                     </div>
                                     <div class="form-group mb-3">
                                         <div class="form-check">
@@ -424,6 +468,12 @@
         border-color: #99f6e4;
     }
 
+    .lab-badge--default {
+        color: #92400e;
+        background: #fef3c7;
+        border-color: #fcd34d;
+    }
+
     .lab-badge--active {
         color: #14532d;
         background: #dcfce7;
@@ -434,6 +484,23 @@
         color: #991b1b;
         background: #fee2e2;
         border-color: #fca5a5;
+    }
+
+    .tab-card-header {
+        background: #fff;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .tab-card .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .tab-card .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        border-bottom: 2px solid #0d6efd;
+        background: transparent;
     }
     </style>
 </div>

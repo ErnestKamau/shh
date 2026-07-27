@@ -1096,8 +1096,20 @@
 											data-sf-trigger="workflow-action-request-additional-info"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											title="Portal-submitted requests only"
 											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
 											<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
+										</button>
+									</li>
+								@endif
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_additional_info')
+									<li>
+										<button type="button" class="dropdown-item"
+											data-sf-trigger="workflow-action-resume-additional-info"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && $wire.resumeAdditionalInfoToReception(selectedInstanceIds())">
+											<i class="mdi mdi-backup-restore mr-2"></i> Resume Ready for Reception
 										</button>
 									</li>
 								@endif
@@ -1116,6 +1128,7 @@
 											data-sf-trigger="workflow-action-request-additional-info"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											title="Portal-submitted requests only"
 											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
 											<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
 										</button>
@@ -1384,6 +1397,7 @@
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-additional-info"
+											title="Portal-submitted requests only"
 											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
 											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
 										</button>
@@ -1410,8 +1424,17 @@
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-additional-info"
+											title="Portal-submitted requests only"
 											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
 											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
+										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'in_additional_info')
+										<button type="button"
+											class="btn btn-sm btn-primary"
+											data-sf-trigger="workflow-action-resume-additional-info"
+											@click.prevent="selectedCount > 0 && $wire.resumeAdditionalInfoToReception(selectedInstanceIds())">
+											<i class="mdi mdi-backup-restore mr-1"></i> Resume Ready for Reception
 										</button>
 									@endif
 								</div>
@@ -1461,7 +1484,8 @@
 									@endforeach
 								</div>
 								<p class="text-muted small mb-3">
-									After dispatch, requests move to <strong>Dispatched</strong> here and into <strong>Samples In Lab</strong> (Requests view).
+									Requests with any subcontracted parameter appear here first (even when other tests are in-house).
+									After dispatch, they move to <strong>Dispatched</strong> and into <strong>Samples In Lab</strong>.
 								</p>
 							@endif
 							@if($workflowSubTab !== 'interzone_transfers')
@@ -2515,6 +2539,42 @@
 																@else
 																	<span class="text-muted small">—</span>
 																@endif
+																@if($workflowSubTab === 'sub_contracting' && $linkedEnquiry)
+																	@php
+																		$dispatchAssignments = $linkedEnquiry->relationLoaded('subcontractingDispatchAssignments')
+																			? $linkedEnquiry->subcontractingDispatchAssignments
+																			: collect();
+																		$dispatchLabNames = trim((string) ($linkedEnquiry->subcontracting_dispatch_lab_names ?? ''));
+																	@endphp
+																	@if($dispatchAssignments->isNotEmpty())
+																		<div class="small text-muted mt-1">
+																			@foreach($dispatchAssignments->groupBy('lab_id') as $labAssignments)
+																				@php
+																					$assignmentLab = $labAssignments->first()?->lab;
+																					$labLabel = $assignmentLab
+																						? trim(($assignmentLab->code ? $assignmentLab->code.' - ' : '').($assignmentLab->name ?? ''))
+																						: 'Lab';
+																					$analyteLabels = $labAssignments
+																						->map(fn ($row) => $row->analysisElement?->analyte?->name ?: $row->analysisElement?->analyte?->code)
+																						->filter()
+																						->unique()
+																						->values();
+																				@endphp
+																				<div>
+																					<i class="mdi mdi-earth"></i>
+																					<strong>{{ $labLabel }}</strong>
+																					@if($analyteLabels->isNotEmpty())
+																						— {{ $analyteLabels->implode(', ') }}
+																					@endif
+																				</div>
+																			@endforeach
+																		</div>
+																	@elseif($dispatchLabNames !== '')
+																		<div class="small text-muted mt-1">
+																			<i class="mdi mdi-earth"></i> {{ $dispatchLabNames }}
+																		</div>
+																	@endif
+																@endif
 															</td>
 														@endif
 														@if($status === 'Samples Receiving')
@@ -2531,6 +2591,22 @@
 																	<span class="badge badge-light border text-dark ml-1">Sampling contract</span>
 																@else
 																	<span class="badge badge-secondary">{{ ucwords(str_replace(['_', '-'], ' ', $originChannel)) }}</span>
+																@endif
+																@if($workflowSubTab === 'in_additional_info')
+																	@if($instance->hasCustomerRespondedToAdditionalInfo())
+																		<span class="badge badge-success ml-1" title="Customer responded {{ optional($instance->additional_info_responded_at)->format('Y-m-d H:i') }}">
+																			<i class="mdi mdi-check-circle-outline mr-1"></i> Customer responded
+																		</span>
+																	@else
+																		<span class="badge badge-warning ml-1">
+																			<i class="mdi mdi-clock-outline mr-1"></i> Awaiting customer
+																		</span>
+																	@endif
+																	@if(filled($instance->review_notes))
+																		<div class="small text-muted mt-1" title="{{ $instance->review_notes }}">
+																			{{ \Illuminate\Support\Str::limit($instance->review_notes, 80) }}
+																		</div>
+																	@endif
 																@endif
 															</td>
 														@endif

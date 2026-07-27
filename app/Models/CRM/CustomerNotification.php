@@ -17,6 +17,8 @@ class CustomerNotification extends Model
 
     public const TYPE_SAMPLE_REJECTION = 'Sample request rejected';
 
+    public const TYPE_ADDITIONAL_INFO_REQUIRED = 'Additional information required';
+
     protected $keyType = 'string';
 
     public $incrementing = false;

@@ -8,11 +8,14 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\QuotationHeader;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\SubcontractingAssignmentService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -248,9 +251,77 @@ class SampleSubmissionRequest extends Model
             return false;
         }
 
+        if ($this->needsSubcontractDispatch()) {
+            return false;
+        }
+
         return $this->accepted_quotation_header_id !== null
             || $this->current_quotation_header_id !== null
             || $this->quotation_accepted_at !== null;
+    }
+
+    public function hasSubcontractedWork(): bool
+    {
+        return app(SubcontractingAssignmentService::class)
+            ->resolveSubcontractedElementIds($this) !== [];
+    }
+
+    public function needsSubcontractDispatch(): bool
+    {
+        return $this->hasSubcontractedWork() && ! $this->isSubcontractDispatchCompleted();
+    }
+
+    /**
+     * Enquiries with at least one subcontracted parameter (master flag, quotation override, or selected lines).
+     */
+    public function scopeWhereHasSubcontractedWork(Builder $query): Builder
+    {
+        $driver = DB::connection()->getDriverName();
+
+        return $query->where(function (Builder $matchQuery) use ($driver): void {
+            $matchQuery->whereHas('requestedAnalyses', function (Builder $analysisQuery): void {
+                $analysisQuery->whereHas('analysisElement', function (Builder $elementQuery): void {
+                    $elementQuery->where('sub_contracted', 1);
+                });
+            })->orWhereHas('currentQuotation.details', function (Builder $detailQuery): void {
+                $detailQuery->whereNotNull('subcontracted_analytes')
+                    ->where('subcontracted_analytes', '!=', '');
+            })->orWhereHas('acceptedQuotation.details', function (Builder $detailQuery): void {
+                $detailQuery->whereNotNull('subcontracted_analytes')
+                    ->where('subcontracted_analytes', '!=', '');
+            })->orWhere(function (Builder $jsonSelectionQuery) use ($driver): void {
+                if ($driver !== 'pgsql') {
+                    $jsonSelectionQuery->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $jsonSelectionQuery->whereExists(function ($jsonExists): void {
+                    $jsonExists->selectRaw('1')
+                        ->from('analysis_elements as ae')
+                        ->where('ae.sub_contracted', 1)
+                        ->where(function ($selectedIds): void {
+                            $selectedIds
+                                ->whereRaw("ae.id::text IN (SELECT jsonb_array_elements_text(COALESCE(sample_submission_requests.parameter_ids::jsonb, '[]'::jsonb)))")
+                                ->orWhereRaw("ae.id::text IN (SELECT elem->>'analysis_element_id' FROM jsonb_array_elements(COALESCE(sample_submission_requests.sample_lines::jsonb, '[]'::jsonb)) AS elem WHERE COALESCE(elem->>'analysis_element_id', '') <> '')");
+                        });
+                });
+            });
+        });
+    }
+
+    /**
+     * Subcontracted work that has not yet been dispatched to an external lab.
+     */
+    public function scopeWhereSubcontractDispatchPending(Builder $query): Builder
+    {
+        return $query->whereHasSubcontractedWork()
+            ->where(function (Builder $statusQuery): void {
+                $statusQuery
+                    ->whereNull('subcontracting_dispatch_status')
+                    ->orWhere('subcontracting_dispatch_status', '')
+                    ->orWhere('subcontracting_dispatch_status', self::SUBCONTRACT_DISPATCH_AWAITING);
+            });
     }
 
     public function subcontractingDispatchStatus(): string
@@ -379,6 +450,11 @@ class SampleSubmissionRequest extends Model
     {
         return $this->hasMany(SampleSubmissionRequestRequestedAnalysis::class)
             ->orderBy('id');
+    }
+
+    public function subcontractingDispatchAssignments(): HasMany
+    {
+        return $this->hasMany(SubcontractingDispatchAssignment::class, 'sample_submission_request_id');
     }
 
     public function quotations(): HasMany

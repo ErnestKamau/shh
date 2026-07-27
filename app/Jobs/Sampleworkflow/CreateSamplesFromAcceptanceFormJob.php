@@ -22,6 +22,7 @@ use App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
+use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Services\Sampleworkflow\TrfSampleFieldMapper;
 use App\TaxRegime;
 use Illuminate\Bus\Queueable;
@@ -146,6 +147,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     : $this->buildDetailPlans($approvedLines, max(1, (int) $form->number_of_samples));
 
                 $elementFlagOverrides = $this->resolveElementFlagOverrides($form, $candidateIds, $submissionRequestsById);
+                $subcontractedLabByElement = app(SubcontractingAssignmentService::class)
+                    ->labByElementIdForEnquiries($submissionRequestsById?->all() ?? $candidateIds->all());
 
                 $details = $this->createSampleDetails(
                     $header,
@@ -156,9 +159,18 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     $form->created_by ? (string) $form->created_by : null,
                     $approvedLines,
                     $elementFlagOverrides,
+                    $subcontractedLabByElement,
                 );
 
                 $analysisSetupService->syncBatchLabSectionIdsFromAnalysisTypes($header->fresh());
+
+                foreach ($candidateIds as $requestId) {
+                    $submissionRequest = $submissionRequestsById->get($requestId);
+                    if ($submissionRequest) {
+                        app(SubcontractingAssignmentService::class)
+                            ->syncAssignmentsToSampleHeader($submissionRequest, (string) $header->id);
+                    }
+                }
 
                 $targetDate = SampleDate::query()
                     ->where('sample_header_id', $header->id)
@@ -404,6 +416,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
     /**
      * @param  list<array<string, mixed>>  $detailPlans
      * @param  \Illuminate\Support\Collection<int, AnalysisAcceptanceFormLine>  $approvedLines
+     * @param  array<string, string>|null  $subcontractedLabByElement
      * @return list<SampleDetails>
      */
     private function createSampleDetails(
@@ -415,6 +428,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         ?string $actingUserId = null,
         $approvedLines = null,
         ?array $elementFlagOverrides = null,
+        ?array $subcontractedLabByElement = null,
     ): array {
         $usesLegacyCountShape = isset($detailPlans[0]['count']);
 
@@ -601,6 +615,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                             'reporting_units_by_key' => $reportingUnitsByKey,
                             'standards_by_key' => $standardsByKey,
                             'analysis_elements' => $elementsByAnalysisType->get($typeKey, collect()),
+                            'subcontracted_lab_by_element' => $subcontractedLabByElement ?? [],
                         ],
                     );
                 }

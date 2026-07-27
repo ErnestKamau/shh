@@ -54,6 +54,7 @@ class SubmissionFormInstance extends Model implements Auditable
         'reviewed_at',
         'reviewed_by',
         'review_notes',
+        'additional_info_responded_at',
         'receiving_lab_id',
         'is_qc_batch',
         'source_channel',
@@ -63,6 +64,7 @@ class SubmissionFormInstance extends Model implements Auditable
     protected $casts = [
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'additional_info_responded_at' => 'datetime',
         'due_date' => 'date',
         'is_qc_batch' => 'boolean',
     ];
@@ -752,11 +754,27 @@ class SubmissionFormInstance extends Model implements Auditable
     }
 
     /**
-     * Request additional information from the customer (Samples Receiving — In Review).
+     * Statuses eligible for "Request more info" (portal-originated requests only).
+     *
+     * @return array<int, string>
+     */
+    public static function additionalInfoEligibleStatuses(): array
+    {
+        return ['received', 'in_review', 'submitted'];
+    }
+
+    public function isEligibleForAdditionalInfoRequest(): bool
+    {
+        return in_array($this->status, self::additionalInfoEligibleStatuses(), true)
+            && $this->receivingOriginChannel() === 'portal';
+    }
+
+    /**
+     * Request additional information from the customer (portal submissions only).
      */
     public function markAsInAdditionalInfo(User $user, ?string $notes = null, bool $notifyCustomer = true): bool
     {
-        if (! in_array($this->status, ['received', 'in_review'], true)) {
+        if (! $this->isEligibleForAdditionalInfoRequest()) {
             return false;
         }
 
@@ -765,6 +783,7 @@ class SubmissionFormInstance extends Model implements Auditable
             'reviewed_at' => now(),
             'reviewed_by' => $user->id,
             'review_notes' => $notes,
+            'additional_info_responded_at' => null,
         ]);
 
         $this->logAction('additional_info_requested', $user, null, $notes);
@@ -778,6 +797,69 @@ class SubmissionFormInstance extends Model implements Auditable
         }
 
         return true;
+    }
+
+    /**
+     * Customer provided additional information (status stays in_additional_info).
+     */
+    public function markAdditionalInfoProvided(User $portalUser, ?string $reply = null): bool
+    {
+        if ($this->status !== 'in_additional_info') {
+            return false;
+        }
+
+        if ($this->receivingOriginChannel() !== 'portal') {
+            return false;
+        }
+
+        $reply = trim((string) $reply);
+
+        $this->update([
+            'additional_info_responded_at' => now(),
+        ]);
+
+        $this->logAction('additional_info_provided', $portalUser, null, $reply !== '' ? $reply : null);
+
+        if ($reply !== '') {
+            \App\Models\SubmissionFormInstanceNote::query()->create([
+                'submission_form_instance_id' => $this->id,
+                'body' => $reply,
+                'visibility' => \App\Models\SubmissionFormInstanceNote::VISIBILITY_PUBLIC,
+                'created_by' => $portalUser->id,
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Lab resumes reception after customer response (Ready for Reception).
+     */
+    public function resumeFromAdditionalInfo(User $user, ?string $notes = null): bool
+    {
+        if ($this->status !== 'in_additional_info') {
+            return false;
+        }
+
+        $previousStatus = $this->status;
+
+        $this->update([
+            'status' => 'received',
+            'additional_info_responded_at' => null,
+            'reviewed_by' => $user->id,
+            'review_notes' => $notes ?? $this->review_notes,
+        ]);
+
+        $this->logAction('additional_info_resumed', $user, [
+            'status' => ['from' => $previousStatus, 'to' => 'received'],
+        ], $notes);
+
+        return true;
+    }
+
+    public function hasCustomerRespondedToAdditionalInfo(): bool
+    {
+        return $this->status === 'in_additional_info' && $this->additional_info_responded_at !== null;
     }
 
     /**

@@ -507,7 +507,9 @@ class Samples extends Component
                     'id' => $sample->id,
                     'sample_code' => $sample->sample_code,
                     'analysis_type_id' => array_filter(explode(',', $sample->analysis_type_id ?? '')),
-                    'lab_id' => $sample->lab_id ? (string) $sample->lab_id : '',
+                    'lab_id' => $sample->lab_id
+                        ? (string) $sample->lab_id
+                        : (Lab::defaultLabId() ?? ''),
                     'sample_condition_id' => $sample->sample_condition_id ? (string) $sample->sample_condition_id : '',
                     'sample_point_id' => $sample->sample_point_id ? (string) $sample->sample_point_id : '',
                     'photo_url' => $sample->photo_url ?? '',
@@ -1141,7 +1143,7 @@ class Samples extends Component
                 'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
                 'company_product_id' => $companyProductId,
                 'sample_condition_id' => $sampleConditionId,
-                'lab_id' => $dataJson['lab_id'] ?? 1,
+                'lab_id' => $dataJson['lab_id'] ?? Lab::defaultLabId() ?? 1,
                 'quantity' => $dataJson['force_quantity'] ?? 1,
                 'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
                 'disposal_date' => $disposal_date,
@@ -1662,7 +1664,7 @@ class Samples extends Component
             'id' => null,  // Null indicates unsaved
             'sample_code' => $nextCode,
             'analysis_type_id' => [],
-            'lab_id' => '',
+            'lab_id' => Lab::defaultLabId() ?? '',
             'sample_condition_id' => '',
             'sample_point_id' => '',
             'photo_url' => '',
@@ -2135,6 +2137,22 @@ class Samples extends Component
         ])->values()->all();
     }
 
+    private function formatSubcontractedLabLabel(?Lab $lab): string
+    {
+        if ($lab === null) {
+            return '';
+        }
+
+        $code = trim((string) ($lab->code ?? ''));
+        $name = trim((string) ($lab->name ?? ''));
+
+        if ($code !== '' && $name !== '') {
+            return $code.' - '.$name;
+        }
+
+        return $name !== '' ? $name : $code;
+    }
+
     /**
      * Phase 5: View Parameters Modal - Show all captured results for a sample
      */
@@ -2169,6 +2187,10 @@ class Samples extends Component
                 ->orderBy('parameters_order');
 
             $access->scopeVisibleCapturedResults($capturedResultsQuery, $user);
+
+            if (Schema::hasColumn('captured_results', 'subcontracted_lab_id')) {
+                $capturedResultsQuery->with('subcontractedLab');
+            }
 
             if ($hasAttachmentColumn) {
                 $capturedResultsQuery->with('batchAttachment');
@@ -2345,6 +2367,8 @@ class Samples extends Component
                     'start_analysis_date' => $startAnalysisDate ?? '',
                     'end_analysis_date' => $endAnalysisDate ?? '',
                     'subcontracted' => $result->analyte_status_contracted,
+                    'subcontracted_lab_id' => $result->subcontracted_lab_id ? (string) $result->subcontracted_lab_id : '',
+                    'subcontracted_lab_name' => $this->formatSubcontractedLabLabel($result->subcontractedLab ?? null),
                     'accredited' => $result->analyte_accredited,
                     'result_confirmation' => $result->result, // Initialize with same value
                     'limit_type' => $limitType,

@@ -173,6 +173,14 @@ class SampleAnalysisSetupService
                 );
             }
 
+            $subcontractedLabByElement = $context['subcontracted_lab_by_element'] ?? [];
+            $assignedLabId = isset($subcontractedLabByElement[(string) $element->id])
+                ? trim((string) $subcontractedLabByElement[(string) $element->id])
+                : '';
+            $isSubcontracted = $assignedLabId !== ''
+                ? 1
+                : $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides);
+
             $capturedResult = new CapturedResult();
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
@@ -190,7 +198,8 @@ class SampleAnalysisSetupService
                 'reporting_unit_id' => $reportingUnit?->id,
                 'ltm_method_id' => $this->resolveValidMethodId($element->ltm_method_id),
                 'analyte_accredited' => $this->resolveAccreditedFlag($element, $elementFlagOverrides),
-                'analyte_status_contracted' => $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides),
+                'analyte_status_contracted' => $isSubcontracted,
+                'subcontracted_lab_id' => $assignedLabId !== '' ? $assignedLabId : null,
                 'lab_section_id' => $labSectionId,
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
@@ -217,7 +226,7 @@ class SampleAnalysisSetupService
                 'unit_code' => $reportingUnit?->name ?? $element->reporting_unit,
                 'reporting_symbol' => $element->reporting_symbol ?? null,
                 'recheck' => 0,
-                'analyte_status_contracted' => $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides),
+                'analyte_status_contracted' => $isSubcontracted,
                 'lab_section_id' => $labSectionId,
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
@@ -473,6 +482,10 @@ class SampleAnalysisSetupService
         $elementId = (string) $element->id;
         if ($elementFlagOverrides !== null && isset($elementFlagOverrides[$elementId]['subcontracted'])) {
             return $elementFlagOverrides[$elementId]['subcontracted'] ? 1 : 0;
+        }
+
+        if ((bool) ($element->sub_contracted ?? false)) {
+            return 1;
         }
 
         return (int) ($lab?->is_external ?? 0);

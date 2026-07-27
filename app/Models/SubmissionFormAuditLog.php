@@ -76,6 +76,12 @@ class SubmissionFormAuditLog extends Model implements Auditable
                 return 'Intray completed';
             case 'received':
                 return 'Received';
+            case 'additional_info_requested':
+                return 'Additional Info Requested';
+            case 'additional_info_provided':
+                return 'Additional Info Provided';
+            case 'additional_info_resumed':
+                return 'Additional Info Resumed';
             default:
                 return ucfirst($this->action);
         }
@@ -101,6 +107,10 @@ class SubmissionFormAuditLog extends Model implements Auditable
                 return 'danger';
             case 'cancelled':
                 return 'dark';
+            case 'additional_info_requested':
+            case 'additional_info_provided':
+            case 'additional_info_resumed':
+                return 'warning';
             default:
                 return 'secondary';
         }

@@ -29,8 +29,22 @@
 
                     {{-- Revision info banner --}}
                     @php
-                        $nextRev = ($batch->test_request_report_sequence ?? 0) + 1;
+                        $pendingAmendment = \App\BatchAmmendment::resolveForBatch($batch);
+                        $inAmendment = (int) ($batch->in_ammendment_proccess ?? 0) === 1;
+                        $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+                        $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+                        $nextRev = max($nextFromSequence, $amendmentVersion);
                     @endphp
+                    @if($inAmendment && $pendingAmendment)
+                    <div class="alert alert-warning d-flex align-items-start mb-3" style="border-radius:8px;font-size:13px;padding:12px 16px;">
+                        <i class="mdi mdi-file-replace-outline mr-2" style="font-size:18px;margin-top:1px;"></i>
+                        <div>
+                            <strong>Amendment in progress</strong> (V{{ $pendingAmendment->version_number }})
+                            <div class="mt-1">{{ $pendingAmendment->reason }}</div>
+                            <small class="text-muted d-block mt-1">Re-issuing this Test Report will clear the amendment flag and print the amendment reason on the PDF.</small>
+                        </div>
+                    </div>
+                    @endif
                     <div class="alert alert-info d-flex align-items-center mb-4" style="border-radius:8px;font-size:13px;padding:12px 16px;">
                         <i class="mdi mdi-information-outline mr-2" style="font-size:18px;"></i>
                         <div>
@@ -126,7 +140,7 @@
                         </label>
                         <textarea name="notes" id="ptrr-notes" rows="3" class="form-control"
                                   style="border-radius:8px;font-size:13px;resize:none;"
-                                  placeholder="Describe what changed in this revision…"></textarea>
+                                  placeholder="Describe what changed in this revision…">{{ ($inAmendment ?? false) && !empty($pendingAmendment?->reason) ? $pendingAmendment->reason : '' }}</textarea>
                     </div>
 
                     {{-- Previous revisions --}}

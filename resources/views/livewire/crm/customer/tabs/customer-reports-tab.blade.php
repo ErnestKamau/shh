@@ -2,24 +2,23 @@
     ammendBatchId: '',
     returnBatchId: '',
     openAmmendment(batchId) {
-        console.log('Opening Amendment Modal for Batch:', batchId);
-
         this.ammendBatchId = batchId;
-
-        $('#ammendment-detail').modal('show');
+        this.$nextTick(() => {
+            $('#ammendment-detail').modal('show');
+        });
     },
     openReturn(batchId) {
-        console.log('Opening Return Modal for Batch:', batchId);
         this.returnBatchId = batchId;
-        $('#return-verification').modal('show');
+        this.$nextTick(() => {
+            $('#return-verification').modal('show');
+        });
     },
     closeModal(id) {
-        console.log('Closing Modal:', id);
         $(`#${id}`).modal('hide');
     }
-}" x-on:open-amendment-modal.window="openAmmendment($event.detail.batchId)"
-    x-on:open-return-modal.window="openReturn($event.detail.batchId)"
-    x-on:close-modal.window="closeModal($event.detail.id)">
+}" x-on:open-amendment-modal.window="openAmmendment(($event.detail && $event.detail.batchId) ? $event.detail.batchId : $event.detail)"
+    x-on:open-return-modal.window="openReturn(($event.detail && $event.detail.batchId) ? $event.detail.batchId : $event.detail)"
+    x-on:close-modal.window="closeModal(($event.detail && $event.detail.id) ? $event.detail.id : $event.detail)">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
@@ -67,22 +66,22 @@
                         @if($report->status == 'Completed')
                             <x-crm.action-buttons class="justify-content-center">
                                 <button type="button" class="btn crm-btn crm-btn-edit btn-sm"
-                                    wire:click.prevent="loadAmendment({{ $report->batch_id }})" wire:loading.attr="disabled"
+                                    wire:click.prevent="loadAmendment('{{ $report->batch_id }}')" wire:loading.attr="disabled"
                                     title="{{ __('crm.amendments') }}">
-                                    <span wire:loading.remove wire:target="loadAmendment({{ $report->batch_id }})">
+                                    <span wire:loading.remove wire:target="loadAmendment('{{ $report->batch_id }}')">
                                         <i class="mdi mdi-file-document-edit-outline"></i>
                                     </span>
-                                    <span wire:loading wire:target="loadAmendment({{ $report->batch_id }})">
+                                    <span wire:loading wire:target="loadAmendment('{{ $report->batch_id }}')">
                                         <i class="mdi mdi-loading mdi-spin"></i>
                                     </span>
                                 </button>
                                 <button type="button" class="btn crm-btn crm-btn-view btn-sm"
-                                    wire:click.prevent="loadReturn({{ $report->batch_id }})" wire:loading.attr="disabled"
+                                    wire:click.prevent="loadReturn('{{ $report->batch_id }}')" wire:loading.attr="disabled"
                                     title="{{ __('crm.return') }}">
-                                    <span wire:loading.remove wire:target="loadReturn({{ $report->batch_id }})">
+                                    <span wire:loading.remove wire:target="loadReturn('{{ $report->batch_id }}')">
                                         <i class="mdi mdi-undo-variant"></i>
                                     </span>
-                                    <span wire:loading wire:target="loadReturn({{ $report->batch_id }})">
+                                    <span wire:loading wire:target="loadReturn('{{ $report->batch_id }}')">
                                         <i class="mdi mdi-loading mdi-spin"></i>
                                     </span>
                                 </button>
@@ -155,7 +154,7 @@
                                     @foreach($this->selectedAmendmentSampleBadges as $selectedSample)
                                         <span class="tag-badge">
                                             {{ $selectedSample['sample_code'] }}
-                                            <i class="mdi mdi-close-circle" wire:click.stop="clearAmendmentSample({{ $selectedSample['id'] }})"></i>
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearAmendmentSample('{{ $selectedSample['id'] }}')"></i>
                                         </span>
                                     @endforeach
 
@@ -171,7 +170,7 @@
                                         @if(count($this->filteredAmendmentOptions) > 0)
                                             @foreach($this->filteredAmendmentOptions as $sample)
                                                 <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
-                                                    wire:click.stop="toggleAmendmentSample({{ $sample['id'] }})">
+                                                    wire:click.stop="toggleAmendmentSample('{{ $sample['id'] }}')">
                                                     <span>{{ $sample['sample_code'] }}</span>
                                                     @if($this->isAmendmentSampleSelected($sample['id']))
                                                         <i class="mdi mdi-check text-success"></i>

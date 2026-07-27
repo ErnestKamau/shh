@@ -39,7 +39,7 @@ class AcceptanceFormSampleConfigService
             'secondary_standard_id' => null,
             'zone_id' => null,
             'lab_section_id' => null,
-            'lab_id' => null,
+            'lab_id' => Lab::defaultLabId(),
             'assigned_user_id' => null,
             'row_index' => null,
             'number_of_samples' => 1,
@@ -1601,7 +1601,9 @@ class AcceptanceFormSampleConfigService
                 'sample_condition_id' => $config['sample_condition_id'] ?? null,
                 'main_standard_id' => $config['main_standard_id'] ?? null,
                 'secondary_standard_id' => $config['secondary_standard_id'] ?? null,
-                'lab_id' => null,
+                'lab_id' => ! empty($config['lab_id'])
+                    ? (string) $config['lab_id']
+                    : Lab::defaultLabId(),
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
                 'lab_section_id' => null,
                 'assigned_user_id' => ! empty($config['assigned_user_id']) ? (string) $config['assigned_user_id'] : null,

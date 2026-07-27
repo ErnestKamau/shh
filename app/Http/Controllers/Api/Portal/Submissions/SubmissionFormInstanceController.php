@@ -37,6 +37,7 @@ class SubmissionFormInstanceController extends Controller
         'draft',
         'submitted',
         'in_review',
+        'in_additional_info',
         'approved',
         'rejected',
         'cancelled',
@@ -237,6 +238,8 @@ class SubmissionFormInstanceController extends Controller
         $instanceModel->load([
             'submissionForm',
             'values.element',
+            'notes.author',
+            'sampleSubmissionRequest',
         ]);
 
         return response()->json([
@@ -318,6 +321,84 @@ class SubmissionFormInstanceController extends Controller
             ]);
         }
 
+        return $this->persistPortalSubmission($request, $instanceModel, markSubmitted: true);
+    }
+
+    public function saveDraft(Request $request, string $instance): JsonResponse
+    {
+        $instanceModel = $this->findAuthorizedInstance($request, $instance);
+
+        if (! in_array($instanceModel->status, ['draft', 'in_additional_info'], true)) {
+            throw ValidationException::withMessages([
+                'action' => ['Only draft or additional-info submissions can be saved as draft.'],
+            ]);
+        }
+
+        $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'fields' => ['nullable', 'array'],
+        ]);
+
+        return $this->persistPortalSubmission($request, $instanceModel, markSubmitted: false);
+    }
+
+    public function respondAdditionalInfo(Request $request, string $instance): JsonResponse
+    {
+        $instanceModel = $this->findAuthorizedInstance($request, $instance);
+
+        if ($instanceModel->status !== 'in_additional_info') {
+            throw ValidationException::withMessages([
+                'action' => ['This submission is not awaiting additional information.'],
+            ])->status(409);
+        }
+
+        if ($instanceModel->receivingOriginChannel() !== 'portal') {
+            throw ValidationException::withMessages([
+                'action' => ['Additional information responses are only supported for portal submissions.'],
+            ])->status(409);
+        }
+
+        $validated = $request->validate([
+            'message' => ['nullable', 'string', 'min:3', 'max:2000'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'fields' => ['nullable', 'array'],
+        ]);
+
+        $message = trim((string) ($validated['message'] ?? ''));
+        $hasFields = $request->filled('fields') || $request->allFiles() !== [];
+
+        if ($message === '' && ! $hasFields) {
+            throw ValidationException::withMessages([
+                'message' => ['Provide a reply message and/or update the form fields.'],
+            ]);
+        }
+
+        if ($hasFields || $request->filled('title')) {
+            $this->persistPortalSubmission($request, $instanceModel, markSubmitted: false);
+            $instanceModel->refresh();
+        }
+
+        $actor = $this->resolvePortalActor($request, $instanceModel);
+
+        if (! $instanceModel->markAdditionalInfoProvided($actor, $message !== '' ? $message : null)) {
+            throw ValidationException::withMessages([
+                'action' => ['Unable to record the additional information response.'],
+            ])->status(409);
+        }
+
+        $instanceModel->load(['submissionForm', 'values.element', 'crmCustomer', 'notes.author']);
+
+        return response()->json([
+            'data' => $this->buildInstanceResponse($instanceModel->fresh(['submissionForm', 'values.element', 'crmCustomer', 'notes.author', 'sampleSubmissionRequest']), includeValues: true),
+            'message' => 'Additional information submitted successfully. The laboratory will continue review.',
+        ]);
+    }
+
+    private function persistPortalSubmission(
+        Request $request,
+        SubmissionFormInstance $instanceModel,
+        bool $markSubmitted
+    ): JsonResponse {
         $submissionForm = $instanceModel->submissionForm;
         $this->access->findPortalForm($submissionForm->id, (string) $instanceModel->crm_customer_id);
 
@@ -325,17 +406,10 @@ class SubmissionFormInstanceController extends Controller
             $instanceModel->update(['title' => $request->input('title')]);
         }
 
-        Log::debug('Portal submit incoming', [
-            'all_keys'   => array_keys($request->all()),
-            'file_keys'  => array_keys($request->allFiles()),
-            'files_flat' => collect($request->allFiles())->map(fn($f) => is_array($f) ? array_map(fn($i) => $i->getClientOriginalName(), $f) : $f->getClientOriginalName())->toArray(),
-            'fields_raw' => $request->input('fields'),
-        ]);
-
         $this->submissionService->mergeSubmissionFieldsIntoRequest($request);
 
         $elements = $this->submissionService->elementsForForm($submissionForm);
-        $rules = $this->submissionService->buildValidationRules($elements, $request);
+        $rules = $this->submissionService->buildValidationRules($elements, $request, requireRequired: $markSubmitted);
 
         $validator = Validator::make($request->all(), $rules);
 
@@ -347,36 +421,67 @@ class SubmissionFormInstanceController extends Controller
             DB::beginTransaction();
 
             $this->submissionService->processFormData($instanceModel, $request, $elements);
-            $instanceModel = $this->submissionService->submitPortalInstance($instanceModel, $submissionForm);
+
+            if ($markSubmitted) {
+                $instanceModel = $this->submissionService->submitPortalInstance($instanceModel, $submissionForm);
+            }
 
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            Log::error('Portal submission form submit failed', [
+            Log::error('Portal submission form persist failed', [
                 'instance_id' => $instanceModel->id,
+                'mark_submitted' => $markSubmitted,
                 'message' => $e->getMessage(),
             ]);
 
             throw $e;
         }
 
-        $instanceModel->load(['submissionForm', 'values.element', 'crmCustomer']);
+        $instanceModel->load(['submissionForm', 'values.element', 'crmCustomer', 'sampleSubmissionRequest']);
 
-        try {
-            app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance($instanceModel);
-        } catch (\Throwable $th) {
-            Log::warning('Commercial enquiry sync failed after portal form submit.', [
-                'instance_id' => $instanceModel->id,
-                'message' => $th->getMessage(),
-            ]);
+        if ($markSubmitted) {
+            try {
+                app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance($instanceModel);
+            } catch (\Throwable $th) {
+                Log::warning('Commercial enquiry sync failed after portal form submit.', [
+                    'instance_id' => $instanceModel->id,
+                    'message' => $th->getMessage(),
+                ]);
+            }
+
+            $this->ensureSubmittedEnquiryState($instanceModel);
         }
-
-        $this->ensureSubmittedEnquiryState($instanceModel);
 
         return response()->json([
             'data' => $this->buildInstanceResponse($instanceModel, includeValues: true),
-            'message' => 'Form submitted successfully.',
+            'message' => $markSubmitted
+                ? 'Form submitted successfully.'
+                : 'Draft saved successfully.',
+        ]);
+    }
+
+    private function resolvePortalActor(Request $request, SubmissionFormInstance $instance): User
+    {
+        $portalAccountId = $this->access->portalAccountIdFromRequest($request);
+
+        if ($portalAccountId !== null) {
+            $user = User::query()->find($portalAccountId);
+            if ($user instanceof User) {
+                return $user;
+            }
+        }
+
+        if ($instance->submitted_by) {
+            $user = User::query()->find($instance->submitted_by);
+            if ($user instanceof User) {
+                return $user;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'portal_account_id' => ['Unable to resolve the portal user for this response.'],
         ]);
     }
 
@@ -425,6 +530,8 @@ class SubmissionFormInstanceController extends Controller
             'document_control_number' => $instance->getDocumentControlNumber(),
             'title' => $instance->title,
             'status' => $instance->status,
+            'review_notes' => $instance->review_notes,
+            'additional_info_responded_at' => $instance->additional_info_responded_at?->toIso8601String(),
             'portal_account_id' => $instance->portal_account_id,
             'crm_customer_id' => $instance->crm_customer_id,
             'portal_request_id' => $instance->portal_request_id,
@@ -481,6 +588,8 @@ class SubmissionFormInstanceController extends Controller
             'document_control_number' => $instance->getDocumentControlNumber(),
             'title' => $instance->title,
             'status' => $instance->status,
+            'review_notes' => $instance->review_notes,
+            'additional_info_responded_at' => $instance->additional_info_responded_at?->toIso8601String(),
             'portal_account_id' => $instance->portal_account_id,
             'crm_customer_id' => $instance->crm_customer_id,
             'portal_request_id' => $instance->portal_request_id,
@@ -489,6 +598,20 @@ class SubmissionFormInstanceController extends Controller
             'created_at' => $instance->created_at?->toIso8601String(),
             'updated_at' => $instance->updated_at?->toIso8601String(),
         ];
+
+        if ($instance->relationLoaded('notes')) {
+            $payload['public_notes'] = $instance->notes
+                ->filter(fn ($note) => $note->isPublic())
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(fn ($note) => [
+                    'id' => $note->id,
+                    'body' => $note->body,
+                    'created_at' => $note->created_at?->toIso8601String(),
+                    'author_name' => $note->author?->name,
+                ])
+                ->all();
+        }
 
         $enquiry = $instance->sampleSubmissionRequest;
         if ($enquiry !== null) {
