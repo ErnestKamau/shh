@@ -248,10 +248,33 @@
 
     .amspec-category-cell {
         background: var(--quotation-category-bg);
-        padding: 5px 6px;
+        padding: 8px 8px;
         border: 1px solid #bbbbbb;
         font-weight: 700;
-        font-size: 9.5pt;
+        font-size: 10.5pt;
+        color: #1f2937;
+        letter-spacing: 0.01em;
+    }
+
+    .amspec-sample-description {
+        display: inline-block;
+        font-family: var(--amspec-font-table);
+        font-weight: 700;
+        font-size: 11pt;
+        line-height: 1.3;
+        color: #111827;
+    }
+
+    .amspec-package-cell .amspec-test-name {
+        display: block;
+        margin-bottom: 3px;
+    }
+
+    .amspec-package-parameters {
+        color: #334155;
+        font-weight: 400;
+        font-size: 0.95em;
+        line-height: 1.45;
     }
 
     .amspec-test-row td {

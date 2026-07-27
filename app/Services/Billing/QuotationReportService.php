@@ -570,21 +570,9 @@ class QuotationReportService
                         : 'Analysis package';
                 }
 
-                $packageTat = $this->resolveRowTat($detail);
-                $packageRow = $this->makeLineRow(
-                    $packageLabel,
-                    (string) ($detail->test_method ?? ''),
-                    (string) ($detail->loq ?? ''),
-                    (string) ($detail->mu_percent ?? ''),
-                    (float) $detail->unit_price,
-                    (int) $detail->quantity,
-                    false,
-                    false,
-                    $packageTat,
-                );
-                $packageRow['is_package'] = true;
-                $grouped[$sampleTypeName][] = $packageRow;
-
+                $parameterNames = [];
+                $displayedLoqs = [];
+                $displayedMus = [];
                 foreach ($elementIds as $elementId) {
                     $element = $elementsById->get($elementId);
                     if ($element === null) {
@@ -592,34 +580,40 @@ class QuotationReportService
                     }
 
                     $analyte = Analyte::find($element->analyte_id);
+                    $parameterNames[] = (string) ($analyte?->name ?? $element->parametername ?? 'Parameter');
+
                     $metrics = $this->uncertaintyBudgetResolver->resolveLabMetricsForElement(
                         $element,
                         $budgets,
                         $siblingsByAnalyte,
                     );
-                    $paramPrice = $this->pricingResolver->resolveLineUnitPrice(
-                        $header,
-                        (string) $detail->sample_type,
-                        (string) ($element->analysis_type_id ?? $detail->part_no),
-                        (string) $element->id,
-                        null,
-                        false,
-                    );
-                    $subRow = $this->makeLineRow(
-                        '· '.($analyte?->name ?? $element->parametername ?? 'Parameter'),
-                        $metrics['test_method'],
-                        $this->resolveDisplayedMetric($detail, 'show_loq_analytes', (string) $element->id, $metrics['loq']),
-                        $this->resolveDisplayedMetric($detail, 'show_mu_analytes', (string) $element->id, $metrics['mu_percent']),
-                        (float) $paramPrice['unit_price'],
-                        (int) $detail->quantity,
-                        false,
-                        false,
-                        $this->pricingResolver->maxTatForElements([(string) $element->id], (string) ($element->analysis_type_id ?? '')),
-                    );
-                    $subRow['is_package_sub_item'] = true;
-                    $subRow['exclude_from_totals'] = true;
-                    $grouped[$sampleTypeName][] = $subRow;
+                    $loq = $this->resolveDisplayedMetric($detail, 'show_loq_analytes', (string) $element->id, $metrics['loq']);
+                    $mu = $this->resolveDisplayedMetric($detail, 'show_mu_analytes', (string) $element->id, $metrics['mu_percent']);
+                    if ($loq !== '') {
+                        $displayedLoqs[] = $loq;
+                    }
+                    if ($mu !== '') {
+                        $displayedMus[] = $mu;
+                    }
                 }
+
+                $packageTat = $this->resolveRowTat($detail);
+                $uniqueLoqs = array_values(array_unique($displayedLoqs));
+                $uniqueMus = array_values(array_unique($displayedMus));
+                $packageRow = $this->makeLineRow(
+                    $packageLabel,
+                    (string) ($detail->test_method ?? ''),
+                    count($uniqueLoqs) === 1 ? $uniqueLoqs[0] : '',
+                    count($uniqueMus) === 1 ? $uniqueMus[0] : '',
+                    (float) $detail->unit_price,
+                    (int) $detail->quantity,
+                    false,
+                    false,
+                    $packageTat,
+                );
+                $packageRow['is_package'] = true;
+                $packageRow['package_parameters'] = $parameterNames;
+                $grouped[$sampleTypeName][] = $packageRow;
 
                 continue;
             }

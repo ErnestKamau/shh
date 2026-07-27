@@ -75,20 +75,21 @@
             @foreach($groups as $group)
                 @foreach($group['rows'] as $rowIndex => $row)
                     @php
-                        $isPackageSub = ! empty($row['is_package_sub_item']);
                         $isPackageHeader = ! empty($row['is_package']);
+                        $packageParameters = array_values(array_filter(
+                            array_map('strval', (array) ($row['package_parameters'] ?? []))
+                        ));
                     @endphp
-                    <tr class="amspec-test-row" @if($isPackageHeader) style="background-color: #f0fdf4;" @endif>
+                    <tr class="amspec-test-row" @if($isPackageHeader) style="background-color: #f8fafc;" @endif>
                         @if($rowIndex === 0)
-                            <td rowspan="{{ count($group['rows']) }}" class="amspec-category-cell" style="vertical-align: top; font-weight: 700;">
-                                {{ $group['sample_type_name'] }}
+                            <td rowspan="{{ count($group['rows']) }}" class="amspec-category-cell" style="vertical-align: middle; text-align: center; font-weight: 700;">
+                                <span class="amspec-sample-description">{{ $group['sample_type_name'] }}</span>
                             </td>
                         @endif
-                        <td>
-                            @if($isPackageSub)
-                                <span style="color: #64748b; font-size: 0.95em;">{{ $row['test_name'] }}</span>
-                            @else
-                                <strong>{{ $row['test_name'] }}</strong>
+                        <td class="{{ $isPackageHeader ? 'amspec-package-cell' : '' }}">
+                            <strong class="amspec-test-name">{{ $row['test_name'] }}</strong>
+                            @if($packageParameters !== [])
+                                <div class="amspec-package-parameters">{{ implode(', ', $packageParameters) }}</div>
                             @endif
                         </td>
                         @if($showMethod)
@@ -110,8 +111,6 @@
                             <td class="text-right">
                                 @if((float) ($row['unit_price'] ?? 0) > 0)
                                     {{ number_format((float) $row['unit_price'], 2) }}
-                                @elseif($isPackageSub)
-                                    —
                                 @else
                                     {{ number_format(0, 2) }}
                                 @endif
@@ -121,8 +120,6 @@
                             <td class="text-right">
                                 @if((float) ($row['total_price'] ?? 0) > 0)
                                     {{ number_format((float) $row['total_price'], 2) }}
-                                @elseif($isPackageSub)
-                                    —
                                 @else
                                     {{ number_format(0, 2) }}
                                 @endif
