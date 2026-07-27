@@ -57,6 +57,8 @@ class SendForAnalystReview extends Component
         $user = Auth::user();
         if ($user instanceof User && $user->lab_id) {
             $this->receivingLabId = (string) $user->lab_id;
+        } elseif ($defaultLabId = Lab::defaultLabId()) {
+            $this->receivingLabId = $defaultLabId;
         }
 
         $this->dispatch('show-analyst-review-modal');

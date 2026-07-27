@@ -68,7 +68,7 @@ class SubmissionFormSubmissionService
     /**
      * @return array<string, array<int, string>|string>
      */
-    public function buildValidationRules(Collection $elements, Request $request): array
+    public function buildValidationRules(Collection $elements, Request $request, bool $requireRequired = true): array
     {
         $rules = [];
         $formData = $request->all();
@@ -78,7 +78,7 @@ class SubmissionFormSubmissionService
             $elementRules = [];
 
             if ($this->isElementVisibleInRequest($element, $elements, $formData)) {
-                if ($element->is_required) {
+                if ($requireRequired && $element->is_required) {
                     $elementRules[] = 'required';
                 } else {
                     $elementRules[] = 'nullable';

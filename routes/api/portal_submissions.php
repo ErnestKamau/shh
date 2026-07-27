@@ -55,6 +55,10 @@ Route::prefix('v1/portal/submissions')
 
         Route::put('/instances/{instance}', [SubmissionFormInstanceController::class, 'submit'])
             ->name('api.portal.submissions.instances.submit');
+        Route::put('/instances/{instance}/draft', [SubmissionFormInstanceController::class, 'saveDraft'])
+            ->name('api.portal.submissions.instances.draft');
+        Route::post('/instances/{instance}/respond-additional-info', [SubmissionFormInstanceController::class, 'respondAdditionalInfo'])
+            ->name('api.portal.submissions.instances.respond-additional-info');
 
         Route::delete('/instances/{instance}', [SubmissionFormInstanceController::class, 'destroy'])
             ->name('api.portal.submissions.instances.destroy');

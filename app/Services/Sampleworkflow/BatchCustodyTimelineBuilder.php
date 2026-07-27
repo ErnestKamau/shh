@@ -76,6 +76,10 @@ class BatchCustodyTimelineBuilder
                 $title = 'In Review';
             } elseif ($log->action === 'additional_info_requested') {
                 $title = 'Request Additional Info';
+            } elseif ($log->action === 'additional_info_provided') {
+                $title = 'Customer Provided Additional Info';
+            } elseif ($log->action === 'additional_info_resumed') {
+                $title = 'Resumed Ready for Reception';
             } elseif ($log->action === 'approved') {
                 $title = 'Accepted';
             }

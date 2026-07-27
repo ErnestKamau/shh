@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use App\SampleHeader;
 use App\BatchAmmendment;
 use App\SampleDetails;
+use App\BatchLabSectionApprover;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
 
 class BatchAmmendmentController extends Controller
 {
@@ -33,18 +35,39 @@ class BatchAmmendmentController extends Controller
             $new_ammendment->created_by_id = auth()->user()->id;
             $new_ammendment->reason = $request->reason;
             $new_ammendment->batch_id = $request->batch_id;
-            $new_ammendment->report_url = $batch->batch_report_url;
-            $new_ammendment->version_number = $batch->is_amendment + 1;
+            $new_ammendment->report_url = BatchAmmendment::snapshotReportUrl($batch);
+            $new_ammendment->version_number = ((int) ($batch->is_amendment ?? 0)) + 1;
             // return response()->json($new_ammendment->version_number,200);
             $new_ammendment->save();
+
             $batch->is_amendment = $new_ammendment->version_number;
-            $batch->status = 'Sample Verification';
             $batch->in_ammendment_proccess = 1;
+            $batch->verify_user_id = null;
+            $batch->approve_user_id = null;
+            $batch->approval_date = null;
+            $batch->report_verified_date = null;
+
+            app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
+                $batch,
+                'Samples In Lab',
+                'CRM amendment raised: ' . $request->reason
+            );
             $batch->save();
 
             app(JobSampleNumberingService::class)->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
 
-            return redirect()->back()->with('success','Ammendment added successfully!');
+            BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->update([
+                    'status' => 0,
+                    'approval_date' => null,
+                ]);
+
+            BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Approval')
+                ->delete();
+
+            return redirect()->back()->with('success','Amendment raised. Batch is now in Samples In Lab.');
 
         }else{
             return redirect()->back()->with('error','There is no batch with the specified ID!');
@@ -56,7 +79,7 @@ class BatchAmmendmentController extends Controller
             $batch = getSampleHeaderByID($ammendment->batch_id);
             $ammendment->samples = json_encode($request->samples);
             $ammendment->reason = $request->reason;
-            $ammendment->report_url = $batch->batch_report_url;
+            $ammendment->report_url = BatchAmmendment::snapshotReportUrl($batch);
             $ammendment->save();
             return redirect()->back()->with('success','Ammendment generated successfully');
         }else{

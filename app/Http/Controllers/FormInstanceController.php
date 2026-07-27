@@ -1860,7 +1860,7 @@ class FormInstanceController extends Controller
         }
 
         $isAwaitingSubcontractDispatch = $submissionRequest !== null
-            && $submissionRequest->subcontractingDispatchStatus() === SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING;
+            && $submissionRequest->needsSubcontractDispatch();
 
         if ($isAwaitingSubcontractDispatch) {
             $jobNumber = '';

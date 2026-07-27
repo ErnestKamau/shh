@@ -46,7 +46,7 @@ class RequestAdditionalInfo extends Component
     public function confirmRequestAdditionalInfo(): void
     {
         if ($this->selectedFormInstanceIds === []) {
-            $this->addError('selection', 'Select at least one received request.');
+            $this->addError('selection', 'Select at least one portal request.');
 
             return;
         }
@@ -68,19 +68,27 @@ class RequestAdditionalInfo extends Component
 
         $processed = 0;
         $skipped = 0;
+        $skippedNonPortal = 0;
         $emailsSent = 0;
         $emailsMissing = 0;
         $infoService = app(SubmissionFormAdditionalInfoService::class);
+        $eligibleStatuses = SubmissionFormInstance::additionalInfoEligibleStatuses();
 
-        DB::transaction(function () use ($user, $infoService, &$processed, &$skipped, &$emailsSent, &$emailsMissing) {
+        DB::transaction(function () use ($user, $infoService, $eligibleStatuses, &$processed, &$skipped, &$skippedNonPortal, &$emailsSent, &$emailsMissing) {
             $instances = SubmissionFormInstance::query()
-                ->with(['crmCustomer', 'submittedBy', 'values.element'])
+                ->with(['crmCustomer', 'submittedBy', 'values.element', 'sampleSubmissionRequest'])
                 ->whereIn('id', $this->selectedFormInstanceIds)
                 ->get();
 
             foreach ($instances as $instance) {
-                if (! in_array($instance->status, ['received', 'in_review'], true)) {
+                if (! in_array($instance->status, $eligibleStatuses, true)) {
                     $skipped++;
+
+                    continue;
+                }
+
+                if ($instance->receivingOriginChannel() !== 'portal') {
+                    $skippedNonPortal++;
 
                     continue;
                 }
@@ -94,7 +102,7 @@ class RequestAdditionalInfo extends Component
                 $processed++;
 
                 if ($this->notifyCustomer) {
-                    if ($infoService->notifyCustomer($instance->fresh(['crmCustomer', 'submittedBy', 'values.element']), $this->remarks, $user)) {
+                    if ($infoService->notifyCustomer($instance->fresh(['crmCustomer', 'submittedBy', 'values.element', 'submissionForm']), $this->remarks, $user)) {
                         $emailsSent++;
                     } else {
                         $emailsMissing++;
@@ -104,7 +112,11 @@ class RequestAdditionalInfo extends Component
         });
 
         if ($processed === 0) {
-            $this->addError('selection', 'No eligible requests were updated. They may already be in another status.');
+            if ($skippedNonPortal > 0 && $skipped === 0) {
+                $this->addError('selection', 'Request more info is only available for portal-submitted requests.');
+            } else {
+                $this->addError('selection', 'No eligible portal requests were updated. They may already be in another status.');
+            }
 
             return;
         }
@@ -115,6 +127,12 @@ class RequestAdditionalInfo extends Component
 
         if ($skipped > 0) {
             $message .= " ({$skipped} skipped.)";
+        }
+
+        if ($skippedNonPortal > 0) {
+            $message .= $skippedNonPortal === 1
+                ? ' 1 non-portal request was skipped.'
+                : " {$skippedNonPortal} non-portal requests were skipped.";
         }
 
         if ($this->notifyCustomer && $emailsMissing > 0) {

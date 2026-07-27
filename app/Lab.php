@@ -28,6 +28,7 @@ class Lab extends Model implements Auditable
         'website',
         'company_id',
         'is_external',
+        'is_default',
         'phone1',
         'phone2',
         'phone3',
@@ -41,8 +42,55 @@ class Lab extends Model implements Auditable
     protected $casts = [
         'active' => 'boolean',
         'is_external' => 'boolean',
+        'is_default' => 'boolean',
         'analyst_ids' => 'array',
     ];
+
+    /**
+     * Active lab marked as the system default for workflow lab pickers.
+     */
+    public static function defaultLab(): ?self
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('labs', 'is_default')) {
+            return null;
+        }
+
+        return static::query()
+            ->where('is_default', true)
+            ->where('active', true)
+            ->orderBy('name')
+            ->first();
+    }
+
+    public static function defaultLabId(): ?string
+    {
+        $lab = static::defaultLab();
+
+        return $lab !== null ? (string) $lab->id : null;
+    }
+
+    /**
+     * Ensure at most one lab is marked default. Call inside a transaction when saving.
+     */
+    public static function synchronizeDefaultFlag(?string $defaultLabId): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('labs', 'is_default')) {
+            return;
+        }
+
+        $defaultLabId = $defaultLabId !== null ? trim($defaultLabId) : '';
+
+        static::query()
+            ->where('is_default', true)
+            ->when($defaultLabId !== '', fn ($query) => $query->where('id', '!=', $defaultLabId))
+            ->update(['is_default' => false]);
+
+        if ($defaultLabId !== '') {
+            static::query()
+                ->whereKey($defaultLabId)
+                ->update(['is_default' => true]);
+        }
+    }
 
     public function company()
     {

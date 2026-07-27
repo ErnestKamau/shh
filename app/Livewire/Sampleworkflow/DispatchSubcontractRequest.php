@@ -7,6 +7,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,16 @@ class DispatchSubcontractRequest extends Component
     /** @var array<int, string> */
     public array $selectedLabIds = [];
 
+    /** @var array<int, array{id: string, label: string, analysis_type: string}> */
+    public array $subcontractedTests = [];
+
+    /**
+     * lab_id => list of analysis_element_ids assigned to that lab.
+     *
+     * @var array<string, array<int, string>>
+     */
+    public array $labTestIds = [];
+
     public function mount(): void
     {
         $this->availableLabs = Lab::query()
@@ -45,7 +56,7 @@ class DispatchSubcontractRequest extends Component
             ->get(['id', 'code', 'name'])
             ->map(fn (Lab $lab): array => [
                 'id' => (string) $lab->id,
-                'label' => trim(((string) ($lab->code ?? '')) . ' - ' . ((string) ($lab->name ?? ''))),
+                'label' => trim(((string) ($lab->code ?? '')).' - '.((string) ($lab->name ?? ''))),
             ])
             ->values()
             ->all();
@@ -60,6 +71,8 @@ class DispatchSubcontractRequest extends Component
         $this->selectedEnquiryId = null;
         $this->selectedFormInstanceId = null;
         $this->selectedLabIds = [];
+        $this->subcontractedTests = [];
+        $this->labTestIds = [];
         $this->resetValidation();
 
         if (count($this->selectedFormInstanceIds) === 1) {
@@ -71,10 +84,114 @@ class DispatchSubcontractRequest extends Component
                 $this->selectedFormInstanceId = (string) $instance->id;
                 $this->selectedEnquiryId = (string) ($instance->sampleSubmissionRequest?->id ?? '');
                 $this->labelUrl = route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id]);
+
+                if ($instance->sampleSubmissionRequest !== null) {
+                    $enquiry = $instance->sampleSubmissionRequest;
+                    $assignmentService = app(SubcontractingAssignmentService::class);
+                    $this->subcontractedTests = $assignmentService->resolveSubcontractedTests($enquiry);
+                    $existing = $assignmentService->labByElementIdForRequest($enquiry);
+
+                    $existingLabIds = collect($existing)
+                        ->values()
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    $storedLabIds = collect(explode(',', (string) ($enquiry->subcontracting_dispatch_lab_ids ?? '')))
+                        ->map(fn ($id) => trim((string) $id))
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                    $this->selectedLabIds = array_values(array_unique(array_merge($existingLabIds, $storedLabIds)));
+                    $this->syncLabTestBucketsFromExisting($existing);
+                }
             }
         }
 
         $this->dispatch('show-subcontract-dispatch-modal');
+    }
+
+    public function updatedSelectedLabIds(): void
+    {
+        $selected = $this->normalizedSelectedLabIds();
+        $previousBuckets = $this->labTestIds;
+        $this->labTestIds = [];
+
+        foreach ($selected as $labId) {
+            $this->labTestIds[$labId] = array_values(array_map(
+                'strval',
+                $previousBuckets[$labId] ?? []
+            ));
+        }
+
+        // One receiving lab: default all subcontracted tests to that lab.
+        if (count($selected) === 1 && $this->subcontractedTests !== []) {
+            $onlyLabId = $selected[0];
+            $current = $this->labTestIds[$onlyLabId] ?? [];
+            if ($current === []) {
+                $this->labTestIds[$onlyLabId] = collect($this->subcontractedTests)
+                    ->pluck('id')
+                    ->map(fn ($id) => (string) $id)
+                    ->values()
+                    ->all();
+            }
+        }
+    }
+
+    public function updated($propertyName, $value = null): void
+    {
+        if ($propertyName === 'selectedLabIds') {
+            return;
+        }
+
+        if (! is_string($propertyName) || ! str_starts_with($propertyName, 'labTestIds.')) {
+            return;
+        }
+
+        $changedLabId = substr($propertyName, strlen('labTestIds.'));
+        if ($changedLabId === '' || str_contains($changedLabId, '.')) {
+            // Ignore deeper nested updates; exclusivity runs on the lab bucket itself.
+            $changedLabId = explode('.', $changedLabId)[0] ?? '';
+        }
+
+        if ($changedLabId === '') {
+            return;
+        }
+
+        $assignedOnChangedLab = collect($this->labTestIds[$changedLabId] ?? [])
+            ->map(fn ($id) => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        foreach ($this->labTestIds as $labId => $elementIds) {
+            if ((string) $labId === (string) $changedLabId) {
+                $this->labTestIds[$labId] = $assignedOnChangedLab;
+
+                continue;
+            }
+
+            $this->labTestIds[$labId] = collect($elementIds)
+                ->map(fn ($id) => (string) $id)
+                ->reject(fn (string $elementId) => in_array($elementId, $assignedOnChangedLab, true))
+                ->values()
+                ->all();
+        }
+    }
+
+    /**
+     * @return array<int, array{id: string, label: string}>
+     */
+    public function getSelectedLabOptionsProperty(): array
+    {
+        $selected = $this->normalizedSelectedLabIds();
+
+        return collect($this->availableLabs)
+            ->filter(fn (array $lab): bool => in_array((string) $lab['id'], $selected, true))
+            ->values()
+            ->all();
     }
 
     protected function getListeners(): array
@@ -106,12 +223,38 @@ class DispatchSubcontractRequest extends Component
         $this->validate([
             'barcode' => ['required', 'string', 'max:255'],
             'selectedLabIds' => ['required', 'array', 'min:1'],
-            'selectedLabIds.*' => ['string', Rule::exists('labs', 'id')->where(fn ($query) => $query->where('active', 1)->where('is_external', 1))],
+            'selectedLabIds.*' => [
+                'string',
+                Rule::exists('labs', 'id')->where(fn ($query) => $query->where('active', 1)->where('is_external', 1)),
+            ],
+            'labTestIds' => ['nullable', 'array'],
         ], [
             'barcode.required' => 'Scan or enter the request barcode before dispatching.',
-            'selectedLabIds.required' => 'Select at least one subcontracted lab before dispatching.',
-            'selectedLabIds.min' => 'Select at least one subcontracted lab before dispatching.',
+            'selectedLabIds.required' => 'Select at least one subcontracted lab to receive the sample(s).',
+            'selectedLabIds.min' => 'Select at least one subcontracted lab to receive the sample(s).',
+            'selectedLabIds.*.exists' => 'One or more selected labs are invalid or inactive.',
         ]);
+
+        $selectedLabIds = collect($this->normalizedSelectedLabIds());
+        $assignments = $this->assignmentsFromLabTestIds($selectedLabIds->all());
+        $requiredTestIds = collect($this->subcontractedTests)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->values();
+
+        if ($requiredTestIds->isNotEmpty()) {
+            $assignedTestIds = collect($assignments)->keys()->map(fn ($id) => (string) $id)->values();
+            $missing = $requiredTestIds->diff($assignedTestIds)->values();
+
+            if ($missing->isNotEmpty()) {
+                $this->addError(
+                    'labTestIds',
+                    'Assign every subcontracted test to one of the selected labs before dispatching.'
+                );
+
+                return;
+            }
+        }
 
         $user = Auth::user();
         if (! $user instanceof User) {
@@ -144,13 +287,10 @@ class DispatchSubcontractRequest extends Component
             return;
         }
 
-        DB::transaction(function () use ($instance, $user): void {
+        $assignmentService = app(SubcontractingAssignmentService::class);
+
+        DB::transaction(function () use ($instance, $user, $assignmentService, $selectedLabIds, $assignments): void {
             $enquiry = $instance->sampleSubmissionRequest;
-            $selectedLabIds = collect($this->selectedLabIds)
-                ->map(fn ($id) => trim((string) $id))
-                ->filter()
-                ->unique()
-                ->values();
 
             $selectedLabNames = Lab::query()
                 ->whereIn('id', $selectedLabIds->all())
@@ -162,10 +302,12 @@ class DispatchSubcontractRequest extends Component
                     $code = trim((string) ($lab->code ?? ''));
                     $name = trim((string) ($lab->name ?? ''));
 
-                    return $code !== '' ? ($code . ' - ' . $name) : $name;
+                    return $code !== '' ? ($code.' - '.$name) : $name;
                 })
                 ->filter()
                 ->values();
+
+            $assignmentService->persistAssignments($enquiry, $assignments);
 
             if (Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_status')) {
                 $enquiry->subcontracting_dispatch_status = SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED;
@@ -195,6 +337,8 @@ class DispatchSubcontractRequest extends Component
 
                 $instance->logAction('subcontract_dispatched', $user, [
                     'status' => ['from' => $instance->getOriginal('status') ?: $instance->status, 'to' => 'approved'],
+                    'labs' => $selectedLabIds->all(),
+                    'assignments' => $assignments,
                 ], 'Subcontracting dispatch confirmed from Samples Receiving queue.');
             }
 
@@ -228,10 +372,96 @@ class DispatchSubcontractRequest extends Component
                     );
                 }
             }
+
+            $enquiry->refresh();
+            $sampleHeaderId = trim((string) ($enquiry->sample_header_id ?? ''));
+            if ($sampleHeaderId === '') {
+                $sampleHeaderId = trim((string) ($instance->analysisAcceptanceForms()->value('sample_header_id') ?? ''));
+            }
+
+            if ($sampleHeaderId !== '') {
+                $assignmentService->syncAssignmentsToSampleHeader($enquiry, $sampleHeaderId);
+            }
         });
 
         session()->flash('success', 'Subcontracting request dispatched successfully.');
         $this->dispatch('subcontract-dispatch-completed');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedSelectedLabIds(): array
+    {
+        return collect($this->selectedLabIds)
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, string>  $existing element_id => lab_id
+     */
+    private function syncLabTestBucketsFromExisting(array $existing): void
+    {
+        $this->labTestIds = [];
+
+        foreach ($this->normalizedSelectedLabIds() as $labId) {
+            $this->labTestIds[$labId] = [];
+        }
+
+        foreach ($existing as $elementId => $labId) {
+            $elementId = trim((string) $elementId);
+            $labId = trim((string) $labId);
+            if ($elementId === '' || $labId === '') {
+                continue;
+            }
+
+            if (! in_array($labId, $this->normalizedSelectedLabIds(), true)) {
+                continue;
+            }
+
+            $this->labTestIds[$labId] ??= [];
+            $this->labTestIds[$labId][] = $elementId;
+        }
+
+        foreach ($this->labTestIds as $labId => $elementIds) {
+            $this->labTestIds[$labId] = array_values(array_unique(array_map('strval', $elementIds)));
+        }
+    }
+
+    /**
+     * @param  list<string>  $selectedLabIds
+     * @return array<string, string> analysis_element_id => lab_id
+     */
+    private function assignmentsFromLabTestIds(array $selectedLabIds): array
+    {
+        $allowedElementIds = collect($this->subcontractedTests)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $assignments = [];
+
+        foreach ($this->labTestIds as $labId => $elementIds) {
+            $labId = trim((string) $labId);
+            if ($labId === '' || ! in_array($labId, $selectedLabIds, true)) {
+                continue;
+            }
+
+            foreach ((array) $elementIds as $elementId) {
+                $elementId = trim((string) $elementId);
+                if ($elementId === '' || ! in_array($elementId, $allowedElementIds, true)) {
+                    continue;
+                }
+
+                $assignments[$elementId] = $labId;
+            }
+        }
+
+        return $assignments;
     }
 
     public function render()

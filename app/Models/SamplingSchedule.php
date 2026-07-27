@@ -275,6 +275,12 @@ class SamplingSchedule extends Model implements Auditable
         return $this->hasMany(SubmissionFormInstance::class, 'sampling_schedule_id');
     }
 
+    public function samplePlanHistories()
+    {
+        return $this->hasMany(SamplingScheduleSamplePlanHistory::class, 'sampling_schedule_id')
+            ->orderByDesc('created_at');
+    }
+
     /**
      * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 6
      */

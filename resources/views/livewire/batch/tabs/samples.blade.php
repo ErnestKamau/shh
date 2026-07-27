@@ -910,10 +910,30 @@
 
                     @if(!empty($sampleParameters))
                     @php
-                        $parameterColspan = ($uncertaintyRequired ? 16 : 15);
+                        $parameterColspan = ($uncertaintyRequired ? 17 : 16);
                         $groupedParameters = $this->groupedParametersForm;
                         $parametersDisabled = $parametersReadOnly;
+                        $subcontractedSummary = collect($sampleParameters)
+                            ->filter(fn ($param) => ! empty($param['subcontracted']) && ! empty($param['subcontracted_lab_name']))
+                            ->groupBy('subcontracted_lab_name')
+                            ->map(fn ($rows) => $rows->pluck('analyte_name')->unique()->values()->all());
                     @endphp
+                    @if($subcontractedSummary->isNotEmpty())
+                    <div class="alert alert-info border mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="mdi mdi-earth mr-2 mt-1"></i>
+                            <div>
+                                <strong class="d-block mb-1">Subcontracted tests</strong>
+                                @foreach($subcontractedSummary as $labName => $analytes)
+                                    <div class="small mb-1">
+                                        <strong>{{ $labName }}:</strong>
+                                        {{ implode(', ', $analytes) }}
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    @endif
                     <div class="table-responsive sample-parameters-modal__table-wrap">
                         <table class="table table-sm sample-parameters-table mb-0">
                             <thead>
@@ -935,6 +955,7 @@
                                     <th style="min-width: 120px;">LTM</th>
                                     <th style="min-width: 160px;">Equipment</th>
                                     <th style="min-width: 80px; text-align: center;">Sub.</th>
+                                    <th style="min-width: 160px;">Sub. lab</th>
                                     <th style="min-width: 80px; text-align: center;">Accr.</th>
                                 </tr>
                             </thead>
@@ -1102,6 +1123,17 @@
                                                 @if($parametersDisabled) disabled @endif>
                                             <label class="custom-control-label" for="sub_{{ $id }}"></label>
                                         </div>
+                                    </td>
+                                    <td style="min-width: 160px;">
+                                        @if(!empty($param['subcontracted_lab_name']))
+                                            <span class="badge badge-info border text-wrap text-left" title="{{ $param['subcontracted_lab_name'] }}">
+                                                <i class="mdi mdi-earth"></i> {{ $param['subcontracted_lab_name'] }}
+                                            </span>
+                                        @elseif(!empty($parametersForm[$id]['subcontracted']) || !empty($param['subcontracted']))
+                                            <small class="text-muted">Assigned at dispatch</small>
+                                        @else
+                                            <small class="text-muted">—</small>
+                                        @endif
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="custom-control custom-checkbox text-center">

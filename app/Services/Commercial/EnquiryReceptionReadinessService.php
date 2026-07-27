@@ -60,6 +60,10 @@ final class EnquiryReceptionReadinessService
             return false;
         }
 
+        if ($enquiry->needsSubcontractDispatch()) {
+            return false;
+        }
+
         if ($this->contractCustomerService->bypassesCommercialQuotationGate($enquiry)) {
             return true;
         }
@@ -75,11 +79,18 @@ final class EnquiryReceptionReadinessService
      *
      * Legacy "In Review" enquiry/instance statuses remain eligible so existing
      * records can still be accepted after the In Review step was removed.
+     *
+     * Requests with pending subcontract dispatch must go through the
+     * Sub-contracting tab first (even when only some parameters are subcontracted).
      */
     public function isEligibleForSampleAcceptance(
         SampleSubmissionRequest $enquiry,
         ?SubmissionFormInstance $instance = null,
     ): bool {
+        if ($enquiry->needsSubcontractDispatch()) {
+            return false;
+        }
+
         if (in_array((string) $enquiry->status, [
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
             SampleSubmissionRequest::STATUS_IN_REVIEW,

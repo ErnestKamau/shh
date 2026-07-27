@@ -321,8 +321,19 @@ class ReportHeaderDetailController extends Controller
 				$lang = 'en';
 			}
 
+			$nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+			$amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+			$sequence = max($nextFromSequence, $amendmentVersion);
+
+			$batch->test_request_report_sequence = $sequence;
+			$batch->save();
+
+			app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+				->syncReportNumbersForBatch($batch, $sequence);
+
 			$reportRequest = Request::create('/generate-test-request-report', 'GET', [
 				'batch_id' => (string) $batch->id,
+				'seq' => $sequence,
 				'lang' => $lang,
 				'mode' => 'pdf',
 			]);

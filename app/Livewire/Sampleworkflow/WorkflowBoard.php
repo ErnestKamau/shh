@@ -798,6 +798,8 @@ class WorkflowBoard extends Component
 
     /**
      * Submission forms awaiting Accept Samples (Ready for Reception, plus legacy In Review).
+     * Requests that still need subcontracting dispatch are excluded — they belong on the
+     * Sub-contracting tab until an external lab is assigned and dispatch is confirmed.
      */
     protected function readyForPhysicalReceptionSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
     {
@@ -807,6 +809,9 @@ class WorkflowBoard extends Component
             })
             ->whereDoesntHave('analysisAcceptanceForms', function ($acceptanceQuery): void {
                 $acceptanceQuery->where('status', \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_COMPLETED);
+            })
+            ->whereDoesntHave('sampleSubmissionRequest', function ($enquiryQuery): void {
+                $enquiryQuery->whereSubcontractDispatchPending();
             });
 
         $query->where(function ($outer): void {
@@ -929,41 +934,12 @@ class WorkflowBoard extends Component
                 }
 
                 $instanceQuery
-                    ->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($driver, $approvalGateStatuses, $requiresApprovalGate): void {
+                    ->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($approvalGateStatuses, $requiresApprovalGate): void {
                         $enquiryQuery->when($requiresApprovalGate, function ($statusQuery) use ($approvalGateStatuses): void {
                             $statusQuery->whereIn('status', $approvalGateStatuses);
                         });
 
-                        $enquiryQuery->where(function ($matchQuery) use ($driver): void {
-                            $matchQuery->whereHas('requestedAnalyses', function ($analysisQuery): void {
-                                $analysisQuery->whereHas('analysisElement', function ($elementQuery): void {
-                                    $elementQuery->where('sub_contracted', 1);
-                                });
-                            })->orWhereHas('currentQuotation.details', function ($detailQuery): void {
-                                $detailQuery->whereNotNull('subcontracted_analytes')
-                                    ->where('subcontracted_analytes', '!=', '');
-                            })->orWhereHas('acceptedQuotation.details', function ($detailQuery): void {
-                                $detailQuery->whereNotNull('subcontracted_analytes')
-                                    ->where('subcontracted_analytes', '!=', '');
-                            })->orWhere(function ($jsonSelectionQuery) use ($driver): void {
-                                if ($driver !== 'pgsql') {
-                                    $jsonSelectionQuery->whereRaw('1 = 0');
-
-                                    return;
-                                }
-
-                                $jsonSelectionQuery->whereExists(function ($jsonExists): void {
-                                    $jsonExists->selectRaw('1')
-                                        ->from('analysis_elements as ae')
-                                        ->where('ae.sub_contracted', 1)
-                                        ->where(function ($selectedIds): void {
-                                            $selectedIds
-                                                ->whereRaw("ae.id::text IN (SELECT jsonb_array_elements_text(COALESCE(sample_submission_requests.parameter_ids::jsonb, '[]'::jsonb)))")
-                                                ->orWhereRaw("ae.id::text IN (SELECT elem->>'analysis_element_id' FROM jsonb_array_elements(COALESCE(sample_submission_requests.sample_lines::jsonb, '[]'::jsonb)) AS elem WHERE COALESCE(elem->>'analysis_element_id', '') <> '')");
-                                        });
-                                });
-                            });
-                        });
+                        $enquiryQuery->whereHasSubcontractedWork();
                     })
                     ->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses, $requiresApprovalGate): void {
                         $fallbackQuery->selectRaw('1')
@@ -1405,6 +1381,11 @@ class WorkflowBoard extends Component
                 'sampleSubmissionRequest.requestedAnalyses',
                 'activePendingIntray',
             ];
+
+            if ($this->workflowSubTab === 'sub_contracting') {
+                $eagerLoads[] = 'sampleSubmissionRequest.subcontractingDispatchAssignments.lab';
+                $eagerLoads[] = 'sampleSubmissionRequest.subcontractingDispatchAssignments.analysisElement.analyte';
+            }
 
             if (in_array($this->workflowSubTab, ['ready_for_reception', 'accepted'], true)) {
                 $eagerLoads[] = 'analysisAcceptanceForms';
@@ -2882,6 +2863,69 @@ class WorkflowBoard extends Component
     }
 
     /**
+     * Resume selected Request Additional Info items back to Ready for Reception.
+     *
+     * @param  array<int, string>|string  $ids
+     */
+    public function resumeAdditionalInfoToReception(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === []) {
+            $this->workflowNotify('error', 'Select at least one request to resume.');
+
+            return;
+        }
+
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            $this->workflowNotify('error', 'You must be signed in to resume reception.');
+
+            return;
+        }
+
+        $processed = 0;
+        $skipped = 0;
+
+        $instances = SubmissionFormInstance::query()
+            ->whereIn('id', $this->selectedFormInstanceIds)
+            ->where('status', 'in_additional_info')
+            ->get();
+
+        foreach ($instances as $instance) {
+            if ($instance->resumeFromAdditionalInfo($user)) {
+                $processed++;
+            } else {
+                $skipped++;
+            }
+        }
+
+        $this->bustReceivingCountsCache();
+        $this->selectedFormInstanceIds = [];
+
+        if ($processed === 0) {
+            $this->workflowNotify('error', 'No requests were resumed. They may already be in another status.');
+
+            return;
+        }
+
+        $message = $processed === 1
+            ? '1 request returned to Ready for Reception.'
+            : "{$processed} requests returned to Ready for Reception.";
+
+        if ($skipped > 0) {
+            $message .= " ({$skipped} skipped.)";
+        }
+
+        $this->workflowNotify('success', $message);
+        $this->setWorkflowSubTab('ready_for_reception');
+    }
+
+    /**
      * @param  array<int, string>|string  $ids
      */
     #[Renderless]
@@ -2920,6 +2964,10 @@ class WorkflowBoard extends Component
         if (count($this->selectedFormInstanceIds) !== 1) {
             $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before accepting.');
 
+            return;
+        }
+
+        if ($this->blockAcceptWhenSubcontractDispatchPending($this->selectedFormInstanceIds[0])) {
             return;
         }
 
@@ -2964,11 +3012,36 @@ class WorkflowBoard extends Component
             return;
         }
 
+        if ($this->blockAcceptWhenSubcontractDispatchPending($this->selectedFormInstanceIds[0])) {
+            return;
+        }
+
         $this->dispatch(
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
             submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
         )->to(AcceptanceFormWizard::class);
+    }
+
+    protected function blockAcceptWhenSubcontractDispatchPending(string $formInstanceId): bool
+    {
+        $enquiryId = $this->resolveSubmissionRequestIdForFormInstance($formInstanceId);
+        if ($enquiryId === null || $enquiryId === '') {
+            return false;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
+        if ($enquiry === null || ! $enquiry->needsSubcontractDispatch()) {
+            return false;
+        }
+
+        $this->workflowNotify(
+            'error',
+            'This request has subcontracted tests. Dispatch it from the Sub-contracting tab before accepting into Samples In Lab.'
+        );
+        $this->setWorkflowSubTab('sub_contracting');
+
+        return true;
     }
 
     /**
@@ -3148,7 +3221,7 @@ class WorkflowBoard extends Component
     {
         $this->decontaminationDate = now()->toDateString();
         $this->decontaminationOfficer = Auth::user()?->name ?? '';
-        $this->decontaminationLabId = '';
+        $this->decontaminationLabId = Lab::defaultLabId() ?? '';
         $this->decontaminationSwabbing = [];
         $this->resetValidation();
     }

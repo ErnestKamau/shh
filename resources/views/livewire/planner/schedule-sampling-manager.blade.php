@@ -272,7 +272,7 @@
 
     <!-- ═══ CREATE / EDIT MODAL ═══ -->
     @if($showModal)
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1060;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
                 <div class="modal-header text-white" style="flex-shrink:0;">
@@ -742,6 +742,94 @@
                             @endforeach
                         </div>
                         @endif
+
+                        {{-- Sample plan change history --}}
+                        @php
+                            $planHistories = $viewingSchedule->samplePlanHistories ?? collect();
+                        @endphp
+                        <div class="mb-4">
+                            <h6 class="font-weight-bold text-uppercase text-muted mb-3" style="font-size:12px;letter-spacing:1px;">
+                                <i class="mdi mdi-history mr-1"></i>Sample plan history
+                                <span class="badge badge-light ml-1">{{ $planHistories->count() }}</span>
+                            </h6>
+                            @if($planHistories->isNotEmpty())
+                                <div class="d-flex flex-column" style="gap:12px;">
+                                    @foreach($planHistories as $history)
+                                        @php
+                                            $before = is_array($history->display_before) ? $history->display_before : [];
+                                            $after = is_array($history->display_after) ? $history->display_after : [];
+                                            $beforeEntries = is_array($before['entries'] ?? null) ? $before['entries'] : [];
+                                            $afterEntries = is_array($after['entries'] ?? null) ? $after['entries'] : [];
+                                            $changedBy = $history->changedByUser?->name ?? 'Unknown user';
+                                        @endphp
+                                        <div class="card border-0 shadow-sm" style="border-radius:10px;overflow:hidden;">
+                                            <div class="card-header py-2 px-3 d-flex justify-content-between align-items-center flex-wrap" style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
+                                                <span class="small text-muted">
+                                                    <i class="mdi mdi-account-outline mr-1"></i>{{ $changedBy }}
+                                                </span>
+                                                <span class="small text-muted">
+                                                    {{ optional($history->created_at)->format('d M Y H:i') }}
+                                                </span>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3 mb-md-0">
+                                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-2" style="font-size:10px;letter-spacing:0.5px;">
+                                                            Previously planned
+                                                        </small>
+                                                        <div class="small mb-1 text-muted">
+                                                            Samples: <strong>{{ $before['number_of_samples'] ?? $history->number_of_samples_before ?? '—' }}</strong>
+                                                        </div>
+                                                        @forelse($beforeEntries as $entry)
+                                                            <div class="mb-2 p-2" style="background:#fafbfc;border:1px solid #eee;border-radius:8px;">
+                                                                <div class="font-weight-bold" style="font-size:13px;">{{ $entry['type'] ?? '—' }}</div>
+                                                                @if(!empty($entry['analysis']))
+                                                                    <div class="text-muted" style="font-size:12px;">{{ $entry['analysis'] }}</div>
+                                                                @endif
+                                                                @if(!empty($entry['param_names']))
+                                                                    <div class="mt-1" style="font-size:11px;color:#6c757d;">
+                                                                        {{ implode(', ', $entry['param_names']) }}
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        @empty
+                                                            <span class="text-muted font-italic small">No sample types planned</span>
+                                                        @endforelse
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-2" style="font-size:10px;letter-spacing:0.5px;">
+                                                            Updated to
+                                                        </small>
+                                                        <div class="small mb-1 text-muted">
+                                                            Samples: <strong>{{ $after['number_of_samples'] ?? $history->number_of_samples_after ?? '—' }}</strong>
+                                                        </div>
+                                                        @forelse($afterEntries as $entry)
+                                                            <div class="mb-2 p-2" style="background:var(--color-primary-soft,#f3e8e9);border:1px solid var(--color-primary-highlight,#e2b8bb);border-radius:8px;">
+                                                                <div class="font-weight-bold text-primary" style="font-size:13px;">{{ $entry['type'] ?? '—' }}</div>
+                                                                @if(!empty($entry['analysis']))
+                                                                    <div class="text-muted" style="font-size:12px;">{{ $entry['analysis'] }}</div>
+                                                                @endif
+                                                                @if(!empty($entry['param_names']))
+                                                                    <div class="mt-1" style="font-size:11px;color:#6c757d;">
+                                                                        {{ implode(', ', $entry['param_names']) }}
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        @empty
+                                                            <span class="text-muted font-italic small">No sample types planned</span>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="alert alert-light border mb-0" style="border-radius:8px;">
+                                    No sample-plan changes recorded yet. Edits to sample types, analysis types, or parameters will appear here.
+                                </div>
+                            @endif
+                        </div>
 
                         {{-- Tied Request Forms --}}
                         <div class="mb-4">
