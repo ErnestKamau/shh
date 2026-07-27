@@ -2,13 +2,17 @@
 
 namespace App\Services\Sampleworkflow;
 
-use App\Models\TestRequestFormInstance;
+use App\Models\SubmissionFormElement;
+use App\Models\SubmissionFormInstance;
+use App\Models\SubmissionFormInstanceValue;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Merges "FOR LAB USE ONLY" fields captured at physical check-in into the
- * linked TestRequestFormInstance and regenerates its PDF.
+ * linked SubmissionFormInstance values and regenerates its PDF.
  *
- * Field names match the TRF form_data keys defined in TestRequestForm:
+ * Field names:
  *   lab_received_datetime  — ISO-8601 local datetime string
  *   lab_received_by        — Name of the staff member receiving the samples
  *   lab_sample_condition   — "Acceptable" | "Not Acceptable"
@@ -27,34 +31,65 @@ final class TrfLabUseFieldsService
     ) {}
 
     /**
-     * Merge lab-use field values into the TRFI form_data, preserve existing
-     * keys, save the model, then regenerate the PDF.
+     * Merge lab-use field values into SFI element values, then regenerate the PDF.
      *
-     * @param array<string, mixed> $labFields  Keyed by the three field names above.
+     * @param  array<string, mixed>  $labFields  Keyed by the three field names above.
      */
-    public function mergeIntoTrfi(TestRequestFormInstance $trfi, array $labFields): void
+    public function mergeIntoInstance(SubmissionFormInstance $instance, array $labFields): void
     {
-        $existing = is_array($trfi->form_data) ? $trfi->form_data : [];
+        $instance->loadMissing(['submissionForm.sections.elementHolders.elements', 'values.element']);
 
-        foreach (self::LAB_FIELDS as $key) {
-            if (array_key_exists($key, $labFields) && $labFields[$key] !== null && $labFields[$key] !== '') {
-                $existing[$key] = $labFields[$key];
+        $elementsByName = $instance->submissionForm?->sections
+            ->flatMap(fn ($section) => $section->elementHolders)
+            ->flatMap(fn ($holder) => $holder->elements)
+            ->keyBy(fn (SubmissionFormElement $element) => (string) $element->name)
+            ?? collect();
+
+        DB::transaction(function () use ($instance, $labFields, $elementsByName): void {
+            foreach (self::LAB_FIELDS as $key) {
+                if (! array_key_exists($key, $labFields) || $labFields[$key] === null || $labFields[$key] === '') {
+                    continue;
+                }
+
+                /** @var SubmissionFormElement|null $element */
+                $element = $elementsByName->get($key);
+                if ($element === null) {
+                    continue;
+                }
+
+                $value = SubmissionFormInstanceValue::query()->firstOrNew([
+                    'submission_form_instance_id' => $instance->id,
+                    'submission_form_element_id' => $element->id,
+                    'array_index' => null,
+                ]);
+
+                if (! $value->exists) {
+                    $value->id = (string) Str::uuid7();
+                }
+
+                $value->value = is_scalar($labFields[$key]) ? (string) $labFields[$key] : json_encode($labFields[$key]);
+                $value->save();
             }
-        }
-
-        $trfi->form_data = $existing;
-        $trfi->save();
+        });
 
         try {
-            $this->pdfService->generateAndStore($trfi);
+            $this->pdfService->generateAndStore($instance->fresh(['values.element', 'submissionForm.sampleTypes']));
         } catch (\Throwable) {
             // PDF regeneration failure must not block the check-in flow.
         }
     }
 
     /**
-     * Build the lab fields array from the three Livewire component properties.
+     * @deprecated Use mergeIntoInstance()
      *
+     * @param  array<string, mixed>  $labFields
+     */
+    public function mergeIntoTrfi(SubmissionFormInstance $instance, array $labFields): void
+    {
+        $this->mergeIntoInstance($instance, $labFields);
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function buildFieldsArray(
@@ -64,8 +99,8 @@ final class TrfLabUseFieldsService
     ): array {
         return [
             'lab_received_datetime' => $labReceivedDatetime,
-            'lab_received_by'       => $labReceivedBy,
-            'lab_sample_condition'  => $labSampleCondition,
+            'lab_received_by' => $labReceivedBy,
+            'lab_sample_condition' => $labSampleCondition,
         ];
     }
 }

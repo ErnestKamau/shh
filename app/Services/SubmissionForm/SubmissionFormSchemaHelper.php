@@ -4,6 +4,7 @@ namespace App\Services\SubmissionForm;
 
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
+use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormSection;
 use Illuminate\Support\Collection;
 
@@ -196,5 +197,113 @@ final class SubmissionFormSchemaHelper
             + ($holderOrder * 1_000_000)
             + ($elementOrder * 1_000)
             + $updatedAt;
+    }
+
+    /**
+     * Keep one section per (sort_order + title), migrate instance values onto the
+     * kept elements by field name, then delete duplicate sections.
+     *
+     * @return array{kept: int, removed: int, migrated_values: int}
+     */
+    public function deduplicateSections(SubmissionForm $form): array
+    {
+        $form->load(['sections.elementHolders.elements']);
+
+        $keepers = $this->uniqueSections($form);
+        $keeperIds = $keepers->pluck('id')->all();
+
+        $duplicates = $form->sections
+            ->reject(fn (SubmissionFormSection $section): bool => in_array($section->id, $keeperIds, true))
+            ->values();
+
+        $migrated = 0;
+        $removed = 0;
+
+        foreach ($duplicates as $duplicate) {
+            $keeper = $keepers->first(function (SubmissionFormSection $section) use ($duplicate): bool {
+                return (int) ($section->sort_order ?? 0) === (int) ($duplicate->sort_order ?? 0)
+                    && mb_strtolower(trim((string) ($section->title ?? ''))) === mb_strtolower(trim((string) ($duplicate->title ?? '')));
+            });
+
+            if ($keeper === null) {
+                $keeper = $keepers->first(function (SubmissionFormSection $section) use ($duplicate): bool {
+                    return mb_strtolower(trim((string) ($section->title ?? ''))) === mb_strtolower(trim((string) ($duplicate->title ?? '')));
+                });
+            }
+
+            if ($keeper !== null) {
+                $keeperElementsByName = $keeper->elementHolders
+                    ->flatMap(fn ($holder) => $holder->elements)
+                    ->keyBy(fn (SubmissionFormElement $element): string => trim((string) ($element->name ?? '')));
+
+                foreach ($duplicate->elementHolders as $holder) {
+                    foreach ($holder->elements as $element) {
+                        $name = trim((string) ($element->name ?? ''));
+                        $target = $name !== '' ? $keeperElementsByName->get($name) : null;
+
+                        if ($target instanceof SubmissionFormElement) {
+                            $migrated += $this->migrateElementValues((string) $element->id, (string) $target->id);
+                        }
+
+                        SubmissionFormInstanceValue::query()
+                            ->where('submission_form_element_id', $element->id)
+                            ->delete();
+
+                        $element->delete();
+                    }
+
+                    $holder->delete();
+                }
+            } else {
+                foreach ($duplicate->elementHolders as $holder) {
+                    foreach ($holder->elements as $element) {
+                        SubmissionFormInstanceValue::query()
+                            ->where('submission_form_element_id', $element->id)
+                            ->delete();
+                        $element->delete();
+                    }
+                    $holder->delete();
+                }
+            }
+
+            $duplicate->delete();
+            $removed++;
+        }
+
+        $form->unsetRelation('sections');
+
+        return [
+            'kept' => $keepers->count(),
+            'removed' => $removed,
+            'migrated_values' => $migrated,
+        ];
+    }
+
+    private function migrateElementValues(string $fromElementId, string $toElementId): int
+    {
+        $moved = 0;
+
+        SubmissionFormInstanceValue::query()
+            ->where('submission_form_element_id', $fromElementId)
+            ->each(function (SubmissionFormInstanceValue $value) use ($toElementId, &$moved): void {
+                $duplicateQuery = SubmissionFormInstanceValue::query()
+                    ->where('submission_form_instance_id', $value->submission_form_instance_id)
+                    ->where('submission_form_element_id', $toElementId);
+
+                if ($value->array_index !== null) {
+                    $duplicateQuery->where('array_index', $value->array_index);
+                }
+
+                if ($duplicateQuery->exists()) {
+                    $value->delete();
+
+                    return;
+                }
+
+                $value->update(['submission_form_element_id' => $toElementId]);
+                $moved++;
+            });
+
+        return $moved;
     }
 }

@@ -202,22 +202,31 @@
 
             @if ($formTypeCards->isNotEmpty())
                 <div class="rft-overview-section mb-3">
-                    <div class="workflow-board-section-label mb-2">
+                    <div class="workflow-board-section-label mb-2 d-flex flex-wrap align-items-center justify-content-between">
                         <span>
                             <i class="mdi mdi-form-select"></i>
                             {{ $plannerMode ? 'Sampling forms' : 'Test request forms' }}
                         </span>
-                        @if ($plannerMode)
-                            <span class="text-muted text-normal" style="text-transform:none;letter-spacing:0;font-weight:500;">
-                                Choose a form, then complete it for a schedule
-                            </span>
-                        @endif
+                        <div class="d-flex align-items-center" style="gap: .5rem;">
+                            @if ($plannerMode)
+                                <span class="text-muted text-normal" style="text-transform:none;letter-spacing:0;font-weight:500;">
+                                    Choose a form, then complete it for a schedule
+                                </span>
+                            @endif
+                            @can('laboratory.components.rft form.add')
+                                <a href="{{ route('submission-forms.create', ['from' => 'rft', 'trf' => 1]) }}"
+                                   class="btn btn-sm btn-outline-primary btn-action-sm">
+                                    <i class="mdi mdi-plus"></i> Add TRF
+                                </a>
+                            @endcan
+                        </div>
                     </div>
                     @if ($plannerMode)
                         <div class="fsf-form-grid">
                             @foreach ($formTypeCards as $card)
                                 <div class="rft-form-type-card {{ (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}"
                                      wire:key="planner-form-card-{{ $card['sample_type_id'] }}">
+                                    <a href="{{ $card['view_url'] }}" class="text-decoration-none text-reset d-block">
                                     <div class="rft-form-type-card-header">
                                         <div class="rft-form-type-card-icon">
                                             <i class="mdi {{ $card['icon'] }}"></i>
@@ -234,7 +243,20 @@
                                         <span><i class="mdi mdi-view-list"></i> {{ $card['sections_count'] }} sections</span>
                                         <span><i class="mdi mdi-test-tube"></i> {{ $card['sample_type_name'] }}</span>
                                     </div>
+                                    </a>
                                     <div class="rft-form-type-card-actions">
+                                        @can('laboratory.components.rft form.view')
+                                            <a href="{{ $card['view_url'] }}"
+                                               class="btn btn-sm btn-outline-secondary btn-action-sm">
+                                                <i class="mdi mdi-eye-outline"></i> View
+                                            </a>
+                                        @endcan
+                                        @can('laboratory.components.rft form.edit')
+                                            <a href="{{ $card['edit_url'] }}"
+                                               class="btn btn-sm btn-outline-warning btn-action-sm">
+                                                <i class="mdi mdi-pencil-outline"></i> Edit
+                                            </a>
+                                        @endcan
                                         <button type="button"
                                                 class="btn btn-sm btn-primary btn-action-sm"
                                                 wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
@@ -256,6 +278,7 @@
                         @foreach ($formTypeCards as $card)
                             <div class="col-lg-4 col-md-6 mb-3">
                                 <div class="rft-form-type-card {{ (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}">
+                                    <a href="{{ $card['view_url'] }}" class="text-decoration-none text-reset d-block">
                                     <div class="rft-form-type-card-header">
                                         <div class="rft-form-type-card-icon">
                                             <i class="mdi {{ $card['icon'] }}"></i>
@@ -272,7 +295,20 @@
                                         <span><i class="mdi mdi-view-list"></i> {{ $card['sections_count'] }} sections</span>
                                         <span><i class="mdi mdi-test-tube"></i> {{ $card['sample_type_name'] }}</span>
                                     </div>
+                                    </a>
                                     <div class="rft-form-type-card-actions">
+                                        @can('laboratory.components.rft form.view')
+                                            <a href="{{ $card['view_url'] }}"
+                                               class="btn btn-sm btn-outline-secondary btn-action-sm">
+                                                <i class="mdi mdi-eye-outline"></i> View
+                                            </a>
+                                        @endcan
+                                        @can('laboratory.components.rft form.edit')
+                                            <a href="{{ $card['edit_url'] }}"
+                                               class="btn btn-sm btn-outline-warning btn-action-sm">
+                                                <i class="mdi mdi-pencil-outline"></i> Edit
+                                            </a>
+                                        @endcan
                                         @if ((string) $selectedSampleTypeId === (string) $card['sample_type_id'])
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-secondary btn-action-sm"
@@ -300,12 +336,20 @@
                     @endif
                 </div>
             @else
-                <div class="alert alert-warning">
-                    @if ($plannerMode)
-                        No active sampling form templates are linked to sample types. Link a TRF template in Submission Forms, then try again.
-                    @else
-                        No active Test Request Form templates are linked to sample types. Link a TRF template in Submission Forms, then try again.
-                    @endif
+                <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between">
+                    <div>
+                        @if ($plannerMode)
+                            No active sampling form templates are linked to sample types.
+                        @else
+                            No active Test Request Form templates are linked to sample types.
+                        @endif
+                    </div>
+                    @can('laboratory.components.rft form.add')
+                        <a href="{{ route('submission-forms.create', ['from' => 'rft', 'trf' => 1]) }}"
+                           class="btn btn-sm btn-primary mt-2 mt-md-0">
+                            <i class="mdi mdi-plus"></i> Add TRF
+                        </a>
+                    @endcan
                 </div>
             @endif
 

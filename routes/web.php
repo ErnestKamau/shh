@@ -342,24 +342,10 @@ Route::get('/livewire/labs/{lab}', function () {
     return redirect()->route('labs');
 })->name('livewire.labs.show')->middleware('can:laboratory.components.labs.view');
 
-// Livewire Test Page
+// Livewire Test Page (legacy TRF debug route removed)
 Route::get('/livewire-test', function () {
-    try {
-        \App\Models\TestRequestForm::seedDefaults();
-        $form = \App\Models\TestRequestForm::first();
-        if ($form) {
-            $output = "Class: " . get_class($form) . "\n";
-            $output .= "ID: " . $form->id . "\n";
-            $output .= "Name: " . $form->name . "\n";
-            $output .= "form_fields type: " . gettype($form->form_fields) . "\n";
-            $output .= "form_fields: " . json_encode($form->form_fields, JSON_PRETTY_PRINT) . "\n";
-            return response($output)->header('Content-Type', 'text/plain');
-        } else {
-            return "No forms found";
-        }
-    } catch (\Throwable $t) {
-        return "Error: " . $t->getMessage() . "\n" . $t->getTraceAsString();
-    }
+    return response('Legacy TestRequestForm debug route removed. Use Submission Form TRF templates.', 410)
+        ->header('Content-Type', 'text/plain');
 })->name('livewire-test');
 
 

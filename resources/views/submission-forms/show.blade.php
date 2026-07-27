@@ -2,169 +2,150 @@
 
 @section('title2')
   <title>{{ $submissionForm->name }} - Submission Form</title>
+  @include('submission-forms.partials.lab-theme-styles')
 @endsection
 
 @section('content2')
   <main>
-    <?php
-      $items = array(
-        array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.index'),
-          'name' => 'Submission Forms',
-          'icon' => null
-        ),
-        array(
+    @php
+      $fromRft = request()->query('from') === 'rft' || $submissionForm->isTestRequestTemplate();
+      $items = [
+        [
+          'link' => route('dashboard-lab'),
+          'name' => 'Dashboard',
+          'icon' => null,
+        ],
+        [
+          'link' => $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index'),
+          'name' => $fromRft ? 'Request For Testing' : 'Submission Forms',
+          'icon' => null,
+        ],
+        [
           'link' => '#',
           'name' => $submissionForm->name,
-          'icon' => null
-        )
-      );
-    ?>
+          'icon' => null,
+        ],
+      ];
+    @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
-    @include('submission-forms.partials.horizontal-gutter-styles')
-    <div class="submission-forms-horizontal-gutter">
+    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme sf-admin-page px-3 px-md-4 pt-2 pb-4">
+      @if(session('success'))
+        <div class="alert alert-success mt-2">{{ session('success') }}</div>
+      @endif
+      @if(session('error'))
+        <div class="alert alert-danger mt-2">{{ session('error') }}</div>
+      @endif
 
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow-sm border-0 bg-white" style="border-radius: 15px;">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
-              <div>
-                <h2 class="mb-1">
-                  <i class="mdi mdi-form-select text-primary"></i> {{ $submissionForm->name }}
-                  <small class="text-muted">v{{ $submissionForm->version }}</small>
-                </h2>
-                @if($submissionForm->description)
-                  <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
-                @endif
-              </div>
-              <div class="d-flex align-items-center flex-wrap justify-content-lg-end" style="gap: 8px;">
-                <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-outline-primary" style="border-radius: 9px;">
-                  <i class="mdi mdi-cog"></i> Form Builder
-                </a>
-                <a href="{{ route('submission-forms.edit', $submissionForm) }}" class="btn btn-outline-warning" style="border-radius: 9px;">
-                  <i class="mdi mdi-pencil"></i> Edit Details
-                </a>
-                <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary" style="border-radius: 9px;">
-                  <i class="mdi mdi-arrow-left"></i> Back to Forms
-                </a>
-              </div>
-            </div>
+      <div class="workflow-board-panel mb-3">
+        <div class="workflow-board-panel-header">
+          <div>
+            <h5 class="sf-page-title mb-0">
+              <i class="mdi mdi-form-select"></i>
+              {{ $submissionForm->name }}
+              <span class="sf-meta-chip ml-1">v{{ $submissionForm->version }}</span>
+            </h5>
+            @if($submissionForm->description)
+              <p class="sf-page-subtitle">{{ $submissionForm->description }}</p>
+            @endif
+          </div>
+          <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
+            <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-sm btn-primary btn-action-sm">
+              <i class="mdi mdi-cog"></i> Form Builder
+            </a>
+            <a href="{{ route('submission-forms.edit', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+              <i class="mdi mdi-pencil"></i> Edit Details
+            </a>
+            <a href="{{ $fromRft ? route('sample-workflow.request-for-testing') : route('submission-forms.index') }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
+              <i class="mdi mdi-arrow-left"></i> {{ $fromRft ? 'Back to RFT' : 'Back to Forms' }}
+            </a>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="bg-light p-4">
       <div class="row">
-        <!-- Form Status and Actions -->
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-information-outline"></i> Form Status
-              </h6>
+        <div class="col-lg-4">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-information-outline"></i> Form Status</h6>
             </div>
-            <div class="card-body">
-              <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                  <span>Publication Status:</span>
-                  @if($submissionForm->is_published)
-                    <span class="badge badge-success">Published</span>
-                  @else
-                    <span class="badge badge-warning">Draft</span>
-                  @endif
-                </div>
+            <div class="workflow-board-panel-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">Publication</span>
+                @if($submissionForm->is_published)
+                  <span class="sf-meta-chip is-success">Published</span>
+                @else
+                  <span class="sf-meta-chip is-warning">Draft</span>
+                @endif
               </div>
-              
-              <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                  <span>Active Status:</span>
-                  @if($submissionForm->is_active)
-                    <span class="badge badge-outline-success">Active</span>
-                  @else
-                    <span class="badge badge-outline-danger">Inactive</span>
-                  @endif
-                </div>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">Active</span>
+                @if($submissionForm->is_active)
+                  <span class="sf-meta-chip is-success">Active</span>
+                @else
+                  <span class="sf-meta-chip is-danger">Inactive</span>
+                @endif
               </div>
-
-              <div class="d-grid gap-2">
-                <form method="POST" action="{{ route('submission-forms.toggle-published', $submissionForm) }}">
-                  @csrf
-                  <button type="submit" 
-                          class="btn btn-sm {{ $submissionForm->is_published ? 'btn-outline-danger' : 'btn-outline-success' }} w-100">
-                    <i class="mdi {{ $submissionForm->is_published ? 'mdi-eye-off' : 'mdi-publish' }}"></i>
-                    {{ $submissionForm->is_published ? 'Unpublish' : 'Publish' }}
-                  </button>
-                </form>
-              </div>
+              <form method="POST" action="{{ route('submission-forms.toggle-published', $submissionForm) }}">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-action-sm w-100 {{ $submissionForm->is_published ? 'btn-outline-secondary' : 'btn-primary' }}">
+                  <i class="mdi {{ $submissionForm->is_published ? 'mdi-eye-off' : 'mdi-publish' }}"></i>
+                  {{ $submissionForm->is_published ? 'Unpublish' : 'Publish' }}
+                </button>
+              </form>
             </div>
           </div>
 
-          <div class="card mt-3">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-chart-bar"></i> Statistics
-              </h6>
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-chart-bar"></i> Statistics</h6>
             </div>
-            <div class="card-body">
-              <div class="row text-center">
-                <div class="col-6">
-                  <div class="border-right">
-                    <h4 class="text-primary">{{ $statistics['total_sections'] }}</h4>
-                    <small class="text-muted">Sections</small>
-                  </div>
+            <div class="workflow-board-panel-body">
+              <div class="sf-stat-inline mb-3">
+                <div class="sf-stat">
+                  <div class="sf-stat-value">{{ $statistics['total_sections'] }}</div>
+                  <div class="sf-stat-label">Sections</div>
                 </div>
-                <div class="col-6">
-                  <h4 class="text-info">{{ $statistics['total_elements'] }}</h4>
-                  <small class="text-muted">Elements</small>
+                <div class="sf-stat">
+                  <div class="sf-stat-value">{{ $statistics['total_elements'] }}</div>
+                  <div class="sf-stat-label">Elements</div>
                 </div>
               </div>
-              <hr>
-              <div class="row text-center">
-                <div class="col-4">
-                  <h5 class="text-secondary">{{ $statistics['total_instances'] }}</h5>
-                  <small class="text-muted">Total</small>
+              <hr class="my-2" style="border-color: var(--workflow-border);">
+              <div class="sf-stat-inline">
+                <div class="sf-stat">
+                  <div class="sf-stat-value">{{ $statistics['total_instances'] }}</div>
+                  <div class="sf-stat-label">Total</div>
                 </div>
-                <div class="col-4">
-                  <h5 class="text-warning">{{ $statistics['draft_instances'] }}</h5>
-                  <small class="text-muted">Drafts</small>
+                <div class="sf-stat">
+                  <div class="sf-stat-value">{{ $statistics['draft_instances'] }}</div>
+                  <div class="sf-stat-label">Drafts</div>
                 </div>
-                <div class="col-4">
-                  <h5 class="text-success">{{ $statistics['approved_instances'] }}</h5>
-                  <small class="text-muted">Approved</small>
+                <div class="sf-stat">
+                  <div class="sf-stat-value">{{ $statistics['approved_instances'] }}</div>
+                  <div class="sf-stat-label">Approved</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="card mt-3">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-cog"></i> Quick Actions
-              </h6>
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-lightning-bolt-outline"></i> Quick Actions</h6>
             </div>
-            <div class="card-body">
-              <div class="d-grid gap-2">
-                <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-outline-info btn-sm">
+            <div class="workflow-board-panel-body">
+              <div class="sf-action-stack">
+                <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
                   <i class="mdi mdi-eye-outline"></i> Preview Form
                 </a>
-                
-                <form method="POST" action="{{ route('submission-forms.clone', $submissionForm) }}" 
+                <form method="POST" action="{{ route('submission-forms.clone', $submissionForm) }}"
                       onsubmit="return confirm('Are you sure you want to clone this form?')">
                   @csrf
-                  <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary btn-action-sm w-100">
                     <i class="mdi mdi-content-copy"></i> Clone Form
                   </button>
                 </form>
-                
-                <a href="{{ route('submission-forms.export', $submissionForm) }}" class="btn btn-outline-info btn-sm">
+                <a href="{{ route('submission-forms.export', $submissionForm) }}" class="btn btn-sm btn-outline-secondary btn-action-sm">
                   <i class="mdi mdi-download"></i> Export Structure
                 </a>
               </div>
@@ -172,87 +153,80 @@
           </div>
         </div>
 
-        <!-- Form Structure -->
-        <div class="col-md-8">
-          <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <h6 class="mb-0">
-                <i class="mdi mdi-file-tree"></i> Form Structure
-              </h6>
-              <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-sm btn-primary">
+        <div class="col-lg-8">
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-file-tree"></i> Form Structure</h6>
+              <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-sm btn-primary btn-action-sm">
                 <i class="mdi mdi-cog"></i> Open Builder
               </a>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               @if($submissionForm->sections->count() > 0)
-                <div class="form-structure">
-                  @foreach($submissionForm->sections as $section)
-                    <div class="section-item mb-4">
-                      <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                          <h6 class="text-primary mb-1">
-                            <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
-                          </h6>
-                          @if($section->description)
-                            <p class="text-muted small mb-2">{!! nl2br(e($section->description)) !!}</p>
-                          @endif
-                        </div>
-                        <span class="badge badge-light">{{ $section->elementHolders->count() }} holder(s)</span>
+                @foreach($submissionForm->sections as $section)
+                  <div class="sf-structure-section">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap: 8px;">
+                      <div>
+                        <h6 class="mb-1" style="color: var(--workflow-text-main);">
+                          <i class="mdi mdi-folder-outline text-primary"></i> {{ $section->title }}
+                        </h6>
+                        @if($section->description)
+                          <p class="text-muted small mb-2">{!! nl2br(e($section->description)) !!}</p>
+                        @endif
                       </div>
-                      
-                      @if($section->elementHolders->count() > 0)
-                        <div class="ml-3 mt-2">
-                          @foreach($section->elementHolders as $holder)
-                            <div class="holder-item mb-3 p-2 border-left border-info">
-                              <div class="d-flex justify-content-between align-items-center mb-2">
-                                <small class="text-info font-weight-bold">
-                                  <i class="mdi mdi-{{ $holder->holder_type === 'field' ? 'form-textbox' : 'text' }}"></i>
-                                  {{ ucfirst($holder->holder_type) }} Holder
-                                  ({{ $holder->elements->count() }}/{{ $holder->max_elements }})
-                                </small>
-                                @if($holder->isAtCapacity())
-                                  <span class="badge badge-warning badge-sm">Full</span>
-                                @endif
-                              </div>
-                              
-                              @if($holder->elements->count() > 0)
-                                <div class="elements-list">
-                                  @foreach($holder->elements as $element)
-                                    <div class="element-item d-flex justify-content-between align-items-center py-1">
-                                      <div class="d-flex align-items-center">
-                                        <i class="mdi mdi-{{ getElementIcon($element->element_type) }} text-secondary mr-2"></i>
-                                        <span class="small">{{ $element->label }}</span>
-                                        @if($element->is_required)
-                                          <span class="text-danger ml-1">*</span>
-                                        @endif
-                                      </div>
-                                      <div>
-                                        <span class="badge badge-outline-secondary badge-sm">{{ $element->element_type }}</span>
-                                        @if($element->is_readonly)
-                                          <span class="badge badge-outline-warning badge-sm">readonly</span>
-                                        @endif
-                                      </div>
-                                    </div>
-                                  @endforeach
-                                </div>
-                              @else
-                                <div class="text-muted small">No elements added yet</div>
+                      <span class="sf-meta-chip">{{ $section->elementHolders->count() }} holder(s)</span>
+                    </div>
+
+                    @if($section->elementHolders->count() > 0)
+                      <div class="mt-2">
+                        @foreach($section->elementHolders as $holder)
+                          <div class="sf-holder-item">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                              <small class="font-weight-bold" style="color: var(--workflow-accent);">
+                                <i class="mdi mdi-{{ $holder->holder_type === 'field' ? 'form-textbox' : 'text' }}"></i>
+                                {{ ucfirst($holder->holder_type) }} Holder
+                                ({{ $holder->elements->count() }}/{{ $holder->max_elements }})
+                              </small>
+                              @if($holder->isAtCapacity())
+                                <span class="sf-meta-chip is-warning">Full</span>
                               @endif
                             </div>
-                          @endforeach
-                        </div>
-                      @else
-                        <div class="ml-3 mt-2 text-muted small">No element holders added yet</div>
-                      @endif
-                    </div>
-                  @endforeach
-                </div>
+
+                            @if($holder->elements->count() > 0)
+                              @foreach($holder->elements as $element)
+                                <div class="sf-element-row">
+                                  <div class="d-flex align-items-center">
+                                    <i class="mdi mdi-{{ getElementIcon($element->element_type) }} text-muted mr-2"></i>
+                                    <span class="small">{{ $element->label }}</span>
+                                    @if($element->is_required)
+                                      <span class="text-danger ml-1">*</span>
+                                    @endif
+                                  </div>
+                                  <div>
+                                    <span class="sf-meta-chip">{{ $element->element_type }}</span>
+                                    @if($element->is_readonly)
+                                      <span class="sf-meta-chip is-warning">readonly</span>
+                                    @endif
+                                  </div>
+                                </div>
+                              @endforeach
+                            @else
+                              <div class="text-muted small">No elements added yet</div>
+                            @endif
+                          </div>
+                        @endforeach
+                      </div>
+                    @else
+                      <div class="mt-2 text-muted small">No element holders added yet</div>
+                    @endif
+                  </div>
+                @endforeach
               @else
                 <div class="text-center py-5">
-                  <i class="mdi mdi-file-tree" style="font-size: 3rem; color: #ccc;"></i>
-                  <h5 class="text-muted mt-3">No sections added yet</h5>
-                  <p class="text-muted">Use the Form Builder to add sections and form elements.</p>
-                  <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-primary mt-2">
+                  <i class="mdi mdi-file-tree" style="font-size: 3rem; color: #cbd5e1;"></i>
+                  <h6 class="text-muted mt-3">No sections added yet</h6>
+                  <p class="text-muted small">Use the Form Builder to add sections and form elements.</p>
+                  <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-sm btn-primary btn-action-sm mt-2">
                     <i class="mdi mdi-cog"></i> Open Form Builder
                   </a>
                 </div>
@@ -260,38 +234,29 @@
             </div>
           </div>
 
-          <!-- Form Details -->
-          <div class="card mt-3">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-information"></i> Form Details
-              </h6>
+          <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header">
+              <h6 class="mb-0"><i class="mdi mdi-information-outline"></i> Form Details</h6>
             </div>
-            <div class="card-body">
+            <div class="workflow-board-panel-body">
               <div class="row">
                 <div class="col-md-6">
-                  <dl class="row">
-                    <dt class="col-sm-5">Created By:</dt>
+                  <dl class="row mb-0 small">
+                    <dt class="col-sm-5 text-muted">Created By</dt>
                     <dd class="col-sm-7">{{ $submissionForm->creator->name ?? 'Unknown' }}</dd>
-                    
-                    <dt class="col-sm-5">Created:</dt>
+                    <dt class="col-sm-5 text-muted">Created</dt>
                     <dd class="col-sm-7">{{ $submissionForm->created_at->format('M d, Y H:i') }}</dd>
-                    
-                    <dt class="col-sm-5">Last Updated:</dt>
+                    <dt class="col-sm-5 text-muted">Last Updated</dt>
                     <dd class="col-sm-7">{{ $submissionForm->updated_at->format('M d, Y H:i') }}</dd>
                   </dl>
                 </div>
                 <div class="col-md-6">
-                  <dl class="row">
-                    <dt class="col-sm-5">Form Prefix:</dt>
+                  <dl class="row mb-0 small">
+                    <dt class="col-sm-5 text-muted">Form Prefix</dt>
                     <dd class="col-sm-7">{{ $submissionForm->naming_convention_prefix }}</dd>
-                    
-                    <dt class="col-sm-5">Number Format:</dt>
-                    <dd class="col-sm-7">
-                      <code>{{ $submissionForm->naming_convention_format }}</code>
-                    </dd>
-                    
-                    <dt class="col-sm-5">Version:</dt>
+                    <dt class="col-sm-5 text-muted">Number Format</dt>
+                    <dd class="col-sm-7"><code>{{ $submissionForm->naming_convention_format }}</code></dd>
+                    <dt class="col-sm-5 text-muted">Version</dt>
                     <dd class="col-sm-7">{{ $submissionForm->version }}</dd>
                   </dl>
                 </div>
@@ -301,28 +266,7 @@
         </div>
       </div>
     </div>
-
-    </div>
   </main>
-
-  <!-- Success/Error Messages -->
-  @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      {{ session('success') }}
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
-
-  @if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      {{ session('error') }}
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
 @endsection
 
 @section('scripts')
@@ -795,98 +739,10 @@ waitForJQuery(function() {
 </script>
 
 <script>
-  // Auto-hide alerts after 5 seconds
   setTimeout(function() {
     $('.alert').fadeOut('slow');
   }, 5000);
 </script>
-
-<style>
-  .d-grid {
-    display: grid;
-  }
-  
-  .gap-2 {
-    gap: 0.5rem;
-  }
-  
-  .form-structure .section-item {
-    border-left: 3px solid var(--color-primary);
-    padding-left: 15px;
-  }
-  
-  .holder-item {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  }
-  
-  /* Form group spacing */
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-  
-  .form-group:last-child {
-    margin-bottom: 0;
-  }
-  
-  .element-item:hover {
-    background-color: #e9ecef;
-    border-radius: 3px;
-  }
-
-  /* Ensure all form controls have minimum width */
-  .form-control {
-    min-width: 145px !important;
-  }
-
-  /* Custom element styling */
-  .custom-element {
-    margin-bottom: 1rem;
-    min-width: 145px !important;
-  }
-
-  .custom-element .form-control {
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-  }
-
-  /* Select2 styling - ensure minimum width */
-  .select2-container {
-    width: 100% !important;
-    min-width: 145px !important;
-  }
-
-  .select2-container--default .select2-selection--single {
-    height: 38px;
-    border: 1px solid #ced4da;
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-  }
-
-  .select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 36px;
-    padding-left: 12px;
-    min-width: 145px !important;
-  }
-
-  /* Ensure custom element selects have minimum width */
-  select.custom-element {
-    min-width: 145px !important;
-  }
-
-  /* Select2 dropdown minimum width */
-  .select2-dropdown {
-    min-width: 145px !important;
-  }
-  
-  .badge-sm {
-    font-size: 0.7em;
-  }
-</style>
 @endsection
 
 @php

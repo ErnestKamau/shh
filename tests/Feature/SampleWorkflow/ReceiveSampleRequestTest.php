@@ -5,8 +5,7 @@ namespace Tests\Feature\SampleWorkflow;
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Livewire\Sampleworkflow\WorkflowBoard;
 use App\Models\CRM\CRMCustomer;
-use App\Models\TestRequestForm;
-use App\Models\TestRequestFormInstance;
+use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
@@ -237,7 +236,7 @@ class ReceiveSampleRequestTest extends TestCase
         $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED, $enquiry->fresh()->status);
     }
 
-    public function test_walk_in_capture_creates_trfi_with_normalized_form_data(): void
+    public function test_walk_in_capture_creates_sfi_with_normalized_form_data(): void
     {
         $sampleType = $this->createSampleType('Water', 'SMP-WTR');
         $portalForm = $this->createCommercialTrfForm();
@@ -261,17 +260,21 @@ class ReceiveSampleRequestTest extends TestCase
             ->call('confirmReceive')
             ->assertDispatched('receive-completed');
 
-        $trfi = \App\Models\TestRequestFormInstance::query()->first();
-        $this->assertNotNull($trfi);
-        $this->assertSame(\App\Models\TestRequestFormInstance::CHANNEL_WALK_IN, $trfi->source_channel);
-        $this->assertSame('Walk-in Customer', $trfi->form_data['customer_name']);
-        $this->assertSame('555-0100', $trfi->form_data['customer_phone']);
-        $this->assertSame('555-0200', $trfi->form_data['mobile_number']);
-        $this->assertSame('2026-06-18', $trfi->form_data['sampling_date']);
-        $this->assertSame('Tap Water', $trfi->form_data['sample_rows'][0]['sample_description']);
+        $sfi = \App\Models\SubmissionFormInstance::query()->latest('created_at')->first();
+        $this->assertNotNull($sfi);
+        $this->assertSame('walk_in', $sfi->source_channel);
+
+        $values = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+            ->valuesMapFromInstance($sfi);
+
+        $this->assertSame('Walk-in Customer', $values['customer_name'] ?? null);
+        $this->assertSame('555-0100', $values['customer_phone'] ?? null);
+        $this->assertSame('555-0200', $values['mobile_number'] ?? null);
+        $this->assertSame('2026-06-18', $values['sampling_date'] ?? null);
+        $this->assertSame('Tap Water', $values['sample_rows'][0]['sample_description'] ?? null);
 
         $this->assertDatabaseHas('sample_submission_requests', [
-            'test_request_form_instance_id' => $trfi->id,
+            'submission_form_instance_id' => $sfi->id,
             'source_channel' => 'walk_in',
         ]);
     }
@@ -297,9 +300,11 @@ class ReceiveSampleRequestTest extends TestCase
             ->call('confirmReceive')
             ->assertDispatched('receive-completed');
 
-        $trfi = \App\Models\TestRequestFormInstance::query()->first();
-        $this->assertNotNull($trfi);
-        $this->assertArrayNotHasKey('sampling_date', $trfi->form_data);
+        $sfi = \App\Models\SubmissionFormInstance::query()->latest('created_at')->first();
+        $this->assertNotNull($sfi);
+        $values = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+            ->valuesMapFromInstance($sfi);
+        $this->assertArrayNotHasKey('sampling_date', $values);
     }
 
     public function test_walk_in_capture_persists_sample_quantity_and_unit(): void
@@ -325,9 +330,12 @@ class ReceiveSampleRequestTest extends TestCase
             ->call('confirmReceive')
             ->assertDispatched('receive-completed');
 
-        $trfi = \App\Models\TestRequestFormInstance::query()->first();
-        $this->assertSame('2', $trfi->form_data['sample_rows'][0]['sample_quantity']);
-        $this->assertSame('kg', $trfi->form_data['sample_rows'][0]['sample_quantity_unit']);
+        $sfi = \App\Models\SubmissionFormInstance::query()->latest('created_at')->first();
+        $this->assertNotNull($sfi);
+        $values = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
+            ->valuesMapFromInstance($sfi);
+        $this->assertSame('2', $values['sample_rows'][0]['sample_quantity'] ?? null);
+        $this->assertSame('kg', $values['sample_rows'][0]['sample_quantity_unit'] ?? null);
     }
 
     public function test_walk_in_capture_requires_customer_name(): void
@@ -369,6 +377,96 @@ class ReceiveSampleRequestTest extends TestCase
             ->call('nextWalkInStep')
             ->assertHasNoErrors()
             ->assertSet('walkInActiveStepIndex', 1);
+    }
+
+    public function test_walk_in_customer_selection_by_id_resolves_even_when_name_has_trailing_whitespace(): void
+    {
+        $sampleType = $this->createSampleType('Food', 'SMP-FOOD-CUST');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $section = $this->createWalkInCustomerDetailsSection($portalForm);
+        $holderId = $section->elementHolders()->value('id');
+
+        foreach ([
+            ['customer_address', 'Address', 'textarea'],
+            ['customer_phone', 'Tel / Fax no.', 'text'],
+            ['customer_email', 'Email', 'text'],
+            ['contact_person', 'Contact person', 'client_contact_select'],
+        ] as $index => [$name, $label, $type]) {
+            SubmissionFormElement::query()->create([
+                'id' => (string) Str::uuid7(),
+                'submission_form_element_holder_id' => $holderId,
+                'element_type' => $type,
+                'label' => $label,
+                'name' => $name,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        $customer = CRMCustomer::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Nuvemite ',
+            'code' => 'NUV-WS',
+            'active' => 1,
+            'physical_address' => '2588',
+            'telephone1' => '0712345678',
+            'email' => 'nuvemiteprojects@gmail.com',
+        ]);
+
+        CustomerContact::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $customer->id,
+            'company_id' => (string) Str::uuid7(),
+            'first_name' => 'Alex',
+            'last_name' => 'Contact',
+            'email' => 'alex@example.test',
+            'telephone' => '0700000000',
+            'active' => 1,
+            'receive_price_list' => 0,
+            'receive_invoice' => 0,
+            'receive_report' => 0,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+                'pageMode' => true,
+                'wizardOnly' => true,
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('selectedCrmCustomerId', $customer->id)
+            ->assertSet('selectedCrmCustomerId', $customer->id)
+            ->assertSet('formData.customer_name', 'Nuvemite')
+            ->assertSet('formData.customer_address', '2588')
+            ->assertSet('formData.customer_email', 'nuvemiteprojects@gmail.com')
+            ->call('openWalkInAddContactModal')
+            ->assertHasNoErrors(['formData.customer_name'])
+            ->assertSet('showWalkInAddContactModal', true);
+    }
+
+    public function test_walk_in_customer_name_with_trailing_whitespace_still_resolves_for_contacts(): void
+    {
+        $sampleType = $this->createSampleType('Food', 'SMP-FOOD-NAME');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $this->createWalkInCustomerDetailsSection($portalForm);
+
+        CRMCustomer::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Nuvemite ',
+            'code' => 'NUV-NAME',
+            'active' => 1,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData.customer_name', 'Nuvemite ')
+            ->call('openWalkInAddContactModal')
+            ->assertHasNoErrors(['formData.customer_name'])
+            ->assertSet('showWalkInAddContactModal', true);
     }
 
     public function test_walk_in_capture_requires_at_least_one_sample_row(): void
@@ -723,8 +821,6 @@ class ReceiveSampleRequestTest extends TestCase
 
     private function createSampleType(string $name, string $code): \App\SampleType
     {
-        TestRequestForm::seedDefaults();
-
         return \App\SampleType::query()->firstOrCreate(
             ['code' => $code],
             [

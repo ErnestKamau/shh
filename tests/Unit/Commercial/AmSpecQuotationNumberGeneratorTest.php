@@ -10,25 +10,32 @@ use Tests\TestCase;
 class AmSpecQuotationNumberGeneratorTest extends TestCase
 {
     #[Test]
-    public function it_formats_customer_scoped_reference_numbers(): void
+    public function it_formats_amsq_lab_ref_numbers(): void
     {
         $date = Carbon::parse('2026-06-02');
 
         $this->assertSame(
-            'MaerskOilTrading2026001',
-            AmSpecQuotationNumberGenerator::formatSequence('MaerskOilTrading', $date, 1)
+            'AMSQ260602-001',
+            AmSpecQuotationNumberGenerator::formatLabRef($date, 1)
         );
         $this->assertSame(
-            'MaerskOilTrading2026042',
-            AmSpecQuotationNumberGenerator::formatSequence('MaerskOilTrading', $date, 42)
+            'AMSQ260602-042',
+            AmSpecQuotationNumberGenerator::formatLabRef($date, 42)
+        );
+        $this->assertSame(
+            'AMSQ260602-042',
+            AmSpecQuotationNumberGenerator::formatLabRef($date, 42, 'AMSQ')
         );
     }
 
     #[Test]
-    public function it_sanitizes_customer_names_for_quote_numbers(): void
+    public function it_detects_amsq_format(): void
     {
-        $this->assertSame('MaerskOilTrading', AmSpecQuotationNumberGenerator::sanitizeCustomerName('Maersk Oil Trading'));
-        $this->assertSame('Customer', AmSpecQuotationNumberGenerator::sanitizeCustomerName('   '));
+        $this->assertTrue(AmSpecQuotationNumberGenerator::isAmsqFormat('AMSQ260727-206'));
+        $this->assertTrue(AmSpecQuotationNumberGenerator::isAmsqFormat('AMSQ260602-001'));
+        $this->assertFalse(AmSpecQuotationNumberGenerator::isAmsqFormat('MaerskOilTrading2026001'));
+        $this->assertFalse(AmSpecQuotationNumberGenerator::isAmsqFormat(''));
+        $this->assertFalse(AmSpecQuotationNumberGenerator::isAmsqFormat(null));
     }
 
     #[Test]

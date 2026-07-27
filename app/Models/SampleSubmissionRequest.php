@@ -62,7 +62,6 @@ class SampleSubmissionRequest extends Model
     protected $fillable = [
         'sample_header_id',
         'submission_form_instance_id',
-        'test_request_form_instance_id',
         'crm_customer_id',
         'crm_contact_id',
         'source_channel',
@@ -295,17 +294,6 @@ class SampleSubmissionRequest extends Model
             $instance = SubmissionFormInstance::query()
                 ->with('submissionForm')
                 ->find($submissionFormInstanceId);
-
-            if ($instance !== null) {
-                return $instance;
-            }
-        }
-
-        $testRequestFormInstanceId = trim((string) ($this->test_request_form_instance_id ?? ''));
-        if ($testRequestFormInstanceId !== '') {
-            $instance = SubmissionFormInstance::query()
-                ->with('submissionForm')
-                ->find($testRequestFormInstanceId);
 
             if ($instance !== null) {
                 return $instance;

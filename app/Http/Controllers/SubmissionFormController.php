@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use App\Services\PageLayoutRegistry;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 
 class SubmissionFormController extends Controller
 {
@@ -31,13 +32,13 @@ class SubmissionFormController extends Controller
      * 
      * @return \Illuminate\View\View
      */
-    public function create()
+    public function create(Request $request)
     {
         $labSections = \App\SampleAnalysisStage::where('active', 1)
             ->where('is_sample_stage', 0)
             ->orderBy('name')
             ->get();
-        $availablePages = $this->getAvailablePlacementPages();
+        $availablePages = $this->getCuratedPlacementPages();
         $templateFormTypes = SubmissionFormTemplateType::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -50,7 +51,31 @@ class SubmissionFormController extends Controller
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
         $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
 
-        return view('submission-forms.create', compact('labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypes'));
+        $fromRft = $request->query('from') === 'rft' || $request->boolean('trf');
+        $trfDefaults = $fromRft ? [
+            'name' => 'Test Request Form',
+            'document_code' => 'TRF-',
+            'description' => 'Test request form template linked to one or more sample types.',
+            'naming_convention_prefix' => 'TRF',
+            'naming_convention_format' => '{prefix}-{year}-{sequence}',
+            'is_customer_portal_form' => true,
+            'form_type' => 'template',
+            'placement_mode' => 'page_section',
+            'placement_slot' => ['customer_portal', 'admin_portal', 'samples_receiving'],
+            'version' => '1.0',
+            'issue_date' => now()->toDateString(),
+        ] : [];
+
+        return view('submission-forms.create', compact(
+            'labSections',
+            'availablePages',
+            'templateFormTypes',
+            'templateForms',
+            'customers',
+            'sampleTypes',
+            'fromRft',
+            'trfDefaults'
+        ));
     }
 
     /**
@@ -145,6 +170,12 @@ class SubmissionFormController extends Controller
 
         $this->bustSubmissionFormPageCache($validated['target_pages'] ?? []);
 
+        if ($request->input('return_to') === 'rft') {
+            return redirect()
+                ->route('submission-forms.builder', $form)
+                ->with('success', 'TRF created. Add sections and fields, then link sample types on Edit Form.');
+        }
+
         return redirect()
             ->route('submission-forms.show', $form)
             ->with('success', 'Submission form created successfully. You can now add sections and elements.');
@@ -163,7 +194,13 @@ class SubmissionFormController extends Controller
             'creator'
         ]);
 
+        $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm);
+        $submissionForm->setRelation('sections', $sections);
+
         $statistics = $submissionForm->getStatistics();
+        $statistics['total_sections'] = $sections->count();
+        $statistics['total_elements'] = $sections
+            ->sum(fn ($section) => $section->elementHolders->sum(fn ($holder) => $holder->elements->count()));
 
         return view('submission-forms.show', compact('submissionForm', 'statistics'));
     }
@@ -181,7 +218,12 @@ class SubmissionFormController extends Controller
             ->orderBy('name')
             ->get();
 
-        $availablePages = $this->getAvailablePlacementPages();
+        $availablePages = $this->getCuratedPlacementPages(
+            array_merge(
+                $submissionForm->target_pages ?? [],
+                $submissionForm->lims_destination_pages ?? []
+            )
+        );
         $templateFormTypes = SubmissionFormTemplateType::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -384,6 +426,67 @@ class SubmissionFormController extends Controller
     }
 
     /**
+     * Curated placement / LIMS destination options for form admin UI.
+     * Always includes any already-selected values so edits do not drop them.
+     *
+     * @param  array<int, string>  $alwaysInclude
+     * @return array<int, array{value: string, label: string, name: string, uri: string}>
+     */
+    private function getCuratedPlacementPages(array $alwaysInclude = []): array
+    {
+        $allowedExact = [
+            'sample-workflow',
+            'sample-workflow-stage',
+            'sample-workflow.request-for-testing',
+            'sample-workflow.request-for-testing.fill',
+            'sample-submission-requests.index',
+            'sample-submission-requests.create',
+            'sample-submission-requests.show',
+            'dashboard-lab',
+            'lab-home',
+            'system-planner.dashboard',
+            'system-planner.fill-sampling-forms',
+            'submission-forms.index',
+            'submission-forms.instances.index',
+        ];
+
+        $allowedPrefixes = [
+            'sample-workflow',
+            'sample-submission',
+            'submission-forms.instances',
+            'system-planner',
+            'dashboard-lab',
+        ];
+
+        $alwaysInclude = collect($alwaysInclude)
+            ->filter(fn ($value) => is_string($value) && $value !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        return collect($this->getAvailablePlacementPages())
+            ->filter(function (array $page) use ($allowedExact, $allowedPrefixes, $alwaysInclude): bool {
+                $value = (string) ($page['value'] ?? '');
+
+                if (in_array($value, $alwaysInclude, true) || in_array($value, $allowedExact, true)) {
+                    return true;
+                }
+
+                foreach ($allowedPrefixes as $prefix) {
+                    if (str_starts_with($value, $prefix)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->unique('value')
+            ->sortBy('name')
+            ->values()
+            ->all();
+    }
+
+    /**
      * Get sample workflow status labels for context-aware page placement.
      *
      * @return array<int, string>
@@ -554,6 +657,9 @@ class SubmissionFormController extends Controller
                 $query->orderBy('sort_order');
             }
         ]);
+
+        $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm);
+        $submissionForm->setRelation('sections', $sections);
 
         $existingValues = collect();
 

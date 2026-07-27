@@ -9,7 +9,6 @@ use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestFormInstance;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
@@ -1375,19 +1374,6 @@ class AcceptanceFormPricingService
         }
 
         return $parameters;
-    }
-
-    /**
-     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 4
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function parameterSeedsFromTrfi(TestRequestFormInstance $trfi, ?string $defaultSampleTypeId): array
-    {
-        return $this->parameterSeedsFromInstanceLines(
-            app(SubmissionRequestSampleLineService::class)->linesForTrfi($trfi),
-            $defaultSampleTypeId,
-        );
     }
 
     private function resolveEnquiryForPrefill(?string $submissionRequestId, ?string $submissionFormInstanceId): ?SampleSubmissionRequest

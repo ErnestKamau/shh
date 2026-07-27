@@ -4,7 +4,6 @@ namespace App\Services\Sampleworkflow;
 
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
-use App\Models\TestRequestFormInstance;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -124,19 +123,6 @@ class TestRequestFormPdfService
     public function download(SubmissionFormInstance $instance)
     {
         return $this->stream($instance);
-    }
-
-    /**
-     * @deprecated-remove TRF_LAYER_MANIFEST.md — legacy TRFI entry point.
-     */
-    public function generateAndStoreLegacyTrfi(TestRequestFormInstance $trfi): string
-    {
-        $sfi = $trfi->submissionFormInstance;
-        if ($sfi === null) {
-            throw new \RuntimeException('TRFI has no linked submission form instance.');
-        }
-
-        return $this->generateAndStore($sfi);
     }
 
     /**

@@ -428,6 +428,10 @@ trait BuildsSubmissionFormTrfSections
 
     protected function createMiscellaneousSection(SubmissionForm $form, int $sortOrder = 4): void
     {
+        if ($form->sections()->where('title', 'Miscellaneous')->exists()) {
+            return;
+        }
+
         $section = $form->sections()->create([
             'title' => 'Miscellaneous',
             'description' => 'Packaging, shipping, and other sample handling details.',
@@ -654,6 +658,10 @@ trait BuildsSubmissionFormTrfSections
 
     protected function createCustomerDetailsSection(SubmissionForm $form, int $sortOrder = 1): void
     {
+        if ($form->sections()->where('title', 'Customer details')->exists()) {
+            return;
+        }
+
         $section = $form->sections()->create([
             'title' => 'Customer details',
             'description' => 'Customer information for this test request.',
@@ -779,6 +787,10 @@ trait BuildsSubmissionFormTrfSections
         array $extraApparatusOptions = [],
         array $extraFields = [],
     ): void {
+        if ($form->sections()->where('title', 'Sample collection data')->exists()) {
+            return;
+        }
+
         $section = $form->sections()->create([
             'title' => 'Sample collection data',
             'description' => 'Sampling details, apparatus, method, and transport.',
@@ -866,6 +878,10 @@ trait BuildsSubmissionFormTrfSections
 
     protected function createSubmitAndSignSection(SubmissionForm $form, int $sortOrder): void
     {
+        if ($form->sections()->whereIn('title', ['Submit & sign', 'Submit and sign'])->exists()) {
+            return;
+        }
+
         $section = $form->sections()->create([
             'title' => 'Submit & sign',
             'description' => 'Statement of conformity, sampling officer, and customer representative.',
@@ -919,6 +935,11 @@ trait BuildsSubmissionFormTrfSections
         string $title,
         array $rowFields,
     ): SubmissionFormSection {
+        $existing = $form->sections()->where('title', $title)->first();
+        if ($existing !== null) {
+            return $existing;
+        }
+
         $section = $form->sections()->create([
             'title' => $title,
             'description' => 'Sample lines with test requirements.',

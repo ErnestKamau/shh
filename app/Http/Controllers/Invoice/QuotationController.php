@@ -241,10 +241,6 @@ class QuotationController extends Controller
         }
         $header->save();
         AmSpecQuotationNumberGenerator::assignIfMissing($header);
-        if (! isset($request->quote_id) && empty($header->laboratory_ref)) {
-            $header->laboratory_ref = $this->quotationReportService->generateLaboratoryRef($header);
-            $header->save();
-        }
         if (! isset($request->quote_id)) {
             $header->is_draft = 0;
         }

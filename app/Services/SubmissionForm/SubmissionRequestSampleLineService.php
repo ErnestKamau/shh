@@ -10,8 +10,6 @@ use App\Models\SubmissionFormInstance;
 use App\SampleType;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
-use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
-use App\Services\TestRequestForm\TestRequestFormDataMapper;
 use Illuminate\Support\Str;
 
 class SubmissionRequestSampleLineService
@@ -188,16 +186,6 @@ class SubmissionRequestSampleLineService
         unset($line);
 
         return $trfRowLines;
-    }
-
-    /**
-     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 4
-     *
-     * @return list<array<string, mixed>>
-     */
-    public function linesForTrfi(\App\Models\TestRequestFormInstance $trfi): array
-    {
-        return [];
     }
 
     /**
@@ -942,16 +930,6 @@ class SubmissionRequestSampleLineService
         }
 
         return AnalysisType::query()->whereKey($analysisTypeId)->value('name');
-    }
-
-    /**
-     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 4
-     */
-    private function linesFromTestRequestFormInstance(SubmissionFormInstance $instance): array
-    {
-        unset($instance);
-
-        return [];
     }
 
     /**

@@ -70,4 +70,39 @@ final class TrfDocumentCodeForSampleType
     {
         return in_array(trim($value), $this->foodSampleTypeLabels(), true);
     }
+
+    /**
+     * @return array{is_food: bool, is_water: bool, is_waste_water: bool}
+     */
+    public function classify(?SampleType $sampleType): array
+    {
+        if ($sampleType === null) {
+            return ['is_food' => false, 'is_water' => false, 'is_waste_water' => false];
+        }
+
+        $isFood = $this->isFood($sampleType);
+        $isWasteWater = $this->isWasteWater($sampleType);
+        $isWater = ! $isWasteWater && $this->isWater($sampleType);
+
+        return [
+            'is_food' => $isFood,
+            'is_water' => $isWater,
+            'is_waste_water' => $isWasteWater,
+        ];
+    }
+
+    public function resolveReportVariant(?SampleType $sampleType): string
+    {
+        $classification = $this->classify($sampleType);
+
+        if ($classification['is_food']) {
+            return 'food';
+        }
+
+        if ($classification['is_waste_water']) {
+            return 'waste_water';
+        }
+
+        return 'water';
+    }
 }

@@ -305,19 +305,11 @@ class WorkflowBoard extends Component
                 }
 
                 $rawSubmissionFormInstanceId = (string) ($enquiry->submission_form_instance_id ?? '');
-                $rawTestRequestFormInstanceId = (string) ($enquiry->test_request_form_instance_id ?? '');
                 $normalizedSubmissionFormInstanceId = trim($rawSubmissionFormInstanceId);
-                $normalizedTestRequestFormInstanceId = trim($rawTestRequestFormInstanceId);
 
-                if (
-                    $rawSubmissionFormInstanceId !== $normalizedSubmissionFormInstanceId
-                    || $rawTestRequestFormInstanceId !== $normalizedTestRequestFormInstanceId
-                ) {
+                if ($rawSubmissionFormInstanceId !== $normalizedSubmissionFormInstanceId) {
                     $enquiry->submission_form_instance_id = $normalizedSubmissionFormInstanceId !== ''
                         ? $normalizedSubmissionFormInstanceId
-                        : null;
-                    $enquiry->test_request_form_instance_id = $normalizedTestRequestFormInstanceId !== ''
-                        ? $normalizedTestRequestFormInstanceId
                         : null;
                     $enquiry->save();
                 }
@@ -863,7 +855,7 @@ class WorkflowBoard extends Component
     protected function subcontractingSubmissionFormsQuery(?string $dispatchStatusOverride = null): \Illuminate\Database\Eloquent\Builder
     {
         $driver = DB::connection()->getDriverName();
-        $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+        $hasTestRequestFormInstanceId = false /* legacy test_request_form_instance_id removed */;
 
         if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_status')) {
             return SubmissionFormInstance::query()->where('id', '00000000-0000-0000-0000-000000000000');
@@ -1497,7 +1489,7 @@ class WorkflowBoard extends Component
         }
 
         if ($this->status === 'Samples In Lab') {
-            $hasTestRequestFormInstanceId = Schema::hasColumn('sample_submission_requests', 'test_request_form_instance_id');
+            $hasTestRequestFormInstanceId = false /* legacy test_request_form_instance_id removed */;
 
             $query->where(function ($samplesInLabQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                 $samplesInLabQuery->where('status', 'approved')

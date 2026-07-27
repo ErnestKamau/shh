@@ -274,13 +274,5 @@ class SamplingSchedule extends Model implements Auditable
     {
         return $this->hasMany(SubmissionFormInstance::class, 'sampling_schedule_id');
     }
-
-    /**
-     * @deprecated-remove TRF_LAYER_MANIFEST.md Phase 6
-     */
-    public function testRequestFormInstances()
-    {
-        return $this->submissionFormInstances();
-    }
 }
 

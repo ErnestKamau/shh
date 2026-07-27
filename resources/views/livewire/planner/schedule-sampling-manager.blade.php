@@ -6,7 +6,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center flex-wrap schedule-page-header">
                         <div class="mb-2 mb-md-0 pr-md-3">
-                            <h3 class="mb-1 font-weight-bold"><i class="mdi mdi-clock-outline text-primary"></i> {{ __('planner.sampling_schedules') }}</h3>
+                            <h3 class="mb-1 schedule-page-title"><i class="mdi mdi-clock-outline text-primary"></i> {{ __('planner.sampling_schedules') }}</h3>
                             <p class="text-muted mb-0">{{ __('planner.sampling_schedules_subtitle') }}</p>
                         </div>
                         <button wire:click="showCreateModal" class="btn btn-outline-primary schedule-page-cta px-3" style="border-radius:8px;">
@@ -50,17 +50,17 @@
             <div class="row">
                 {{-- Date Range --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.date_from') }}</label>
+                    <label class="ss-filter-label">{{ __('planner.date_from') }}</label>
                     <input type="date" wire:model.live="filterDateFrom" class="form-control" style="border-radius:8px;">
                 </div>
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.date_to') }}</label>
+                    <label class="ss-filter-label">{{ __('planner.date_to') }}</label>
                     <input type="date" wire:model.live="filterDateTo" class="form-control" style="border-radius:8px;">
                 </div>
 
                 {{-- Client --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.client') }}</label>
+                    <label class="ss-filter-label">{{ __('planner.client') }}</label>
                     <select wire:model.live="filterClientId" class="form-control no-select2" style="border-radius:8px;">
                         <option value="">{{ __('planner.all_clients') }}</option>
                         @foreach($clients as $client)
@@ -71,7 +71,7 @@
 
                 {{-- Frequency --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">{{ __('planner.frequency') }}</label>
+                    <label class="ss-filter-label">{{ __('planner.frequency') }}</label>
                     <select wire:model.live="filterFrequency" class="form-control no-select2" style="border-radius:8px;">
                         <option value="">{{ __('planner.all_frequencies') }}</option>
                         @foreach($frequencies as $freq)
@@ -84,7 +84,7 @@
             <div class="row">
                 {{-- Sample Type --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Sample Type</label>
+                    <label class="ss-filter-label">Sample Type</label>
                     <select wire:model.live="filterSampleTypeId" class="form-control no-select2" style="border-radius:8px;">
                         <option value="">All Sample Types</option>
                         @foreach($allSampleTypes as $st)
@@ -95,7 +95,7 @@
 
                 {{-- Analysis Type --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Analysis Type</label>
+                    <label class="ss-filter-label">Analysis Type</label>
                     <select wire:model.live="filterAnalysisTypeId" class="form-control no-select2" style="border-radius:8px;">
                         <option value="">All Analysis Types</option>
                         @foreach($allAnalysisTypes as $at)
@@ -106,7 +106,7 @@
 
                 {{-- Parameters --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Parameters</label>
+                    <label class="ss-filter-label">Parameters</label>
                     <select wire:model.live="filterParameterId" class="form-control no-select2" style="border-radius:8px;">
                         <option value="">All Parameters</option>
                         @foreach($allParameters as $param)
@@ -117,7 +117,7 @@
 
                 {{-- Sample Count Range --}}
                 <div class="col-md-3 form-group mb-3">
-                    <label class="font-weight-bold text-muted small text-uppercase">Samples Range</label>
+                    <label class="ss-filter-label">Samples Range</label>
                     <div class="d-flex gap-2">
                         <input type="number" wire:model.live="filterMinSamples" class="form-control" placeholder="Min" min="1" style="border-radius:8px;width:48%;">
                         <input type="number" wire:model.live="filterMaxSamples" class="form-control" placeholder="Max" min="1" style="border-radius:8px;width:48%;">
@@ -272,154 +272,167 @@
 
     <!-- ═══ CREATE / EDIT MODAL ═══ -->
     @if($showModal)
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="flex-shrink:0;">
-                    <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-clock-outline mr-2"></i>{{ $editingSchedule ? 'Edit' : 'Schedule' }} Sampling Run</h5>
-                    <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
+    <div class="modal fade show d-block schedule-run-modal" tabindex="-1" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable schedule-run-modal__dialog">
+            <div class="modal-content border-0 schedule-run-modal__content">
+                <div class="modal-header text-white schedule-run-modal__header">
+                    <h5 class="modal-title schedule-run-modal__title m-0"><i class="mdi mdi-clock-outline mr-2"></i>{{ $editingSchedule ? 'Edit' : 'Schedule' }} Sampling Run</h5>
+                    <button type="button" class="close text-white" wire:click="closeModal" aria-label="Close"><span>&times;</span></button>
                 </div>
-                <div class="modal-body p-4" style="overflow-y:auto;flex:1 1 auto;">
+
+                <nav class="ss-form-nav" aria-label="Form sections">
+                    <a href="#ss-section-basic" class="ss-form-nav__item" data-ss-nav>Basic</a>
+                    <a href="#ss-section-client" class="ss-form-nav__item" data-ss-nav>Client</a>
+                    <a href="#ss-section-when" class="ss-form-nav__item" data-ss-nav>When / Where</a>
+                    <a href="#ss-section-samples" class="ss-form-nav__item" data-ss-nav>Samples</a>
+                    <a href="#ss-section-ops" class="ss-form-nav__item" data-ss-nav>Ops</a>
+                </nav>
+
+                <div class="modal-body schedule-run-modal__body" id="schedule-run-modal-body">
 
                     {{-- Basic Info --}}
-                    <div class="form-section-title"><i class="mdi mdi-information-outline"></i> Basic Info</div>
-                    <div class="form-group">
-                        <label class="font-weight-bold">Schedule Title <span class="text-danger">*</span></label>
-                        <input type="text" wire:model="form.title" class="form-control" placeholder="e.g. Monthly Water Sampling at Site A">
-                        @error('form.title') <span class="text-danger small">{{ $message }}</span> @enderror
-                    </div>
+                    <section class="ss-section" id="ss-section-basic">
+                        <div class="ss-section__title"><i class="mdi mdi-information-outline"></i> Basic</div>
+                        <div class="form-group mb-0">
+                            <label class="ss-label">Schedule Title <span class="text-danger">*</span></label>
+                            <input type="text" wire:model="form.title" class="form-control ss-control" placeholder="e.g. Monthly Water Sampling at Site A">
+                            @error('form.title') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </section>
 
                     {{-- Client --}}
-                    <div class="form-section-title"><i class="mdi mdi-account-outline"></i> Client Selection</div>
-                    <div class="form-group">
-                        <label class="font-weight-bold">Client / Customer Name <span class="text-danger">*</span></label>
-                        <div wire:ignore wire:key="schedule-client-{{ $editingSchedule->id ?? 'create' }}">
-                            <select class="form-control no-select2"
-                                    x-data="scheduleSelect2Bridge({
-                                        model: 'form.crm_customer_id',
-                                        multiple: false,
-                                        placeholder: 'Search client...',
-                                        initial: @js($form['crm_customer_id'] ?: ''),
-                                    })">
-                                <option value="">Select Customer</option>
-                                @foreach($clients as $c)
-                                <option value="{{ $c['id'] }}">{{ $c['name'] }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @error('form.crm_customer_id') <span class="text-danger small">{{ $message }}</span> @enderror
-                    </div>
-
-                    @if($contractValidFrom || $contractValidTo)
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label class="font-weight-bold">Contract Valid From <span class="badge badge-info" style="font-size:10px;">Prefilled</span></label>
-                            <input type="text" class="form-control bg-light" value="{{ $contractValidFrom }}" readonly>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label class="font-weight-bold">Contract Valid To <span class="badge badge-info" style="font-size:10px;">Prefilled</span></label>
-                            <input type="text" class="form-control bg-light" value="{{ $contractValidTo }}" readonly>
-                        </div>
-                    </div>
-                    @endif
-
-                    @if(!empty($form['crm_customer_id']))
-                    <div class="form-group" wire:key="schedule-contacts-{{ $form['crm_customer_id'] }}-{{ count($customerContactOptions) }}">
-                        <label class="font-weight-bold">Customer Contact Personnel</label>
-                        @if(count($customerContactOptions) > 0)
-                        <div wire:ignore>
-                            <select class="form-control no-select2" multiple
-                                    x-data="scheduleSelect2Bridge({
-                                        model: 'form.contact_ids',
-                                        multiple: true,
-                                        placeholder: 'Search and select contacts...',
-                                        initial: @js(array_values(array_map('strval', $form['contact_ids'] ?? []))),
-                                    })">
-                                @foreach($customerContactOptions as $cc)
-                                <option value="{{ $cc['id'] }}">{{ $cc['name'] }}{{ !empty($cc['email']) ? ' — '.$cc['email'] : '' }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <small class="text-muted">You can select more than one contact. Notify Client emails go to these contacts.</small>
-                        @else
-                        <p class="text-muted mb-1">No active contacts found for this customer.</p>
-                        @endif
-                        @error('form.contact_ids') <span class="text-danger small d-block">{{ $message }}</span> @enderror
-                    </div>
-                    @if(count($selectedContactsSummary) > 0)
-                    <div class="mb-3">
-                        @foreach($selectedContactsSummary as $summary)
-                        <div class="alert alert-light border p-2 mb-2" style="border-radius:8px;">
-                            <strong>{{ $summary['name'] }}</strong>
-                            <div class="d-flex flex-wrap" style="gap:12px;">
-                                <small class="text-muted">Email: <strong class="text-dark">{{ $summary['email'] ?: 'N/A' }}</strong></small>
-                                <small class="text-muted">Phone: <strong class="text-dark">{{ $summary['phone'] ?: 'N/A' }}</strong></small>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                    @endif
-                    @endif
-
-                    {{-- Timeline --}}
-                    <div class="form-section-title"><i class="mdi mdi-calendar-clock"></i> Timeline & Location</div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label class="font-weight-bold">Date & Time <span class="text-danger">*</span></label>
-                            <input type="datetime-local" wire:model="form.sampling_datetime" class="form-control">
-                            @error('form.sampling_datetime') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <div class="d-flex align-items-center justify-content-between mb-1">
-                                <label class="font-weight-bold mb-0">Location (Sample Point) <span class="text-danger">*</span></label>
-                                <button type="button"
-                                        class="btn btn-xs btn-outline-primary py-0 px-2"
-                                        wire:click="openAddSamplePointModal('schedule')"
-                                        @disabled(empty($form['crm_customer_id']))
-                                        title="Add sample point">
-                                    <i class="mdi mdi-plus"></i>
-                                </button>
-                            </div>
-                            @if(!empty($form['crm_customer_id']))
-                            <div wire:ignore wire:key="schedule-sample-point-{{ $form['crm_customer_id'] }}-{{ count($customerSamplePointOptions) }}-{{ $form['sample_point_id'] ?: 'none' }}">
-                                <select class="form-control no-select2"
+                    <section class="ss-section" id="ss-section-client">
+                        <div class="ss-section__title"><i class="mdi mdi-account-outline"></i> Client</div>
+                        <div class="form-group">
+                            <label class="ss-label">Client / Customer Name <span class="text-danger">*</span></label>
+                            <div wire:ignore wire:key="schedule-client-{{ $editingSchedule->id ?? 'create' }}">
+                                <select class="form-control no-select2 ss-control"
                                         x-data="scheduleSelect2Bridge({
-                                            model: 'form.sample_point_id',
+                                            model: 'form.crm_customer_id',
                                             multiple: false,
-                                            placeholder: 'Search sample point...',
-                                            initial: @js($form['sample_point_id'] ?: ''),
+                                            placeholder: 'Search client...',
+                                            initial: @js($form['crm_customer_id'] ?: ''),
                                         })">
-                                    <option value="">Select sample point</option>
-                                    @foreach($customerSamplePointOptions as $point)
-                                    <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
+                                    <option value="">Select Customer</option>
+                                    @foreach($clients as $c)
+                                    <option value="{{ $c['id'] }}">{{ $c['name'] }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            @else
-                            <input type="text" class="form-control bg-light" value="" placeholder="Select a customer first" disabled>
-                            @endif
-                            <small class="text-muted">Locations come from the customer's sample points.</small>
-                            @error('form.sample_point_id') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                            @error('form.crm_customer_id') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
-                    </div>
+
+                        @if($contractValidFrom || $contractValidTo)
+                        <p class="ss-contract-chip mb-3">
+                            Contract
+                            @if($contractValidFrom)<span>{{ $contractValidFrom }}</span>@endif
+                            @if($contractValidFrom && $contractValidTo)<span class="ss-contract-chip__sep">–</span>@endif
+                            @if($contractValidTo)<span>{{ $contractValidTo }}</span>@endif
+                        </p>
+                        @endif
+
+                        @if(!empty($form['crm_customer_id']))
+                        <div class="form-group mb-2" wire:key="schedule-contacts-{{ $form['crm_customer_id'] }}-{{ count($customerContactOptions) }}">
+                            <label class="ss-label">Customer Contact Personnel</label>
+                            @if(count($customerContactOptions) > 0)
+                            <div wire:ignore class="ss-compact-select">
+                                <select class="form-control no-select2 ss-control" multiple
+                                        x-data="scheduleSelect2Bridge({
+                                            model: 'form.contact_ids',
+                                            multiple: true,
+                                            placeholder: 'Search and select contacts...',
+                                            initial: @js(array_values(array_map('strval', $form['contact_ids'] ?? []))),
+                                        })">
+                                    @foreach($customerContactOptions as $cc)
+                                    <option value="{{ $cc['id'] }}">{{ $cc['name'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <small class="text-muted">Notify Client emails go to these contacts.</small>
+                            @else
+                            <p class="text-muted mb-1">No active contacts found for this customer.</p>
+                            @endif
+                            @error('form.contact_ids') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                        </div>
+                        @if(count($selectedContactsSummary) > 0)
+                        <div class="mb-0">
+                            @foreach($selectedContactsSummary as $summary)
+                            <div class="ss-contact-card mb-2">
+                                <div class="ss-contact-card__name">{{ $summary['name'] }}</div>
+                                <div class="ss-contact-card__meta">
+                                    <span>{{ $summary['email'] ?: 'N/A' }}</span>
+                                    <span>{{ $summary['phone'] ?: 'N/A' }}</span>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
+                        @endif
+                    </section>
+
+                    {{-- Timeline --}}
+                    <section class="ss-section" id="ss-section-when">
+                        <div class="ss-section__title"><i class="mdi mdi-calendar-clock"></i> When / Where</div>
+                        <div class="row ss-field-row">
+                            <div class="col-md-6 form-group">
+                                <label class="ss-label">Date &amp; Time <span class="text-danger">*</span></label>
+                                <input type="datetime-local" wire:model="form.sampling_datetime" class="form-control ss-control">
+                                @error('form.sampling_datetime') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="ss-label">Location (Sample Point) <span class="text-danger">*</span></label>
+                                <div class="ss-location-control">
+                                    <div class="ss-location-control__input">
+                                        @if(!empty($form['crm_customer_id']))
+                                        <div wire:ignore wire:key="schedule-sample-point-{{ $form['crm_customer_id'] }}-{{ count($customerSamplePointOptions) }}-{{ $form['sample_point_id'] ?: 'none' }}">
+                                            <select class="form-control no-select2 ss-control"
+                                                    x-data="scheduleSelect2Bridge({
+                                                        model: 'form.sample_point_id',
+                                                        multiple: false,
+                                                        placeholder: 'Search sample point...',
+                                                        initial: @js($form['sample_point_id'] ?: ''),
+                                                    })">
+                                                <option value="">Select sample point</option>
+                                                @foreach($customerSamplePointOptions as $point)
+                                                <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        @else
+                                        <input type="text" class="form-control bg-light ss-control" value="" placeholder="Select a customer first" disabled>
+                                        @endif
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-outline-primary ss-location-control__add"
+                                            wire:click="openAddSamplePointModal('schedule')"
+                                            @disabled(empty($form['crm_customer_id']))
+                                            title="Add sample point">
+                                        <i class="mdi mdi-plus"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">From the customer's sample points.</small>
+                                @error('form.sample_point_id') <span class="text-danger small d-block">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </section>
 
                     {{-- Multi Sample Details --}}
-                    <div class="form-section-title d-flex justify-content-between align-items-center">
-                        <span><i class="mdi mdi-flask-outline"></i> Sample Details</span>
-                        <button type="button" wire:click="addSampleEntry" class="btn btn-sm btn-outline-primary" style="border-radius:20px;"><i class="mdi mdi-plus"></i> Add Sample Type</button>
-                    </div>
+                    <section class="ss-section" id="ss-section-samples">
+                        <div class="ss-section__title ss-section__title--row">
+                            <span><i class="mdi mdi-flask-outline"></i> Samples</span>
+                            <button type="button" wire:click="addSampleEntry" class="btn btn-sm btn-outline-primary ss-add-sample-btn"><i class="mdi mdi-plus"></i> Add Sample Type</button>
+                        </div>
 
-                    @foreach($sampleEntries as $idx => $entry)
-                    <div class="card border mb-3" style="border-radius:10px;" wire:key="sample-entry-{{ $idx }}">
-                        <div class="card-body p-3">
+                        @foreach($sampleEntries as $idx => $entry)
+                        <div class="ss-sample-card mb-2" wire:key="sample-entry-{{ $idx }}">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <strong class="text-muted" style="font-size:12px;">Sample Entry #{{ $idx + 1 }}</strong>
-                                <button type="button" wire:click="removeSampleEntry({{ $idx }})" class="btn btn-sm btn-outline-danger" style="border-radius:50%;width:28px;height:28px;padding:0;"><i class="mdi mdi-close"></i></button>
+                                <span class="ss-sample-card__label">Sample #{{ $idx + 1 }}</span>
+                                <button type="button" wire:click="removeSampleEntry({{ $idx }})" class="btn btn-sm btn-outline-danger ss-sample-card__remove" title="Remove"><i class="mdi mdi-close"></i></button>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 form-group">
-                                    <label class="font-weight-bold">Sample Type</label>
-                                    <select wire:model.live="sampleEntries.{{ $idx }}.sample_type_id" class="form-control no-select2">
+                                    <label class="ss-label">Sample Type</label>
+                                    <select wire:model.live="sampleEntries.{{ $idx }}.sample_type_id" class="form-control no-select2 ss-control">
                                         <option value="">Select Sample Type</option>
                                         @foreach($allSampleTypes as $st)
                                         <option value="{{ $st['id'] }}">{{ $st['name'] }}</option>
@@ -427,8 +440,8 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6 form-group">
-                                    <label class="font-weight-bold">Analysis Type</label>
-                                    <select wire:model.live="sampleEntries.{{ $idx }}.analysis_type_id" class="form-control no-select2" {{ empty($entry['analysisTypes']) ? 'disabled' : '' }}>
+                                    <label class="ss-label">Analysis Type</label>
+                                    <select wire:model.live="sampleEntries.{{ $idx }}.analysis_type_id" class="form-control no-select2 ss-control" {{ empty($entry['analysisTypes']) ? 'disabled' : '' }}>
                                         <option value="">Select Analysis Type</option>
                                         @foreach($entry['analysisTypes'] ?? [] as $at)
                                         <option value="{{ $at['id'] }}">{{ $at['name'] }}</option>
@@ -445,8 +458,8 @@
                             <div class="form-group mb-0 schedule-params-field"
                                  wire:key="params-{{ $idx }}-{{ $entry['analysis_type_id'] }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <label class="font-weight-bold mb-0">Parameters / Analytes
-                                        <small class="text-muted font-weight-normal ml-1 schedule-params-count">
+                                    <label class="ss-label mb-0">Parameters / Analytes
+                                        <small class="text-muted ml-1 schedule-params-count">
                                             ({{ $selectedParamCount }}/{{ $availableParamCount }} selected)
                                         </small>
                                     </label>
@@ -475,66 +488,71 @@
                             </div>
                             @endif
                         </div>
-                    </div>
-                    @endforeach
+                        @endforeach
 
-                    @if(empty($sampleEntries))
-                    <p class="text-muted text-center py-2"><i class="mdi mdi-information-outline"></i> Click "Add Sample Type" to add sample details.</p>
-                    @endif
+                        @if(empty($sampleEntries))
+                        <p class="text-muted text-center py-2 mb-0"><i class="mdi mdi-information-outline"></i> Click “Add Sample Type” to add sample details.</p>
+                        @endif
+                    </section>
 
                     {{-- Operations --}}
-                    <div class="form-section-title"><i class="mdi mdi-account-multiple-outline"></i> Operations & Logistics</div>
-                    <div class="row">
-                        <div class="col-md-4 form-group">
-                            <label class="font-weight-bold">No. of Samples</label>
-                            <input type="number" class="form-control bg-light" value="{{ $form['number_of_samples'] }}" min="1" readonly
-                                   title="Automatically set from the number of sample entries added">
-                            <small class="text-muted">Auto-set from sample entries added above.</small>
-                            @error('form.number_of_samples') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                        <div class="col-md-4 form-group">
-                            <label class="font-weight-bold">Frequency <span class="text-danger">*</span></label>
-                            <select wire:model="form.frequency" class="form-control no-select2">
-                                <option value="One-time">One-time</option>
-                                <option value="Daily">Daily</option>
-                                <option value="Weekly">Weekly</option>
-                                <option value="Monthly">Monthly</option>
-                                <option value="Quarterly">Quarterly</option>
-                                <option value="Annually">Annually</option>
-                            </select>
-                            @error('form.frequency') <span class="text-danger small">{{ $message }}</span> @enderror
-                        </div>
-                        <div class="col-md-4 form-group d-flex align-items-center pt-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" wire:model="form.notify_client" id="notify_client_lw">
-                                <label class="form-check-label font-weight-bold" for="notify_client_lw">Notify Client</label>
+                    <section class="ss-section" id="ss-section-ops">
+                        <div class="ss-section__title"><i class="mdi mdi-account-multiple-outline"></i> Operations</div>
+                        <div class="row ss-field-row">
+                            <div class="col-md-4 form-group">
+                                <label class="ss-label">No. of Samples</label>
+                                <input type="number" class="form-control bg-light ss-control" value="{{ $form['number_of_samples'] }}" min="1" readonly
+                                       title="Automatically set from the number of sample entries added">
+                                <small class="text-muted">Auto from sample entries.</small>
+                                @error('form.number_of_samples') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <label class="ss-label">Frequency <span class="text-danger">*</span></label>
+                                <select wire:model="form.frequency" class="form-control no-select2 ss-control">
+                                    <option value="One-time">One-time</option>
+                                    <option value="Daily">Daily</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="Quarterly">Quarterly</option>
+                                    <option value="Annually">Annually</option>
+                                </select>
+                                @error('form.frequency') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <label class="ss-label" for="notify_client_lw">Notify Client</label>
+                                <div class="ss-notify-control ss-control">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" wire:model="form.notify_client" id="notify_client_lw">
+                                        <label class="form-check-label mb-0" for="notify_client_lw">Email selected contacts</label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="font-weight-bold">Personnel Carrying Out Sampling <span class="text-danger">*</span></label>
-                        <div wire:ignore wire:key="schedule-personnel-{{ $editingSchedule->id ?? 'create' }}">
-                            <select class="form-control no-select2" multiple
-                                    x-data="scheduleSelect2Bridge({
-                                        model: 'form.personnel_ids',
-                                        multiple: true,
-                                        placeholder: 'Search and select personnel...',
-                                        initial: @js(array_values(array_map('strval', $form['personnel_ids'] ?? []))),
-                                    })">
-                                @foreach($users as $u)
-                                <option value="{{ $u['id'] }}">{{ $u['name'] }}</option>
-                                @endforeach
-                            </select>
+                        <div class="form-group">
+                            <label class="ss-label">Personnel Carrying Out Sampling <span class="text-danger">*</span></label>
+                            <div wire:ignore class="ss-compact-select" wire:key="schedule-personnel-{{ $editingSchedule->id ?? 'create' }}">
+                                <select class="form-control no-select2 ss-control" multiple
+                                        x-data="scheduleSelect2Bridge({
+                                            model: 'form.personnel_ids',
+                                            multiple: true,
+                                            placeholder: 'Search and select personnel...',
+                                            initial: @js(array_values(array_map('strval', $form['personnel_ids'] ?? []))),
+                                        })">
+                                    @foreach($users as $u)
+                                    <option value="{{ $u['id'] }}">{{ $u['name'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('form.personnel_ids') <span class="text-danger small">{{ $message }}</span> @enderror
+                            @error('form.personnel_ids.*') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
-                        @error('form.personnel_ids') <span class="text-danger small">{{ $message }}</span> @enderror
-                        @error('form.personnel_ids.*') <span class="text-danger small">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="form-group">
-                        <label class="font-weight-bold">Description / Special Instructions</label>
-                        <textarea wire:model="form.description" class="form-control" rows="3" placeholder="Enter special instructions or notes..."></textarea>
-                    </div>
+                        <div class="form-group mb-0">
+                            <label class="ss-label">Description / Special Instructions</label>
+                            <textarea wire:model="form.description" class="form-control ss-control" rows="3" placeholder="Enter special instructions or notes..."></textarea>
+                        </div>
+                    </section>
                 </div>
-                <div class="modal-footer bg-light p-3" style="flex-shrink:0;">
+                <div class="modal-footer bg-light p-3 schedule-run-modal__footer">
                     <button type="button" class="btn btn-secondary" wire:click="closeModal">Close</button>
                     <button type="button" class="btn btn-primary" wire:click="save" wire:loading.attr="disabled" wire:target="save">
                         <span wire:loading.remove wire:target="save"><i class="mdi mdi-calendar-check mr-1"></i> {{ $editingSchedule ? 'Update' : 'Save' }} Schedule</span>
@@ -551,17 +569,17 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content border-0" style="border-radius:12px;">
                 <div class="modal-header py-2">
-                    <h5 class="modal-title font-weight-bold mb-0">Add sample point</h5>
+                    <h5 class="modal-title schedule-run-modal__title mb-0">Add sample point</h5>
                     <button type="button" class="close" wire:click="closeAddSamplePointModal" aria-label="Close"><span>&times;</span></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label class="small font-weight-bold">Name <span class="text-danger">*</span></label>
+                        <label class="ss-label">Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" wire:model="newSamplePointName" placeholder="Sample point name">
                         @error('newSamplePointName') <small class="text-danger">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group mb-0">
-                        <label class="small font-weight-bold">Client unit <span class="text-danger">*</span></label>
+                        <label class="ss-label">Client unit <span class="text-danger">*</span></label>
                         <select class="form-control form-control-sm no-select2" wire:model="newSamplePointUnitId">
                             <option value="">Select unit...</option>
                             @foreach($customerCompanyUnitOptions as $unit)
@@ -955,7 +973,21 @@
     @endif
 
     <style>
-    .form-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--color-primary);border-left:4px solid var(--color-primary);padding-left:8px;margin-top:1.5rem;margin-bottom:1rem;}
+    [x-cloak]{display:none!important;}
+    .schedule-page-title{
+        font-family:var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+        font-size:var(--ls-text-xl, 1.05rem);
+        font-weight:500;
+        color:var(--ls-color-ink, #1e293b);
+    }
+    .ss-filter-label{
+        display:block;
+        font-family:var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400;
+        color:#5a6a7c;
+        margin-bottom:0.25rem;
+    }
     .rm-act-btn{border-radius:7px;padding:4px 8px;margin-right:3px;font-size:12px;}
     .rm-act-btn:last-child{margin-right:0;}
     .rm-act-btn--form{border:1px solid #ffeeba;color:#856404;background:#fff3cd;}
@@ -969,41 +1001,400 @@
     .rm-act-btn--delete{border:1px solid #fecaca;color:#b91c1c;background:#fef2f2;}
     .rm-act-btn--delete:hover{background:#fee2e2;border-color:#fca5a5;}
 
-    .schedule-table-card{
-        border-radius:14px;
+    /* —— Schedule run modal —— */
+    body:has(.schedule-run-modal){
+        overflow:hidden !important;
+    }
+    .schedule-run-modal{
+        position:fixed;
+        inset:0;
+        z-index:1050;
+        background:rgba(0,0,0,0.5);
+        overflow-x:hidden;
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+    .schedule-run-modal__dialog{
+        max-width:800px;
+        width:calc(100% - 1.5rem);
+        max-height:calc(100vh - 1.5rem);
+        margin:0.75rem auto;
+        display:flex;
+        align-items:stretch;
+    }
+    .schedule-run-modal__content{
+        border-radius:var(--ls-radius-xl, 12px);
         overflow:hidden;
-        border:1px solid #e8ecf1;
+        max-height:calc(100vh - 1.5rem);
+        width:100%;
+        display:flex;
+        flex-direction:column;
+        min-height:0;
+        font-family:var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+    }
+    .schedule-run-modal__header{flex:0 0 auto;}
+    .schedule-run-modal__title{
+        font-size:var(--ls-text-lg, 0.95rem);
+        font-weight:500;
+    }
+    .schedule-run-modal__body{
+        flex:1 1 auto;
+        min-height:0;
+        overflow-y:auto !important;
+        overflow-x:hidden;
+        -webkit-overflow-scrolling:touch;
+        overscroll-behavior:contain;
+        padding:0.85rem 1.15rem 1.15rem;
+        touch-action:pan-y;
+    }
+    .schedule-run-modal__footer{flex:0 0 auto;}
+    .ss-form-nav{
+        display:flex;
+        flex-wrap:wrap;
+        gap:0.15rem 0.35rem;
+        padding:0.55rem 1.15rem;
+        border-bottom:1px solid var(--ls-color-border, #e2e8f0);
+        background:var(--ls-color-bg, #f8fafc);
+        flex:0 0 auto;
+    }
+    .ss-form-nav__item{
+        font-size:var(--ls-text-sm, 0.75rem);
+        font-weight:400;
+        color:var(--ls-color-muted, #64748b);
+        text-decoration:none;
+        padding:0.3rem 0.55rem;
+        border-radius:999px;
+        border:1px solid transparent;
+        transition:background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .ss-form-nav__item:hover{
+        color:var(--ls-color-ink, #1e293b);
+        background:#fff;
+        border-color:var(--ls-color-border, #e2e8f0);
+        text-decoration:none;
+    }
+    .ss-form-nav__item.is-active{
+        color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        background:var(--ls-color-primary-soft, #f8ecec);
+        border-color:var(--ls-color-primary-border, #e2b4b4);
+        font-weight:500;
+    }
+    .ss-section{margin-bottom:1rem;scroll-margin-top:0.5rem;}
+    .ss-section:last-child{margin-bottom:0;}
+    .ss-section__title{
+        display:flex;
+        align-items:center;
+        gap:0.4rem;
+        font-size:var(--ls-text-sm, 0.75rem);
+        font-weight:500;
+        color:var(--ls-color-muted, #64748b);
+        border-bottom:1px solid var(--ls-color-border, #e2e8f0);
+        padding:0 0 0.4rem;
+        margin:0 0 0.75rem;
+    }
+    .ss-section__title i{color:var(--ls-color-primary, var(--color-primary, #6D0A0E));font-size:14px;}
+    .ss-section__title--row{justify-content:space-between;}
+    .ss-label,
+    .schedule-run-modal .ss-label,
+    .schedule-sampling-page .modal .ss-label,
+    .schedule-sampling-page .modal label.ss-label{
+        display:block;
+        font-family:var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:600 !important;
+        color:#5a6a7c;
+        margin-bottom:0.25rem;
+        min-height:1.2em;
+    }
+    .schedule-run-modal .form-group{margin-bottom:0.75rem;}
+    .schedule-run-modal .text-muted,
+    .schedule-run-modal small.text-muted{
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        color:#5a6a7c;
+    }
+    .ss-form-nav__item{
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        color:#5a6a7c;
+    }
+    .ss-section__title{
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        color:#5a6a7c;
+    }
+    .ss-form-nav__item:first-child.is-active,
+    .ss-form-nav:not(:has(.ss-form-nav__item.is-active)) .ss-form-nav__item:first-child{
+        color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        background:var(--ls-color-primary-soft, #f8ecec);
+        border-color:var(--ls-color-primary-border, #e2b4b4);
+        font-weight:500;
+    }
+
+    /* Shared control chrome = Date & Time look */
+    .schedule-run-modal .ss-control,
+    .schedule-run-modal .form-control.ss-control,
+    .schedule-run-modal select.ss-control,
+    .schedule-run-modal textarea.ss-control{
+        min-height:38px;
+        height:38px;
+        border:1px solid #ced4da;
+        border-radius:0.25rem;
+        background-color:#fff;
+        box-shadow:none;
+        font-size:calc(0.875rem + 1px);
+        color:#212529;
+    }
+    .schedule-run-modal textarea.ss-control{
+        height:auto;
+        min-height:84px;
+    }
+    .schedule-run-modal .form-control.ss-control.bg-light{
+        background-color:#f8f9fa;
+        border:1px solid #ced4da;
+    }
+    .schedule-run-modal .ss-control:focus{
+        border-color:#80bdff;
+        outline:0;
+        box-shadow:0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    .ss-location-control{
+        display:flex;
+        align-items:center;
+        gap:0.4rem;
+    }
+    .ss-location-control__input{
+        flex:1 1 auto;
+        min-width:0;
+    }
+    .ss-location-control__input .select2-container{
+        width:100% !important;
+    }
+    .ss-location-control__add{
+        flex:0 0 38px;
+        width:38px;
+        min-width:38px;
+        height:38px;
+        max-height:38px;
+        padding:0;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        border:1px solid #ced4da;
+        border-radius:0.25rem;
+        line-height:1;
+        align-self:center;
+    }
+    .ss-notify-control{
+        display:flex;
+        align-items:center;
+        padding:0 0.75rem;
+        min-height:38px;
+        height:38px;
+        box-sizing:border-box;
+        margin-top:0;
+    }
+    .ss-notify-control .form-check{
+        display:flex;
+        align-items:center;
+        gap:0.4rem;
+    }
+    .ss-notify-control .form-check-input{
+        margin-top:0;
+        position:static;
+    }
+    .ss-notify-control .form-check-label{
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400 !important;
+        color:#5a6a7c;
+    }
+
+    /* Compact multi-selects: same height as Client single select */
+    .schedule-run-modal .ss-compact-select .select2-container{
+        width:100% !important;
+        display:block;
+    }
+    .schedule-run-modal .ss-compact-select .select2-container--default .select2-selection--multiple,
+    .schedule-sampling-page .schedule-run-modal .ss-compact-select .select2-container--default .select2-selection--multiple{
+        min-height:38px !important;
+        height:38px !important;
+        max-height:38px !important;
+        overflow:hidden;
+        display:flex;
+        align-items:center;
+        padding:3px 8px !important;
+        border:1px solid #ced4da !important;
+        border-radius:0.25rem !important;
+        background:#fff;
+    }
+    .schedule-run-modal .ss-compact-select .select2-selection--multiple .select2-selection__rendered{
+        display:flex !important;
+        flex-direction:row;
+        flex-wrap:nowrap;
+        align-items:center;
+        justify-content:flex-start;
+        gap:4px;
+        overflow-x:auto;
+        overflow-y:hidden;
+        margin:0 !important;
+        padding:0 !important;
+        width:100% !important;
+        max-width:100% !important;
+        white-space:nowrap;
+        float:none !important;
+    }
+    .schedule-run-modal .ss-compact-select .select2-selection--multiple .select2-selection__choice{
+        margin-top:0 !important;
+        margin-bottom:0 !important;
+        margin-right:0 !important;
+        flex:0 0 auto;
+        max-width:160px;
+        height:26px;
+        line-height:24px;
+        padding:0 8px 0 6px !important;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+        font-size:12px;
+        font-weight:400 !important;
+        display:inline-flex;
+        align-items:center;
+        box-sizing:border-box;
+        float:none !important;
+    }
+    .schedule-run-modal .ss-compact-select .select2-selection--multiple .select2-selection__choice__remove{
+        margin-right:4px;
+        font-weight:400;
+        line-height:1;
+    }
+    .schedule-run-modal .ss-compact-select .select2-selection--multiple .select2-search--inline{
+        float:none !important;
+        position:static !important;
+        flex:1 1 auto !important;
+        min-width:0 !important;
+        width:auto !important;
+        max-width:100% !important;
+        margin:0 !important;
+        padding:0 !important;
+        display:block !important;
+    }
+    .schedule-run-modal .ss-compact-select .select2-selection--multiple .select2-selection__rendered:not(:has(.select2-selection__choice)) .select2-search--inline{
+        flex:1 1 100% !important;
+        width:100% !important;
+        max-width:100% !important;
+    }
+    .schedule-run-modal .ss-compact-select .select2-selection--multiple .select2-search--inline .select2-search__field{
+        margin:0 !important;
+        padding:0 !important;
+        height:28px !important;
+        min-width:0 !important;
+        width:100% !important;
+        max-width:100% !important;
+        text-align:left !important;
+        font-weight:400;
+        font-size:calc(0.875rem + 1px);
+        box-sizing:border-box !important;
+    }
+    .schedule-run-modal .select2-container--default .select2-selection--single{
+        min-height:38px !important;
+        height:38px !important;
+        border:1px solid #ced4da !important;
+        border-radius:0.25rem !important;
+        background:#fff;
+    }
+    .schedule-run-modal .select2-container--default .select2-selection--single .select2-selection__rendered{
+        line-height:36px;
+        padding-left:12px;
+        font-size:calc(0.875rem + 1px);
+        color:#212529;
+    }
+    .schedule-run-modal .select2-container--default .select2-selection--single .select2-selection__arrow{
+        height:36px;
+    }
+
+    .ss-contract-chip{
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400;
+        color:#5a6a7c;
+        background:var(--ls-color-bg, #f8fafc);
+        border:1px solid #ced4da;
+        border-radius:0.25rem;
+        padding:0.4rem 0.65rem;
+    }
+    .ss-contract-chip__sep{margin:0 0.25rem;opacity:.6;}
+    .ss-contact-card{
+        border:1px solid #ced4da;
+        border-radius:0.25rem;
+        padding:0.45rem 0.65rem;
+        background:#fff;
+    }
+    .ss-contact-card__name{
+        font-size:calc(var(--ls-text-base, 0.8125rem) + 1px);
+        font-weight:400;
+        color:#172033;
+    }
+    .ss-contact-card__meta{
+        display:flex;
+        flex-wrap:wrap;
+        gap:0.75rem;
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        color:#5a6a7c;
+        margin-top:0.15rem;
+    }
+    .ss-sample-card{
+        border:1px solid #ced4da;
+        border-radius:0.25rem;
+        padding:0.65rem 0.75rem;
+        background:#fff;
+    }
+    .ss-sample-card__label{
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400;
+        color:#5a6a7c;
+    }
+    .ss-sample-card__remove{
+        border-radius:0.25rem;
+        width:28px;
+        height:28px;
+        padding:0;
+    }
+    .ss-add-sample-btn{border-radius:0.25rem;font-weight:500;}
+
+    .schedule-table-card{
+        border-radius:var(--ls-radius-xl, 14px);
+        overflow:hidden;
+        border:1px solid var(--ls-color-border, #e2e8f0);
     }
     .schedule-sampling-table{
         width:100%;
         margin:0;
+        font-family:var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
     }
     .schedule-sampling-table thead th{
-        background:#f7f8fa;
+        background:var(--ls-color-bg, #f8fafc);
         border:0;
-        border-bottom:1px solid #e8ecf1;
-        color:#6b7280;
-        font-size:11px;
-        font-weight:700;
-        letter-spacing:0.04em;
-        text-transform:uppercase;
-        padding:12px 14px;
+        border-bottom:1px solid var(--ls-color-border, #e2e8f0);
+        color:#5a6a7c;
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:500;
+        letter-spacing:0.02em;
+        text-transform:none;
+        padding:var(--ls-table-cell-y, 0.65rem) var(--ls-table-cell-x, 0.7rem);
         white-space:nowrap;
         vertical-align:middle;
     }
     .schedule-sampling-table tbody td{
-        border-top:1px solid #eef1f5;
-        padding:12px 14px;
+        border-top:1px solid var(--ls-color-border, #e2e8f0);
+        padding:var(--ls-table-cell-y, 0.65rem) var(--ls-table-cell-x, 0.7rem);
         vertical-align:middle;
-        color:#1f2937;
+        color:#172033;
+        font-weight:400;
+        font-size:calc(var(--ls-text-base, 0.8125rem) + 1px);
     }
     .schedule-sampling-table tbody tr:hover{
-        background:#fcfbfa;
+        background:var(--ls-color-bg, #f8fafc);
     }
     .ss-title{
-        font-size:13.5px;
-        font-weight:700;
-        color:#111827;
+        font-size:calc(var(--ls-text-base, 0.8125rem) + 1px);
+        font-weight:500;
+        color:#172033;
         line-height:1.3;
         max-width:220px;
     }
@@ -1013,8 +1404,9 @@
         flex-wrap:wrap;
         gap:6px;
         margin-top:4px;
-        font-size:11px;
-        color:#6b7280;
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400;
+        color:#5a6a7c;
     }
     .ss-dot{
         width:3px;height:3px;border-radius:50%;background:#c4c9d2;display:inline-block;
@@ -1025,7 +1417,7 @@
         padding:1px 7px;
         border-radius:999px;
         font-size:10px;
-        font-weight:700;
+        font-weight:500;
         line-height:1.5;
     }
     .ss-pill--ok{
@@ -1037,26 +1429,28 @@
         color:#f57f17;
     }
     .ss-when-date{
-        font-size:13px;
-        font-weight:600;
-        color:#111827;
+        font-size:calc(var(--ls-text-base, 0.8125rem) + 1px);
+        font-weight:500;
+        color:#172033;
         white-space:nowrap;
     }
     .ss-when-time{
-        font-size:12px;
-        color:#6b7280;
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400;
+        color:#5a6a7c;
         margin-top:2px;
     }
     .ss-client{
-        font-size:13px;
-        font-weight:600;
-        color:#111827;
+        font-size:calc(var(--ls-text-base, 0.8125rem) + 1px);
+        font-weight:500;
+        color:#172033;
         line-height:1.3;
         max-width:180px;
     }
     .ss-sub{
-        font-size:11px;
-        color:#6b7280;
+        font-size:calc(var(--ls-text-sm, 0.75rem) + 1px);
+        font-weight:400;
+        color:#5a6a7c;
         margin-top:2px;
         max-width:180px;
         overflow:hidden;
@@ -1064,7 +1458,7 @@
         white-space:nowrap;
     }
     .ss-location{
-        color:var(--color-primary, #6D0A0E);
+        color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
     }
     .ss-tests{
         display:flex;
@@ -1077,13 +1471,14 @@
         display:flex;
         align-items:baseline;
         gap:4px;
-        font-size:12px;
+        font-size:var(--ls-text-sm, 0.75rem);
+        font-weight:400;
         line-height:1.35;
         min-width:0;
     }
     .ss-test-type{
-        font-weight:700;
-        color:#1f2937;
+        font-weight:500;
+        color:var(--ls-color-ink, #1e293b);
         white-space:nowrap;
         overflow:hidden;
         text-overflow:ellipsis;
@@ -1092,7 +1487,7 @@
     }
     .ss-test-sep{color:#c4c9d2;flex:0 0 auto;}
     .ss-test-analysis{
-        color:#4b5563;
+        color:var(--ls-color-muted, #64748b);
         white-space:nowrap;
         overflow:hidden;
         text-overflow:ellipsis;
@@ -1100,7 +1495,7 @@
         flex:1 1 auto;
     }
     .ss-test-params{
-        color:#6b7280;
+        color:var(--ls-color-muted, #64748b);
         font-size:11px;
         flex:0 0 auto;
         margin-left:auto;
@@ -1108,12 +1503,13 @@
     }
     .ss-test-more{
         font-size:11px;
-        color:var(--color-primary, #6D0A0E);
-        font-weight:600;
+        color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        font-weight:500;
     }
     .ss-personnel{
-        font-size:12px;
-        color:#374151;
+        font-size:var(--ls-text-sm, 0.75rem);
+        font-weight:400;
+        color:var(--ls-color-ink, #1e293b);
         line-height:1.35;
         max-width:150px;
         display:-webkit-box;
@@ -1126,21 +1522,21 @@
         height:28px;
         padding:0 10px;
         border-radius:999px;
-        border:1px solid #d7dde5;
+        border:1px solid var(--ls-color-border, #d7dde5);
         background:#fff;
-        color:#6b7280;
-        font-size:12px;
-        font-weight:700;
+        color:var(--ls-color-muted, #64748b);
+        font-size:var(--ls-text-sm, 0.75rem);
+        font-weight:500;
         line-height:1;
     }
     .ss-forms-btn.has-forms{
-        border-color:var(--color-primary, #6D0A0E);
-        color:var(--color-primary, #6D0A0E);
-        background:rgba(138,26,31,0.06);
+        border-color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        background:var(--ls-color-primary-soft, rgba(138,26,31,0.06));
     }
     .ss-forms-btn:hover{
-        border-color:var(--color-primary, #6D0A0E);
-        color:var(--color-primary, #6D0A0E);
+        border-color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
+        color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
     }
     .ss-actions{
         display:inline-flex;
@@ -1191,6 +1587,14 @@
         .ss-act{width:28px;height:28px;font-size:14px;}
         .schedule-sampling-form-modal .modal-dialog,
         .schedule-sampling-page .modal-dialog{margin:0.5rem;max-width:calc(100% - 1rem);}
+        .schedule-run-modal__dialog{
+            margin:0.5rem auto;
+            width:calc(100% - 1rem);
+            max-height:calc(100vh - 1rem);
+        }
+        .schedule-run-modal__content{
+            max-height:calc(100vh - 1rem);
+        }
     }
     @media (max-width: 575.98px) {
         .schedule-sampling-page h3{font-size:1.15rem;}
@@ -1207,7 +1611,13 @@
         min-height:38px;border:1px solid #ced4da;border-radius:0.25rem;
     }
     .schedule-sampling-page .select2-container--default .select2-selection--multiple{
-        min-height:42px;max-height:140px;overflow-y:auto;padding:4px 6px;
+        min-height:38px;max-height:140px;overflow-y:auto;padding:4px 6px;
+    }
+    .schedule-sampling-page .schedule-run-modal .ss-compact-select .select2-container--default .select2-selection--multiple{
+        min-height:38px !important;
+        height:38px !important;
+        max-height:38px !important;
+        overflow:hidden !important;
     }
     .schedule-sampling-page .select2-container--default .select2-selection--multiple .select2-selection__choice{
         background:var(--color-primary-soft, #f3e8e9);
@@ -1217,7 +1627,10 @@
         padding:2px 8px;
         margin-top:4px;
         font-size:12px;
-        font-weight:600;
+        font-weight:400;
+    }
+    .schedule-run-modal .select2-container--default .select2-selection--multiple .select2-selection__choice{
+        font-weight:400 !important;
     }
     .schedule-sampling-page .select2-container--default .select2-selection--multiple .select2-selection__choice__remove{
         color:var(--color-primary, #6D0A0E);
@@ -1432,10 +1845,29 @@
                 $el.select2({
                     width: '100%',
                     placeholder: this.placeholder,
-                    allowClear: true,
+                    allowClear: !this.multiple,
                     closeOnSelect: !this.multiple,
                     dropdownParent: modal ? $(modal) : $(document.body),
                 });
+
+                const fixCompactSearchField = () => {
+                    if (!el.closest('.ss-compact-select')) {
+                        return;
+                    }
+                    const instance = $el.data('select2');
+                    const $field = instance?.$selection?.find('.select2-search__field');
+                    if ($field && $field.length) {
+                        $field.attr('style', 'width:100%!important;max-width:100%!important;min-width:0!important;text-align:left!important;margin:0!important;height:28px!important;box-sizing:border-box!important;');
+                    }
+                };
+
+                // Select2 rewrites search width on every resize; keep it full-bleed left.
+                const instance = $el.data('select2');
+                if (instance?.selection && typeof instance.selection.resizeSearch === 'function') {
+                    instance.selection.resizeSearch = function () {
+                        fixCompactSearchField();
+                    };
+                }
 
                 const initial = this.multiple
                     ? (Array.isArray(this.initial) ? this.initial.map(String) : [])
@@ -1445,6 +1877,10 @@
                 $el.val(initial).trigger('change.select2');
                 this.syncing = false;
                 this.updateCount($el.val());
+                fixCompactSearchField();
+                requestAnimationFrame(fixCompactSearchField);
+                $el.off('.scheduleSelect2Search')
+                    .on('change.scheduleSelect2Search select2:open.scheduleSelect2Search select2:close.scheduleSelect2Search select2:select.scheduleSelect2Search select2:unselect.scheduleSelect2Search', fixCompactSearchField);
 
                 $el.off('change.scheduleSelect2').on('change.scheduleSelect2', () => {
                     if (this.syncing) {
@@ -1504,6 +1940,7 @@
                         $el.val(next).trigger('change.select2');
                         this.syncing = false;
                         this.updateCount(next);
+                        fixCompactSearchField();
                     });
                 }
             },
@@ -2122,6 +2559,74 @@
             if (getModal()) {
                 reinitScheduleTrfWidgets();
             }
+        })();
+
+        (function () {
+            function getRunModalBody() {
+                return document.getElementById('schedule-run-modal-body');
+            }
+
+            function setActiveNav(hash) {
+                document.querySelectorAll('.ss-form-nav__item').forEach(function (item) {
+                    item.classList.toggle('is-active', item.getAttribute('href') === hash);
+                });
+            }
+
+            function scrollToSection(hash) {
+                const body = getRunModalBody();
+                if (!body || !hash) {
+                    return;
+                }
+                const target = body.querySelector(hash);
+                if (!target) {
+                    return;
+                }
+                const top = target.offsetTop - 8;
+                body.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                setActiveNav(hash);
+            }
+
+            function syncActiveFromScroll() {
+                const body = getRunModalBody();
+                if (!body) {
+                    return;
+                }
+                const sections = body.querySelectorAll('.ss-section[id]');
+                let active = null;
+                const scrollTop = body.scrollTop + 24;
+                sections.forEach(function (section) {
+                    if (section.offsetTop <= scrollTop) {
+                        active = '#' + section.id;
+                    }
+                });
+                if (active) {
+                    setActiveNav(active);
+                }
+            }
+
+            document.addEventListener('click', function (event) {
+                const link = event.target.closest('[data-ss-nav]');
+                if (!link) {
+                    return;
+                }
+                event.preventDefault();
+                scrollToSection(link.getAttribute('href'));
+            });
+
+            document.addEventListener('scroll', function (event) {
+                if (event.target && event.target.id === 'schedule-run-modal-body') {
+                    syncActiveFromScroll();
+                }
+            }, true);
+
+            document.addEventListener('livewire:navigated', function () {
+                setTimeout(function () {
+                    const first = document.querySelector('.ss-form-nav__item');
+                    if (first) {
+                        setActiveNav(first.getAttribute('href'));
+                    }
+                }, 50);
+            });
         })();
     </script>
     @endscript

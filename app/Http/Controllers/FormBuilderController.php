@@ -6,6 +6,7 @@ use App\Models\SubmissionForm;
 use App\Models\SubmissionFormSection;
 use App\Models\SubmissionFormElementHolder;
 use App\Models\SubmissionFormElement;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,9 @@ class FormBuilderController extends Controller
                 $query->orderBy('sort_order');
             }
         ]);
+
+        $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm);
+        $submissionForm->setRelation('sections', $sections);
 
         return view('submission-forms.builder', compact('submissionForm'));
     }
