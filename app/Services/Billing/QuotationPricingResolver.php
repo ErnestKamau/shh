@@ -136,6 +136,211 @@ class QuotationPricingResolver
     }
 
     /**
+     * Resolve package parameter defaults for quotation prep when analysis type(s) are selected.
+     * Unions covered elements across selected analysis types that have packages on the customer pricelist.
+     *
+     * @return array{
+     *     found: bool,
+     *     element_ids: list<string>,
+     *     accredited_ids: list<string>,
+     *     default_ids: list<string>,
+     *     parameters: list<array{id: string, label: string, accredited: bool}>,
+     *     unit_price: float,
+     *     tax: float,
+     *     source: string,
+     *     hint: string,
+     *     is_package: bool,
+     *     pricing_mode: string,
+     *     max_tat: int|null
+     * }
+     */
+    public function resolvePackageDefaults(
+        QuotationHeader $header,
+        ?string $sampleTypeId,
+        string $analysisTypeIdsCsv,
+    ): array {
+        $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
+        $pricelist = $this->resolvePricelist($header->crm_customer_id);
+
+        $elementIds = [];
+        $foundAny = false;
+
+        foreach ($analysisTypeIds as $analysisTypeId) {
+            $match = $this->acceptanceFormPricingService->findPackageForAnalysisType(
+                $header->crm_customer_id,
+                $sampleTypeId,
+                $analysisTypeId,
+                $pricelist,
+            );
+
+            if ($match === null) {
+                continue;
+            }
+
+            $foundAny = true;
+            foreach ($match['covered_element_ids'] as $elementId) {
+                $elementIds[] = (string) $elementId;
+            }
+        }
+
+        $elementIds = array_values(array_unique($elementIds));
+
+        if (! $foundAny || $elementIds === []) {
+            return [
+                'found' => false,
+                'element_ids' => [],
+                'accredited_ids' => [],
+                'default_ids' => [],
+                'parameters' => [],
+                'unit_price' => 0.0,
+                'tax' => 0.0,
+                'source' => 'none',
+                'hint' => 'No package on the customer pricelist for the selected analysis type.',
+                'is_package' => false,
+                'pricing_mode' => self::PRICING_MODE_AUTO,
+                'max_tat' => null,
+            ];
+        }
+
+        $suggestion = $this->suggestManualLinePricing(
+            $header,
+            $sampleTypeId,
+            $analysisTypeIdsCsv,
+            $elementIds,
+            self::PRICING_MODE_AUTO,
+        );
+
+        $accreditedIds = $this->accreditedElementIds($elementIds);
+        $defaultIds = array_values(array_diff($elementIds, $accreditedIds));
+
+        return [
+            'found' => true,
+            'element_ids' => $elementIds,
+            'accredited_ids' => $accreditedIds,
+            'default_ids' => $defaultIds,
+            'parameters' => $this->parameterDisplayRows($elementIds, $accreditedIds),
+            'unit_price' => (float) $suggestion['unit_price'],
+            'tax' => (float) $suggestion['tax'],
+            'source' => (string) $suggestion['source'],
+            'hint' => (string) $suggestion['hint'],
+            'is_package' => (bool) $suggestion['is_package'],
+            'pricing_mode' => (string) $suggestion['pricing_mode'],
+            'max_tat' => $suggestion['max_tat'],
+        ];
+    }
+
+    /**
+     * @param  list<string>  $elementIds
+     * @param  list<string>  $accreditedIds
+     * @return list<array{id: string, label: string, accredited: bool}>
+     */
+    private function parameterDisplayRows(array $elementIds, array $accreditedIds): array
+    {
+        if ($elementIds === []) {
+            return [];
+        }
+
+        $accreditedSet = array_fill_keys($accreditedIds, true);
+        $elements = AnalysisElements::query()
+            ->with('analyte:id,name,code')
+            ->whereIn('id', $elementIds)
+            ->get()
+            ->keyBy(fn (AnalysisElements $element): string => (string) $element->id);
+
+        $rows = [];
+        foreach ($elementIds as $elementId) {
+            $element = $elements->get($elementId);
+            $label = trim((string) ($element?->analyte?->name ?? $element?->parametername ?? $element?->method ?? ''));
+            if ($label === '') {
+                $label = $elementId;
+            }
+
+            $rows[] = [
+                'id' => $elementId,
+                'label' => $label,
+                'accredited' => isset($accreditedSet[$elementId]),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<string>  $elementIds
+     * @return list<string>
+     */
+    private function accreditedElementIds(array $elementIds): array
+    {
+        if ($elementIds === []) {
+            return [];
+        }
+
+        $elements = AnalysisElements::query()
+            ->whereIn('id', $elementIds)
+            ->get(['id', 'non_accredited'])
+            ->keyBy(fn (AnalysisElements $element): string => (string) $element->id);
+
+        $accredited = [];
+        foreach ($elementIds as $elementId) {
+            $element = $elements->get($elementId);
+            $isNonAccredited = $element !== null && (
+                (int) $element->non_accredited === 1
+                || $element->non_accredited === true
+                || $element->non_accredited === 'true'
+            );
+
+            if (! $isNonAccredited) {
+                $accredited[] = $elementId;
+            }
+        }
+
+        return $accredited;
+    }
+
+    /**
+     * Keep accredited / subcontracted / default analyte CSVs mutually exclusive.
+     *
+     * @param  list<string>  $elementIds
+     * @return array{accredited: string, default: string, subcontracted: string, sub_acc: string}
+     */
+    private function exclusiveParameterCsvs(
+        array $elementIds,
+        string $accreditedAnalytes,
+        string $subcontractedAnalytes,
+        string $defaultAnalytes,
+        string $subAccAnalytes,
+    ): array {
+        $split = static function (string $csv): array {
+            return array_values(array_filter(array_map('trim', explode(',', $csv)), static fn (string $id): bool => $id !== ''));
+        };
+
+        $accredited = $split($accreditedAnalytes);
+        $subcontracted = $split($subcontractedAnalytes);
+        $subAcc = $split($subAccAnalytes);
+        $defaultSubmitted = $split($defaultAnalytes);
+
+        if (
+            $accredited === []
+            && $defaultSubmitted === []
+            && $subcontracted === []
+            && $subAcc === []
+            && $elementIds !== []
+        ) {
+            $accredited = $this->accreditedElementIds($elementIds);
+        }
+
+        $claimed = array_values(array_unique(array_merge($accredited, $subcontracted, $subAcc)));
+        $default = array_values(array_diff($elementIds, $claimed));
+
+        return [
+            'accredited' => implode(',', $accredited),
+            'default' => implode(',', $default),
+            'subcontracted' => implode(',', $subcontracted),
+            'sub_acc' => implode(',', $subAcc),
+        ];
+    }
+
+    /**
      * @param  list<string>  $elementIds
      * @return array{unit_price: float, tax: float, source: string, hint: string, is_package: bool, pricing_mode: string, max_tat: int|null}
      */
@@ -274,6 +479,7 @@ class QuotationPricingResolver
     /**
      * Prefer a single package detail row when selected tests fully cover a pricelist package.
      * Extra uncovered tests remain as individual rows. Manual overrides still split across tests.
+     * Line tax always comes from pricelist vat + active tax regime; the $tax argument is ignored.
      *
      * @param  list<string>  $elementIds
      * @param  array<string, string>  $loqOverrides  element_id => loq string
@@ -296,6 +502,7 @@ class QuotationPricingResolver
         string $showLoqAnalytes = '',
         string $showMuAnalytes = '',
     ): array {
+        unset($tax);
         $pricingMode = $this->normalizePricingMode($pricingMode);
         $suggestion = $this->suggestManualLinePricing(
             $header,
@@ -307,7 +514,7 @@ class QuotationPricingResolver
 
         $usePackage = (bool) ($suggestion['is_package'] ?? false);
         $resolvedUnitPrice = $unitPrice > 0 ? $unitPrice : (float) $suggestion['unit_price'];
-        $resolvedTax = $tax > 0 ? $tax : (float) $suggestion['tax'];
+        $resolvedTax = (float) $suggestion['tax'];
         $showLoqList = array_values(array_filter(array_map('trim', explode(',', $showLoqAnalytes))));
         $showMuList = array_values(array_filter(array_map('trim', explode(',', $showMuAnalytes))));
 
@@ -379,14 +586,18 @@ class QuotationPricingResolver
             $analysisTypeName = $defaultAnalysisTypeId !== ''
                 ? (string) (AnalysisType::find($defaultAnalysisTypeId)?->name ?? 'Analysis')
                 : 'Analysis';
-            $packageTax = $resolvedTax > 0
-                ? $resolvedTax
-                : ($packageMatch['item']->vat
-                    ? $this->quotationLineTaxResolver->activeTaxRegimePercent()
-                    : 0.0);
+            $packageTax = $packageMatch['item']->vat
+                ? $this->quotationLineTaxResolver->activeTaxRegimePercent()
+                : 0.0;
 
             if ($pricingMode === self::PRICING_MODE_PER_PACKAGE || $extras === []) {
-                $allIdsCsv = implode(',', $elementIds);
+                $csvs = $this->exclusiveParameterCsvs(
+                    $elementIds,
+                    $accreditedAnalytes,
+                    $subcontractedAnalytes,
+                    $defaultAnalytes,
+                    $subAccAnalytes,
+                );
 
                 return [[
                     'sample_type' => $sampleTypeId,
@@ -394,10 +605,10 @@ class QuotationPricingResolver
                     'unit_price' => $resolvedUnitPrice > 0 ? $resolvedUnitPrice : $packagePrice,
                     'tax' => $packageTax,
                     'part_no' => $defaultAnalysisTypeId !== '' ? $defaultAnalysisTypeId : $analysisTypeIdsCsv,
-                    'accredited_analytes' => $accreditedAnalytes !== '' ? $accreditedAnalytes : $allIdsCsv,
-                    'subcontracted_analytes' => $subcontractedAnalytes,
-                    'default_analytes' => $defaultAnalytes !== '' ? $defaultAnalytes : $allIdsCsv,
-                    'sub_acc_analytes' => $subAccAnalytes,
+                    'accredited_analytes' => $csvs['accredited'],
+                    'subcontracted_analytes' => $csvs['subcontracted'],
+                    'default_analytes' => $csvs['default'],
+                    'sub_acc_analytes' => $csvs['sub_acc'],
                     'is_package' => true,
                     'loq' => '',
                     'mu_percent' => '',
@@ -409,15 +620,23 @@ class QuotationPricingResolver
                 ]];
             }
 
+            $packageCsvs = $this->exclusiveParameterCsvs(
+                $coveredElementIds,
+                $accreditedAnalytes,
+                '',
+                $defaultAnalytes,
+                '',
+            );
+
             $rows = [[
                 'sample_type' => $sampleTypeId,
                 'quantity' => $quantity,
                 'unit_price' => $packagePrice,
                 'tax' => $packageTax,
                 'part_no' => $defaultAnalysisTypeId,
-                'accredited_analytes' => implode(',', $coveredElementIds),
+                'accredited_analytes' => $packageCsvs['accredited'],
                 'subcontracted_analytes' => '',
-                'default_analytes' => implode(',', $coveredElementIds),
+                'default_analytes' => $packageCsvs['default'],
                 'sub_acc_analytes' => '',
                 'is_package' => true,
                 'loq' => '',
@@ -452,9 +671,21 @@ class QuotationPricingResolver
                             $elementId,
                         ),
                     'part_no' => $analysisTypeId,
-                    'accredited_analytes' => in_array($elementId, $accreditedList, true) ? $elementId : '',
-                    'subcontracted_analytes' => in_array($elementId, $subcontractedList, true) ? $elementId : '',
-                    'default_analytes' => in_array($elementId, $defaultList, true) ? $elementId : $elementId,
+                    'accredited_analytes' => in_array($elementId, $accreditedList, true)
+                        && ! in_array($elementId, $subcontractedList, true)
+                        && ! in_array($elementId, $subAccList, true)
+                        ? $elementId
+                        : '',
+                    'subcontracted_analytes' => in_array($elementId, $subcontractedList, true)
+                        && ! in_array($elementId, $accreditedList, true)
+                        && ! in_array($elementId, $subAccList, true)
+                        ? $elementId
+                        : '',
+                    'default_analytes' => ! in_array($elementId, $accreditedList, true)
+                        && ! in_array($elementId, $subcontractedList, true)
+                        && ! in_array($elementId, $subAccList, true)
+                        ? $elementId
+                        : '',
                     'sub_acc_analytes' => in_array($elementId, $subAccList, true) ? $elementId : '',
                     'is_package' => false,
                     'loq' => $loq,
@@ -512,16 +743,20 @@ class QuotationPricingResolver
                 $rowTax = $resolvedTax;
             }
 
+            $isAcc = in_array($elementId, $accreditedList, true);
+            $isSub = in_array($elementId, $subcontractedList, true);
+            $isBoth = in_array($elementId, $subAccList, true);
+
             $rows[] = [
                 'sample_type' => $sampleTypeId,
                 'quantity' => $quantity,
                 'unit_price' => $rowPrice,
                 'tax' => $rowTax,
                 'part_no' => $analysisTypeId,
-                'accredited_analytes' => in_array($elementId, $accreditedList, true) ? $elementId : '',
-                'subcontracted_analytes' => in_array($elementId, $subcontractedList, true) ? $elementId : '',
-                'default_analytes' => in_array($elementId, $defaultList, true) ? $elementId : $elementId,
-                'sub_acc_analytes' => in_array($elementId, $subAccList, true) ? $elementId : '',
+                'accredited_analytes' => ($isAcc && ! $isSub && ! $isBoth) ? $elementId : '',
+                'subcontracted_analytes' => ($isSub && ! $isAcc && ! $isBoth) ? $elementId : '',
+                'default_analytes' => (! $isAcc && ! $isSub && ! $isBoth) ? $elementId : '',
+                'sub_acc_analytes' => $isBoth ? $elementId : '',
                 'is_package' => false,
                 'loq' => $loq,
                 'mu_percent' => (string) ($metrics['mu_percent'] ?? ''),

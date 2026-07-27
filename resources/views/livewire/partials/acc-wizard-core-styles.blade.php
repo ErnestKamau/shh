@@ -579,13 +579,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-sample-type {
-        width: 14%;
+        width: 16%;
         min-width: 90px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-analysis-type {
-        width: 14%;
-        min-width: 90px;
+        width: 18%;
+        min-width: 110px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-lab-section {
@@ -594,13 +594,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-condition {
-        width: 10%;
+        width: 12%;
         min-width: 88px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-main-standard {
-        width: 14%;
-        min-width: 100px;
+        width: 34%;
+        min-width: 180px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-lab {
@@ -609,8 +609,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-assigned-user {
-        width: 14%;
-        min-width: 100px;
+        width: 20%;
+        min-width: 120px;
+    }
+
+    .acc-sample-config-table--acceptance td .form-control {
+        width: 100%;
+        max-width: 100%;
     }
 
     .acc-sample-config-table--acceptance .acc-col-qty {

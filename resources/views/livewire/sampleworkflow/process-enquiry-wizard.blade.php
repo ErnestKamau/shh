@@ -364,12 +364,7 @@
                                                     <td class="text-center text-muted">{{ $sampleCount }}</td>
                                                     <td class="text-right text-muted">{{ number_format($lineTotal, 2) }}</td>
                                                     <td class="text-right">
-                                                        @if($readOnly)
-                                                            {{ number_format((float) ($line['tax'] ?? 0), 2) }}
-                                                        @else
-                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
-                                                                   wire:model.blur="lines.{{ $index }}.tax">
-                                                        @endif
+                                                        {{ number_format((float) ($line['tax'] ?? 0), 2) }}%
                                                     </td>
                                                     <td class="text-center">
                                                         @if($readOnly)

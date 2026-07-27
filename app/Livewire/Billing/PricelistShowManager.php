@@ -14,6 +14,7 @@ use App\Models\Currency;
 use App\Models\System\SystemConfiguration;
 use App\SampleType;
 use App\Services\Billing\PricelistNumberGenerator;
+use App\Services\Billing\QuotationLineTaxResolver;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -196,6 +197,11 @@ class PricelistShowManager extends Component
         $pricelist->currency_description = $pricelist->currency?->description;
 
         return $pricelist;
+    }
+
+    public function getActiveTaxRegimePercentProperty(): float
+    {
+        return app(QuotationLineTaxResolver::class)->activeTaxRegimePercent();
     }
 
     public function getItemsProperty()

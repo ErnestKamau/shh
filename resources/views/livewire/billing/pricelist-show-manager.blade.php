@@ -881,7 +881,12 @@
                                             <div class="flag-tile w-100">
                                                 <div class="form-check form-switch mb-0">
                                                     <input type="checkbox" wire:model="itemForm.package_vat" class="form-check-input" role="switch" id="item-form-package-vat">
-                                                    <label class="form-check-label" for="item-form-package-vat">Has VAT</label>
+                                                    <label class="form-check-label" for="item-form-package-vat">
+                                                        Has VAT
+                                                        @if($this->activeTaxRegimePercent > 0)
+                                                            <span class="text-muted small">({{ number_format($this->activeTaxRegimePercent, 0) }}%)</span>
+                                                        @endif
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
@@ -901,7 +906,12 @@
                                                         <th>Analyte</th>
                                                         <th>Cost Price</th>
                                                         <th>Changed Price</th>
-                                                        <th>Has VAT</th>
+                                                        <th>
+                                                            Has VAT
+                                                            @if($this->activeTaxRegimePercent > 0)
+                                                                <span class="text-muted fw-normal">({{ number_format($this->activeTaxRegimePercent, 0) }}%)</span>
+                                                            @endif
+                                                        </th>
                                                     @endif
                                                 </tr>
                                             </thead>

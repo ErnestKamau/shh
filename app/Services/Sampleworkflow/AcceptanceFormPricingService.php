@@ -547,6 +547,56 @@ class AcceptanceFormPricingService
     }
 
     /**
+     * Locate an active package for sample type + analysis type without requiring
+     * the caller to already know which elements are covered.
+     *
+     * @return ?array{item: PricelistItem, pricelist: Pricelist, covered_element_ids: list<string>}
+     */
+    public function findPackageForAnalysisType(
+        ?string $customerId,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?Pricelist $preferredPricelist = null,
+    ): ?array {
+        if ($analysisTypeId === '') {
+            return null;
+        }
+
+        $candidates = [];
+
+        if ($preferredPricelist !== null) {
+            $candidates[] = $preferredPricelist;
+        }
+
+        if ($customerId !== null && $customerId !== '') {
+            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
+                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
+                    continue;
+                }
+                $candidates[] = $pricelist;
+            }
+        }
+
+        $fallback = $this->resolvePricelist($customerId);
+        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
+            $candidates[] = $fallback;
+        }
+
+        foreach ($candidates as $pricelist) {
+            $match = $this->firstPackageInPricelist($pricelist, $sampleTypeId, $analysisTypeId);
+            if ($match !== null) {
+                return [
+                    'item' => $match['item'],
+                    'pricelist' => $pricelist,
+                    'covered_element_ids' => $match['covered_element_ids'],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param  list<string>  $requestedElementIds
      * @return ?array{item: PricelistItem, covered_element_ids: list<string>}
      */
@@ -556,20 +606,7 @@ class AcceptanceFormPricingService
         string $analysisTypeId,
         array $requestedElementIds,
     ): ?array {
-        $query = PricelistItem::query()
-            ->with('packageElements')
-            ->where('pricelist_id', $pricelist->id)
-            ->where('active', 1)
-            ->where('is_package', true)
-            ->where('analysis_id', $analysisTypeId);
-
-        $packages = (! empty($sampleTypeId))
-            ? (clone $query)->where('sample_type_id', $sampleTypeId)->get()
-            : collect();
-
-        if ($packages->isEmpty()) {
-            $packages = $query->get();
-        }
+        $packages = $this->packagesForAnalysisType($pricelist, $sampleTypeId, $analysisTypeId);
 
         foreach ($packages as $package) {
             $coveredElementIds = $package->coveredElementIds();
@@ -587,6 +624,56 @@ class AcceptanceFormPricingService
         }
 
         return null;
+    }
+
+    /**
+     * @return ?array{item: PricelistItem, covered_element_ids: list<string>}
+     */
+    private function firstPackageInPricelist(
+        Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+    ): ?array {
+        foreach ($this->packagesForAnalysisType($pricelist, $sampleTypeId, $analysisTypeId) as $package) {
+            $coveredElementIds = $package->coveredElementIds();
+
+            if ($coveredElementIds === []) {
+                continue;
+            }
+
+            return [
+                'item' => $package,
+                'covered_element_ids' => $coveredElementIds,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, PricelistItem>
+     */
+    private function packagesForAnalysisType(
+        Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+    ): Collection {
+        $query = PricelistItem::query()
+            ->with('packageElements')
+            ->where('pricelist_id', $pricelist->id)
+            ->where('active', 1)
+            ->where('is_package', true)
+            ->where('analysis_id', $analysisTypeId);
+
+        $packages = (! empty($sampleTypeId))
+            ? (clone $query)->where('sample_type_id', $sampleTypeId)->get()
+            : collect();
+
+        if ($packages->isEmpty()) {
+            $packages = $query->get();
+        }
+
+        return $packages;
     }
 
     /**

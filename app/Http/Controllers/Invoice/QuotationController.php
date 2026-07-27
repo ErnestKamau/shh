@@ -23,6 +23,7 @@ use App\InvoicableItem;
 use App\ZohoCustomers;
 use Illuminate\Http\File;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Billing\PackageDefaultsRequest;
 use Illuminate\Support\Facades\Schema;
 use App\Models\CRM\SamplePoint;
 use App\QuotationDetailAnalysisSplit;
@@ -800,18 +801,14 @@ class QuotationController extends Controller
                     $elementIds,
                 );
             }
-            if ($taxRate <= 0) {
-                $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
-                $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', (string) $detail->part_no))));
-                $analysisTypeId = $analysisTypeIds[0] ?? '';
-                $elementId = $elementIds[0] ?? null;
-                $taxRate = $this->quotationLineTaxResolver->resolveLineTaxPercent(
-                    $pricelist,
-                    (string) $detail->sample_type,
-                    $analysisTypeId,
-                    $elementId,
-                );
-            }
+
+            $suggestion = $this->quotationPricingResolver->suggestManualLinePricing(
+                $header,
+                (string) $detail->sample_type,
+                (string) $detail->part_no,
+                $elementIds,
+            );
+            $taxRate = (float) ($suggestion['tax'] ?? 0);
         }
 
         $detail->unit_price = $unitPrice;
@@ -981,6 +978,19 @@ class QuotationController extends Controller
         );
 
         return response()->json($suggestion);
+    }
+
+    public function packageDefaults(PackageDefaultsRequest $request, string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+
+        $defaults = $this->quotationPricingResolver->resolvePackageDefaults(
+            $header,
+            $request->input('sample_type_id'),
+            (string) $request->input('analysis_type_ids', ''),
+        );
+
+        return response()->json($defaults);
     }
 
     public function updateElementLoq(Request $request)

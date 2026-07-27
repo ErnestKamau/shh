@@ -39,6 +39,41 @@ final class QuotationLineTaxResolver
         return $this->activeTaxRegimePercent();
     }
 
+    public function resolvePackageTaxPercent(
+        ?Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?string $packagePricelistItemId = null,
+    ): float {
+        $item = null;
+
+        if ($packagePricelistItemId !== null && $packagePricelistItemId !== '') {
+            $item = PricelistItem::query()->find($packagePricelistItemId);
+        }
+
+        if ($item === null && $pricelist !== null && $analysisTypeId !== '') {
+            $query = PricelistItem::query()
+                ->where('pricelist_id', $pricelist->id)
+                ->where('active', 1)
+                ->where('is_package', true)
+                ->where('analysis_id', $analysisTypeId);
+
+            if ($sampleTypeId !== null && $sampleTypeId !== '') {
+                $item = (clone $query)->where('sample_type_id', $sampleTypeId)->first();
+            }
+
+            if ($item === null) {
+                $item = $query->first();
+            }
+        }
+
+        if ($item === null || ! (bool) $item->vat) {
+            return 0.0;
+        }
+
+        return $this->activeTaxRegimePercent();
+    }
+
     /**
      * @param  list<array<string, mixed>>  $lines
      * @return list<array<string, mixed>>
@@ -47,6 +82,17 @@ final class QuotationLineTaxResolver
     {
         return array_map(function (array $line) use ($pricelist, $overwrite): array {
             if (! $overwrite && isset($line['tax']) && (float) $line['tax'] > 0) {
+                return $line;
+            }
+
+            if (! empty($line['is_package'])) {
+                $line['tax'] = $this->resolvePackageTaxPercent(
+                    $pricelist,
+                    isset($line['sample_type_id']) ? (string) $line['sample_type_id'] : null,
+                    (string) ($line['analysis_type_id'] ?? ''),
+                    ! empty($line['package_pricelist_item_id']) ? (string) $line['package_pricelist_item_id'] : null,
+                );
+
                 return $line;
             }
 

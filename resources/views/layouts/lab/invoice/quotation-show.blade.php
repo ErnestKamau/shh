@@ -905,6 +905,7 @@
     $(function() {
         var quotationPricingConfig = {
             suggestUrl: @json(route('quotation.suggest_line_pricing', $header->id)),
+            packageDefaultsUrl: @json(route('quotation.package_defaults', $header->id)),
             updateLoqUrl: @json(route('quotation.update_element_loq')),
             csrf: @json(csrf_token()),
         };
@@ -915,14 +916,122 @@
             if (data && typeof data.unit_price !== 'undefined') {
                 $row.find('.quotation-unit-price').val(data.unit_price);
             }
-            if (data && typeof data.tax !== 'undefined' && parseFloat(data.tax) > 0) {
+            if (data && typeof data.tax !== 'undefined') {
                 $row.find('.quotation-tax').val(data.tax);
+                $row.find('.quotation-tax-display').text(
+                    parseFloat(data.tax) > 0 ? parseFloat(data.tax).toFixed(2) + '%' : '0%'
+                );
             }
             if (data && data.max_tat !== null && typeof data.max_tat !== 'undefined') {
                 $row.find('.quotation-tat').val(data.max_tat);
             } else if (data && (data.max_tat === null || data.max_tat === '')) {
                 $row.find('.quotation-tat').val('');
             }
+        }
+
+        function clearRowParameterFields($row) {
+            var $desc = $row.find('#quote-description');
+            $desc.find('input[name="accreditted_analytes[]"], input[name="sub_analytes[]"], input[name="sub_acc[]"], input[name="default_analytes[]"], input[name="show_loq_analytes[]"], input[name="show_mu_analytes[]"], input[name="element_loq_json[]"]').remove();
+            $row.find('.quotation-unit-price').val(0);
+            $row.find('.quotation-tax').val(0);
+            $row.find('.quotation-tax-display').text('0%');
+            $row.find('.quotation-tat').val('');
+            $row.removeData('pricelistSuggestion');
+            $row.find('.quotation-price-hint').text('Pick tests in Parameters to load pricelist total.');
+        }
+
+        function writePackageDefaultsToRow($row, data, sampleTypeId, sampleTypeName) {
+            var rowNo = $row.attr('id').replace('detail-row-', '');
+            var elementIds = data.element_ids || [];
+            var accreditedIds = data.accredited_ids || [];
+            var defaultIds = data.default_ids || [];
+            var parameters = data.parameters || [];
+            var $desc = $row.find('#quote-description');
+            $desc.empty().removeClass('text-center');
+
+            if (!defaultIds.length && elementIds.length) {
+                var accreditedSet = {};
+                accreditedIds.forEach(function(id) { accreditedSet[String(id)] = true; });
+                defaultIds = elementIds.filter(function(id) { return !accreditedSet[String(id)]; });
+            }
+
+            var header = $(`
+                <p class="mb-0"><b>${sampleTypeName || 'Parameters'}</b>
+                <span data-target="#quote-description-analytes" data-row="${rowNo}" data-samplecode="${sampleTypeName || ''}" data-toggle="modal" data-sampletype="${sampleTypeId}" class="btn btn-outline-success btn-sm mdi mdi-pencil float-right"></span>
+                </p>
+                <p class="mb-0"><b>Parameters:</b></p>
+            `);
+            $desc.append(header);
+
+            if (parameters.length) {
+                parameters.forEach(function(param) {
+                    var label = param.label || param.id || '';
+                    if (param.accredited) {
+                        $desc.append($(`<span>${label} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`));
+                    } else {
+                        $desc.append($(`<span>${label}, </span>`));
+                    }
+                });
+            } else {
+                $desc.append($('<span class="text-muted">No parameters</span>'));
+            }
+
+            $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(accreditedIds.toString()));
+            $desc.append($('<input type="hidden" name="sub_analytes[]">').val(''));
+            $desc.append($('<input type="hidden" name="sub_acc[]">').val(''));
+            $desc.append($('<input type="hidden" name="default_analytes[]">').val(defaultIds.toString()));
+            $desc.append($('<input type="hidden" name="show_loq_analytes[]">').val(''));
+            $desc.append($('<input type="hidden" name="show_mu_analytes[]">').val(''));
+            $desc.append($('<input type="hidden" name="element_loq_json[]">').val('{}'));
+
+            applyPricelistSuggestionToRow($row, data);
+        }
+
+        function refreshPackageDefaultsForRow($row) {
+            var sampleTypeId = $row.find('select[name="sample_type[]"]').val() || '';
+            var analysisTypeIds = $row.find('input#select-part-final, input[name="part_number_final[]"]').val() || '';
+            var sampleTypeName = $row.find('select[name="sample_type[]"] option:selected').text() || '';
+            var $hint = $row.find('.quotation-price-hint');
+
+            if (!sampleTypeId || !analysisTypeIds) {
+                clearRowParameterFields($row);
+                $hint.text('Select sample type and analysis type.');
+                return;
+            }
+
+            $.post(quotationPricingConfig.packageDefaultsUrl, {
+                _token: quotationPricingConfig.csrf,
+                sample_type_id: sampleTypeId,
+                analysis_type_ids: analysisTypeIds,
+            }).done(function(data) {
+                if (data && data.found) {
+                    writePackageDefaultsToRow($row, data, sampleTypeId, sampleTypeName);
+                    return;
+                }
+
+                // Keep eye button for manual param selection; clear prior package CSVs.
+                var rowNo = $row.attr('id').replace('detail-row-', '');
+                var $desc = $row.find('#quote-description');
+                var hasManualParams = $desc.find('input[name="default_analytes[]"]').length > 0
+                    && ($desc.find('input[name="default_analytes[]"]').val() || '').length > 0;
+
+                if (!hasManualParams) {
+                    $desc.empty().removeClass('text-center');
+                    $desc.append($(
+                        `<span data-target="#quote-description-analytes" data-row="${rowNo}" data-samplecode="${sampleTypeName}" data-toggle="modal" data-sampletype="${sampleTypeId}" class="btn btn-outline-success btn-sm mdi mdi-eye"></span>`
+                    ));
+                    $row.find('.quotation-unit-price').val(0);
+                    $row.find('.quotation-tax').val(0);
+                    $row.find('.quotation-tax-display').text('0%');
+                    $row.find('.quotation-tat').val('');
+                    $row.removeData('pricelistSuggestion');
+                    $hint.text(data && data.hint ? data.hint : 'Pick tests in Parameters to load pricelist total.');
+                } else {
+                    refreshQuotationRowPricingHint($row, true);
+                }
+            }).fail(function() {
+                $hint.text('Could not load package defaults.');
+            });
         }
 
         function collectElementIdsFromRow($row) {
@@ -1171,7 +1280,8 @@
                                     </td>
                                     <td >
                                         <div class="form-group mb-0">
-                                            <input type="number" name="tax[]" class="form-control quotation-tax" min="0" step="0.01" value="0" placeholder="0 = pricelist">
+                                            <input type="hidden" name="tax[]" class="quotation-tax" value="0">
+                                            <span class="form-control-plaintext quotation-tax-display px-2">0%</span>
                                         </div>
                                     </td>
                                     </tr>
@@ -1212,7 +1322,7 @@
             $row.find('select.select-part').on('change', function() {
                 var value = $(this).val();
                 $row.find('input#select-part-final').val(value ? value.toString() : '');
-                refreshQuotationRowPricingHint($row);
+                refreshPackageDefaultsForRow($row);
             });
 
             $('#create-detail').append($row);
@@ -1220,26 +1330,22 @@
         });
 
         var quotationDetailRow = function(data, sample_type, rowNo, sample_code) {
-            var ids = [];
+            var $partSelect = $('#create-detail').find('tr#detail-row-' + rowNo).find('select.select-part');
+            $partSelect.empty();
             $.each(data, function(i, e) {
-                ids.push(e.id);
-
-                $('#create-detail').find('tr#detail-row-' + rowNo).find('select.select-part').append(`<option value ="${e.id}">${e.name}</option>`);
-            })
-            $('#create-detail').find('tr#detail-row-' + rowNo).find('select.select-part').val(ids);
-            $('#create-detail').find('tr#detail-row-' + rowNo).find('input#select-part-final').val(ids.toString());
-
-            $('#create-detail').find('tr#detail-row-' + rowNo).find('select.select-part').select2();
+                $partSelect.append(`<option value ="${e.id}">${e.name}</option>`);
+            });
+            // Leave analysis type unselected so the analyst chooses; package defaults run on change.
+            $partSelect.val(null).trigger('change.select2');
+            $('#create-detail').find('tr#detail-row-' + rowNo).find('input#select-part-final').val('');
+            $partSelect.select2();
 
             var text = $(`
                 <span data-target="#quote-description-analytes" data-row = ${rowNo} data-samplecode = "${sample_code}"  data-toggle="modal" data-sampletype=${sample_type} class="btn btn-outline-success btn-sm mdi mdi-eye"></span>
             `);
-            $('#create-detail').find('tr#detail-row-' + rowNo).find('#quote-description').empty();
-            $('#create-detail').find('tr#detail-row-' + rowNo).find('#quote-description').append(text);
-
-            refreshQuotationRowPricingHint($('#create-detail').find('tr#detail-row-' + rowNo));
-
-            console.log(data);
+            var $row = $('#create-detail').find('tr#detail-row-' + rowNo);
+            $row.find('#quote-description').empty().append(text);
+            $row.find('.quotation-price-hint').text('Select analysis type to load package parameters.');
         }
         $('#detail-edit-mode').on('show.bs.modal', function(e) {
             var detail_data = $(e.relatedTarget).data('detail')
@@ -1295,8 +1401,9 @@
                 <small class="text-muted">Leave 0 to use pricelist on save.</small>
             </div>
             <div class="form-group">
-                <label class="control-label">Tax</label>
-                <input type="number" name="tax" value="${data.tax}" class="form-control" min="0" step="0.01" placeholder="0 = pricelist">
+                <label class="control-label">Tax %</label>
+                <input type="hidden" name="tax" value="${data.tax}" class="quotation-tax">
+                <span class="form-control-plaintext">${data.tax !== null && typeof data.tax !== 'undefined' ? parseFloat(data.tax).toFixed(2) : '0.00'}% (from pricelist)</span>
             </div>
             <div class="form-group">
                 <label class="control-label">Parameters</label>

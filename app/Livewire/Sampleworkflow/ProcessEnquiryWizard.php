@@ -1577,7 +1577,7 @@ class ProcessEnquiryWizard extends Component
             $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
             if ($enquiry !== null) {
                 $this->lines = app(QuotationFromEnquiryService::class)
-                    ->applyTaxFromAssignedPricelist($enquiry, $this->lines, false);
+                    ->applyTaxFromAssignedPricelist($enquiry, $this->lines, true);
             }
         }
 
