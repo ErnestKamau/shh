@@ -16,9 +16,6 @@
                             <button type="button" wire:click="showCreateCurrencyModal" class="btn btn-primary">
                                 <i class="mdi mdi-plus"></i> Add Currency
                             </button>
-                            <button type="button" wire:click="showSyncConfirmationModal" class="btn btn-info">
-                                <i class="mdi mdi-cloud-download"></i> Pull Currencies
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -161,14 +158,11 @@
                                     <tr>
                                         <td colspan="8" class="text-center py-5">
                                             <div style="padding: 3rem 1rem;">
-                                                <i class="mdi mdi-cloud-download text-muted" style="font-size: 4rem; opacity: 0.5;"></i>
+                                                <i class="mdi mdi-currency-usd text-muted" style="font-size: 4rem; opacity: 0.5;"></i>
                                                 <h5 class="text-muted mt-3 mb-2">No Currencies Found</h5>
-                                                <p class="text-muted mb-3">Add a currency manually or pull currencies from Dynamics 365 Business Central</p>
-                                                <button type="button" wire:click="showCreateCurrencyModal" class="btn btn-primary mr-2">
+                                                <p class="text-muted mb-3">Add a currency manually to use it in billing and quotations</p>
+                                                <button type="button" wire:click="showCreateCurrencyModal" class="btn btn-primary">
                                                     <i class="mdi mdi-plus"></i> Add Currency
-                                                </button>
-                                                <button type="button" wire:click="showSyncConfirmationModal" class="btn btn-info">
-                                                    <i class="mdi mdi-cloud-download"></i> Pull Currencies from Dynamics
                                                 </button>
                                             </div>
                                         </td>

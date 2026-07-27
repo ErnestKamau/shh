@@ -86,6 +86,10 @@ class QuotationRevisionService
                     'test_method' => $detail->test_method,
                     'loq' => $detail->loq,
                     'mu_percent' => $detail->mu_percent,
+                    'show_loq_analytes' => $detail->show_loq_analytes,
+                    'show_mu_analytes' => $detail->show_mu_analytes,
+                    'tat' => $detail->tat,
+                    'is_package' => (bool) ($detail->is_package ?? false),
                     'item_name' => $detail->item_name,
                     'photo_url' => $detail->photo_url,
                 ]);

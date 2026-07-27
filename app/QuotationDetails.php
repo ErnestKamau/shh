@@ -30,6 +30,8 @@ class QuotationDetails extends Model implements Auditable
         'test_method',
         'loq',
         'mu_percent',
+        'show_loq_analytes',
+        'show_mu_analytes',
         'tat',
         'photo_url',
         'subcontracted_analytes',

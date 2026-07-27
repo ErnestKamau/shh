@@ -570,6 +570,8 @@ class QuotationController extends Controller
                     (string) ($request->sub_acc[$count] ?? ''),
                     (string) ($request->pricing_mode[$count] ?? QuotationPricingResolver::PRICING_MODE_AUTO),
                     $loqOverrides,
+                    (string) ($request->show_loq_analytes[$count] ?? ''),
+                    (string) ($request->show_mu_analytes[$count] ?? ''),
                 );
 
                 foreach ($normalizedRows as $rowPayload) {
@@ -586,6 +588,8 @@ class QuotationController extends Controller
                     $detail->is_package = (bool) ($rowPayload['is_package'] ?? false);
                     $detail->loq = (string) ($rowPayload['loq'] ?? '');
                     $detail->mu_percent = (string) ($rowPayload['mu_percent'] ?? '');
+                    $detail->show_loq_analytes = (string) ($rowPayload['show_loq_analytes'] ?? '');
+                    $detail->show_mu_analytes = (string) ($rowPayload['show_mu_analytes'] ?? '');
                     $detail->test_method = (string) ($rowPayload['test_method'] ?? '');
                     $detail->tat = $rowPayload['tat'] ?? null;
                     $detail->description = (string) ($rowPayload['description'] ?? '');
@@ -773,6 +777,12 @@ class QuotationController extends Controller
             $detail->subcontracted_analytes = isset($request->sub_analytes) ? $request->sub_analytes : $detail->subcontracted_analytes;
             $detail->sub_acc_analytes = isset($request->sub_acc) ? $request->sub_acc : $detail->sub_acc_analytes;
             $detail->default_analytes = isset($request->default_analytes) ? $request->default_analytes : $detail->default_analytes;
+            if ($request->exists('show_loq_analytes')) {
+                $detail->show_loq_analytes = (string) $request->input('show_loq_analytes', '');
+            }
+            if ($request->exists('show_mu_analytes')) {
+                $detail->show_mu_analytes = (string) $request->input('show_mu_analytes', '');
+            }
             $analysis_types_ids = array_values(array_filter(array_map('trim', explode(',', $partNoCsv))));
             QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $analysis_types_ids);
 

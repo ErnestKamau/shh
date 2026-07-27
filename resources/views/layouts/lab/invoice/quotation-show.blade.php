@@ -763,8 +763,8 @@
                             <th>Analyte Name</th>
                             <th>Accredited <input type="checkbox" id="edit-accreditted" class="float-right"></th>
                             <th>Sub-Contracted <input type="checkbox" id="edit-sub" class="float-right"></th>
-                            <th nowrap>LOQ</th>
-                            <th nowrap>MU</th>
+                            <th nowrap title="Check to display LOQ on the quotation">LOQ <input type="checkbox" id="edit-loq-all" class="float-right" title="Show LOQ on quotation"></th>
+                            <th nowrap title="Check to display MU on the quotation">MU <input type="checkbox" id="edit-mu-all" class="float-right" title="Show MU on quotation"></th>
                             <th nowrap title="Turnaround time (days)">TAT</th>
                         </thead>
                         <tbody id="edit-description"></tbody>
@@ -887,8 +887,8 @@
                             <th>Analyte </th>
                             <th>Accredited <input type="checkbox" id="select-accredited-all" class="float-right"></th>
                             <th>Subcontracted <input type="checkbox" id="select-sub-all" class="float-right"></th>
-                            <th nowrap>LOQ</th>
-                            <th nowrap>MU</th>
+                            <th nowrap title="Check to display LOQ on the quotation">LOQ <input type="checkbox" id="select-loq-all" class="float-right" title="Show LOQ on quotation"></th>
+                            <th nowrap title="Check to display MU on the quotation">MU <input type="checkbox" id="select-mu-all" class="float-right" title="Show MU on quotation"></th>
                             <th nowrap title="Turnaround time (days)">TAT</th>
                         </thead>
                         <tbody id="analysis-analytes-holder">
@@ -1332,6 +1332,17 @@
                 $(editRow).find('.description-analytes').append(text);
             });
 
+            var $analyteHolder = $(editRow).find('.description-analytes');
+            $analyteHolder.append($('<input type="hidden" name="accreditted_analytes">').val(data.accredited_analytes || ''));
+            $analyteHolder.append($('<input type="hidden" name="sub_analytes">').val(data.subcontracted_analytes || ''));
+            $analyteHolder.append($('<input type="hidden" name="sub_acc">').val(data.sub_acc_analytes || ''));
+            $analyteHolder.append($('<input type="hidden" name="default_analytes">').val(data.default_analytes || ''));
+            if (typeof data.show_loq_analytes !== 'undefined' && data.show_loq_analytes !== null) {
+                $analyteHolder.append($('<input type="hidden" name="show_loq_analytes">').val(data.show_loq_analytes || ''));
+            }
+            if (typeof data.show_mu_analytes !== 'undefined' && data.show_mu_analytes !== null) {
+                $analyteHolder.append($('<input type="hidden" name="show_mu_analytes">').val(data.show_mu_analytes || ''));
+            }
 
             return editRow;
         }
@@ -1345,7 +1356,7 @@
                 url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail,
                 beforeSend: function() {
                     $('#edit-description').empty();
-                    $('#edit-analyte-all, #edit-accreditted, #edit-sub').prop('checked', false);
+                    $('#edit-analyte-all, #edit-accreditted, #edit-sub, #edit-loq-all, #edit-mu-all').prop('checked', false);
                 },
                 success: function(data) {
                     $.each(data, function(i, e) {
@@ -1405,6 +1416,8 @@
             var sub = splitCsvIds($row.find('input[name="sub_analytes[]"], input[name="sub_analytes"]').val());
             var subAcc = splitCsvIds($row.find('input[name="sub_acc[]"], input[name="sub_acc"]').val());
             var defaults = splitCsvIds($row.find('input[name="default_analytes[]"], input[name="default_analytes"]').val());
+            var showLoq = splitCsvIds($row.find('input[name="show_loq_analytes[]"], input[name="show_loq_analytes"]').val());
+            var showMu = splitCsvIds($row.find('input[name="show_mu_analytes[]"], input[name="show_mu_analytes"]').val());
             var loqMap = {};
             var loqRaw = $row.find('input[name="element_loq_json[]"], input[name="element_loq_json"]').val();
             if (loqRaw) {
@@ -1426,8 +1439,11 @@
                 subIds: sub,
                 subAccIds: subAcc,
                 defaultIds: defaults,
+                showLoqIds: showLoq,
+                showMuIds: showMu,
                 loqMap: loqMap,
                 hasSavedState: accredited.length + sub.length + subAcc.length + defaults.length > 0,
+                hasDisplayFlags: $row.find('input[name="show_loq_analytes[]"], input[name="show_loq_analytes"], input[name="show_mu_analytes[]"], input[name="show_mu_analytes"]').length > 0,
             };
         }
 
@@ -1444,6 +1460,10 @@
             state.subIds.forEach(function(id) { subSet[id] = true; });
             var subAccSet = {};
             state.subAccIds.forEach(function(id) { subAccSet[id] = true; });
+            var showLoqSet = {};
+            (state.showLoqIds || []).forEach(function(id) { showLoqSet[id] = true; });
+            var showMuSet = {};
+            (state.showMuIds || []).forEach(function(id) { showMuSet[id] = true; });
 
             $scope.find('tr').each(function() {
                 var $tr = $(this);
@@ -1461,6 +1481,11 @@
                 $tr.find('.analyte-accredited').prop('checked', isAcc);
                 $tr.find('.analyte-subcontracted').prop('checked', isSub);
 
+                if (state.hasDisplayFlags) {
+                    $tr.find('.analyte-show-loq').prop('checked', !!showLoqSet[elementId]);
+                    $tr.find('.analyte-show-mu').prop('checked', !!showMuSet[elementId]);
+                }
+
                 if (Object.prototype.hasOwnProperty.call(state.loqMap, elementId)) {
                     var $loq = $tr.find('input.analyte-loq');
                     var loqValue = String(state.loqMap[elementId] ?? '');
@@ -1475,6 +1500,8 @@
             var analyte_sub = [];
             var sub_acc = [];
             var default_analytes = [];
+            var show_loq_analytes = [];
+            var show_mu_analytes = [];
             var loqMap = {};
             var maxTat = null;
             var spans = [];
@@ -1495,6 +1522,13 @@
                 var reportingTime = parseInt(parent_tr.attr('data-reporting-time'), 10);
                 if (!isNaN(reportingTime) && reportingTime > 0) {
                     maxTat = maxTat === null ? reportingTime : Math.max(maxTat, reportingTime);
+                }
+
+                if (parent_tr.find('.analyte-show-loq').prop('checked')) {
+                    show_loq_analytes.push(analyte_id);
+                }
+                if (parent_tr.find('.analyte-show-mu').prop('checked')) {
+                    show_mu_analytes.push(analyte_id);
                 }
 
                 var isAcc = parent_tr.find('.analyte-accredited').prop('checked');
@@ -1521,6 +1555,8 @@
                 analyte_sub: analyte_sub,
                 sub_acc: sub_acc,
                 default_analytes: default_analytes,
+                show_loq_analytes: show_loq_analytes,
+                show_mu_analytes: show_mu_analytes,
                 loqMap: loqMap,
                 maxTat: maxTat,
                 spans: spans,
@@ -1541,6 +1577,8 @@
                 $holder.append($('<input type="hidden" name="sub_analytes">').val(state.analyte_sub.toString()));
                 $holder.append($('<input type="hidden" name="sub_acc">').val(state.sub_acc.toString()));
                 $holder.append($('<input type="hidden" name="default_analytes">').val(state.default_analytes.toString()));
+                $holder.append($('<input type="hidden" name="show_loq_analytes">').val(state.show_loq_analytes.toString()));
+                $holder.append($('<input type="hidden" name="show_mu_analytes">').val(state.show_mu_analytes.toString()));
                 $holder.append($('<input type="hidden" name="element_loq_json">').val(JSON.stringify(state.loqMap)));
                 var $tat = $('#detail-edit-mode').find('.quotation-edit-tat');
                 if (state.maxTat !== null) {
@@ -1566,7 +1604,7 @@
                     url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis,
                     beforeSend: function() {
                         $('#analysis-analytes-holder').empty();
-                        $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
+                        $('#select-analyte-all, #select-accredited-all, #select-sub-all, #select-loq-all, #select-mu-all').prop('checked', false);
                     },
                     success: function(data) {
                         $.each(data, function(i, e) {
@@ -1616,6 +1654,8 @@
                 $desc.append($('<input type="hidden" name="sub_analytes[]">').val(state.analyte_sub.toString()));
                 $desc.append($('<input type="hidden" name="sub_acc[]">').val(state.sub_acc.toString()));
                 $desc.append($('<input type="hidden" name="default_analytes[]">').val(state.default_analytes.toString()));
+                $desc.append($('<input type="hidden" name="show_loq_analytes[]">').val(state.show_loq_analytes.toString()));
+                $desc.append($('<input type="hidden" name="show_mu_analytes[]">').val(state.show_mu_analytes.toString()));
                 $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
 
                 var $row = $('#create-detail').find('tr#detail-row-' + row_no);
@@ -1663,6 +1703,15 @@
                 : '';
             var tatDisplay = reportingTime !== '' ? reportingTime : '—';
             var elementId = data.id || '';
+            // Default: show LOQ/MU when a value exists. Saved detail flags override when present.
+            var showLoq = String(loqVal).trim() !== '' ? 'checked' : '';
+            var showMu = String(muVal).trim() !== '' ? 'checked' : '';
+            if (data.present == 1 && typeof data.show_loq !== 'undefined') {
+                showLoq = parseInt(data.show_loq, 10) === 1 ? 'checked' : '';
+            }
+            if (data.present == 1 && typeof data.show_mu !== 'undefined') {
+                showMu = parseInt(data.show_mu, 10) === 1 ? 'checked' : '';
+            }
 
             return $(`
                 <tr data-reporting-time="${reportingTime}" data-element-id="${elementId}">
@@ -1673,11 +1722,14 @@
                     </td>
                     <td><input type="checkbox" class="analyte-accredited" name="accreditted" ${check_acc}></td>
                     <td><input type="checkbox" class="analyte-subcontracted" name="sub_contracted" ${check_sub}></td>
-                    <td style="min-width: 90px;">
-                        <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${elementId}">
+                    <td style="min-width: 110px;">
+                        <div class="d-flex align-items-center" style="gap: 4px;">
+                            <input type="checkbox" class="analyte-show-loq" title="Show LOQ on quotation" ${showLoq}>
+                            <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${elementId}">
+                        </div>
                     </td>
-                    <td style="min-width: 70px;">
-                        <input type="text" class="form-control form-control-sm analyte-mu" value="${muVal}" readonly>
+                    <td class="text-center align-middle">
+                        <input type="checkbox" class="analyte-show-mu" title="Show MU on quotation" ${showMu}>
                     </td>
                     <td class="text-center align-middle" style="min-width: 56px;" title="Element TAT (days); line uses the highest selected">
                         <span class="font-weight-bold">${tatDisplay}</span>
@@ -1694,6 +1746,12 @@
         $('#select-sub-all').on('change', function() {
             $('#quote-description-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
         });
+        $('#select-loq-all').on('change', function() {
+            $('#quote-description-analytes').find('.analyte-show-loq').prop('checked', $(this).is(':checked'));
+        });
+        $('#select-mu-all').on('change', function() {
+            $('#quote-description-analytes').find('.analyte-show-mu').prop('checked', $(this).is(':checked'));
+        });
         $('#edit-sub').on('change', function() {
             $('#edit-detail-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
         });
@@ -1702,6 +1760,12 @@
         });
         $('#edit-analyte-all').on('change', function() {
             $('#edit-detail-analytes').find('.analyte-selected').prop('checked', $(this).is(':checked'));
+        });
+        $('#edit-loq-all').on('change', function() {
+            $('#edit-detail-analytes').find('.analyte-show-loq').prop('checked', $(this).is(':checked'));
+        });
+        $('#edit-mu-all').on('change', function() {
+            $('#edit-detail-analytes').find('.analyte-show-mu').prop('checked', $(this).is(':checked'));
         });
         
 

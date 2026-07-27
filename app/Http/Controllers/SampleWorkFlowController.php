@@ -4749,12 +4749,20 @@ class SampleWorkFlowController extends Controller
         $acc = [];
         $default = [];
         $both = [];
+        $showLoqIds = null;
+        $showMuIds = null;
         if ($detail != false) {
             $detail_data = QuotationDetails::find($detail);
-            $sub = explode(',', $detail_data->subcontracted_analytes);
-            $acc = explode(',', $detail_data->accredited_analytes);
-            $default = explode(',', $detail_data->default_analytes);
-            $both = explode(',', $detail_data->sub_acc_analytes);
+            $sub = explode(',', (string) $detail_data->subcontracted_analytes);
+            $acc = explode(',', (string) $detail_data->accredited_analytes);
+            $default = explode(',', (string) $detail_data->default_analytes);
+            $both = explode(',', (string) $detail_data->sub_acc_analytes);
+            if ($detail_data->show_loq_analytes !== null) {
+                $showLoqIds = array_values(array_filter(array_map('trim', explode(',', (string) $detail_data->show_loq_analytes))));
+            }
+            if ($detail_data->show_mu_analytes !== null) {
+                $showMuIds = array_values(array_filter(array_map('trim', explode(',', (string) $detail_data->show_mu_analytes))));
+            }
         }
         $check = array_merge($sub, $acc, $default, $both);
         foreach ($analysis_types as $type) {
@@ -4789,6 +4797,13 @@ class SampleWorkFlowController extends Controller
                         : (is_numeric($type->reporting_time) && (int) $type->reporting_time > 0
                             ? (int) $type->reporting_time
                             : null);
+
+                    if ($showLoqIds !== null) {
+                        $aa->show_loq = in_array((string) $aa->id, $showLoqIds, true) ? 1 : 0;
+                    }
+                    if ($showMuIds !== null) {
+                        $aa->show_mu = in_array((string) $aa->id, $showMuIds, true) ? 1 : 0;
+                    }
 
                     if (!isset($analytes[$type->name])) {
                         $analytes[$type->name] = [];
