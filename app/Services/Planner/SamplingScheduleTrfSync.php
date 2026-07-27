@@ -81,7 +81,10 @@ final class SamplingScheduleTrfSync
                     $resolvedId = (string) (SamplePoint::query()
                         ->where('crm_customer_id', $schedule->crm_customer_id)
                         ->where('active', 1)
-                        ->where('name', $location)
+                        ->where(function ($q) use ($location): void {
+                            $q->where('name', $location)
+                                ->orWhereRaw('LOWER(name) = ?', [mb_strtolower($location)]);
+                        })
                         ->value('id') ?? '');
                 }
                 if ($resolvedId !== '') {

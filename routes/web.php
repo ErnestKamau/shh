@@ -687,6 +687,7 @@ Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationCo
 Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header')->middleware('can:laboratory.components.quotation.add');
 Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrencyByCode');
 Route::post('/billing/quotations/{id}/suggest-line-pricing', 'Invoice\QuotationController@suggestManualLinePricing')->name('quotation.suggest_line_pricing')->middleware('can:laboratory.components.quotation.view');
+Route::post('/billing/quotations/elements/loq', 'Invoice\QuotationController@updateElementLoq')->name('quotation.update_element_loq')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail')->middleware('can:laboratory.components.quotation.add');
 Route::get('/billing-quotation-view-final/{id}/{stage?}', 'Invoice\QuotationController@view_quotation_final')->name('view_quotation_final')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/edit_quotation_detail', 'Invoice\QuotationController@edit_quotation_detail')->name('edit_quotation_detail')->middleware('can:laboratory.components.quotation.edit');

@@ -425,17 +425,10 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        // Re-apply even when unchanged so a stale Step 3 DOM can recover without
-        // requiring the user to leave and re-enter the pricing step.
-        if ($this->quotationMode === $value) {
-            $this->syncQuotationModeState($value);
-            $this->quotationModeRenderKey++;
-
-            return;
-        }
-
         $this->quotationMode = $value;
         $this->quotationModeRenderKey++;
+        // updated* hooks do not run for assignments inside actions — sync explicitly.
+        $this->syncQuotationModeState($value);
     }
 
     public function updatedQuotationMode(string $value): void
@@ -493,6 +486,15 @@ class ProcessEnquiryWizard extends Component
         $this->selectedExistingQuotationId = $quotationId !== '' ? $quotationId : null;
         $this->existingQuotationSearch = '';
         $this->showExistingQuotationDropdown = false;
+
+        // updatedSelectedExistingQuotationId does not run for action assignments.
+        if ($this->selectedExistingQuotationId === null) {
+            $this->resetExistingQuotationPreview();
+
+            return;
+        }
+
+        $this->applySelectedExistingQuotation();
     }
 
     public function clearExistingQuotation(): void
@@ -500,6 +502,7 @@ class ProcessEnquiryWizard extends Component
         $this->selectedExistingQuotationId = null;
         $this->existingQuotationSearch = '';
         $this->showExistingQuotationDropdown = false;
+        $this->resetExistingQuotationPreview();
     }
 
     /**
@@ -551,17 +554,22 @@ class ProcessEnquiryWizard extends Component
         }
 
         if ($value === null || $value === '') {
-            $this->lines = [];
-            $this->quotationBuilt = false;
-            $this->pdfGenerated = false;
-            $this->quotationMismatchWarning = '';
-            $this->quotationHeaderId = null;
-            $this->quoteNumber = '';
+            $this->resetExistingQuotationPreview();
 
             return;
         }
 
         $this->applySelectedExistingQuotation();
+    }
+
+    private function resetExistingQuotationPreview(): void
+    {
+        $this->lines = [];
+        $this->quotationBuilt = false;
+        $this->pdfGenerated = false;
+        $this->quotationMismatchWarning = '';
+        $this->quotationHeaderId = null;
+        $this->quoteNumber = '';
     }
 
     public function refreshExistingQuotationOptions(): void

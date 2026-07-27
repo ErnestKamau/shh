@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 use App\Http\Controllers\Controller;
 use App\Services\Billing\InvoiceNumberGenerator;
+use App\Services\Commercial\AccountPaymentTermsService;
 use Illuminate\Http\Request;
 use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 
@@ -98,13 +99,7 @@ class InvoiceController extends Controller
         $invoice->customer_id = $header->crm_customer_id;
         
         $invoice->save();
-        if($customer->credit_days > 0){
-            $date = date('Y-m-d',strtotime($invoice->created_at.'+'.$customer->credit_days .' days'));
-        }else{
-            $date = date('Y-m-d',strtotime($invoice->created_at.'+ 30 days'));
-        }
-        // return response()->json($date,200);
-        $invoice->due_date = $date;
+        app(AccountPaymentTermsService::class)->applyDueDateToInvoice($invoice, $customer, $header->id);
         $invoice->invoice_number = app(InvoiceNumberGenerator::class)->next();
         $invoice->save();
 

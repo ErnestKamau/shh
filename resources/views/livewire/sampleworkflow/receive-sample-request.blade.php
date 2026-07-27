@@ -689,36 +689,35 @@
                         </div>
                     </div>
                     <div class="workflow-board-panel-body">
-                        @if ($plannerMode)
-                            <div class="form-group mb-3">
-                                <label for="selectedScheduleId" class="font-weight-bold text-dark">
-                                    Sampling schedule <span class="text-danger">*</span>
-                                </label>
-                                <select id="selectedScheduleId"
-                                        wire:model.live="selectedScheduleId"
-                                        class="form-control form-control-sm @error('selectedScheduleId') is-invalid @enderror">
-                                    <option value="">-- Select schedule to fill --</option>
-                                    @foreach ($plannerScheduleOptions as $scheduleOption)
-                                        <option value="{{ $scheduleOption->id }}">
-                                            {{ optional($scheduleOption->sampling_datetime)->format('Y-m-d H:i') }}
-                                            · {{ $scheduleOption->title }}
-                                            @if ($scheduleOption->client?->name)
-                                                · {{ $scheduleOption->client->name }}
-                                            @endif
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('selectedScheduleId')
-                                    <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
-                                @enderror
-                                @if ($plannerScheduleOptions->isEmpty())
-                                    <p class="text-muted small mb-0 mt-1">
-                                        No pending schedules for this sample type.
-                                        <a href="{{ route('system-planner.schedule-sampling') }}">Create a schedule</a>
-                                        first, then return here to fill the sampling form.
-                                    </p>
-                                @endif
-                            </div>
+                        @if ($plannerMode && $selectedScheduleId)
+                            @php
+                                $linkedSchedule = collect($plannerScheduleOptions ?? [])->firstWhere('id', $selectedScheduleId);
+                                if (! $linkedSchedule) {
+                                    $linkedSchedule = \App\Models\SamplingSchedule::query()
+                                        ->visibleTo()
+                                        ->with('client')
+                                        ->find($selectedScheduleId);
+                                }
+                            @endphp
+                            @if ($linkedSchedule)
+                                <div class="alert alert-light border py-2 px-3 mb-3 small d-flex align-items-center justify-content-between flex-wrap" style="border-radius:10px;">
+                                    <span>
+                                        <i class="mdi mdi-calendar-clock text-primary mr-1"></i>
+                                        Filling for schedule:
+                                        <strong>{{ $linkedSchedule->title }}</strong>
+                                        @if ($linkedSchedule->client?->name)
+                                            · {{ $linkedSchedule->client->name }}
+                                        @endif
+                                        @if ($linkedSchedule->sampling_datetime)
+                                            · {{ $linkedSchedule->sampling_datetime->format('d M Y H:i') }}
+                                        @endif
+                                    </span>
+                                </div>
+                            @endif
+                        @elseif ($plannerMode)
+                            @error('selectedScheduleId')
+                                <div class="alert alert-danger py-2 px-3 mb-3 small">{{ $message }}</div>
+                            @enderror
                         @endif
                         @include('livewire.partials.walk-in-trf-wizard-styles')
                         <div class="walk-in-trf-wizard-shell mb-0 border-0 bg-transparent p-0">

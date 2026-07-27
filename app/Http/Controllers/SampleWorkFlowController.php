@@ -3962,12 +3962,7 @@ class SampleWorkFlowController extends Controller
             $invoice->currency_id = $pricelist->currency_id;
             $invoice->customer_id = $customer->id;
             $invoice->save();
-            if ($customer->credit_days > 0) {
-                $date = date('Y-m-d', strtotime($invoice->created_at . '+' . $customer->credit_days . ' days'));
-            } else {
-                $date = date('Y-m-d', strtotime($invoice->created_at . '+ 30 days'));
-            }
-            $invoice->due_date = $date;
+            app(\App\Services\Commercial\AccountPaymentTermsService::class)->applyDueDateToInvoice($invoice, $customer);
             $invoice->invoice_number = app(InvoiceNumberGenerator::class)->next();
             $invoice->save();
             foreach ($request->batch_code as $code) {
@@ -4110,12 +4105,7 @@ class SampleWorkFlowController extends Controller
             $invoice->customer_id = $customer->id;
             $invoice->zoho_customer_id = $customer->zohocustomer->zoho_contact_id;
             $invoice->save();
-            if ($customer->credit_days > 0) {
-                $date = date('Y-m-d', strtotime($invoice->created_at . '+' . $customer->credit_days . ' days'));
-            } else {
-                $date = date('Y-m-d', strtotime($invoice->created_at . '+ 30 days'));
-            }
-            $invoice->due_date = $date;
+            app(\App\Services\Commercial\AccountPaymentTermsService::class)->applyDueDateToInvoice($invoice, $customer);
             $id_str = strval($invoice->id);
             if (strlen($id_str) < 4) {
                 $count = 4 - strlen($id_str);
@@ -4770,6 +4760,7 @@ class SampleWorkFlowController extends Controller
         foreach ($analysis_types as $type) {
             if (in_array($type->id, $selected_analysis)) {
                 $analysis_analytes = AnalysisElements::where('analysis_type_id', $type->id)->get();
+                $resolver = app(\App\Services\Lab\UncertaintyBudgetResolver::class);
                 foreach ($analysis_analytes as $aa) {
                     $analyte = getAnalyteByID($aa->analyte_id);
                     $aa->analyte_code = $analyte->code;
@@ -4788,6 +4779,16 @@ class SampleWorkFlowController extends Controller
                     } else {
                         $aa->selected = 1;
                     }
+
+                    $metrics = $resolver->resolveLabMetricsForElement($aa);
+                    $aa->loq = $metrics['loq'];
+                    $aa->mu_percent = $metrics['mu_percent'];
+                    $aa->test_method = $metrics['test_method'];
+                    $aa->reporting_time = is_numeric($aa->reporting_time) && (int) $aa->reporting_time > 0
+                        ? (int) $aa->reporting_time
+                        : (is_numeric($type->reporting_time) && (int) $type->reporting_time > 0
+                            ? (int) $type->reporting_time
+                            : null);
 
                     if (!isset($analytes[$type->name])) {
                         $analytes[$type->name] = [];
@@ -6403,6 +6404,18 @@ class SampleWorkFlowController extends Controller
         $failCount = count(array_filter($results, fn($r) => $r['status'] === 'failed'));
         $sentCount = count($results) - $failCount;
         $isSuccess = $failCount === 0;
+
+        if ($sentCount > 0) {
+            try {
+                app(\App\Services\Commercial\AccountPaymentTermsService::class)
+                    ->recalculateInvoiceDueDatesForBatch((string) $batch->id);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to recalculate invoice due date after report delivery', [
+                    'batch_id' => $batch->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => $isSuccess,

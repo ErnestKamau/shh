@@ -291,7 +291,8 @@
                                     </div>
                                 </div>
 
-                                <div class="acc-pricing-table-wrap acc-pricing-table-wrap--scroll mb-3">
+                                <div class="acc-pricing-table-wrap acc-pricing-table-wrap--scroll mb-3"
+                                     wire:key="enquiry-pricing-lines-{{ $quotationMode }}-{{ $selectedExistingQuotationId ?? $quotationHeaderId ?? 'none' }}">
                                     <table class="table acc-pricing-table mb-0">
                                         <thead>
                                             <tr>
@@ -316,8 +317,9 @@
                                                     $unitPrice = (float) ($line['unit_price'] ?? 0);
                                                     $lineTotal = $sampleCount * $unitPrice;
                                                     $readOnly = $quotationMode === 'use_existing';
+                                                    $lineKey = (string) ($line['parameter_key'] ?? $line['analysis_element_id'] ?? $line['line_no'] ?? $index);
                                                 @endphp
-                                                <tr wire:key="ql-{{ $index }}">
+                                                <tr wire:key="ql-{{ $selectedExistingQuotationId ?? $quotationHeaderId ?? 'new' }}-{{ $lineKey }}-{{ $index }}">
                                                     <td>{{ $index + 1 }}</td>
                                                     <td>
                                                         {{ $line['parameter_label'] ?? 'Parameter' }}

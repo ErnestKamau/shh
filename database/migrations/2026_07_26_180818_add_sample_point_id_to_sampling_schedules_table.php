@@ -11,8 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('sampling_schedules')) {
+            return;
+        }
+
         Schema::table('sampling_schedules', function (Blueprint $table) {
-            $table->uuid('sample_point_id')->nullable()->after('location')->index();
+            if (! Schema::hasColumn('sampling_schedules', 'sample_point_id')) {
+                $table->uuid('sample_point_id')->nullable()->after('location')->index();
+            }
         });
     }
 
@@ -21,8 +27,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (! Schema::hasTable('sampling_schedules')) {
+            return;
+        }
+
         Schema::table('sampling_schedules', function (Blueprint $table) {
-            $table->dropColumn('sample_point_id');
+            if (Schema::hasColumn('sampling_schedules', 'sample_point_id')) {
+                $table->dropColumn('sample_point_id');
+            }
         });
     }
 };

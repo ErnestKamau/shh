@@ -16,6 +16,8 @@ class SystemConfiguration extends Model implements Auditable
 
     protected $casts = [
         'value' => 'encrypted',
+        'meta' => 'array',
+        'status' => 'boolean',
     ];
 
 	use \OwenIt\Auditing\Auditable;
@@ -24,6 +26,7 @@ class SystemConfiguration extends Model implements Auditable
         'configuration_type_id',
         'value',
         'key',
+        'meta',
         'status',
     ];
 

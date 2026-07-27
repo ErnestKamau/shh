@@ -30,6 +30,7 @@ class QuotationDetails extends Model implements Auditable
         'test_method',
         'loq',
         'mu_percent',
+        'tat',
         'photo_url',
         'subcontracted_analytes',
         'accredited_analytes',
@@ -40,6 +41,7 @@ class QuotationDetails extends Model implements Auditable
 
     protected $casts = [
         'is_package' => 'boolean',
+        'tat' => 'integer',
     ];
 
     public function sampletype(){

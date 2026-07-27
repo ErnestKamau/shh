@@ -4,6 +4,7 @@ namespace App\Livewire\Crm\Customer;
 
 use App\Models\CRM\CRMCustomer;
 use App\Country;
+use App\Services\Commercial\AccountPaymentTermsService;
 use Illuminate\Validation\Rule;
 use App\Livewire\Crm\BaseCrmComponent;
 
@@ -20,6 +21,8 @@ class CustomerForm extends BaseCrmComponent
     public $telephone1 = '';
     public $telephone2 = '';
     public $credit_days = '';
+    public $payment_terms_note = '';
+    public $payment_method = null;
     public $country_id = '';
     public $active = false;
     public $is_internal = false;
@@ -52,6 +55,7 @@ class CustomerForm extends BaseCrmComponent
         if (isset($this->account_settings->id)) {
             $rawAccounts = getconfigByID($this->account_settings->id);
             $this->accounts = collect($rawAccounts)
+                ->filter(fn ($account) => (bool) data_get($account, 'status', true))
                 ->values();
         } else {
             $this->accounts = collect();
@@ -69,6 +73,8 @@ class CustomerForm extends BaseCrmComponent
             $this->telephone1 = $customer->telephone1;
             $this->telephone2 = $customer->telephone2;
             $this->credit_days = $customer->credit_days;
+            $this->payment_terms_note = $customer->payment_terms_note ?? '';
+            $this->payment_method = $customer->payment_method;
             $this->country_id = $customer->country_id;
             $this->active = (bool) $customer->active;
             $this->is_internal = (bool) ($customer->is_internal ?? false);
@@ -126,12 +132,24 @@ class CustomerForm extends BaseCrmComponent
         return collect($this->accounts)->firstWhere('id', (string) $this->account_status);
     }
 
+    public function getSelectedAccountTermsProperty(): array
+    {
+        return app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId($this->account_status ? (string) $this->account_status : null);
+    }
+
+    public function getPaymentMethodOptionsProperty(): array
+    {
+        return AccountPaymentTermsService::paymentMethodOptions();
+    }
+
     public function getFilteredAccountsProperty()
     {
         $search = trim(strtolower($this->accountSearch));
+        $termsService = app(AccountPaymentTermsService::class);
 
         return collect($this->accounts)
-            ->filter(function ($account) use ($search) {
+            ->filter(function ($account) use ($search, $termsService) {
                 if ((string) data_get($account, 'id') === (string) $this->account_status) {
                     return false;
                 }
@@ -140,7 +158,13 @@ class CustomerForm extends BaseCrmComponent
                     return true;
                 }
 
-                return str_contains(strtolower((string) data_get($account, 'key', '')), $search);
+                $haystack = strtolower(
+                    $termsService->displayLabel($account).' '
+                    .(string) data_get($account, 'key', '').' '
+                    .(string) data_get($account, 'value', '')
+                );
+
+                return str_contains($haystack, $search);
             })
             ->values();
     }
@@ -150,6 +174,22 @@ class CustomerForm extends BaseCrmComponent
         $this->account_status = $accountId ? (string) $accountId : '';
         $this->accountSearch = '';
         $this->showAccountDropdown = false;
+
+        if (! $accountId) {
+            return;
+        }
+
+        $terms = app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId((string) $accountId);
+
+        if (! $terms['allows_custom_days']) {
+            $this->credit_days = $terms['days'];
+            $this->payment_terms_note = '';
+            $this->payment_method = $terms['payment_method'];
+        } elseif ($terms['billing_type'] !== 'other') {
+            $this->payment_terms_note = '';
+            $this->payment_method = null;
+        }
     }
 
     public function clearAccountStatus()
@@ -166,6 +206,9 @@ class CustomerForm extends BaseCrmComponent
             ->map(fn ($id) => (string) $id)
             ->all();
 
+        $terms = app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId($this->account_status ? (string) $this->account_status : null);
+
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
@@ -175,7 +218,13 @@ class CustomerForm extends BaseCrmComponent
             'fax' => 'nullable|string|max:255',
             'telephone1' => 'required|string|max:255',
             'telephone2' => 'nullable|string|max:255',
-            'credit_days' => 'nullable|integer',
+            'credit_days' => $terms['billing_type'] === 'other'
+                ? 'required|integer|min:0|max:3650'
+                : 'nullable|integer|min:0|max:3650',
+            'payment_method' => $terms['billing_type'] === 'other'
+                ? ['required', Rule::in(array_keys(AccountPaymentTermsService::paymentMethodOptions()))]
+                : 'nullable|string|max:100',
+            'payment_terms_note' => 'nullable|string|max:500',
             'country_id' => 'nullable|exists:countries,id',
             'account_status' => ['required', Rule::in($allowedAccountIds)],
             'active' => 'boolean',
@@ -190,7 +239,9 @@ class CustomerForm extends BaseCrmComponent
     {
         $this->account_settings = getConfigTypeByName('Account Settings');
         if (isset($this->account_settings->id)) {
-            $this->accounts = collect(getconfigByID($this->account_settings->id))->values();
+            $this->accounts = collect(getconfigByID($this->account_settings->id))
+                ->filter(fn ($account) => (bool) data_get($account, 'status', true))
+                ->values();
         }
 
         if (collect($this->accounts)->isEmpty()) {
@@ -222,7 +273,6 @@ class CustomerForm extends BaseCrmComponent
         $customer->fax = $this->fax;
         $customer->telephone1 = $this->telephone1;
         $customer->telephone2 = $this->telephone2;
-        $customer->credit_days = $this->credit_days;
         $customer->country_id = $this->country_id;
         $customer->active = $this->active ? 1 : 0;
         $customer->is_internal = $this->is_internal ? 1 : 0;
@@ -230,6 +280,14 @@ class CustomerForm extends BaseCrmComponent
         $customer->lpos_required = $this->lpos_required ? 1 : 0;
         $customer->contract_valid_from = $this->contract_valid_from ?: null;
         $customer->contract_valid_to = $this->contract_valid_to ?: null;
+
+        app(AccountPaymentTermsService::class)->syncCustomerFromAccountSetting(
+            $customer,
+            $this->account_status ? (string) $this->account_status : null,
+            is_numeric($this->credit_days) ? (int) $this->credit_days : null,
+            $this->payment_terms_note,
+            $this->payment_method
+        );
 
         $customer->save();
 

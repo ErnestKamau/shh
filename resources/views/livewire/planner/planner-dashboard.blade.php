@@ -133,10 +133,18 @@
                     <a href="{{ route('system-planner.schedule-sampling') }}" class="small">{{ __('planner.view_all') }}</a>
                 </div>
                 @forelse($upcomingList as $row)
-                <div class="pd-list-item">
-                    <div class="pd-list-title">{{ $row['title'] }}</div>
-                    <div class="pd-list-meta">{{ $row['client'] }} · {{ $row['when'] }}</div>
-                    <div class="pd-list-sub">{{ $row['location'] }}</div>
+                <div class="pd-list-item d-flex align-items-start justify-content-between">
+                    <div class="min-width-0 pr-2">
+                        <div class="pd-list-title">{{ $row['title'] }}</div>
+                        <div class="pd-list-meta">{{ $row['client'] }} · {{ $row['when'] }}</div>
+                        <div class="pd-list-sub">{{ $row['location'] }}</div>
+                    </div>
+                    <a href="{{ $row['fill_url'] }}"
+                       class="pd-list-fill-btn"
+                       title="Fill sampling form"
+                       aria-label="Fill sampling form">
+                        <i class="mdi mdi-clipboard-edit-outline"></i>
+                    </a>
                 </div>
                 @empty
                 <div class="pd-empty">{{ __('planner.no_upcoming_schedules') }}</div>
@@ -368,6 +376,26 @@
             text-decoration: none !important;
         }
         .pd-fill-link:hover { text-decoration: underline !important; }
+        .pd-list-fill-btn {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f3e8e9;
+            border: 1px solid #e2b8bb;
+            color: #8a1a1f;
+            text-decoration: none !important;
+            font-size: 1rem;
+            margin-top: 2px;
+        }
+        .pd-list-fill-btn:hover {
+            background: #8a1a1f;
+            border-color: #8a1a1f;
+            color: #fff;
+        }
         .pd-chart-wrap { position: relative; height: 240px; width: 100%; }
         .pd-chart-wrap--tall { height: 280px; }
         .pd-chart-wrap canvas { width: 100% !important; height: 100% !important; }

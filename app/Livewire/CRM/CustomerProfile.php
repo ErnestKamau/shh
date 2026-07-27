@@ -17,6 +17,7 @@ use App\ModulePreConfigs;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Services\Commercial\AccountPaymentTermsService;
 
 class CustomerProfile extends Component
 {
@@ -47,6 +48,8 @@ class CustomerProfile extends Component
         'telephone2' => '',
         'country_id' => null,
         'credit_days' => null,
+        'payment_terms_note' => '',
+        'payment_method' => null,
         'active' => true,
         'account_status' => null,
         'vat_no' => '',
@@ -83,6 +86,9 @@ class CustomerProfile extends Component
             ->map(fn ($id) => (string) $id)
             ->all();
 
+        $terms = app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId($this->customerForm['account_status'] ?? null);
+
         return [
             'customerForm.name' => 'required|string|max:255',
             'customerForm.postal_address' => 'required|string|max:500',
@@ -91,6 +97,13 @@ class CustomerProfile extends Component
             'customerForm.telephone1' => 'required|string|max:50',
             'customerForm.country_id' => 'required|exists:countries,id',
             'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
+            'customerForm.credit_days' => $terms['billing_type'] === 'other'
+                ? 'required|integer|min:0|max:3650'
+                : 'nullable|integer|min:0|max:3650',
+            'customerForm.payment_method' => $terms['billing_type'] === 'other'
+                ? ['required', Rule::in(array_keys(AccountPaymentTermsService::paymentMethodOptions()))]
+                : 'nullable|string|max:100',
+            'customerForm.payment_terms_note' => 'nullable|string|max:500',
             'customerForm.contract_valid_from' => 'nullable|date',
             'customerForm.contract_valid_to' => 'nullable|date',
         ];
@@ -142,6 +155,8 @@ class CustomerProfile extends Component
             'telephone2' => $this->customer->telephone2 ?? '',
             'country_id' => $this->customer->country_id,
             'credit_days' => $this->customer->credit_days,
+            'payment_terms_note' => $this->customer->payment_terms_note ?? '',
+            'payment_method' => $this->customer->payment_method,
             'active' => $this->customer->active == 1,
             'account_status' => $this->customer->account_status,
             'vat_no' => $this->customer->vat_no ?? '',
@@ -159,7 +174,9 @@ class CustomerProfile extends Component
         $selectedAccount = $this->selectedAccount;
 
         $this->countrySearch = $selectedCountry ? (string) data_get($selectedCountry, 'name', '') : '';
-        $this->accountSearch = $selectedAccount ? (string) data_get($selectedAccount, 'key', '') : '';
+        $this->accountSearch = $selectedAccount
+            ? app(AccountPaymentTermsService::class)->displayLabel($selectedAccount)
+            : '';
     }
 
     public function loadInitialData()
@@ -168,7 +185,9 @@ class CustomerProfile extends Component
         
         $account_settings = getConfigTypeByName('Account Settings');
         if (isset($account_settings->id)) {
-            $this->accounts = getconfigByID($account_settings->id);
+            $this->accounts = collect(getconfigByID($account_settings->id))
+                ->filter(fn ($account) => (bool) data_get($account, 'status', true))
+                ->values();
         } else {
             $this->accounts = [];
         }
@@ -308,10 +327,28 @@ class CustomerProfile extends Component
 
         return $accounts
             ->filter(function ($account) use ($search) {
-                return str_contains(strtolower((string) data_get($account, 'key', '')), $search);
+                $termsService = app(AccountPaymentTermsService::class);
+                $haystack = strtolower(
+                    $termsService->displayLabel($account).' '
+                    .(string) data_get($account, 'key', '').' '
+                    .(string) data_get($account, 'value', '')
+                );
+
+                return str_contains($haystack, $search);
             })
             ->take(10)
             ->values();
+    }
+
+    public function getSelectedAccountTermsProperty(): array
+    {
+        return app(AccountPaymentTermsService::class)
+            ->resolveFromConfigId($this->customerForm['account_status'] ?? null);
+    }
+
+    public function getPaymentMethodOptionsProperty(): array
+    {
+        return AccountPaymentTermsService::paymentMethodOptions();
     }
 
     public function selectAccountStatus($accountId): void
@@ -320,8 +357,20 @@ class CustomerProfile extends Component
 
         if ($account) {
             $this->customerForm['account_status'] = (string) data_get($account, 'id');
-            $this->accountSearch = (string) data_get($account, 'key', '');
+            $this->accountSearch = app(AccountPaymentTermsService::class)->displayLabel($account);
             $this->showAccountDropdown = false;
+
+            $terms = app(AccountPaymentTermsService::class)
+                ->resolveFromConfigId((string) data_get($account, 'id'));
+
+            if (! $terms['allows_custom_days']) {
+                $this->customerForm['credit_days'] = $terms['days'];
+                $this->customerForm['payment_terms_note'] = '';
+                $this->customerForm['payment_method'] = $terms['payment_method'];
+            } elseif ($terms['billing_type'] !== 'other') {
+                $this->customerForm['payment_terms_note'] = '';
+                $this->customerForm['payment_method'] = null;
+            }
         }
     }
 
@@ -348,9 +397,17 @@ class CustomerProfile extends Component
             $this->customer->telephone1 = $this->customerForm['telephone1'];
             $this->customer->telephone2 = $this->customerForm['telephone2'];
             $this->customer->country_id = $this->customerForm['country_id'];
-            $this->customer->credit_days = $this->customerForm['credit_days'];
             $this->customer->active = $this->customerForm['active'] ? 1 : 0;
             $this->customer->account_status = $this->customerForm['account_status'];
+            app(AccountPaymentTermsService::class)->syncCustomerFromAccountSetting(
+                $this->customer,
+                $this->customerForm['account_status'] ?? null,
+                is_numeric($this->customerForm['credit_days'] ?? null)
+                    ? (int) $this->customerForm['credit_days']
+                    : null,
+                $this->customerForm['payment_terms_note'] ?? null,
+                $this->customerForm['payment_method'] ?? null
+            );
             $this->customer->vat_no = $this->customerForm['vat_no'];
             $this->customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
             $this->customer->contract_valid_from = $this->customerForm['contract_valid_from'] ?: null;

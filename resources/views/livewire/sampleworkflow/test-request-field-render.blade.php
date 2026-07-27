@@ -211,11 +211,25 @@
             <i class="mdi mdi-plus"></i>
         </button>
     </div>
+    @php
+        $locationWireValue = data_get($this, $wirePrefix);
+        if (is_array($locationWireValue)) {
+            $locationWireValue = $locationWireValue[$rowIndex ?? 0] ?? '';
+        }
+        $locationWireValue = trim((string) $locationWireValue);
+        $knownPointIds = $this->customerSamplePoints->pluck('id')->map(fn ($id) => (string) $id);
+        $orphanLocation = $locationWireValue !== '' && ! $knownPointIds->contains($locationWireValue)
+            ? $locationWireValue
+            : null;
+    @endphp
     <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif
         @if($field['readonly'] ?? false) disabled @endif>
         <option value="">Select sampling {{ $fieldName === 'sampling_point' ? 'point' : 'location' }}</option>
+        @if ($orphanLocation !== null)
+            <option value="{{ $orphanLocation }}">{{ $orphanLocation }}</option>
+        @endif
         @foreach($this->customerSamplePoints as $point)
             <option value="{{ $point->id }}">{{ $point->display_name }}</option>
         @endforeach

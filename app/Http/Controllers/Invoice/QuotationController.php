@@ -56,11 +56,11 @@ class QuotationController extends Controller
     public function index($stage = false)
     {
         if ($stage != false) {
-            $quotations = QuotationHeaderView::where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeaderView::where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
         } else {
-            $quotations = QuotationHeaderView::where('is_draft', 0)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->orderBy('id', 'desc')->get();
+            $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->orderBy('id', 'desc')->get();
             $stage = 'All Quotations';
         }
 
@@ -131,21 +131,21 @@ class QuotationController extends Controller
     {
 
 
-        $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
+        $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->orderBy('id', 'desc')->get();
         if ($request->quote_type == 'Analysis') {
             $quotations_d = QuotationDetails::query();
             $quotations_d = $request->sample_type_id != '' ? $quotations_d->where('sample_type', $request->sample_type_id) : $quotations_d;
             $analysis_detail_ids = $request->analysis_type_id != '' ? QuotationDetailAnalysisSplit::where('id', $request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
             $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id', $analysis_detail_ids) : $quotations_d;
             $quotations_d_ids = $quotations_d->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id', $quotations_d_ids);
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->whereIn('id', $quotations_d_ids);
 
             $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
             $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
         }
         if ($request->quote_type == 'General') {
             $quotations_d = QuotationDetails::where('description', 'LIKE', '%' . $request->item_description . '%')->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id', $quotations_d);
+            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->whereIn('id', $quotations_d);
 
             $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
             $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
@@ -186,19 +186,15 @@ class QuotationController extends Controller
         $headers = QuotationHeader::where('quotation_type', 'Analysis')->pluck('id')->toArray();
         $details = QuotationDetails::whereIn('quotation_header_id', $headers)->get();
         foreach ($details as $detail) {
-            $idsTypes = explode(',', $detail->part_no);
-            $insertArr = [];
-            foreach ($idsTypes as $id) {
-                array_push($insertArr, ['quotation_detail_id' => $detail->id, 'analysis_type_id' => $id]);
-            }
-            QuotationDetailAnalysisSplit::insert($insertArr);
+            $idsTypes = array_values(array_filter(array_map('trim', explode(',', (string) $detail->part_no))));
+            QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $idsTypes);
         }
         return response()->json('done');
     }
     public function add_quotation_header(Request $request)
     {
         $request->validate([
-            'currency_id' => ['nullable', 'uuid', 'exists:currencies,id'],
+            'currency_id' => ['required', 'uuid', 'exists:currencies,id'],
         ]);
 
         if (isset($request->quote_id)) {
@@ -222,18 +218,7 @@ class QuotationController extends Controller
         $header->quote_date = $request->quotation_date;
         $header->expiring_date = $request->expire_date;
         $header->prepared_by_id = auth()->user()->id;
-
-        // Handle Dynamics customer linking
-        if ($request->filled('zoho_customer_id')) {
-            // Update CRM customer with zoho_customer_id
-            $customer->zoho_customer_id = $request->zoho_customer_id;
-            $customer->save();
-        }
-
-        // Handle currency
-        if ($request->filled('currency_id')) {
-            $header->currency_id = $request->currency_id;
-        }
+        $header->currency_id = $request->currency_id;
 
         if (!isset($request->quote_id)) {
             $header->status = 'Quote In Reception';
@@ -296,7 +281,7 @@ class QuotationController extends Controller
     {
         // return response()->json('test');
         $customers = CRMCustomer::all();
-        $header = QuotationHeader::with('preparedBy')->find($id);
+        $header = QuotationHeader::with(['preparedBy', 'customer'])->find($id);
         AmSpecQuotationNumberGenerator::assignIfMissing($header);
         $header = $header->fresh();
         $sample_types = SampleType::all();
@@ -345,6 +330,12 @@ class QuotationController extends Controller
                 $detail['part_no_final'] = implode(',', $part_no);
                 $sampleType = getSampleTypeByID($detail->sample_type);
                 $detail['sample_type_name'] = $sampleType?->name ?? '';
+
+                $elementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
+                $detail->tat = $this->quotationPricingResolver->maxTatForElements(
+                    $elementIds,
+                    (string) $detail->part_no
+                );
             }
 
             $detail['count'] = $count;
@@ -375,8 +366,9 @@ class QuotationController extends Controller
         $structuredTermsConfig = $this->quotationReportService->resolveStructuredTermsConfig();
         $structuredTerms = $this->quotationReportService->resolveStructuredTerms($header);
         $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($header);
+        $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'accountPaymentOptions'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -465,11 +457,12 @@ class QuotationController extends Controller
     {
         $request->validate([
             'currency_id' => ['required', 'uuid', 'exists:currencies,id'],
-            'service_delivery' => ['required', 'string'],
-            'payments' => ['required', 'string'],
-            'quote_specification' => ['required', 'string'],
-            'additional_info' => ['required', 'string'],
-            'payment_info' => ['required', 'string'],
+            'service_delivery' => ['nullable', 'string'],
+            'payments_account_id' => ['nullable', 'uuid'],
+            'payments_custom' => ['nullable', 'string'],
+            'quote_specification' => ['nullable', 'string'],
+            'additional_info' => ['nullable', 'string'],
+            'payment_info' => ['nullable', 'string'],
         ]);
 
         $header = QuotationHeader::find($id);
@@ -479,11 +472,11 @@ class QuotationController extends Controller
             $termsOverride = null;
         }
 
-        $header->service_delivery = $request->service_delivery;
-        $header->payments = $request->payments;
-        $header->quote_specification = $request->quote_specification;
-        $header->additional_info = $request->additional_info;
-        $header->payment_info = $request->payment_info;
+        $header->service_delivery = $request->input('service_delivery');
+        $header->payments = $this->resolvePaymentsValue($request);
+        $header->quote_specification = $request->input('quote_specification');
+        $header->additional_info = $request->input('additional_info');
+        $header->payment_info = $request->input('payment_info');
         $header->currency_id = $request->currency_id;
         $header->subject = $request->input('subject', $header->subject);
         $header->sample_point_id = $request->input('sample_point_id', $header->sample_point_id);
@@ -491,14 +484,16 @@ class QuotationController extends Controller
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
         $header->terms_override = $termsOverride;
         $header->show_loq_column = true;
-        $header->show_mu_column = $request->has('show_mu_column');
-        $header->show_unit_price_column = $request->has('show_unit_price_column');
+        // Column visibility toggles removed from prep UI; keep stored defaults.
 
-        $structuredTerms = [];
-        foreach (array_keys(QuotationReportService::STRUCTURED_TERM_DEFINITIONS) as $key) {
-            $structuredTerms[$key] = (string) $request->input('structured_terms.'.$key, '');
+        // Structured Commercial Terms are hidden on the prep form; preserve existing values.
+        if ($request->has('structured_terms') && is_array($request->input('structured_terms'))) {
+            $structuredTerms = [];
+            foreach (array_keys(QuotationReportService::STRUCTURED_TERM_DEFINITIONS) as $key) {
+                $structuredTerms[$key] = (string) $request->input('structured_terms.'.$key, '');
+            }
+            $header->structured_terms = $structuredTerms;
         }
-        $header->structured_terms = $structuredTerms;
 
         $header->save();
         $this->quotationReportService->ensureHeaderMetadata($header);
@@ -550,6 +545,17 @@ class QuotationController extends Controller
                     $request->sub_acc[$count] ?? '',
                 ])))));
 
+                $loqOverrides = [];
+                $loqJson = (string) ($request->element_loq_json[$count] ?? '');
+                if ($loqJson !== '') {
+                    $decoded = json_decode($loqJson, true);
+                    if (is_array($decoded)) {
+                        foreach ($decoded as $elementId => $loqValue) {
+                            $loqOverrides[(string) $elementId] = (string) $loqValue;
+                        }
+                    }
+                }
+
                 $normalizedRows = $this->quotationPricingResolver->normalizeManualDetailRows(
                     $header,
                     $request->sample_type[$count],
@@ -562,6 +568,8 @@ class QuotationController extends Controller
                     (string) ($request->sub_analytes[$count] ?? ''),
                     (string) ($request->default_analytes[$count] ?? ''),
                     (string) ($request->sub_acc[$count] ?? ''),
+                    (string) ($request->pricing_mode[$count] ?? QuotationPricingResolver::PRICING_MODE_AUTO),
+                    $loqOverrides,
                 );
 
                 foreach ($normalizedRows as $rowPayload) {
@@ -576,19 +584,24 @@ class QuotationController extends Controller
                     $detail->default_analytes = $rowPayload['default_analytes'];
                     $detail->sub_acc_analytes = $rowPayload['sub_acc_analytes'];
                     $detail->is_package = (bool) ($rowPayload['is_package'] ?? false);
+                    $detail->loq = (string) ($rowPayload['loq'] ?? '');
+                    $detail->mu_percent = (string) ($rowPayload['mu_percent'] ?? '');
+                    $detail->test_method = (string) ($rowPayload['test_method'] ?? '');
+                    $detail->tat = $rowPayload['tat'] ?? null;
                     $detail->description = (string) ($rowPayload['description'] ?? '');
                     $detail->quotation_header_id = $header->id;
-                    $detail->save();
 
                     $analysisTypeIds = array_filter(explode(',', (string) $rowPayload['part_no']));
-                    QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
-                    $insertArr = [];
-                    foreach ($analysisTypeIds as $a_id) {
-                        $insertArr[] = ['analysis_type_id' => $a_id, 'quotation_detail_id' => $detail->id];
-                    }
-                    if ($insertArr !== []) {
-                        QuotationDetailAnalysisSplit::insert($insertArr);
-                    }
+                    $this->quotationPricingResolver->persistInvoicableItemOnDetail(
+                        $detail,
+                        $analysisTypeIds[0] ?? null
+                    );
+                    $detail->save();
+
+                    QuotationDetailAnalysisSplit::syncForDetail(
+                        (string) $detail->id,
+                        $analysisTypeIds
+                    );
                 }
 
                 ++$count;
@@ -750,21 +763,23 @@ class QuotationController extends Controller
                 $detail->photo_url = (string) $fname;
             }
         } else {
+            $partNoInput = $request->input('part_no', $detail->part_no);
+            $partNoCsv = is_array($partNoInput)
+                ? implode(',', array_values(array_filter(array_map('strval', $partNoInput))))
+                : (string) $partNoInput;
 
-            $detail->part_no = implode(',', $request->part_no);
+            $detail->part_no = $partNoCsv;
             $detail->accredited_analytes = isset($request->accreditted_analytes) ? $request->accreditted_analytes : $detail->accredited_analytes;
             $detail->subcontracted_analytes = isset($request->sub_analytes) ? $request->sub_analytes : $detail->subcontracted_analytes;
             $detail->sub_acc_analytes = isset($request->sub_acc) ? $request->sub_acc : $detail->sub_acc_analytes;
             $detail->default_analytes = isset($request->default_analytes) ? $request->default_analytes : $detail->default_analytes;
-            $analysis_types_ids = explode(',', $request->part_no);
-            $insertArr = [];
-            QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
+            $analysis_types_ids = array_values(array_filter(array_map('trim', explode(',', $partNoCsv))));
+            QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $analysis_types_ids);
 
-            foreach ($analysis_types_ids as $a_id) {
-                $data = ["analysis_type_id" => $a_id, 'quotation_detail_id' => $detail->id];
-                array_push($insertArr, $data);
-            }
-            QuotationDetailAnalysisSplit::insert($insertArr);
+            $elementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
+            $computedTat = $this->quotationPricingResolver->maxTatForElements($elementIds, $partNoCsv);
+            $requestTat = $request->input('tat');
+            $detail->tat = $computedTat ?? (is_numeric($requestTat) && (int) $requestTat > 0 ? (int) $requestTat : null);
         }
         $unitPrice = (float) $request->unit_price;
         $taxRate = (float) ($request->tax ?? 0);
@@ -956,9 +971,37 @@ class QuotationController extends Controller
             $request->input('sample_type_id'),
             (string) $request->input('analysis_type_ids', ''),
             $elementIds,
+            (string) $request->input('pricing_mode', QuotationPricingResolver::PRICING_MODE_AUTO),
         );
 
         return response()->json($suggestion);
+    }
+
+    public function updateElementLoq(Request $request)
+    {
+        $validated = $request->validate([
+            'element_id' => ['required', 'uuid', 'exists:analysis_elements,id'],
+            'loq' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $element = AnalysisElements::query()->findOrFail($validated['element_id']);
+        $loq = trim((string) ($validated['loq'] ?? ''));
+
+        if ($loq === '' || ! is_numeric($loq)) {
+            $element->hod = null;
+        } else {
+            $element->hod = (float) $loq;
+        }
+
+        $element->save();
+
+        return response()->json([
+            'ok' => true,
+            'element_id' => (string) $element->id,
+            'loq' => $loq === '' || ! is_numeric($loq)
+                ? ''
+                : rtrim(rtrim(number_format((float) $loq, 6, '.', ''), '0'), '.'),
+        ]);
     }
 
     public function get_quotation_detail($id)
@@ -1257,6 +1300,36 @@ class QuotationController extends Controller
         }
 
         return $names;
+    }
+
+    /**
+     * Persist Account Settings label, or custom "Other" text, into payments.
+     */
+    private function resolvePaymentsValue(Request $request): ?string
+    {
+        $accountId = trim((string) $request->input('payments_account_id', ''));
+        $custom = trim((string) $request->input('payments_custom', ''));
+
+        if ($accountId === '') {
+            return $custom !== '' ? $custom : null;
+        }
+
+        $options = $this->quotationReportService->accountPaymentOptions();
+        foreach ($options as $option) {
+            if ((string) ($option['id'] ?? '') !== $accountId) {
+                continue;
+            }
+
+            if (! empty($option['allows_custom'])) {
+                return $custom !== '' ? $custom : null;
+            }
+
+            $label = trim((string) ($option['label'] ?? ''));
+
+            return $label !== '' ? $label : null;
+        }
+
+        return $custom !== '' ? $custom : null;
     }
 
     private function recalculateQuotationTotals(QuotationHeader $header): void
