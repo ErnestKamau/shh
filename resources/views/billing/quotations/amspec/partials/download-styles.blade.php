@@ -130,6 +130,24 @@
 
     body.amspec-download-body .amspec-category-cell {
         background-color: #E0E0E0 !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+        font-size: 10pt !important;
+        font-weight: 700 !important;
+    }
+
+    body.amspec-download-body .amspec-sample-description {
+        font-size: 10.5pt !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+    }
+
+    body.amspec-download-body .amspec-package-parameters {
+        color: #334155 !important;
+        font-weight: 400 !important;
+        font-size: 8.5pt !important;
+        line-height: 1.4 !important;
+        margin-top: 2px !important;
     }
 
     body.amspec-download-body .amspec-test-table {
