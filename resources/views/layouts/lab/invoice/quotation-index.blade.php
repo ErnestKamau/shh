@@ -13,7 +13,6 @@
         background: none;
     }
 
-    /* Default mode */
     .tab-card-header>.nav-tabs {
         border: none;
         margin: 0px;
@@ -49,22 +48,86 @@
         padding-bottom: 0;
     }
 
-    .my-small-text {
-        font-size: 13px !important;
+    .quotations-index-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 1rem;
     }
 
-    .removeThis {
-        z-index: 12;
-        position: absolute;
-        cursor: pointer;
-        top: 0px;
-        right: 2px;
-        padding: 1px 4px;
-        font-size: 12px;
-        background-color: red;
-        border-radius: 50%;
-        color: #fff;
-        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.08);
+    .quotations-index-toolbar h4 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 600;
+    }
+
+    .quotations-index-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .quotations-index-table-wrap {
+        overflow-x: auto;
+    }
+
+    .quotations-index-table {
+        width: 100% !important;
+        margin-bottom: 0;
+    }
+
+    .quotations-index-table thead th,
+    table.dataTable.quotations-index-table thead th,
+    table.dataTable.quotations-index-table thead td {
+        vertical-align: middle !important;
+        white-space: nowrap;
+        padding: 0.55rem 0.7rem !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .quotations-index-table tbody td,
+    table.dataTable.quotations-index-table tbody td {
+        vertical-align: middle !important;
+        padding: 0.55rem 0.7rem !important;
+    }
+
+    .quotations-index-table .quote-no-link {
+        font-weight: 600;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .quotations-index-table .quote-no-link:hover {
+        color: var(--color-primary, #7a1f2b);
+        text-decoration: underline;
+    }
+
+    .quotations-index-table .quote-total {
+        font-weight: 600;
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .quotations-index-table .quote-actions {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 4px;
+        white-space: nowrap;
+    }
+
+    .quotations-index-table .quote-actions .btn {
+        padding: 0.2rem 0.45rem;
+        line-height: 1.2;
+    }
+
+    .quotations-index-table .workflow-status-chip {
+        border-color: color-mix(in srgb, var(--chip-accent, #e2e8f0) 35%, #e2e8f0);
+        color: var(--chip-accent, #475569);
+        background: color-mix(in srgb, var(--chip-accent, #f1f5f9) 12%, #f8fafc);
     }
 </style>
 @endsection
@@ -95,35 +158,36 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
-    <h4 class="p-4">
-        <i class="mdi mdi-file-cad"></i>Billing | Quotations - {{$stage}}
-        @if($stage == 'Quote In Preparation')
-        <span class="btn btn-outline-info btn-sm float-right" data-toggle="modal" data-target="#add-quotation"><i class="mdi mdi-plus"></i> Add</span>
-        @endif
-        <div class="dropleft float-right">
-
-            <span style="font-size:15px;border-radius: 3em;border-color: white;background-color:white;position: 0 0;" class="float-right mr-5 p-2 btn btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">Drafts
-                <small class="float-right badge badge-pill badge-primary mt-1 ml-1">{{$drafts->count()}}</small></span>
-
-            <div class="dropdown-menu p-2" style="max-height: 70vh; width:300%; overflow:auto" aria-labelledby="dropdownMenuButton">
-                @foreach($drafts as $draft)
-                <a class="dropdown-item card mb-2" style="box-shadow: 2px 2px 2px 2px;width:100%; height:40%; font-size:15px" href="{{route('add-qoute-details-view',['id'=>$draft->id,'stage'=>$draft->status])}}">
-                    <div class="card-bodys">
-                        Quotation {{$draft->quote_number}}
-
-                        <i class="float-right mb-0 mt-3" style="font-size: 12px;">({{$draft->created_at}})</i>
-                    </div>
-                </a>
-
-                @endforeach
-
+    <div class="quotations-index-toolbar">
+        <h4>
+            <i class="mdi mdi-file-cad"></i> Billing | Quotations — {{ $stage }}
+        </h4>
+        <div class="quotations-index-actions">
+            <div class="dropleft">
+                <button type="button" class="btn btn-sm btn-light border dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Drafts
+                    <span class="badge badge-pill badge-primary ml-1">{{ $drafts->count() }}</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right p-2" style="max-height: 70vh; min-width: 280px; overflow: auto;">
+                    @forelse($drafts as $draft)
+                        <a class="dropdown-item rounded mb-1" href="{{ route('add-qoute-details-view', ['id' => $draft->id, 'stage' => $draft->status]) }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span>{{ $draft->quote_number }}</span>
+                                <small class="text-muted ml-2">{{ optional($draft->created_at)->format('Y-m-d') ?? $draft->created_at }}</small>
+                            </div>
+                        </a>
+                    @empty
+                        <span class="dropdown-item text-muted disabled">No drafts</span>
+                    @endforelse
+                </div>
             </div>
+            @if($stage == 'Quote In Preparation')
+                <button type="button" class="btn btn-sm btn-outline-info" data-toggle="modal" data-target="#add-quotation">
+                    <i class="mdi mdi-plus"></i> Add
+                </button>
+            @endif
         </div>
-
-
-
-
-    </h4>
+    </div>
     @if($stage == 'All Quotations' && !empty($metrics))
         @include('layouts.lab.invoice.partials.quotation-metrics', ['metrics' => $metrics, 'kpiPeriod' => $kpiPeriod ?? null])
     @endif
@@ -193,80 +257,105 @@
     </div>
     @endif
 
-    <div class="card tab-card">
-        <div class="card-header tab-card-header">
-            <ul class="nav nav-tabs card-header-tabs" id="Categories-tabs" role="tablist">
-
-                <li class="nav-item">
-                    <a class="nav-link" id="invoice-tab" data-toggle="tab" href="#Invoice" role="tab" aria-controls="Invoice" aria-selected="true"><i style="font-size: 20px;" class="mdi mdi-file-cad"></i> Quotations</a>
-                </li>
-
-            </ul>
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h5><i class="mdi mdi-file-cad"></i> Quotations</h5>
         </div>
-        <div class="tab-content" id="Invoice-tabs-content">
-
-            <div class="tab-pane fade show active p-3" id="Invoice" role="tabpanel" aria-labelledby="one-tab">
-
-                <div class="table-responsive">
-                    <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" style="width: 130% !important;">
-                        <thead class="bg-light p-2">
-                            <tr>
-                                <th>No</th>
-                                <th>Quote No</th>
-                                <th>Quote Type</th>
-                                @if($stage == 'All Quotations')
+        <div class="workflow-board-panel-body p-0">
+            <div class="quotations-index-table-wrap table-responsive">
+                <table id="quotations-index-table" class="table workflow-table table-hover quotations-index-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 48px;">#</th>
+                            <th>Quote No</th>
+                            <th>Type</th>
+                            @if($stage == 'All Quotations')
                                 <th>Status</th>
-                                @endif
-                                <th>Quote Date</th>
-                                <th>Expiry Date</th>
-                                <th>Customer</th>
-                                <th>Customer Contact</th>
-                                <th>Prepared By</th>
-                                <th>Email Customer</th>
-
-                                <th>Pricelist</th>
-                                <th>Total</th>
-                                <th></th>
-
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($quotations as $quotation)
+                            @endif
+                            <th>Quote Date</th>
+                            <th>Expiry</th>
+                            <th>Customer</th>
+                            <th>Contact</th>
+                            <th>Prepared By</th>
+                            <th class="text-right">Total</th>
+                            <th style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($quotations as $quotation)
+                            @php
+                                $quoteDate = $quotation->quote_date ? \Carbon\Carbon::parse($quotation->quote_date)->format('Y-m-d') : '—';
+                                $expiryDate = $quotation->expiring_date ? \Carbon\Carbon::parse($quotation->expiring_date) : null;
+                                $typeAccent = $quotation->quotation_type === 'Analysis' ? '#2563eb' : '#0891b2';
+                                $statusAccent = $quotation->status === 'Quote Complete' ? '#15803d' : '#b45309';
+                            @endphp
                             <tr class="quotation-preview-hover-parent">
-                                <td>{{$loop->iteration}}</td>
+                                <td>{{ $loop->iteration }}</td>
                                 <td>
-                                    <a href="{{ route('add-qoute-details-view',['id'=>$quotation->id]) }}">{{$quotation->quote_number}}</a>
+                                    <a class="quote-no-link" href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}">
+                                        {{ $quotation->quote_number }}
+                                    </a>
                                 </td>
-                                <td>{{$quotation->quotation_type}}</td>
+                                <td>
+                                    <span class="workflow-status-chip" style="--chip-accent: {{ $typeAccent }};">
+                                        {{ $quotation->quotation_type ?: '—' }}
+                                    </span>
+                                </td>
                                 @if($stage == 'All Quotations')
-                                <td>{{$quotation->status}}</td>
+                                    <td>
+                                        <span class="workflow-status-chip" style="--chip-accent: {{ $statusAccent }};">
+                                            {{ $quotation->status }}
+                                        </span>
+                                    </td>
                                 @endif
-                                <td>{{$quotation->quote_date}}</td>
-                                <td>{{$quotation->expiring_date}}</td>
-                                <td>{{$quotation->customer}}</td>
-                                <td>{{$quotation->contact}}</td>
-                                <td>{{$quotation->prepared_by_name}}</td>
-                                <td>{{$quotation->email_to_customer == '' ? '-':$quotation->email_to_customer}}</td>
-                                <td>{{$quotation->pricelist}}</td>
+                                <td>{{ $quoteDate }}</td>
                                 <td>
-                                    <p class="float-right mt-2"> {{number_format($quotation->total_amount,2) }}</p>
+                                    @if($expiryDate)
+                                        {{ $expiryDate->format('Y-m-d') }}
+                                        @if($expiryDate->isPast())
+                                            <span class="badge badge-danger ml-1">Expired</span>
+                                        @endif
+                                    @else
+                                        —
+                                    @endif
                                 </td>
-
-                                <!-- <a class="btn btn-outline-primary btn-sm" href=""><i class="mdi mdi-pencil"></i></a>
-                                    <a class="btn btn-outline-warning btn-sm" href=""><i class="mdi mdi-content-duplicate"></i></a> -->
-
+                                <td>{{ $quotation->customer ?: '—' }}</td>
+                                <td>{{ $quotation->contact }}</td>
+                                <td>{{ $quotation->prepared_by_name }}</td>
+                                <td class="quote-total">{{ number_format((float) ($quotation->total_amount ?? 0), 2) }}</td>
                                 <td>
-                                    <a href="{{ route('add-qoute-details-view',['id'=> $quotation->id,'stage'=>'Quote In Reception']) }}" class="btn btn-sm btn-outline-primary " data-toggle="tooltip" title="Edit"><i class="mdi mdi-pencil"></i></a>
-                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}" class="btn btn-sm quotation-preview-quote-btn" data-toggle="tooltip" title="Preview quotation document" target="_blank"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
-                                    <a href="{{ route('clone_quotation',['id'=>$quotation->id]) }}" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-content-duplicate" data-toggle="tooltip" title="Clone"></i></a>
+                                    <div class="quote-actions">
+                                        <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
+                                           class="btn btn-sm btn-outline-primary"
+                                           data-toggle="tooltip"
+                                           title="Edit">
+                                            <i class="mdi mdi-pencil"></i>
+                                        </a>
+                                        <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
+                                           class="btn btn-sm quotation-preview-quote-btn"
+                                           data-toggle="tooltip"
+                                           title="Preview Quote"
+                                           target="_blank">
+                                            <i class="mdi mdi-file-eye"></i>
+                                        </a>
+                                        <a href="{{ route('clone_quotation', ['id' => $quotation->id]) }}"
+                                           class="btn btn-sm btn-outline-warning"
+                                           data-toggle="tooltip"
+                                           title="Clone">
+                                            <i class="mdi mdi-content-duplicate"></i>
+                                        </a>
+                                    </div>
                                 </td>
-
                             </tr>
-                            @endforeach
-
-                        </tbody>
-                    </table>
-                </div>
+                        @empty
+                            <tr>
+                                <td colspan="{{ $stage == 'All Quotations' ? 11 : 10 }}" class="text-center text-muted py-4">
+                                    No quotations found.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -295,6 +384,24 @@
         $('#sample_type_id').on('change',(e)=>{
             $value  = $('#sample_type_id').val()
         })
+
+        if ($.fn.DataTable && $('#quotations-index-table').length && $('#quotations-index-table tbody tr td[colspan]').length === 0) {
+            var $table = $('#quotations-index-table');
+            if (!$.fn.DataTable.isDataTable($table)) {
+                $table.DataTable({
+                    autoWidth: false,
+                    order: [[0, 'asc']],
+                    pageLength: 25,
+                    columnDefs: [
+                        { orderable: false, targets: -1 },
+                        { className: 'text-right', targets: -2 },
+                    ],
+                    language: {
+                        emptyTable: 'No quotations found.',
+                    },
+                });
+            }
+        }
     });
 </script>
 @include('layouts.lab.invoice.partials.add-quotation-modal-scripts')

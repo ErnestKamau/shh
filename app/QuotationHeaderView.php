@@ -26,9 +26,15 @@ class QuotationHeaderView extends Model implements Auditable
         return $this->belongsTo(User::class, 'prepared_by_id');
     }
 
-    public function getContactAttribute()
+    public function getContactAttribute(): string
     {
-        return $this->contact_first.$this->contact_middle.$this->contact_last;
+        $parts = array_filter([
+            trim((string) ($this->contact_first ?? '')),
+            trim((string) ($this->contact_middle ?? '')),
+            trim((string) ($this->contact_last ?? '')),
+        ], static fn (string $part): bool => $part !== '');
+
+        return $parts === [] ? '—' : implode(' ', $parts);
     }
 
     public function getPreparedByNameAttribute(?string $value): string
