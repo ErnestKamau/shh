@@ -256,6 +256,8 @@ class QuotationPricingResolver
         string $subAccAnalytes,
         string $pricingMode = self::PRICING_MODE_AUTO,
         array $loqOverrides = [],
+        string $showLoqAnalytes = '',
+        string $showMuAnalytes = '',
     ): array {
         $pricingMode = $this->normalizePricingMode($pricingMode);
         $suggestion = $this->suggestManualLinePricing(
@@ -269,6 +271,8 @@ class QuotationPricingResolver
         $usePackage = (bool) ($suggestion['is_package'] ?? false);
         $resolvedUnitPrice = $unitPrice > 0 ? $unitPrice : (float) $suggestion['unit_price'];
         $resolvedTax = $tax > 0 ? $tax : (float) $suggestion['tax'];
+        $showLoqList = array_values(array_filter(array_map('trim', explode(',', $showLoqAnalytes))));
+        $showMuList = array_values(array_filter(array_map('trim', explode(',', $showMuAnalytes))));
 
         if ($elementIds === []) {
             return [[
@@ -284,6 +288,8 @@ class QuotationPricingResolver
                 'is_package' => false,
                 'loq' => '',
                 'mu_percent' => '',
+                'show_loq_analytes' => $showLoqAnalytes,
+                'show_mu_analytes' => $showMuAnalytes,
                 'test_method' => '',
                 'tat' => $suggestion['max_tat'],
                 'description' => '',
@@ -308,6 +314,8 @@ class QuotationPricingResolver
                 'is_package' => true,
                 'loq' => '',
                 'mu_percent' => '',
+                'show_loq_analytes' => implode(',', array_values(array_intersect($showLoqList, $elementIds))),
+                'show_mu_analytes' => implode(',', array_values(array_intersect($showMuList, $elementIds))),
                 'test_method' => '',
                 'tat' => $suggestion['max_tat'],
                 'description' => sprintf('Package (%d parameters)', count($elementIds)),
@@ -394,6 +402,8 @@ class QuotationPricingResolver
                 'is_package' => false,
                 'loq' => $loq,
                 'mu_percent' => (string) ($metrics['mu_percent'] ?? ''),
+                'show_loq_analytes' => in_array($elementId, $showLoqList, true) ? $elementId : '',
+                'show_mu_analytes' => in_array($elementId, $showMuList, true) ? $elementId : '',
                 'test_method' => (string) ($metrics['test_method'] ?? ''),
                 'tat' => $this->elementTat($element, $analysisTypeId),
                 'description' => '',

@@ -608,8 +608,8 @@ class QuotationReportService
                     $subRow = $this->makeLineRow(
                         '· '.($analyte?->name ?? $element->parametername ?? 'Parameter'),
                         $metrics['test_method'],
-                        $metrics['loq'],
-                        $metrics['mu_percent'],
+                        $this->resolveDisplayedMetric($detail, 'show_loq_analytes', (string) $element->id, $metrics['loq']),
+                        $this->resolveDisplayedMetric($detail, 'show_mu_analytes', (string) $element->id, $metrics['mu_percent']),
                         (float) $paramPrice['unit_price'],
                         (int) $detail->quantity,
                         false,
@@ -952,14 +952,49 @@ class QuotationReportService
         return $this->makeLineRow(
             $analyte?->name ?? $element->parametername,
             trim((string) ($detail->test_method ?? '')) !== '' ? (string) $detail->test_method : $metrics['test_method'],
-            trim((string) ($detail->loq ?? '')) !== '' ? (string) $detail->loq : $metrics['loq'],
-            trim((string) ($detail->mu_percent ?? '')) !== '' ? (string) $detail->mu_percent : $metrics['mu_percent'],
+            $this->resolveDisplayedMetric(
+                $detail,
+                'show_loq_analytes',
+                (string) $element->id,
+                trim((string) ($detail->loq ?? '')) !== '' ? (string) $detail->loq : $metrics['loq'],
+            ),
+            $this->resolveDisplayedMetric(
+                $detail,
+                'show_mu_analytes',
+                (string) $element->id,
+                trim((string) ($detail->mu_percent ?? '')) !== '' ? (string) $detail->mu_percent : $metrics['mu_percent'],
+            ),
             $resolved['unit_price'],
             (int) $detail->quantity,
             $sourceFlags['is_accredited'],
             $sourceFlags['is_subcontracted'],
             $this->resolveRowTat($detail, $element),
         );
+    }
+
+    /**
+     * Show LOQ/MU on the quotation only when the parameter checkbox is checked.
+     * Legacy rows with a null flag keep previous behaviour (show whenever a value exists).
+     */
+    private function resolveDisplayedMetric(
+        QuotationDetails $detail,
+        string $flagColumn,
+        string $elementId,
+        ?string $value,
+    ): string {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        $raw = $detail->{$flagColumn};
+        if ($raw === null) {
+            return $value;
+        }
+
+        $ids = array_values(array_filter(array_map('trim', explode(',', (string) $raw))));
+
+        return in_array($elementId, $ids, true) ? $value : '';
     }
 
     private function resolveRowTat(QuotationDetails $detail, ?AnalysisElements $element = null): ?int
