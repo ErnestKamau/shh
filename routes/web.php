@@ -246,6 +246,14 @@ Route::post('/lab/{id}', 'LabController@edit')->name('edit-lab')->middleware('ca
 
 Route::get('/analytes', [\App\Http\Controllers\LivewireControllers\LabAppController::class, 'analytes'])->name('analytes')->middleware('can:laboratory.components.analytes.view');
 
+Route::get('/shelf-life/studies', [LabAppController::class, 'shelfLifeStudies'])
+    ->name('shelf-life.studies.index')
+    ->middleware('can:laboratory.components.shelf-life.view');
+
+Route::get('/shelf-life/studies/{study}', [LabAppController::class, 'shelfLifeStudyShow'])
+    ->name('shelf-life.studies.show')
+    ->middleware('can:laboratory.components.shelf-life.view');
+
 Route::get('/sample-types', 'SampleTypeController@index')->name('sample-types')->middleware('can:laboratory.components.sample-types.view');
 Route::get('/sample-type/{id}', 'SampleTypeController@show')->name('sample-type')->middleware('can:laboratory.components.sample-types.view');
 Route::post('/sample-type-delete', 'SampleTypeController@delete_sample_type')->name('delete-sample-type')->middleware('can:laboratory.components.sample-types.delete');
@@ -872,6 +880,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::post('/{submissionForm}/sections', 'FormBuilderController@addSection')->name('sections.store')->middleware('can:laboratory.components.rft form.edit');
     Route::put('/sections/{section}', 'FormBuilderController@updateSection')->name('sections.update')->middleware('can:laboratory.components.rft form.edit');
     Route::delete('/sections/{section}', 'FormBuilderController@deleteSection')->name('sections.destroy')->middleware('can:laboratory.components.rft form.edit');
+    Route::post('/sections/{section}/toggle-hidden', 'FormBuilderController@toggleSectionHidden')->name('sections.toggle-hidden')->middleware('can:laboratory.components.rft form.edit');
     Route::post('/{submissionForm}/sections/reorder', 'FormBuilderController@reorderSections')->name('sections.reorder')->middleware('can:laboratory.components.rft form.edit');
     Route::post('/sections/{section}/clone', 'FormBuilderController@cloneSection')->name('sections.clone')->middleware('can:laboratory.components.rft form.edit');
     Route::post('/sections/{section}/move', 'FormBuilderController@moveSectionToPosition')->name('sections.move')->middleware('can:laboratory.components.rft form.edit');
@@ -889,6 +898,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::post('/holders/{holder}/elements', 'FormBuilderController@addElement')->name('elements.store')->middleware('can:laboratory.components.rft form.edit');
     Route::put('/elements/{element}', 'FormBuilderController@updateElement')->name('elements.update')->middleware('can:laboratory.components.rft form.edit');
     Route::delete('/elements/{element}', 'FormBuilderController@deleteElement')->name('elements.destroy')->middleware('can:laboratory.components.rft form.edit');
+    Route::post('/elements/{element}/toggle-hidden', 'FormBuilderController@toggleElementHidden')->name('elements.toggle-hidden')->middleware('can:laboratory.components.rft form.edit');
     Route::post('/holders/{holder}/elements/reorder', 'FormBuilderController@reorderElements')->name('elements.reorder')->middleware('can:laboratory.components.rft form.edit');
     Route::post('/elements/{element}/clone', 'FormBuilderController@cloneElement')->name('elements.clone')->middleware('can:laboratory.components.rft form.edit');
     Route::post('/elements/{element}/move', 'FormBuilderController@moveElementToHolder')->name('elements.move')->middleware('can:laboratory.components.rft form.edit');

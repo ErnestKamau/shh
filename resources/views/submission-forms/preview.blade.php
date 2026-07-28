@@ -78,6 +78,7 @@
                   @csrf
 
                   @foreach($submissionForm->sections as $section)
+                    @continue($section->is_hidden ?? false)
                     @if($section->isRowsSection())
                       @include('submission-forms.partials.rows-section', [
                         'section' => $section,
@@ -98,15 +99,19 @@
                         @foreach($section->elementHolders as $holder)
                           <div class="element-holder mb-3">
                             @if($holder->holder_type === 'field')
+                              @php
+                                $visibleHolderElements = $holder->elements->reject(fn ($el) => (bool) ($el->is_hidden ?? false))->values();
+                              @endphp
                               <div class="row">
-                                @foreach($holder->elements as $element)
-                                  <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
+                                @foreach($visibleHolderElements as $element)
+                                  <div class="col-md-{{ getColumnWidth($visibleHolderElements->count()) }} mb-3">
                                     @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
                                   </div>
                                 @endforeach
                               </div>
                             @else
                               @foreach($holder->elements as $element)
+                                  @continue($element->is_hidden ?? false)
                                 <div class="text-element mb-3">
                                   <div class="sf-alert-soft is-info mb-0">
                                     <strong>{{ $element->label }}</strong>

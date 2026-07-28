@@ -173,6 +173,19 @@ class WorkflowBoard extends Component
 
     public bool $showPoCaptureModal = false;
 
+    public bool $showQuotationAcceptanceModal = false;
+
+    public ?string $quotationAcceptanceEnquiryId = null;
+
+    public string $quotationAcceptanceSignerName = '';
+
+    public string $quotationAcceptanceSignature = '';
+
+    public ?string $quotationAcceptanceContactId = null;
+
+    /** @var list<array{id: string, label: string}> */
+    public array $quotationAcceptanceContactOptions = [];
+
     public ?string $poCaptureEnquiryId = null;
 
     public string $clientPoNumber = '';
@@ -1588,7 +1601,15 @@ class WorkflowBoard extends Component
             'sampleSubmissionRequest.requestedAnalyses',
             'sampleSubmissionRequest.supportingDocumentTemplates',
             'sampleSubmissionRequest.supportingDocumentInstances.template',
-        ])->where('isactive', 1);
+        ])->where('isactive', 1)
+            ->when(
+                \Illuminate\Support\Facades\Schema::hasColumn('sample_headers', 'is_shelf_life'),
+                fn ($query) => $query->where(function ($inner): void {
+                    $inner->where('is_shelf_life', false)
+                        ->orWhereNull('is_shelf_life');
+                })
+            )
+            ->where('status', '!=', \App\Services\ShelfLife\ShelfLifeStudyBootstrapService::BATCH_STATUS);
     }
 
     protected function resolveSubmissionFormAttachmentTypeId(): ?int
@@ -2409,9 +2430,78 @@ class WorkflowBoard extends Component
             return;
         }
 
+        $this->openQuotationAcceptanceModal($enquiryId);
+    }
+
+    public function openQuotationAcceptanceModal(string $enquiryId): void
+    {
+        $enquiry = SampleSubmissionRequest::query()->with(['customer', 'contact'])->find($enquiryId);
+        if ($enquiry === null || $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_SENT) {
+            $this->workflowNotify('error', 'Quotation can only be accepted when the enquiry is Quotation Sent.');
+
+            return;
+        }
+
+        $this->quotationAcceptanceEnquiryId = $enquiryId;
+        $this->quotationAcceptanceSignerName = trim(implode(' ', array_filter([
+            $enquiry->contact?->first_name,
+            $enquiry->contact?->last_name,
+        ])));
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = $enquiry->crm_customer_contact_id
+            ? (string) $enquiry->crm_customer_contact_id
+            : null;
+        $this->quotationAcceptanceContactOptions = app(\App\Services\Sampleworkflow\CustomerContactVerificationService::class)
+            ->activeContactsForCustomer((string) $enquiry->crm_customer_id);
+        $this->showQuotationAcceptanceModal = true;
+        $this->dispatch('quotation-acceptance-modal-opened');
+    }
+
+    public function closeQuotationAcceptanceModal(): void
+    {
+        $this->showQuotationAcceptanceModal = false;
+        $this->quotationAcceptanceEnquiryId = null;
+        $this->quotationAcceptanceSignerName = '';
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceContactOptions = [];
+    }
+
+    public function submitQuotationAcceptanceSignature(): void
+    {
+        if ($this->quotationAcceptanceEnquiryId === null) {
+            return;
+        }
+
+        $this->validate([
+            'quotationAcceptanceSignerName' => ['required', 'string', 'max:255'],
+            'quotationAcceptanceSignature' => ['required', 'string'],
+        ], [
+            'quotationAcceptanceSignerName.required' => 'Enter the customer signer name.',
+            'quotationAcceptanceSignature.required' => 'Provide the customer signature.',
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->find($this->quotationAcceptanceEnquiryId);
+        if ($enquiry === null) {
+            $this->closeQuotationAcceptanceModal();
+
+            return;
+        }
+
         try {
-            app(\App\Services\Commercial\QuotationFromEnquiryService::class)->recordWalkInAcceptance($enquiry);
+            app(\App\Services\Commercial\QuotationFromEnquiryService::class)->recordWalkInAcceptance(
+                $enquiry,
+                null,
+                false,
+                [
+                    'signature' => $this->quotationAcceptanceSignature,
+                    'signer_name' => $this->quotationAcceptanceSignerName,
+                    'contact_id' => $this->quotationAcceptanceContactId,
+                ],
+            );
+            $enquiryId = (string) $enquiry->id;
             $this->selectedFormInstanceIds = [];
+            $this->closeQuotationAcceptanceModal();
             $this->workflowNotify('success', 'Quotation accepted. Record the customer PO to move this request to Ready for Reception.');
             $this->openPoCaptureModal($enquiryId);
         } catch (\Throwable $exception) {

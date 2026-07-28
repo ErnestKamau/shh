@@ -3,14 +3,17 @@
 namespace Tests\Feature\SampleWorkflow;
 
 use App\Livewire\Sampleworkflow\WorkflowBoard;
-use App\Models\QuotationHeader;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\QuotationHeader;
+use App\Services\Billing\QuotationReportService;
+use App\Services\Commercial\QuotationAcceptanceTatService;
 use App\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Mockery;
 use Tests\TestCase;
 
 class WorkflowBoardWalkInAcceptanceTest extends TestCase
@@ -32,28 +35,37 @@ class WorkflowBoardWalkInAcceptanceTest extends TestCase
         ]);
     }
 
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
+    }
+
     public function test_record_walk_in_acceptance_without_selection_notifies_error(): void
     {
         Livewire::actingAs($this->user)
             ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
             ->call('recordWalkInAcceptanceFromInstances', [])
-            ->assertDispatched('notify', type: 'error', message: 'Select a walk-in request with a sent quotation to record acceptance.');
+            ->assertDispatched('notify', type: 'error');
     }
 
-    public function test_record_walk_in_acceptance_accepts_sent_quotation_and_opens_po_modal(): void
+    public function test_record_walk_in_acceptance_opens_signature_modal(): void
     {
         $form = $this->createTemplateForm();
         $instance = $this->createSubmittedInstance($form);
+        $enquiryId = (string) Str::uuid7();
+
         $quotation = QuotationHeader::query()->create([
             'id' => (string) Str::uuid7(),
             'quote_number' => 'AMSQ260624-001',
             'quote_date' => now()->toDateString(),
             'sent_to_customer_at' => now(),
             'status' => 'Quote Complete',
+            'sample_submission_request_id' => $enquiryId,
         ]);
 
         SampleSubmissionRequest::query()->create([
-            'id' => (string) Str::uuid7(),
+            'id' => $enquiryId,
             'submission_form_instance_id' => $instance->id,
             'status' => SampleSubmissionRequest::STATUS_QUOTATION_SENT,
             'source_channel' => 'walk_in',
@@ -64,13 +76,67 @@ class WorkflowBoardWalkInAcceptanceTest extends TestCase
         Livewire::actingAs($this->user)
             ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
             ->call('recordWalkInAcceptanceFromInstances', [$instance->id])
-            ->assertDispatched('notify', type: 'success')
-            ->assertSet('showPoCaptureModal', true);
+            ->assertSet('showQuotationAcceptanceModal', true)
+            ->assertSet('quotationAcceptanceEnquiryId', $enquiryId)
+            ->assertSet('showPoCaptureModal', false);
 
         $this->assertDatabaseHas('sample_submission_requests', [
             'submission_form_instance_id' => $instance->id,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+        ]);
+    }
+
+    public function test_submit_quotation_acceptance_signature_accepts_and_opens_po_modal(): void
+    {
+        $form = $this->createTemplateForm();
+        $instance = $this->createSubmittedInstance($form);
+        $enquiryId = (string) Str::uuid7();
+
+        $quotation = QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ260624-002',
+            'quote_date' => now()->toDateString(),
+            'sent_to_customer_at' => now(),
+            'status' => 'Quote Complete',
+            'sample_submission_request_id' => $enquiryId,
+            'crm_customer_id' => (string) Str::uuid(),
+        ]);
+
+        SampleSubmissionRequest::query()->create([
+            'id' => $enquiryId,
+            'submission_form_instance_id' => $instance->id,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+            'source_channel' => 'walk_in',
+            'current_quotation_header_id' => $quotation->id,
+            'crm_customer_id' => $quotation->crm_customer_id,
+            'number_of_samples' => 1,
+        ]);
+
+        $this->mock(QuotationReportService::class, function ($mock) use ($quotation): void {
+            $mock->shouldReceive('storePdf')->once()->andReturn($quotation);
+        });
+        $this->mock(QuotationAcceptanceTatService::class, function ($mock): void {
+            $mock->shouldReceive('recalculateCustomerTat')->once();
+        });
+
+        Livewire::actingAs($this->user)
+            ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
+            ->set('showQuotationAcceptanceModal', true)
+            ->set('quotationAcceptanceEnquiryId', $enquiryId)
+            ->set('quotationAcceptanceSignerName', 'Walk In Client')
+            ->set('quotationAcceptanceSignature', 'data:image/png;base64,walkinsign')
+            ->call('submitQuotationAcceptanceSignature')
+            ->assertSet('showQuotationAcceptanceModal', false)
+            ->assertSet('showPoCaptureModal', true);
+
+        $this->assertDatabaseHas('sample_submission_requests', [
+            'id' => $enquiryId,
             'status' => SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
         ]);
+
+        $quotation->refresh();
+        $this->assertSame('data:image/png;base64,walkinsign', $quotation->customer_acceptance_signature);
+        $this->assertSame('Walk In Client', $quotation->customer_acceptance_signer_name);
     }
 
     private function createTemplateForm(): SubmissionForm

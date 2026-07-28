@@ -45,33 +45,68 @@ final class QuotationLineTaxResolver
         string $analysisTypeId,
         ?string $packagePricelistItemId = null,
     ): float {
-        $item = null;
-
-        if ($packagePricelistItemId !== null && $packagePricelistItemId !== '') {
-            $item = PricelistItem::query()->find($packagePricelistItemId);
-        }
-
-        if ($item === null && $pricelist !== null && $analysisTypeId !== '') {
-            $query = PricelistItem::query()
-                ->where('pricelist_id', $pricelist->id)
-                ->where('active', 1)
-                ->where('is_package', true)
-                ->where('analysis_id', $analysisTypeId);
-
-            if ($sampleTypeId !== null && $sampleTypeId !== '') {
-                $item = (clone $query)->where('sample_type_id', $sampleTypeId)->first();
-            }
-
-            if ($item === null) {
-                $item = $query->first();
-            }
-        }
+        $item = $this->findPackagePricelistItem(
+            $pricelist,
+            $sampleTypeId,
+            $analysisTypeId,
+            $packagePricelistItemId,
+        );
 
         if ($item === null || ! (bool) $item->vat) {
             return 0.0;
         }
 
         return $this->activeTaxRegimePercent();
+    }
+
+    /**
+     * @return array{tax: float, vat_from_pricelist: bool}
+     */
+    public function resolveLineVatState(
+        ?Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?string $analysisElementId = null,
+        bool $isPackage = false,
+        ?string $packagePricelistItemId = null,
+    ): array {
+        if ($isPackage) {
+            $item = $this->findPackagePricelistItem(
+                $pricelist,
+                $sampleTypeId,
+                $analysisTypeId,
+                $packagePricelistItemId,
+            );
+
+            if ($item === null) {
+                return ['tax' => 0.0, 'vat_from_pricelist' => false];
+            }
+
+            return [
+                'tax' => (bool) $item->vat ? $this->activeTaxRegimePercent() : 0.0,
+                'vat_from_pricelist' => true,
+            ];
+        }
+
+        if ($pricelist === null) {
+            return ['tax' => 0.0, 'vat_from_pricelist' => false];
+        }
+
+        $item = $this->findMatchingPricelistItem(
+            $pricelist,
+            $sampleTypeId,
+            $analysisTypeId,
+            $analysisElementId,
+        );
+
+        if ($item === null) {
+            return ['tax' => 0.0, 'vat_from_pricelist' => false];
+        }
+
+        return [
+            'tax' => (bool) $item->vat ? $this->activeTaxRegimePercent() : 0.0,
+            'vat_from_pricelist' => true,
+        ];
     }
 
     /**
@@ -105,6 +140,56 @@ final class QuotationLineTaxResolver
 
             return $line;
         }, $lines);
+    }
+
+    /**
+     * Force every line to the active tax regime percent (ignores pricelist VAT flags).
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function applyActiveTaxRegimeToLines(array $lines): array
+    {
+        $taxPercent = $this->activeTaxRegimePercent();
+
+        return array_map(static function (array $line) use ($taxPercent): array {
+            $line['tax'] = $taxPercent;
+
+            return $line;
+        }, $lines);
+    }
+
+    private function findPackagePricelistItem(
+        ?Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?string $packagePricelistItemId = null,
+    ): ?PricelistItem {
+        if ($packagePricelistItemId !== null && $packagePricelistItemId !== '') {
+            $item = PricelistItem::query()->find($packagePricelistItemId);
+            if ($item !== null) {
+                return $item;
+            }
+        }
+
+        if ($pricelist === null || $analysisTypeId === '') {
+            return null;
+        }
+
+        $query = PricelistItem::query()
+            ->where('pricelist_id', $pricelist->id)
+            ->where('active', 1)
+            ->where('is_package', true)
+            ->where('analysis_id', $analysisTypeId);
+
+        if ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $item = (clone $query)->where('sample_type_id', $sampleTypeId)->first();
+            if ($item !== null) {
+                return $item;
+            }
+        }
+
+        return $query->first();
     }
 
     private function findMatchingPricelistItem(

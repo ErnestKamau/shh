@@ -44,9 +44,9 @@ class AcceptanceFormWizardTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_open_wizard_loads_customer_contacts_and_shows_modal(): void
+    public function test_open_wizard_loads_prefill_and_shows_modal(): void
     {
-        [$instance, $contact] = $this->createInReviewInstance();
+        [$instance] = $this->createInReviewInstance();
 
         $this->mockAcceptancePrefill($instance);
 
@@ -54,9 +54,7 @@ class AcceptanceFormWizardTest extends TestCase
             ->test(AcceptanceFormWizard::class)
             ->dispatch('open-acceptance-wizard', submissionFormInstanceId: $instance->id)
             ->assertSet('showModal', true)
-            ->assertSet('activeStep', 'sample_config')
-            ->assertSet('selectedCustomerContactId', (string) $contact->id)
-            ->assertCount('customerContactOptions', 1);
+            ->assertSet('activeStep', 'sample_config');
     }
 
     public function test_save_sample_config_and_continue_moves_to_signatures_step(): void
@@ -99,7 +97,6 @@ class AcceptanceFormWizardTest extends TestCase
             ->set('modeOfWork', 'Express')
             ->set('receivedAt', '2026-06-23T09:15')
             ->set('receivingPersonSignature', 'data:image/png;base64,receiving')
-            ->set('customerSignature', 'data:image/png;base64,customer')
             ->call('submitDualAccept')
             ->assertDispatched('acceptance-form-completed')
             ->assertSet('showModal', false);

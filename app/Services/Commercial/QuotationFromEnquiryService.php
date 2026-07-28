@@ -971,11 +971,19 @@ final class QuotationFromEnquiryService
 
     /**
      * Record in-person / walk-in client acceptance of a sent quotation.
+     *
+     * @param  array{
+     *     signature?: string|null,
+     *     signer_name?: string|null,
+     *     contact_id?: string|null,
+     *     signed_at?: string|\DateTimeInterface|null,
+     * }  $acceptance
      */
     public function recordWalkInAcceptance(
         SampleSubmissionRequest $enquiry,
         ?string $clientPoNumber = null,
         bool $poSkipped = false,
+        array $acceptance = [],
     ): SampleSubmissionRequest {
         $enquiry = $this->ensureEnquiryReflectsSentQuotation(
             $enquiry->fresh(['currentQuotation'])
@@ -989,13 +997,59 @@ final class QuotationFromEnquiryService
             throw new RuntimeException('Quotation can only be accepted when the enquiry is Quotation Sent.');
         }
 
-        $quotation = $enquiry->currentQuotation;
-        $acceptedAt = now();
+        $signature = trim((string) ($acceptance['signature'] ?? ''));
+        $signerName = trim((string) ($acceptance['signer_name'] ?? ''));
 
-        $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
-        $enquiry->accepted_quotation_header_id = (string) $quotation->id;
-        $enquiry->quotation_accepted_at = $acceptedAt;
-        $enquiry->save();
+        if ($signature === '' || ! str_starts_with($signature, 'data:image/')) {
+            throw new RuntimeException('Customer signature is required to accept the quotation.');
+        }
+
+        if ($signerName === '') {
+            throw new RuntimeException('Customer signer name is required to accept the quotation.');
+        }
+
+        $quotation = $enquiry->currentQuotation;
+        if ($quotation === null) {
+            throw new RuntimeException('No current quotation is linked to this enquiry.');
+        }
+
+        $acceptedAt = now();
+        $signedAt = ! empty($acceptance['signed_at'])
+            ? \Illuminate\Support\Carbon::parse($acceptance['signed_at'])
+            : $acceptedAt;
+
+        DB::transaction(function () use (
+            $enquiry,
+            $quotation,
+            $acceptedAt,
+            $signedAt,
+            $signature,
+            $signerName,
+            $acceptance,
+        ): void {
+            $quotation->customer_acceptance_signature = $signature;
+            $quotation->customer_acceptance_signer_name = $signerName;
+            $quotation->customer_acceptance_signed_at = $signedAt;
+            $quotation->customer_acceptance_contact_id = filled($acceptance['contact_id'] ?? null)
+                ? (string) $acceptance['contact_id']
+                : null;
+            $quotation->customer_acceptance_channel = QuotationHeader::ACCEPTANCE_CHANNEL_WALK_IN;
+            $quotation->save();
+
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
+            $enquiry->accepted_quotation_header_id = (string) $quotation->id;
+            $enquiry->quotation_accepted_at = $acceptedAt;
+            $enquiry->save();
+        });
+
+        try {
+            app(QuotationReportService::class)->storePdf($quotation->fresh());
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to regenerate quotation PDF after walk-in acceptance.', [
+                'quotation_header_id' => (string) $quotation->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
 
         app(QuotationAcceptanceTatService::class)->recalculateCustomerTat((string) $enquiry->crm_customer_id);
 

@@ -10,47 +10,69 @@
 @section('title')
   <style type="text/css">
     .tab-card {
-      border:1px solid #eee;
+      border: 1px solid #eee;
     }
 
     .tab-card-header {
-      background:none;
+      background: none;
     }
-    /* Default mode */
+
     .tab-card-header > .nav-tabs {
       border: none;
-      margin: 0px;
+      margin: 0;
     }
+
     .tab-card-header > .nav-tabs > li {
       margin-right: 2px;
     }
+
     .tab-card-header > .nav-tabs > li > a {
       border: 0;
-      border-bottom:2px solid transparent;
+      border-bottom: 2px solid transparent;
       margin-right: 0;
       color: #737373;
       padding: 2px 15px;
     }
 
     .tab-card-header > .nav-tabs > li > a.show {
-      border-bottom:2px solid #007bff;
-      color: #007bff;
-    }
-    .tab-card-header > .nav-tabs > li > a:hover {
-      color: #007bff;
+      border-bottom: 2px solid var(--sys-primary-color);
+      color: var(--sys-primary-color);
     }
 
-    .tab-card .nav-link.active{
-      background-color: #dadccd !important;
-      border: 1px solid #cccebf !important;
+    .tab-card-header > .nav-tabs > li > a:hover {
+      color: var(--sys-primary-color);
+    }
+
+    .tab-card .nav-link.active {
+      background-color: var(--color-primary-soft, #f1f5f9) !important;
+      border: 1px solid var(--color-border, #e2e8f0) !important;
+      color: var(--color-primary) !important;
     }
 
     .tab-card-header > .tab-content {
       padding-bottom: 0;
     }
 
+    #main-container-body {
+      height: calc(100dvh - 56px);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
 
+    @media (max-width: 991.98px) {
+      #main-container-body {
+        height: auto;
+        min-height: calc(100dvh - 56px);
+        overflow-y: visible;
+        overflow-x: hidden;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+    }
   </style>
+  @include('layouts.lab.partials.lab-panel-theme-styles')
+  @include('layouts.inventory.partials.theme-overrides')
+  @include('layouts.inventory.partials.responsive-styles')
   @yield('title2')
 @endsection
 
@@ -61,7 +83,7 @@
 ?>
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
@@ -147,7 +169,7 @@
 	<!-- sidebar-container END -->
 
 	<!-- MAIN -->
-	<div class="col-sm-8 col-md-9 col-lg-10 py-1" id="main-container-body">
+	<div class="py-3" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 			@if ($errors->any())
 				<div class="alert alert-danger">
@@ -171,7 +193,9 @@
 				@endif
 			@endif
 		</div>
-		@yield('content2')	
+		<div class="container-fluid inventory-page lab-surface-theme ls-admin-page lab-panel-theme workflow-theme" data-ls-type="plex">
+			@yield('content2')
+		</div>
 	</div>
 	<!-- Main Col END -->
 </div>

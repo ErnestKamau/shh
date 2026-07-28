@@ -149,6 +149,22 @@
         ];
     }
 
+    if (isset($componentType) && in_array($componentType, ['shelf-life-studies', 'shelf-life-study-detail'], true)) {
+        $breadcrumbItems[] = [
+            'link' => route('shelf-life.studies.index'),
+            'name' => 'Shelf Life Studies',
+            'icon' => null
+        ];
+    }
+
+    if (isset($componentType) && $componentType === 'shelf-life-study-detail' && isset($study)) {
+        $breadcrumbItems[] = [
+            'link' => null,
+            'name' => $study->code,
+            'icon' => null
+        ];
+    }
+
     // Add Standard Analytes if we're in standard analytes section
     if (isset($componentType) && $componentType === 'standard-analytes') {
         $breadcrumbItems[] = [
@@ -268,6 +284,10 @@
     @livewire('monitoring.create-monitoring-template')
     @elseif($componentType === 'template-edit')
     @livewire('monitoring.edit-monitoring-template', ['template' => $template])
+    @elseif($componentType === 'shelf-life-studies')
+    @livewire('shelf-life.study-manager')
+    @elseif($componentType === 'shelf-life-study-detail')
+    @livewire('shelf-life.study-detail', ['studyId' => $studyId])
     @endif
 </main>
 @endsection

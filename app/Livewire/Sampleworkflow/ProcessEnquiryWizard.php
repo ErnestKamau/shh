@@ -770,6 +770,7 @@ class ProcessEnquiryWizard extends Component
             $this->lines,
             $this->lineSubcontractOverrides
         );
+        $this->applyPricelistVatToLines(preserveManualVat: true);
 
         $this->quotationManuallyEdited = false;
         $this->quotationBuilt = false;
@@ -828,6 +829,7 @@ class ProcessEnquiryWizard extends Component
         $this->lines = app(QuotationFromEnquiryService::class)
             ->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
         $this->normalizeQuotationLineQuantities();
+        $this->applyPricelistVatToLines();
 
         $unmatched = 0;
         foreach ($this->lines as $line) {
@@ -875,6 +877,7 @@ class ProcessEnquiryWizard extends Component
 
         try {
             $this->normalizeQuotationLineQuantities();
+            $this->applyPricelistVatToLines(preserveManualVat: true);
             $this->refreshLineLabMetrics();
             $header = $this->ensureQuotationHeader();
             $header->show_unit_price_column = true;
@@ -929,6 +932,7 @@ class ProcessEnquiryWizard extends Component
                 }
             } else {
                 $this->normalizeQuotationLineQuantities();
+                $this->applyPricelistVatToLines(preserveManualVat: true);
                 $this->refreshLineLabMetrics();
                 $header = $this->ensureQuotationHeader();
                 $header->show_unit_price_column = true;
@@ -979,6 +983,25 @@ class ProcessEnquiryWizard extends Component
     private function linePhysicalSampleCount(array $line): int
     {
         return max(1, (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1));
+    }
+
+    public function toggleLineHasVat(int $index): void
+    {
+        if (! isset($this->lines[$index]) || $this->quotationMode === 'use_existing') {
+            return;
+        }
+
+        if ($this->lines[$index]['vat_from_pricelist'] ?? false) {
+            return;
+        }
+
+        $currentTax = (float) ($this->lines[$index]['tax'] ?? 0);
+        $resolver = app(QuotationLineTaxResolver::class);
+        $this->lines[$index]['tax'] = $currentTax > 0 ? 0.0 : $resolver->activeTaxRegimePercent();
+        $this->lines[$index]['vat_from_pricelist'] = false;
+        $this->lines[$index]['vat_manual'] = true;
+        $this->quotationManuallyEdited = true;
+        $this->quotationBuilt = false;
     }
 
     public function updatedLines($value, string $name): void
@@ -1117,13 +1140,8 @@ class ProcessEnquiryWizard extends Component
         }
 
         $pricing = app(AcceptanceFormPricingService::class);
-        $pricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
-
-        if ($pricelist === null) {
-            $this->setStatus('error', 'No pricelist is assigned to this customer.');
-
-            return;
-        }
+        $taxResolver = app(QuotationLineTaxResolver::class);
+        $preferredPricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
 
         $line = $this->lines[$index];
         $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
@@ -1139,20 +1157,29 @@ class ProcessEnquiryWizard extends Component
                 $sampleTypeId !== '' ? $sampleTypeId : null,
                 $analysisTypeId,
                 $requestedElementIds,
-                $pricelist,
+                $preferredPricelist,
             );
 
             if ($match !== null) {
                 $this->lines[$index]['unit_price'] = (float) $match['item']->selling_price;
-                $this->lines[$index]['tax'] = $match['item']->vat
-                    ? app(QuotationLineTaxResolver::class)->activeTaxRegimePercent()
-                    : 0.0;
+                $this->lines[$index]['package_pricelist_item_id'] = (string) $match['item']->id;
             }
 
+            $vatState = $taxResolver->resolveLineVatState(
+                $match['pricelist'] ?? null,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                null,
+                true,
+                $match !== null ? (string) $match['item']->id : (string) ($line['package_pricelist_item_id'] ?? ''),
+            );
+            $this->lines[$index]['tax'] = $vatState['tax'];
+            $this->lines[$index]['vat_from_pricelist'] = $vatState['vat_from_pricelist'];
+            $this->lines[$index]['vat_manual'] = false;
             $this->quotationManuallyEdited = true;
             $this->quotationBuilt = false;
             $this->refreshLineLabMetrics();
-            $this->setStatus('success', 'Package price reset from customer pricelist.');
+            $this->setStatus('success', 'Package price reset from pricelist.');
 
             return;
         }
@@ -1164,21 +1191,25 @@ class ProcessEnquiryWizard extends Component
             $sampleTypeId !== '' ? $sampleTypeId : null,
             $analysisTypeId,
             $elementId !== '' ? $elementId : null,
-            $pricelist,
+            $preferredPricelist,
         );
 
-        $this->lines[$index]['unit_price'] = $resolved['price'];
-        $this->lines[$index]['tax'] = app(QuotationLineTaxResolver::class)->resolveLineTaxPercent(
+        $vatState = $taxResolver->resolveLineVatState(
             $resolved['pricelist'],
             $sampleTypeId !== '' ? $sampleTypeId : null,
             $analysisTypeId,
             $elementId !== '' ? $elementId : null,
         );
 
+        $this->lines[$index]['unit_price'] = $resolved['price'];
+        $this->lines[$index]['tax'] = $vatState['tax'];
+        $this->lines[$index]['vat_from_pricelist'] = $vatState['vat_from_pricelist'];
+        $this->lines[$index]['vat_manual'] = false;
+
         $this->quotationManuallyEdited = true;
         $this->quotationBuilt = false;
         $this->refreshLineLabMetrics();
-        $this->setStatus('success', 'Line price reset from customer pricelist.');
+        $this->setStatus('success', 'Line price reset from pricelist.');
     }
 
     public function sendQuotation(): void
@@ -1242,6 +1273,7 @@ class ProcessEnquiryWizard extends Component
                 $this->persistSampleConfiguration($enquiry);
             } else {
                 $this->normalizeQuotationLineQuantities();
+                $this->applyPricelistVatToLines(preserveManualVat: true);
                 $this->refreshLineLabMetrics();
 
                 $header = $this->ensureQuotationHeader();
@@ -1299,24 +1331,10 @@ class ProcessEnquiryWizard extends Component
 
     public function recordWalkInQuotationAcceptance(): void
     {
-        if ($this->enquiryId === null) {
-            return;
-        }
-
-        try {
-            $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
-            if ($enquiry === null) {
-                throw new \RuntimeException('Enquiry not found.');
-            }
-
-            app(QuotationFromEnquiryService::class)->recordWalkInAcceptance($enquiry);
-
-            $this->closeWizard();
-            $this->dispatch('process-enquiry-completed');
-            session()->flash('message', 'Quotation marked as accepted. Record PO to move the request to Ready for Reception.');
-        } catch (Throwable $exception) {
-            $this->setStatus('error', $exception->getMessage());
-        }
+        $this->setStatus(
+            'error',
+            'Customer signature is required. Use Accept quotation on the workflow board or request view to capture the signature.',
+        );
     }
 
     public function render()
@@ -1572,17 +1590,62 @@ class ProcessEnquiryWizard extends Component
     {
         $this->quotationManuallyEdited = true;
         $this->quotationBuilt = false;
-
-        if ($this->enquiryId !== null) {
-            $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
-            if ($enquiry !== null) {
-                $this->lines = app(QuotationFromEnquiryService::class)
-                    ->applyTaxFromAssignedPricelist($enquiry, $this->lines, true);
-            }
-        }
-
+        $this->applyPricelistVatToLines(preserveManualVat: true);
         $this->refreshLineLabMetrics();
         $this->persistSampleConfiguration();
+    }
+
+    private function applyPricelistVatToLines(bool $preserveManualVat = false): void
+    {
+        if ($this->quotationMode === 'use_existing' || $this->lines === [] || ! $this->crmCustomerId) {
+            return;
+        }
+
+        $pricing = app(AcceptanceFormPricingService::class);
+        $taxResolver = app(QuotationLineTaxResolver::class);
+        $preferredPricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
+
+        foreach ($this->lines as $index => $line) {
+            if ($preserveManualVat && ($line['vat_manual'] ?? false)) {
+                continue;
+            }
+
+            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+            $elementId = (string) ($line['analysis_element_id'] ?? '');
+            $isPackage = ! empty($line['is_package']);
+
+            $resolved = $pricing->resolveLinePriceWithPricelist(
+                $this->crmCustomerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                $elementId !== '' ? $elementId : null,
+                $preferredPricelist,
+            );
+
+            $packageItemId = ! empty($line['package_pricelist_item_id'])
+                ? (string) $line['package_pricelist_item_id']
+                : null;
+
+            $vatState = $taxResolver->resolveLineVatState(
+                $resolved['pricelist'],
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                $elementId !== '' ? $elementId : null,
+                $isPackage,
+                $packageItemId,
+            );
+
+            if ($vatState['vat_from_pricelist']) {
+                $this->lines[$index]['tax'] = $vatState['tax'];
+                $this->lines[$index]['vat_from_pricelist'] = true;
+                $this->lines[$index]['vat_manual'] = false;
+            } elseif (! $preserveManualVat) {
+                $this->lines[$index]['tax'] = 0.0;
+                $this->lines[$index]['vat_from_pricelist'] = false;
+                $this->lines[$index]['vat_manual'] = false;
+            }
+        }
     }
 
     /**
@@ -1739,6 +1802,7 @@ class ProcessEnquiryWizard extends Component
             $this->lineSubcontractOverrides
         );
         $this->normalizeQuotationLineQuantities();
+        $this->applyPricelistVatToLines(preserveManualVat: true);
         $this->quotationBuilt = false;
     }
 
@@ -1766,7 +1830,11 @@ class ProcessEnquiryWizard extends Component
             }
 
             $line['unit_price'] = (float) ($previous['unit_price'] ?? $line['unit_price'] ?? 0);
-            $line['tax'] = (float) ($previous['tax'] ?? $line['tax'] ?? 0);
+            if ($previous['vat_manual'] ?? false) {
+                $line['tax'] = (float) ($previous['tax'] ?? $line['tax'] ?? 0);
+                $line['vat_from_pricelist'] = false;
+                $line['vat_manual'] = true;
+            }
             if (! empty($subcontractOverrides[$lineKey])) {
                 $line['subcontracted'] = (bool) ($previous['subcontracted'] ?? $line['subcontracted'] ?? false);
             }
@@ -1908,7 +1976,9 @@ class ProcessEnquiryWizard extends Component
             'parameter_label' => (string) ($parameter['label'] ?? 'Parameter'),
             'quantity' => 1,
             'unit_price' => (float) ($parameter['unit_amount'] ?? 0),
-            'tax' => 0,
+            'tax' => 0.0,
+            'vat_from_pricelist' => false,
+            'vat_manual' => false,
             'subcontracted' => $isSubcontracted,
         ];
 

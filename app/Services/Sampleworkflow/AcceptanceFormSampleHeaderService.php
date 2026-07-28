@@ -126,6 +126,14 @@ class AcceptanceFormSampleHeaderService
             'begin_proccess' => $isQcBatch ? 1 : 0,
         ];
 
+        if (Schema::hasColumn('sample_headers', 'is_shelf_life')) {
+            $attributes['is_shelf_life'] = (bool) ($form->is_shelf_life ?? false);
+            if ($attributes['is_shelf_life']) {
+                $attributes['status'] = \App\Services\ShelfLife\ShelfLifeStudyBootstrapService::BATCH_STATUS;
+                $attributes['sample_tracking_stage'] = null;
+            }
+        }
+
         if (Schema::hasColumn('sample_headers', 'is_client_order')) {
             $attributes['is_client_order'] = 1;
         }

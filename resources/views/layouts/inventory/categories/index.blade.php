@@ -24,8 +24,8 @@
 			$userCanDelete = \Auth::user()->can('inventory.components.categories.delete');
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h3 class="p-4">
-      <i class="mdi mdi-format-list-bulleted-type"></i>Categories
+    <h3 class="px-0 pt-2 pb-3 inventory-page-header">
+      <i class="mdi mdi-format-list-bulleted-type"></i> Categories
 
 			@if($userCanAdd)
       	<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-inventory-category"><i class="mdi mdi-plus"></i> Add</button>
@@ -35,7 +35,8 @@
 				Find Item
 			</span>
 		</h3>
-		<div class="bg-light p-4">
+		<div class="workflow-board-panel">
+			<div class="workflow-board-panel-body p-0">
 			<div class="table-responsive">
 				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 					<thead class="bg-light p-2">
@@ -117,6 +118,7 @@
 						<i class="mdi mdi-alert"></i> No Inventory Categories added yet.
 					</div>
 				@endif
+			</div>
 			</div>
 		</div>
   </main>

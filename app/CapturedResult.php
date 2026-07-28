@@ -88,6 +88,11 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo(Lab::class, 'subcontracted_lab_id');
 	}
 
+	public function shelfLifePullPoint()
+	{
+		return $this->belongsTo(\App\Models\ShelfLife\ShelfLifePullPoint::class, 'shelf_life_pull_point_id');
+	}
+
 	public function analysis_type()
 	{
 		return $this->belongsTo('App\AnalysisType');

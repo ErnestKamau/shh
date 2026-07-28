@@ -353,4 +353,9 @@
 		content: " *";
 		color: #dc2626;
 	}
+
+	.lab-panel-theme.sf-admin-page .sf-builder-hidden {
+		opacity: 0.55;
+		border-style: dashed !important;
+	}
 </style>

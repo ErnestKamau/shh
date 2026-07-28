@@ -14,6 +14,7 @@ class SubmissionFormTrfRowsSectionPatchSeeder extends Seeder
     {
         $patches = [
             'TRF-FOOD-019' => fn (SubmissionForm $form) => $this->patchSampleRowsSection($form, $this->foodTrfRowFields()),
+            'TRF-FOOD-FEED-021' => fn (SubmissionForm $form) => $this->patchSampleRowsSection($form, $this->foodTrfRowFields()),
             'TRF-WATER-020' => function (SubmissionForm $form): void {
                 $this->patchSampleRowsSection($form, $this->waterTrfRowFields());
                 $this->removeRowElementsByName($form, [

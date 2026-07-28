@@ -169,6 +169,9 @@
                       <div>
                         <h6 class="mb-1" style="color: var(--workflow-text-main);">
                           <i class="mdi mdi-folder-outline text-primary"></i> {{ $section->title }}
+                          @if($section->is_hidden ?? false)
+                            <span class="sf-meta-chip is-warning ml-1">Hidden</span>
+                          @endif
                         </h6>
                         @if($section->description)
                           <p class="text-muted small mb-2">{!! nl2br(e($section->description)) !!}</p>
@@ -206,6 +209,9 @@
                                     <span class="sf-meta-chip">{{ $element->element_type }}</span>
                                     @if($element->is_readonly)
                                       <span class="sf-meta-chip is-warning">readonly</span>
+                                    @endif
+                                    @if($element->is_hidden ?? false)
+                                      <span class="sf-meta-chip is-warning">hidden</span>
                                     @endif
                                   </div>
                                 </div>

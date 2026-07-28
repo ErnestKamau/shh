@@ -770,11 +770,14 @@
             overflow-x: hidden;
         }
 
-        /* Responsive adjustments */
-        @media (max-width: 767.98px) {
+        /*
+         * Mobile + tablet (< Bootstrap lg / 992px): content is full-bleed.
+         * Sidebar becomes an off-canvas overlay (closed by default).
+         */
+        @media (max-width: 991.98px) {
             #main-container-body {
-                margin-left: 0;
-                width: 100%;
+                margin-left: 0 !important;
+                width: 100% !important;
             }
         }
 
@@ -1104,16 +1107,50 @@
         }
 
         .floating-sidebar {
-            position: fixed;
-            width: 300px;
-            left: 0px;
-            top: 56px;
-            /* Navbar height */
-            height: calc(100vh - 56px);
-            max-height: calc(100vh - 56px);
-            z-index: 5;
+            position: fixed !important;
+            width: min(280px, 85vw) !important;
+            min-width: min(280px, 85vw) !important;
+            max-width: min(280px, 85vw) !important;
+            left: 0;
+            top: var(--app-header-height, 56px);
+            height: calc(100dvh - var(--app-header-height, 56px));
+            max-height: calc(100dvh - var(--app-header-height, 56px));
+            z-index: 1040 !important;
             overflow-y: auto;
             overflow-x: hidden;
+            box-shadow: 8px 0 28px rgba(15, 23, 42, 0.28);
+            transform: translateX(0);
+            transition: transform 0.22s ease;
+        }
+
+        #sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            top: var(--app-header-height, 56px);
+            z-index: 1035;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #sidebar-backdrop.is-visible {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        body.sidebar-overlay-open {
+            overflow: hidden;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .floating-sidebar,
+            #sidebar-backdrop {
+                transition: none;
+            }
         }
 
         .hidden {
@@ -1337,6 +1374,20 @@
             position: relative;
             max-width: 400px;
             margin: 0 auto;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        @media (max-width: 991.98px) {
+            .search-form-container {
+                max-width: 220px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .search-form-container {
+                display: none;
+            }
         }
 
         .search-input-group {
@@ -1477,6 +1528,11 @@
             border-radius: 8px !important;
             color: var(--color-primary) !important;
             transition: all 0.3s ease;
+            min-width: 44px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #toggle-main-sidebar:hover {
@@ -1854,8 +1910,12 @@
     <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm fixed-top" id="main-app-header">
         <div class="container-fluid">
             <button class="btn btn-transparent btn-lg" id="toggle-main-sidebar"
-                style="margin-left: -10px; margin-right: 5px">
-                <i class="mdi mdi-menu"></i>
+                type="button"
+                style="margin-left: -10px; margin-right: 5px"
+                aria-label="Toggle sidebar navigation"
+                aria-controls="sidebar-container"
+                aria-expanded="false">
+                <i class="mdi mdi-menu" aria-hidden="true"></i>
             </button>
             <a class="navbar-brand" href="{{ url('/home') }}">
                 <?php 
@@ -2010,6 +2070,8 @@
             </div>
         </div>
     @endif
+
+    <div id="sidebar-backdrop" aria-hidden="true"></div>
 
     @yield('content')
     <div class="modal fade" id="chat-system" role="dialog">
@@ -2374,89 +2436,158 @@
             $('#add-attachment-modal-form').submit();
         });
 
-        if ($(window).width() < 760) {
-            $('#sidebar-container').addClass('hidden');
+        /**
+         * Overlay mode for mobile + tablet (< Bootstrap lg / 992px).
+         * Desktop docks the sidebar; tablet/mobile keep content full-width
+         * and open the sidebar as a temporary drawer.
+         */
+        var SIDEBAR_OVERLAY_MAX = 991;
+
+        function isSidebarOverlayViewport() {
+            return $(window).width() <= SIDEBAR_OVERLAY_MAX;
+        }
+
+        function setMainContentFullWidth() {
             $('#main-container-body').css({
                 'margin-left': '0',
                 'width': '100%'
             });
-        } else {
-            // Set initial margin based on sidebar state
-            if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                $('#main-container-body').css({
-                    'margin-left': '0',
-                    'width': '100%'
-                });
-            } else {
-                $('#main-container-body').css({
-                    'margin-left': '265px',
-                    'width': 'calc(100% - 265px)'
-                });
-            }
         }
 
-        $('#toggle-main-sidebar').on('click', function() {
-            $('#sidebar-container').toggleClass('hidden');
-            if ($('#sidebar-container').hasClass('hidden')) {
-                $('#sidebar-container').removeClass('floating-sidebar');
-                // Remove margin when sidebar is hidden - full width
+        function setMainContentDockedMargin() {
+            var $sidebar = $('#sidebar-container');
+            if ($sidebar.hasClass('hidden')) {
+                setMainContentFullWidth();
+                return;
+            }
+            if ($sidebar.hasClass('sidebar-collapsed')) {
                 $('#main-container-body').css({
-                    'margin-left': '0',
-                    'width': '100%'
+                    'margin-left': '60px',
+                    'width': 'calc(100% - 60px)'
                 });
-            } else {
-                if ($(window).width() < 760) {
-                    $('#sidebar-container').addClass('floating-sidebar').removeClass('d-none');
-                    // Remove margin for mobile floating sidebar - sidebar overlays content
-                    $('#main-container-body').css({
-                        'margin-left': '0',
-                        'width': '100%'
-                    });
+                return;
+            }
+            $('#main-container-body').css({
+                'margin-left': '265px',
+                'width': 'calc(100% - 265px)'
+            });
+        }
+
+        function showSidebarBackdrop() {
+            $('#sidebar-backdrop').addClass('is-visible').attr('aria-hidden', 'false');
+            $('body').addClass('sidebar-overlay-open');
+        }
+
+        function hideSidebarBackdrop() {
+            $('#sidebar-backdrop').removeClass('is-visible').attr('aria-hidden', 'true');
+            $('body').removeClass('sidebar-overlay-open');
+        }
+
+        function syncSidebarToggleAria() {
+            var isOpen = !$('#sidebar-container').hasClass('hidden');
+            $('#toggle-main-sidebar').attr('aria-expanded', isOpen ? 'true' : 'false');
+        }
+
+        function openOverlaySidebar() {
+            var $sidebar = $('#sidebar-container');
+            $sidebar.removeClass('hidden d-none').addClass('floating-sidebar');
+            setMainContentFullWidth();
+            showSidebarBackdrop();
+            syncSidebarToggleAria();
+        }
+
+        function closeOverlaySidebar() {
+            var $sidebar = $('#sidebar-container');
+            $sidebar.addClass('hidden').removeClass('floating-sidebar');
+            setMainContentFullWidth();
+            hideSidebarBackdrop();
+            syncSidebarToggleAria();
+        }
+
+        function applySidebarLayoutForViewport() {
+            var $sidebar = $('#sidebar-container');
+            if (!$sidebar.length) {
+                return;
+            }
+
+            if (isSidebarOverlayViewport()) {
+                setMainContentFullWidth();
+                if ($sidebar.hasClass('hidden')) {
+                    $sidebar.removeClass('floating-sidebar');
+                    hideSidebarBackdrop();
                 } else {
-                    $('#sidebar-container').removeClass('floating-sidebar');
-                    // Add margin when sidebar is visible on desktop
-                    // Check if sidebar is collapsed or expanded
-                    if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                        $('#main-container-body').css({
-                            'margin-left': '60px',
-                            'width': 'calc(100% - 60px)'
-                        });
-                    } else {
-                        $('#main-container-body').css({
-                            'margin-left': '265px',
-                            'width': 'calc(100% - 265px)'
-                        });
+                    $sidebar.addClass('floating-sidebar').removeClass('d-none');
+                    showSidebarBackdrop();
+                }
+            } else {
+                hideSidebarBackdrop();
+                $sidebar.removeClass('floating-sidebar');
+                setMainContentDockedMargin();
+            }
+            syncSidebarToggleAria();
+        }
+
+        // Tablet + mobile: start closed so content gets the full viewport.
+        if (isSidebarOverlayViewport()) {
+            $('#sidebar-container').addClass('hidden').removeClass('floating-sidebar');
+            setMainContentFullWidth();
+            hideSidebarBackdrop();
+        } else {
+            setMainContentDockedMargin();
+        }
+        syncSidebarToggleAria();
+
+        $('#toggle-main-sidebar').on('click', function() {
+            var $sidebar = $('#sidebar-container');
+            var willOpen = $sidebar.hasClass('hidden');
+
+            if (isSidebarOverlayViewport()) {
+                if (willOpen) {
+                    openOverlaySidebar();
+                } else {
+                    closeOverlaySidebar();
+                }
+                return;
+            }
+
+            $sidebar.toggleClass('hidden');
+            if ($sidebar.hasClass('hidden')) {
+                $sidebar.removeClass('floating-sidebar');
+                setMainContentFullWidth();
+            } else {
+                $sidebar.removeClass('floating-sidebar');
+                setMainContentDockedMargin();
+            }
+            syncSidebarToggleAria();
+        });
+
+        $('#sidebar-backdrop').on('click', function() {
+            if (isSidebarOverlayViewport() && !$('#sidebar-container').hasClass('hidden')) {
+                closeOverlaySidebar();
+            }
+        });
+
+        $(document).on('keydown', function(event) {
+            if (event.key !== 'Escape') {
+                return;
+            }
+            if (isSidebarOverlayViewport() && !$('#sidebar-container').hasClass('hidden')) {
+                closeOverlaySidebar();
+            }
+        });
+
+        var sidebarResizeTimer = null;
+        $(window).on('resize', function() {
+            clearTimeout(sidebarResizeTimer);
+            sidebarResizeTimer = setTimeout(function() {
+                if (isSidebarOverlayViewport()) {
+                    // Crossing into tablet/mobile: force closed so layout stays usable.
+                    if (!$('#sidebar-container').hasClass('floating-sidebar')) {
+                        $('#sidebar-container').addClass('hidden').removeClass('floating-sidebar');
                     }
                 }
-            }
-        })
-
-        // Handle window resize to adjust margin
-        $(window).on('resize', function() {
-            if ($(window).width() < 760) {
-                $('#main-container-body').css({
-                    'margin-left': '0',
-                    'width': '100%'
-                });
-            } else {
-                // Set margin based on sidebar state
-                if ($('#sidebar-container').hasClass('hidden')) {
-                    $('#main-container-body').css({
-                        'margin-left': '0',
-                        'width': '100%'
-                    });
-                } else if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                    $('#main-container-body').css({
-                        'margin-left': '60px',
-                        'width': 'calc(100% - 60px)'
-                    });
-                } else {
-                    $('#main-container-body').css({
-                        'margin-left': '265px',
-                        'width': 'calc(100% - 265px)'
-                    });
-                }
-            }
+                applySidebarLayoutForViewport();
+            }, 120);
         });
 
         $('.download-the-document').on('click', function() {

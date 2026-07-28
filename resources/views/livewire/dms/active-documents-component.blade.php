@@ -1,8 +1,8 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -32,8 +32,8 @@
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0 text-muted">
                         <i class="mdi mdi-filter-variant"></i> Filter Options
                     </h6>
@@ -127,7 +127,7 @@
     <!-- Documents Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border-radius: 15px;">
+            <div class="card">
                 <div class="card-body">
                     @if($documents->count() > 0)
                         <!-- Show Entries -->
@@ -140,8 +140,8 @@
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                            <table class="table table-striped table-hover workflow-table livewire-table ls-table">
+                                <thead>
                                     <tr>
                                         <th>Document</th>
                                         <th>Type</th>
@@ -207,26 +207,29 @@
                                             </td>
                                             <td>{{ $item['document']->created_at->format('M d, Y') }}</td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <button wire:click="showEditModal({{ $item['document']->id }})" 
-                                                            class="btn btn-sm mr-2 btn-outline-warning" 
+                                                <div class="dms-actions-group">
+                                                    <button type="button"
+                                                            wire:click="showEditModal('{{ $item['document']->id }}')"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit"
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="toggleAIIndexing({{ $item['document']->id }})" 
-                                                            class="btn btn-sm mr-2 {{ $item['document']->is_kb_indexed ? 'btn-success' : 'btn-outline-secondary' }}" 
+                                                    <button type="button"
+                                                            wire:click="toggleAIIndexing('{{ $item['document']->id }}')"
+                                                            class="btn btn-sm rm-act-btn {{ $item['document']->is_kb_indexed ? 'rm-act-btn--view' : 'rm-act-btn--expand' }}"
                                                             title="{{ $item['document']->is_kb_indexed ? 'Remove from AI' : 'Index in AI' }}">
                                                         <i class="mdi mdi-robot"></i>
                                                     </button>
-                                                    <a href="{{ route('dms.download', $item['document']->id) }}" 
-                                                       class="btn btn-sm mr-2 btn-outline-primary" 
+                                                    <a href="{{ route('dms.download', $item['document']->id) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--view"
                                                        title="Download">
                                                         <i class="mdi mdi-download"></i>
                                                     </a>
-                                                    <button wire:click="archiveDocument({{ $item['document']->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
-                                                            title="Archive"
-                                                            onclick="return confirm('Are you sure you want to archive this document?')">
+                                                    <button type="button"
+                                                            wire:click="archiveDocument('{{ $item['document']->id }}')"
+                                                            wire:confirm="Are you sure you want to archive this document?"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                            title="Archive">
                                                         <i class="mdi mdi-archive"></i>
                                                     </button>
                                                 </div>
@@ -238,7 +241,7 @@
                         </div>
                         <!-- Pagination -->
                         <div class="d-flex justify-content-center mt-3">
-                            {{ $documents->links() }}
+                            {{ $documents->links('pagination::bootstrap-4') }}
                         </div>
                     @else
                         <div class="text-center py-4">

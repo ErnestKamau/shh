@@ -249,4 +249,137 @@ class AcceptanceFormDualSignatureTest extends TestCase
         $instance->refresh();
         $this->assertSame('approved', $instance->status);
     }
+
+    public function test_accept_with_dual_signatures_allows_receiving_only_without_customer_signature(): void
+    {
+        $this->mock(SampleAnalysisSetupService::class, function ($mock): void {
+            $mock->shouldReceive('syncAnalysisRelations')->andReturnNull();
+            $mock->shouldReceive('createCapturedResultsForAnalysisType')->andReturnNull();
+        });
+
+        SampleAnalysisStage::query()->create([
+            'name' => 'Request Review',
+            'code' => 'SRR',
+            'active' => 1,
+            'sample_workflow' => 'Samples Request Review',
+            'level' => 1,
+        ]);
+
+        SampleAnalysisStage::query()->create([
+            'name' => 'In Lab',
+            'code' => 'SIL',
+            'active' => 1,
+            'sample_workflow' => 'Samples In Lab',
+            'level' => 1,
+        ]);
+
+        $customer = CRMCustomer::query()->create([
+            'name' => 'Receiving Only Customer',
+            'code' => 'ROC001',
+        ]);
+
+        $pricelist = Pricelist::query()->create([
+            'description' => 'Receiving Only',
+            'active' => 1,
+            'currency_id' => (string) Str::uuid(),
+        ]);
+
+        $companyId = (string) Str::uuid();
+        $labId = (string) Str::uuid();
+
+        $sampleType = SampleType::query()->create(['name' => 'Water', 'code' => 'WAT2', 'company_id' => $companyId]);
+
+        $analysisType = AnalysisType::query()->create([
+            'name' => 'Analysis B',
+            'code' => 'ANB',
+            'sample_type_id' => $sampleType->id,
+            'lab_id' => $labId,
+            'company_id' => $companyId,
+            'active' => 1,
+        ]);
+
+        $lab = Lab::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'RECV',
+            'name' => 'Recv Lab',
+            'phone1' => '000',
+            'active' => true,
+        ]);
+
+        $user = User::create([
+            'name' => 'Receiving Officer',
+            'email' => 'receiving.only@example.test',
+            'password' => bcrypt('password'),
+            'lab_id' => $lab->id,
+        ]);
+
+        Auth::login($user);
+
+        $submissionForm = SubmissionForm::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Receiving Form',
+            'form_type' => 'template',
+            'active' => true,
+        ]);
+
+        $instance = SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid(),
+            'submission_form_id' => $submissionForm->id,
+            'crm_customer_id' => $customer->id,
+            'status' => 'in_review',
+            'submitted_by' => $user->id,
+            'receiving_lab_id' => $lab->id,
+        ]);
+
+        $lines = [[
+            'line_no' => 1,
+            'sample_type_id' => $sampleType->id,
+            'analysis_type_id' => $analysisType->id,
+            'parameter_label' => 'Lead',
+            'unit_amount' => 100,
+            'number_of_samples' => 1,
+            'is_approved' => true,
+            'sort_order' => 0,
+        ]];
+
+        $this->mock(AcceptanceFormPricingService::class, function ($mock) use ($customer, $pricelist, $lines): void {
+            $mock->shouldReceive('buildPrefillFromSelection')->andReturn([
+                'customer_id' => (string) $customer->id,
+                'customer_name' => $customer->name,
+                'number_of_samples' => 1,
+                'mode_of_work' => 'Normal',
+                'request_date' => '2026-06-23',
+                'date_of_sampling' => null,
+                'lines' => $lines,
+                'pricelist' => $pricelist,
+            ]);
+            $mock->shouldReceive('resolveLinePrice')->andReturn(100.0);
+        });
+
+        $form = app(AcceptanceFormService::class)->acceptWithDualSignatures(
+            (string) $instance->id,
+            null,
+            [
+                'crm_customer_id' => (string) $customer->id,
+                'customer_name' => $customer->name,
+                'request_date' => '2026-06-23',
+                'number_of_samples' => 1,
+                'mode_of_work' => 'Normal',
+                'sample_configuration_payload' => [],
+            ],
+            $lines,
+            'Receiving Officer',
+            'data:image/png;base64,receiving',
+            '2026-06-23',
+            null,
+            null,
+            null,
+            null,
+            (string) $user->id,
+        );
+
+        $this->assertSame(AnalysisAcceptanceForm::STATUS_COMPLETED, $form->status);
+        $this->assertNull($form->customer_signature);
+        $this->assertSame('Receiving Officer', $form->manager_signer_name);
+    }
 }

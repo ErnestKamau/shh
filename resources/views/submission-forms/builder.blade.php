@@ -280,6 +280,13 @@
                 <option value="right">Right</option>
               </select>
             </div>
+            <div class="form-group">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="section-hidden" name="is_hidden">
+                <label class="form-check-label" for="section-hidden">Hidden from fill / preview / portal</label>
+              </div>
+              <small class="form-text text-muted">Use this when the section cannot be deleted because it already has submitted data.</small>
+            </div>
             <div class="form-group mb-0">
               <label for="section-logos">Section Logos</label>
               <input type="file" class="form-control-file" id="section-logos" name="section_logos[]" accept="image/*" multiple>
@@ -536,19 +543,26 @@
             </div>
             
             <div class="row">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <div class="form-check">
                   <input type="checkbox" class="form-check-input" id="element-required" name="is_required">
                   <label class="form-check-label" for="element-required">Required Field</label>
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <div class="form-check">
                   <input type="checkbox" class="form-check-input" id="element-readonly" name="is_readonly">
                   <label class="form-check-label" for="element-readonly">Read Only</label>
                 </div>
               </div>
+              <div class="col-md-4">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="element-hidden" name="is_hidden">
+                  <label class="form-check-label" for="element-hidden">Hidden</label>
+                </div>
+              </div>
             </div>
+            <small class="form-text text-muted mb-2">Hidden elements stay in the builder and keep historical data, but are omitted from new fills.</small>
           </form>
         </div>
         <div class="modal-footer receive-sample-modal-footer border-0 pt-0">
@@ -743,6 +757,7 @@ const FormBuilder = {
             $('#section-description').val(section.description);
             $('#section-type').val(section.section_type || 'regular');
           $('#section-alignment').val(section.section_alignment || 'left');
+          $('#section-hidden').prop('checked', !!section.is_hidden);
           this.renderSectionLogoPreview(section.section_logos || []);
           this.renderNewSectionLogos([]);
             $('#section-modal .section-modal-title-text').text('Edit Section');
@@ -752,6 +767,7 @@ const FormBuilder = {
             $('#section-id').val('');
             $('#section-type').val('regular');
           $('#section-alignment').val('left');
+          $('#section-hidden').prop('checked', false);
           this.renderSectionLogoPreview([]);
           this.renderNewSectionLogos([]);
             $('#section-modal .section-modal-title-text').text('Add Section');
@@ -772,6 +788,7 @@ const FormBuilder = {
         formData.set('description', $('#section-description').val());
         formData.set('section_type', $('#section-type').val());
         formData.set('section_alignment', $('#section-alignment').val() || 'left');
+        formData.set('is_hidden', $('#section-hidden').is(':checked') ? '1' : '0');
 
         console.log('Form data prepared for section save');
         
@@ -896,6 +913,46 @@ const FormBuilder = {
             }
         });
     },
+
+    toggleSectionHidden(sectionId) {
+        this.showLoading();
+        $.ajax({
+            url: `/submission-forms/sections/${sectionId}/toggle-hidden`,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+                location.reload();
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+            }
+        });
+    },
+
+    toggleElementHidden(elementId) {
+        this.showLoading();
+        $.ajax({
+            url: `/submission-forms/elements/${elementId}/toggle-hidden`,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+                location.reload();
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+            }
+        });
+    },
     
     showHolderModal(sectionId, holderId = null) {
         $('#holder-section-id').val(sectionId);
@@ -1010,6 +1067,7 @@ const FormBuilder = {
         $('#element-help-text').val(element.help_text);
         $('#element-required').prop('checked', element.is_required);
         $('#element-readonly').prop('checked', element.is_readonly);
+        $('#element-hidden').prop('checked', !!element.is_hidden);
         
         // Handle mapping configuration
         const isMapped = element.is_mapped === true || element.is_mapped === 1;
@@ -1367,6 +1425,7 @@ const FormBuilder = {
             help_text: $('#element-help-text').val(),
             is_required: $('#element-required').is(':checked') ? '1' : '0',
             is_readonly: $('#element-readonly').is(':checked') ? '1' : '0',
+            is_hidden: $('#element-hidden').is(':checked') ? '1' : '0',
             is_mapped: $('#element-mapped').is(':checked') ? '1' : '0',
             mapping_table: $('#mapping-table').val() || null,
             mapping_field: $('#mapping-field').val() || null
@@ -1518,7 +1577,7 @@ const FormBuilder = {
         // Get section data from the DOM
         const sectionElement = $(`.section-item[data-section-id="${sectionId}"]`);
         if (sectionElement.length === 0) {
-        return { title: '', description: '', section_type: 'regular', section_alignment: 'left', section_logos: [] };
+        return { title: '', description: '', section_type: 'regular', section_alignment: 'left', section_logos: [], is_hidden: false };
         }
 
       let logos = [];
@@ -1534,7 +1593,8 @@ const FormBuilder = {
         description: sectionElement.attr('data-section-description') || '',
         section_type: sectionElement.attr('data-section-type') || 'regular',
         section_alignment: sectionElement.attr('data-section-alignment') || 'left',
-        section_logos: logos
+        section_logos: logos,
+        is_hidden: sectionElement.attr('data-section-hidden') === '1'
         };
     },
 
@@ -1659,6 +1719,7 @@ const FormBuilder = {
                 help_text: '',
                 is_required: false,
                 is_readonly: false,
+                is_hidden: false,
                 options: []
             };
         }
@@ -1704,6 +1765,7 @@ const FormBuilder = {
           help_text: elementItem.data('help-text') || '',
             is_required: isRequired,
             is_readonly: isReadonly,
+            is_hidden: String(elementItem.attr('data-element-hidden') || '0') === '1',
             is_mapped: isMapped,
             mapping_table: mappingTable,
             mapping_field: mappingField,

@@ -1,8 +1,8 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -29,8 +29,8 @@
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0 text-muted">
                         <i class="mdi mdi-filter-variant"></i> Filter Options
                     </h6>
@@ -82,7 +82,7 @@
     <!-- Amendments Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border-radius: 15px;">
+            <div class="card">
                 <div class="card-body">
                     @if($amendments->count() > 0)
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -94,8 +94,8 @@
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                            <table class="table table-striped table-hover workflow-table livewire-table ls-table">
+                                <thead>
                                     <tr>
                                         <th>Amendment #</th>
                                         <th>Document</th>
@@ -123,9 +123,10 @@
                                             </td>
                                             <td>{{ $amendment->created_at->format('M d, Y') }}</td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <button wire:click="viewAmendment({{ $amendment->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" 
+                                                <div class="dms-actions-group">
+                                                    <button type="button"
+                                                            wire:click="viewAmendment('{{ $amendment->id }}')"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--view"
                                                             title="View">
                                                         <i class="mdi mdi-eye"></i>
                                                     </button>
@@ -137,7 +138,7 @@
                             </table>
                         </div>
                         <div class="d-flex justify-content-center mt-3">
-                            {{ $amendments->links() }}
+                            {{ $amendments->links('pagination::bootstrap-4') }}
                         </div>
                     @else
                         <div class="text-center py-4">

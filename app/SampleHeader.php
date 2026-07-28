@@ -80,6 +80,21 @@ class SampleHeader extends Model implements Auditable
 	{
 		return $this->hasMany('App\SampleDetails')->orderBy('id', 'asc');
 	}
+
+	public function shelfLifeStudy()
+	{
+		return $this->hasOne(\App\Models\ShelfLife\ShelfLifeStudy::class, 'sample_header_id');
+	}
+
+	public function isShelfLifeJob(): bool
+	{
+		if (\Illuminate\Support\Facades\Schema::hasColumn($this->getTable(), 'is_shelf_life') && (bool) ($this->is_shelf_life ?? false)) {
+			return true;
+		}
+
+		return (string) ($this->status ?? '') === \App\Services\ShelfLife\ShelfLifeStudyBootstrapService::BATCH_STATUS;
+	}
+
 	public function custody()
 	{
 		return $this->hasMany('App\ChainOfCustody')->orderBy('created_at', 'desc');

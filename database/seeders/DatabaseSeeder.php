@@ -71,6 +71,7 @@ class DatabaseSeeder extends Seeder
             // Portal TRF forms — must run after Phase 8 so sample-type links match current taxonomy IDs.
             SubmissionFormTrfWaterSeeder::class,
             SubmissionFormTrfFoodSeeder::class,
+            SubmissionFormTrfFoodAndFeedSeeder::class,
             SubmissionFormTrfWasteWaterSeeder::class,
             LabAnalysisAcceptanceFormSeeder::class,
             Phase13FoodStandardsAndPricelistSeeder::class,

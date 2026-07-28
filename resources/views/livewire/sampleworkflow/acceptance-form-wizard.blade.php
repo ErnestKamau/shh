@@ -63,6 +63,24 @@
                                         @error('modeOfWork') <small class="text-danger">{{ $message }}</small> @enderror
                                     </div>
                                 </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="custom-control custom-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                class="custom-control-input"
+                                                id="acceptance-shelf-life-testing"
+                                                wire:model.live="isShelfLifeTesting"
+                                            >
+                                            <label class="custom-control-label font-weight-bold" for="acceptance-shelf-life-testing">
+                                                Shelf Life Testing
+                                            </label>
+                                        </div>
+                                        <p class="acc-wizard-hint mb-0 mt-1">
+                                            When checked, this job is diverted to the Shelf Life Studies module after acceptance (same physical samples are pulled, tested, and returned at each interval).
+                                        </p>
+                                    </div>
+                                </div>
                             </section>
 
                             @include('livewire.partials.acceptance-sample-config-table')
@@ -82,10 +100,16 @@
                                         <p class="mb-0 font-weight-bold">{{ $modeOfWork }}</p>
                                     </div>
                                 </div>
+                                @if($isShelfLifeTesting)
+                                    <div class="alert alert-info py-2 px-3 mb-0 mt-3">
+                                        <i class="mdi mdi-flask-outline"></i>
+                                        Shelf Life Testing — this job will go to the Shelf Life Studies module (not the normal sample workflow).
+                                    </div>
+                                @endif
                             </section>
 
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <section class="acc-wizard-section">
                                         <h6 class="acc-wizard-section-title">Receiving personnel <span class="text-danger">*</span></h6>
                                         <p class="acc-wizard-hint mb-3">Lab staff confirming physical receipt of samples.</p>
@@ -109,43 +133,6 @@
                                         </div>
                                         <input type="hidden" id="acceptance-receiving-signature-input" wire:model="receivingPersonSignature">
                                         @error('receivingPersonSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
-                                    </section>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <section class="acc-wizard-section">
-                                        <h6 class="acc-wizard-section-title">Customer contact <span class="text-danger">*</span></h6>
-                                        <p class="acc-wizard-hint mb-3">Person authorising the analysis request.</p>
-
-                                        <div class="form-group">
-                                            <label class="acc-label">Contact</label>
-                                            <select class="form-control acc-input" wire:model.defer="selectedCustomerContactId">
-                                                <option value="">Select contact...</option>
-                                                @foreach($customerContactOptions as $contact)
-                                                    <option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
-                                                @endforeach
-                                            </select>
-                                            @error('selectedCustomerContactId') <small class="text-danger">{{ $message }}</small> @enderror
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="acc-label">Signer name</label>
-                                            <input type="text" class="form-control acc-input" wire:model="customerSignerName">
-                                            @error('customerSignerName') <small class="text-danger">{{ $message }}</small> @enderror
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="acc-label">Date</label>
-                                            <input type="date" class="form-control acc-input" wire:model="customerSignedAt">
-                                            @error('customerSignedAt') <small class="text-danger">{{ $message }}</small> @enderror
-                                        </div>
-                                        <label class="acc-label d-block">Signature</label>
-                                        <div class="acc-signature-pad" wire:ignore>
-                                            <canvas id="acceptance-customer-signature-canvas"></canvas>
-                                            <div class="acc-signature-actions">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-customer-sign-clear">Clear</button>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" id="acceptance-customer-signature-input" wire:model="customerSignature">
-                                        @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
                                     </section>
                                 </div>
                             </div>
@@ -377,7 +364,6 @@
 <script>
     (function () {
         let receivingSignaturePad = null;
-        let customerSignaturePad = null;
         let signaturePadsInitialized = false;
 
         function initSignaturePad(canvasId, propertyName, clearBtnId, existingDataUrl) {
@@ -415,7 +401,7 @@
             return pad;
         }
 
-        function initDualSignaturePads() {
+        function initReceivingSignaturePad() {
             signaturePadsInitialized = false;
 
             if (!document.getElementById('acceptance-receiving-signature-canvas')) {
@@ -428,12 +414,6 @@
                 'acceptance-receiving-sign-clear',
                 @this.receivingPersonSignature
             );
-            customerSignaturePad = initSignaturePad(
-                'acceptance-customer-signature-canvas',
-                'customerSignature',
-                'acceptance-customer-sign-clear',
-                @this.customerSignature
-            );
             signaturePadsInitialized = true;
         }
 
@@ -444,7 +424,7 @@
 
             Livewire.on('acceptance-wizard-signatures-step', function () {
                 signaturePadsInitialized = false;
-                setTimeout(initDualSignaturePads, 300);
+                setTimeout(initReceivingSignaturePad, 300);
             });
 
             document.addEventListener('click', function (e) {
@@ -460,15 +440,7 @@
                     return;
                 }
 
-                if (!customerSignaturePad || customerSignaturePad.isEmpty()) {
-                    alert('Please provide the customer contact signature.');
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    return;
-                }
-
                 @this.set('receivingPersonSignature', receivingSignaturePad.toDataURL('image/png'));
-                @this.set('customerSignature', customerSignaturePad.toDataURL('image/png'));
                 e.preventDefault();
                 @this.call('submitDualAccept');
             }, true);

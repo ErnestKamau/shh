@@ -1,8 +1,8 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -24,15 +24,15 @@
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-muted mb-1">Total Documents</h6>
                             <h3 class="mb-0">{{ $stats['total_documents'] ?? 0 }}</h3>
                         </div>
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                            <i class="mdi mdi-file-document" style="font-size: 24px;"></i>
+                        <div class="dms-stat-icon bg-primary text-white">
+                            <i class="mdi mdi-file-document"></i>
                         </div>
                     </div>
                 </div>
@@ -40,15 +40,15 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-muted mb-1">My Documents</h6>
                             <h3 class="mb-0">{{ $stats['my_documents'] ?? 0 }}</h3>
                         </div>
-                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                            <i class="mdi mdi-account-box" style="font-size: 24px;"></i>
+                        <div class="dms-stat-icon bg-success text-white">
+                            <i class="mdi mdi-account-box"></i>
                         </div>
                     </div>
                 </div>
@@ -56,15 +56,15 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-muted mb-1">Pending Approvals</h6>
                             <h3 class="mb-0">{{ $stats['pending_approvals'] ?? 0 }}</h3>
                         </div>
-                        <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                            <i class="mdi mdi-clock-alert" style="font-size: 24px;"></i>
+                        <div class="dms-stat-icon bg-warning text-white">
+                            <i class="mdi mdi-clock-alert"></i>
                         </div>
                     </div>
                 </div>
@@ -72,15 +72,15 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-muted mb-1">Expiring Soon</h6>
                             <h3 class="mb-0 text-danger">{{ $stats['expiring_soon'] ?? 0 }}</h3>
                         </div>
-                        <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                            <i class="mdi mdi-alert" style="font-size: 24px;"></i>
+                        <div class="dms-stat-icon bg-danger text-white">
+                            <i class="mdi mdi-alert"></i>
                         </div>
                     </div>
                 </div>
@@ -92,12 +92,12 @@
     @if($expiringDocuments->count() > 0)
     <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-warning shadow-sm" style="border-radius: 15px;">
+            <div class="alert alert-warning shadow-sm">
                 <h5 class="alert-heading">
                     <i class="mdi mdi-alert-circle-outline"></i> Documents Expiring Soon
                 </h5>
                 <div class="table-responsive">
-                    <table class="table table-sm mb-0">
+                    <table class="table table-sm mb-0 workflow-table livewire-table ls-table">
                         <thead>
                             <tr>
                                 <th>Document</th>
@@ -144,8 +144,8 @@
     @if($unreadNotifications->count() > 0)
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">
                             <i class="mdi mdi-bell text-primary"></i> Notifications 
@@ -166,7 +166,7 @@
                                     <p class="mb-1 text-muted small">{{ $notification->message }}</p>
                                     <small class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
                                 </div>
-                                <button wire:click="markNotificationRead({{ $notification->id }})" class="btn btn-sm btn-outline-secondary">
+                                <button type="button" wire:click="markNotificationRead('{{ $notification->id }}')" class="btn btn-sm btn-outline-secondary">
                                     <i class="mdi mdi-check"></i>
                                 </button>
                             </div>
@@ -182,16 +182,16 @@
     <!-- Recent Activity -->
     <div class="row mb-4">
         <div class="col-md-6">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0">
                         <i class="mdi mdi-file-document text-primary"></i> Recent Documents
                     </h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead style="background-color: rgba(0, 0, 0, .03);">
+                        <table class="table table-hover mb-0 workflow-table livewire-table ls-table">
+                            <thead>
                                 <tr>
                                     <th>Document</th>
                                     <th>Type</th>
@@ -223,16 +223,16 @@
         </div>
 
         <div class="col-md-6">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0">
                         <i class="mdi mdi-pencil text-warning"></i> Recent Amendments
                     </h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead style="background-color: rgba(0, 0, 0, .03);">
+                        <table class="table table-hover mb-0 workflow-table livewire-table ls-table">
+                            <thead>
                                 <tr>
                                     <th>Document</th>
                                     <th>Requester</th>
@@ -267,8 +267,8 @@
     <!-- Amendment Trends Chart -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0">
                         <i class="mdi mdi-chart-line text-info"></i> Amendment Trends (Last 6 Months)
                     </h6>
@@ -283,8 +283,8 @@
     <!-- Quick Actions -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0">
                         <i class="mdi mdi-lightning-bolt text-warning"></i> Quick Actions
                     </h6>

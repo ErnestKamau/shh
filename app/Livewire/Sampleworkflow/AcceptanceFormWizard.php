@@ -11,7 +11,6 @@ use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
-use App\Services\Sampleworkflow\CustomerContactVerificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
@@ -39,6 +38,8 @@ class AcceptanceFormWizard extends Component
 
     public string $modeOfWork = 'Normal';
 
+    public bool $isShelfLifeTesting = false;
+
     public ?string $dateOfSampling = null;
 
     /** @var list<array<string, mixed>> */
@@ -50,20 +51,9 @@ class AcceptanceFormWizard extends Component
 
     public ?string $receivedAt = null;
 
-    public string $selectedCustomerContactId = '';
-
-    public string $customerSignerName = '';
-
-    public string $customerSignature = '';
-
-    public ?string $customerSignedAt = null;
-
     public bool $labCapable = true;
 
     public bool $clientInstructionClear = true;
-
-    /** @var list<array{id: string, label: string}> */
-    public array $customerContactOptions = [];
 
     /** @var array<string, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null> */
     public array $instancePhotoUploads = [];
@@ -105,7 +95,6 @@ class AcceptanceFormWizard extends Component
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');
         $this->requestDate = now()->format('Y-m-d');
         $this->receivedAt = now()->format('Y-m-d\TH:i');
-        $this->customerSignedAt = now()->format('Y-m-d');
     }
 
     /** @return list<array{key: string, label: string}> */
@@ -243,14 +232,6 @@ class AcceptanceFormWizard extends Component
 
         $this->lines = $this->mapQuotationLinesForAcceptance($quotationLines);
 
-        $this->loadCustomerContactOptions($enquiry);
-
-        if ($this->customerContactOptions === []) {
-            $this->dispatch('notify', type: 'error', message: 'No active customer contacts found. Add a contact for this customer before accepting samples.');
-
-            return;
-        }
-
         $this->activeStep = 'sample_config';
         $this->showModal = true;
         $this->dispatch('acceptance-wizard-opened');
@@ -298,11 +279,6 @@ class AcceptanceFormWizard extends Component
         $this->activeStep = 'sample_config';
     }
 
-    public function updatedSelectedCustomerContactId(): void
-    {
-        $this->syncCustomerSignerNameFromContact();
-    }
-
     public function closeWizard(): void
     {
         $this->showModal = false;
@@ -316,17 +292,10 @@ class AcceptanceFormWizard extends Component
             'receivingPersonSignature' => ['required', 'string'],
             'receivedAt' => ['required', 'date'],
             'modeOfWork' => ['required', 'in:Normal,Express'],
-            'selectedCustomerContactId' => ['required', 'string'],
-            'customerSignerName' => ['required', 'string', 'max:255'],
-            'customerSignature' => ['required', 'string'],
-            'customerSignedAt' => ['required', 'date'],
             'lines' => ['required', 'array', 'min:1'],
         ], [
             'receivingPersonName.required' => 'Enter the receiving personnel name.',
             'receivingPersonSignature.required' => 'Provide the receiving personnel signature.',
-            'selectedCustomerContactId.required' => 'Select the customer contact who is signing.',
-            'customerSignerName.required' => 'Enter the customer contact name.',
-            'customerSignature.required' => 'Provide the customer contact signature.',
         ]);
 
         $configService = app(AcceptanceFormSampleConfigService::class);
@@ -381,6 +350,7 @@ class AcceptanceFormWizard extends Component
             'sample_configuration_payload' => $normalizedConfigs,
             'lab_capable' => $this->labCapable,
             'client_instruction_clear' => $this->clientInstructionClear,
+            'is_shelf_life' => $this->isShelfLifeTesting,
         ];
 
         try {
@@ -392,10 +362,10 @@ class AcceptanceFormWizard extends Component
                 $this->receivingPersonName,
                 $this->receivingPersonSignature,
                 $this->receivedAt,
-                $this->selectedCustomerContactId,
-                $this->customerSignerName,
-                $this->customerSignature,
-                $this->customerSignedAt,
+                null,
+                null,
+                null,
+                null,
                 auth()->id() ? (string) auth()->id() : null,
             );
         } catch (\Throwable $exception) {
@@ -419,14 +389,31 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
-        $batchCode = (string) (\App\SampleHeader::query()->where('id', $batchId)->value('batch_code') ?? '');
+        $batch = \App\SampleHeader::query()->find($batchId);
+        $batchCode = (string) ($batch?->batch_code ?? '');
+        $isShelfLife = (bool) ($batch?->is_shelf_life ?? $this->isShelfLifeTesting);
+
+        if ($isShelfLife) {
+            $studyId = \App\Models\ShelfLife\ShelfLifeStudy::query()
+                ->where('sample_header_id', $batchId)
+                ->value('id');
+
+            $redirectUrl = $studyId
+                ? route('shelf-life.studies.show', ['study' => $studyId])
+                : route('shelf-life.studies.index');
+
+            $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
+            session()->flash('success', "Samples accepted as shelf-life testing. Job number {$batchCode} sent to Shelf Life Studies.");
+
+            return;
+        }
 
         $redirectUrl = route('view-batch-details', [
             'batch' => $batchId,
             'client' => 0,
             'portal' => 0,
             'status' => 'Samples In Lab',
-        ]) . '#samples';
+        ]).'#samples';
 
         $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
         session()->flash('success', "Samples accepted. Job number {$batchCode} created and moved to Samples In Lab.");
@@ -481,38 +468,6 @@ class AcceptanceFormWizard extends Component
         })->values()->all();
     }
 
-    private function loadCustomerContactOptions(?SampleSubmissionRequest $enquiry): void
-    {
-        if (! $this->crmCustomerId) {
-            $this->customerContactOptions = [];
-
-            return;
-        }
-
-        $this->customerContactOptions = app(CustomerContactVerificationService::class)
-            ->activeContactsForCustomer((string) $this->crmCustomerId);
-
-        $defaultContactId = (string) ($enquiry?->crm_customer_contact_id ?? '');
-
-        if ($defaultContactId !== '' && collect($this->customerContactOptions)->contains('id', $defaultContactId)) {
-            $this->selectedCustomerContactId = $defaultContactId;
-        } elseif ($this->customerContactOptions !== []) {
-            $this->selectedCustomerContactId = $this->customerContactOptions[0]['id'];
-        }
-
-        $this->syncCustomerSignerNameFromContact();
-    }
-
-    private function syncCustomerSignerNameFromContact(): void
-    {
-        $match = collect($this->customerContactOptions)
-            ->firstWhere('id', $this->selectedCustomerContactId);
-
-        if ($match !== null) {
-            $this->customerSignerName = (string) ($match['label'] ?? '');
-        }
-    }
-
     private function applySampleConfigAssignmentDefaults(): void
     {
         $defaultUserId = Auth::id() ? (string) Auth::id() : null;
@@ -541,18 +496,14 @@ class AcceptanceFormWizard extends Component
         $this->customerName = '';
         $this->numberOfSamples = 1;
         $this->modeOfWork = 'Normal';
+        $this->isShelfLifeTesting = false;
         $this->dateOfSampling = null;
         $this->requestDate = now()->format('Y-m-d');
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');
         $this->receivingPersonSignature = '';
         $this->receivedAt = now()->format('Y-m-d\TH:i');
-        $this->selectedCustomerContactId = '';
-        $this->customerSignerName = '';
-        $this->customerSignature = '';
-        $this->customerSignedAt = now()->format('Y-m-d');
         $this->labCapable = true;
         $this->clientInstructionClear = true;
-        $this->customerContactOptions = [];
     }
 
     public function render()
