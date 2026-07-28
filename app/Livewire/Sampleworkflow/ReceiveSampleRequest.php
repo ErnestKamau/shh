@@ -864,14 +864,25 @@ class ReceiveSampleRequest extends Component
      */
     public function setWalkInParameters(int $rowIndex, array $parameters): void
     {
-        $this->formData['parameters'][$rowIndex] = array_values(array_map(
+        $normalized = array_values(array_map(
             static fn ($value): string => (string) $value,
             $parameters
         ));
+
+        if ($rowIndex < 0 || ! $this->walkInUsesIndexedSampleRows()) {
+            $this->formData['parameters'] = $normalized;
+            if (array_key_exists('parameter', $this->formData)) {
+                $this->formData['parameter'] = $normalized;
+            }
+
+            return;
+        }
+
+        $this->formData['parameters'][$rowIndex] = $normalized;
     }
 
     /**
-     * Sync multi sample-type Select2 into formData (wire:ignore + Select2).
+     * Sync Alpine multi sample-type picker into formData.
      *
      * @param  list<string|int|float>  $sampleTypeIds
      */
@@ -888,6 +899,54 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->applySampleTypeSelectionFromIds($ids, $rowIndex);
+    }
+
+    /**
+     * Sync Alpine multi analysis-type picker into formData.
+     *
+     * @param  list<string|int|float>  $analysisTypeIds
+     */
+    public function setWalkInAnalysisTypes(string $wireKey, array $analysisTypeIds): void
+    {
+        $relative = preg_replace('/^formData\./', '', $wireKey) ?: 'analysis_type_id';
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => (string) $value,
+            $analysisTypeIds
+        ), static fn (string $id): bool => $id !== '')));
+
+        data_set($this->formData, $relative, $ids);
+
+        $rowIndex = null;
+        if (preg_match('/^(?:analysis_type_id|analysis_type|analysis_types)\.(\d+)$/', $relative, $matches)) {
+            $rowIndex = (int) $matches[1];
+        }
+
+        if ($rowIndex !== null) {
+            if (isset($this->formData['parameters'][$rowIndex])) {
+                $this->formData['parameters'][$rowIndex] = [];
+            }
+            $this->dispatch(
+                'walk-in-params-row-reset',
+                rowIndex: $rowIndex,
+                options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(),
+                selected: [],
+            );
+
+            return;
+        }
+
+        foreach (['parameter', 'parameters'] as $paramKey) {
+            if (array_key_exists($paramKey, $this->formData)) {
+                $this->formData[$paramKey] = [];
+            }
+        }
+    }
+
+    private function walkInUsesIndexedSampleRows(): bool
+    {
+        return $this->walkInSections->contains(
+            fn ($section): bool => ($section->section_type ?? '') === 'rows_section'
+        );
     }
 
     public function goToWalkInStep(int $index): void
@@ -983,6 +1042,13 @@ class ReceiveSampleRequest extends Component
         if (
             $element->element_type === 'sample_type_select'
             || in_array($name, ['sample_type_id', 'sample_type'], true)
+        ) {
+            return [];
+        }
+
+        if (
+            $element->element_type === 'analysis_type_select'
+            || in_array($name, ['analysis_type_id', 'analysis_type', 'analysis_types'], true)
         ) {
             return [];
         }
@@ -1266,15 +1332,34 @@ class ReceiveSampleRequest extends Component
         $analysisLabel = '';
         foreach (['analysis_type', 'analysis_types'] as $key) {
             $candidate = $this->formData[$key][$rowIndex] ?? '';
-            if (is_string($candidate) && $candidate !== '') {
+            if (is_array($candidate)) {
+                $names = array_values(array_filter(array_map('strval', $candidate)));
+                if ($names !== []) {
+                    $analysisLabel = implode(', ', array_slice($names, 0, 2));
+                    break;
+                }
+            } elseif (is_string($candidate) && $candidate !== '') {
                 $analysisLabel = $candidate;
                 break;
             }
         }
 
-        if ($analysisLabel === '' && ! empty($this->formData['analysis_type_id'][$rowIndex] ?? null)) {
-            $analysisType = $this->analysisTypes->firstWhere('id', $this->formData['analysis_type_id'][$rowIndex]);
-            $analysisLabel = (string) ($analysisType->name ?? 'Analysis selected');
+        if ($analysisLabel === '') {
+            $rawIds = $this->formData['analysis_type_id'][$rowIndex] ?? null;
+            $ids = is_array($rawIds)
+                ? array_values(array_filter(array_map('strval', $rawIds)))
+                : (filled($rawIds) ? [(string) $rawIds] : []);
+            if ($ids !== []) {
+                $names = $this->analysisTypesForRow($rowIndex)
+                    ->whereIn('id', $ids)
+                    ->pluck('name')
+                    ->map(fn ($name) => (string) $name)
+                    ->values()
+                    ->all();
+                $analysisLabel = $names !== []
+                    ? implode(', ', array_slice($names, 0, 2))
+                    : 'Analysis selected';
+            }
         }
 
         $paramRaw = $this->formData['parameters'][$rowIndex] ?? [];
@@ -1292,8 +1377,29 @@ class ReceiveSampleRequest extends Component
     /**
      * @return array{selected: list<string>, options: list<string>}
      */
-    public function walkInParameterPickerState(int $rowIndex): array
+    public function walkInParameterPickerState(?int $rowIndex = null): array
     {
+        if ($rowIndex === null || ! $this->walkInUsesIndexedSampleRows()) {
+            $raw = $this->formData['parameters'] ?? ($this->formData['parameter'] ?? []);
+            if (is_array($raw) && $raw !== [] && is_array(reset($raw))) {
+                $raw = $raw[0] ?? [];
+            }
+            $selected = is_array($raw)
+                ? array_values(array_map('strval', $raw))
+                : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
+
+            $options = $this->parametersForRow(null)
+                ->pluck('name')
+                ->map(fn ($name) => (string) $name)
+                ->values()
+                ->all();
+
+            return [
+                'selected' => $selected,
+                'options' => $options,
+            ];
+        }
+
         $raw = $this->formData['parameters'][$rowIndex] ?? [];
         $selected = is_array($raw)
             ? array_values(array_map('strval', $raw))
@@ -1817,10 +1923,13 @@ class ReceiveSampleRequest extends Component
                 continue;
             }
 
+            $isParam = in_array($key, ['parameter', 'parameters'], true);
+            $isAnalysis = in_array($key, ['analysis_type_id', 'analysis_type', 'analysis_types'], true);
+
             if ($rowIndex !== null && is_array($this->formData[$key])) {
-                $this->formData[$key][$rowIndex] = in_array($key, ['parameter', 'parameters'], true) ? [] : '';
+                $this->formData[$key][$rowIndex] = ($isParam || $isAnalysis) ? [] : '';
             } elseif ($rowIndex === null) {
-                $this->formData[$key] = is_array($this->formData[$key]) ? [] : '';
+                $this->formData[$key] = ($isParam || $isAnalysis || is_array($this->formData[$key])) ? [] : '';
             }
         }
 
@@ -1951,48 +2060,95 @@ class ReceiveSampleRequest extends Component
             return collect();
         }
 
-        $atName = null;
-        $atId = null;
-
-        foreach (['analysis_type', 'analysis_types'] as $key) {
-            if ($rowIndex !== null) {
-                if (! empty($this->formData[$key][$rowIndex] ?? null)) {
-                    $atName = $this->formData[$key][$rowIndex];
-                    break;
-                }
-            } elseif (! empty($this->formData[$key])) {
-                $atName = $this->formData[$key];
-                break;
-            }
-        }
-
-        if ($rowIndex !== null) {
-            $atId = $this->formData['analysis_type_id'][$rowIndex] ?? null;
-        } elseif (! empty($this->formData['analysis_type_id'])) {
-            $atId = is_array($this->formData['analysis_type_id'])
-                ? null
-                : $this->formData['analysis_type_id'];
-        }
-
-        if ($atId) {
-            $at = \App\AnalysisType::whereIn('sample_type_id', $sampleTypeIds)
-                ->where('id', $atId)
-                ->first();
-        } elseif ($atName) {
-            $at = \App\AnalysisType::whereIn('sample_type_id', $sampleTypeIds)
-                ->where('name', $atName)
-                ->first();
-        } else {
+        $analysisTypeIds = $this->resolveAnalysisTypeIdsForRow($rowIndex);
+        if ($analysisTypeIds === []) {
             return collect();
         }
 
-        if (! $at) {
+        $validIds = \App\AnalysisType::query()
+            ->whereIn('sample_type_id', $sampleTypeIds)
+            ->whereIn('id', $analysisTypeIds)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+
+        if ($validIds === []) {
             return collect();
         }
 
-        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at): void {
-            $q->where('analysis_type_id', $at->id)->where('active', 1);
+        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($validIds): void {
+            $q->whereIn('analysis_type_id', $validIds)->where('active', 1);
         })->orderBy('name')->get();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveAnalysisTypeIdsForRow(?int $rowIndex = null): array
+    {
+        $ids = [];
+
+        foreach (['analysis_type_id', 'analysis_type', 'analysis_types'] as $key) {
+            $value = $this->formData[$key] ?? null;
+            if ($rowIndex !== null) {
+                if (! is_array($value)) {
+                    continue;
+                }
+                $cell = $value[$rowIndex] ?? null;
+                $ids = array_merge($ids, $this->normalizeAnalysisTypeIdList($cell, $rowIndex));
+                continue;
+            }
+
+            $ids = array_merge($ids, $this->normalizeAnalysisTypeIdList($value, null));
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeAnalysisTypeIdList(mixed $value, ?int $rowIndex = null): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (! is_array($value)) {
+            $value = [(string) $value];
+        }
+
+        $first = $value === [] ? null : reset($value);
+        if (is_array($first)) {
+            return [];
+        }
+
+        $sampleTypeIds = $this->resolveSampleTypeIdsForRow($rowIndex);
+        $raw = array_values(array_unique(array_filter(array_map(
+            static fn ($item): string => is_scalar($item) ? (string) $item : '',
+            $value
+        ), static fn (string $id): bool => $id !== '')));
+
+        if ($raw === []) {
+            return [];
+        }
+
+        // Accept either IDs or analysis type names (legacy name-based fields).
+        $byId = \App\AnalysisType::query()
+            ->when($sampleTypeIds !== [], fn ($q) => $q->whereIn('sample_type_id', $sampleTypeIds))
+            ->whereIn('id', $raw)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+
+        $byName = \App\AnalysisType::query()
+            ->when($sampleTypeIds !== [], fn ($q) => $q->whereIn('sample_type_id', $sampleTypeIds))
+            ->whereIn('name', $raw)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+
+        return array_values(array_unique(array_merge($byId, $byName)));
     }
 
     /**

@@ -76,13 +76,6 @@
             min-height: 28px;
             padding: 1px 2px;
         }
-        .receive-sample-modal-body .rft-sample-type-multi .select2-container {
-            width: 100% !important;
-        }
-        .receive-sample-modal-body .rft-sample-type-multi .select2-container--default .select2-selection--multiple {
-            min-height: 31px;
-            border-color: #ced4da;
-        }
         .receive-sample-modal-body .walk-in-trf-rows-grid {
             table-layout: fixed;
             min-width: 1280px;
@@ -1058,6 +1051,7 @@
         openUp: false,
         search: '',
         rowIndex: config.rowIndex ?? 0,
+        flat: !!config.flat,
         options: Array.isArray(config.options) ? config.options.slice() : [],
         selected: Array.isArray(config.selected) ? config.selected.slice() : [],
         hydrating: false,
@@ -1116,7 +1110,7 @@
         },
         sync() {
             if (this.$wire) {
-                this.$wire.setWalkInParameters(this.rowIndex, this.selected.slice());
+                this.$wire.setWalkInParameters(this.flat ? -1 : this.rowIndex, this.selected.slice());
             }
         },
         applySelectedFromWire() {
@@ -1124,8 +1118,12 @@
                 return;
             }
 
-            const raw = this.$wire.get(`formData.parameters.${this.rowIndex}`);
-            if (Array.isArray(raw)) {
+            const raw = this.flat
+                ? this.$wire.get('formData.parameters')
+                : this.$wire.get(`formData.parameters.${this.rowIndex}`);
+            if (Array.isArray(raw) && raw.length && typeof raw[0] === 'object' && raw[0] !== null) {
+                this.selected = [];
+            } else if (Array.isArray(raw)) {
                 this.selected = raw.map((value) => String(value));
             } else if (raw !== null && raw !== undefined && raw !== '') {
                 this.selected = [String(raw)];
@@ -1142,7 +1140,7 @@
             try {
                 this.applySelectedFromWire();
 
-                const state = await this.$wire.walkInParameterPickerState(this.rowIndex);
+                const state = await this.$wire.walkInParameterPickerState(this.flat ? null : this.rowIndex);
                 if (state && Array.isArray(state.options)) {
                     this.options = state.options.map((value) => String(value));
                 }
@@ -1157,57 +1155,89 @@
         },
     }));
 
-    Alpine.data('rftSampleTypeMultiSelect', (config = {}) => ({
-        wireKey: config.wireKey || 'formData.sample_type_id',
-        rowIndex: config.rowIndex ?? null,
+    Alpine.data('rftIdLabelMultiPicker', (config = {}) => ({
+        open: false,
+        openUp: false,
+        search: '',
+        wireKey: config.wireKey || '',
+        syncMethod: config.syncMethod || 'setWalkInSampleTypes',
+        options: Array.isArray(config.options) ? config.options.slice() : [],
         selected: Array.isArray(config.selected) ? config.selected.map(String) : [],
-        fieldId: config.fieldId || 'sample_type_multi',
-        syncing: false,
+        placeholder: config.placeholder || 'Choose…',
+        emptyHint: config.emptyHint || 'No options available.',
         init() {
-            this.$nextTick(() => this.mountSelect2());
+            this.applySelectedFromWire();
         },
-        mountSelect2() {
-            if (typeof window.$ === 'undefined' || !window.$.fn || !window.$.fn.select2) {
-                return;
+        get filtered() {
+            const query = String(this.search || '').trim().toLowerCase();
+            if (!query) {
+                return this.options;
             }
-            const $select = window.$(this.$refs.select);
-            if (!$select.length) {
-                return;
-            }
-            if ($select.hasClass('select2-hidden-accessible')) {
-                $select.off('change.rftSampleTypes');
-                $select.select2('destroy');
-            }
-            $select.select2({
-                width: '100%',
-                placeholder: 'Select sample type(s)...',
-                allowClear: true,
-                closeOnSelect: false,
-            });
-            $select.val(this.selected).trigger('change.select2');
-            $select.on('change.rftSampleTypes', () => this.syncFromSelect());
+
+            return this.options.filter((opt) => String(opt.label || '').toLowerCase().includes(query));
         },
-        syncFromSelect() {
-            if (this.syncing || !this.$wire) {
-                return;
-            }
-            this.syncing = true;
-            try {
-                const raw = window.$(this.$refs.select).val() || [];
-                this.selected = (Array.isArray(raw) ? raw : [raw]).map(String).filter(Boolean);
-                this.$wire.setWalkInSampleTypes(this.wireKey, this.selected.slice());
-            } finally {
-                this.syncing = false;
+        get selectedChips() {
+            const map = {};
+            this.options.forEach((opt) => { map[String(opt.id)] = opt; });
+            return this.selected
+                .map((id) => map[String(id)] || { id: String(id), label: String(id) })
+                .filter(Boolean);
+        },
+        get visibleChips() {
+            return this.selectedChips.slice(0, 8);
+        },
+        get hiddenCount() {
+            return Math.max(0, this.selectedChips.length - 8);
+        },
+        isSelected(id) {
+            return this.selected.includes(String(id));
+        },
+        toggleOpen() {
+            this.open = !this.open;
+            if (this.open) {
+                this.applySelectedFromWire();
+                this.$nextTick(() => this.decideDirection());
             }
         },
-        destroy() {
-            if (typeof window.$ === 'undefined' || !this.$refs.select) {
+        decideDirection() {
+            const rect = this.$el.getBoundingClientRect();
+            this.openUp = (window.innerHeight - rect.bottom) < 320;
+        },
+        toggle(id) {
+            const value = String(id);
+            if (this.isSelected(value)) {
+                this.selected = this.selected.filter((item) => item !== value);
+            } else {
+                this.selected = this.selected.concat([value]);
+            }
+            this.sync();
+        },
+        selectAll() {
+            this.selected = this.options.map((opt) => String(opt.id));
+            this.sync();
+        },
+        clearAll() {
+            this.selected = [];
+            this.search = '';
+            this.sync();
+        },
+        sync() {
+            if (!this.$wire || !this.syncMethod || !this.wireKey) {
                 return;
             }
-            const $select = window.$(this.$refs.select);
-            if ($select.hasClass('select2-hidden-accessible')) {
-                $select.off('change.rftSampleTypes');
-                $select.select2('destroy');
+            this.$wire[this.syncMethod](this.wireKey, this.selected.slice());
+        },
+        applySelectedFromWire() {
+            if (!this.$wire || !this.wireKey) {
+                return;
+            }
+            const raw = this.$wire.get(this.wireKey);
+            if (Array.isArray(raw)) {
+                this.selected = raw.map(String).filter(Boolean);
+            } else if (raw !== null && raw !== undefined && raw !== '') {
+                this.selected = [String(raw)];
+            } else {
+                this.selected = [];
             }
         },
     }));

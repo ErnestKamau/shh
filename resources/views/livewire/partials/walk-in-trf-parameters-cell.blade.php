@@ -1,10 +1,11 @@
 @php
-    $rowIndex = (int) ($rowIndex ?? 0);
-    $wirePrefix = $wirePrefix ?? ('formData.parameters.'.$rowIndex);
-    $picker = $this->walkInParameterPickerState($rowIndex);
+    $isFlat = $rowIndex === null;
+    $effectiveRowIndex = $isFlat ? -1 : (int) $rowIndex;
+    $wirePrefix = $wirePrefix ?? ($isFlat ? 'formData.parameters' : ('formData.parameters.'.$effectiveRowIndex));
+    $picker = $this->walkInParameterPickerState($isFlat ? null : $effectiveRowIndex);
     $selectedParams = $picker['selected'];
     $options = $picker['options'];
-    $optionsKey = md5(json_encode($options));
+    $optionsKey = md5(json_encode([$options, $selectedParams, $isFlat]));
 @endphp
 
 {{--
@@ -13,10 +14,11 @@
 --}}
 <div
     class="rft-param-picker"
-    wire:key="param-picker-{{ $rowIndex }}-{{ $optionsKey }}"
+    wire:key="param-picker-{{ $isFlat ? 'flat' : $effectiveRowIndex }}-{{ $optionsKey }}"
     wire:ignore
     x-data="rftParamPickerUi({
-        rowIndex: {{ $rowIndex }},
+        rowIndex: {{ $effectiveRowIndex }},
+        flat: {{ $isFlat ? 'true' : 'false' }},
         options: @js($options),
         selected: @js($selectedParams),
     })"

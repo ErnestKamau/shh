@@ -35,23 +35,17 @@
         'rowIndex' => $rowIndex,
     ])
 @elseif(in_array($fieldName, ['analysis_type', 'analysis_types'], true))
-    <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
-        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
-        @if($compactStyle) style="{{ $compactStyle }}" @endif>
-        <option value="">-- Select Analysis Type --</option>
-        @foreach($this->analysisTypesForRow($rowIndex) as $at)
-            <option value="{{ $at->name }}">{{ $at->name }}</option>
-        @endforeach
-    </select>
+    @include('livewire.partials.walk-in-trf-analysis-type-multi', [
+        'wirePrefix' => $wirePrefix,
+        'fieldId' => $fieldId,
+        'rowIndex' => $rowIndex,
+    ])
 @elseif(($field['type'] ?? '') === 'analysis_type_select' || $fieldName === 'analysis_type_id')
-    <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
-        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
-        @if($compactStyle) style="{{ $compactStyle }}" @endif>
-        <option value="">-- Select Analysis Type --</option>
-        @foreach($this->analysisTypesForRow($rowIndex) as $at)
-            <option value="{{ $at->id }}">{{ $at->name }}</option>
-        @endforeach
-    </select>
+    @include('livewire.partials.walk-in-trf-analysis-type-multi', [
+        'wirePrefix' => $wirePrefix,
+        'fieldId' => $fieldId,
+        'rowIndex' => $rowIndex,
+    ])
 @elseif(($field['type'] ?? '') === 'rich_text')
     @include('livewire.partials.submission-rich-text-editor', [
         'fieldId' => $fieldId,
@@ -60,23 +54,12 @@
         'rowIndex' => $rowIndex ?? 0,
     ])
 @elseif(in_array($fieldName, ['parameter', 'parameters'], true) || ($field['type'] ?? '') === 'analysis_elements_select')
-    @if($rowIndex !== null)
-        @include('livewire.partials.walk-in-trf-parameters-cell', [
-            'fieldId' => $fieldId,
-            'rowIndex' => $rowIndex,
-            'wirePrefix' => $wirePrefix,
-            'compact' => $compact,
-        ])
-    @else
-        <select id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
-            class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
-            @if($compactStyle) style="{{ $compactStyle }}" @endif>
-            <option value="">-- Select Parameter --</option>
-            @foreach($this->parametersForRow($rowIndex) as $param)
-                <option value="{{ $param->name }}">{{ $param->name }}</option>
-            @endforeach
-        </select>
-    @endif
+    @include('livewire.partials.walk-in-trf-parameters-cell', [
+        'fieldId' => $fieldId,
+        'rowIndex' => $rowIndex,
+        'wirePrefix' => $wirePrefix,
+        'compact' => $compact,
+    ])
 @elseif(($field['type'] ?? '') === 'signature')
     @php
         $sigFieldName = $fieldName ?: 'customer_rep_signature';

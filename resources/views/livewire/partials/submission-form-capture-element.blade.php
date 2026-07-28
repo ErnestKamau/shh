@@ -107,17 +107,16 @@
         ])
         @break
     @case('analysis_type_select')
-        <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
-            <option value="">-- Select Analysis Type --</option>
-            @foreach($this->analysisTypesForRow($rowIndex) as $analysisType)
-                <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
-            @endforeach
-        </select>
+        @include('livewire.partials.walk-in-trf-analysis-type-multi', [
+            'wirePrefix' => $wirePrefix,
+            'fieldId' => $fieldId,
+            'rowIndex' => $rowIndex,
+        ])
         @break
     @case('analysis_elements_select')
         @include('livewire.partials.walk-in-trf-parameters-cell', [
             'fieldId' => $fieldId,
-            'rowIndex' => $rowIndex ?? 0,
+            'rowIndex' => $rowIndex,
             'wirePrefix' => $wirePrefix,
             'compact' => false,
         ])
@@ -186,12 +185,11 @@
         @break
     @default
         @if($name === 'analysis_type_id' || $type === 'analysis_type_select')
-            <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
-                <option value="">-- Select Analysis Type --</option>
-                @foreach($this->analysisTypesForRow($rowIndex) as $analysisType)
-                    <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
-                @endforeach
-            </select>
+            @include('livewire.partials.walk-in-trf-analysis-type-multi', [
+                'wirePrefix' => $wirePrefix,
+                'fieldId' => $fieldId,
+                'rowIndex' => $rowIndex,
+            ])
         @elseif($name === 'sample_type_id' || $type === 'sample_type_select')
             @include('livewire.partials.walk-in-trf-sample-type-multi', [
                 'wirePrefix' => $wirePrefix,
@@ -201,7 +199,7 @@
         @elseif(in_array($name, ['parameter', 'parameters'], true) || $type === 'analysis_elements_select')
             @include('livewire.partials.walk-in-trf-parameters-cell', [
                 'fieldId' => $fieldId,
-                'rowIndex' => $rowIndex ?? 0,
+                'rowIndex' => $rowIndex,
                 'wirePrefix' => $wirePrefix,
                 'compact' => false,
             ])
