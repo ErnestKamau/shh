@@ -554,6 +554,10 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.sample_conditions') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		<a href="{{ route('lab.amendment-report-configuration') }}" class="list-group-item list-group-item-action">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Amendment Report Configuration
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 		@endif
 		@if($canChecklistApprovals)
 		<a href="{{ route('livewire.workflow-approvals') }}" class="list-group-item list-group-item-action">

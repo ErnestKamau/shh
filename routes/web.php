@@ -181,6 +181,10 @@ Route::get('/lab/whatsapp-configuration', function () {
     return view('layouts.lab.whatsapp-configuration');
 })->name('lab.whatsapp-configuration')->middleware('can:settings.module.access');
 
+Route::get('/lab/amendment-report-configuration', function () {
+    return view('layouts.lab.amendment-report-configuration');
+})->name('lab.amendment-report-configuration')->middleware('can:laboratory.components.sample-types.view');
+
 // Bulk Data Import
 Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-import')->middleware('can:settings.module.access');
 

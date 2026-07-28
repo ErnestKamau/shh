@@ -1485,7 +1485,7 @@
 								</div>
 								<p class="text-muted small mb-3">
 									Requests with any subcontracted parameter appear here first (even when other tests are in-house).
-									After dispatch, they move to <strong>Dispatched</strong> and into <strong>Samples In Lab</strong>.
+									After dispatch &amp; assign, they move to <strong>Dispatched &amp; assigned</strong> and into <strong>Samples In Lab</strong>.
 								</p>
 							@endif
 							@if($workflowSubTab !== 'interzone_transfers')
@@ -3512,7 +3512,7 @@
 							<div>
 								<h5 class="modal-title mb-1">
 									<i class="mdi mdi-truck-delivery-outline text-primary mr-2"></i>
-									Dispatch subcontracting request
+									Dispatch &amp; assign
 								</h5>
 								<p class="text-muted small mb-0">Scan the generated system label barcode before dispatching this subcontracting request.</p>
 							</div>

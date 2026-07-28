@@ -258,7 +258,7 @@ class CustomerReportsTab extends BaseCrmComponent
 
         app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
             $batch,
-            'Samples In Lab',
+            'Sample Verification',
             'CRM amendment raised: ' . $this->amendmentReason
         );
         $batch->save();
@@ -283,7 +283,7 @@ class CustomerReportsTab extends BaseCrmComponent
 
         $this->reset(['selectedBatchId', 'amendmentSamples', 'amendmentReason', 'availableAmendmentSamples', 'amendmentSearch', 'showAmendmentDropdown']);
         $this->dispatch('close-modal', id: 'ammendment-detail');
-        $this->dispatch('alert', type: 'success', message: 'Amendment raised. Batch ' . $batch->batch_code . ' is now in Samples In Lab.');
+        $this->dispatch('alert', type: 'success', message: 'Amendment raised. Batch ' . $batch->batch_code . ' is now in Sample Verification.');
     }
 
     public function saveReturnVerification()

@@ -46,6 +46,21 @@ class SampleSubmissionRequest extends Model
 
     public const SUBCONTRACT_DISPATCH_DISPATCHED = 'dispatched';
 
+    public const SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED = 'dispatched_and_assigned';
+
+    /**
+     * Completed dispatch statuses (legacy dispatched + dispatch with in-house analyst assignment).
+     *
+     * @return list<string>
+     */
+    public static function subcontractDispatchCompletedStatuses(): array
+    {
+        return [
+            self::SUBCONTRACT_DISPATCH_DISPATCHED,
+            self::SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED,
+        ];
+    }
+
     public const CUSTOMER_FEEDBACK_PREFIX = '[Customer feedback]';
 
     /** @var list<string> */
@@ -340,7 +355,11 @@ class SampleSubmissionRequest extends Model
 
     public function isSubcontractDispatchCompleted(): bool
     {
-        return $this->subcontractingDispatchStatus() === self::SUBCONTRACT_DISPATCH_DISPATCHED;
+        return in_array(
+            $this->subcontractingDispatchStatus(),
+            self::subcontractDispatchCompletedStatuses(),
+            true
+        );
     }
 
     public function batch(): BelongsTo

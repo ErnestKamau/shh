@@ -347,7 +347,7 @@ $printed_pos = [];
                     <tr style="margin:0px !important">
                         <td style="font-size:10px !important;">
                             <b>Comments : </b>{!! $sample->header_body !!}
-                            {!! isset($ammendment->id)  ? 'This report supersides the original report' : '' !!}
+                            {!! isset($ammendment->id)  ? ($amendmentDisplay['supersedes_text'] ?? $amendmentDisplay['supersedesText'] ?? 'This report supersedes the original report') : '' !!}
                         </td>
                     </tr>
                 @endif
@@ -370,12 +370,20 @@ $printed_pos = [];
                 @endif
 
                 @if (isset($ammendment->id))
+                    @php
+                        $display = $amendmentDisplay ?? [];
+                        $revisionText = $display['formatted_revision']
+                            ?? $display['formattedRevision']
+                            ?? ('R' . str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT));
+                        $revisionLabel = $display['revision_label'] ?? $display['revisionLabel'] ?? 'Revision No.';
+                        $reasonLabel = $display['reason_label'] ?? $display['reasonLabel'] ?? 'Amendment Reason';
+                    @endphp
                     <tr>
                         <td style="font-size:10px !important;">
-                            <b>Revision No. : </b>
-                            R{{ str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT) }}
+                            <b>{{ $revisionLabel }} : </b>
+                            {{ $revisionText }}
                             <br>
-                            <b>Ammendment Reason : </b><br>
+                            <b>{{ $reasonLabel }} : </b><br>
                             {{ $ammendment->reason }}
                         </td>
                     </tr>

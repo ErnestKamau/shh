@@ -512,8 +512,15 @@
             @endif
             
             @if($sample->ammendment_number > 1)
+                @php
+                    $display = $amendmentDisplay ?? [];
+                    $revisionText = $display['formatted_revision']
+                        ?? $display['formattedRevision']
+                        ?? ('R' . str_pad((string) ($ammendment->version_number ?? $sample->ammendment_number), 2, '0', STR_PAD_LEFT));
+                    $revisionLabel = $display['revision_label'] ?? $display['revisionLabel'] ?? 'Revision No.';
+                @endphp
                 <div class="comments" style="font-size: 8px !important;width:100%">
-                    <b>Revision No. :</b> R{{ str_pad((string) ($ammendment->version_number ?? $sample->ammendment_number), 2, '0', STR_PAD_LEFT) }}<br>
+                    <b>{{ $revisionLabel }} :</b> {{ $revisionText }}<br>
                     {{$ammendment->reason}}
                 </div>
             @endif

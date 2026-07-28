@@ -51,6 +51,8 @@ trait ManagesSampleConfigurationWizard
         $this->sampleConfigs[$index]['analysis_type_id'] = null;
         $this->sampleConfigs[$index]['parameter_keys'] = [];
         $this->sampleConfigs[$index]['lab_section_id'] = null;
+        $this->sampleConfigs[$index]['parameter_lab_sections'] = [];
+        $this->sampleConfigs[$index]['analysts_by_lab_section'] = [];
     }
 
     public function onConfigAnalysisTypeChanged(int $index): void
@@ -68,6 +70,8 @@ trait ManagesSampleConfigurationWizard
 
         // Start empty so the user picks parameters from the dropdown (or Select all).
         $this->sampleConfigs[$index]['parameter_keys'] = [];
+        $this->sampleConfigs[$index]['parameter_lab_sections'] = [];
+        $this->sampleConfigs[$index]['analysts_by_lab_section'] = [];
     }
 
     public function toggleConfigParameter(string $configId, string $parameterKey): void
@@ -92,6 +96,9 @@ trait ManagesSampleConfigurationWizard
                 $this->sampleConfigs[$index] = app(AcceptanceFormSampleConfigService::class)
                     ->reconcileParameterKeysForConfig($this->sampleConfigs[$index], $this->crmCustomerId);
             }
+
+            $this->sampleConfigs[$index] = app(AcceptanceFormSampleConfigService::class)
+                ->syncParameterLabSections($this->sampleConfigs[$index]);
 
             break;
         }
@@ -120,13 +127,15 @@ trait ManagesSampleConfigurationWizard
                 ->all();
             $config['suppress_requested_parameter_autofill'] = false;
 
-            return $config;
+            return $configService->syncParameterLabSections($config);
         }, $this->sampleConfigs));
     }
 
     public function deselectAllConfigParameters(string $configId): void
     {
-        $this->sampleConfigs = array_values(array_map(function (array $config) use ($configId): array {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        $this->sampleConfigs = array_values(array_map(function (array $config) use ($configId, $configService): array {
             if ((string) ($config['id'] ?? '') !== $configId) {
                 return $config;
             }
@@ -135,8 +144,140 @@ trait ManagesSampleConfigurationWizard
             // Prevent TRF/requested-analysis autofill from immediately re-selecting after a clear.
             $config['suppress_requested_parameter_autofill'] = true;
 
-            return $config;
+            return $configService->syncParameterLabSections($config);
         }, $this->sampleConfigs));
+    }
+
+    public function setParameterLabSection(string $configId, string $parameterKey, string $labSectionId): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $sections = is_array($config['parameter_lab_sections'] ?? null)
+                ? $config['parameter_lab_sections']
+                : [];
+            $sections[$parameterKey] = $labSectionId;
+            $this->sampleConfigs[$index]['parameter_lab_sections'] = $sections;
+            $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+            break;
+        }
+    }
+
+    public function toggleSectionAnalyst(string $configId, string $labSectionId, string $userId): void
+    {
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $bySection = is_array($config['analysts_by_lab_section'] ?? null)
+                ? $config['analysts_by_lab_section']
+                : [];
+            $assigned = array_values(array_map(
+                'strval',
+                is_array($bySection[$labSectionId] ?? null) ? $bySection[$labSectionId] : []
+            ));
+
+            if (in_array($userId, $assigned, true)) {
+                $assigned = array_values(array_filter($assigned, fn (string $id) => $id !== $userId));
+            } else {
+                $assigned[] = $userId;
+            }
+
+            $bySection[$labSectionId] = array_values(array_unique($assigned));
+            $this->sampleConfigs[$index]['analysts_by_lab_section'] = $bySection;
+            $this->sampleConfigs[$index] = app(AcceptanceFormSampleConfigService::class)
+                ->syncParameterLabSections($this->sampleConfigs[$index]);
+
+            break;
+        }
+    }
+
+    /**
+     * @return list<array{id: string, name: string, code?: string, label?: string, lab_section_id: ?string}>
+     */
+    public function selectedParametersWithLabSections(int $index): array
+    {
+        if (! isset($this->sampleConfigs[$index])) {
+            return [];
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $config = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+        $selectedKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
+        $sectionMap = is_array($config['parameter_lab_sections'] ?? null) ? $config['parameter_lab_sections'] : [];
+        $parameters = $this->parametersForConfigIndex($index);
+        $byId = collect($parameters)->keyBy(
+            fn (array $param): string => (string) ($param['analysis_element_id'] ?? $param['id'] ?? '')
+        );
+
+        $rows = [];
+        foreach ($selectedKeys as $elementId) {
+            $elementId = (string) $elementId;
+            $param = $byId->get($elementId) ?? [
+                'id' => $elementId,
+                'analysis_element_id' => $elementId,
+                'label' => 'Parameter',
+                'code' => '',
+            ];
+
+            $rows[] = [
+                'id' => $elementId,
+                'analysis_element_id' => $elementId,
+                'name' => (string) ($param['label'] ?? $param['code'] ?? 'Parameter'),
+                'code' => (string) ($param['code'] ?? ''),
+                'label' => (string) ($param['label'] ?? ''),
+                'lab_section_id' => isset($sectionMap[$elementId]) ? (string) $sectionMap[$elementId] : null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return list<array{id: string, name: string, analyst_ids: list<string>}>
+     */
+    public function labSectionsForAnalystAssignment(int $index): array
+    {
+        if (! isset($this->sampleConfigs[$index])) {
+            return [];
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $config = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+        $sectionIds = $configService->distinctLabSectionIdsFromConfig($config);
+        $sectionNames = collect($this->configLabSections)->keyBy('id');
+        $bySection = is_array($config['analysts_by_lab_section'] ?? null)
+            ? $config['analysts_by_lab_section']
+            : [];
+
+        return array_values(array_map(function (string $sectionId) use ($sectionNames, $bySection): array {
+            $match = $sectionNames->get($sectionId);
+
+            return [
+                'id' => $sectionId,
+                'name' => (string) ($match['name'] ?? 'Lab section'),
+                'analyst_ids' => array_values(array_map(
+                    'strval',
+                    is_array($bySection[$sectionId] ?? null) ? $bySection[$sectionId] : []
+                )),
+            ];
+        }, $sectionIds));
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function analystsForLabSection(string $labSectionId): array
+    {
+        return app(AcceptanceFormSampleConfigService::class)->analystsForLabSectionPicker($labSectionId);
     }
 
     /**

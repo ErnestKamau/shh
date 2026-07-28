@@ -6155,7 +6155,8 @@ class SampleWorkFlowController extends Controller
         $companyName = $company->name ?? config('app.name', 'Laboratory');
         $revisionNo  = $batch->test_request_report_sequence ?? 1;
         $jobNumber   = $batch->batch_code;
-        $reportNumber = $jobNumber . '-R' . str_pad($revisionNo, 2, '0', STR_PAD_LEFT);
+        $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
+            ->formatReportNumber((string) $jobNumber, (int) $revisionNo);
 
         // Build download URL — prefer online URL, then storage URL
         $downloadUrl = null;
@@ -6518,7 +6519,8 @@ class SampleWorkFlowController extends Controller
         }
 
         $jobNumber    = $batch->batch_code;
-        $reportNumber = $jobNumber . '-R' . str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
+        $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
+            ->formatReportNumber((string) $jobNumber, (int) $sequence);
 
         $reportData = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
             ->build($batch, $reportNumber, [
@@ -6561,6 +6563,8 @@ class SampleWorkFlowController extends Controller
             ->get();
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
+        $amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? $sequence);
+        $amendmentDisplay = $pdfService->amendmentDisplayData($labels, $amendmentVersion);
 
         $batchBackUrl = route('view-batch-details', [
             'batch' => $batch->id,
@@ -6575,6 +6579,7 @@ class SampleWorkFlowController extends Controller
                 'labels',
                 'revisions',
                 'ammendment',
+                'amendmentDisplay',
                 'isRTL',
                 'isPdfMode',
                 'includeReferenceMethod',
@@ -6634,6 +6639,7 @@ class SampleWorkFlowController extends Controller
             'labels',
             'revisions',
             'ammendment',
+            'amendmentDisplay',
             'isRTL',
             'isPdfMode',
             'isPreviewMode',

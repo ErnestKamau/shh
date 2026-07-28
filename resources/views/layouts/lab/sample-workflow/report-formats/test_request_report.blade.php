@@ -951,15 +951,27 @@
         @if(!empty($ammendment?->id))
         @php
             $amendmentRevision = (int) ($ammendment->version_number ?? ($batch->is_amendment ?? 0));
-            $amendmentRevisionLabel = $amendmentRevision > 0
-                ? 'R' . str_pad((string) $amendmentRevision, 2, '0', STR_PAD_LEFT)
-                : null;
+            $display = $amendmentDisplay ?? [];
+            $amendmentRevisionLabel = $display['formattedRevision']
+                ?? $display['formatted_revision']
+                ?? ($amendmentRevision > 0
+                    ? 'R' . str_pad((string) $amendmentRevision, 2, '0', STR_PAD_LEFT)
+                    : null);
+            $supersedesText = $display['supersedesText']
+                ?? $display['supersedes_text']
+                ?? ($labels['supersedes_original'] ?? 'This report supersedes the original report');
+            $revisionLabel = $display['revisionLabel']
+                ?? $display['revision_label']
+                ?? ($labels['amendment_revision'] ?? 'Revision No.');
+            $reasonLabel = $display['reasonLabel']
+                ?? $display['reason_label']
+                ?? ($labels['amendment_reason'] ?? 'Amendment Reason');
         @endphp
         <div class="sample-amendment">
-            <div><strong>{{ $labels['supersedes_original'] ?? 'This report supersedes the original report' }}</strong></div>
+            <div><strong>{{ $supersedesText }}</strong></div>
             @if($amendmentRevisionLabel)
             <div style="margin-top:4px;">
-                <strong>{{ $labels['amendment_revision'] ?? 'Revision No.' }}:</strong>
+                <strong>{{ $revisionLabel }}:</strong>
                 {{ $amendmentRevisionLabel }}
                 @if(!empty($reportNumber))
                     <span style="color:#555;">({{ $reportNumber }})</span>
@@ -967,7 +979,7 @@
             </div>
             @endif
             <div style="margin-top:4px;">
-                <strong>{{ $labels['amendment_reason'] ?? 'Amendment Reason' }}:</strong>
+                <strong>{{ $reasonLabel }}:</strong>
                 {{ $ammendment->reason }}
             </div>
         </div>

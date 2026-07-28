@@ -473,7 +473,11 @@ class ReportHeaderDetailController extends Controller
 			$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
 			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.report_formats', compact('sample', 'company', 'qrcode', 'report_logo', 'sadc_logo', 'ilac_logo', 'batch_approvers', 'pdf', 'batch', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment'));
+			$amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? 1);
+			$amendmentDisplay = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
+				->amendmentViewData(max(1, $amendmentVersion));
+
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.report_formats', compact('sample', 'company', 'qrcode', 'report_logo', 'sadc_logo', 'ilac_logo', 'batch_approvers', 'pdf', 'batch', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'amendmentDisplay'));
 			$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
 
 			if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
@@ -1215,6 +1219,9 @@ class ReportHeaderDetailController extends Controller
 			'testSectionName',
 			'customerReference'
 		);
+		$amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? 1);
+		$data['amendmentDisplay'] = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
+			->amendmentViewData(max(1, $amendmentVersion));
 		$data['reportFormat'] = $reportFormatModel;
 		$data['grouped_samples'] = $groupedSamples;
 		$data['ungrouped_samples'] = $ungroupedSamples;

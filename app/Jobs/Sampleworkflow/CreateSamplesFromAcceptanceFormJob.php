@@ -616,6 +616,23 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 foreach ($analysisTypeIds as $analysisTypeId) {
                     $typeKey = (string) $analysisTypeId;
+                    $parameterLabSections = is_array($plan['parameter_lab_sections'] ?? null)
+                        ? $plan['parameter_lab_sections']
+                        : [];
+                    $analystsBySection = is_array($plan['analysts_by_lab_section'] ?? null)
+                        ? $plan['analysts_by_lab_section']
+                        : [];
+                    $userIdByLabSection = [];
+                    foreach ($analystsBySection as $sectionId => $analystIds) {
+                        if (! is_array($analystIds) || $analystIds === []) {
+                            continue;
+                        }
+                        $primary = (string) ($analystIds[0] ?? '');
+                        if ($primary !== '') {
+                            $userIdByLabSection[(string) $sectionId] = $primary;
+                        }
+                    }
+
                     $analysisSetupService->createCapturedResultsForAnalysisType(
                         (string) $header->id,
                         (string) $detail->id,
@@ -626,7 +643,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                             : $actingUserId,
                         $elementFilter,
                         $elementFlagOverrides,
-                        null,
+                        ! empty($plan['lab_section_id']) ? (string) $plan['lab_section_id'] : null,
                         [
                             'sample_header' => $header,
                             'sample_detail' => $detail,
@@ -636,6 +653,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                             'standards_by_key' => $standardsByKey,
                             'analysis_elements' => $elementsByAnalysisType->get($typeKey, collect()),
                             'subcontracted_lab_by_element' => $subcontractedLabByElement ?? [],
+                            'lab_section_by_element' => $parameterLabSections,
+                            'user_id_by_lab_section' => $userIdByLabSection,
                         ],
                     );
                 }
