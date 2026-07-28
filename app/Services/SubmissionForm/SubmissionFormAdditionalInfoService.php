@@ -84,7 +84,7 @@ class SubmissionFormAdditionalInfoService
             return null;
         }
 
-        return $base.'/forms/'.$formId.'/fill?instance='.urlencode($instanceId);
+        return $base.'/forms/'.$formId.'/fill?instance_id='.urlencode($instanceId);
     }
 
     public function notifyCustomer(SubmissionFormInstance $instance, string $message, User $actor): bool

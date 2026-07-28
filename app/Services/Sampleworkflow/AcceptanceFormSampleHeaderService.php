@@ -431,10 +431,11 @@ class AcceptanceFormSampleHeaderService
     }
 
     /**
-     * Prefill batch lab_section_ids from selected analysis types (master data only).
+     * Prefill batch lab_section_ids from acceptance parameter assignments, then analysis types.
      */
     private function resolveLabSectionIdsFromForm(AnalysisAcceptanceForm $form): ?string
     {
+        $sectionIds = [];
         $analysisTypeIds = [];
 
         $payload = is_array($form->sample_configuration_payload)
@@ -444,6 +445,21 @@ class AcceptanceFormSampleHeaderService
         foreach ($payload as $config) {
             if (! is_array($config)) {
                 continue;
+            }
+
+            $parameterSections = is_array($config['parameter_lab_sections'] ?? null)
+                ? $config['parameter_lab_sections']
+                : [];
+            foreach ($parameterSections as $sectionId) {
+                $sectionId = trim((string) $sectionId);
+                if ($sectionId !== '' && Str::isUuid($sectionId)) {
+                    $sectionIds[] = $sectionId;
+                }
+            }
+
+            $configSectionId = trim((string) ($config['lab_section_id'] ?? ''));
+            if ($configSectionId !== '' && Str::isUuid($configSectionId)) {
+                $sectionIds[] = $configSectionId;
             }
 
             $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
@@ -461,19 +477,17 @@ class AcceptanceFormSampleHeaderService
         }
 
         $analysisTypeIds = array_values(array_unique(array_filter($analysisTypeIds)));
-        if ($analysisTypeIds === []) {
-            return null;
+        if ($sectionIds === [] && $analysisTypeIds !== []) {
+            $sectionIds = AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->whereNotNull('lab_section_id')
+                ->pluck('lab_section_id')
+                ->map(fn ($id) => trim((string) $id))
+                ->filter(fn ($id) => $id !== '' && Str::isUuid($id))
+                ->all();
         }
 
-        $sectionIds = AnalysisType::query()
-            ->whereIn('id', $analysisTypeIds)
-            ->whereNotNull('lab_section_id')
-            ->pluck('lab_section_id')
-            ->map(fn ($id) => trim((string) $id))
-            ->filter(fn ($id) => $id !== '' && Str::isUuid($id))
-            ->unique()
-            ->values()
-            ->all();
+        $sectionIds = array_values(array_unique(array_filter($sectionIds)));
 
         return $sectionIds !== [] ? implode(',', $sectionIds) : null;
     }

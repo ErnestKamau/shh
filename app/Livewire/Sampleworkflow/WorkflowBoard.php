@@ -223,7 +223,7 @@ class WorkflowBoard extends Component
     /** @var array<string, string> */
     public array $subcontractingDispatchStatuses = [
         SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING => 'Awaiting dispatch',
-        SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED => 'Dispatched',
+        SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED => 'Dispatched & assigned',
     ];
 
     public bool $showMyIntrayPanel = true;
@@ -300,7 +300,7 @@ class WorkflowBoard extends Component
         }
 
         $dispatchedWithoutJob = SampleSubmissionRequest::query()
-            ->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+            ->whereIn('subcontracting_dispatch_status', SampleSubmissionRequest::subcontractDispatchCompletedStatuses())
             ->where(function ($query): void {
                 $query->whereNull('sample_header_id');
             })
@@ -897,6 +897,7 @@ class WorkflowBoard extends Component
         $instanceStatuses = $isDispatchedFilter
             ? ['submitted', 'Submitted', 'received', 'approved', 'in_review', 'In Review']
             : ['submitted', 'Submitted', 'received', 'approved'];
+        $completedDispatchStatuses = SampleSubmissionRequest::subcontractDispatchCompletedStatuses();
 
         $baseQuery = $isDispatchedFilter
             ? SubmissionFormInstance::query()->whereHas('submissionForm', function ($formQuery): void {
@@ -906,14 +907,14 @@ class WorkflowBoard extends Component
 
         return $baseQuery
             ->whereIn('status', $instanceStatuses)
-            ->where(function ($instanceQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses, $requiresApprovalGate, $isDispatchedFilter): void {
+            ->where(function ($instanceQuery) use ($driver, $hasTestRequestFormInstanceId, $approvalGateStatuses, $requiresApprovalGate, $isDispatchedFilter, $completedDispatchStatuses): void {
                 if ($isDispatchedFilter) {
-                    $instanceQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
-                        $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
-                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                    $instanceQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($completedDispatchStatuses): void {
+                        $enquiryQuery->whereIn('subcontracting_dispatch_status', $completedDispatchStatuses);
+                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId, $completedDispatchStatuses): void {
                         $fallbackQuery->selectRaw('1')
                             ->from('sample_submission_requests as ssr')
-                            ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                            ->whereIn('ssr.subcontracting_dispatch_status', $completedDispatchStatuses)
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
                                     ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
@@ -1020,12 +1021,13 @@ class WorkflowBoard extends Component
             })
             ->where(function ($dispatchQuery) use ($dispatchStatus, $driver, $hasTestRequestFormInstanceId): void {
                 if ($dispatchStatus === SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED) {
-                    $dispatchQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
-                        $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
-                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
+                    $completedStatuses = SampleSubmissionRequest::subcontractDispatchCompletedStatuses();
+                    $dispatchQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($completedStatuses): void {
+                        $enquiryQuery->whereIn('subcontracting_dispatch_status', $completedStatuses);
+                    })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId, $completedStatuses): void {
                         $fallbackQuery->selectRaw('1')
                             ->from('sample_submission_requests as ssr')
-                            ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                            ->whereIn('ssr.subcontracting_dispatch_status', $completedStatuses)
                             ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $linkQuery
                                     ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))
@@ -1493,11 +1495,17 @@ class WorkflowBoard extends Component
                             ->whereIn('status', ['submitted', 'Submitted', 'received', 'in_review', 'In Review', 'approved'])
                             ->where(function ($dispatchLinkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                 $dispatchLinkQuery->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
-                                    $enquiryQuery->where('subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED);
+                                    $enquiryQuery->whereIn(
+                                        'subcontracting_dispatch_status',
+                                        SampleSubmissionRequest::subcontractDispatchCompletedStatuses()
+                                    );
                                 })->orWhereExists(function ($fallbackQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                     $fallbackQuery->selectRaw('1')
                                         ->from('sample_submission_requests as ssr')
-                                        ->where('ssr.subcontracting_dispatch_status', SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED)
+                                        ->whereIn(
+                                            'ssr.subcontracting_dispatch_status',
+                                            SampleSubmissionRequest::subcontractDispatchCompletedStatuses()
+                                        )
                                         ->where(function ($linkQuery) use ($driver, $hasTestRequestFormInstanceId): void {
                                             $linkQuery
                                                 ->whereRaw(VarcharUuidSql::equals('ssr.submission_form_instance_id', 'submission_form_instances.id'))

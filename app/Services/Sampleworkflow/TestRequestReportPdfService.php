@@ -12,6 +12,7 @@ class TestRequestReportPdfService
 {
     public function __construct(
         private readonly TestRequestReportDataService $reportDataService,
+        private readonly AmendmentReportConfigurationService $amendmentReportConfig,
     ) {}
 
     /**
@@ -24,8 +25,8 @@ class TestRequestReportPdfService
         $language = $this->normalizeLanguage($language);
         $includeReferenceMethod = (bool) ($options['include_reference_method'] ?? false);
 
-        $jobNumber = $batch->batch_code;
-        $reportNumber = $jobNumber.'-R'.str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
+        $jobNumber = (string) $batch->batch_code;
+        $reportNumber = $this->amendmentReportConfig->formatReportNumber($jobNumber, max(1, $sequence));
 
         $reportData = $this->reportDataService->build($batch, $reportNumber);
         $labels = $this->labelsFor($language);
@@ -56,12 +57,15 @@ class TestRequestReportPdfService
             ->get();
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
+        $amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? $sequence);
+        $amendmentDisplay = $this->amendmentDisplayData($labels, $amendmentVersion);
 
         $viewData = array_merge($reportData, [
             'language' => $language,
             'labels' => $labels,
             'revisions' => $revisions,
             'ammendment' => $ammendment,
+            'amendmentDisplay' => $amendmentDisplay,
             'isRTL' => $isRTL,
             'isPdfMode' => true,
             'includeReferenceMethod' => $includeReferenceMethod,
@@ -309,5 +313,32 @@ class TestRequestReportPdfService
                 'amendment_revision' => 'Revision No.',
             ],
         };
+    }
+
+    /**
+     * @param  array<string, string>  $labels
+     * @return array{
+     *     revisionLabel: string,
+     *     reasonLabel: string,
+     *     supersedesText: string,
+     *     formattedRevision: string
+     * }
+     */
+    public function amendmentDisplayData(array $labels, int $version): array
+    {
+        $config = $this->amendmentReportConfig->amendmentViewData($version);
+
+        return [
+            'revisionLabel' => $config['revision_label'] !== ''
+                ? $config['revision_label']
+                : (string) ($labels['amendment_revision'] ?? 'Revision No.'),
+            'reasonLabel' => $config['reason_label'] !== ''
+                ? $config['reason_label']
+                : (string) ($labels['amendment_reason'] ?? 'Amendment Reason'),
+            'supersedesText' => $config['supersedes_text'] !== ''
+                ? $config['supersedes_text']
+                : (string) ($labels['supersedes_original'] ?? 'This report supersedes the original report'),
+            'formattedRevision' => $config['formatted_revision'],
+        ];
     }
 }

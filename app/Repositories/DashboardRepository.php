@@ -719,7 +719,7 @@ class DashboardRepository
                 ->find($notification->entity_id);
 
             if ($instance?->submission_form_id) {
-                return '/forms/'.$instance->submission_form_id.'/fill?instance='.$instance->id;
+                return '/forms/'.$instance->submission_form_id.'/fill?instance_id='.$instance->id;
             }
         }
 

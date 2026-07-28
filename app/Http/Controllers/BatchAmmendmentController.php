@@ -49,7 +49,7 @@ class BatchAmmendmentController extends Controller
 
             app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
                 $batch,
-                'Samples In Lab',
+                'Sample Verification',
                 'CRM amendment raised: ' . $request->reason
             );
             $batch->save();
@@ -73,7 +73,7 @@ class BatchAmmendmentController extends Controller
                 ->where('batch_status', 'Sample Approval')
                 ->delete();
 
-            return redirect()->back()->with('success','Amendment raised. Batch is now in Samples In Lab.');
+            return redirect()->back()->with('success','Amendment raised. Batch is now in Sample Verification.');
 
         }else{
             return redirect()->back()->with('error','There is no batch with the specified ID!');

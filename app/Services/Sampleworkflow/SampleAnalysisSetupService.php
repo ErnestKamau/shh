@@ -131,8 +131,14 @@ class SampleAnalysisSetupService
         $analysisType = $context['analysis_type'] ?? AnalysisType::query()->find($analysisTypeId);
         $labSectionIdFromAnalysisType = $this->resolveValidLabSectionId($analysisType?->lab_section_id);
         $resolvedLabSectionOverride = $this->resolveValidLabSectionId($labSectionOverride);
+        $labSectionByElement = is_array($context['lab_section_by_element'] ?? null)
+            ? $context['lab_section_by_element']
+            : [];
+        $userIdByLabSection = is_array($context['user_id_by_lab_section'] ?? null)
+            ? $context['user_id_by_lab_section']
+            : [];
         $analysisTypeHasNoResultCapture = $analysisType ? (int) ($analysisType->has_no_result ?? 0) : 0;
-        $userId = $actingUserId ?? (string) (auth()->id() ?? '')
+        $defaultUserId = $actingUserId ?? (string) (auth()->id() ?? '')
             ?: \App\User::query()->where('active', 1)->value('id');
 
         /** @var array<string, ReportingUnit> $reportingUnitsByKey */
@@ -164,10 +170,16 @@ class SampleAnalysisSetupService
 
             $reportingUnit = $this->resolveReportingUnitFromElement($element, $reportingUnitsByKey);
 
-            // Capture Results always prefers the Analysis Element lab section (master data).
-            $labSectionId = $this->resolveValidLabSectionId($element->lab_section_id)
+            $elementId = (string) ($element->id ?? '');
+            $acceptanceSectionOverride = $this->resolveValidLabSectionId($labSectionByElement[$elementId] ?? null);
+
+            // Acceptance wizard override → element master data → analysis type → plan override
+            // → sibling elements → batch header → lab's sections → any active section.
+            $labSectionId = $acceptanceSectionOverride
+                ?? $this->resolveValidLabSectionId($element->lab_section_id)
                 ?? $labSectionIdFromAnalysisType
-                ?? $resolvedLabSectionOverride;
+                ?? $resolvedLabSectionOverride
+                ?? $this->resolveFallbackLabSectionId($analysisTypeId, $analysisType, $lab, $sampleHeader);
 
             if ($labSectionId === null) {
                 throw new \InvalidArgumentException(
@@ -175,9 +187,14 @@ class SampleAnalysisSetupService
                     . (string) ($element->id ?? '')
                     . ' or analysis type '
                     . (string) $analysisTypeId
-                    . '.'
+                    . ', or create at least one active lab section.'
                 );
             }
+
+            $sectionUserId = (string) ($userIdByLabSection[$labSectionId] ?? '');
+            $userId = ($sectionUserId !== '' && Str::isUuid($sectionUserId))
+                ? $sectionUserId
+                : $defaultUserId;
 
             $subcontractedLabByElement = $context['subcontracted_lab_by_element'] ?? [];
             $assignedLabId = isset($subcontractedLabByElement[(string) $element->id])
@@ -406,6 +423,96 @@ class SampleAnalysisSetupService
         }
 
         return $this->labSectionValidityCache[$id] ? $id : null;
+    }
+
+    /**
+     * Last-resort lab section when element / analysis type master data is incomplete.
+     */
+    private function resolveFallbackLabSectionId(
+        string $analysisTypeId,
+        ?AnalysisType $analysisType,
+        ?Lab $lab,
+        ?SampleHeader $sampleHeader,
+    ): ?string {
+        $siblingSectionId = AnalysisElements::query()
+            ->where('analysis_type_id', $analysisTypeId)
+            ->where('active', 1)
+            ->whereNotNull('lab_section_id')
+            ->orderBy('level')
+            ->value('lab_section_id');
+
+        $resolved = $this->resolveValidLabSectionId($siblingSectionId);
+        if ($resolved !== null) {
+            Log::warning('Using sibling analysis-element lab section for captured results', [
+                'analysis_type_id' => $analysisTypeId,
+                'lab_section_id' => $resolved,
+            ]);
+
+            return $resolved;
+        }
+
+        if ($sampleHeader !== null) {
+            foreach (explode(',', (string) ($sampleHeader->lab_section_ids ?? '')) as $candidate) {
+                $resolved = $this->resolveValidLabSectionId(trim($candidate));
+                if ($resolved !== null) {
+                    Log::warning('Using batch header lab section for captured results', [
+                        'analysis_type_id' => $analysisTypeId,
+                        'sample_header_id' => $sampleHeader->id,
+                        'lab_section_id' => $resolved,
+                    ]);
+
+                    return $resolved;
+                }
+            }
+        }
+
+        $labId = trim((string) ($lab?->id ?? $analysisType?->lab_id ?? ''));
+        if ($labId === '' && $analysisTypeId !== '') {
+            $labId = trim((string) (AnalysisType::query()->whereKey($analysisTypeId)->value('lab_id') ?? ''));
+        }
+        if ($labId === '') {
+            $labId = trim((string) (Lab::defaultLabId() ?? ''));
+        }
+
+        if ($labId !== '') {
+            $fromLab = SampleAnalysisStage::query()
+                ->where('lab_id', $labId)
+                ->where(function ($query): void {
+                    $query->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+                })
+                ->where('active', true)
+                ->orderBy('name')
+                ->value('id');
+
+            $resolved = $this->resolveValidLabSectionId($fromLab);
+            if ($resolved !== null) {
+                Log::warning('Using lab default section for captured results', [
+                    'analysis_type_id' => $analysisTypeId,
+                    'lab_id' => $labId,
+                    'lab_section_id' => $resolved,
+                ]);
+
+                return $resolved;
+            }
+        }
+
+        $anyActive = SampleAnalysisStage::query()
+            ->where(function ($query): void {
+                $query->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+            })
+            ->where('active', true)
+            ->orderBy('name')
+            ->value('id');
+
+        $resolved = $this->resolveValidLabSectionId($anyActive);
+        if ($resolved !== null) {
+            Log::warning('Using first active lab section for captured results', [
+                'analysis_type_id' => $analysisTypeId,
+                'lab_section_id' => $resolved,
+            ]);
+        }
+
+        return $resolved;
     }
 
     /**

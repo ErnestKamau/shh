@@ -162,9 +162,14 @@ class AcceptanceFormService
                 'manager_signature' => $signature,
                 'manager_signed_at' => $signedAtValue,
                 'manager_assignment_payload' => [
-                    'assigned_analyst_ids' => [],
-                    'lead_analyst_id' => null,
-                    'technical_signatory_id' => null,
+                    'assigned_analyst_ids' => array_values(array_filter(
+                        (array) ($header['assigned_analyst_ids'] ?? [])
+                    )),
+                    'lead_analyst_id' => $header['lead_analyst_id'] ?? null,
+                    'technical_signatory_id' => $header['technical_signatory_id'] ?? null,
+                    'analyst_lab_section_assignments' => is_array($header['analyst_lab_section_assignments'] ?? null)
+                        ? $header['analyst_lab_section_assignments']
+                        : [],
                 ],
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
@@ -183,7 +188,26 @@ class AcceptanceFormService
             )->fresh(['lines', 'sampleHeader']);
 
             if ($completed->sample_header_id) {
-                $this->routeAcceptedBatch($completed);
+                $assignedAnalystIds = array_values(array_filter(
+                    (array) ($header['assigned_analyst_ids'] ?? [])
+                ));
+                $leadAnalystId = isset($header['lead_analyst_id']) && is_string($header['lead_analyst_id'])
+                    ? $header['lead_analyst_id']
+                    : null;
+                $technicalSignatoryId = isset($header['technical_signatory_id']) && is_string($header['technical_signatory_id'])
+                    ? $header['technical_signatory_id']
+                    : null;
+                $analystSectionAssignments = is_array($header['analyst_lab_section_assignments'] ?? null)
+                    ? $header['analyst_lab_section_assignments']
+                    : [];
+
+                $this->routeAcceptedBatch(
+                    $completed,
+                    $leadAnalystId,
+                    $technicalSignatoryId,
+                    $assignedAnalystIds,
+                    $analystSectionAssignments,
+                );
                 $completed = $completed->fresh(['lines', 'sampleHeader']);
             }
 
@@ -263,12 +287,17 @@ class AcceptanceFormService
                     'sample_receiving_time' => $receivingSignedAt->format('H:i'),
                 ],
                 'manager_assignment_payload' => [
-                    'assigned_analyst_ids' => [],
-                    'lead_analyst_id' => null,
+                    'assigned_analyst_ids' => array_values(array_filter(
+                        (array) ($header['assigned_analyst_ids'] ?? [])
+                    )),
+                    'lead_analyst_id' => $header['lead_analyst_id'] ?? null,
                     'technical_signatory_id' => null,
                     'customer_contact_id' => $customerContactId,
                     'lab_capable' => (bool) ($header['lab_capable'] ?? true),
                     'client_instruction_clear' => (bool) ($header['client_instruction_clear'] ?? true),
+                    'analyst_lab_section_assignments' => is_array($header['analyst_lab_section_assignments'] ?? null)
+                        ? $header['analyst_lab_section_assignments']
+                        : [],
                 ],
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
@@ -287,7 +316,23 @@ class AcceptanceFormService
             )->fresh(['lines', 'sampleHeader']);
 
             if ($completed->sample_header_id) {
-                $this->routeAcceptedBatch($completed);
+                $assignedAnalystIds = array_values(array_filter(
+                    (array) ($header['assigned_analyst_ids'] ?? [])
+                ));
+                $leadAnalystId = isset($header['lead_analyst_id']) && is_string($header['lead_analyst_id'])
+                    ? $header['lead_analyst_id']
+                    : null;
+                $analystSectionAssignments = is_array($header['analyst_lab_section_assignments'] ?? null)
+                    ? $header['analyst_lab_section_assignments']
+                    : [];
+
+                $this->routeAcceptedBatch(
+                    $completed,
+                    $leadAnalystId,
+                    null,
+                    $assignedAnalystIds,
+                    $analystSectionAssignments,
+                );
                 $completed = $completed->fresh(['lines', 'sampleHeader']);
             }
 
@@ -469,6 +514,7 @@ class AcceptanceFormService
         ?string $leadAnalystId = null,
         ?string $technicalSignatoryId = null,
         array $assignedAnalystIds = [],
+        array $analystLabSectionAssignments = [],
     ): void {
         if ($this->isShelfLifeAcceptance($form)) {
             $this->transitionBatchToShelfLifeStudy($form);
@@ -476,7 +522,13 @@ class AcceptanceFormService
             return;
         }
 
-        $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
+        $this->transitionBatchToSamplesInLab(
+            $form,
+            $leadAnalystId,
+            $technicalSignatoryId,
+            $assignedAnalystIds,
+            $analystLabSectionAssignments,
+        );
     }
 
     private function isShelfLifeAcceptance(AnalysisAcceptanceForm $form): bool
@@ -562,6 +614,7 @@ class AcceptanceFormService
         ?string $leadAnalystId = null,
         ?string $technicalSignatoryId = null,
         array $assignedAnalystIds = [],
+        array $analystLabSectionAssignments = [],
     ): void {
         $batch = SampleHeader::query()->find((string) $form->sample_header_id);
         if (! $batch) {
@@ -632,7 +685,13 @@ class AcceptanceFormService
             }
         }
 
-        $this->syncAssignedAnalystsOnBatch($batch, $assignedAnalystIds, $leadAnalystId, $targetStatus);
+        $this->syncAssignedAnalystsOnBatch(
+            $batch,
+            $assignedAnalystIds,
+            $leadAnalystId,
+            $targetStatus,
+            $analystLabSectionAssignments,
+        );
 
         $instanceIds = collect([
             $form->submission_form_instance_id,
@@ -700,12 +759,57 @@ class AcceptanceFormService
 
     /**
      * @param  list<string>  $assignedAnalystIds
+     * @param  array<string, string>  $analystLabSectionAssignments  analyst_id => lab_section_ids CSV
+     * @param  array<string, list<string>>  $analystsByLabSection  lab_section_id => analyst ids
+     */
+    public function applyAnalystAssignmentsToBatch(
+        SampleHeader $batch,
+        array $assignedAnalystIds,
+        ?string $leadAnalystId = null,
+        array $analystLabSectionAssignments = [],
+        array $analystsByLabSection = [],
+        string $batchStatus = 'Samples In Lab',
+    ): void {
+        $this->syncAssignedAnalystsOnBatch(
+            $batch,
+            $assignedAnalystIds,
+            $leadAnalystId,
+            $batchStatus,
+            $analystLabSectionAssignments,
+        );
+
+        foreach ($analystsByLabSection as $sectionId => $analystIds) {
+            $sectionId = (string) $sectionId;
+            if ($sectionId === '' || ! Str::isUuid($sectionId) || ! is_array($analystIds) || $analystIds === []) {
+                continue;
+            }
+
+            $primaryAnalystId = (string) ($analystIds[0] ?? '');
+            if ($primaryAnalystId === '' || ! Str::isUuid($primaryAnalystId)) {
+                continue;
+            }
+
+            CapturedResult::query()
+                ->where('sample_header_id', $batch->id)
+                ->where('lab_section_id', $sectionId)
+                ->where(function ($query): void {
+                    $query->whereNull('analyte_status_contracted')
+                        ->orWhere('analyte_status_contracted', 0);
+                })
+                ->update(['user_id' => $primaryAnalystId]);
+        }
+    }
+
+    /**
+     * @param  list<string>  $assignedAnalystIds
+     * @param  array<string, string>  $analystLabSectionAssignments  analyst_id => lab_section_ids CSV
      */
     private function syncAssignedAnalystsOnBatch(
         SampleHeader $batch,
         array $assignedAnalystIds,
         ?string $leadAnalystId,
         string $batchStatus,
+        array $analystLabSectionAssignments = [],
     ): void {
         $assignedAnalystIds = array_values(array_unique(array_filter(
             $assignedAnalystIds,
@@ -731,18 +835,30 @@ class AcceptanceFormService
             ->delete();
 
         foreach ($assignedAnalystIds as $analystId) {
+            $sectionCsv = (string) ($analystLabSectionAssignments[$analystId] ?? '');
+            if ($sectionCsv === '') {
+                $sectionCsv = $defaultSectionId !== null ? (string) $defaultSectionId : '';
+            }
+
             $approver = new BatchLabSectionApprover();
             $approver->status = 0;
             $approver->user_id = $analystId;
             $approver->title = 'Analyst';
-            $approver->lab_section_ids = $defaultSectionId !== null ? (string) $defaultSectionId : '';
+            $approver->lab_section_ids = $sectionCsv;
             $approver->batch_id = $batch->id;
             $approver->batch_status = $batchStatus;
             $approver->show_report = 0;
             $approver->save();
         }
 
-        if ($leadAnalystId !== null && $leadAnalystId !== '' && Str::isUuid($leadAnalystId)) {
+        // Only stamp all results to the lead when section-specific assignments were not provided.
+        // Per-section user_id is set during captured-result creation from sample config.
+        if (
+            $analystLabSectionAssignments === []
+            && $leadAnalystId !== null
+            && $leadAnalystId !== ''
+            && Str::isUuid($leadAnalystId)
+        ) {
             CapturedResult::query()
                 ->where('sample_header_id', $batch->id)
                 ->update(['user_id' => $leadAnalystId]);

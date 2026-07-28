@@ -1,8 +1,16 @@
 <div class="section-title">Disclaimers</div>
 <div class="interpretation-section">
     @if(isset($ammendment))
-    <p><strong>Revision No.:</strong> R{{ str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT) }}</p>
-    <p><strong>Amendment Reason:</strong> {{ $ammendment->reason ?? 'N/A' }}</p>
+    @php
+        $display = $amendmentDisplay ?? [];
+        $revisionText = $display['formatted_revision']
+            ?? $display['formattedRevision']
+            ?? ('R' . str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT));
+        $revisionLabel = $display['revision_label'] ?? $display['revisionLabel'] ?? 'Revision No.';
+        $reasonLabel = $display['reason_label'] ?? $display['reasonLabel'] ?? 'Amendment Reason';
+    @endphp
+    <p><strong>{{ $revisionLabel }}:</strong> {{ $revisionText }}</p>
+    <p><strong>{{ $reasonLabel }}:</strong> {{ $ammendment->reason ?? 'N/A' }}</p>
     @endif
 
     @if(isset($reportFormat) && $reportFormat->getDetail('methodology_statement'))

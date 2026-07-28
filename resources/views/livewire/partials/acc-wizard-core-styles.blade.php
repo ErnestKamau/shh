@@ -810,6 +810,56 @@
         box-shadow: inset 0 0 0 1px var(--color-primary-highlight);
     }
 
+    .acc-param-lab-section-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+
+    .acc-param-lab-section-row {
+        display: grid;
+        grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.4fr);
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .acc-param-lab-section-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--acc-text);
+    }
+
+    .acc-section-analyst-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .acc-section-analyst-block {
+        padding: 0.75rem;
+        border: 1px solid var(--acc-border);
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .acc-section-analyst-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .acc-section-analyst-heading strong {
+        font-size: 0.875rem;
+    }
+
+    .acc-section-analyst-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+        gap: 0.5rem;
+    }
+
     .acc-sample-config-param-chip input {
         margin-top: 0.15rem;
         flex-shrink: 0;

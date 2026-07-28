@@ -41,6 +41,8 @@
                 $showSampleDetails = (bool) ($showSampleDetailsOnConfig ?? ($showSampleInstancesOnConfig ?? false));
                 $showQuantity = (bool) ($showQuantityOnConfig ?? false);
                 $showParameters = (bool) ($showParametersOnConfig ?? true);
+                $showParameterLabSections = (bool) ($showParameterLabSectionsOnConfig ?? false);
+                $showSectionAnalysts = (bool) ($showSectionAnalystsOnConfig ?? false);
                 $readOnlyTypes = (bool) ($readOnlyConfigTypes ?? false);
                 $expandParameters = (bool) ($defaultExpandParameters ?? false);
                 $expandSampleDetails = (bool) ($defaultExpandSampleDetails ?? ($defaultExpandInstances ?? false));
@@ -58,11 +60,18 @@
                 $sampleTypeName = collect($this->configSampleTypes)->firstWhere('id', (string) ($config['sample_type_id'] ?? ''))['name'] ?? '—';
                 $analysisTypeName = collect($analysisTypes)->firstWhere('id', (string) ($config['analysis_type_id'] ?? ''))['name'] ?? '—';
                 $photoKey = $this->instancePhotoUploadKey($configId);
+                $selectedParamRows = $showParameterLabSections ? $this->selectedParametersWithLabSections($configIndex) : [];
+                $sectionAnalystRows = $showSectionAnalysts ? $this->labSectionsForAnalystAssignment($configIndex) : [];
             @endphp
             <div
                 class="acc-sample-config-card"
                 wire:key="sample-config-{{ $configId }}"
-                x-data="{ showParameters: @js($expandParameters), showSampleDetails: @js($expandSampleDetails) }"
+                x-data="{
+                    showParameters: @js($expandParameters),
+                    showLabSections: @js($expandParameters),
+                    showAnalysts: @js($expandParameters),
+                    showSampleDetails: @js($expandSampleDetails)
+                }"
             >
                 <div class="acc-sample-config-card-head">
                     <span class="acc-sample-config-card-title">
@@ -270,7 +279,7 @@
                                             >
                                                 <span class="acc-sample-config-section-toggle-main">
                                                     <i class="mdi acc-sample-config-chevron" :class="showParameters ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
-                                                    <span class="acc-sample-config-params-label">Parameters</span>
+                                                    <span class="acc-sample-config-params-label">1. Test parameters</span>
                                                     @if(count($selectedKeys) > 0)
                                                         <span class="acc-sample-config-section-badge">{{ count($selectedKeys) }} selected</span>
                                                     @endif
@@ -297,6 +306,135 @@
                                         </div>
                                         <div class="acc-sample-config-section-body" x-show="showParameters" x-cloak>
                                             @include('livewire.partials.acceptance-sample-config-parameters')
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endif
+
+                            @if($showParameterLabSections)
+                            <tr class="acc-sample-config-section-row">
+                                <td colspan="{{ $configColspan }}">
+                                    <div class="acc-sample-config-params-panel">
+                                        <div class="acc-sample-config-params-band">
+                                            <button
+                                                type="button"
+                                                class="acc-sample-config-section-toggle"
+                                                @click="showLabSections = !showLabSections"
+                                                :aria-expanded="showLabSections"
+                                            >
+                                                <span class="acc-sample-config-section-toggle-main">
+                                                    <i class="mdi acc-sample-config-chevron" :class="showLabSections ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
+                                                    <span class="acc-sample-config-params-label">2. Lab section for each test</span>
+                                                    @if(count($selectedParamRows) > 0)
+                                                        <span class="acc-sample-config-section-badge">{{ count($selectedParamRows) }}</span>
+                                                    @endif
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <div class="acc-sample-config-section-body" x-show="showLabSections" x-cloak>
+                                            @if($selectedParamRows === [])
+                                                <p class="acc-wizard-hint mb-0">Select test parameters first.</p>
+                                            @else
+                                                <div class="acc-param-lab-section-list">
+                                                    @foreach($selectedParamRows as $paramRow)
+                                                        @php
+                                                            $paramKey = (string) $paramRow['id'];
+                                                            $display = trim((string) ($paramRow['code'] ?? '')) !== ''
+                                                                ? (string) $paramRow['code']
+                                                                : (string) ($paramRow['name'] ?? 'Parameter');
+                                                        @endphp
+                                                        <div class="acc-param-lab-section-row" wire:key="param-section-{{ $configId }}-{{ $paramKey }}">
+                                                            <div class="acc-param-lab-section-label" title="{{ $paramRow['label'] ?? $display }}">
+                                                                {{ $display }}
+                                                            </div>
+                                                            <select
+                                                                class="form-control form-control-sm acc-input"
+                                                                wire:change="setParameterLabSection('{{ $configId }}', '{{ $paramKey }}', $event.target.value)"
+                                                            >
+                                                                <option value="">Select lab section…</option>
+                                                                @foreach($this->configLabSections as $section)
+                                                                    <option
+                                                                        value="{{ $section['id'] }}"
+                                                                        @selected((string) ($paramRow['lab_section_id'] ?? '') === (string) $section['id'])
+                                                                    >{{ $section['name'] }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            @error('sampleConfigs.'.$configIndex.'.parameter_lab_sections.'.$paramKey)
+                                                                <div class="text-danger small">{{ $message }}</div>
+                                                            @enderror
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endif
+
+                            @if($showSectionAnalysts)
+                            <tr class="acc-sample-config-section-row">
+                                <td colspan="{{ $configColspan }}">
+                                    <div class="acc-sample-config-params-panel">
+                                        <div class="acc-sample-config-params-band">
+                                            <button
+                                                type="button"
+                                                class="acc-sample-config-section-toggle"
+                                                @click="showAnalysts = !showAnalysts"
+                                                :aria-expanded="showAnalysts"
+                                            >
+                                                <span class="acc-sample-config-section-toggle-main">
+                                                    <i class="mdi acc-sample-config-chevron" :class="showAnalysts ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
+                                                    <span class="acc-sample-config-params-label">3. Assign analyst(s)</span>
+                                                    @if(count($sectionAnalystRows) > 0)
+                                                        <span class="acc-sample-config-section-badge">{{ count($sectionAnalystRows) }} section{{ count($sectionAnalystRows) === 1 ? '' : 's' }}</span>
+                                                    @endif
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <div class="acc-sample-config-section-body" x-show="showAnalysts" x-cloak>
+                                            @if($sectionAnalystRows === [])
+                                                <p class="acc-wizard-hint mb-0">Choose lab sections for the selected tests to load analysts.</p>
+                                            @else
+                                                <div class="acc-section-analyst-list">
+                                                    @foreach($sectionAnalystRows as $sectionRow)
+                                                        @php
+                                                            $sectionId = (string) $sectionRow['id'];
+                                                            $assignedIds = $sectionRow['analyst_ids'] ?? [];
+                                                            $analystOptions = $this->analystsForLabSection($sectionId);
+                                                        @endphp
+                                                        <div class="acc-section-analyst-block" wire:key="section-analysts-{{ $configId }}-{{ $sectionId }}">
+                                                            <div class="acc-section-analyst-heading">
+                                                                <strong>{{ $sectionRow['name'] }}</strong>
+                                                                <span class="acc-wizard-hint">
+                                                                    {{ count($assignedIds) }} selected
+                                                                </span>
+                                                            </div>
+                                                            @if($analystOptions === [])
+                                                                <p class="acc-wizard-hint mb-0">No analysts are tied to this lab section.</p>
+                                                            @else
+                                                                <div class="acc-section-analyst-grid">
+                                                                    @foreach($analystOptions as $analyst)
+                                                                        @php $isChecked = in_array($analyst['id'], $assignedIds, true); @endphp
+                                                                        <label class="acc-sample-config-param-chip {{ $isChecked ? 'is-selected' : '' }}">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                @checked($isChecked)
+                                                                                wire:click="toggleSectionAnalyst('{{ $configId }}', '{{ $sectionId }}', '{{ $analyst['id'] }}')"
+                                                                            >
+                                                                            <span>{{ $analyst['name'] }}</span>
+                                                                        </label>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                            @error('sampleConfigs.'.$configIndex.'.analysts_by_lab_section.'.$sectionId)
+                                                                <div class="text-danger small mt-1">{{ $message }}</div>
+                                                            @enderror
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 </td>

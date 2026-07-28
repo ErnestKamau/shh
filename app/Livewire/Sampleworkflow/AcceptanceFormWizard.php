@@ -68,7 +68,7 @@ class AcceptanceFormWizard extends Component
 
     public bool $showLabIdOnConfig = false;
 
-    public bool $showAssignedUserOnConfig = true;
+    public bool $showAssignedUserOnConfig = false;
 
     public bool $compactConfigTable = true;
 
@@ -78,7 +78,11 @@ class AcceptanceFormWizard extends Component
 
     public bool $showQuantityOnConfig = false;
 
-    public bool $showParametersOnConfig = false;
+    public bool $showParametersOnConfig = true;
+
+    public bool $showParameterLabSectionsOnConfig = true;
+
+    public bool $showSectionAnalystsOnConfig = true;
 
     public bool $showInstancePhotoOnConfig = true;
 
@@ -88,7 +92,7 @@ class AcceptanceFormWizard extends Component
 
     public bool $readOnlyConfigTypes = true;
 
-    public bool $defaultExpandParameters = false;
+    public bool $defaultExpandParameters = true;
 
     public bool $defaultExpandSampleDetails = true;
 
@@ -229,6 +233,7 @@ class AcceptanceFormWizard extends Component
                 $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
             );
 
+        $this->sampleConfigs = $configService->syncParameterLabSectionsForConfigs($this->sampleConfigs);
         $this->applySampleConfigAssignmentDefaults();
         $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
 
@@ -264,6 +269,7 @@ class AcceptanceFormWizard extends Component
 
         try {
             $this->mergeInstancePhotoUploadsIntoConfigs();
+            $this->sampleConfigs = $configService->syncParameterLabSectionsForConfigs($this->sampleConfigs);
             $configService->validateReceptionConfigs($this->sampleConfigs);
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? 'Complete all required sample configuration fields.';
@@ -351,12 +357,6 @@ class AcceptanceFormWizard extends Component
                 $this->sampleConfigs,
                 $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
             );
-            $normalizedConfigs = array_map(static function (array $config): array {
-                $config['lab_id'] = null;
-                $config['lab_section_id'] = null;
-
-                return $config;
-            }, $normalizedConfigs);
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? 'Sample configuration is invalid.';
             $this->dispatch('notify', type: 'error', message: $message);
@@ -367,6 +367,10 @@ class AcceptanceFormWizard extends Component
         $acceptanceLines = ($quotationPrefill['quotation_locked'] ?? false)
             ? $this->mapQuotationLinesForAcceptance($quotationLines)
             : $this->lines;
+
+        $assignedAnalystIds = $configService->collectAssignedAnalystIds($normalizedConfigs);
+        $analystSectionAssignments = $configService->collectAnalystLabSectionAssignments($normalizedConfigs);
+        $leadAnalystId = $assignedAnalystIds[0] ?? null;
 
         $header = [
             'crm_customer_id' => $this->crmCustomerId,
@@ -379,6 +383,9 @@ class AcceptanceFormWizard extends Component
             'lab_capable' => $this->labCapable,
             'client_instruction_clear' => $this->clientInstructionClear,
             'is_shelf_life' => $this->isShelfLifeTesting,
+            'assigned_analyst_ids' => $assignedAnalystIds,
+            'lead_analyst_id' => $leadAnalystId,
+            'analyst_lab_section_assignments' => $analystSectionAssignments,
         ];
 
         try {
@@ -531,17 +538,11 @@ class AcceptanceFormWizard extends Component
 
     private function applySampleConfigAssignmentDefaults(): void
     {
-        $defaultUserId = Auth::id() ? (string) Auth::id() : null;
-
         foreach ($this->sampleConfigs as $index => $config) {
-            // Lab / lab section are owned by Analysis Type → Analysis Element master data.
-            // Never write them from the Acceptance wizard.
+            // Lab id remains master-data driven; lab sections are chosen per test parameter.
             $this->sampleConfigs[$index]['lab_id'] = null;
-            $this->sampleConfigs[$index]['lab_section_id'] = null;
-
-            if ($defaultUserId !== null && empty($config['assigned_user_id'])) {
-                $this->sampleConfigs[$index]['assigned_user_id'] = $defaultUserId;
-            }
+            $this->sampleConfigs[$index] = app(AcceptanceFormSampleConfigService::class)
+                ->syncParameterLabSections($this->sampleConfigs[$index]);
         }
     }
 
