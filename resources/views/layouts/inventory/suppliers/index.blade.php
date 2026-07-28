@@ -170,7 +170,7 @@
           </div>
 					<div class="form-group">
 						<label class="control-label">Supplier Currency</label>
-						<select name="default_currency" class='form-control trigger-save' data-placeholder="Select Currency...">
+						<select name="default_currency" class='form-control trigger-save ls-select2' data-placeholder="Select Currency...">
 							<option></option>
 							@foreach (getCurrencies() as $p)
 								<option value="{{ $p->id }}">{{ $p->name }}</option>

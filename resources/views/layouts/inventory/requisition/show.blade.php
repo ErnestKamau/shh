@@ -1846,7 +1846,7 @@
 								<div class="form-group">
 									<label class="control-label">Cost Center*</label>
 
-									<select required name="cost_center[]" class="form-control trigger-save"
+									<select required name="cost_center[]" class="form-control trigger-save ls-select2"
 										placeholder="Select Cost Center..." data-placeholder="Select Cost Center..." multiple>
 										@foreach (getCostCenter() as $cc)
 										<option value="{{ $cc }}" {{ in_array($cc, $myCCs) ? 'selected' : '' }}>{{ $cc }}</option>

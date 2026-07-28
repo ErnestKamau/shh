@@ -803,7 +803,7 @@
         @endif
 
         @if ($pageMode)
-            @if ($selectedSampleTypeId && $submissionForm)
+            @if ($this->isWalkInCaptureReady)
                 <div class="workflow-board-panel mb-3">
                     <div class="workflow-board-panel-header d-flex flex-wrap align-items-center justify-content-between rft-gap">
                         <div class="min-width-0">
@@ -815,7 +815,10 @@
                                     {{ __('lab.request_for_testing') === 'lab.request_for_testing' ? 'Request For Testing' : __('lab.request_for_testing') }}
                                 @endif
                             </h5>
-                            <p class="text-muted mb-0 small">{{ $submissionForm->name }} · {{ $this->selectedSampleType?->name }}</p>
+                            <p class="text-muted mb-0 small">
+                                {{ $submissionForm->name }}
+                                · {{ $this->selectedSampleType?->name ?? 'Select sample type in form' }}
+                            </p>
                         </div>
                         <div class="submission-instance-actions ml-auto">
                             @include('livewire.partials.walk-in-trf-wizard-nav')
@@ -871,6 +874,10 @@
                     @else
                         No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
                     @endif
+                </div>
+            @elseif ($selectedSubmissionFormId)
+                <div class="alert alert-warning py-2 px-3 mb-0 small">
+                    Test request form could not be loaded. It may be inactive or missing.
                 </div>
             @endif
         @else
@@ -988,7 +995,7 @@
     @endif
 
     @if ($pageMode)
-        @if ((! $selectedSampleTypeId || ! $submissionForm) && ! $this->isPhysicalCheckIn && ! $plannerMode)
+        @if ((! $this->isWalkInCaptureReady) && ! $this->isPhysicalCheckIn && ! $plannerMode)
             <footer class="rft-touch-bar">
                 <span class="text-muted small mb-0">{{ $wizardOnly ? 'Loading form…' : 'Select a form type above to begin capture.' }}</span>
                 <a href="{{ $wizardOnly ? route('sample-workflow.request-for-testing') : route('sample-workflow', ['status' => 'Samples Receiving']) }}" class="btn btn-sm btn-light">

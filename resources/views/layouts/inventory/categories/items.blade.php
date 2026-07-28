@@ -360,16 +360,16 @@
 												<td nowrap>{{ number_format($item->stock_in, $item->sub_category->reporting_decimal_places) }} {{ $item->sub_category->unit_type }}</td>
 												<td nowrap>Ksh. {{ number_format($item->stock_in * $item->sub_category->unit_price, 2) }}</td>
 												<td nowrap>Ksh. {{ number_format($item->price,2) }}</td>
-												<td nowrap>{{ $item->supplier->name ?? '' }}</td>
+												<td nowrap>{{ $item->supplier?->name ?? '' }}</td>
 												<td nowrap>{{ $item->created_at }}</td>
-												<td nowrap>{{ $item->creator->name }}</td>
+												<td nowrap>{{ $item->creator?->name ?? 'n/a' }}</td>
 												<td nowrap>{{ $item->expiry == '2099-12-31' ? '-' : $item->expiry }}</td>
 												<td>{{ $item->status }}</td>
-												<td>{{ $item->slot->slot->name ?? 'n/a' }}</td>
+												<td>{{ $item->slot?->slot?->name ?? 'n/a' }}</td>
 												<td nowrap>
 													@if (!isset($item->rating))
 														<span class="btn btn-transparent btn-sm text-primary"
-															data-data='{{ json_encode(array("supplier"=>$item->supplier->id ?? 0, "item"=>$item->id)) }}'
+															data-data='{{ json_encode(array("supplier"=>$item->supplier?->id ?? 0, "item"=>$item->id)) }}'
 															data-target="#supplier-rating-modal" data-toggle="modal">
 															<i class="mdi mdi-star"></i> Rate
 														</span>
@@ -494,9 +494,9 @@
 													<tr>
 														<td>{{ $looper }}</td>
 														<td>{{ number_format($item->stock_out, $item->sub_category->reporting_decimal_places) }} {{ $item->sub_category->unit_type }}</td>
-														<td>{{ $item->department->name ?? '' }}</td>
-														<td>{{ $item->creator->name }}</td>
-														<td>{{ $item->receiver->name ?? 'n/a' }}</td>
+														<td>{{ $item->department?->name ?? '' }}</td>
+														<td>{{ $item->creator?->name ?? 'n/a' }}</td>
+														<td>{{ $item->receiver?->name ?? 'n/a' }}</td>
 														<td>{{ $item->created_at }}</td>
 														<td>
 															<span class="btn btn-transparent btn-sm text-primary" data-item='{{ json_encode($item) }}'
@@ -575,11 +575,11 @@
 												<td>{{ $looper }}</td>
 												<td>{{ $item->batch_code }}</td>
 												<td>{{ number_format($item->stock_in, $item->sub_category->reporting_decimal_places) }} {{ $item->sub_category->unit_type }}</td>
-												<td>{{ $item->receiver->name ?? 'n/a' }}</td>
-												<td>{{ $item->creator->name }}</td>
+												<td>{{ $item->receiver?->name ?? 'n/a' }}</td>
+												<td>{{ $item->creator?->name ?? 'n/a' }}</td>
 												<td>{{ $item->created_at }}</td>
 												<td>{{ $item->expiry == '2099-12-31' ? '-' : $item->expiry }}</td>
-												<td>{{ $item->slot->slot->name ?? 'n/a' }}</td>
+												<td>{{ $item->slot?->slot?->name ?? 'n/a' }}</td>
 												<td>
 													@if (isset($item->note))
 														<span class="btn btn-transparent btn-sm text-info" data-toggle="modal" data-action="Return"
@@ -636,9 +636,9 @@
 														<span class="text-default">{{ number_format(intval($item->stock_in)) }} {{ $item->sub_category->unit_type }}</span>
 													@endif
 												</td>
-												<td>{{ $item->creator->name }}</td>
+												<td>{{ $item->creator?->name ?? 'n/a' }}</td>
 												<td>{{ $item->created_at }}</td>
-												<td>{{ $item->slot->name ?? 'n/a' }}</td>
+												<td>{{ $item->slot?->name ?? 'n/a' }}</td>
 												<td>
 													@if (isset($item->note))
 														<span class="btn btn-transparent btn-sm text-info" data-toggle="modal" data-action="Stock Taking"
@@ -679,7 +679,7 @@
 												<td>{{ $looper }}</td>
 												<td>{{ $item->batch_code }}</td>
 												<td>{{ number_format(intval($item->stock_out)) }} {{ $item->sub_category->unit_type }}</td>
-												<td>{{ $item->creator->name ?? 'n/a' }}</td>
+												<td>{{ $item->creator?->name ?? 'n/a' }}</td>
 												<td>{{ $item->created_at }}</td>
 												<td>
 													@if (isset($item->note))
@@ -740,8 +740,8 @@
 												<td nowrap><img src="{{ $item->sub_category->image }}" style="width: 30px; margin-right: 4px"/> {{ $item->sub_category->name }}</td>
 												<td>{{ number_format($item->stock_in, 2) }}</td>
 												<td>{{ number_format($item->stock_out, 2) }}</td>
-												<td>{{ $item->department->name ?? '-' }}</td>
-												<td nowrap>{{ $item->creator->name }} <small class="text-default-light"><i class="mdi mdi-email-variant"></i> {{ $item->creator->email }}</small></td>
+												<td>{{ $item->department?->name ?? '-' }}</td>
+												<td nowrap>{{ $item->creator?->name ?? 'n/a' }} <small class="text-default-light"><i class="mdi mdi-email-variant"></i> {{ $item->creator?->email ?? '' }}</small></td>
 												<td nowrap>{{ $item->created_at }}</td>
 												<td>{{ $item->status }}</td>
 											</tr>

@@ -131,14 +131,19 @@ class SupplierController extends Controller
 
 		$supplier_categories = \App\SupplierByCategory::join('inventory_categories as ic', 'ic.id', 'supplier_by_categories.category_id')
 			->leftJoin('inventory_sub_categories as isc', 'isc.inventory_category_id', 'ic.id')
-			->selectRaw('supplier_by_categories.id as row_id, ic.name, count(isc.id) as items')->where('supplier_id', $id)
-			->groupBy('name')->orderBy('name', 'asc')->get();
+			->selectRaw('supplier_by_categories.id as row_id, ic.name, count(isc.id) as items')
+			->where('supplier_id', $id)
+			->groupBy('supplier_by_categories.id', 'ic.name')
+			->orderBy('ic.name', 'asc')
+			->get();
 
 		// return json_encode($all_categories, JSON_PRETTY_PRINT);
 
 		$criteria = \App\SuppliersRatingCriteria::where('supplier_id', $id)
-			->selectRaw('`id`, `supplier_id`, `request_id`, `criteria_id`, AVG(`score`) as score, `rating_by`, `is_current`, `created_at`, `updated_at`')
-			->where('is_current', 1)->groupBy('criteria_id')->get();
+			->selectRaw('criteria_id, AVG(score) as score')
+			->where('is_current', 1)
+			->groupBy('criteria_id')
+			->get();
 
 		$ratingScores = [];
 

@@ -309,6 +309,18 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
+     * Wizard is ready when a TRF is resolved (by sample type or direct form id).
+     */
+    public function getIsWalkInCaptureReadyProperty(): bool
+    {
+        if ($this->submissionForm === null) {
+            return false;
+        }
+
+        return filled($this->selectedSampleTypeId) || filled($this->selectedSubmissionFormId);
+    }
+
+    /**
      * Sample-type cards for the tablet Request For Testing page (UI only).
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>

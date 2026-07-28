@@ -188,24 +188,50 @@ class InventorySubCategoriesController extends Controller
     return redirect()->route('show-inventory-items', ['category'=>$request->category_id, 'id'=>$id])->with('success', 'Inventory Sub-Category Edited.');
 	}
 
-	public function get_items_via_ajax(Request $request, $cat_id=false, $name=false){
-		$term = $request->search;
+	public function get_items_via_ajax(Request $request, $cat_id = false, $name = false)
+	{
+		$term = trim((string) $request->search);
 		$limit = 100;
-		$offset = $request->page;
+		$page = max(1, (int) ($request->page ?: 1));
 		$gate_pass_category = getConfigByName('gate_pass_category_id');
-		$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : 0;
-		$items = InventorySubCategories::where('inventory_category_id', '!=', $gate_pass_category_id)->where('active', 1)->having("text", "LIKE", '%'.$term.'%');
-		if($cat_id){
-			if($name){
-				$cat_id = InventoryCategories::where('name', $cat_id)->first()->id;
-			}
-			$items = $items->where('inventory_category_id', $cat_id);
+		$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : null;
+
+		$items = InventorySubCategories::query()
+			->where('active', 1);
+
+		if ($gate_pass_category_id && \Illuminate\Support\Str::isUuid((string) $gate_pass_category_id)) {
+			$items = $items->where('inventory_category_id', '!=', $gate_pass_category_id);
 		}
-		$items = $items->selectRaw('id, CONCAT(code, "-", name) as `text`')->orderBy('name', 'asc')->offset($offset)->paginate($limit)->toArray();
+
+		if ($cat_id) {
+			if ($name) {
+				$category = InventoryCategories::where('name', $cat_id)->first();
+				$cat_id = $category?->id;
+			}
+
+			if ($cat_id) {
+				$items = $items->where('inventory_category_id', $cat_id);
+			}
+		}
+
+		if ($term !== '') {
+			$items = $items->where(function ($query) use ($term) {
+				$query->where('name', 'like', '%'.$term.'%')
+					->orWhere('code', 'like', '%'.$term.'%');
+			});
+		}
+
+		$items = $items
+			->selectRaw("id, CONCAT(code, '-', name) as text")
+			->orderBy('name', 'asc')
+			->paginate($limit, ['*'], 'page', $page);
 
 		return response()->json([
-			"results"=>$items['data'],
-			"pagination"=>["more"=>$items['prev_page_url'] != null]
+			'results' => collect($items->items())->map(fn ($item) => [
+				'id' => $item->id,
+				'text' => $item->text,
+			])->values(),
+			'pagination' => ['more' => $items->hasMorePages()],
 		], 200);
 	}
 

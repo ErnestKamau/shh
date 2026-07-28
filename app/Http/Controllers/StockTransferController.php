@@ -16,11 +16,14 @@ class StockTransferController extends Controller
 
 	public function index()
 	{
-		$transfers = StockTransfer::join('inventory_locations as il', 'il.id', 'stock_transfers.location_id')
-			->join('inventory_departments as ind', 'ind.id', 'stock_transfers.department_id')
-			->join('users as u', 'u.id', 'stock_transfers.created_by')
+		$transfers = StockTransfer::query()
+			->leftJoin('inventory_locations as il', 'il.id', '=', 'stock_transfers.inventory_location_id')
+			->leftJoin('inventory_departments as ind', 'ind.id', '=', 'stock_transfers.department_id')
+			->leftJoin('users as u', 'u.id', '=', 'stock_transfers.created_by')
 			->where('stock_transfers.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw('stock_transfers.*, ind.name as department, il.name as location, u.name as user_name')->get();
+			->selectRaw('stock_transfers.*, ind.name as department, il.name as location, u.name as user_name')
+			->get();
+
 		return view('layouts.inventory.stock-transfer.index', compact('transfers'));
 	}
 
