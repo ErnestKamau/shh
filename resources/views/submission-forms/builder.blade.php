@@ -435,7 +435,7 @@
               <label for="element-help-text">Help Text</label>
               <textarea class="form-control" id="element-help-text" name="help_text" rows="2" maxlength="1000"></textarea>
             </div>
-            
+
             <!-- Field Mapping Configuration -->
             <div class="workflow-board-panel mt-3 mb-0">
               <div class="workflow-board-panel-header py-2">
@@ -451,7 +451,7 @@
                     Map this field to a database table
                   </label>
                 </div>
-                
+
                 <div id="mapping-config" style="display: none;">
                   <div class="row">
                     <div class="col-md-6">
@@ -478,6 +478,38 @@
                     <strong>Note:</strong> When this form is submitted, the value of this field will be automatically mapped to the selected database field.
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Element Options -->
+            <div class="workflow-board-panel mt-3 mb-0">
+              <div class="workflow-board-panel-header py-2">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-tune"></i> Element Options
+                </h6>
+              </div>
+              <div class="workflow-board-panel-body">
+                <div class="row mb-2">
+                  <div class="col-md-4">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="element-required" name="is_required">
+                      <label class="form-check-label" for="element-required">Required Field</label>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="element-readonly" name="is_readonly">
+                      <label class="form-check-label" for="element-readonly">Read Only</label>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="element-hidden" name="is_hidden">
+                      <label class="form-check-label" for="element-hidden">Hidden</label>
+                    </div>
+                  </div>
+                </div>
+                <small class="form-text text-muted mb-0">Hidden elements stay in the builder and keep historical data, but are omitted from new fills.</small>
               </div>
             </div>
             
@@ -532,7 +564,7 @@
               </div>
             </div>
             
-            <div class="form-group" id="element-options-group" style="display: none;">
+            <div class="form-group mb-0" id="element-options-group" style="display: none;">
               <label>Options</label>
               <div id="element-options-container">
                 <!-- Options will be dynamically added here -->
@@ -541,28 +573,6 @@
                 <i class="mdi mdi-plus"></i> Add Option
               </button>
             </div>
-            
-            <div class="row">
-              <div class="col-md-4">
-                <div class="form-check">
-                  <input type="checkbox" class="form-check-input" id="element-required" name="is_required">
-                  <label class="form-check-label" for="element-required">Required Field</label>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="form-check">
-                  <input type="checkbox" class="form-check-input" id="element-readonly" name="is_readonly">
-                  <label class="form-check-label" for="element-readonly">Read Only</label>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="form-check">
-                  <input type="checkbox" class="form-check-input" id="element-hidden" name="is_hidden">
-                  <label class="form-check-label" for="element-hidden">Hidden</label>
-                </div>
-              </div>
-            </div>
-            <small class="form-text text-muted mb-2">Hidden elements stay in the builder and keep historical data, but are omitted from new fills.</small>
           </form>
         </div>
         <div class="modal-footer receive-sample-modal-footer border-0 pt-0">

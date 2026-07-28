@@ -29,6 +29,7 @@ class SubmissionForm extends Model implements Auditable
         'naming_convention_format',
         'is_published',
         'is_active',
+        'is_hidden_from_rft',
         'is_customer_portal_form',
         'is_customer_request_form',
         'start_submission_number',
@@ -49,6 +50,7 @@ class SubmissionForm extends Model implements Auditable
     protected $casts = [
         'is_published' => 'boolean',
         'is_active' => 'boolean',
+        'is_hidden_from_rft' => 'boolean',
         'is_customer_portal_form' => 'boolean',
         'is_customer_request_form' => 'boolean',
         'issue_date' => 'date',

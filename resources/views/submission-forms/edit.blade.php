@@ -401,6 +401,20 @@
                   </div>
                 </div>
 
+                @if($submissionForm->isTestRequestTemplate())
+                <div class="form-group">
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="gap:12px;">
+                    <div class="mt-1">
+                      <input type="checkbox" class="form-check-input" id="is_hidden_from_rft" name="is_hidden_from_rft" value="1" {{ old('is_hidden_from_rft', $submissionForm->is_hidden_from_rft) ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
+                    </div>
+                    <div>
+                      <label class="form-check-label font-weight-semibold mb-0" for="is_hidden_from_rft" style="cursor:pointer;font-size:0.92rem;">Hide from Request For Testing</label>
+                      <p class="text-muted small mb-0 mt-1">Keeps the form in the system (and existing submissions) but removes it from the RFT form list.</p>
+                    </div>
+                  </div>
+                </div>
+                @endif
+
                 <div class="form-group">
                   <label for="start_submission_number">Start submission from number</label>
                   <input type="number" class="form-control @error('start_submission_number') is-invalid @enderror" id="start_submission_number" name="start_submission_number" value="{{ old('start_submission_number', $submissionForm->start_submission_number ?? 1) }}" min="1" placeholder="1">

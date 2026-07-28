@@ -547,6 +547,9 @@ Route::get('/sample-workflow/request-for-testing', 'SampleWorkFlowController@req
 Route::get('/sample-workflow/request-for-testing/fill/{sampleType}', 'SampleWorkFlowController@requestForTestingFill')
     ->name('sample-workflow.request-for-testing.fill')
     ->middleware('can:laboratory.components.rft form.view');
+Route::get('/sample-workflow/request-for-testing/form/{submissionForm}', 'SampleWorkFlowController@requestForTestingFillForm')
+    ->name('sample-workflow.request-for-testing.fill-form')
+    ->middleware('can:laboratory.components.rft form.view');
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.all samples.view');
 Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
     ->name('sample-workflow.assign-user')

@@ -349,6 +349,50 @@
 		gap: 0.5rem;
 	}
 
+	/* Nested panels in element modal need explicit inset — Bootstrap .row
+	   negative margins cancel the default 1rem panel padding and flush content. */
+	#element-modal .workflow-board-panel {
+		margin-left: 0;
+		margin-right: 0;
+	}
+
+	#element-modal .workflow-board-panel-header {
+		padding: 0.75rem 1.25rem !important;
+	}
+
+	#element-modal .workflow-board-panel-body {
+		padding: 1rem 1.25rem 1.25rem !important;
+	}
+
+	#element-modal .workflow-board-panel-body .row {
+		margin-left: 0;
+		margin-right: 0;
+	}
+
+	#element-modal .workflow-board-panel-body .row > [class*="col-"] {
+		padding-left: 0;
+		padding-right: 0.85rem;
+	}
+
+	#element-modal .workflow-board-panel-body .row > [class*="col-"]:last-child {
+		padding-right: 0;
+	}
+
+	#element-modal .workflow-board-panel-body .form-check {
+		padding-left: 1.5rem;
+		min-height: 1.5rem;
+	}
+
+	#element-modal .workflow-board-panel-body .form-check-input {
+		margin-top: 0.2rem;
+	}
+
+	#element-modal .workflow-board-panel-body .form-group:last-child,
+	#element-modal .workflow-board-panel-body .sf-alert-soft:last-child,
+	#element-modal .workflow-board-panel-body > .form-text:last-child {
+		margin-bottom: 0;
+	}
+
 	.required::after {
 		content: " *";
 		color: #dc2626;

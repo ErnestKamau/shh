@@ -308,7 +308,7 @@
                 <div class="form-group" id="target-pages-wrapper">
                   <label for="target_pages">Target Pages</label>
                   <select class="form-control ls-select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
-                    @php($selectedPages = old('target_pages', []))
+                    @php($selectedPages = old('target_pages', $trfDefaults['target_pages'] ?? []))
                     @foreach($availablePages as $page)
                       <option value="{{ $page['value'] }}" {{ in_array($page['value'], $selectedPages, true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
                     @endforeach

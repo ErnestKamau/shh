@@ -5,6 +5,11 @@
     if ($requestForTestingLabel === 'lab.request_for_testing') {
         $requestForTestingLabel = 'Request For Testing';
     }
+    $sampleTypeId = $sampleTypeId ?? null;
+    $submissionFormId = $submissionFormId ?? null;
+    $wizardKey = $submissionFormId
+        ? 'rft-wizard-form-'.$submissionFormId
+        : 'rft-wizard-'.$sampleTypeId;
 @endphp
 
 @section('title2')
@@ -37,6 +42,9 @@
 @section('content2')
 <main>
     @php
+        $fillLink = $submissionFormId
+            ? route('sample-workflow.request-for-testing.fill-form', ['submissionForm' => $submissionFormId])
+            : route('sample-workflow.request-for-testing.fill', ['sampleType' => $sampleTypeId]);
         $items = [
             [
                 'link' => route('dashboard-lab'),
@@ -54,7 +62,7 @@
                 'icon' => null,
             ],
             [
-                'link' => route('sample-workflow.request-for-testing.fill', ['sampleType' => $sampleTypeId]),
+                'link' => $fillLink,
                 'name' => 'Capture',
                 'icon' => null,
             ],
@@ -82,8 +90,9 @@
         @livewire('sampleworkflow.receive-sample-request', [
             'pageMode' => true,
             'wizardOnly' => true,
-            'initialSampleTypeId' => (string) $sampleTypeId,
-        ], key('rft-wizard-'.$sampleTypeId))
+            'initialSampleTypeId' => $sampleTypeId ? (string) $sampleTypeId : null,
+            'initialSubmissionFormId' => $submissionFormId ? (string) $submissionFormId : null,
+        ], key($wizardKey))
     </div>
 </main>
 @endsection

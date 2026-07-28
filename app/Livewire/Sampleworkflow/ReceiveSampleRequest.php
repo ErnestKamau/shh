@@ -86,6 +86,10 @@ class ReceiveSampleRequest extends Component
 
     public ?string $initialSampleTypeId = null;
 
+    public ?string $initialSubmissionFormId = null;
+
+    public ?string $selectedSubmissionFormId = null;
+
     public ?string $initialScheduleId = null;
 
     public ?string $selectedScheduleId = null;
@@ -100,6 +104,8 @@ class ReceiveSampleRequest extends Component
 
     public bool $showPhysicalConfirmModal = false;
 
+    public bool $showHiddenRftForms = false;
+
     public function mount(
         array $selectedFormInstanceIds = [],
         array $selectedFormSummaries = [],
@@ -108,12 +114,14 @@ class ReceiveSampleRequest extends Component
         bool $plannerMode = false,
         ?string $initialSampleTypeId = null,
         ?string $initialScheduleId = null,
+        ?string $initialSubmissionFormId = null,
     ): void {
         $this->pageMode = $pageMode;
         $this->wizardOnly = $wizardOnly;
         $this->plannerMode = $plannerMode;
         $this->initialSampleTypeId = $initialSampleTypeId;
         $this->initialScheduleId = $initialScheduleId;
+        $this->initialSubmissionFormId = $initialSubmissionFormId;
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
         $this->selectedFormSummaries = $selectedFormSummaries;
 
@@ -123,7 +131,15 @@ class ReceiveSampleRequest extends Component
 
         $this->sampleTypes = \App\SampleType::orderBy('name')->get();
 
-        if ($this->initialSampleTypeId) {
+        if ($this->initialSubmissionFormId) {
+            $this->selectedSubmissionFormId = (string) $this->initialSubmissionFormId;
+            $form = SubmissionForm::query()
+                ->with(['sections.elementHolders.elements'])
+                ->find($this->selectedSubmissionFormId);
+            if ($form !== null) {
+                $this->initializeFormDataFromSubmissionForm($form);
+            }
+        } elseif ($this->initialSampleTypeId) {
             $this->selectedSampleTypeId = (string) $this->initialSampleTypeId;
             $this->lastSelectedSampleTypeId = (string) $this->initialSampleTypeId;
             $this->initializeFormDataForSampleType((string) $this->initialSampleTypeId);
@@ -299,12 +315,20 @@ class ReceiveSampleRequest extends Component
      */
     public function getFormTypeCardsProperty(): Collection
     {
-        return collect($this->sampleTypes)
-            ->map(function ($sampleType): ?array {
+        $linkedFormIds = [];
+
+        $sampleTypeCards = collect($this->sampleTypes)
+            ->map(function ($sampleType) use (&$linkedFormIds): ?array {
                 $form = $this->resolveSubmissionFormForSampleType((string) $sampleType->id);
                 if ($form === null) {
                     return null;
                 }
+
+                if (! $this->shouldIncludeFormOnRft($form)) {
+                    return null;
+                }
+
+                $linkedFormIds[(string) $form->id] = true;
 
                 $defaultDescription = $this->plannerMode
                     ? 'Fill a sampling form for '.$sampleType->name.'.'
@@ -313,6 +337,8 @@ class ReceiveSampleRequest extends Component
                 return [
                     'submission_form_id' => (string) $form->id,
                     'sample_type_id' => (string) $sampleType->id,
+                    'requires_inline_sample_type' => false,
+                    'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
                     'name' => (string) ($form->name ?: $sampleType->name),
                     'sample_type_name' => (string) $sampleType->name,
                     'document_code' => $form->document_code,
@@ -324,10 +350,112 @@ class ReceiveSampleRequest extends Component
                     'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
                     'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
                     'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
+                    'start_action' => 'sampleType',
                 ];
             })
             ->filter()
             ->values();
+
+        if ($this->plannerMode) {
+            return $sampleTypeCards;
+        }
+
+        $unlinkedCards = SubmissionForm::query()
+            ->where('is_active', true)
+            ->where('is_published', true)
+            ->where('form_type', 'template')
+            ->where(function ($query): void {
+                $query->where('document_code', 'like', 'TRF%')
+                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+            })
+            ->whereDoesntHave('sampleTypes')
+            ->when(
+                ! $this->showHiddenRftForms,
+                fn ($query) => $query->where(function ($hiddenQuery): void {
+                    $hiddenQuery->where('is_hidden_from_rft', false)->orWhereNull('is_hidden_from_rft');
+                }),
+            )
+            ->orderBy('name')
+            ->get()
+            ->reject(fn (SubmissionForm $form): bool => isset($linkedFormIds[(string) $form->id]))
+            ->map(function (SubmissionForm $form): array {
+                $form->loadMissing(['sections.elementHolders.elements']);
+
+                return [
+                    'submission_form_id' => (string) $form->id,
+                    'sample_type_id' => null,
+                    'requires_inline_sample_type' => true,
+                    'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
+                    'name' => (string) $form->name,
+                    'sample_type_name' => 'Select in form',
+                    'document_code' => $form->document_code,
+                    'sections_count' => $this->wizardStepCountForForm($form),
+                    'description' => filled($form->description)
+                        ? (string) $form->description
+                        : 'TRF with no linked sample type — choose sample type in the form.',
+                    'icon' => 'mdi-clipboard-text-outline',
+                    'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
+                    'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
+                    'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
+                    'start_action' => 'form',
+                ];
+            })
+            ->values();
+
+        return $sampleTypeCards->concat($unlinkedCards)->values();
+    }
+
+    private function shouldIncludeFormOnRft(SubmissionForm $form): bool
+    {
+        if ($this->showHiddenRftForms) {
+            return true;
+        }
+
+        return ! (bool) ($form->is_hidden_from_rft ?? false);
+    }
+
+    public function toggleFormHiddenFromRft(string $submissionFormId): void
+    {
+        $form = SubmissionForm::query()->find($submissionFormId);
+        if ($form === null || ! $form->isTestRequestTemplate()) {
+            $this->dispatch('notify', type: 'error', message: 'Test request form not found.');
+
+            return;
+        }
+
+        $form->is_hidden_from_rft = ! (bool) $form->is_hidden_from_rft;
+        $form->save();
+
+        $this->dispatch(
+            'notify',
+            type: 'success',
+            message: $form->is_hidden_from_rft
+                ? 'Form hidden from Request For Testing.'
+                : 'Form visible on Request For Testing again.',
+        );
+    }
+
+    public function toggleShowHiddenRftForms(): void
+    {
+        $this->showHiddenRftForms = ! $this->showHiddenRftForms;
+    }
+
+    public function getHasHiddenRftFormsProperty(): bool
+    {
+        if ($this->plannerMode) {
+            return false;
+        }
+
+        return SubmissionForm::query()
+            ->where('is_active', true)
+            ->where('is_published', true)
+            ->where('form_type', 'template')
+            ->where('is_hidden_from_rft', true)
+            ->where(function ($query): void {
+                $query->where('document_code', 'like', 'TRF%')
+                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+            })
+            ->exists();
     }
 
     /**
@@ -351,8 +479,8 @@ class ReceiveSampleRequest extends Component
             return collect();
         }
 
-        $formIds = collect($this->sampleTypes)
-            ->map(fn ($sampleType) => $this->resolveSubmissionFormForSampleType((string) $sampleType->id)?->id)
+        $formIds = collect($this->formTypeCards)
+            ->pluck('submission_form_id')
             ->filter()
             ->unique()
             ->values()
@@ -543,6 +671,32 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->selectedSampleTypeId = $sampleTypeId;
+        $this->selectedSubmissionFormId = null;
+    }
+
+    public function startWalkInForForm(string $submissionFormId): void
+    {
+        if ($this->plannerMode) {
+            return;
+        }
+
+        if ($this->pageMode && ! $this->wizardOnly) {
+            $this->redirect(
+                route('sample-workflow.request-for-testing.fill-form', ['submissionForm' => $submissionFormId]),
+                navigate: false,
+            );
+
+            return;
+        }
+
+        $this->selectedSubmissionFormId = $submissionFormId;
+        $this->selectedSampleTypeId = null;
+        $form = SubmissionForm::query()
+            ->with(['sections.elementHolders.elements'])
+            ->find($submissionFormId);
+        if ($form !== null) {
+            $this->initializeFormDataFromSubmissionForm($form);
+        }
     }
 
     public function startFillForSchedule(string $scheduleId): void
@@ -584,6 +738,7 @@ class ReceiveSampleRequest extends Component
 
         $this->selectedSampleTypeId = null;
         $this->lastSelectedSampleTypeId = null;
+        $this->selectedSubmissionFormId = null;
         $this->selectedScheduleId = null;
         $this->formData = [];
         $this->selectedCrmCustomerId = null;
@@ -1122,6 +1277,12 @@ class ReceiveSampleRequest extends Component
 
     public function getSubmissionFormProperty(): ?SubmissionForm
     {
+        if ($this->selectedSubmissionFormId) {
+            return SubmissionForm::query()
+                ->with(['sections.elementHolders.elements'])
+                ->find($this->selectedSubmissionFormId);
+        }
+
         if (! $this->selectedSampleTypeId) {
             return null;
         }
@@ -1919,10 +2080,12 @@ class ReceiveSampleRequest extends Component
 
     private function runWalkInCaptureValidations(): void
     {
+        $this->syncSelectedSampleTypeFromFormData();
+
         $this->validate([
             'selectedSampleTypeId' => 'required|exists:sample_types,id',
         ], [
-            'selectedSampleTypeId.required' => 'Please select a Sample Type.',
+            'selectedSampleTypeId.required' => 'Please select a Sample Type (link the form to a sample type, or add a Sample type field on the form).',
         ]);
 
         $submissionForm = $this->submissionForm;
@@ -1941,6 +2104,37 @@ class ReceiveSampleRequest extends Component
                 $this->walkInActiveStepIndex = $stepIndex;
                 $this->dispatchWalkInTrfStepHooks();
                 throw $exception;
+            }
+        }
+    }
+
+    /**
+     * Unlinked TRFs rely on an in-form sample_type_select (usually sample_type_id).
+     */
+    private function syncSelectedSampleTypeFromFormData(): void
+    {
+        if (filled($this->selectedSampleTypeId)) {
+            return;
+        }
+
+        $candidates = [];
+
+        foreach (['sample_type_id', 'sample_type'] as $key) {
+            $value = $this->formData[$key] ?? null;
+            if (is_array($value)) {
+                $value = collect($value)->first(fn ($item) => filled($item));
+            }
+            if (filled($value)) {
+                $candidates[] = (string) $value;
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if (\App\SampleType::query()->whereKey($candidate)->exists()) {
+                $this->selectedSampleTypeId = $candidate;
+                $this->lastSelectedSampleTypeId = $candidate;
+
+                return;
             }
         }
     }
@@ -2450,6 +2644,7 @@ class ReceiveSampleRequest extends Component
             'submissionForm' => $this->submissionForm,
             'walkInSections' => $this->walkInSections,
             'formTypeCards' => $this->pageMode ? $this->formTypeCards : collect(),
+            'hasHiddenRftForms' => $this->pageMode && ! $this->plannerMode ? $this->hasHiddenRftForms : false,
             'rftInstances' => $this->pageMode && ! $this->wizardOnly && ! $this->plannerMode ? $this->rftInstances : collect(),
             'plannerSchedules' => $this->pageMode && ! $this->wizardOnly && $this->plannerMode ? $this->plannerSchedules : collect(),
             'plannerScheduleOptions' => $this->plannerMode && $this->wizardOnly ? $this->plannerScheduleOptions : collect(),

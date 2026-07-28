@@ -193,6 +193,30 @@
 		padding-top: 12px;
 	}
 
+	.lab-panel-theme .rft-form-type-card-actions .rft-icon-btn.btn {
+		min-width: 34px;
+		width: 34px;
+		height: 34px;
+		padding: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-color: #cbd5e1;
+		color: #475569;
+		background: #fff;
+	}
+
+	.lab-panel-theme .rft-form-type-card-actions .rft-icon-btn.btn:hover {
+		border-color: var(--workflow-accent-border, #b8bbd4);
+		color: var(--workflow-accent, #17135F);
+		background: var(--workflow-accent-soft, #e8e9f3);
+	}
+
+	.lab-panel-theme .rft-form-type-card.is-rft-hidden {
+		opacity: 0.72;
+		border-style: dashed;
+	}
+
 	.lab-panel-theme .workflow-board-filter-nested {
 		background: #fff;
 		border: 1px solid #f1f5f9;

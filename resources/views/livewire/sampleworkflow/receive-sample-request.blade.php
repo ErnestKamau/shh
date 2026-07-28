@@ -224,7 +224,7 @@
             </div>
             --}}
 
-            @if ($formTypeCards->isNotEmpty())
+            @if ($formTypeCards->isNotEmpty() || (! $plannerMode && $hasHiddenRftForms))
                 <div class="rft-overview-section mb-3">
                     <div class="workflow-board-section-label mb-2 d-flex flex-wrap align-items-center justify-content-between">
                         <span>
@@ -236,6 +236,14 @@
                                 <span class="text-muted text-normal" style="text-transform:none;letter-spacing:0;font-weight:500;">
                                     Choose a form, then complete it for a schedule
                                 </span>
+                            @elseif ($hasHiddenRftForms || $showHiddenRftForms)
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary btn-action-sm"
+                                        wire:click="toggleShowHiddenRftForms"
+                                        title="{{ $showHiddenRftForms ? 'Hide forms marked as hidden' : 'Show forms marked as hidden' }}">
+                                    <i class="mdi {{ $showHiddenRftForms ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}"></i>
+                                    {{ $showHiddenRftForms ? 'Hide hidden' : 'Show hidden' }}
+                                </button>
                             @endif
                             @can('laboratory.components.rft form.add')
                                 <a href="{{ route('submission-forms.create', ['from' => 'rft', 'trf' => 1]) }}"
@@ -248,7 +256,7 @@
                     @if ($plannerMode)
                         <div class="fsf-form-grid">
                             @foreach ($formTypeCards as $card)
-                                <div class="rft-form-type-card {{ (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}"
+                                <div class="rft-form-type-card {{ filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}"
                                      wire:key="planner-form-card-{{ $card['sample_type_id'] }}">
                                     <a href="{{ $card['view_url'] }}" class="text-decoration-none text-reset d-block">
                                     <div class="rft-form-type-card-header">
@@ -271,37 +279,56 @@
                                     <div class="rft-form-type-card-actions">
                                         @can('laboratory.components.rft form.view')
                                             <a href="{{ $card['view_url'] }}"
-                                               class="btn btn-sm btn-outline-secondary btn-action-sm">
-                                                <i class="mdi mdi-eye-outline"></i> View
+                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
+                                               title="View"
+                                               aria-label="View">
+                                                <i class="mdi mdi-eye-outline"></i>
                                             </a>
                                         @endcan
                                         @can('laboratory.components.rft form.edit')
                                             <a href="{{ $card['edit_url'] }}"
-                                               class="btn btn-sm btn-outline-warning btn-action-sm">
-                                                <i class="mdi mdi-pencil-outline"></i> Edit
+                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
+                                               title="Edit"
+                                               aria-label="Edit">
+                                                <i class="mdi mdi-pencil-outline"></i>
                                             </a>
                                         @endcan
-                                        <button type="button"
-                                                class="btn btn-sm btn-primary btn-action-sm"
-                                                wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="startWalkInForSampleType">
-                                            <span wire:loading.remove wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
-                                                <i class="mdi mdi-file-document-edit-outline"></i> Fill form
-                                            </span>
-                                            <span wire:loading wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
-                                                <i class="mdi mdi-loading mdi-spin"></i>
-                                            </span>
-                                        </button>
+                                        @if (($card['start_action'] ?? 'sampleType') === 'form')
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary btn-action-sm"
+                                                    wire:click="startWalkInForForm('{{ $card['submission_form_id'] }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="startWalkInForForm">
+                                                <span wire:loading.remove wire:target="startWalkInForForm('{{ $card['submission_form_id'] }}')">
+                                                    <i class="mdi mdi-file-document-edit-outline"></i> Fill
+                                                </span>
+                                                <span wire:loading wire:target="startWalkInForForm('{{ $card['submission_form_id'] }}')">
+                                                    <i class="mdi mdi-loading mdi-spin"></i>
+                                                </span>
+                                            </button>
+                                        @else
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary btn-action-sm"
+                                                    wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="startWalkInForSampleType">
+                                                <span wire:loading.remove wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                    <i class="mdi mdi-file-document-edit-outline"></i> Fill
+                                                </span>
+                                                <span wire:loading wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                    <i class="mdi mdi-loading mdi-spin"></i>
+                                                </span>
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                             @endforeach
                         </div>
-                    @else
+                    @elseif ($formTypeCards->isNotEmpty())
                     <div class="row rft-card-row">
                         @foreach ($formTypeCards as $card)
                             <div class="col-lg-4 col-md-6 mb-3">
-                                <div class="rft-form-type-card {{ (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}">
+                                <div class="rft-form-type-card {{ ! empty($card['is_hidden_from_rft']) ? 'is-rft-hidden' : '' }} {{ filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}">
                                     <a href="{{ $card['view_url'] }}" class="text-decoration-none text-reset d-block">
                                     <div class="rft-form-type-card-header">
                                         <div class="rft-form-type-card-icon">
@@ -311,6 +338,9 @@
                                             <h6 class="mb-0 text-truncate">{{ $card['name'] }}</h6>
                                             @if ($card['document_code'])
                                                 <span class="text-muted small">{{ $card['document_code'] }}</span>
+                                            @endif
+                                            @if (! empty($card['is_hidden_from_rft']))
+                                                <span class="badge badge-secondary ml-1">Hidden</span>
                                             @endif
                                         </div>
                                     </div>
@@ -323,40 +353,75 @@
                                     <div class="rft-form-type-card-actions">
                                         @can('laboratory.components.rft form.view')
                                             <a href="{{ $card['view_url'] }}"
-                                               class="btn btn-sm btn-outline-secondary btn-action-sm">
-                                                <i class="mdi mdi-eye-outline"></i> View
+                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
+                                               title="View"
+                                               aria-label="View">
+                                                <i class="mdi mdi-eye-outline"></i>
                                             </a>
                                         @endcan
                                         @can('laboratory.components.rft form.edit')
                                             <a href="{{ $card['edit_url'] }}"
-                                               class="btn btn-sm btn-outline-warning btn-action-sm">
-                                                <i class="mdi mdi-pencil-outline"></i> Edit
+                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
+                                               title="Edit"
+                                               aria-label="Edit">
+                                                <i class="mdi mdi-pencil-outline"></i>
                                             </a>
-                                        @endcan
-                                        @if ((string) $selectedSampleTypeId === (string) $card['sample_type_id'])
                                             <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary btn-action-sm"
-                                                    wire:click="clearSelectedSampleType">
-                                                <i class="mdi mdi-close"></i> Clear
+                                                    class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
+                                                    wire:click="toggleFormHiddenFromRft('{{ $card['submission_form_id'] }}')"
+                                                    title="{{ ! empty($card['is_hidden_from_rft']) ? 'Show on Request For Testing' : 'Hide from Request For Testing' }}"
+                                                    aria-label="{{ ! empty($card['is_hidden_from_rft']) ? 'Show on Request For Testing' : 'Hide from Request For Testing' }}">
+                                                <i class="mdi {{ ! empty($card['is_hidden_from_rft']) ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}"></i>
+                                            </button>
+                                        @endcan
+                                        @if (filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'])
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
+                                                    wire:click="clearSelectedSampleType"
+                                                    title="Clear"
+                                                    aria-label="Clear">
+                                                <i class="mdi mdi-close"></i>
                                             </button>
                                         @endif
-                                        <button type="button"
-                                                class="btn btn-sm btn-primary btn-action-sm"
-                                                wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="startWalkInForSampleType">
-                                            <span wire:loading.remove wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
-                                                <i class="mdi mdi-plus"></i> Start
-                                            </span>
-                                            <span wire:loading wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
-                                                <i class="mdi mdi-loading mdi-spin"></i>
-                                            </span>
-                                        </button>
+                                        @if (($card['start_action'] ?? 'sampleType') === 'form')
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary btn-action-sm"
+                                                    wire:click="startWalkInForForm('{{ $card['submission_form_id'] }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="startWalkInForForm">
+                                                <span wire:loading.remove wire:target="startWalkInForForm('{{ $card['submission_form_id'] }}')">
+                                                    <i class="mdi mdi-file-document-edit-outline"></i> Fill
+                                                </span>
+                                                <span wire:loading wire:target="startWalkInForForm('{{ $card['submission_form_id'] }}')">
+                                                    <i class="mdi mdi-loading mdi-spin"></i>
+                                                </span>
+                                            </button>
+                                        @else
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary btn-action-sm"
+                                                    wire:click="startWalkInForSampleType('{{ $card['sample_type_id'] }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="startWalkInForSampleType">
+                                                <span wire:loading.remove wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                    <i class="mdi mdi-file-document-edit-outline"></i> Fill
+                                                </span>
+                                                <span wire:loading wire:target="startWalkInForSampleType('{{ $card['sample_type_id'] }}')">
+                                                    <i class="mdi mdi-loading mdi-spin"></i>
+                                                </span>
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
                     </div>
+                    @else
+                        <div class="alert alert-light border mb-0">
+                            All test request forms are hidden from this list.
+                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" wire:click="toggleShowHiddenRftForms">
+                                Show hidden forms
+                            </button>
+                        </div>
                     @endif
                 </div>
             @else
