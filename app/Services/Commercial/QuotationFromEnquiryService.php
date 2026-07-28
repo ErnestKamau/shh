@@ -214,9 +214,10 @@ final class QuotationFromEnquiryService
                 $elementId !== '' ? $elementId : null,
                 $preferredPricelist,
             );
-            $unitPrice = isset($line['unit_price']) || isset($line['unit_amount'])
-                ? (float) ($line['unit_price'] ?? $line['unit_amount'] ?? 0)
-                : $resolved['price'];
+            // Prefer an explicit positive amount; otherwise use the pricelist resolution.
+            // Catalog/config expansion often sets unit_amount=0, which must not block Sync.
+            $providedPrice = (float) ($line['unit_price'] ?? $line['unit_amount'] ?? 0);
+            $unitPrice = $providedPrice > 0 ? $providedPrice : (float) $resolved['price'];
             $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
 
             $lines[] = [

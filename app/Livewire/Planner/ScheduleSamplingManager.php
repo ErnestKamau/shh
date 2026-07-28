@@ -26,6 +26,7 @@ use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Planner\SamplingScheduleCollectionProgress;
 use App\Services\Planner\SamplingScheduleSamplePlanHistoryRecorder;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 
@@ -1497,7 +1498,13 @@ class ScheduleSamplingManager extends Component
             $submissionForm = $this->submissionForm;
             if ($submissionForm) {
                 foreach ($submissionForm->sections->sortBy('sort_order') as $section) {
-                    $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
+                    if (SubmissionFormSchemaHelper::isBuilderHiddenSection($section)) {
+                        continue;
+                    }
+
+                    $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order')
+                        ->reject(fn (SubmissionFormElement $element): bool => SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section));
+
                     if (($section->section_type ?? '') === 'rows_section') {
                         foreach ($elements as $element) {
                             $this->formData[$element->name] = [$this->defaultValueForElement($element)];
@@ -1640,6 +1647,10 @@ class ScheduleSamplingManager extends Component
         }
 
         foreach ($section->elementHolders->flatMap->elements as $element) {
+            if (SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section)) {
+                continue;
+            }
+
             $existing = $this->formData[$element->name] ?? [];
             if (! is_array($existing)) {
                 $existing = [];
@@ -1690,7 +1701,36 @@ class ScheduleSamplingManager extends Component
             return [];
         }
 
+        if (
+            $element->element_type === 'sample_type_select'
+            || in_array((string) ($element->name ?? ''), ['sample_type_id', 'sample_type'], true)
+        ) {
+            return [];
+        }
+
         return '';
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, AnalysisType>
+     */
+    public function analysisTypesForRow(?int $rowIndex = null): \Illuminate\Support\Collection
+    {
+        return $this->analysisTypes;
+    }
+
+    /**
+     * @param  list<string|int|float>  $sampleTypeIds
+     */
+    public function setWalkInSampleTypes(string $wireKey, array $sampleTypeIds): void
+    {
+        $relative = preg_replace('/^formData\./', '', $wireKey) ?: 'sample_type_id';
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => (string) $value,
+            $sampleTypeIds
+        ), static fn (string $id): bool => $id !== '')));
+
+        data_set($this->formData, $relative, $ids);
     }
 
     /**
@@ -1795,6 +1835,17 @@ class ScheduleSamplingManager extends Component
         return AnalysisType::query()
             ->where('sample_type_id', $this->selectedSampleTypeId)
             ->where('active', true)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, SampleType>
+     */
+    public function getSampleTypesProperty(): Collection
+    {
+        return SampleType::query()
+            ->where('active', 1)
             ->orderBy('name')
             ->get();
     }

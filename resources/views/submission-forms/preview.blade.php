@@ -403,7 +403,10 @@ function setupSampleTypeChangeHandlers() {
     
     // Set up sample type change handler
     $('select[data-element-type="sample_type_select"]').on('change.custom-elements', function() {
-        const sampleTypeId = $(this).val();
+        const sampleTypeVal = $(this).val();
+        const sampleTypeId = Array.isArray(sampleTypeVal)
+            ? sampleTypeVal.filter(Boolean).join(',')
+            : sampleTypeVal;
         console.log('Sample type changed to:', sampleTypeId);
         
         // Find all dependent elements

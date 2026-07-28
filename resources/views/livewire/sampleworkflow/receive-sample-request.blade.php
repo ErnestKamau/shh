@@ -76,6 +76,13 @@
             min-height: 28px;
             padding: 1px 2px;
         }
+        .receive-sample-modal-body .rft-sample-type-multi .select2-container {
+            width: 100% !important;
+        }
+        .receive-sample-modal-body .rft-sample-type-multi .select2-container--default .select2-selection--multiple {
+            min-height: 31px;
+            border-color: #ced4da;
+        }
         .receive-sample-modal-body .walk-in-trf-rows-grid {
             table-layout: fixed;
             min-width: 1280px;
@@ -817,7 +824,9 @@
                             </h5>
                             <p class="text-muted mb-0 small">
                                 {{ $submissionForm->name }}
-                                · {{ $this->selectedSampleType?->name ?? 'Select sample type in form' }}
+                                @if ($this->selectedSampleType?->name)
+                                    · {{ $this->selectedSampleType->name }}
+                                @endif
                             </p>
                         </div>
                         <div class="submission-instance-actions ml-auto">
@@ -1144,6 +1153,61 @@
                 this.applySelectedFromWire();
             } finally {
                 this.hydrating = false;
+            }
+        },
+    }));
+
+    Alpine.data('rftSampleTypeMultiSelect', (config = {}) => ({
+        wireKey: config.wireKey || 'formData.sample_type_id',
+        rowIndex: config.rowIndex ?? null,
+        selected: Array.isArray(config.selected) ? config.selected.map(String) : [],
+        fieldId: config.fieldId || 'sample_type_multi',
+        syncing: false,
+        init() {
+            this.$nextTick(() => this.mountSelect2());
+        },
+        mountSelect2() {
+            if (typeof window.$ === 'undefined' || !window.$.fn || !window.$.fn.select2) {
+                return;
+            }
+            const $select = window.$(this.$refs.select);
+            if (!$select.length) {
+                return;
+            }
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.off('change.rftSampleTypes');
+                $select.select2('destroy');
+            }
+            $select.select2({
+                width: '100%',
+                placeholder: 'Select sample type(s)...',
+                allowClear: true,
+                closeOnSelect: false,
+            });
+            $select.val(this.selected).trigger('change.select2');
+            $select.on('change.rftSampleTypes', () => this.syncFromSelect());
+        },
+        syncFromSelect() {
+            if (this.syncing || !this.$wire) {
+                return;
+            }
+            this.syncing = true;
+            try {
+                const raw = window.$(this.$refs.select).val() || [];
+                this.selected = (Array.isArray(raw) ? raw : [raw]).map(String).filter(Boolean);
+                this.$wire.setWalkInSampleTypes(this.wireKey, this.selected.slice());
+            } finally {
+                this.syncing = false;
+            }
+        },
+        destroy() {
+            if (typeof window.$ === 'undefined' || !this.$refs.select) {
+                return;
+            }
+            const $select = window.$(this.$refs.select);
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.off('change.rftSampleTypes');
+                $select.select2('destroy');
             }
         },
     }));

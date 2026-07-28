@@ -2153,6 +2153,63 @@
             },
         }));
 
+        Alpine.data('rftSampleTypeMultiSelect', (config = {}) => ({
+            wireKey: config.wireKey || 'formData.sample_type_id',
+            rowIndex: config.rowIndex ?? null,
+            selected: Array.isArray(config.selected) ? config.selected.map(String) : [],
+            fieldId: config.fieldId || 'sample_type_multi',
+            syncing: false,
+            init() {
+                this.$nextTick(() => this.mountSelect2());
+            },
+            mountSelect2() {
+                if (typeof window.$ === 'undefined' || !window.$.fn || !window.$.fn.select2) {
+                    return;
+                }
+                const $select = window.$(this.$refs.select);
+                if (!$select.length) {
+                    return;
+                }
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.off('change.rftSampleTypes');
+                    $select.select2('destroy');
+                }
+                const modal = document.querySelector('#schedule-sampling-form-modal');
+                $select.select2({
+                    width: '100%',
+                    placeholder: 'Select sample type(s)...',
+                    allowClear: true,
+                    closeOnSelect: false,
+                    dropdownParent: modal ? window.$(modal) : window.$(document.body),
+                });
+                $select.val(this.selected).trigger('change.select2');
+                $select.on('change.rftSampleTypes', () => this.syncFromSelect());
+            },
+            syncFromSelect() {
+                if (this.syncing || !this.$wire) {
+                    return;
+                }
+                this.syncing = true;
+                try {
+                    const raw = window.$(this.$refs.select).val() || [];
+                    this.selected = (Array.isArray(raw) ? raw : [raw]).map(String).filter(Boolean);
+                    this.$wire.setWalkInSampleTypes(this.wireKey, this.selected.slice());
+                } finally {
+                    this.syncing = false;
+                }
+            },
+            destroy() {
+                if (typeof window.$ === 'undefined' || !this.$refs.select) {
+                    return;
+                }
+                const $select = window.$(this.$refs.select);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.off('change.rftSampleTypes');
+                    $select.select2('destroy');
+                }
+            },
+        }));
+
         (function () {
             const modalSelector = '#schedule-sampling-form-modal';
             let listenersBound = false;

@@ -28,12 +28,18 @@
             <option value="{{ $cust->id }}">{{ $cust->name }}</option>
         @endforeach
     </select>
+@elseif(in_array($fieldName, ['sample_type_id', 'sample_type'], true) || ($field['type'] ?? '') === 'sample_type_select')
+    @include('livewire.partials.walk-in-trf-sample-type-multi', [
+        'wirePrefix' => $wirePrefix,
+        'fieldId' => $fieldId,
+        'rowIndex' => $rowIndex,
+    ])
 @elseif(in_array($fieldName, ['analysis_type', 'analysis_types'], true))
     <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif>
-        <option value="">-- Select Sample Type --</option>
-        @foreach($this->analysisTypes as $at)
+        <option value="">-- Select Analysis Type --</option>
+        @foreach($this->analysisTypesForRow($rowIndex) as $at)
             <option value="{{ $at->name }}">{{ $at->name }}</option>
         @endforeach
     </select>
@@ -41,11 +47,18 @@
     <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif>
-        <option value="">-- Select Sample Type --</option>
-        @foreach($this->analysisTypes as $at)
+        <option value="">-- Select Analysis Type --</option>
+        @foreach($this->analysisTypesForRow($rowIndex) as $at)
             <option value="{{ $at->id }}">{{ $at->name }}</option>
         @endforeach
     </select>
+@elseif(($field['type'] ?? '') === 'rich_text')
+    @include('livewire.partials.submission-rich-text-editor', [
+        'fieldId' => $fieldId,
+        'wirePrefix' => $wirePrefix,
+        'value' => data_get($this->formData ?? [], str_replace('formData.', '', $wirePrefix), ''),
+        'rowIndex' => $rowIndex ?? 0,
+    ])
 @elseif(in_array($fieldName, ['parameter', 'parameters'], true) || ($field['type'] ?? '') === 'analysis_elements_select')
     @if($rowIndex !== null)
         @include('livewire.partials.walk-in-trf-parameters-cell', [

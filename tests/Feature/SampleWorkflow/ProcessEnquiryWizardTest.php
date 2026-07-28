@@ -203,4 +203,106 @@ class ProcessEnquiryWizardTest extends TestCase
         $this->assertCount(1, $lines);
         $this->assertSame(0.0, (float) $lines[0]['tax']);
     }
+
+    public function test_build_inline_lines_uses_pricelist_price_when_unit_amount_is_zero(): void
+    {
+        $customerId = (string) Str::uuid();
+        $sampleTypeId = (string) Str::uuid();
+        $analysisTypeId = (string) Str::uuid();
+        $elementId = (string) Str::uuid();
+
+        $pricelist = Pricelist::query()->create([
+            'name' => 'Master',
+            'active' => true,
+            'is_master' => true,
+        ]);
+
+        PricelistCustomer::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'customer_id' => $customerId,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleTypeId,
+            'analysis_id' => $analysisTypeId,
+            'analysis_element_id' => $elementId,
+            'selling_price' => 110,
+            'vat' => true,
+            'active' => true,
+            'is_package' => false,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            'source_channel' => 'walk_in',
+        ]);
+
+        $lines = app(QuotationFromEnquiryService::class)->buildInlineLinesFromAcceptanceLines($enquiry, [
+            [
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_element_id' => $elementId,
+                'parameter_label' => 'Aflatoxin B1',
+                'unit_amount' => 0,
+                'number_of_samples' => 1,
+            ],
+        ]);
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(110.0, (float) $lines[0]['unit_price']);
+    }
+
+    public function test_build_inline_lines_keeps_positive_provided_unit_amount(): void
+    {
+        $customerId = (string) Str::uuid();
+        $sampleTypeId = (string) Str::uuid();
+        $analysisTypeId = (string) Str::uuid();
+        $elementId = (string) Str::uuid();
+
+        $pricelist = Pricelist::query()->create([
+            'name' => 'Master',
+            'active' => true,
+            'is_master' => true,
+        ]);
+
+        PricelistCustomer::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'customer_id' => $customerId,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleTypeId,
+            'analysis_id' => $analysisTypeId,
+            'analysis_element_id' => $elementId,
+            'selling_price' => 110,
+            'vat' => true,
+            'active' => true,
+            'is_package' => false,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            'source_channel' => 'walk_in',
+        ]);
+
+        $lines = app(QuotationFromEnquiryService::class)->buildInlineLinesFromAcceptanceLines($enquiry, [
+            [
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_element_id' => $elementId,
+                'parameter_label' => 'Aflatoxin B1',
+                'unit_amount' => 95,
+                'number_of_samples' => 1,
+            ],
+        ]);
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(95.0, (float) $lines[0]['unit_price']);
+    }
 }

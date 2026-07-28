@@ -954,8 +954,17 @@ class SubmissionFormController extends Controller
                 break;
 
             case 'analysis_type_select':
-                if ($sampleTypeId) {
-                    $analysisTypesQuery = \App\AnalysisType::where('sample_type_id', $sampleTypeId)
+                $sampleTypeIds = [];
+                if (is_array($sampleTypeId)) {
+                    $sampleTypeIds = array_values(array_filter(array_map('strval', $sampleTypeId)));
+                } elseif (is_string($sampleTypeId) && str_contains($sampleTypeId, ',')) {
+                    $sampleTypeIds = array_values(array_filter(array_map('trim', explode(',', $sampleTypeId))));
+                } elseif ($sampleTypeId) {
+                    $sampleTypeIds = [(string) $sampleTypeId];
+                }
+
+                if ($sampleTypeIds !== []) {
+                    $analysisTypesQuery = \App\AnalysisType::whereIn('sample_type_id', $sampleTypeIds)
                         ->where('active', 1);
 
                     $companyId = function_exists('getUserCompany') ? getUserCompany() : null;

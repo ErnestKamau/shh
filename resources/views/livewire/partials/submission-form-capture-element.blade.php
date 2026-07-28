@@ -91,10 +91,25 @@
         </div>
         <input type="hidden" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}">
         @break
+    @case('rich_text')
+        @include('livewire.partials.submission-rich-text-editor', [
+            'fieldId' => $fieldId,
+            'wirePrefix' => $wirePrefix,
+            'value' => data_get($this->formData, str_replace('formData.', '', $wirePrefix), ''),
+            'rowIndex' => $rowIndex ?? 0,
+        ])
+        @break
+    @case('sample_type_select')
+        @include('livewire.partials.walk-in-trf-sample-type-multi', [
+            'wirePrefix' => $wirePrefix,
+            'fieldId' => $fieldId,
+            'rowIndex' => $rowIndex,
+        ])
+        @break
     @case('analysis_type_select')
         <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
             <option value="">-- Select Analysis Type --</option>
-            @foreach($this->analysisTypes as $analysisType)
+            @foreach($this->analysisTypesForRow($rowIndex) as $analysisType)
                 <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
             @endforeach
         </select>
@@ -170,14 +185,20 @@
         </select>
         @break
     @default
-        @if($name === 'analysis_type_id')
+        @if($name === 'analysis_type_id' || $type === 'analysis_type_select')
             <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}" class="form-control form-control-sm">
                 <option value="">-- Select Analysis Type --</option>
-                @foreach($this->analysisTypes as $analysisType)
+                @foreach($this->analysisTypesForRow($rowIndex) as $analysisType)
                     <option value="{{ $analysisType->id }}">{{ $analysisType->name }}</option>
                 @endforeach
             </select>
-        @elseif(in_array($name, ['parameter', 'parameters'], true))
+        @elseif($name === 'sample_type_id' || $type === 'sample_type_select')
+            @include('livewire.partials.walk-in-trf-sample-type-multi', [
+                'wirePrefix' => $wirePrefix,
+                'fieldId' => $fieldId,
+                'rowIndex' => $rowIndex,
+            ])
+        @elseif(in_array($name, ['parameter', 'parameters'], true) || $type === 'analysis_elements_select')
             @include('livewire.partials.walk-in-trf-parameters-cell', [
                 'fieldId' => $fieldId,
                 'rowIndex' => $rowIndex ?? 0,
@@ -187,6 +208,13 @@
             @if($this->parametersForRow($rowIndex)->isEmpty())
                 <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
             @endif
+        @elseif($type === 'rich_text')
+            @include('livewire.partials.submission-rich-text-editor', [
+                'fieldId' => $fieldId,
+                'wirePrefix' => $wirePrefix,
+                'value' => data_get($this->formData, str_replace('formData.', '', $wirePrefix), ''),
+                'rowIndex' => $rowIndex ?? 0,
+            ])
         @elseif(in_array($name, ['sampling_location', 'sampling_point', 'location'], true))
             <div class="d-flex align-items-center justify-content-between mb-1">
                 <span></span>

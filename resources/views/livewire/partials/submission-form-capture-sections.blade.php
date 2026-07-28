@@ -1,7 +1,13 @@
 @if($submissionForm)
+    @php
+        use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
+    @endphp
     <div class="card bg-light border-0 mb-4 shadow-none rounded">
         <div class="card-body p-3">
             @foreach($submissionForm->sections->sortBy('sort_order') as $sectionIndex => $section)
+                @if(SubmissionFormSchemaHelper::isBuilderHiddenSection($section))
+                    @continue
+                @endif
                 @php
                     $isCollapsible = ($section->section_type ?? 'regular') === 'regular';
                     $sectionTitle = strtoupper(trim((string) ($section->title ?? '')));
@@ -30,7 +36,8 @@
 
                     @if(($section->section_type ?? '') === 'rows_section')
                         @php
-                            $rowElements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
+                            $rowElements = $section->elementHolders->flatMap->elements->sortBy('sort_order')
+                                ->reject(fn ($el) => SubmissionFormSchemaHelper::shouldOmitFromFillForm($el, $section));
                             $rowCount = 1;
                             foreach ($rowElements as $el) {
                                 $name = (string) $el->name;
@@ -61,6 +68,9 @@
                         <div class="row">
                             @foreach($section->elementHolders->sortBy('sort_order') as $holder)
                                 @foreach($holder->elements->sortBy('sort_order') as $element)
+                                    @if(SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section))
+                                        @continue
+                                    @endif
                                     <div class="col-md-6 mb-3">
                                         @include('livewire.partials.submission-form-capture-element', [
                                             'element' => $element,

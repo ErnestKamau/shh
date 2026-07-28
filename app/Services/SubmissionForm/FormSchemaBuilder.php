@@ -30,6 +30,7 @@ class FormSchemaBuilder
 
     /** @var list<string> */
     private const MULTIPLE_SELECT_TYPES = [
+        'sample_type_select',
         'sample_point_select',
         'analysis_type_select',
         'analysis_elements_select',

@@ -16,6 +16,8 @@ if (!function_exists('getElementIcon')) {
                 return 'calendar-clock';
             case 'textarea':
                 return 'text-box-outline';
+            case 'rich_text':
+                return 'format-text';
             case 'select':
                 return 'form-dropdown';
             case 'radio':

@@ -94,6 +94,23 @@
                       {{ $element->is_required ? 'required' : '' }}
                       {{ $element->is_readonly ? 'readonly' : '' }}>{{ $fieldValue }}</textarea>
             @break
+
+        @case('rich_text')
+            @php
+                $richEditorId = 'sf-rich-'.preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) $fieldId).'-'.uniqid();
+            @endphp
+            <div class="sf-rich-text-field" data-sf-rich-text="1" data-editor-id="{{ $richEditorId }}" data-readonly="{{ $element->is_readonly ? '1' : '0' }}">
+                <textarea
+                    class="form-control sf-rich-text-input"
+                    id="{{ $richEditorId }}"
+                    name="{{ $fieldName }}"
+                    rows="6"
+                    placeholder="{{ $element->placeholder }}"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'readonly' : '' }}
+                >{!! $fieldValue !!}</textarea>
+            </div>
+            @break
             
         @case('plain_text')
         @case('static_text')
@@ -469,15 +486,24 @@
             @break
             
         @case('sample_type_select')
+            @php
+                $selectName = $fieldName . '[]';
+                $savedValues = is_string($fieldValue)
+                    ? array_filter(array_map('trim', explode(',', $fieldValue)))
+                    : (array) $fieldValue;
+                $savedValues = array_values(array_map('strval', $savedValues));
+            @endphp
             <select class="form-control custom-element" 
                     id="{{ $fieldId }}" 
-                    name="{{ $fieldName }}"
+                    name="{{ $selectName }}"
+                    multiple
                     data-element-type="sample_type_select"
-                    data-saved-value="{{ $fieldValue }}"
+                    data-saved-value="{{ is_array($fieldValue) ? implode(',', $savedValues) : $fieldValue }}"
+                    data-saved-multiple-values="{{ implode(',', $savedValues) }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
-                    <option value="">{{ $element->placeholder ?: 'Select a sample type...' }}</option>
+                    <option value="">{{ $element->placeholder ?: 'Select sample type(s)...' }}</option>
                 @endif
                 @if(isset($isArrayField) && $isArrayField)
                     {{-- Load static data for rows-section --}}
@@ -488,7 +514,7 @@
                         @if(isset($allowedSampleTypeIds) && is_array($allowedSampleTypeIds) && !in_array($option['value'], $allowedSampleTypeIds))
                             @continue
                         @endif
-                        <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
+                        <option value="{{ $option['value'] }}" {{ in_array((string) $option['value'], $savedValues, true) ? 'selected' : '' }}>
                             {{ $option['label'] }}
                         </option>
                     @endforeach
@@ -1084,6 +1110,79 @@ window.customElementsToInit.push({
     dependsOn: '{{ $element->options['depends'] }}',
     @endif
 });
+</script>
+@endpush
+@endif
+
+@if($element->element_type === 'rich_text')
+@push('scripts')
+<script>
+window.sfRichTextEditorsToInit = window.sfRichTextEditorsToInit || [];
+window.sfRichTextEditorsToInit.push({
+    editorId: @json($richEditorId),
+    readonly: {{ $element->is_readonly ? 'true' : 'false' }},
+});
+(function () {
+    if (window.sfRichTextBootstrapInstalled) {
+        return;
+    }
+    window.sfRichTextBootstrapInstalled = true;
+
+    function loadTiny(callback) {
+        if (typeof tinymce !== 'undefined') {
+            callback();
+            return;
+        }
+        var existing = document.querySelector('script[data-sf-tinymce]');
+        if (existing) {
+            existing.addEventListener('load', callback);
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = '/tinymce/tinymce.min.js';
+        script.dataset.sfTinymce = '1';
+        script.onload = callback;
+        document.head.appendChild(script);
+    }
+
+    function initQueued() {
+        var queue = window.sfRichTextEditorsToInit || [];
+        window.sfRichTextEditorsToInit = [];
+        queue.forEach(function (item) {
+            if (!item || !item.editorId || typeof tinymce === 'undefined') {
+                return;
+            }
+            if (tinymce.get(item.editorId)) {
+                return;
+            }
+            tinymce.init({
+                selector: '#' + item.editorId,
+                height: 220,
+                menubar: false,
+                statusbar: false,
+                branding: false,
+                readonly: !!item.readonly,
+                plugins: 'lists link',
+                toolbar: item.readonly ? false : 'bold italic underline | bullist numlist | link removeformat',
+                setup: function (editor) {
+                    editor.on('change keyup blur', function () {
+                        editor.save();
+                    });
+                },
+            });
+        });
+    }
+
+    function boot() {
+        loadTiny(initQueued);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
 </script>
 @endpush
 @endif

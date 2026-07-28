@@ -238,9 +238,15 @@ class ReceiveSampleRequest extends Component
     private function initializeFormDataFromSubmissionForm(SubmissionForm $submissionForm): void
     {
         $this->formData = [];
+        $schemaHelper = app(SubmissionFormSchemaHelper::class);
 
-        foreach (app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm) as $section) {
-            $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
+        foreach ($schemaHelper->uniqueSections($submissionForm) as $section) {
+            if (SubmissionFormSchemaHelper::isBuilderHiddenSection($section)) {
+                continue;
+            }
+
+            $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order')
+                ->reject(fn (SubmissionFormElement $element): bool => SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section));
 
             if (($section->section_type ?? '') === 'rows_section') {
                 foreach ($elements as $element) {
@@ -265,7 +271,9 @@ class ReceiveSampleRequest extends Component
         }
 
         return app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
-            ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage');
+            ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage')
+            ->reject(fn ($section) => SubmissionFormSchemaHelper::isBuilderHiddenSection($section))
+            ->values();
     }
 
     /** @return list<array{index: int, key: string, label: string, title: string, is_rows: bool}> */
@@ -351,7 +359,7 @@ class ReceiveSampleRequest extends Component
                     'sample_type_id' => (string) $sampleType->id,
                     'requires_inline_sample_type' => false,
                     'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
-                    'name' => (string) ($form->name ?: $sampleType->name),
+                    'name' => (string) $sampleType->name,
                     'sample_type_name' => (string) $sampleType->name,
                     'document_code' => $form->document_code,
                     'sections_count' => $this->wizardStepCountForForm($form),
@@ -864,6 +872,26 @@ class ReceiveSampleRequest extends Component
         ));
     }
 
+    /**
+     * Sync multi sample-type Select2 into formData (wire:ignore + Select2).
+     *
+     * @param  list<string|int|float>  $sampleTypeIds
+     */
+    public function setWalkInSampleTypes(string $wireKey, array $sampleTypeIds): void
+    {
+        $relative = preg_replace('/^formData\./', '', $wireKey) ?: 'sample_type_id';
+        $ids = $this->normalizeSampleTypeIdList($sampleTypeIds);
+
+        data_set($this->formData, $relative, $ids);
+
+        $rowIndex = null;
+        if (preg_match('/^(?:sample_type_id|sample_type)\.(\d+)$/', $relative, $matches)) {
+            $rowIndex = (int) $matches[1];
+        }
+
+        $this->applySampleTypeSelectionFromIds($ids, $rowIndex);
+    }
+
     public function goToWalkInStep(int $index): void
     {
         $maxIndex = max(0, $this->walkInSections->count() - 1);
@@ -952,6 +980,13 @@ class ReceiveSampleRequest extends Component
             $options = $element->options ?? [];
 
             return is_array($options) && $options !== [] ? [] : false;
+        }
+
+        if (
+            $element->element_type === 'sample_type_select'
+            || in_array($name, ['sample_type_id', 'sample_type'], true)
+        ) {
+            return [];
         }
 
         if ($element->element_type === 'analysis_elements_select' || $name === 'parameters') {
@@ -1176,6 +1211,9 @@ class ReceiveSampleRequest extends Component
             return $column;
         };
 
+        $sampleTypeColumn = $take($findByNames(['sample_type_id', 'sample_type']));
+        $analysisTypeColumn = $take($findByNames(['analysis_type_id', 'analysis_type', 'analysis_types']));
+
         $gridRows = [
             [
                 $take($findQty()),
@@ -1190,9 +1228,17 @@ class ReceiveSampleRequest extends Component
             [
                 $take($findByNames(['sampling_point', 'location', 'sampling_location'])),
                 $take($findByNames(['test_category', 'test_requirements'])),
-                $take($findByNames(['analysis_type_id', 'analysis_type', 'analysis_types', 'sample_type_id', 'sample_type'])),
+                $sampleTypeColumn ?? $analysisTypeColumn,
             ],
         ];
+
+        if ($sampleTypeColumn !== null && $analysisTypeColumn !== null) {
+            $gridRows[] = [
+                $analysisTypeColumn,
+                null,
+                null,
+            ];
+        }
 
         $parametersColumn = $take($findByNames(['parameters', 'parameter']));
         $descriptionColumn = $take($findByNames(['sample_description']));
@@ -1277,6 +1323,10 @@ class ReceiveSampleRequest extends Component
 
     private function isHiddenWalkInRowElement(SubmissionFormElement $element): bool
     {
+        if (SubmissionFormSchemaHelper::shouldOmitFromFillForm($element)) {
+            return true;
+        }
+
         $name = strtolower(trim((string) ($element->name ?? '')));
         $label = strtolower(trim((string) ($element->label ?? '')));
 
@@ -1314,7 +1364,7 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        foreach ($section->elementHolders->flatMap->elements as $element) {
+        foreach ($this->uniqueRowElementsForSection($section) as $element) {
             $existing = $this->formData[$element->name] ?? [];
             if (! is_array($existing)) {
                 $existing = [];
@@ -1712,6 +1762,14 @@ class ReceiveSampleRequest extends Component
 
     public function updated($propertyName, $value): void
     {
+        if (preg_match('/^formData\.(sample_type_id|sample_type)(?:\.(\d+))?$/', $propertyName, $matches)) {
+            $rowIndex = isset($matches[2]) ? (int) $matches[2] : null;
+            $ids = $this->normalizeSampleTypeIdList($value);
+            $this->applySampleTypeSelectionFromIds($ids, $rowIndex);
+
+            return;
+        }
+
         if (preg_match('/^formData\.analysis_type_id\.(\d+)$/', $propertyName, $matches)) {
             $rowIndex = (int) $matches[1];
             if (isset($this->formData['parameters'][$rowIndex])) {
@@ -1734,6 +1792,50 @@ class ReceiveSampleRequest extends Component
         }
     }
 
+    /**
+     * @param  list<string>  $sampleTypeIds
+     */
+    private function applySampleTypeSelectionFromIds(array $sampleTypeIds, ?int $rowIndex = null): void
+    {
+        $first = $sampleTypeIds[0] ?? null;
+
+        if ($first !== null) {
+            $this->selectedSampleTypeId = $first;
+            $this->lastSelectedSampleTypeId = $first;
+        } elseif ($rowIndex === null
+            && filled($this->selectedSubmissionFormId)
+            && ! filled($this->initialSampleTypeId)
+        ) {
+            $this->selectedSampleTypeId = null;
+        }
+
+        $this->clearAnalysisSelectionsForRow($rowIndex);
+    }
+
+    private function clearAnalysisSelectionsForRow(?int $rowIndex = null): void
+    {
+        foreach (['analysis_type_id', 'analysis_type', 'analysis_types', 'parameter', 'parameters'] as $key) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+
+            if ($rowIndex !== null && is_array($this->formData[$key])) {
+                $this->formData[$key][$rowIndex] = in_array($key, ['parameter', 'parameters'], true) ? [] : '';
+            } elseif ($rowIndex === null) {
+                $this->formData[$key] = is_array($this->formData[$key]) ? [] : '';
+            }
+        }
+
+        if ($rowIndex !== null) {
+            $this->dispatch(
+                'walk-in-params-row-reset',
+                rowIndex: $rowIndex,
+                options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(),
+                selected: [],
+            );
+        }
+    }
+
     public function getCustomersProperty()
     {
         return \App\Models\CRM\CRMCustomer::where('active', 1)->orderBy('name')->get();
@@ -1741,10 +1843,99 @@ class ReceiveSampleRequest extends Component
 
     public function getAnalysisTypesProperty()
     {
-        if (!$this->selectedSampleTypeId) {
+        return $this->analysisTypesForRow(null);
+    }
+
+    /**
+     * Analysis types for selected sample type(s) (linked Fill or in-form multi select).
+     *
+     * @return \Illuminate\Support\Collection<int, \App\AnalysisType>
+     */
+    public function analysisTypesForRow(?int $rowIndex = null): \Illuminate\Support\Collection
+    {
+        $sampleTypeIds = $this->resolveSampleTypeIdsForRow($rowIndex);
+        if ($sampleTypeIds === []) {
             return collect();
         }
-        return \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)->orderBy('name')->get();
+
+        return \App\AnalysisType::query()
+            ->whereIn('sample_type_id', $sampleTypeIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveSampleTypeIdsForRow(?int $rowIndex = null): array
+    {
+        foreach (['sample_type_id', 'sample_type'] as $key) {
+            $value = $this->formData[$key] ?? null;
+            if ($rowIndex !== null) {
+                if (! is_array($value)) {
+                    continue;
+                }
+                $ids = $this->normalizeSampleTypeIdList($value[$rowIndex] ?? null);
+                if ($ids !== []) {
+                    return $ids;
+                }
+
+                continue;
+            }
+
+            $ids = $this->normalizeSampleTypeIdList($value);
+            if ($ids !== []) {
+                return $ids;
+            }
+        }
+
+        if (filled($this->selectedSampleTypeId)) {
+            return [(string) $this->selectedSampleTypeId];
+        }
+
+        return [];
+    }
+
+    private function resolveSampleTypeIdForRow(?int $rowIndex = null): ?string
+    {
+        $ids = $this->resolveSampleTypeIdsForRow($rowIndex);
+
+        return $ids[0] ?? null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeSampleTypeIdList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (! is_array($value)) {
+            $value = [(string) $value];
+        }
+
+        $first = $value === [] ? null : reset($value);
+        if (is_array($first)) {
+            return [];
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($item): string => is_scalar($item) ? (string) $item : '',
+            $value
+        ), static fn (string $id): bool => $id !== '')));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return \App\SampleType::query()
+            ->whereIn('id', $ids)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->values()
+            ->all();
     }
 
     public function getParametersProperty()
@@ -1757,7 +1948,8 @@ class ReceiveSampleRequest extends Component
      */
     public function parametersForRow(?int $rowIndex = null): \Illuminate\Support\Collection
     {
-        if (! $this->selectedSampleTypeId) {
+        $sampleTypeIds = $this->resolveSampleTypeIdsForRow($rowIndex);
+        if ($sampleTypeIds === []) {
             return collect();
         }
 
@@ -1785,11 +1977,11 @@ class ReceiveSampleRequest extends Component
         }
 
         if ($atId) {
-            $at = \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)
+            $at = \App\AnalysisType::whereIn('sample_type_id', $sampleTypeIds)
                 ->where('id', $atId)
                 ->first();
         } elseif ($atName) {
-            $at = \App\AnalysisType::where('sample_type_id', $this->selectedSampleTypeId)
+            $at = \App\AnalysisType::whereIn('sample_type_id', $sampleTypeIds)
                 ->where('name', $atName)
                 ->first();
         } else {
@@ -2121,7 +2313,7 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
-     * Unlinked TRFs rely on an in-form sample_type_select (usually sample_type_id).
+     * Unlinked TRFs rely on an in-form sample_type_select (usually sample_type_id, multi).
      */
     private function syncSelectedSampleTypeFromFormData(): void
     {
@@ -2129,25 +2321,28 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $candidates = [];
-
-        foreach (['sample_type_id', 'sample_type'] as $key) {
-            $value = $this->formData[$key] ?? null;
-            if (is_array($value)) {
-                $value = collect($value)->first(fn ($item) => filled($item));
-            }
-            if (filled($value)) {
-                $candidates[] = (string) $value;
+        $ids = $this->resolveSampleTypeIdsForRow(null);
+        if ($ids === []) {
+            // Rows section: take the first selected id across rows.
+            foreach (['sample_type_id', 'sample_type'] as $key) {
+                $value = $this->formData[$key] ?? null;
+                if (! is_array($value)) {
+                    continue;
+                }
+                foreach ($value as $cell) {
+                    $rowIds = $this->normalizeSampleTypeIdList($cell);
+                    if ($rowIds !== []) {
+                        $ids = $rowIds;
+                        break 2;
+                    }
+                }
             }
         }
 
-        foreach ($candidates as $candidate) {
-            if (\App\SampleType::query()->whereKey($candidate)->exists()) {
-                $this->selectedSampleTypeId = $candidate;
-                $this->lastSelectedSampleTypeId = $candidate;
-
-                return;
-            }
+        $first = $ids[0] ?? null;
+        if ($first !== null) {
+            $this->selectedSampleTypeId = $first;
+            $this->lastSelectedSampleTypeId = $first;
         }
     }
 

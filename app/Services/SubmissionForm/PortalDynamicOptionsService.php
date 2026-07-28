@@ -294,12 +294,21 @@ class PortalDynamicOptionsService
      */
     private function analysisTypes(mixed $sampleTypeId): array
     {
-        if ($sampleTypeId === null || $sampleTypeId === '') {
+        $ids = [];
+        if (is_array($sampleTypeId)) {
+            $ids = array_values(array_filter(array_map('strval', $sampleTypeId)));
+        } elseif (is_string($sampleTypeId) && str_contains($sampleTypeId, ',')) {
+            $ids = array_values(array_filter(array_map('trim', explode(',', $sampleTypeId))));
+        } elseif ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $ids = [(string) $sampleTypeId];
+        }
+
+        if ($ids === []) {
             return [];
         }
 
         return AnalysisType::query()
-            ->where('sample_type_id', $sampleTypeId)
+            ->whereIn('sample_type_id', $ids)
             ->where(function ($query): void {
                 $query->where('active', true)->orWhere('active', 1);
             })
