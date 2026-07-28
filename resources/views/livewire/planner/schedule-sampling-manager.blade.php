@@ -2058,7 +2058,10 @@
             open: false,
             openUp: false,
             search: '',
+            syncing: false,
+            debounceTimer: null,
             rowIndex: config.rowIndex ?? 0,
+            flat: !!config.flat,
             options: Array.isArray(config.options) ? config.options.slice() : [],
             selected: Array.isArray(config.selected) ? config.selected.slice() : [],
             hydrating: false,
@@ -2111,17 +2114,42 @@
                 this.sync();
             },
             sync() {
-                if (this.$wire) {
-                    this.$wire.setWalkInParameters(this.rowIndex, this.selected.slice());
-                }
-            },
-            applySelectedFromWire() {
                 if (!this.$wire) {
                     return;
                 }
+                this.syncing = true;
+                this.open = true;
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => this.flushSync(), 350);
+            },
+            async flushSync() {
+                if (!this.$wire) {
+                    this.syncing = false;
+                    return;
+                }
+                this.syncing = true;
+                this.open = true;
+                try {
+                    await this.$wire.setWalkInParameters(this.flat ? -1 : this.rowIndex, this.selected.slice());
+                } finally {
+                    this.$nextTick(() => {
+                        this.open = true;
+                        this.syncing = false;
+                        this.decideDirection();
+                    });
+                }
+            },
+            applySelectedFromWire() {
+                if (!this.$wire || this.syncing) {
+                    return;
+                }
 
-                const raw = this.$wire.get(`formData.parameters.${this.rowIndex}`);
-                if (Array.isArray(raw)) {
+                const raw = this.flat
+                    ? this.$wire.get('formData.parameters')
+                    : this.$wire.get(`formData.parameters.${this.rowIndex}`);
+                if (Array.isArray(raw) && raw.length && typeof raw[0] === 'object' && raw[0] !== null) {
+                    this.selected = [];
+                } else if (Array.isArray(raw)) {
                     this.selected = raw.map((value) => String(value));
                 } else if (raw !== null && raw !== undefined && raw !== '') {
                     this.selected = [String(raw)];
@@ -2130,7 +2158,7 @@
                 }
             },
             async hydrateFromWire() {
-                if (!this.$wire || this.hydrating) {
+                if (!this.$wire || this.hydrating || this.syncing) {
                     return;
                 }
 
@@ -2138,7 +2166,7 @@
                 try {
                     this.applySelectedFromWire();
 
-                    const state = await this.$wire.walkInParameterPickerState(this.rowIndex);
+                    const state = await this.$wire.walkInParameterPickerState(this.flat ? null : this.rowIndex);
                     if (state && Array.isArray(state.options)) {
                         this.options = state.options.map((value) => String(value));
                     }
@@ -2157,6 +2185,8 @@
             open: false,
             openUp: false,
             search: '',
+            syncing: false,
+            debounceTimer: null,
             wireKey: config.wireKey || '',
             syncMethod: config.syncMethod || 'setWalkInSampleTypes',
             options: Array.isArray(config.options) ? config.options.slice() : [],
@@ -2223,10 +2253,30 @@
                 if (!this.$wire || !this.syncMethod || !this.wireKey) {
                     return;
                 }
-                this.$wire[this.syncMethod](this.wireKey, this.selected.slice());
+                this.syncing = true;
+                this.open = true;
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => this.flushSync(), 350);
+            },
+            async flushSync() {
+                if (!this.$wire || !this.syncMethod || !this.wireKey) {
+                    this.syncing = false;
+                    return;
+                }
+                this.syncing = true;
+                this.open = true;
+                try {
+                    await this.$wire[this.syncMethod](this.wireKey, this.selected.slice());
+                } finally {
+                    this.$nextTick(() => {
+                        this.open = true;
+                        this.syncing = false;
+                        this.decideDirection();
+                    });
+                }
             },
             applySelectedFromWire() {
-                if (!this.$wire || !this.wireKey) {
+                if (!this.$wire || !this.wireKey || this.syncing) {
                     return;
                 }
                 const raw = this.$wire.get(this.wireKey);

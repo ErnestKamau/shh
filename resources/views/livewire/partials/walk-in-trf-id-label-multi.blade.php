@@ -23,10 +23,15 @@
         ->values()
         ->all();
     $selected = array_values(array_filter(array_map('strval', $selected ?? [])));
-    $optionsKey = md5(json_encode([$options, $selected, $syncMethod]));
+    // Stable key: field + option ids only (never selection) so the panel stays open while picking.
+    $optionsKey = md5(json_encode([
+        collect($options)->pluck('id')->all(),
+        $syncMethod,
+        $wireKey,
+    ]));
 @endphp
 
-{{-- Alpine multi picker; Livewire owns state via {{ $syncMethod }}(wireKey, ids). --}}
+{{-- Alpine multi picker; Livewire owns state via debounced {{ $syncMethod }}(wireKey, ids). --}}
 <div
     class="rft-param-picker"
     wire:key="id-label-multi-{{ $fieldId }}-{{ $optionsKey }}"
@@ -40,7 +45,7 @@
         emptyHint: @js($emptyHint),
     })"
     @keydown.escape.window="open = false"
-    @click.outside="open = false"
+    @click.outside="if (!syncing) open = false"
 >
     <button type="button" class="rft-param-picker__trigger w-100 text-left" @click.stop="toggleOpen()">
         <div class="rft-param-picker__chips">

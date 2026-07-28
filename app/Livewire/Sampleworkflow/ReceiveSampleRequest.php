@@ -940,6 +940,13 @@ class ReceiveSampleRequest extends Component
                 $this->formData[$paramKey] = [];
             }
         }
+
+        $this->dispatch(
+            'walk-in-params-row-reset',
+            rowIndex: -1,
+            options: $this->parametersForRow(null)->pluck('name')->values()->all(),
+            selected: [],
+        );
     }
 
     private function walkInUsesIndexedSampleRows(): bool

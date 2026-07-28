@@ -5,16 +5,15 @@
     $picker = $this->walkInParameterPickerState($isFlat ? null : $effectiveRowIndex);
     $selectedParams = $picker['selected'];
     $options = $picker['options'];
-    $optionsKey = md5(json_encode([$options, $selectedParams, $isFlat]));
 @endphp
 
 {{--
-  Full wire:ignore keeps Alpine UI interactive after selections.
-  Livewire remains source of truth via setWalkInParameters().
+  Stable wire:key (no options hash) so Livewire morphs do not remount mid-selection.
+  Options refresh via hydrateFromWire / walk-in-params-row-reset.
 --}}
 <div
     class="rft-param-picker"
-    wire:key="param-picker-{{ $isFlat ? 'flat' : $effectiveRowIndex }}-{{ $optionsKey }}"
+    wire:key="param-picker-{{ $isFlat ? 'flat' : $effectiveRowIndex }}"
     wire:ignore
     x-data="rftParamPickerUi({
         rowIndex: {{ $effectiveRowIndex }},
@@ -23,7 +22,22 @@
         selected: @js($selectedParams),
     })"
     @keydown.escape.window="open = false"
-    @click.outside="open = false"
+    @click.outside="if (!syncing) open = false"
+    @walk-in-params-row-reset.window="
+        const raw = $event.detail;
+        const payload = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
+        if (!flat && payload.rowIndex !== undefined && Number(payload.rowIndex) !== Number(rowIndex)) {
+            return;
+        }
+        if (Array.isArray(payload.options)) {
+            options = payload.options.map((value) => String(value));
+        }
+        if (Array.isArray(payload.selected)) {
+            selected = payload.selected.map((value) => String(value));
+        } else {
+            selected = [];
+        }
+    "
 >
     <button type="button" class="rft-param-picker__trigger w-100 text-left" @click.stop="toggleOpen()">
         <div class="rft-param-picker__chips">
