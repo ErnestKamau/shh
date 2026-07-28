@@ -77,6 +77,11 @@ class SubmissionFormSubmissionService
             $fieldName = $element->name;
             $elementRules = [];
 
+            if (SubmissionFormSchemaHelper::isBuilderHiddenElement($element)) {
+                $rules[$fieldName] = ['nullable'];
+                continue;
+            }
+
             if ($this->isElementVisibleInRequest($element, $elements, $formData)) {
                 if ($requireRequired && $element->is_required) {
                     $elementRules[] = 'required';
@@ -389,8 +394,15 @@ class SubmissionFormSubmissionService
     public function elementsForForm(SubmissionForm $submissionForm): Collection
     {
         return SubmissionFormElement::query()
+            ->with('holder.section')
             ->whereHas('holder.section', function ($query) use ($submissionForm): void {
-                $query->where('submission_form_id', $submissionForm->id);
+                $query->where('submission_form_id', $submissionForm->id)
+                    ->where(function ($sectionQuery): void {
+                        $sectionQuery->where('is_hidden', false)->orWhereNull('is_hidden');
+                    });
+            })
+            ->where(function ($elementQuery): void {
+                $elementQuery->where('is_hidden', false)->orWhereNull('is_hidden');
             })
             ->get();
     }

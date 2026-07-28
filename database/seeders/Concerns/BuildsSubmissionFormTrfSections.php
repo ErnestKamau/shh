@@ -608,8 +608,19 @@ trait BuildsSubmissionFormTrfSections
     protected function syncSampleTypesByCodes(SubmissionForm $form, array $codes): void
     {
         try {
+            $normalizedCodes = collect($codes)
+                ->map(fn (string $code): string => mb_strtolower(trim($code)))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
             $ids = SampleType::query()
-                ->whereIn('code', $codes)
+                ->where(function ($query) use ($normalizedCodes): void {
+                    foreach ($normalizedCodes as $code) {
+                        $query->orWhereRaw('LOWER(TRIM(code)) = ?', [$code]);
+                    }
+                })
                 ->pluck('id')
                 ->unique()
                 ->values()
@@ -625,6 +636,64 @@ trait BuildsSubmissionFormTrfSections
             $this->command?->info('Linked '.count($ids).' sample type(s) to '.$form->name.'.');
         } catch (\Exception $e) {
             $this->command?->warn('Could not sync sample types: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    protected function syncSampleTypesByExactNames(SubmissionForm $form, array $names): void
+    {
+        try {
+            $normalizedNames = collect($names)
+                ->map(fn (string $name): string => mb_strtolower(trim($name)))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $ids = SampleType::query()
+                ->where(function ($query) use ($normalizedNames): void {
+                    foreach ($normalizedNames as $name) {
+                        $query->orWhereRaw('LOWER(TRIM(name)) = ?', [$name]);
+                    }
+                })
+                ->pluck('id')
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($ids === []) {
+                $this->command?->warn('No sample types matched for '.$form->name.' (names: '.implode(', ', $names).').');
+
+                return;
+            }
+
+            $form->sampleTypes()->sync($ids);
+            $this->command?->info('Linked '.count($ids).' sample type(s) by name to '.$form->name.'.');
+        } catch (\Exception $e) {
+            $this->command?->warn('Could not sync sample types by name: '.$e->getMessage());
+        }
+    }
+
+    protected function detachFoodAndFeedSampleTypes(SubmissionForm $form): void
+    {
+        try {
+            $ids = SampleType::query()
+                ->where(function ($query): void {
+                    $query->whereRaw("LOWER(TRIM(name)) IN ('food & feed', 'food and feed')")
+                        ->orWhereRaw("LOWER(TRIM(code)) IN ('food & feed', 'food and feed', 'food_and_feed', 'food and feed')");
+                })
+                ->pluck('id')
+                ->all();
+
+            if ($ids === []) {
+                return;
+            }
+
+            $form->sampleTypes()->detach($ids);
+        } catch (\Exception $e) {
+            $this->command?->warn('Could not detach Food & Feed sample types: '.$e->getMessage());
         }
     }
 
@@ -650,9 +719,9 @@ trait BuildsSubmissionFormTrfSections
             }
 
             $form->sampleTypes()->sync($ids);
-            $this->command?->info('Linked '.count($ids).' sample type(s) to '.$form->name.'.');
+            $this->command?->info('Linked '.count($ids).' sample type(s) by pattern to '.$form->name.'.');
         } catch (\Exception $e) {
-            $this->command?->warn('Could not sync sample types: '.$e->getMessage());
+            $this->command?->warn('Could not sync sample types by pattern: '.$e->getMessage());
         }
     }
 

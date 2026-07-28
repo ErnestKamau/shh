@@ -1,8 +1,8 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -32,8 +32,8 @@
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0 text-muted">
                         <i class="mdi mdi-filter-variant"></i> Filter Options
                     </h6>
@@ -84,7 +84,7 @@
     <!-- Document Types Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border-radius: 15px;">
+            <div class="card">
                 <div class="card-body">
                     @if($documentTypes->count() > 0)
                         <!-- Show Entries -->
@@ -97,8 +97,8 @@
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                            <table class="table table-striped table-hover workflow-table livewire-table ls-table">
+                                <thead>
                                     <tr>
                                         <th>Name</th>
                                         <th>Code</th>
@@ -140,16 +140,18 @@
                                             </td>
                                             <td>{{ $type->created_at->format('M d, Y') }}</td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <button wire:click="showEditModal({{ $type->id }})" 
-                                                            class="btn btn-sm mr-2 btn-outline-warning" 
+                                                <div class="dms-actions-group">
+                                                    <button type="button"
+                                                            wire:click="showEditModal('{{ $type->id }}')"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit"
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteType({{ $type->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this document type?')">
+                                                    <button type="button"
+                                                            wire:click="deleteType('{{ $type->id }}')"
+                                                            wire:confirm="Are you sure you want to delete this document type?"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                            title="Delete">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
@@ -161,7 +163,7 @@
                         </div>
                         <!-- Pagination -->
                         <div class="d-flex justify-content-center mt-3">
-                            {{ $documentTypes->links() }}
+                            {{ $documentTypes->links('pagination::bootstrap-4') }}
                         </div>
                     @else
                         <div class="text-center py-4">

@@ -25,6 +25,7 @@ class TaxRegime extends Model implements Auditable
     ];
     
     protected $casts = [
+        'registered_by' => 'string',
         'active' => 'boolean',
         'end_date' => 'datetime',
     ];

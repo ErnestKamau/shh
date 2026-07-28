@@ -28,6 +28,7 @@ class SubmissionFormElement extends Model implements Auditable
         'help_text',
         'is_required',
         'is_readonly',
+        'is_hidden',
         'default_value',
         'validation_rules',
         'options',
@@ -46,11 +47,17 @@ class SubmissionFormElement extends Model implements Auditable
     protected $casts = [
         'is_required' => 'boolean',
         'is_readonly' => 'boolean',
+        'is_hidden' => 'boolean',
         'validation_rules' => 'array',
         'options' => 'array',
         'conditional_logic' => 'array',
         'is_mapped' => 'boolean'
     ];
+
+    public function isHidden(): bool
+    {
+        return (bool) $this->is_hidden;
+    }
 
     /**
      * Get the element holder that owns this element

@@ -47,6 +47,7 @@ class FormBuilderController extends Controller
             'description' => 'nullable|string|max:1000',
             'section_type' => 'required|in:regular,rows_section',
             'section_alignment' => 'required|in:left,middle,right',
+            'is_hidden' => 'sometimes|in:true,false,1,0',
             'section_logos' => 'nullable|array',
             'section_logos.*' => 'file|image|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
             'section_logo_positions' => 'nullable|array',
@@ -59,6 +60,7 @@ class FormBuilderController extends Controller
                 'description' => $validated['description'],
                 'section_type' => $validated['section_type'],
                 'section_alignment' => $validated['section_alignment'],
+                'is_hidden' => filter_var($validated['is_hidden'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'section_logos' => $this->storeSectionLogos($request, 'section_logos', 'section_logo_positions'),
                 'sort_order' => SubmissionFormSection::getNextSortOrder($submissionForm->id)
             ]);
@@ -90,6 +92,7 @@ class FormBuilderController extends Controller
             'description' => 'nullable|string|max:1000',
             'section_type' => 'required|in:regular,rows_section',
             'section_alignment' => 'required|in:left,middle,right',
+            'is_hidden' => 'sometimes|in:true,false,1,0',
             'existing_section_logos' => 'nullable|array',
             'existing_section_logos.*' => 'string|max:255',
             'existing_section_logo_positions' => 'nullable|array',
@@ -124,6 +127,9 @@ class FormBuilderController extends Controller
                 'section_alignment' => $validated['section_alignment'],
                 'sort_order' => $validated['sort_order'] ?? $section->sort_order,
                 'section_logos' => array_values(array_merge($existingLogos, $newLogos)),
+                'is_hidden' => array_key_exists('is_hidden', $validated)
+                    ? filter_var($validated['is_hidden'], FILTER_VALIDATE_BOOLEAN)
+                    : (bool) $section->is_hidden,
             ]);
 
             return response()->json([
@@ -187,7 +193,7 @@ class FormBuilderController extends Controller
                 foreach ($holders as $holder) {
                     foreach ($holder->elements as $element) {
                         if ($element->instanceValues->isNotEmpty()) {
-                            throw new \RuntimeException('This section contains form elements with submitted data and cannot be deleted.');
+                            throw new \RuntimeException('This section contains form elements with submitted data and cannot be deleted. Hide the section instead.');
                         }
                     }
                 }
@@ -325,7 +331,7 @@ class FormBuilderController extends Controller
 
                 foreach ($elements as $element) {
                     if ($element->instanceValues->isNotEmpty()) {
-                        throw new \RuntimeException('This element holder contains form elements with submitted data and cannot be deleted.');
+                        throw new \RuntimeException('This element holder contains form elements with submitted data and cannot be deleted. Hide the elements instead.');
                     }
                 }
 
@@ -384,6 +390,7 @@ class FormBuilderController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'is_required' => 'sometimes|in:true,false,1,0',
             'is_readonly' => 'sometimes|in:true,false,1,0',
+            'is_hidden' => 'sometimes|in:true,false,1,0',
             'default_value' => 'nullable|string',
             'validation_rules' => 'nullable|array',
             'options' => 'nullable|array',
@@ -415,6 +422,7 @@ class FormBuilderController extends Controller
                 'help_text' => $validated['help_text'] ?? null,
                 'is_required' => filter_var($validated['is_required'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'is_readonly' => filter_var($validated['is_readonly'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'is_hidden' => filter_var($validated['is_hidden'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'default_value' => $validated['default_value'] ?? null,
                 'validation_rules' => $validated['validation_rules'] ?? null,
                 'options' => $validated['options'] ?? null,
@@ -485,6 +493,7 @@ class FormBuilderController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'is_required' => 'sometimes|in:true,false,1,0',
             'is_readonly' => 'sometimes|in:true,false,1,0',
+            'is_hidden' => 'sometimes|in:true,false,1,0',
             'default_value' => 'nullable|string',
             'validation_rules' => 'nullable|array',
             'options' => 'nullable|array',
@@ -507,6 +516,9 @@ class FormBuilderController extends Controller
             }
             if (isset($validated['is_readonly'])) {
                 $validated['is_readonly'] = filter_var($validated['is_readonly'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (isset($validated['is_hidden'])) {
+                $validated['is_hidden'] = filter_var($validated['is_hidden'], FILTER_VALIDATE_BOOLEAN);
             }
             if (isset($validated['is_mapped'])) {
                 $validated['is_mapped'] = filter_var($validated['is_mapped'], FILTER_VALIDATE_BOOLEAN);
@@ -548,7 +560,7 @@ class FormBuilderController extends Controller
             if ($element->instanceValues()->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot delete form element that has submitted data. Consider making it readonly instead.'
+                    'message' => 'Cannot delete form element that has submitted data. Hide it instead.'
                 ], 400);
             }
 
@@ -562,6 +574,54 @@ class FormBuilderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete form element: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle whether a section is hidden from fill/preview/portal forms.
+     */
+    public function toggleSectionHidden(SubmissionFormSection $section)
+    {
+        try {
+            $section->is_hidden = ! (bool) $section->is_hidden;
+            $section->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $section->is_hidden
+                    ? 'Section hidden from fill forms'
+                    : 'Section visible on fill forms again',
+                'section' => $section->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update section visibility: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle whether an element is hidden from fill/preview/portal forms.
+     */
+    public function toggleElementHidden(SubmissionFormElement $element)
+    {
+        try {
+            $element->is_hidden = ! (bool) $element->is_hidden;
+            $element->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $element->is_hidden
+                    ? 'Element hidden from fill forms'
+                    : 'Element visible on fill forms again',
+                'element' => $element->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update element visibility: ' . $e->getMessage(),
             ], 500);
         }
     }

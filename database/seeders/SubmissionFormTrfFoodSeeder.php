@@ -20,7 +20,14 @@ class SubmissionFormTrfFoodSeeder extends Seeder
             'print_template_name' => 'layouts.lab.invoice.print-trf-amspec-food',
         ]);
 
-        $this->syncSampleTypesByCodes($form, ['FOOD']);
+        $this->syncSampleTypesByCodes($form, ['FOOD', 'Food']);
+
+        if ($form->sampleTypes()->count() === 0) {
+            $this->syncSampleTypesByExactNames($form, ['Food']);
+        }
+
+        // Food & Feed has its own TRF — never keep it linked here.
+        $this->detachFoodAndFeedSampleTypes($form);
 
         if ($form->sections()->exists()) {
             $this->command?->info('Test Request Form - Food structure already exists; patching fields.');

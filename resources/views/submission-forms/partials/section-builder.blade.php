@@ -63,12 +63,13 @@ if (!function_exists('getElementIcon')) {
 }
 @endphp
 
-<div class="section-item"
+<div class="section-item {{ ($section->is_hidden ?? false) ? 'sf-builder-hidden' : '' }}"
     data-section-id="{{ $section->id }}"
     data-section-title="{{ $section->title }}"
     data-section-description="{{ $section->description ?? '' }}"
     data-section-type="{{ $section->section_type ?? 'regular' }}"
     data-section-alignment="{{ $section->section_alignment ?? 'left' }}"
+    data-section-hidden="{{ ($section->is_hidden ?? false) ? '1' : '0' }}"
     data-section-logos='@json($section->getSectionLogos())'>
     <div class="section-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
@@ -80,6 +81,9 @@ if (!function_exists('getElementIcon')) {
                     <span class="badge badge-info badge-sm ml-2">Rows Section</span>
                 @endif
                 <span class="badge badge-light badge-sm ml-2">{{ ucfirst($section->section_alignment ?? 'left') }}</span>
+                @if($section->is_hidden ?? false)
+                    <span class="badge badge-secondary badge-sm ml-2">Hidden</span>
+                @endif
                 @if(count($section->getSectionLogos()) > 0)
                     <span class="badge badge-outline-primary badge-sm ml-2">
                         <i class="mdi mdi-image-multiple"></i> {{ count($section->getSectionLogos()) }} logo(s)
@@ -93,6 +97,11 @@ if (!function_exists('getElementIcon')) {
         <div class="btn-group">
             <button class="btn btn-sm btn-outline-primary" onclick='FormBuilder.showSectionModal(@json($section->id))' title="Edit Section">
                 <i class="mdi mdi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-{{ ($section->is_hidden ?? false) ? 'warning' : 'dark' }}"
+                    onclick='FormBuilder.toggleSectionHidden(@json($section->id))'
+                    title="{{ ($section->is_hidden ?? false) ? 'Show section on fill forms' : 'Hide section from fill forms' }}">
+                <i class="mdi mdi-eye{{ ($section->is_hidden ?? false) ? '' : '-off' }}"></i>
             </button>
             <button class="btn btn-sm btn-outline-info" onclick='FormBuilder.cloneSection(@json($section->id))' title="Clone Section">
                 <i class="mdi mdi-content-copy"></i>
@@ -149,8 +158,9 @@ if (!function_exists('getElementIcon')) {
                             <div class="holder-content">
                                 <div class="elements-container sortable-elements p-2" data-holder-id="{{ $holder->id }}" data-max-elements="{{ $holder->max_elements }}">
                                     @forelse($holder->elements as $element)
-                                        <div class="element-item d-flex justify-content-between align-items-center py-2 px-3 mb-1 border rounded"
+                                        <div class="element-item d-flex justify-content-between align-items-center py-2 px-3 mb-1 border rounded {{ ($element->is_hidden ?? false) ? 'sf-builder-hidden' : '' }}"
                                              data-element-id="{{ $element->id }}"
+                                             data-element-hidden="{{ ($element->is_hidden ?? false) ? '1' : '0' }}"
                                             data-element-label="{{ $element->label }}"
                                             data-element-type="{{ $element->element_type }}"
                                             data-element-name="{{ $element->name }}"
@@ -182,6 +192,9 @@ if (!function_exists('getElementIcon')) {
                                                 </div>
                                             </div>
                                             <div class="d-flex align-items-center">
+                                                @if($element->is_hidden ?? false)
+                                                    <span class="badge badge-secondary badge-sm mr-2">hidden</span>
+                                                @endif
                                                 @if($element->is_readonly)
                                                     <span class="badge badge-outline-warning badge-sm mr-2">readonly</span>
                                                 @endif
@@ -194,6 +207,11 @@ if (!function_exists('getElementIcon')) {
                                                 <div class="btn-group">
                                                     <button class="btn btn-sm btn-outline-primary" onclick='FormBuilder.showElementModal(@json($holder->id), @json($element->id))' title="Edit Element">
                                                         <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-{{ ($element->is_hidden ?? false) ? 'warning' : 'dark' }}"
+                                                            onclick='FormBuilder.toggleElementHidden(@json($element->id))'
+                                                            title="{{ ($element->is_hidden ?? false) ? 'Show element on fill forms' : 'Hide element from fill forms' }}">
+                                                        <i class="mdi mdi-eye{{ ($element->is_hidden ?? false) ? '' : '-off' }}"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-info" onclick='FormBuilder.cloneElement(@json($element->id))' title="Clone Element">
                                                         <i class="mdi mdi-content-copy"></i>

@@ -87,6 +87,7 @@
                     </div>
                   </div>
                   @foreach($submissionForm->sections as $section)
+                    @continue($section->is_hidden ?? false)
                     @if($section->isRowsSection())
                       @include('submission-forms.partials.rows-section', [
                         'section' => $section,
@@ -107,9 +108,12 @@
                         @foreach($section->elementHolders as $holder)
                           <div class="element-holder mb-3" data-holder-id="{{ $holder->id }}" data-section-id="{{ $section->id }}">
                             @if($holder->holder_type === 'field')
+                              @php
+                                $visibleHolderElements = $holder->elements->reject(fn ($el) => (bool) ($el->is_hidden ?? false))->values();
+                              @endphp
                               <div class="row">
-                                @foreach($holder->elements as $element)
-                                  <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3" data-element-name="{{ $element->name }}">
+                                @foreach($visibleHolderElements as $element)
+                                  <div class="col-md-{{ getColumnWidth($visibleHolderElements->count()) }} mb-3" data-element-name="{{ $element->name }}">
                                     @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
                                   </div>
                                 @endforeach
@@ -117,6 +121,7 @@
                             @else
                               {{-- Text holder - for static content --}}
                               @foreach($holder->elements as $element)
+                                  @continue($element->is_hidden ?? false)
                                 <div class="text-element mb-3">
                                   <div class="alert alert-light">
                                     <strong>{{ $element->label }}</strong>
@@ -485,11 +490,13 @@
         window.requiredFieldSpecs = window.requiredFieldSpecs || [];
         console.log('[DEBUG] Sections being rendered:', {{ $submissionForm->sections->count() }});
         @foreach($submissionForm->sections as $section)
+                    @continue($section->is_hidden ?? false)
           console.log('[DEBUG] Rendering section {{ $section->id }}: {{ addslashes($section->title) }} ({{ $section->section_type }})');
           @php $inRows = $section->isRowsSection(); @endphp
           @foreach($section->elementHolders as $holder)
             console.log('[DEBUG]   - Holder {{ $holder->id }} ({{ $holder->holder_type }}): {{ $holder->elements->count() }} elements');
             @foreach($holder->elements as $element)
+                                  @continue($element->is_hidden ?? false)
               console.log('[DEBUG]     - Element: {{ $element->name }} ({{ $element->element_type }}), required: {{ $element->is_required ? "yes" : "no" }}');
               @if($element->is_required)
                 window.requiredFieldSpecs.push({

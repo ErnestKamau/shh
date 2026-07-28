@@ -1167,7 +1167,10 @@ class ReceiveSampleRequest extends Component
         if (!$st) {
             return false;
         }
-        return stripos($st->name, 'Food') !== false || stripos($st->code, 'FOOD') !== false;
+
+        $resolver = app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class);
+
+        return $resolver->isFood($st) || $resolver->isFoodAndFeed($st);
     }
 
     public function getIsWaterProperty()

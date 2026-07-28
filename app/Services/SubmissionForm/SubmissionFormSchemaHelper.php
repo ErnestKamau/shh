@@ -58,6 +58,47 @@ final class SubmissionFormSchemaHelper
     }
 
     /**
+     * Builder-hidden sections are omitted from fill/preview/portal schemas,
+     * but remain available in the form builder and for historical instance data.
+     */
+    public static function isBuilderHiddenSection(SubmissionFormSection $section): bool
+    {
+        return (bool) ($section->is_hidden ?? false);
+    }
+
+    /**
+     * Builder-hidden elements are omitted from fill/preview/portal schemas,
+     * but remain available in the form builder and for historical instance data.
+     */
+    public static function isBuilderHiddenElement(SubmissionFormElement $element): bool
+    {
+        if ((bool) ($element->is_hidden ?? false)) {
+            return true;
+        }
+
+        $section = $element->holder?->section;
+        if ($section instanceof SubmissionFormSection) {
+            return self::isBuilderHiddenSection($section);
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether an element should be skipped when rendering a live fill/preview form.
+     */
+    public static function shouldOmitFromFillForm(
+        SubmissionFormElement $element,
+        ?SubmissionFormSection $section = null,
+    ): bool {
+        if ($section instanceof SubmissionFormSection && self::isBuilderHiddenSection($section)) {
+            return true;
+        }
+
+        return self::isBuilderHiddenElement($element);
+    }
+
+    /**
      * Legacy row fields superseded by a canonical column in the same holder.
      *
      * @return array<string, string>

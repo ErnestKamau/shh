@@ -11,6 +11,8 @@ final class TrfDocumentCodeForSampleType
 {
     public const FOOD = 'TRF-FOOD-019';
 
+    public const FOOD_AND_FEED = 'TRF-FOOD-FEED-021';
+
     public const WATER = 'TRF-WATER-020';
 
     public const WASTE_WATER = 'TRF-WASTE-036';
@@ -25,6 +27,10 @@ final class TrfDocumentCodeForSampleType
             return self::WASTE_WATER;
         }
 
+        if ($this->isFoodAndFeed($sampleType)) {
+            return self::FOOD_AND_FEED;
+        }
+
         if ($this->isFood($sampleType)) {
             return self::FOOD;
         }
@@ -36,10 +42,23 @@ final class TrfDocumentCodeForSampleType
         return null;
     }
 
+    public function isFoodAndFeed(SampleType $sampleType): bool
+    {
+        $name = trim((string) ($sampleType->name ?? ''));
+        $code = trim((string) ($sampleType->code ?? ''));
+
+        return $this->matchesFoodAndFeedLabel($name)
+            || $this->matchesFoodAndFeedLabel($code);
+    }
+
     public function isFood(SampleType $sampleType): bool
     {
-        return stripos($sampleType->name, 'Food') !== false
-            || stripos($sampleType->code, 'FOOD') !== false;
+        if ($this->isFoodAndFeed($sampleType)) {
+            return false;
+        }
+
+        return stripos((string) ($sampleType->name ?? ''), 'Food') !== false
+            || stripos((string) ($sampleType->code ?? ''), 'FOOD') !== false;
     }
 
     public function isWater(SampleType $sampleType): bool
@@ -48,14 +67,14 @@ final class TrfDocumentCodeForSampleType
             return false;
         }
 
-        return stripos($sampleType->name, 'Water') !== false
-            || stripos($sampleType->code, 'WTR') !== false;
+        return stripos((string) ($sampleType->name ?? ''), 'Water') !== false
+            || stripos((string) ($sampleType->code ?? ''), 'WTR') !== false;
     }
 
     public function isWasteWater(SampleType $sampleType): bool
     {
-        return stripos($sampleType->name, 'Waste Water') !== false
-            || stripos($sampleType->code, 'WWTR') !== false;
+        return stripos((string) ($sampleType->name ?? ''), 'Waste Water') !== false
+            || stripos((string) ($sampleType->code ?? ''), 'WWTR') !== false;
     }
 
     /**
@@ -72,20 +91,27 @@ final class TrfDocumentCodeForSampleType
     }
 
     /**
-     * @return array{is_food: bool, is_water: bool, is_waste_water: bool}
+     * @return array{is_food: bool, is_food_and_feed: bool, is_water: bool, is_waste_water: bool}
      */
     public function classify(?SampleType $sampleType): array
     {
         if ($sampleType === null) {
-            return ['is_food' => false, 'is_water' => false, 'is_waste_water' => false];
+            return [
+                'is_food' => false,
+                'is_food_and_feed' => false,
+                'is_water' => false,
+                'is_waste_water' => false,
+            ];
         }
 
-        $isFood = $this->isFood($sampleType);
+        $isFoodAndFeed = $this->isFoodAndFeed($sampleType);
+        $isFood = ! $isFoodAndFeed && $this->isFood($sampleType);
         $isWasteWater = $this->isWasteWater($sampleType);
         $isWater = ! $isWasteWater && $this->isWater($sampleType);
 
         return [
             'is_food' => $isFood,
+            'is_food_and_feed' => $isFoodAndFeed,
             'is_water' => $isWater,
             'is_waste_water' => $isWasteWater,
         ];
@@ -95,7 +121,7 @@ final class TrfDocumentCodeForSampleType
     {
         $classification = $this->classify($sampleType);
 
-        if ($classification['is_food']) {
+        if ($classification['is_food'] || $classification['is_food_and_feed']) {
             return 'food';
         }
 
@@ -104,5 +130,19 @@ final class TrfDocumentCodeForSampleType
         }
 
         return 'water';
+    }
+
+    private function matchesFoodAndFeedLabel(string $value): bool
+    {
+        $normalized = mb_strtolower(trim($value));
+        if ($normalized === '') {
+            return false;
+        }
+
+        $normalized = str_replace(['_', '-'], ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        return in_array($normalized, ['food and feed', 'food & feed'], true)
+            || (bool) preg_match('/\bfood\b.*\bfeed\b/', $normalized);
     }
 }

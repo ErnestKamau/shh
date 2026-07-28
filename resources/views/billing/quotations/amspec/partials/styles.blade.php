@@ -329,9 +329,25 @@
         margin-bottom: 6px;
     }
 
-    .amspec-signature {
+    .amspec-signature-row {
         margin-top: 18px;
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .amspec-signature {
         font-size: 10pt;
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
+        padding-right: 16px;
+    }
+
+    .amspec-signature-customer {
+        padding-right: 0;
+        padding-left: 16px;
+        border-left: 1px solid #d0d0d0;
     }
 
     .amspec-signature-entity {

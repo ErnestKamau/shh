@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create('tax_regime', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('registered_by')->nullable();
+            $table->uuid('registered_by')->nullable();
             $table->integer('value');
             $table->boolean('active')->default(false);
             $table->dateTime('end_date')->nullable();

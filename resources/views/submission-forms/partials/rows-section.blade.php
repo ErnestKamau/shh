@@ -14,14 +14,20 @@
     $templateHolder = $section->getTemplateElementHolder();
   @endphp
 
-  @if($templateHolder && $templateHolder->elements->count() > 0)
+  @php
+    $visibleRowElements = $templateHolder
+      ? $templateHolder->elements->reject(fn ($element) => (bool) ($element->is_hidden ?? false))->values()
+      : collect();
+  @endphp
+
+  @if($templateHolder && $visibleRowElements->count() > 0)
     <div class="rows-container">
       @php
         // Count actual rows from existing data
         $actualRowCount = 0;
         if (isset($existingValues) && $existingValues) {
           $rowIndices = [];
-          foreach($templateHolder->elements as $element) {
+          foreach($visibleRowElements as $element) {
             $elementValues = $existingValues->where('submission_form_element_id', $element->id);
             foreach($elementValues as $value) {
               $arrayIndex = $value->array_index ?? 0;
@@ -43,7 +49,7 @@
         <table class="table table-bordered" id="rows-table-{{ $section->id }}">
           <thead class="thead-light">
             <tr>
-              @foreach($templateHolder->elements as $element)
+              @foreach($visibleRowElements as $element)
                 <th>
                   {{ $element->label }}
                   @if($element->is_required)
@@ -63,7 +69,7 @@
       {{-- Hidden template row for cloning --}}
       <template id="row-template-{{ $section->id }}">
         <tr class="row-item" data-row-index="" data-section-id="{{ $section->id }}">
-          @foreach($templateHolder->elements as $element)
+          @foreach($visibleRowElements as $element)
             <td>
               <div class="form-group mb-0">
                         @include('submission-forms.partials.form-element', [

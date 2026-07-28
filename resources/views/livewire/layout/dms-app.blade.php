@@ -1,4 +1,4 @@
-@extends('layouts.dms.layout.app', ['dataTable'=>true, 'select2'=>true])
+@extends('layouts.dms.layout.app', ['select2' => true])
 
 @section('title2')
 <title>{{ $pageTitle ?? 'Document Management System' }}</title>
@@ -65,7 +65,9 @@
     }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
-    
+
+    @include('livewire.dms.partials.page-shell-styles')
+
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'dashboard')
         @livewire(\App\Livewire\DMS\Dashboard::class)

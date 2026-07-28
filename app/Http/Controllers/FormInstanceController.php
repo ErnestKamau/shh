@@ -350,10 +350,18 @@ class FormInstanceController extends Controller
         //     return redirect()->back()->with('error', 'This form instance cannot be updated.');
         // }
 
-        // Load form elements for validation
+        // Load form elements for validation (exclude builder-hidden sections/elements)
         $elements = SubmissionFormElement::whereHas('holder.section', function ($query) use ($submissionForm) {
-            $query->where('submission_form_id', $submissionForm->id);
-        })->get();
+            $query->where('submission_form_id', $submissionForm->id)
+                ->where(function ($sectionQuery) {
+                    $sectionQuery->where('is_hidden', false)->orWhereNull('is_hidden');
+                });
+        })
+            ->where(function ($elementQuery) {
+                $elementQuery->where('is_hidden', false)->orWhereNull('is_hidden');
+            })
+            ->with('holder.section')
+            ->get();
 
 
         // Build validation rules
@@ -759,6 +767,11 @@ class FormInstanceController extends Controller
         foreach ($elements as $element) {
             $fieldName = $element->name;
             $elementRules = [];
+
+            if (\App\Services\SubmissionForm\SubmissionFormSchemaHelper::isBuilderHiddenElement($element)) {
+                $rules[$fieldName] = ['nullable'];
+                continue;
+            }
 
             // Required validation
             if ($element->is_required) {

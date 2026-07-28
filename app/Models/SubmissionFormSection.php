@@ -27,12 +27,19 @@ class SubmissionFormSection extends Model implements Auditable
         'section_type',
         'section_alignment',
         'section_logos',
-        'sort_order'
+        'sort_order',
+        'is_hidden',
     ];
 
     protected $casts = [
         'section_logos' => 'array',
+        'is_hidden' => 'boolean',
     ];
+
+    public function isHidden(): bool
+    {
+        return (bool) $this->is_hidden;
+    }
 
     /**
      * Get the submission form that owns this section

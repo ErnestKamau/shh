@@ -120,6 +120,7 @@ class FormSchemaBuilder
     {
         return $form->sections
             ->sortBy('sort_order')
+            ->reject(fn (SubmissionFormSection $section): bool => SubmissionFormSchemaHelper::isBuilderHiddenSection($section))
             ->values()
             ->map(fn (SubmissionFormSection $section): array => $this->buildSection($section))
             ->all();
@@ -156,7 +157,10 @@ class FormSchemaBuilder
      */
     private function buildHolder(SubmissionFormElementHolder $holder): array
     {
-        $elements = $holder->elements->sortBy('sort_order')->values();
+        $elements = $holder->elements
+            ->sortBy('sort_order')
+            ->reject(fn (SubmissionFormElement $element): bool => SubmissionFormSchemaHelper::isBuilderHiddenElement($element))
+            ->values();
 
         return [
             'id' => $holder->id,
@@ -203,6 +207,7 @@ class FormSchemaBuilder
             'help_text' => $element->help_text,
             'required' => (bool) $element->is_required,
             'readonly' => (bool) $element->is_readonly,
+            'hidden' => (bool) $element->is_hidden,
             'default_value' => $element->default_value,
             'sort_order' => $element->sort_order,
             'options' => $this->resolveStaticOptions($element),

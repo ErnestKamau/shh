@@ -85,6 +85,17 @@ class RequestViewPage extends Component
 
     public bool $showPoCaptureModal = false;
 
+    public bool $showQuotationAcceptanceModal = false;
+
+    public string $quotationAcceptanceSignerName = '';
+
+    public string $quotationAcceptanceSignature = '';
+
+    public ?string $quotationAcceptanceContactId = null;
+
+    /** @var list<array{id: string, label: string}> */
+    public array $quotationAcceptanceContactOptions = [];
+
     public string $clientPoNumber = '';
 
     public bool $poSkipped = false;
@@ -183,9 +194,60 @@ class RequestViewPage extends Component
             return;
         }
 
+        $enquiry = $this->commercialEnquiry->loadMissing(['contact']);
+        $this->quotationAcceptanceSignerName = trim(implode(' ', array_filter([
+            $enquiry->contact?->first_name,
+            $enquiry->contact?->last_name,
+        ])));
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = $enquiry->crm_customer_contact_id
+            ? (string) $enquiry->crm_customer_contact_id
+            : null;
+        $this->quotationAcceptanceContactOptions = app(\App\Services\Sampleworkflow\CustomerContactVerificationService::class)
+            ->activeContactsForCustomer((string) $enquiry->crm_customer_id);
+        $this->showQuotationAcceptanceModal = true;
+        $this->dispatch('quotation-acceptance-modal-opened');
+    }
+
+    public function closeQuotationAcceptanceModal(): void
+    {
+        $this->showQuotationAcceptanceModal = false;
+        $this->quotationAcceptanceSignerName = '';
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceContactOptions = [];
+    }
+
+    public function submitQuotationAcceptanceSignature(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        $this->validate([
+            'quotationAcceptanceSignerName' => ['required', 'string', 'max:255'],
+            'quotationAcceptanceSignature' => ['required', 'string'],
+        ], [
+            'quotationAcceptanceSignerName.required' => 'Enter the customer signer name.',
+            'quotationAcceptanceSignature.required' => 'Provide the customer signature.',
+        ]);
+
         try {
-            app(QuotationFromEnquiryService::class)->recordWalkInAcceptance($this->commercialEnquiry);
+            app(QuotationFromEnquiryService::class)->recordWalkInAcceptance(
+                $this->commercialEnquiry,
+                null,
+                false,
+                [
+                    'signature' => $this->quotationAcceptanceSignature,
+                    'signer_name' => $this->quotationAcceptanceSignerName,
+                    'contact_id' => $this->quotationAcceptanceContactId,
+                ],
+            );
             $this->commercialEnquiry = $this->commercialEnquiry->fresh(['currentQuotation']);
+            $this->closeQuotationAcceptanceModal();
+            $this->openPoCaptureModal();
             session()->flash('request_view_message', 'Quotation accepted. Record the customer PO below to move this request to Ready for Reception.');
         } catch (\Throwable $exception) {
             session()->flash('request_view_message', $exception->getMessage());

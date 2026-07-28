@@ -240,4 +240,30 @@ class LabAppController extends Controller
             'template' => $template,
         ]);
     }
+
+    /**
+     * Display the Shelf Life Studies list.
+     */
+    public function shelfLifeStudies()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'shelf-life-studies',
+            'pageTitle' => 'Shelf Life Studies',
+        ]);
+    }
+
+    /**
+     * Display a single Shelf Life Study.
+     */
+    public function shelfLifeStudyShow(string $study)
+    {
+        $record = \App\Models\ShelfLife\ShelfLifeStudy::query()->findOrFail($study);
+
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'shelf-life-study-detail',
+            'pageTitle' => 'Shelf Life Study — '.$record->code,
+            'studyId' => $record->id,
+            'study' => $record,
+        ]);
+    }
 }

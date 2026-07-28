@@ -162,6 +162,58 @@
         </div>
     </div>
 
+    @if($showQuotationAcceptanceModal)
+        <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Customer quotation acceptance</h5>
+                        <button type="button" class="close" wire:click="closeQuotationAcceptanceModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">Capture the customer signature to accept this quotation. The signature will appear on the quotation PDF.</p>
+                        @if(count($quotationAcceptanceContactOptions) > 0)
+                            <div class="form-group">
+                                <label>Customer contact</label>
+                                <select class="form-control" wire:model="quotationAcceptanceContactId">
+                                    <option value="">Select contact...</option>
+                                    @foreach($quotationAcceptanceContactOptions as $contact)
+                                        <option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                        <div class="form-group">
+                            <label for="quotationAcceptanceSignerName">Signer name <span class="text-danger">*</span></label>
+                            <input type="text" id="quotationAcceptanceSignerName" class="form-control" wire:model.defer="quotationAcceptanceSignerName">
+                            @error('quotationAcceptanceSignerName')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
+                        </div>
+                        <label class="d-block">Signature <span class="text-danger">*</span></label>
+                        <div class="border rounded p-2 bg-white" wire:ignore>
+                            <canvas id="request-view-quotation-acceptance-canvas" style="width: 100%; height: 160px; touch-action: none;"></canvas>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="request-view-quotation-acceptance-clear">Clear</button>
+                            </div>
+                        </div>
+                        <input type="hidden" wire:model="quotationAcceptanceSignature">
+                        @error('quotationAcceptanceSignature')
+                            <small class="text-danger d-block mt-1">{{ $message }}</small>
+                        @enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="request-view-quotation-acceptance-submit">Accept quotation</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if($showPoCaptureModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
             <div class="modal-dialog" role="document">
@@ -261,5 +313,55 @@
             $('#receive-sample-modal').modal('hide');
         }
     });
+
+    let requestViewQuotationPad = null;
+
+    function initRequestViewQuotationPad() {
+        const canvas = document.getElementById('request-view-quotation-acceptance-canvas');
+        const clearBtn = document.getElementById('request-view-quotation-acceptance-clear');
+        if (!canvas || typeof SignaturePad === 'undefined') {
+            return;
+        }
+
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+
+        requestViewQuotationPad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+        requestViewQuotationPad.addEventListener('endStroke', function () {
+            $wire.set('quotationAcceptanceSignature', requestViewQuotationPad.isEmpty() ? '' : requestViewQuotationPad.toDataURL('image/png'));
+        });
+
+        if (clearBtn) {
+            clearBtn.onclick = function () {
+                requestViewQuotationPad.clear();
+                $wire.set('quotationAcceptanceSignature', '');
+            };
+        }
+    }
+
+    Livewire.on('quotation-acceptance-modal-opened', () => {
+        setTimeout(initRequestViewQuotationPad, 250);
+    });
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#request-view-quotation-acceptance-submit');
+        if (!btn) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        if (!requestViewQuotationPad || requestViewQuotationPad.isEmpty()) {
+            alert('Please provide the customer signature.');
+            return;
+        }
+
+        $wire.set('quotationAcceptanceSignature', requestViewQuotationPad.toDataURL('image/png')).then(() => {
+            $wire.call('submitQuotationAcceptanceSignature');
+        });
+    }, true);
 </script>
 @endscript

@@ -579,13 +579,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-sample-type {
-        width: 14%;
+        width: 16%;
         min-width: 90px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-analysis-type {
-        width: 14%;
-        min-width: 90px;
+        width: 18%;
+        min-width: 110px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-lab-section {
@@ -594,13 +594,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-condition {
-        width: 10%;
+        width: 12%;
         min-width: 88px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-main-standard {
-        width: 14%;
-        min-width: 100px;
+        width: 34%;
+        min-width: 180px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-lab {
@@ -609,8 +609,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-assigned-user {
-        width: 14%;
-        min-width: 100px;
+        width: 20%;
+        min-width: 120px;
+    }
+
+    .acc-sample-config-table--acceptance td .form-control {
+        width: 100%;
+        max-width: 100%;
     }
 
     .acc-sample-config-table--acceptance .acc-col-qty {
@@ -1047,5 +1052,112 @@
 
     body.modal-open {
         overflow: hidden;
+    }
+
+    /* Mobile / tablet: wizards become near-fullscreen drawers */
+    @media (max-width: 991.98px) {
+        .acc-wizard-backdrop {
+            align-items: stretch;
+            justify-content: stretch;
+            padding: 0;
+            top: var(--app-header-height, 56px);
+            height: calc(100dvh - var(--app-header-height, 56px));
+        }
+
+        .acc-wizard-dialog,
+        .acc-wizard-dialog.modal-xl,
+        .acc-wizard-dialog.modal-lg {
+            max-width: 100%;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        .acc-wizard-modal {
+            border-radius: 0;
+            height: 100%;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .acc-wizard-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0.85rem;
+        }
+
+        .acc-wizard-header,
+        .acc-wizard-footer,
+        .acc-wizard-top-nav {
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
+        }
+
+        .acc-wizard-steps {
+            display: flex;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            grid-template-columns: none;
+            scrollbar-width: thin;
+        }
+
+        .acc-wizard-step {
+            flex: 0 0 auto;
+            min-width: 7.5rem;
+            min-height: 44px;
+            padding: 0.65rem 0.75rem;
+        }
+
+        .acc-wizard-top-nav,
+        .acc-wizard-footer {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .acc-wizard-top-nav-actions,
+        .acc-wizard-footer .btn,
+        .acc-wizard-top-nav .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .acc-wizard-top-nav-actions {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .acc-wizard-top-nav-actions .btn {
+            flex: 1 1 auto;
+        }
+
+        .acc-wizard-fields .col-md-6,
+        .acc-wizard-fields .col-md-4,
+        .acc-wizard-fields .col-md-3,
+        .acc-wizard-summary .col-md-6,
+        .acc-wizard-summary .col-md-3 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        .acc-wizard-root .acc-sample-config-param-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .acc-wizard-close {
+            min-width: 44px;
+            min-height: 44px;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .acc-wizard-step-label {
+            font-size: 0.7rem;
+        }
+
+        .acc-wizard-title {
+            font-size: 1rem;
+        }
     }
 </style>

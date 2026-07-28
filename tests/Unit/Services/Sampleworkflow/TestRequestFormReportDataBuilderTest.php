@@ -26,6 +26,34 @@ class TestRequestFormReportDataBuilderTest extends TestCase
         $this->assertSame('food', app(TrfDocumentCodeForSampleType::class)->resolveReportVariant($sampleType));
     }
 
+    public function test_food_and_feed_resolves_to_dedicated_document_code(): void
+    {
+        $foodAndFeed = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Food & Feed',
+            'code' => 'Food & Feed',
+            'active' => true,
+        ]);
+
+        $food = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Food',
+            'code' => 'Food',
+            'active' => true,
+        ]);
+
+        $resolver = app(TrfDocumentCodeForSampleType::class);
+
+        $this->assertTrue($resolver->isFoodAndFeed($foodAndFeed));
+        $this->assertFalse($resolver->isFood($foodAndFeed));
+        $this->assertSame(TrfDocumentCodeForSampleType::FOOD_AND_FEED, $resolver->resolve($foodAndFeed));
+        $this->assertSame('food', $resolver->resolveReportVariant($foodAndFeed));
+
+        $this->assertFalse($resolver->isFoodAndFeed($food));
+        $this->assertTrue($resolver->isFood($food));
+        $this->assertSame(TrfDocumentCodeForSampleType::FOOD, $resolver->resolve($food));
+    }
+
     public function test_resolve_report_variant_returns_water_for_water_and_other_types(): void
     {
         $water = SampleType::query()->create([

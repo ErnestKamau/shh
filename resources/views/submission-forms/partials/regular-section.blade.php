@@ -13,6 +13,7 @@
                             @if($holder->elements->count() > 0)
                                 <div class="elements-container">
                                     @foreach($holder->elements as $element)
+                                  @continue($element->is_hidden ?? false)
                                         <div class="form-group custom-element {{ $element->is_required ? 'required' : '' }}">
                                             @include('submission-forms.partials.form-element', [
                                                 'element' => $element,

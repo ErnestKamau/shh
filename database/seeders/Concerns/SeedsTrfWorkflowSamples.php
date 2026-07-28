@@ -573,6 +573,7 @@ trait SeedsTrfWorkflowSamples
         $patterns = match ($documentCode) {
             'TRF-WATER-020' => ['water', 'WTR', 'potable'],
             'TRF-FOOD-019' => ['food', 'FOOD'],
+            'TRF-FOOD-FEED-021' => ['food & feed', 'food and feed', 'FOOD AND FEED'],
             'TRF-WASTE-036' => ['waste', 'WWTR'],
             default => [],
         };
@@ -595,6 +596,21 @@ trait SeedsTrfWorkflowSamples
         });
 
         $matchedSampleTypes = $query->orderBy('code')->get();
+
+        if ($documentCode === 'TRF-FOOD-019') {
+            $matchedSampleTypes = $matchedSampleTypes->reject(function (SampleType $candidate): bool {
+                return app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)
+                    ->isFoodAndFeed($candidate);
+            })->values();
+        }
+
+        if ($documentCode === 'TRF-FOOD-FEED-021') {
+            $matchedSampleTypes = $matchedSampleTypes->filter(function (SampleType $candidate): bool {
+                return app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)
+                    ->isFoodAndFeed($candidate);
+            })->values();
+        }
+
         $sampleType = $this->pickSampleTypeCandidate($matchedSampleTypes, $patterns, true)
             ?? $this->pickSampleTypeCandidate($matchedSampleTypes, $patterns, false);
 

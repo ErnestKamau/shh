@@ -1,8 +1,8 @@
-<div class="container-fluid">
+<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -32,8 +32,8 @@
     <!-- Report Filters -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-0">
                     <h6 class="mb-0 text-muted">
                         <i class="mdi mdi-filter-variant"></i> Report Parameters
                     </h6>
@@ -84,7 +84,7 @@
     <!-- Report Results Placeholder -->
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border-radius: 15px;">
+            <div class="card">
                 <div class="card-body">
                     <div class="text-center py-5">
                         <i class="mdi mdi-chart-line text-muted" style="font-size: 4rem;"></i>

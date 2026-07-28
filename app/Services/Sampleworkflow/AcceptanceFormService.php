@@ -16,8 +16,10 @@ use App\Models\Billing\Pricelist;
 use App\SampleAnalysisStage;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\AcceptanceFormPdfService;
+use App\Services\ShelfLife\ShelfLifeStudyBootstrapService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 
@@ -164,6 +166,10 @@ class AcceptanceFormService
                     'lead_analyst_id' => null,
                     'technical_signatory_id' => null,
                 ],
+                'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
+                    ? $header['sample_configuration_payload']
+                    : null,
+                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
                 'created_by' => $createdBy,
             ]);
 
@@ -177,7 +183,7 @@ class AcceptanceFormService
             )->fresh(['lines', 'sampleHeader']);
 
             if ($completed->sample_header_id) {
-                $this->transitionBatchToSamplesInLab($completed);
+                $this->routeAcceptedBatch($completed);
                 $completed = $completed->fresh(['lines', 'sampleHeader']);
             }
 
@@ -188,7 +194,8 @@ class AcceptanceFormService
     /**
      * Accept samples with receiving personnel and customer contact signatures in one step.
      *
-     * Creates the acceptance form, batch/job, samples, and moves the batch to Samples In Lab.
+     * Creates the acceptance form, batch/job, samples, and routes to Samples In Lab
+     * or the Shelf Life Study module when flagged.
      *
      * @param  array<string, mixed>  $header
      * @param  list<array<string, mixed>>  $lines
@@ -201,9 +208,9 @@ class AcceptanceFormService
         string $receivingPersonName,
         string $receivingPersonSignature,
         ?string $receivingPersonSignedAt,
-        string $customerContactId,
-        string $customerSignerName,
-        string $customerSignature,
+        ?string $customerContactId = null,
+        ?string $customerSignerName = null,
+        ?string $customerSignature = null,
         ?string $customerSignedAt = null,
         ?string $createdBy = null,
     ): AnalysisAcceptanceForm {
@@ -228,7 +235,9 @@ class AcceptanceFormService
             $receivingSignedAt = $receivingPersonSignedAt
                 ? Carbon::parse($receivingPersonSignedAt)
                 : now();
-            $customerSignedAtValue = $customerSignedAt ? Carbon::parse($customerSignedAt) : now();
+            $customerSignedAtValue = filled($customerSignature)
+                ? ($customerSignedAt ? Carbon::parse($customerSignedAt) : now())
+                : null;
 
             $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
@@ -243,8 +252,8 @@ class AcceptanceFormService
                 'mode_of_work' => (string) ($header['mode_of_work'] ?? $prefill['mode_of_work'] ?? 'Normal'),
                 'date_of_sampling' => $header['date_of_sampling'] ?? $prefill['date_of_sampling'],
                 'customer_certification_text' => self::CUSTOMER_CERTIFICATION_TEXT,
-                'customer_signer_name' => $customerSignerName,
-                'customer_signature' => $customerSignature,
+                'customer_signer_name' => filled($customerSignerName) ? $customerSignerName : null,
+                'customer_signature' => filled($customerSignature) ? $customerSignature : null,
                 'customer_signed_at' => $customerSignedAtValue,
                 'manager_signer_name' => $receivingPersonName,
                 'manager_signature' => $receivingPersonSignature,
@@ -264,6 +273,7 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
+                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
                 'created_by' => $createdBy,
             ]);
 
@@ -277,7 +287,7 @@ class AcceptanceFormService
             )->fresh(['lines', 'sampleHeader']);
 
             if ($completed->sample_header_id) {
-                $this->transitionBatchToSamplesInLab($completed);
+                $this->routeAcceptedBatch($completed);
                 $completed = $completed->fresh(['lines', 'sampleHeader']);
             }
 
@@ -342,7 +352,7 @@ class AcceptanceFormService
             $completed = $form->fresh(['lines', 'sampleHeader']);
 
             if ($completed->sample_header_id) {
-                $this->transitionBatchToSamplesInLab($completed, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
+                $this->routeAcceptedBatch($completed, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
                 $completed = $completed->fresh(['lines', 'sampleHeader']);
             }
 
@@ -447,6 +457,101 @@ class AcceptanceFormService
         }
 
         return $refreshed;
+    }
+
+    /**
+     * Route a newly accepted batch into the normal lab workflow or Shelf Life module.
+     *
+     * @param  list<string>  $assignedAnalystIds
+     */
+    private function routeAcceptedBatch(
+        AnalysisAcceptanceForm $form,
+        ?string $leadAnalystId = null,
+        ?string $technicalSignatoryId = null,
+        array $assignedAnalystIds = [],
+    ): void {
+        if ($this->isShelfLifeAcceptance($form)) {
+            $this->transitionBatchToShelfLifeStudy($form);
+
+            return;
+        }
+
+        $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
+    }
+
+    private function isShelfLifeAcceptance(AnalysisAcceptanceForm $form): bool
+    {
+        if ((bool) ($form->is_shelf_life ?? false)) {
+            return true;
+        }
+
+        $batch = $form->relationLoaded('sampleHeader')
+            ? $form->sampleHeader
+            : SampleHeader::query()->find((string) $form->sample_header_id);
+
+        if ($batch && Schema::hasColumn('sample_headers', 'is_shelf_life') && (bool) ($batch->is_shelf_life ?? false)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function transitionBatchToShelfLifeStudy(AnalysisAcceptanceForm $form): void
+    {
+        $batch = SampleHeader::query()->find((string) $form->sample_header_id);
+        if (! $batch) {
+            throw new \RuntimeException('Sample batch not found for this acceptance form.');
+        }
+
+        $targetStatus = ShelfLifeStudyBootstrapService::BATCH_STATUS;
+        $previousStatus = $batch->status;
+
+        if (Schema::hasColumn('sample_headers', 'is_shelf_life')) {
+            $batch->is_shelf_life = true;
+        }
+
+        $batch->status = $targetStatus;
+        $batch->prelim_batch_status = null;
+        $batch->sample_tracking_stage = null;
+        $batch->priority = $this->normalizeBatchPriority((string) $form->mode_of_work);
+        $batch->save();
+
+        $actingUserId = $this->resolveActingUserId($form, $batch, null);
+        $previousAuthId = Auth::id();
+        if ($actingUserId) {
+            Auth::loginUsingId($actingUserId);
+        }
+
+        try {
+            app(BatchWorkflowStageSyncService::class)->recordChainOfCustodyTransition(
+                $batch,
+                $targetStatus,
+                null,
+                sprintf(
+                    'Shelf life testing accepted — diverted from normal workflow (from %s).',
+                    $previousStatus ?: 'unknown'
+                )
+            );
+        } finally {
+            if ($previousAuthId) {
+                Auth::loginUsingId($previousAuthId);
+            } elseif (Auth::id() && (string) Auth::id() === (string) $actingUserId) {
+                Auth::logout();
+            }
+        }
+
+        app(ShelfLifeStudyBootstrapService::class)->createDraftFromAcceptance($form, $batch->fresh());
+
+        if ($form->submission_form_instance_id) {
+            $instance = SubmissionFormInstance::query()->find($form->submission_form_instance_id);
+            if ($instance && in_array((string) $instance->status, ['submitted', 'Submitted', 'in_review'], true)) {
+                $instance->status = 'approved';
+                $instance->save();
+            }
+        }
+
+        app(BatchWorkflowDocumentAttachmentService::class)
+            ->attachForAcceptedBatch($batch->fresh(), $actingUserId);
     }
 
     /**

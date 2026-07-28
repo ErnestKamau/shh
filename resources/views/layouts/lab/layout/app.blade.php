@@ -53,14 +53,19 @@
 
 	/* Ensure lab module pages can scroll inside the fixed sidebar/header layout */
 	#main-container-body {
-		height: calc(100vh - 56px);
+		height: calc(100dvh - 56px);
 		overflow-y: auto;
+		overflow-x: hidden;
 	}
 
-	@media (max-width: 767.98px) {
+	@media (max-width: 991.98px) {
 		#main-container-body {
 			height: auto;
+			min-height: calc(100dvh - 56px);
 			overflow-y: visible;
+			overflow-x: hidden;
+			padding-left: 0.75rem;
+			padding-right: 0.75rem;
 		}
 	}
 
@@ -111,6 +116,7 @@
 		cursor: not-allowed;
 	}
 </style>
+@include('layouts.lab.sample-workflow.partials.responsive-styles')
 @yield('title2')
 @endsection
 
@@ -118,8 +124,8 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
-		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
+		<!-- d-lg-* docks the sidebar on desktop. Mobile/tablet use the off-canvas overlay. -->
 		<!-- Bootstrap List Group -->
 		@php
 			$user = auth()->user();
@@ -132,6 +138,7 @@
 			$canPricelists = $user->can('laboratory.components.pricelists.view');
 			$canQc = $user->can('laboratory.components.qc sample.view');
 			$canAnalytes = $user->can('laboratory.components.analytes.view');
+			$canShelfLife = $user->can('laboratory.components.shelf-life.view');
 			$canLabs = $user->can('laboratory.components.labs.view');
 			$canMonitoring = $user->can('laboratory.components.labs.view');
 			$canSampleTrackingStages = $user->can('laboratory.components.sample-tracking-stages.view');
@@ -385,6 +392,14 @@
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-molecule fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.analytes') }}</span>
+				</div>
+			</a>
+			@endif
+			@if($canShelfLife)
+			<a href="{{ route('shelf-life.studies.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('shelf-life.*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Shelf Life Studies</span>
 				</div>
 			</a>
 			@endif

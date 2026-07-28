@@ -27,11 +27,16 @@ class QuotationHeader extends Model implements Auditable
 
     protected $appends = ['creator'];
 
+    public const ACCEPTANCE_CHANNEL_WALK_IN = 'walk_in';
+
+    public const ACCEPTANCE_CHANNEL_PORTAL = 'portal';
+
     protected function casts(): array
     {
         return [
             'from_enquiry' => 'boolean',
             'sent_to_customer_at' => 'datetime',
+            'customer_acceptance_signed_at' => 'datetime',
             'prepared_by_id' => 'string',
             'approved_by' => 'string',
             'show_loq_column' => 'boolean',
@@ -39,6 +44,11 @@ class QuotationHeader extends Model implements Auditable
             'show_unit_price_column' => 'boolean',
             'structured_terms' => 'array',
         ];
+    }
+
+    public function acceptanceContact(): BelongsTo
+    {
+        return $this->belongsTo(CustomerContact::class, 'customer_acceptance_contact_id');
     }
 
     public function getCreatorAttribute(): string

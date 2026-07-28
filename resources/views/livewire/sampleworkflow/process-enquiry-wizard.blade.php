@@ -303,7 +303,7 @@
                                                 <th class="text-right">Unit price</th>
                                                 <th class="text-center">Samples</th>
                                                 <th class="text-right">Line total</th>
-                                                <th class="text-right">Tax %</th>
+                                                <th class="text-center">Has VAT</th>
                                                 <th class="text-center">Subcontract</th>
                                                 @if($quotationMode === 'build_new')
                                                     <th class="text-center" style="width: 90px;">Actions</th>
@@ -363,12 +363,17 @@
                                                     </td>
                                                     <td class="text-center text-muted">{{ $sampleCount }}</td>
                                                     <td class="text-right text-muted">{{ number_format($lineTotal, 2) }}</td>
-                                                    <td class="text-right">
-                                                        @if($readOnly)
-                                                            {{ number_format((float) ($line['tax'] ?? 0), 2) }}
+                                                    <td class="text-center">
+                                                        @php $hasVat = (float) ($line['tax'] ?? 0) > 0; @endphp
+                                                        @if($readOnly || ($line['vat_from_pricelist'] ?? false))
+                                                            <input type="checkbox" disabled @checked($hasVat) aria-label="Has VAT">
                                                         @else
-                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
-                                                                   wire:model.blur="lines.{{ $index }}.tax">
+                                                            <input
+                                                                type="checkbox"
+                                                                @checked($hasVat)
+                                                                wire:click="toggleLineHasVat({{ $index }})"
+                                                                aria-label="Has VAT"
+                                                            >
                                                         @endif
                                                     </td>
                                                     <td class="text-center">
@@ -411,7 +416,12 @@
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Tax</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">
+                                                    Tax
+                                                    @if($quotationMode === 'build_new' && $this->taxRate > 0)
+                                                        <span class="text-muted small fw-normal">({{ number_format($this->taxRate, 0) }}%)</span>
+                                                    @endif
+                                                </th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
                                             </tr>
                                             <tr>
@@ -469,7 +479,7 @@
                                         <th class="text-center">Samples</th>
                                         <th class="text-right">Unit price</th>
                                         <th class="text-right">Line total</th>
-                                        <th class="text-right">Tax %</th>
+                                        <th class="text-center">Has VAT</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -512,7 +522,10 @@
                                             <td class="text-center">{{ $sampleCount }}</td>
                                             <td class="text-right">{{ number_format($unitPrice, 2) }}</td>
                                             <td class="text-right">{{ number_format($sampleCount * $unitPrice, 2) }}</td>
-                                            <td class="text-right">{{ number_format((float) ($line['tax'] ?? 0), 2) }}</td>
+                                            <td class="text-center">
+                                                @php $hasVat = (float) ($line['tax'] ?? 0) > 0; @endphp
+                                                <input type="checkbox" disabled @checked($hasVat) aria-label="Has VAT">
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>

@@ -7089,6 +7089,56 @@
 	@livewire('sampleworkflow.acceptance-form-wizard')
 	@livewire('sampleworkflow.process-enquiry-wizard')
 
+	@if($showQuotationAcceptanceModal)
+		<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45);">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">Customer quotation acceptance</h5>
+						<button type="button" class="close" wire:click="closeQuotationAcceptanceModal"><span>&times;</span></button>
+					</div>
+					<div class="modal-body">
+						<p class="small text-muted mb-3">Capture the customer signature to accept this quotation. The signature will appear on the quotation PDF.</p>
+						@if(count($quotationAcceptanceContactOptions) > 0)
+							<div class="form-group">
+								<label>Customer contact</label>
+								<select class="form-control" wire:model="quotationAcceptanceContactId">
+									<option value="">Select contact...</option>
+									@foreach($quotationAcceptanceContactOptions as $contact)
+										<option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
+									@endforeach
+								</select>
+							</div>
+						@endif
+						<div class="form-group">
+							<label>Signer name <span class="text-danger">*</span></label>
+							<input type="text" class="form-control" wire:model.defer="quotationAcceptanceSignerName">
+							@error('quotationAcceptanceSignerName')
+								<small class="text-danger d-block mt-1">{{ $message }}</small>
+							@enderror
+						</div>
+						<label class="d-block">Signature <span class="text-danger">*</span></label>
+						<div class="acc-signature-pad border rounded p-2 bg-white" wire:ignore>
+							<canvas id="quotation-acceptance-signature-canvas" style="width: 100%; height: 160px; touch-action: none;"></canvas>
+							<div class="mt-2">
+								<button type="button" class="btn btn-sm btn-outline-secondary" id="quotation-acceptance-sign-clear">Clear</button>
+							</div>
+						</div>
+						<input type="hidden" id="quotation-acceptance-signature-input" wire:model="quotationAcceptanceSignature">
+						@error('quotationAcceptanceSignature')
+							<small class="text-danger d-block mt-1">{{ $message }}</small>
+						@enderror
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>
+						<button type="button" class="btn btn-primary" id="quotation-acceptance-sign-submit">Accept quotation</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	@endif
+
 	@if($showPoCaptureModal)
 		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45);">
 			<div class="modal-dialog">
@@ -7164,6 +7214,70 @@
 				}
 				window.location.reload();
 			});
+
+			let quotationAcceptancePad = null;
+
+			function initQuotationAcceptancePad() {
+				const canvas = document.getElementById('quotation-acceptance-signature-canvas');
+				const clearBtn = document.getElementById('quotation-acceptance-sign-clear');
+				if (!canvas || typeof SignaturePad === 'undefined') {
+					return;
+				}
+
+				const ratio = Math.max(window.devicePixelRatio || 1, 1);
+				canvas.width = canvas.offsetWidth * ratio;
+				canvas.height = canvas.offsetHeight * ratio;
+				canvas.getContext('2d').scale(ratio, ratio);
+
+				quotationAcceptancePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+				quotationAcceptancePad.addEventListener('endStroke', function () {
+					const component = Livewire.find(canvas.closest('[wire\\:id]')?.getAttribute('wire:id'));
+					const value = quotationAcceptancePad.isEmpty() ? '' : quotationAcceptancePad.toDataURL('image/png');
+					if (component) {
+						component.set('quotationAcceptanceSignature', value);
+					}
+				});
+
+				if (clearBtn) {
+					clearBtn.onclick = function () {
+						quotationAcceptancePad.clear();
+						const component = Livewire.find(canvas.closest('[wire\\:id]')?.getAttribute('wire:id'));
+						if (component) {
+							component.set('quotationAcceptanceSignature', '');
+						}
+					};
+				}
+			}
+
+			Livewire.on('quotation-acceptance-modal-opened', function () {
+				setTimeout(initQuotationAcceptancePad, 250);
+			});
+
+			document.addEventListener('click', function (e) {
+				const btn = e.target.closest('#quotation-acceptance-sign-submit');
+				if (!btn) {
+					return;
+				}
+
+				e.preventDefault();
+				e.stopImmediatePropagation();
+
+				if (!quotationAcceptancePad || quotationAcceptancePad.isEmpty()) {
+					alert('Please provide the customer signature.');
+					return;
+				}
+
+				const canvas = document.getElementById('quotation-acceptance-signature-canvas');
+				const wireRoot = canvas?.closest('[wire\\:id]');
+				const component = wireRoot ? Livewire.find(wireRoot.getAttribute('wire:id')) : null;
+				if (!component) {
+					return;
+				}
+
+				component.set('quotationAcceptanceSignature', quotationAcceptancePad.toDataURL('image/png')).then(function () {
+					component.call('submitQuotationAcceptanceSignature');
+				});
+			}, true);
 		});
 	</script>
 </div>

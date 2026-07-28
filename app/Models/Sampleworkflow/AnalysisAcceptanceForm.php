@@ -60,6 +60,7 @@ class AnalysisAcceptanceForm extends Model
         'sample_configuration_payload',
         'raises_sample_disclaimer',
         'sample_disclaimer_payload',
+        'is_shelf_life',
         'created_by',
     ];
 
@@ -77,6 +78,7 @@ class AnalysisAcceptanceForm extends Model
             'sample_configuration_payload' => 'array',
             'raises_sample_disclaimer' => 'boolean',
             'sample_disclaimer_payload' => 'array',
+            'is_shelf_life' => 'boolean',
         ];
     }
 
