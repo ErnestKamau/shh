@@ -424,9 +424,14 @@ class SubmissionRequestSampleLineService
             } elseif ($this->isCustomerSampleIdField($name, $mapping)) {
                 $line['customer_sample_id'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'number_of_samples') {
-                $line['number_of_samples'] = $this->resolveNumericValue($rawValue, $display);
+                // Legacy "Qty" field name — mass/volume, not a sample count.
+                if (($line['sample_quantity'] ?? null) === null || $line['sample_quantity'] === '') {
+                    $line['sample_quantity'] = $display !== '' ? $display : $rawValue;
+                }
+                $line['number_of_samples'] = 1;
             } elseif ($name === 'sample_quantity') {
                 $line['sample_quantity'] = $display !== '' ? $display : $rawValue;
+                $line['number_of_samples'] = 1;
             } elseif ($name === 'sample_quantity_unit') {
                 $line['sample_quantity_unit'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'test_category') {
@@ -1067,6 +1072,11 @@ class SubmissionRequestSampleLineService
     {
         $quantity = $this->nullableString($row['sample_quantity'] ?? null);
         $unit = $this->nullableString($row['sample_quantity_unit'] ?? null);
+
+        if ($quantity === null && isset($row['number_of_samples']) && $row['number_of_samples'] !== '') {
+            // Legacy TRF "Qty" column name — treat as quantity, never as sample count.
+            $quantity = $this->nullableString($row['number_of_samples']);
+        }
 
         if ($quantity === null && isset($row['qty']) && $row['qty'] !== '') {
             $legacyQty = trim((string) $row['qty']);

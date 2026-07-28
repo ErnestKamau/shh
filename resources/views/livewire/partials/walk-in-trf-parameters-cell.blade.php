@@ -21,8 +21,8 @@
         options: @js($options),
         selected: @js($selectedParams),
     })"
-    @keydown.escape.window="open = false"
-    @click.outside="if (!syncing) open = false"
+    @keydown.escape.window="if (open) closePanel()"
+    @click.outside="if (open) closePanel()"
     @walk-in-params-row-reset.window="
         const raw = $event.detail;
         const payload = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
@@ -37,6 +37,7 @@
         } else {
             selected = [];
         }
+        dirty = false;
     "
 >
     <button type="button" class="rft-param-picker__trigger w-100 text-left" @click.stop="toggleOpen()">
@@ -47,7 +48,7 @@
             <template x-for="chip in visibleChips" :key="chip">
                 <span class="rft-param-chip">
                     <span x-text="chip" :title="chip"></span>
-                    <button type="button" class="rft-param-chip__remove" @click.stop="toggle(chip)" title="Remove" aria-label="Remove parameter">
+                    <button type="button" class="rft-param-chip__remove" @click.stop="removeChip(chip)" title="Remove" aria-label="Remove parameter">
                         <i class="mdi mdi-close"></i>
                     </button>
                 </span>
@@ -63,7 +64,6 @@
         class="rft-param-picker__panel"
         x-show="open"
         x-cloak
-        x-transition
         @click.stop
         :class="openUp ? 'is-up' : ''"
     >

@@ -1051,7 +1051,7 @@
         openUp: false,
         search: '',
         syncing: false,
-        debounceTimer: null,
+        dirty: false,
         rowIndex: config.rowIndex ?? 0,
         flat: !!config.flat,
         options: Array.isArray(config.options) ? config.options.slice() : [],
@@ -1078,19 +1078,25 @@
             return this.selected.includes(name);
         },
         toggleOpen() {
-            this.open = !this.open;
             if (this.open) {
-                this.hydrateFromWire();
-                this.$nextTick(() => this.decideDirection());
+                this.closePanel();
+                return;
             }
+            this.open = true;
+            this.hydrateFromWire();
+            this.$nextTick(() => this.decideDirection());
+        },
+        closePanel() {
+            this.open = false;
+            this.search = '';
+            this.flushIfDirty();
         },
         decideDirection() {
             const rect = this.$el.getBoundingClientRect();
             this.openUp = (window.innerHeight - rect.bottom) < 320;
         },
-        matches(name) {
-            const query = String(this.search || '').trim().toLowerCase();
-            return !query || String(name).includes(query);
+        markDirty() {
+            this.dirty = true;
         },
         toggle(name) {
             if (this.isSelected(name)) {
@@ -1098,45 +1104,38 @@
             } else {
                 this.selected = this.selected.concat([name]);
             }
-            this.sync();
+            this.markDirty();
+        },
+        removeChip(name) {
+            this.selected = this.selected.filter((item) => item !== name);
+            this.markDirty();
+            if (!this.open) {
+                this.flushIfDirty();
+            }
         },
         selectAll() {
             this.selected = this.options.slice();
-            this.sync();
+            this.markDirty();
         },
         clearAll() {
             this.selected = [];
             this.search = '';
-            this.sync();
+            this.markDirty();
         },
-        sync() {
-            if (!this.$wire) {
+        async flushIfDirty() {
+            if (!this.dirty || this.syncing || !this.$wire) {
                 return;
             }
             this.syncing = true;
-            this.open = true;
-            clearTimeout(this.debounceTimer);
-            this.debounceTimer = setTimeout(() => this.flushSync(), 350);
-        },
-        async flushSync() {
-            if (!this.$wire) {
-                this.syncing = false;
-                return;
-            }
-            this.syncing = true;
-            this.open = true;
             try {
                 await this.$wire.setWalkInParameters(this.flat ? -1 : this.rowIndex, this.selected.slice());
+                this.dirty = false;
             } finally {
-                this.$nextTick(() => {
-                    this.open = true;
-                    this.syncing = false;
-                    this.decideDirection();
-                });
+                this.syncing = false;
             }
         },
         applySelectedFromWire() {
-            if (!this.$wire || this.syncing) {
+            if (!this.$wire || this.syncing || this.dirty) {
                 return;
             }
 
@@ -1154,7 +1153,7 @@
             }
         },
         async hydrateFromWire() {
-            if (!this.$wire || this.hydrating || this.syncing) {
+            if (!this.$wire || this.hydrating || this.syncing || this.dirty) {
                 return;
             }
 
@@ -1163,6 +1162,9 @@
                 this.applySelectedFromWire();
 
                 const state = await this.$wire.walkInParameterPickerState(this.flat ? null : this.rowIndex);
+                if (this.dirty) {
+                    return;
+                }
                 if (state && Array.isArray(state.options)) {
                     this.options = state.options.map((value) => String(value));
                 }
@@ -1182,7 +1184,7 @@
         openUp: false,
         search: '',
         syncing: false,
-        debounceTimer: null,
+        dirty: false,
         wireKey: config.wireKey || '',
         syncMethod: config.syncMethod || 'setWalkInSampleTypes',
         options: Array.isArray(config.options) ? config.options.slice() : [],
@@ -1217,15 +1219,25 @@
             return this.selected.includes(String(id));
         },
         toggleOpen() {
-            this.open = !this.open;
             if (this.open) {
-                this.applySelectedFromWire();
-                this.$nextTick(() => this.decideDirection());
+                this.closePanel();
+                return;
             }
+            this.open = true;
+            this.applySelectedFromWire();
+            this.$nextTick(() => this.decideDirection());
+        },
+        closePanel() {
+            this.open = false;
+            this.search = '';
+            this.flushIfDirty();
         },
         decideDirection() {
             const rect = this.$el.getBoundingClientRect();
             this.openUp = (window.innerHeight - rect.bottom) < 320;
+        },
+        markDirty() {
+            this.dirty = true;
         },
         toggle(id) {
             const value = String(id);
@@ -1234,45 +1246,39 @@
             } else {
                 this.selected = this.selected.concat([value]);
             }
-            this.sync();
+            this.markDirty();
+        },
+        removeChip(id) {
+            const value = String(id);
+            this.selected = this.selected.filter((item) => item !== value);
+            this.markDirty();
+            if (!this.open) {
+                this.flushIfDirty();
+            }
         },
         selectAll() {
             this.selected = this.options.map((opt) => String(opt.id));
-            this.sync();
+            this.markDirty();
         },
         clearAll() {
             this.selected = [];
             this.search = '';
-            this.sync();
+            this.markDirty();
         },
-        sync() {
-            if (!this.$wire || !this.syncMethod || !this.wireKey) {
+        async flushIfDirty() {
+            if (!this.dirty || this.syncing || !this.$wire || !this.syncMethod || !this.wireKey) {
                 return;
             }
             this.syncing = true;
-            this.open = true;
-            clearTimeout(this.debounceTimer);
-            this.debounceTimer = setTimeout(() => this.flushSync(), 350);
-        },
-        async flushSync() {
-            if (!this.$wire || !this.syncMethod || !this.wireKey) {
-                this.syncing = false;
-                return;
-            }
-            this.syncing = true;
-            this.open = true;
             try {
                 await this.$wire[this.syncMethod](this.wireKey, this.selected.slice());
+                this.dirty = false;
             } finally {
-                this.$nextTick(() => {
-                    this.open = true;
-                    this.syncing = false;
-                    this.decideDirection();
-                });
+                this.syncing = false;
             }
         },
         applySelectedFromWire() {
-            if (!this.$wire || !this.wireKey || this.syncing) {
+            if (!this.$wire || !this.wireKey || this.syncing || this.dirty) {
                 return;
             }
             const raw = this.$wire.get(this.wireKey);

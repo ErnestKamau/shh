@@ -175,18 +175,14 @@ final class CommercialEnquirySampleLineSync
     }
 
     /**
+     * One TRF sample card / line = one physical sample.
+     * `sample_quantity` + unit are mass/volume, never a sample count.
+     *
      * @param  array<string, mixed>  $line
      */
     private function resolveLineNumberOfSamples(array $line): int
     {
-        if (isset($line['number_of_samples']) && is_numeric($line['number_of_samples'])) {
-            return max(1, (int) $line['number_of_samples']);
-        }
-
-        $sampleQuantity = trim((string) ($line['sample_quantity'] ?? ''));
-        if ($sampleQuantity !== '' && is_numeric($sampleQuantity)) {
-            return max(1, (int) $sampleQuantity);
-        }
+        unset($line);
 
         return 1;
     }

@@ -93,7 +93,8 @@
                                             @include('livewire.partials.walk-in-trf-qty-unit-cell', [
                                                 'rowIndex' => $rowIndex,
                                                 'compact' => false,
-                                                'quantityField' => (string) ($column['element']->name ?? 'sample_quantity'),
+                                                'quantityField' => 'sample_quantity',
+                                                'unitField' => 'sample_quantity_unit',
                                             ])
                                         @else
                                             @include('livewire.sampleworkflow.test-request-field-render', [

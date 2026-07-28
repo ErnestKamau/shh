@@ -250,10 +250,11 @@ class ReceiveSampleRequest extends Component
             $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order')
                 ->reject(fn (SubmissionFormElement $element): bool => SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section));
 
-            if (($section->section_type ?? '') === 'rows_section') {
+            if (($section->section_type ?? '') === 'rows_section' || $this->walkInSectionUsesSampleCards($section)) {
                 foreach ($elements as $element) {
                     $this->formData[$element->name] = [$this->defaultValueForElement($element)];
                 }
+                $this->ensureWalkInCanonicalQtyFields(1);
 
                 continue;
             }
@@ -288,7 +289,7 @@ class ReceiveSampleRequest extends Component
                 'key' => (string) $section->id,
                 'label' => $this->walkInStepShortLabel((string) ($section->title ?? 'Step')),
                 'title' => (string) ($section->title ?? ''),
-                'is_rows' => ($section->section_type ?? '') === 'rows_section',
+                'is_rows' => $this->walkInSectionUsesSampleCards($section),
             ])
             ->all();
     }
@@ -952,8 +953,46 @@ class ReceiveSampleRequest extends Component
     private function walkInUsesIndexedSampleRows(): bool
     {
         return $this->walkInSections->contains(
-            fn ($section): bool => ($section->section_type ?? '') === 'rows_section'
+            fn ($section): bool => $this->walkInSectionUsesSampleCards($section)
         );
+    }
+
+    /**
+     * Sample cards for rows_section TRFs, and for unlinked/manual forms that
+     * put sample-line fields in a regular section (no rows_section yet).
+     */
+    public function walkInSectionUsesSampleCards(SubmissionFormSection $section): bool
+    {
+        if (($section->section_type ?? '') === 'rows_section') {
+            return true;
+        }
+
+        $elements = $section->elementHolders->flatMap->elements;
+        foreach ($elements as $element) {
+            $name = strtolower(trim((string) ($element->name ?? '')));
+            $type = (string) ($element->element_type ?? '');
+
+            if (in_array($type, ['sample_type_select', 'analysis_type_select', 'analysis_elements_select'], true)) {
+                return true;
+            }
+
+            if (in_array($name, [
+                'sample_type_id',
+                'sample_type',
+                'analysis_type_id',
+                'analysis_type',
+                'analysis_types',
+                'parameters',
+                'parameter',
+                'sample_quantity',
+                'number_of_samples',
+                'sample_description',
+            ], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function goToWalkInStep(int $index): void
@@ -1073,14 +1112,11 @@ class ReceiveSampleRequest extends Component
     public function uniqueRowElementsForSection(SubmissionFormSection $section): Collection
     {
         $elements = $section->elementHolders->flatMap->elements;
-        $hasSampleQuantity = $elements->contains(
-            fn (SubmissionFormElement $el): bool => ($el->name ?? '') === 'sample_quantity',
-        );
         $seen = [];
 
         return $elements
             ->sortBy('sort_order')
-            ->filter(function (SubmissionFormElement $element) use (&$seen, $hasSampleQuantity): bool {
+            ->filter(function (SubmissionFormElement $element) use (&$seen): bool {
                 $name = trim((string) ($element->name ?? ''));
                 if ($name === '' || isset($seen[$name])) {
                     return false;
@@ -1090,11 +1126,8 @@ class ReceiveSampleRequest extends Component
                     return false;
                 }
 
-                if ($name === 'number_of_samples' && $hasSampleQuantity) {
-                    return false;
-                }
-
-                if ($name === 'sample_quantity_unit' && $hasSampleQuantity) {
+                // Legacy Qty / Unit — always represented as Qty/Unit → sample_quantity (+ unit).
+                if (in_array($name, ['number_of_samples', 'sample_quantity_unit'], true)) {
                     return false;
                 }
 
@@ -1114,22 +1147,26 @@ class ReceiveSampleRequest extends Component
         $elements = $this->uniqueRowElementsForSection($section);
         $elementNames = $elements->map(fn ($el) => (string) ($el->name ?? ''))->all();
         $hasSampleQuantity = in_array('sample_quantity', $elementNames, true);
+        $qtyUnitAdded = false;
+
+        // Always expose Qty/Unit for sample cards (binds to sample_quantity, never number_of_samples).
+        $qtySource = $elements->first(fn ($el) => (string) ($el->name ?? '') === 'sample_quantity')
+            ?? $section->elementHolders->flatMap->elements->first(fn ($el) => in_array((string) ($el->name ?? ''), ['sample_quantity', 'number_of_samples'], true));
+
+        if ($qtySource !== null || $hasSampleQuantity) {
+            $columns[] = [
+                'type' => 'qty_unit',
+                'label' => 'Qty / Unit',
+                'class' => 'walk-in-trf-col-qty',
+                'element' => $qtySource ?? $elements->first(),
+            ];
+            $qtyUnitAdded = true;
+        }
 
         foreach ($elements as $element) {
             $name = (string) ($element->name ?? '');
 
-            if ($name === 'sample_quantity' || ($name === 'number_of_samples' && ! $hasSampleQuantity)) {
-                $columns[] = [
-                    'type' => 'qty_unit',
-                    'label' => 'Qty / Unit',
-                    'class' => 'walk-in-trf-col-qty',
-                    'element' => $element,
-                ];
-
-                continue;
-            }
-
-            if (in_array($name, ['sample_quantity_unit', 'number_of_samples'], true)) {
+            if ($name === 'sample_quantity' || $name === 'sample_quantity_unit' || $name === 'number_of_samples') {
                 continue;
             }
 
@@ -1141,6 +1178,19 @@ class ReceiveSampleRequest extends Component
                 'element' => $element,
                 'field' => $field,
             ];
+        }
+
+        // Forms with sample cards but no qty field in schema still get Qty/Unit.
+        if (! $qtyUnitAdded && $this->walkInSectionUsesSampleCards($section)) {
+            $fallbackElement = $elements->first() ?? $section->elementHolders->flatMap->elements->first();
+            if ($fallbackElement !== null) {
+                array_unshift($columns, [
+                    'type' => 'qty_unit',
+                    'label' => 'Qty / Unit',
+                    'class' => 'walk-in-trf-col-qty',
+                    'element' => $fallbackElement,
+                ]);
+            }
         }
 
         return $columns;
@@ -1471,7 +1521,7 @@ class ReceiveSampleRequest extends Component
         }
 
         $section = $form->sections->firstWhere('id', $sectionId);
-        if ($section === null || ($section->section_type ?? '') !== 'rows_section') {
+        if ($section === null || ! $this->walkInSectionUsesSampleCards($section)) {
             return;
         }
 
@@ -1483,6 +1533,8 @@ class ReceiveSampleRequest extends Component
             $existing[] = $this->defaultValueForElement($element);
             $this->formData[$element->name] = $existing;
         }
+
+        $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
 
         $this->dispatch('trf-reinit-parameter-selects');
     }
@@ -1534,15 +1586,21 @@ class ReceiveSampleRequest extends Component
         }
 
         $section = $form->sections->firstWhere('id', $sectionId);
-        if ($section === null || ($section->section_type ?? '') !== 'rows_section') {
+        if ($section === null || ! $this->walkInSectionUsesSampleCards($section)) {
             return;
         }
 
         $this->dispatch('trf-destroy-editors');
 
-        foreach ($section->elementHolders->flatMap->elements as $element) {
-            $name = (string) ($element->name ?? '');
-            if ($name === '' || ! isset($this->formData[$name]) || ! is_array($this->formData[$name])) {
+        $fieldNames = $section->elementHolders->flatMap->elements
+            ->map(fn ($element) => (string) ($element->name ?? ''))
+            ->filter()
+            ->merge(['sample_quantity', 'sample_quantity_unit'])
+            ->unique()
+            ->values();
+
+        foreach ($fieldNames as $name) {
+            if (! isset($this->formData[$name]) || ! is_array($this->formData[$name])) {
                 continue;
             }
 
@@ -2615,7 +2673,7 @@ class ReceiveSampleRequest extends Component
     private function schemaRowFieldNames(): array
     {
         return $this->walkInSections
-            ->filter(fn ($section) => ($section->section_type ?? '') === 'rows_section')
+            ->filter(fn ($section) => $this->walkInSectionUsesSampleCards($section))
             ->flatMap(fn ($section) => $this->uniqueRowElementsForSection($section))
             ->map(fn ($element) => (string) ($element->name ?? ''))
             ->filter()
@@ -2623,10 +2681,31 @@ class ReceiveSampleRequest extends Component
             ->all();
     }
 
+    /**
+     * Qty/Unit always writes sample_quantity (+ unit), never number_of_samples.
+     */
+    private function ensureWalkInCanonicalQtyFields(int $rowCount): void
+    {
+        $rowCount = max(1, $rowCount);
+
+        foreach (['sample_quantity', 'sample_quantity_unit'] as $field) {
+            $existing = $this->formData[$field] ?? [];
+            if (! is_array($existing)) {
+                $existing = $existing !== null && $existing !== '' ? [(string) $existing] : [];
+            }
+
+            while (count($existing) < $rowCount) {
+                $existing[] = '';
+            }
+
+            $this->formData[$field] = $existing;
+        }
+    }
+
     private function schemaRowCount(): int
     {
         $count = 0;
-        foreach ($this->schemaRowFieldNames() as $name) {
+        foreach (array_merge($this->schemaRowFieldNames(), ['sample_quantity', 'sample_quantity_unit']) as $name) {
             if (isset($this->formData[$name]) && is_array($this->formData[$name])) {
                 $count = max($count, count($this->formData[$name]));
             }
@@ -2639,7 +2718,7 @@ class ReceiveSampleRequest extends Component
     {
         $sections = $section !== null
             ? collect([$section])
-            : $this->walkInSections->filter(fn ($walkInSection) => ($walkInSection->section_type ?? '') === 'rows_section');
+            : $this->walkInSections->filter(fn ($walkInSection) => $this->walkInSectionUsesSampleCards($walkInSection));
 
         $rowElements = $sections
             ->flatMap(fn (SubmissionFormSection $walkInSection) => $this->uniqueRowElementsForSection($walkInSection));
