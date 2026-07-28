@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create('supplier_by_categories', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('supplier_id')->index('idx_supplier_by_categories_supplier_id_3671ef92');
-            $table->integer('category_id');
+            $table->uuid('category_id')->nullable()->index('idx_supplier_by_categories_category_id');
             $table->timestamps();
 
             $table->primary(['id']);

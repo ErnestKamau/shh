@@ -20,6 +20,7 @@ use App\Observers\SubmissionFormInstanceObserver;
 use App\Observers\TicketObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Livewire\Livewire;
@@ -53,7 +54,20 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {}
 
         try {
-            \Illuminate\Support\Facades\DB::statement('ALTER TABLE inventory_sub_categories ALTER COLUMN location_id TYPE varchar(255) USING location_id::varchar');
+            if (
+                Schema::hasTable('inventory_sub_categories')
+                && Schema::hasColumn('inventory_sub_categories', 'location_id')
+            ) {
+                $locationType = DB::table('information_schema.columns')
+                    ->where('table_schema', 'public')
+                    ->where('table_name', 'inventory_sub_categories')
+                    ->where('column_name', 'location_id')
+                    ->value('udt_name');
+
+                if (in_array($locationType, ['int2', 'int4', 'int8'], true)) {
+                    DB::statement('ALTER TABLE inventory_sub_categories ALTER COLUMN location_id TYPE varchar(255) USING location_id::varchar');
+                }
+            }
         } catch (\Throwable $e) {}
 
         try {

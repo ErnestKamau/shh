@@ -236,7 +236,7 @@
 							<div class="form-group">
 								<label class="control-label">Material Type</label>
 								<select class="form-control" name="material_type_id" placeholder="Select Material Type...">
-									<option value="0" {{ $subcategory->material_type_id == '' ? 'selected' : '' }}>Non Specific</option>
+									<option value="" {{ empty($subcategory->material_type_id) ? 'selected' : '' }}>Non Specific</option>
 									@foreach (getModulePreconfig('Material Type', 'Inventory-Management') as $material_type)
 										<option value="{{ $material_type['id'] }}" {{ $subcategory->material_type_id == $material_type['id'] ? 'selected' : '' }}>{{ $material_type['name'] }}</option>
 									@endforeach

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->uuid('id');
             $table->string('name');
             $table->integer('uom');
-            $table->integer('material_type_id');
+            $table->uuid('material_type_id')->nullable();
             $table->timestamps(6);
             $table->string('location_id', 100)->nullable();
             $table->integer('is_default')->default(0);

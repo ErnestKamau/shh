@@ -239,8 +239,10 @@
 			)
 		);
 
-		$parentIsLoanLend = \App\RequestEntity::find($request->parent_request_id);
-		$hasExceeded = has_exceeding_quantities(isset($request->id) ? $request->id : 0);
+		$parentIsLoanLend = (!empty($request->parent_request_id) && \Illuminate\Support\Str::isUuid((string) $request->parent_request_id))
+			? \App\RequestEntity::find($request->parent_request_id)
+			: null;
+		$hasExceeded = has_exceeding_quantities($request->id ?? null);
 
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
@@ -933,12 +935,13 @@
 				</div>
 				<div class="tab-pane fade p-3" id="Items" role="tabpanel" aria-labelledby="one-tab">
 					<h5 class="card-title mb-3">Items
-						<a href="{{ route('download-request-items', ['id'=>$request->id ?? 0]) }}"
+						@if(isset($request->id) && \Illuminate\Support\Str::isUuid((string) $request->id))
+						<a href="{{ route('download-request-items', ['id'=>$request->id]) }}"
 							class="btn btn-transparent btn-sm text-primary"><i class="mdi mdi-download"></i> Download</a>
-						<a href="{{ route('download-request-items', ['id'=>$request->id ?? 0, 'isPDF'=>'pdf']) }}"
+						<a href="{{ route('download-request-items', ['id'=>$request->id, 'isPDF'=>'pdf']) }}"
 							class="btn btn-transparent btn-sm text-danger"><i class="mdi mdi-download"></i> Download PDF</a>
-						@if (isset($request->status) && (in_array($request->status, ["In Preparation", "RFQs sent out", "Receiving
-						Quotes", "Awaiting Approval", "Partially Approved"]) || !isset($request->status) ))
+						@endif
+						@if (!isset($request->status) || in_array($request->status, ["In Preparation", "RFQs sent out", "Receiving Quotes", "Awaiting Approval", "Partially Approved"]))
 
 						@if(in_array($stage, ["Purchase Request", "Request to Store", "Request for Quotation", "Gate Pass", "Loan",
 						"Lend"]) || ($stage == 'Purchase Orders' && intval($request->ammendment) > 1))
@@ -1405,8 +1408,14 @@
 					</div>
 					@if (in_array($stage, array("Purchase Orders")))
 					<?php
-								$extras = \App\RequestEntityExtraCharge::join('module_pre_configs as mpc', 'mpc.id', 'request_entity_extra_charges.currency_id')
-									->selectRaw('request_entity_extra_charges.*, mpc.name as currency')->where('request_id', $request->id)->get();
+								$extras = \Illuminate\Support\Facades\Schema::hasTable('request_entity_extra_charges')
+									? \App\RequestEntityExtraCharge::join('module_pre_configs as mpc', function ($join) {
+										$join->whereRaw('mpc.id::text = request_entity_extra_charges.currency_id::text');
+									})
+										->selectRaw('request_entity_extra_charges.*, mpc.name as currency')
+										->where('request_id', $request->id)
+										->get()
+									: collect();
 							?>
 					<br />
 					<span class="text-info extras-toggler" style="cursor: pointer"><i class="mdi mdi-chevron-down"></i> Additional
@@ -2764,7 +2773,7 @@
 				<div class="form-group hidden hide">
 					<label class="control-label">Material Type</label>
 					<select class="form-control" name="material_type_id" placeholder="Select Material Type...">
-						<option value="0">Non Specific</option>
+						<option value="">Non Specific</option>
 						@foreach (getModulePreconfig('Material Type', 'Inventory-Management') as $material_type)
 						<option value="{{ $material_type['id'] }}">{{ $material_type['name'] }}</option>
 						@endforeach
@@ -3332,7 +3341,9 @@
 				<h5 class="modal-title"><i class="mdi mdi-file-account"></i> Add Additional Charge</h5>
 			</div>
 			<?php
-					$r_extras = \App\RequestEntityExtraCharge::selectRaw('title as name')->groupBy('name')->get();
+					$r_extras = \Illuminate\Support\Facades\Schema::hasTable('request_entity_extra_charges')
+						? \App\RequestEntityExtraCharge::selectRaw('title as name')->groupBy('name')->get()
+						: collect();
 				?>
 			<div class="modal-body">
 				<div class="form-group">
@@ -3376,7 +3387,9 @@
 				<h5 class="modal-title"><i class="mdi mdi-delete"></i> Remove Additional Charge</h5>
 			</div>
 			<?php
-					$r_extras = \App\RequestEntityExtraCharge::selectRaw('title as name')->groupBy('name')->get();
+					$r_extras = \Illuminate\Support\Facades\Schema::hasTable('request_entity_extra_charges')
+						? \App\RequestEntityExtraCharge::selectRaw('title as name')->groupBy('name')->get()
+						: collect();
 				?>
 			<div class="modal-body">
 				<div class="alert alert-danger">
@@ -3874,7 +3887,7 @@
 						<div class="form-group">
 							<select name="suppliers[id][]" style="min-width: 200px; font-size: 12px" class="form-control selected-supplier" placeholder="Select Supplier..." required>
 								@foreach ($normalItemsSuppliers as $item)
-									<option value="{{ $item->id }}"  ${ ($data.supplier_id || 0) == {{ $item->id }} ? 'selected' : '' }
+									<option value="{{ $item->id }}"  ${ ($data.supplier_id || 0) == '{{ $item->id }}' ? 'selected' : '' }
 										data-phone="{{ $item->phone }}" data-email="{{ $item->email }}" data-invalidemails = "{{ is_valid_email(trim($item->email)) }}"
 										data-rating="{{ number_format($item->average_rating(), 2) }}">{{ $item->name }}</option>
 								@endforeach
@@ -3908,7 +3921,7 @@
 						<div class="form-group">
 							${ ($data.quote_received || 0) == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' }
 							<span class="quote-btn"></span>
-						</div
+						</div>
 					</td>
 				</tr>
 			`;

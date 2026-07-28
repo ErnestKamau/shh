@@ -36,7 +36,7 @@ return new class extends Migration
             $table->integer('parent_id')->nullable();
             $table->integer('internal_lead_time')->default(5);
             $table->integer('external_lead_time')->default(10);
-            $table->integer('material_type_id')->nullable()->default(0);
+            $table->uuid('material_type_id')->nullable();
             $table->boolean('is_lab')->default(false);
             $table->integer('item_classification')->nullable();
             $table->string('sap_code', 100)->nullable();

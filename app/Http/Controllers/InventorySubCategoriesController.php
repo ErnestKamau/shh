@@ -80,7 +80,10 @@ class InventorySubCategoriesController extends Controller
 			return redirect()->back()->with('error', 'Item price can not be 0 for Non-Service items.');
 		}
 
-		$subcategory->material_type_id = $request->material_type_id ?? 0;
+		$materialTypeId = $request->material_type_id;
+		$subcategory->material_type_id = (! empty($materialTypeId) && $materialTypeId !== '0' && \Illuminate\Support\Str::isUuid((string) $materialTypeId))
+			? $materialTypeId
+			: null;
 
 		$subcategory->parent = $request->parent ?? null;
 		$subcategory->parent_id = $request->parent_id ?? null;
@@ -117,6 +120,10 @@ class InventorySubCategoriesController extends Controller
   }
 
 	public function update_item_to_supplier_category($subCatID, $catID){
+		if (! \Illuminate\Support\Str::isUuid((string) $catID) || ! \Illuminate\Support\Str::isUuid((string) $subCatID)) {
+			return true;
+		}
+
 		$suppliers = SupplierByCategory::where('category_id', $catID)->pluck('supplier_id')->toArray();
 		$suppliers = array_unique($suppliers);
 
@@ -152,7 +159,10 @@ class InventorySubCategoriesController extends Controller
       $subcategory->image = (String) $fName;
     }
 
-		$subcategory->material_type_id = $request->material_type_id ?? 0;
+		$materialTypeId = $request->material_type_id;
+		$subcategory->material_type_id = (! empty($materialTypeId) && $materialTypeId !== '0' && \Illuminate\Support\Str::isUuid((string) $materialTypeId))
+			? $materialTypeId
+			: null;
 
 		if(floatval($request->unit_price) == 0 && $request->item_classification!=3){
 			return redirect()->back()->with('error', 'Item price can not be 0 for Non-Service items.');

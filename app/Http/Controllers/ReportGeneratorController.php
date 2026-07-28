@@ -337,10 +337,20 @@ class ReportGeneratorController extends Controller
 	}
 
 	public function download_items_xlsx(Request $request, $id, $isPDF=false){
-		if($isPDF){
-			$ids = explode(',', $id);
+		$ids = array_values(array_filter(explode(',', (string) $id), function ($value) {
+			return \Illuminate\Support\Str::isUuid(trim($value));
+		}));
 
+		if (count($ids) === 0) {
+			return redirect()->back()->with('error', 'Save the request before downloading items.');
+		}
+
+		if($isPDF){
 			$reqItem = RequestEntity::whereIn('id', $ids)->first();
+
+			if (!$reqItem) {
+				return redirect()->back()->with('error', 'No data found for the report');
+			}
 
 			$reqItemType = $reqItem->request_type;
 
@@ -354,7 +364,7 @@ class ReportGeneratorController extends Controller
 					->leftJoin('entity_approvals as ea', function($join) {
 						$join->on(DB::raw('cast(ea.model_id as text)'), '=', DB::raw('cast(re2.id as text)'));
 					})
-				->selectRaw('request_entity_items.created_at as issued_at, re2.request_type, re2.cost_center, re2.request_code as `Request Code`, isc.sap_code, ea.approved_at, re2.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, ins.name as Store, iss.name as Slot')
+				->selectRaw('request_entity_items.created_at as issued_at, re2.request_type, re2.cost_center, re2.request_code as "Request Code", isc.sap_code, ea.approved_at, re2.created_at, isc.name as Item, isc.code as "Code", request_entity_items.comments as Comments, request_entity_items.uom as "Unit Type", request_entity_items.quantity as Quantity, ins.name as Store, iss.name as Slot')
 				->whereIn('request_entity_items.request_id', $ids)->where('request_entity_items.action', 'issued_received')
 				->groupBy('request_entity_items.request_id')->orderBy('isc.name', 'asc')->get()->toArray();
 			}
@@ -362,7 +372,7 @@ class ReportGeneratorController extends Controller
 				$items = 	$items->leftJoin('entity_approvals as ea', function($join) {
 						$join->on(DB::raw('cast(ea.model_id as text)'), '=', DB::raw('cast(re.id as text)'));
 					})
-				->selectRaw('re.request_type, re.cost_center, re.request_code as `Request Code`, isc.sap_code, ea.approved_at, re.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, ins.name as Store, iss.name as Slot')
+				->selectRaw('re.request_type, re.cost_center, re.request_code as "Request Code", isc.sap_code, ea.approved_at, re.created_at, isc.name as Item, isc.code as "Code", request_entity_items.comments as Comments, request_entity_items.uom as "Unit Type", request_entity_items.quantity as Quantity, ins.name as Store, iss.name as Slot')
 				->whereIn('request_entity_items.request_id', $ids)->groupBy('request_entity_items.id')->orderBy('isc.name', 'asc')->get()->toArray();
 			}
 
@@ -413,8 +423,13 @@ class ReportGeneratorController extends Controller
 				->join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
 				->leftJoin('inventory_stores as is', 'is.id', 'request_entity_items.store_id')
 				->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'is.id')
-				->selectRaw('re.request_code as `Request Code`, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, is.name as Store, iss.name as Slot')
-				->where('request_entity_items.request_id', $id)->groupBy('request_entity_items.request_id')->orderBy('isc.name', 'asc')->get()->toArray();
+				->selectRaw('re.request_code as "Request Code", isc.name as Item, isc.code as "Code", request_entity_items.comments as Comments, request_entity_items.uom as "Unit Type", request_entity_items.quantity as Quantity, is.name as Store, iss.name as Slot')
+				->where('request_entity_items.request_id', $ids[0])->groupBy('request_entity_items.request_id')->orderBy('isc.name', 'asc')->get()->toArray();
+
+			if (count($items) === 0) {
+				return redirect()->back()->with('error', 'No data found for the report');
+			}
+
 			$columns = array_keys((array) $items[0]);
 			$title = "Request-Items.xlsx";
 			return Excel::download(new ReportExporter($items, $columns), $title);
