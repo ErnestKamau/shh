@@ -115,7 +115,7 @@
                                                     <br><small class="text-muted">{{ $amendment->document->document_number ?? '' }}</small>
                                                 </div>
                                             </td>
-                                            <td>{{ $amendment->requestedBy->name ?? 'N/A' }}</td>
+                                            <td>{{ $amendment->requester->name ?? 'N/A' }}</td>
                                             <td>
                                                 <span class="badge badge-{{ $amendment->status_class }}">
                                                     {{ ucfirst($amendment->status) }}
@@ -150,4 +150,124 @@
             </div>
         </div>
     </div>
+
+    @if($showWorkflowModal && $currentAmendment)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-eye"></i>
+                            Amendment #{{ $currentAmendment->amendment_number }}
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeWorkflowModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted mb-1">Document</label>
+                                <div class="fw-bold">{{ $currentAmendment->document->title ?? 'N/A' }}</div>
+                                <small class="text-muted">{{ $currentAmendment->document->document_number ?? '' }}</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted mb-1">Status</label>
+                                <div>
+                                    <span class="badge badge-{{ $currentAmendment->status_class ?? 'secondary' }}">
+                                        {{ ucfirst($currentAmendment->status) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted mb-1">Requested By</label>
+                                <div>{{ $currentAmendment->requester->name ?? 'N/A' }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted mb-1">Requested At</label>
+                                <div>{{ optional($currentAmendment->requested_at)->format('M d, Y H:i') ?? 'N/A' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted mb-1">Reason</label>
+                            <div>{{ $currentAmendment->amendment_reason ?: 'N/A' }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted mb-1">Description</label>
+                            <div>{{ $currentAmendment->amendment_description ?: 'N/A' }}</div>
+                        </div>
+
+                        @if($currentAmendment->authorizer)
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted mb-1">Authorized By</label>
+                                    <div>{{ $currentAmendment->authorizer->name }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted mb-1">Authorization Comment</label>
+                                    <div>{{ $currentAmendment->authorization_comment ?: 'N/A' }}</div>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($currentAmendment->approver)
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted mb-1">Approved By</label>
+                                    <div>{{ $currentAmendment->approver->name }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted mb-1">Approval Comment</label>
+                                    <div>{{ $currentAmendment->approval_comment ?: 'N/A' }}</div>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if(in_array($currentAmendment->status, ['requested', 'authorized', 'amended'], true))
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Comment</label>
+                                <textarea wire:model="workflowComment" class="form-control" rows="3" placeholder="Optional comment..."></textarea>
+                            </div>
+                        @endif
+
+                        @if($currentAmendment->status === 'requested' && $currentAmendment->canAuthorize(auth()->user()))
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-success" wire:click="authorizeAmendment(true)">
+                                    <i class="mdi mdi-check"></i> Authorize
+                                </button>
+                                <button type="button" class="btn btn-danger" wire:click="authorizeAmendment(false)">
+                                    <i class="mdi mdi-close"></i> Reject
+                                </button>
+                            </div>
+                        @elseif($currentAmendment->status === 'authorized')
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Upload Amended File</label>
+                                <input type="file" wire:model="file" class="form-control">
+                                @error('file') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                            <button type="button" class="btn btn-primary" wire:click="uploadAmendedFile" wire:loading.attr="disabled">
+                                <i class="mdi mdi-upload"></i> Upload Amended File
+                            </button>
+                        @elseif($currentAmendment->status === 'amended' && $currentAmendment->canApprove(auth()->user()))
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-success" wire:click="approveAmendment(true)">
+                                    <i class="mdi mdi-check"></i> Approve
+                                </button>
+                                <button type="button" class="btn btn-danger" wire:click="approveAmendment(false)">
+                                    <i class="mdi mdi-close"></i> Reject
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeWorkflowModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

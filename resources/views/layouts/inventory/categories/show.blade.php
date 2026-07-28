@@ -298,9 +298,9 @@
 				<div class="form-group">
 					<label class="control-label">Material Type</label>
 					<select class="form-control" name="material_type_id" placeholder="Select Material Type...">
-						<option value="0">Non Specific</option>
+						<option value="">Non Specific</option>
 						@foreach (getModulePreconfig('Material Type', 'Inventory-Management') as $material_type)
-							<option value="{{ $material_type['id'] }}">{{ $material_type['name'] }}</option>
+						<option value="{{ $material_type['id'] }}">{{ $material_type['name'] }}</option>
 						@endforeach
 					</select>
 				</div>

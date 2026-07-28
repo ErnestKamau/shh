@@ -744,7 +744,20 @@
 				return $query->orderBy('name')->get();
 			});
 
-			$pageSectionForms = $formsForCurrentPage->where('placement_mode', 'page_section')->values();
+			// Empty target_pages used to mean "every page" for page_section embeds — that
+			// flooded lab-dashboard with TRFs. Require an explicit matching target page.
+			$pageSectionForms = $formsForCurrentPage
+				->where('placement_mode', 'page_section')
+				->filter(function ($form) use ($routeNameCandidates, $routeContextCandidates) {
+					$pages = collect($form->target_pages ?? [])->filter()->values();
+					if ($pages->isEmpty()) {
+						return false;
+					}
+
+					return $pages->intersect($routeNameCandidates)->isNotEmpty()
+						|| $pages->intersect($routeContextCandidates)->isNotEmpty();
+				})
+				->values();
 			$pageButtonForms  = $formsForCurrentPage->where('placement_mode', 'button_trigger')->values();
 		}
 

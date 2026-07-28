@@ -129,7 +129,8 @@ class ModulePreConfigsController extends Controller
 	public function currency_conversion(Request $request){
 		$this->authorizeModuleAccess('Inventory-Management');
 
-		$currency = CurrencyConversion::find($request->conversion_id) ?? new CurrencyConversion;
+		$conversionId = $request->conversion_id;
+		$currency = (\Illuminate\Support\Str::isUuid((string) $conversionId) ? CurrencyConversion::find($conversionId) : null) ?? new CurrencyConversion;
 		$currency->currency_1 = $request->currency_1;
 		$currency->currency_2 = $request->currency_2;
 		$currency->ratio = $request->ratio;
@@ -143,7 +144,8 @@ class ModulePreConfigsController extends Controller
 	public function uom_conversion(Request $request){
 		$this->authorizeModuleAccess('Inventory-Management');
 
-		$uom = UoMConversion::find($request->conversion_id) ?? new UoMConversion;
+		$conversionId = $request->conversion_id;
+		$uom = (\Illuminate\Support\Str::isUuid((string) $conversionId) ? UoMConversion::find($conversionId) : null) ?? new UoMConversion;
 		$uom->uom1 = $request->uom1;
 		$uom->uom2 = $request->uom2;
 		$uom->ratio = $request->ratio;
@@ -158,7 +160,7 @@ class ModulePreConfigsController extends Controller
 		$this->authorizeModuleAccess($moduleT);
 
 		if (in_array($config, ['Zones', 'Zone'], true)) {
-			$zone = \App\Zone::find($id) ?? new \App\Zone;
+			$zone = (\Illuminate\Support\Str::isUuid((string) $id) ? \App\Zone::find($id) : null) ?? new \App\Zone;
 			$zone->key = $request->name;
 			$zone->value = $request->value;
 			$zone->description = $request->description;
@@ -171,7 +173,7 @@ class ModulePreConfigsController extends Controller
 			return redirect()->back()->with('success', 'Zone updated successfully.');
 		}
 
-		$module = ModulePreConfigs::find($id) ?? new ModulePreConfigs;
+		$module = (\Illuminate\Support\Str::isUuid((string) $id) ? ModulePreConfigs::find($id) : null) ?? new ModulePreConfigs;
 		$module->name = $request->name;
 		$module->type = $config;
 		$module->description = $request->description;

@@ -105,8 +105,9 @@
 	</div>
 	<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 	<script>
-		var takingRow = function(data={}, editor_id){
-			var store_ids = data.stores ? data.stores.split(',') : [];
+		var takingRow = function(data, editor_id){
+			data = data || {};
+			var store_ids = data.stores ? String(data.stores).split(',') : [];
 			console.log(store_ids)
 			var action = '{{ route('stock-taking-update') }}';
 
@@ -121,12 +122,12 @@
 			var row = $(`
 				<div class="form-group">
 					<label>Select Stores</label>
-					<select name="stores[]" class="form-control selected-store" placeholder="Select Stores..." multiple required>
+					<select name="stores[]" class="form-control selected-store ls-select2" placeholder="Select Stores..." data-placeholder="Select Stores..." multiple required>
 						<option></option>
 						<?php $theSTORES = []; ?>
 						@foreach (getUserStores() as $store)
 							@if(!in_array($store->id, $theSTORES))
-								<option value="{{ $store->id }} zZ {{ $store->name }}" ${store_ids.indexOf('{{ $store->id }}') > -1 ? 'selected' : 's'}>{{ $store->name }}</option>
+								<option value="{{ $store->id }}" ${store_ids.indexOf('{{ $store->id }}') > -1 ? 'selected' : ''}>{{ $store->name }}</option>
 							@endif
 							<?php $theSTORES[] = $store->id; ?>
 						@endforeach
@@ -147,9 +148,13 @@
 			});
 
 			$('#add-stock-taking').on('show.bs.modal', function(e){
-				var data = $(e.relatedTarget).data('taking');
+				var data = $(e.relatedTarget).data('taking') || {};
 
 				var editor_id = "editor-"+Math.round(Math.random()*10000);
+
+				if (typeof tinymce !== 'undefined') {
+					tinymce.remove('#stock-taking-details textarea');
+				}
 
 				var $row = takingRow(data, editor_id);
 
@@ -162,7 +167,16 @@
 				$row.find('input.form-control, select.form-control').attr('required', true);
 				$row.find('input.form-control, select.form-control').prop('required', true);
 
-				$row.find('select.form-control').select2();
+				var $storeSelect = $row.find('select.selected-store');
+				if ($storeSelect.data('select2')) {
+					try { $storeSelect.select2('destroy'); } catch (err) {}
+				}
+				$storeSelect.select2({
+					placeholder: 'Select Stores...',
+					width: '100%',
+					dropdownParent: $('#add-stock-taking'),
+					closeOnSelect: false
+				});
 			})
 		});
 	</script>

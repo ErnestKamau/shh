@@ -60,7 +60,9 @@ class SubmissionFormController extends Controller
             'naming_convention_format' => '{prefix}-{year}-{sequence}',
             'is_customer_portal_form' => true,
             'form_type' => 'template',
-            'placement_mode' => 'page_section',
+            // Keep off global page embeds (lab-dashboard, etc.). RFT lists TRFs separately.
+            'placement_mode' => 'button_trigger',
+            'target_pages' => ['sample-workflow.request-for-testing'],
             'placement_slot' => ['customer_portal', 'admin_portal', 'samples_receiving'],
             'version' => '1.0',
             'issue_date' => now()->toDateString(),
@@ -289,6 +291,7 @@ class SubmissionFormController extends Controller
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
+            'is_hidden_from_rft' => ['boolean'],
             'is_customer_portal_form' => ['boolean'],
             'is_customer_request_form' => ['boolean'],
             'lims_destination_pages' => ['nullable', 'array'],
@@ -319,6 +322,7 @@ class SubmissionFormController extends Controller
         $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
         $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
         $validated['is_customer_request_form'] = $request->boolean('is_customer_request_form');
+        $validated['is_hidden_from_rft'] = $request->boolean('is_hidden_from_rft');
         if ($validated['is_customer_request_form'] && ! $validated['is_customer_portal_form']) {
             $validated['is_customer_portal_form'] = true;
         }

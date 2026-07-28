@@ -3,10 +3,11 @@
     $activeIndex = $walkInActiveStepIndex;
     $progress = $this->walkInWizardProgress;
     $useRftStepper = (bool) ($this->pageMode ?? false);
+    $wizardKey = $selectedSubmissionFormId ?: $selectedSampleTypeId ?: 'walk-in';
 @endphp
 
 @if ($useRftStepper)
-    <div class="rft-wizard-progress mb-3" wire:key="walk-in-rft-progress-{{ $selectedSampleTypeId }}-{{ $activeIndex }}">
+    <div class="rft-wizard-progress mb-3" wire:key="walk-in-rft-progress-{{ $wizardKey }}-{{ $activeIndex }}">
         <div class="rft-wizard-progress__meta d-flex justify-content-between align-items-center mb-1">
             <span class="text-muted small">Progress</span>
             <strong class="small">{{ $progress }}%</strong>
@@ -16,7 +17,7 @@
         </div>
     </div>
 
-    <nav class="rft-wizard-stepper mb-3" aria-label="Form sections" wire:key="walk-in-rft-wizard-{{ $selectedSampleTypeId }}">
+    <nav class="rft-wizard-stepper mb-3" aria-label="Form sections" wire:key="walk-in-rft-wizard-{{ $wizardKey }}">
         <ol class="rft-wizard-stepper__list rft-wizard-stepper__list--spread">
             @foreach($steps as $step)
                 @php
@@ -52,7 +53,7 @@
         </ol>
     </nav>
 @else
-    <div class="walk-in-trf-wizard" wire:key="walk-in-trf-wizard-{{ $selectedSampleTypeId }}">
+    <div class="walk-in-trf-wizard" wire:key="walk-in-trf-wizard-{{ $wizardKey }}">
         <div class="walk-in-trf-wizard__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $progress }}" aria-label="Form progress">
             <div class="walk-in-trf-wizard__progress-bar" style="width: {{ $progress }}%;"></div>
         </div>

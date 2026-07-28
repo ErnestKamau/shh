@@ -109,12 +109,12 @@
                                             <td>{{ optional($unit->created_at)->format('Y-m-d') ?? '-' }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditModal({{ $unit->id }})" 
+                                                    <button wire:click="showEditModal('{{ $unit->id }}')" 
                                                             class="btn btn-sm mr-2 btn-outline-warning" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="delete({{ $unit->id }})" 
+                                                    <button wire:click="delete('{{ $unit->id }}')" 
                                                             class="btn btn-sm btn-outline-danger" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this reporting unit?')">

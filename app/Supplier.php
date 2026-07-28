@@ -18,7 +18,7 @@ class Supplier extends Model implements Auditable
 		return SupplierCategory::join('inventory_sub_categories as isc', 'isc.id', 'supplier_categories.inventory_sub_category_id')
 		->leftJoin('item_brands as ib', 'ib.id','supplier_categories.inventory_item_brand_id')
 		->where('supplier_categories.supplier_id', $this->id)->where('supplier_categories.status', 1)
-		->selectRaw('COALESCE(ib.image, "/images/no-logo.png") as image, COALESCE(ib.name, "NB") as brand, supplier_categories.id, isc.name as item, isc.code')->get();
+		->selectRaw("COALESCE(ib.image, '/images/no-logo.png') as image, COALESCE(ib.name, 'NB') as brand, supplier_categories.id, isc.name as item, isc.code")->get();
 	}
 
 	public function itemIDs(){

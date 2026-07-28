@@ -20,7 +20,7 @@ return new class extends Migration
             $table->integer('uom2');
             $table->double('conversion');
             $table->timestamps();
-            $table->integer('material_type_id')->nullable();
+            $table->uuid('material_type_id')->nullable();
             $table->integer('location_id')->nullable();
             $table->text('description')->nullable();
             $table->primary(['id']);

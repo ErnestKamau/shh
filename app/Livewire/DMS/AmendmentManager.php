@@ -74,6 +74,8 @@ class AmendmentManager extends Component
                 'completed' => 'info',
                 'rejected' => 'danger',
                 'requested' => 'warning',
+                'authorized' => 'primary',
+                'amended' => 'info',
                 default => 'secondary'
             };
             return $amendment;
@@ -122,9 +124,34 @@ class AmendmentManager extends Component
         }
     }
 
-    public function showWorkflow($amendmentId): void
+    public function viewAmendment(string $amendmentId): void
     {
-        $this->currentAmendment = DocumentAmendment::with(['document'])->findOrFail($amendmentId);
+        $this->showWorkflow($amendmentId);
+    }
+
+    public function showWorkflow(string $amendmentId): void
+    {
+        $amendment = DocumentAmendment::with([
+            'document.documentType',
+            'requester',
+            'authorizer',
+            'amender',
+            'approver',
+        ])->findOrFail($amendmentId);
+
+        $amendment->status_class = match ($amendment->status) {
+            'approved' => 'success',
+            'completed' => 'info',
+            'rejected' => 'danger',
+            'requested' => 'warning',
+            'authorized' => 'primary',
+            'amended' => 'info',
+            default => 'secondary',
+        };
+
+        $this->currentAmendment = $amendment;
+        $this->workflowComment = '';
+        $this->file = null;
         $this->showWorkflowModal = true;
     }
 

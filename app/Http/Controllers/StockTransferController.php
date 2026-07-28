@@ -30,11 +30,14 @@ class StockTransferController extends Controller
 
 	public function index()
 	{
-		$transfers = StockTransfer::join('inventory_locations as il', 'il.id', 'stock_transfers.location_id')
-			->join('inventory_departments as ind', 'ind.id', 'stock_transfers.department_id')
-			->join('users as u', 'u.id', 'stock_transfers.created_by')
+		$transfers = StockTransfer::query()
+			->leftJoin('inventory_locations as il', 'il.id', '=', 'stock_transfers.inventory_location_id')
+			->leftJoin('inventory_departments as ind', 'ind.id', '=', 'stock_transfers.department_id')
+			->leftJoin('users as u', 'u.id', '=', 'stock_transfers.created_by')
 			->where('stock_transfers.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw('stock_transfers.*, ind.name as department, il.name as location, u.name as user_name')->get();
+			->selectRaw('stock_transfers.*, ind.name as department, il.name as location, u.name as user_name')
+			->get();
+
 		return view('layouts.inventory.stock-transfer.index', compact('transfers'));
 	}
 
@@ -80,7 +83,7 @@ class StockTransferController extends Controller
 			$req->store = $items['source_store_id'][$i];
 			$req->transfer_to = systemVariables("inter_store_department_id");
 			$req->issued_to = \Auth::user()->id;
-			$req->storage_state_id = 0;
+			$req->storage_state_id = null;
 			$req->po_number = $transfer->code;
 
 			$itemsTransferredArray['out'][] = array(
@@ -150,7 +153,7 @@ class StockTransferController extends Controller
 			$myRequest->expiry = $items['expiry'][$i];
 			$myRequest->inventory_department_id = $transfer->department_id;
 			$myRequest->override_location_id = $transfer->location_id;
-			$myRequest->storage_state_id = $items['target_state_id'][$i] ?? 0;
+			$myRequest->storage_state_id = $items['target_state_id'][$i] ?? null;
 
 			$itemsTransferredArray['in'][] = array(
 				"item"=>$targetSubCat->code." - ".$targetSubCat->name,

@@ -158,6 +158,23 @@ class SampleWorkFlowController extends Controller
 
         return view('layouts.lab.sample-workflow.request-for-testing-fill', [
             'sampleTypeId' => $sampleType,
+            'submissionFormId' => null,
+        ]);
+    }
+
+    /**
+     * Walk-in Request For Testing wizard for a TRF that is not linked to a sample type.
+     * Sample type is chosen inside the form (sample_type_select).
+     */
+    public function requestForTestingFillForm(\App\Models\SubmissionForm $submissionForm): \Illuminate\View\View
+    {
+        if (! $submissionForm->is_active || ! $submissionForm->isTestRequestTemplate()) {
+            abort(404, 'Test request form not found.');
+        }
+
+        return view('layouts.lab.sample-workflow.request-for-testing-fill', [
+            'sampleTypeId' => null,
+            'submissionFormId' => (string) $submissionForm->id,
         ]);
     }
 

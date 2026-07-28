@@ -1,4 +1,4 @@
-@if (! $this->isPhysicalCheckIn && $selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+@if (! $this->isPhysicalCheckIn && $this->isWalkInCaptureReady && $this->walkInTotalSteps > 0)
     <div class="rft-wizard-nav d-flex align-items-center flex-wrap">
         @if ($pageMode ?? false)
             @php

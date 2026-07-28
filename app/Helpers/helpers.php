@@ -2520,6 +2520,10 @@ function supplierRatingColorFromScore($rating){
 }
 
 function has_exceeding_quantities($id){
+	if (empty($id) || ! \Illuminate\Support\Str::isUuid((string) $id)) {
+		return false;
+	}
+
 	$req = \App\RequestEntity::find($id);
 	if(!isset($req->id) || $req->request_type != "Request to Store"){
 		return false;

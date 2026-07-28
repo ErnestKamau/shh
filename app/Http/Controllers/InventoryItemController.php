@@ -164,7 +164,7 @@ class InventoryItemController extends Controller
 			$state = \App\ItemState::where('material_type_id', $material_type_id)
 				->where('is_default', 1)->first();
 
-			$item->storage_state_id = $state->id ?? 0;
+			$item->storage_state_id = $state->id ?? null;
 		}
 
 		$item->lot_no = $request->lot_no;
@@ -233,7 +233,7 @@ class InventoryItemController extends Controller
 			$state = \App\ItemState::where('material_type_id', $material_type_id)
 				->where('is_default', 1)->first();
 
-			$item->storage_state_id = $state->id ?? 0;
+			$item->storage_state_id = $state->id ?? null;
 		}
 
 		$item->save();

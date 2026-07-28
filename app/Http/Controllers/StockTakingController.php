@@ -7,6 +7,7 @@ use App\InventoryItem;
 use App\InventoryStore;
 use App\StockTakingSheet;
 use App\InventoryStoreSlotContent;
+use App\User;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -20,9 +21,28 @@ class StockTakingController extends Controller
 
 	public function index()
 	{
-		$takings = StockTaking::join('users as u', 'u.id', 'stock_takings.created_by')
-		->selectRaw('stock_takings.*, NULL as approver_name, NULL as updater_name, u.name as creator')
-		->where('stock_takings.inventory_location_id', getCurrentUserLocation()->id)->orderBy('created_at', 'desc')->get();
+		$takings = StockTaking::query()
+			->where('stock_takings.inventory_location_id', getCurrentUserLocation()->id)
+			->orderBy('created_at', 'desc')
+			->get();
+
+		$userIds = $takings->flatMap(fn ($taking) => [
+			$taking->created_by,
+			$taking->updated_by,
+			$taking->approved_by,
+		])->filter()->unique()->values();
+
+		$users = User::query()
+			->whereIn('id', $userIds)
+			->get(['id', 'name'])
+			->keyBy('id');
+
+		foreach ($takings as $taking) {
+			$taking->creator = $users->get($taking->created_by)?->name;
+			$taking->approver_name = $users->get($taking->approved_by)?->name;
+			$taking->updater_name = $users->get($taking->updated_by)?->name;
+		}
+
 		return view('layouts.inventory.stock-taking.index', compact('takings'));
 	}
 
@@ -284,26 +304,43 @@ class StockTakingController extends Controller
 
 	public function update(Request $request, $id=false)
 	{
-		// return response()->json($request->all(), 200);
-		$storesArr = array("ids"=>[], 'names'=>[]);
+		$storesArr = ['ids' => [], 'names' => []];
 
-		foreach($request->stores as $st){
-			$store = explode(" zZ ", $st);
+		foreach (($request->stores ?? []) as $st) {
+			$parts = explode(' zZ ', (string) $st, 2);
+			$storeId = trim($parts[0]);
 
-			$storesArr['ids'][] = trim($store[0]);
-			$storesArr['names'][] = trim($store[1]);
+			if ($storeId === '') {
+				continue;
+			}
+
+			$storeName = isset($parts[1]) ? trim($parts[1]) : null;
+			if ($storeName === null || $storeName === '') {
+				$storeName = InventoryStore::find($storeId)?->name;
+			}
+
+			if ($storeName === null || $storeName === '') {
+				continue;
+			}
+
+			$storesArr['ids'][] = $storeId;
+			$storesArr['names'][] = $storeName;
 		}
 
-		$stores_ids = implode(",", $storesArr['ids']);
-		$stores_names = implode(",", $storesArr['names']);
+		if (count($storesArr['ids']) === 0) {
+			return redirect()->back()->with('error', 'Please select at least one store.');
+		}
 
-		// return response()->json($storesArr, 200);
+		$stores_ids = implode(',', $storesArr['ids']);
+		$stores_names = implode(',', $storesArr['names']);
 
-
-		$stockTaking = StockTaking::find($id) ?? new StockTaking;
+		$stockTaking = new StockTaking;
+		if ($id && \Illuminate\Support\Str::isUuid((string) $id)) {
+			$stockTaking = StockTaking::find($id) ?? new StockTaking;
+		}
 		$stockTaking->description = $request->description;
-		if(trim($stockTaking->code) == ""){
-			$stockTaking->code = getNamingConventionCode("StockTaking", false, "ST-");
+		if (trim((string) $stockTaking->code) == '') {
+			$stockTaking->code = getNamingConventionCode('StockTaking', false, 'ST-');
 		}
 		$stockTaking->stores = $stores_ids;
 		$stockTaking->store_names = $stores_names;

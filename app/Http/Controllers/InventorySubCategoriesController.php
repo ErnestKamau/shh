@@ -80,7 +80,10 @@ class InventorySubCategoriesController extends Controller
 			return redirect()->back()->with('error', 'Item price can not be 0 for Non-Service items.');
 		}
 
-		$subcategory->material_type_id = $request->material_type_id ?? 0;
+		$materialTypeId = $request->material_type_id;
+		$subcategory->material_type_id = (! empty($materialTypeId) && $materialTypeId !== '0' && \Illuminate\Support\Str::isUuid((string) $materialTypeId))
+			? $materialTypeId
+			: null;
 
 		$subcategory->parent = $request->parent ?? null;
 		$subcategory->parent_id = $request->parent_id ?? null;
@@ -117,6 +120,10 @@ class InventorySubCategoriesController extends Controller
   }
 
 	public function update_item_to_supplier_category($subCatID, $catID){
+		if (! \Illuminate\Support\Str::isUuid((string) $catID) || ! \Illuminate\Support\Str::isUuid((string) $subCatID)) {
+			return true;
+		}
+
 		$suppliers = SupplierByCategory::where('category_id', $catID)->pluck('supplier_id')->toArray();
 		$suppliers = array_unique($suppliers);
 
@@ -152,7 +159,10 @@ class InventorySubCategoriesController extends Controller
       $subcategory->image = (String) $fName;
     }
 
-		$subcategory->material_type_id = $request->material_type_id ?? 0;
+		$materialTypeId = $request->material_type_id;
+		$subcategory->material_type_id = (! empty($materialTypeId) && $materialTypeId !== '0' && \Illuminate\Support\Str::isUuid((string) $materialTypeId))
+			? $materialTypeId
+			: null;
 
 		if(floatval($request->unit_price) == 0 && $request->item_classification!=3){
 			return redirect()->back()->with('error', 'Item price can not be 0 for Non-Service items.');
@@ -178,24 +188,50 @@ class InventorySubCategoriesController extends Controller
     return redirect()->route('show-inventory-items', ['category'=>$request->category_id, 'id'=>$id])->with('success', 'Inventory Sub-Category Edited.');
 	}
 
-	public function get_items_via_ajax(Request $request, $cat_id=false, $name=false){
-		$term = $request->search;
+	public function get_items_via_ajax(Request $request, $cat_id = false, $name = false)
+	{
+		$term = trim((string) $request->search);
 		$limit = 100;
-		$offset = $request->page;
+		$page = max(1, (int) ($request->page ?: 1));
 		$gate_pass_category = getConfigByName('gate_pass_category_id');
-		$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : 0;
-		$items = InventorySubCategories::where('inventory_category_id', '!=', $gate_pass_category_id)->where('active', 1)->having("text", "LIKE", '%'.$term.'%');
-		if($cat_id){
-			if($name){
-				$cat_id = InventoryCategories::where('name', $cat_id)->first()->id;
-			}
-			$items = $items->where('inventory_category_id', $cat_id);
+		$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : null;
+
+		$items = InventorySubCategories::query()
+			->where('active', 1);
+
+		if ($gate_pass_category_id && \Illuminate\Support\Str::isUuid((string) $gate_pass_category_id)) {
+			$items = $items->where('inventory_category_id', '!=', $gate_pass_category_id);
 		}
-		$items = $items->selectRaw('id, CONCAT(code, "-", name) as `text`')->orderBy('name', 'asc')->offset($offset)->paginate($limit)->toArray();
+
+		if ($cat_id) {
+			if ($name) {
+				$category = InventoryCategories::where('name', $cat_id)->first();
+				$cat_id = $category?->id;
+			}
+
+			if ($cat_id) {
+				$items = $items->where('inventory_category_id', $cat_id);
+			}
+		}
+
+		if ($term !== '') {
+			$items = $items->where(function ($query) use ($term) {
+				$query->where('name', 'like', '%'.$term.'%')
+					->orWhere('code', 'like', '%'.$term.'%');
+			});
+		}
+
+		$items = $items
+			->selectRaw("id, CONCAT(code, '-', name) as text")
+			->orderBy('name', 'asc')
+			->paginate($limit, ['*'], 'page', $page);
 
 		return response()->json([
-			"results"=>$items['data'],
-			"pagination"=>["more"=>$items['prev_page_url'] != null]
+			'results' => collect($items->items())->map(fn ($item) => [
+				'id' => $item->id,
+				'text' => $item->text,
+			])->values(),
+			'pagination' => ['more' => $items->hasMorePages()],
 		], 200);
 	}
 

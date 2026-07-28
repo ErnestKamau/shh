@@ -18,10 +18,10 @@ class DMSController extends Controller
     /**
      * Download a document
      *
-     * @param int $id
+     * @param string $id
      * @return \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\Response
      */
-    public function download(int $id)
+    public function download(string $id)
     {
         $document = Document::findOrFail($id);
 
@@ -43,10 +43,10 @@ class DMSController extends Controller
     /**
      * Preview a document
      *
-     * @param int $id
+     * @param string $id
      * @return \Illuminate\Http\Response
      */
-    public function preview(int $id)
+    public function preview(string $id)
     {
         $document = Document::findOrFail($id);
 
@@ -88,11 +88,11 @@ class DMSController extends Controller
     /**
      * Download a specific version of a document
      *
-     * @param int $documentId
-     * @param int $versionId
+     * @param string $documentId
+     * @param string $versionId
      * @return \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\Response
      */
-    public function downloadVersion(int $documentId, int $versionId)
+    public function downloadVersion(string $documentId, string $versionId)
     {
         $document = Document::findOrFail($documentId);
         $version = $document->versions()->findOrFail($versionId);

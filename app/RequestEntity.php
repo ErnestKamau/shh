@@ -17,6 +17,11 @@ class RequestEntity extends Model implements Auditable
 	protected $guarded = ['id'];
 	public function items($ammendment_id, $grp=false, $grpItems=false)
 	{
+		// New / unsaved requisitions have no id yet (Create Request uses time() placeholder).
+		if (empty($this->id)) {
+			return [];
+		}
+
 		$itemCount = RequestEntityItem::where('request_id', $this->id)->where('ammendment', $ammendment_id)->get()->count();
 
 		// $ammendment_id = $this->ammendment;
@@ -27,7 +32,8 @@ class RequestEntity extends Model implements Auditable
 
 		$items = RequestEntityItem::join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
 		->leftJoin('module_pre_configs as mpc', function($join){
-			$join->on('mpc.id', '=', 'request_entity_items.currency');
+			// module_pre_configs.id is uuid; request_entity_items.currency may still be int/legacy text
+			$join->whereRaw('mpc.id::text = request_entity_items.currency::text');
 			$join->where('mpc.type', "Currency");
 		})
 		->where('request_entity_items.request_id', $this->id)->where('request_entity_items.ammendment', $ammendment_id);
@@ -100,7 +106,9 @@ class RequestEntity extends Model implements Auditable
 			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, COALESCE(mpc.name, "-1") as currency, ics.name as item_name, rei.item_brand_id as brand_id');
 		}
 
-		$quotes = $quotes->leftJoin('module_pre_configs as mpc', 'mpc.id', 'supplier_quotes.currency_id');
+		$quotes = $quotes->leftJoin('module_pre_configs as mpc', function ($join) {
+			$join->whereRaw('mpc.id::text = supplier_quotes.currency_id::text');
+		});
 
 		if($item_id){
 			$quotes = $quotes->where('ics.id', $item_id)
