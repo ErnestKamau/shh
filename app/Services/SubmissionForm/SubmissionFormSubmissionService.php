@@ -222,6 +222,15 @@ class SubmissionFormSubmissionService
         ?string $samplingScheduleId = null,
     ): SubmissionFormInstance {
         return DB::transaction(function () use ($submissionForm, $fieldValues, $crmCustomerId, $sampleTypeId, $sourceChannel, $samplingScheduleId): SubmissionFormInstance {
+            if ($sourceChannel === CommercialEnquirySyncService::SOURCE_SCHEDULED) {
+                $samplingScheduleId = trim((string) ($samplingScheduleId ?? ''));
+                if ($samplingScheduleId === '') {
+                    throw new \InvalidArgumentException(
+                        'Scheduled sampling forms must be linked to a sampling schedule.'
+                    );
+                }
+            }
+
             $userId = Auth::id();
 
             $instanceData = [
@@ -233,7 +242,9 @@ class SubmissionFormSubmissionService
                 'priority' => 'normal',
                 'crm_customer_id' => $crmCustomerId,
                 'source_channel' => $sourceChannel,
-                'sampling_schedule_id' => $samplingScheduleId,
+                'sampling_schedule_id' => $samplingScheduleId !== null && $samplingScheduleId !== ''
+                    ? $samplingScheduleId
+                    : null,
             ];
 
             if ($this->supportsSelectedSampleTypeColumn()) {

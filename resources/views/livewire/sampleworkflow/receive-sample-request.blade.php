@@ -446,7 +446,7 @@
                                             </time>
                                         </div>
                                         <div class="rft-instance-card__actions">
-                                            @if ($progress['status'] !== 'collected' && $scheduleSampleTypeId)
+                                            @if ($progress['status'] !== 'collected')
                                                 <button type="button"
                                                         wire:click="startFillForSchedule('{{ $schedule->id }}')"
                                                         class="btn btn-sm btn-primary btn-action-sm"
@@ -454,7 +454,7 @@
                                                         aria-label="Fill sampling form">
                                                     <i class="mdi mdi-file-document-edit-outline"></i> Fill
                                                 </button>
-                                            @elseif ($progress['status'] === 'collected')
+                                            @else
                                                 <a href="{{ route('system-planner.actual-collections') }}"
                                                    class="btn btn-sm btn-outline-primary btn-action-sm"
                                                    title="View collections"

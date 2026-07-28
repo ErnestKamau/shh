@@ -243,10 +243,10 @@
                                             <i class="mdi mdi-clipboard-edit-outline"></i>
                                         </a>
                                     @else
-                                        <a href="{{ route('system-planner.fill-sampling-forms') }}"
+                                        <a href="{{ route('system-planner.fill-sampling-forms', ['schedule' => $s->id]) }}"
                                            class="ss-act ss-act--form"
-                                           title="Fill sampling form"
-                                           aria-label="Fill sampling form">
+                                           title="Choose a form for this schedule"
+                                           aria-label="Choose a form for this schedule">
                                             <i class="mdi mdi-clipboard-edit-outline"></i>
                                         </a>
                                     @endif
@@ -990,8 +990,9 @@
                             <i class="mdi mdi-plus mr-1"></i>Fill Sampling Form
                         </a>
                     @else
-                        <a href="{{ route('system-planner.fill-sampling-forms') }}" class="btn btn-primary">
-                            <i class="mdi mdi-plus mr-1"></i>Fill Sampling Form
+                        <a href="{{ route('system-planner.fill-sampling-forms', ['schedule' => $viewingTrfSchedule->id]) }}"
+                           class="btn btn-primary">
+                            <i class="mdi mdi-plus mr-1"></i>Choose Form for Schedule
                         </a>
                     @endif
                 </div>

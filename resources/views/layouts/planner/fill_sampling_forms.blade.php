@@ -406,7 +406,8 @@
         @livewire('sampleworkflow.receive-sample-request', [
             'pageMode' => true,
             'plannerMode' => true,
-        ], key('planner-fill-sampling-forms'))
+            'initialScheduleId' => isset($scheduleId) && $scheduleId ? (string) $scheduleId : null,
+        ], key('planner-fill-sampling-forms-'.($scheduleId ?? 'none')))
     </div>
 </main>
 @endsection

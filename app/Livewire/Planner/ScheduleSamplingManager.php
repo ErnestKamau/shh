@@ -1308,7 +1308,10 @@ class ScheduleSamplingManager extends Component
             return;
         }
 
-        $this->redirect(route('system-planner.fill-sampling-forms'), navigate: false);
+        $this->redirect(
+            route('system-planner.fill-sampling-forms', ['schedule' => $schedule->id]),
+            navigate: false,
+        );
     }
 
     public function updatedShowFormModal(bool $value): void

@@ -130,11 +130,11 @@ class ReceiveSampleRequest extends Component
         }
 
         if ($this->plannerMode && $this->initialScheduleId) {
-            $this->applyScheduleSelection((string) $this->initialScheduleId, forceSampleType: false);
-        } elseif ($this->plannerMode && $this->wizardOnly && $this->selectedSampleTypeId && ! $this->selectedScheduleId) {
-            $firstPending = $this->plannerScheduleOptions->first();
-            if ($firstPending !== null) {
-                $this->applyScheduleSelection((string) $firstPending->id, forceSampleType: false);
+            if ($this->wizardOnly) {
+                $this->applyScheduleSelection((string) $this->initialScheduleId, forceSampleType: false);
+            } else {
+                // Hub: keep the schedule selected so "Fill form" stays linked to it.
+                $this->selectedScheduleId = (string) $this->initialScheduleId;
             }
         }
 
@@ -507,16 +507,27 @@ class ReceiveSampleRequest extends Component
     {
         if ($this->pageMode && ! $this->wizardOnly) {
             if ($this->plannerMode) {
-                $params = ['sampleType' => $sampleTypeId];
+                $scheduleId = trim((string) ($this->selectedScheduleId ?: $this->initialScheduleId ?: ''));
 
-                $pendingSchedule = $this->findPendingScheduleForSampleType((string) $sampleTypeId);
+                if ($scheduleId === '') {
+                    $pendingSchedule = $this->findPendingScheduleForSampleType((string) $sampleTypeId);
+                    if ($pendingSchedule === null) {
+                        $this->dispatch(
+                            'notify',
+                            type: 'error',
+                            message: 'Select a pending schedule first (use Fill on the schedule). Sampling forms must be linked to a schedule.',
+                        );
 
-                if ($pendingSchedule !== null) {
-                    $params['schedule'] = $pendingSchedule->id;
+                        return;
+                    }
+                    $scheduleId = (string) $pendingSchedule->id;
                 }
 
                 $this->redirect(
-                    route('system-planner.fill-sampling-forms.fill', $params),
+                    route('system-planner.fill-sampling-forms.fill', [
+                        'sampleType' => $sampleTypeId,
+                        'schedule' => $scheduleId,
+                    ]),
                     navigate: false,
                 );
 
@@ -543,7 +554,10 @@ class ReceiveSampleRequest extends Component
         $schedule = SamplingSchedule::query()->visibleTo()->findOrFail($scheduleId);
         $sampleTypeId = $this->resolveSampleTypeIdFromSchedule($schedule);
         if ($sampleTypeId === null) {
-            $this->dispatch('notify', type: 'error', message: 'This schedule has no sample type. Edit the schedule first.');
+            $this->redirect(
+                route('system-planner.fill-sampling-forms', ['schedule' => $schedule->id]),
+                navigate: false,
+            );
 
             return;
         }

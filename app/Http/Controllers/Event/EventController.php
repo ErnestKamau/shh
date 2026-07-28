@@ -745,7 +745,24 @@ class EventController extends Controller
 
     public function fillSamplingFormsIndex()
     {
-        return view('layouts.planner.fill_sampling_forms');
+        $scheduleId = request()->query('schedule');
+        if ($scheduleId !== null && $scheduleId !== '') {
+            $scheduleExists = \App\Models\SamplingSchedule::query()
+                ->visibleTo()
+                ->whereKey($scheduleId)
+                ->exists();
+            if (! $scheduleExists) {
+                return redirect()
+                    ->route('system-planner.fill-sampling-forms')
+                    ->with('error', 'The selected sampling schedule could not be found.');
+            }
+        } else {
+            $scheduleId = null;
+        }
+
+        return view('layouts.planner.fill_sampling_forms', [
+            'scheduleId' => $scheduleId,
+        ]);
     }
 
     public function fillSamplingFormsFill(string $sampleType)
@@ -756,16 +773,20 @@ class EventController extends Controller
         }
 
         $scheduleId = request()->query('schedule');
-        if ($scheduleId !== null && $scheduleId !== '') {
-            $scheduleExists = \App\Models\SamplingSchedule::query()
-                ->visibleTo()
-                ->whereKey($scheduleId)
-                ->exists();
-            if (! $scheduleExists) {
-                abort(404, 'Sampling schedule not found.');
-            }
-        } else {
-            $scheduleId = null;
+        if ($scheduleId === null || $scheduleId === '') {
+            return redirect()
+                ->route('system-planner.fill-sampling-forms')
+                ->with('error', 'Choose a sampling schedule first. Sampling forms must be linked to a schedule.');
+        }
+
+        $scheduleExists = \App\Models\SamplingSchedule::query()
+            ->visibleTo()
+            ->whereKey($scheduleId)
+            ->exists();
+        if (! $scheduleExists) {
+            return redirect()
+                ->route('system-planner.fill-sampling-forms')
+                ->with('error', 'The selected sampling schedule could not be found.');
         }
 
         return view('layouts.planner.fill_sampling_forms_fill', [
