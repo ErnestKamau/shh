@@ -4,10 +4,12 @@ namespace App\Livewire\Samples;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\SampleTypeCategory;
 
 class SampleCategoryManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -113,7 +115,7 @@ class SampleCategoryManager extends Component
         $query = SampleTypeCategory::query();
 
         if ($this->search) {
-            $query->where('sample_type_category', 'like', '%' . $this->search . '%');
+            $this->applyCaseInsensitiveSearch($query, ['sample_type_category'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

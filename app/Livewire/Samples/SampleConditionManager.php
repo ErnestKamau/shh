@@ -4,11 +4,13 @@ namespace App\Livewire\Samples;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\SampleCondition;
 use App\SampleType;
 
 class SampleConditionManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -119,7 +121,7 @@ class SampleConditionManager extends Component
         $query = SampleCondition::query()->with('sample_type');
 
         if ($this->search) {
-            $query->where('name', 'like', '%' . $this->search . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

@@ -3,6 +3,7 @@
 namespace App\Livewire\Lab\EquipmentRequests;
 
 use App\Lab;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\Models\Lab\EquipmentUsageRequest;
 use App\Models\Lab\LabUserNotification;
@@ -17,6 +18,7 @@ use Livewire\WithPagination;
 
 class EquipmentRequestManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use AuthorizesRequests;
     use WithPagination;
 
@@ -414,10 +416,7 @@ class EquipmentRequestManager extends Component
         $query = $this->availableEquipmentQuery();
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('equipment_number', 'like', '%'.$search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'equipment_number'], $search);
         }
 
         return $query->limit(15)->get();
@@ -433,10 +432,7 @@ class EquipmentRequestManager extends Component
             ->orderBy('sample_details.sample_code');
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('sample_details.sample_code', 'like', '%'.$search.'%')
-                    ->orWhere('sample_headers.batch_code', 'like', '%'.$search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['sample_details.sample_code', 'sample_headers.batch_code'], $search);
         }
 
         return $query->limit(20)->get();
@@ -449,7 +445,7 @@ class EquipmentRequestManager extends Component
         $query = User::query()->where('active', 1);
 
         if ($search !== '') {
-            $query->where('name', 'like', '%'.$search.'%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], $search);
         }
 
         return $query->orderBy('name')->limit(15)->get();
@@ -579,11 +575,14 @@ class EquipmentRequestManager extends Component
         if ($search !== '') {
             $query->where(function (Builder $q) use ($search): void {
                 $q->whereHas('equipment', function (Builder $equipment) use ($search): void {
-                    $equipment->where('name', 'like', '%'.$search.'%')
-                        ->orWhere('equipment_number', 'like', '%'.$search.'%');
+                    $this->applyCaseInsensitiveSearch($equipment, ['name', 'equipment_number'], $search);
                 })
-                    ->orWhereHas('requester', fn (Builder $requester) => $requester->where('name', 'like', '%'.$search.'%'))
-                    ->orWhereHas('sampleDetails', fn (Builder $samples) => $samples->where('sample_code', 'like', '%'.$search.'%'));
+                    ->orWhereHas('requester', function (Builder $requester) use ($search): void {
+                        $this->applyCaseInsensitiveSearch($requester, ['name'], $search);
+                    })
+                    ->orWhereHas('sampleDetails', function (Builder $samples) use ($search): void {
+                        $this->applyCaseInsensitiveSearch($samples, ['sample_code'], $search);
+                    });
             });
         }
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Lab;
 use App\Lab;
 use App\LabSectionApprover;
 use App\LabSectionApproverRelationShip;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\Models\LabSectionReportConfig;
 use App\ReportingUnit;
@@ -19,6 +20,7 @@ use Livewire\Component;
 
 class LabSectionManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     // Active tab
     public $activeTab = 'lab-sections';
 
@@ -160,10 +162,7 @@ class LabSectionManager extends Component
         $query = SampleAnalysisStage::where('is_sample_stage', 0);
 
         if ($this->labSectionSearch) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->labSectionSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->labSectionSearch . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->labSectionSearch);
         }
 
         if ($this->labSectionStatusFilter !== '') {
@@ -402,10 +401,7 @@ class LabSectionManager extends Component
         $query = SampleAnalysisStage::where('is_sample_stage', 1);
 
         if ($this->sampleStageSearch) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->sampleStageSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->sampleStageSearch . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->sampleStageSearch);
         }
 
         if ($this->sampleStageStatusFilter !== '') {
@@ -543,7 +539,7 @@ class LabSectionManager extends Component
 
         if ($this->verifierSearch) {
             $query->whereHas('user', function ($q) {
-                $q->where('name', 'like', '%' . $this->verifierSearch . '%');
+                $this->applyCaseInsensitiveSearch($q, ['name'], (string) $this->verifierSearch);
             });
         }
 
@@ -730,7 +726,7 @@ class LabSectionManager extends Component
             ->where('active', 1);
 
         if (! empty($this->sectionHeadSearch)) {
-            $query->where('name', 'like', '%' . $this->sectionHeadSearch . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->sectionHeadSearch);
         }
 
         $users = $query->orderBy('name')->limit(25)->get();
@@ -793,10 +789,7 @@ class LabSectionManager extends Component
         $query = Lab::where('active', 1);
 
         if (! empty($this->labSearch)) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->labSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->labSearch . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->labSearch);
         }
 
         return $query->orderBy('name')->limit(10)->get();
@@ -869,11 +862,7 @@ class LabSectionManager extends Component
         }
 
         if (! empty($this->equipmentSearch)) {
-            $search = $this->equipmentSearch;
-            $query->where(function ($builder) use ($search) {
-                $builder->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('equipment_number', 'like', '%' . $search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'equipment_number'], (string) $this->equipmentSearch);
         }
 
         return $query->limit(10)->get(['id', 'name', 'equipment_number', 'lab_id']);
@@ -911,7 +900,7 @@ class LabSectionManager extends Component
         $query = ReportingUnit::query()->where('active', 1)->orderBy('name');
 
         if (! empty($this->reportingUnitSearch)) {
-            $query->where('name', 'like', '%' . $this->reportingUnitSearch . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->reportingUnitSearch);
         }
 
         return $query->limit(10)->get(['id', 'name']);
@@ -1069,7 +1058,7 @@ class LabSectionManager extends Component
             ->where('active', 1);
 
         if (! empty($this->verifierUserSearch)) {
-            $query->where('name', 'like', '%' . $this->verifierUserSearch . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->verifierUserSearch);
         }
 
         return $query->orderBy('name')->get();
@@ -1107,10 +1096,7 @@ class LabSectionManager extends Component
             ->where('active', 1);
 
         if (! empty($this->verifierSectionsSearch)) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->verifierSectionsSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->verifierSectionsSearch . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->verifierSectionsSearch);
         }
 
         return $query->orderBy('name')->limit(10)->get();

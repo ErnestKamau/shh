@@ -3,12 +3,14 @@
 namespace App\Livewire\ShelfLife;
 
 use App\Models\ShelfLife\ShelfLifeStudy;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Services\ShelfLife\ShelfLifeStudyBootstrapService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class StudyManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public string $search = '';
@@ -41,13 +43,14 @@ class StudyManager extends Component
             ->latest();
 
         if ($this->search !== '') {
-            $term = '%'.$this->search.'%';
-            $query->where(function ($inner) use ($term): void {
-                $inner->where('code', 'like', $term)
-                    ->orWhere('title', 'like', $term)
-                    ->orWhere('batch_lot_no', 'like', $term)
-                    ->orWhereHas('sampleHeader', fn ($q) => $q->where('batch_code', 'like', $term))
-                    ->orWhereHas('customer', fn ($q) => $q->where('name', 'like', $term));
+            $query->where(function ($inner): void {
+                $this->applyCaseInsensitiveSearch($inner, ['code', 'title', 'batch_lot_no'], (string) $this->search);
+                $inner->orWhereHas('sampleHeader', function ($q): void {
+                    $this->applyCaseInsensitiveSearch($q, ['batch_code'], (string) $this->search);
+                })
+                    ->orWhereHas('customer', function ($q): void {
+                        $this->applyCaseInsensitiveSearch($q, ['name'], (string) $this->search);
+                    });
             });
         }
 

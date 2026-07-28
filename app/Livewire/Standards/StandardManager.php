@@ -8,11 +8,13 @@ use App\Standards;
 use App\StandardValue;
 use App\StandardAnalytes;
 use App\Analyte;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StandardManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Standards Management
@@ -123,10 +125,7 @@ class StandardManager extends Component
         $query = Standards::query();
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

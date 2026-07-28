@@ -5,6 +5,7 @@ namespace App\Livewire\Lab;
 use App\AnalysisMethod;
 use App\Company;
 use App\LabSubCategory;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\MethodReagent;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ use Livewire\Component;
 
 class MethodDetail extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     public AnalysisMethod $method;
     public $activeTab = 'analytes';
     
@@ -123,10 +125,12 @@ class MethodDetail extends Component
         }
 
         $reagentsCategory = 20004;
-        
-        $this->filteredReagents = LabSubCategory::where('category_id', $reagentsCategory)
-            ->where('name', 'LIKE', '%' . $this->reagentSearch . '%')
-            ->where('active', 1)
+
+        $query = LabSubCategory::where('category_id', $reagentsCategory)
+            ->where('active', 1);
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->reagentSearch);
+
+        $this->filteredReagents = $query
             ->limit(10)
             ->get()
             ->map(function($item) {

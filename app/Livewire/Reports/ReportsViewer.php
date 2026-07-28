@@ -4,12 +4,14 @@ namespace App\Livewire\Reports;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\SampleHeader;
 use App\Models\CRM\CRMCustomer;
 use Illuminate\Support\Facades\DB;
 
 class ReportsViewer extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Customer Data
@@ -46,8 +48,7 @@ class ReportsViewer extends Component
             ->selectRaw('sample_headers.*, st.name as sample_type')
             ->where('crm_customer_id', $this->customerId)
             ->when($this->search, function ($query) {
-                $query->where('sample_headers.batch_code', 'like', '%' . $this->search . '%')
-                      ->orWhere('st.name', 'like', '%' . $this->search . '%');
+                $this->applyCaseInsensitiveSearch($query, ['sample_headers.batch_code', 'st.name'], (string) $this->search);
             })
             ->when($this->statusFilter, function ($query) {
                 $query->where('sample_headers.status', $this->statusFilter);

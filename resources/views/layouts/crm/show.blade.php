@@ -71,25 +71,21 @@
 						<li class="nav-item">
 							<a class="nav-link" id="Contacts-tab" data-toggle="tab" href="#Contacts" role="tab" aria-controls="Contacts" aria-selected="true"><i class="mdi mdi-account-box-outline"></i> Contacts</a>
 						</li>
-						@if(isset($is_qplus->id))
 						<li class="nav-item">
 							<a class="nav-link" id="Samples-tab" data-toggle="tab" href="#Orders" role="tab" aria-controls="Orders" aria-selected="true"><i class="mdi mdi-eyedropper-plus"></i> Orders</a>
 						</li>
 						<li class="nav-item">
 							<a class="nav-link" id="Samples-tab" data-toggle="tab" href="#Samples" role="tab" aria-controls="Samples" aria-selected="true"><i class="mdi mdi-test-tube"></i> Reports</a>
 						</li>
-						@endif
 						<li class="nav-item">
 							<a class="nav-link" id="Complaints-tab" data-toggle="tab" href="#Complaints" role="tab" aria-controls="Complaints" aria-selected="true"><i class="mdi mdi-comment-alert"></i> Complaints</a>
 						</li>
 						<li class="nav-item">
 							<a class="nav-link" id="Feedbacks-tab" data-toggle="tab" href="#Feedbacks" role="tab" aria-controls="Feedbacks" aria-selected="true"><i class="mdi mdi-file-account"></i> Customer Feedback</a>
 						</li>
-						@if(isset($is_qplus->id))
 						<li class="nav-item">
 							<a class="nav-link" id="Customer-Details-tab" data-toggle="tab" href="#quotations" role="tab" aria-controls="Customer-Details" aria-selected="true"><i class="mdi mdi-file-settings"></i> Quotation</a>
 						</li>
-						@endif
 						<li class="nav-item">
 							<a class="nav-link" id="Certification-tab" data-toggle="tab" href="#Certification" role="tab" aria-controls="Certification" aria-selected="true"><i class="mdi mdi-file-certificate"></i> Attachments</a>
 						</li>
@@ -104,7 +100,6 @@
 
 				<div class="tab-content" id="Samples-tabs-content">
 					<!-- ---------------------------------quotations-----------------------------  -->
-					@if(isset($is_qplus->id))
 					<div class="tab-pane fade p-3" id="quotations" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title">
 							<i class="mdi mdi-file-settings"></i> Quotations
@@ -138,7 +133,6 @@
 							</table>
 						</div>
 					</div>
-					@endif
 					<!-- ---------------------------------quotations-----------------------------  -->
 					<div class="tab-pane fade show p-3" id="Certification" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title">
@@ -643,7 +637,6 @@
 						</div>
 					</div>
 					<!-- -----------end feedbacks --------------  -->
-					@if(isset($is_qplus->id))
 					<div class="tab-pane fade p-3" id="Orders" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title">
 							Orders
@@ -769,7 +762,6 @@
 							</table>
 						</div>
 					</div>
-					@endif
 					<div class="tab-pane fade show active p-3" id="Company-Units" role="tabpanel" aria-labelledby="one-tab">
 						<div class="p-2 row">
 							<div class="col-sm-8">

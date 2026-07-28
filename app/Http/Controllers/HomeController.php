@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File as PILE;
 use Illuminate\Support\Facades\Storage;
 use App\Services\AI\AiInferenceService;
+use App\Support\CaseInsensitiveSearch;
 
 class HomeController extends Controller
 {
@@ -129,7 +130,9 @@ class HomeController extends Controller
 	}
 
 	public function searchsample(Request $request){
-		$sample = SampleDetails::where('sample_code',$request->sample)->get();
+		$query = SampleDetails::query();
+		CaseInsensitiveSearch::equals($query, 'sample_code', (string) $request->sample);
+		$sample = $query->get();
 		// return response()->json($sample[0]->id,200);
 		if(isset($sample[0]->id)){
 			$batch = SampleHeader::find($sample[0]->sample_header_id);

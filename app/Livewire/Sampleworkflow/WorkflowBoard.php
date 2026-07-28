@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use App\Support\VarcharUuidSql;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Throwable;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
@@ -43,6 +44,7 @@ use Livewire\WithPagination;
 
 class WorkflowBoard extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     protected string $paginationTheme = 'bootstrap';
@@ -1181,11 +1183,10 @@ class WorkflowBoard extends Component
         if ($this->submissionFormsSearch) {
             $search = $this->submissionFormsSearch;
             $query->where(function ($q) use ($search) {
-                $q->where('form_number', 'like', "%{$search}%")
-                    ->orWhere('title', 'like', "%{$search}%")
-                    ->orWhereHas('submissionForm', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
+                $this->applyCaseInsensitiveSearch($q, ['form_number', 'title'], (string) $search);
+                $q->orWhereHas('submissionForm', function ($q) use ($search) {
+                    $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search);
+                });
             });
         }
     }
@@ -1340,11 +1341,10 @@ class WorkflowBoard extends Component
         if ($this->submissionFormsSearch) {
             $search = $this->submissionFormsSearch;
             $query->where(function ($q) use ($search) {
-                $q->where('form_number', 'like', "%{$search}%")
-                    ->orWhere('title', 'like', "%{$search}%")
-                    ->orWhereHas('submissionForm', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
+                $this->applyCaseInsensitiveSearch($q, ['form_number', 'title'], (string) $search);
+                $q->orWhereHas('submissionForm', function ($q) use ($search) {
+                    $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search);
+                });
             });
         }
     }
@@ -1555,11 +1555,10 @@ class WorkflowBoard extends Component
         if ($this->submissionFormsSearch) {
             $search = $this->submissionFormsSearch;
             $query->where(function ($q) use ($search) {
-                $q->where('form_number', 'like', "%{$search}%")
-                    ->orWhere('title', 'like', "%{$search}%")
-                    ->orWhereHas('submissionForm', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
+                $this->applyCaseInsensitiveSearch($q, ['form_number', 'title'], (string) $search);
+                $q->orWhereHas('submissionForm', function ($q) use ($search) {
+                    $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search);
+                });
             });
         }
 
@@ -1632,12 +1631,11 @@ class WorkflowBoard extends Component
         $query = $this->baseBatchQuery()->orderBy('receipt_date', 'desc');
 
         if (! empty($this->search)) {
-            $searchTerm = '%'.$this->search.'%';
-            $query->where(function ($q) use ($searchTerm): void {
-                $q->where('batch_code', 'like', $searchTerm)
-                    ->orWhereHas('samples', function ($sampleQuery) use ($searchTerm): void {
-                        $sampleQuery->where('sample_code', 'like', $searchTerm);
-                    });
+            $query->where(function ($q): void {
+                $this->applyCaseInsensitiveSearch($q, ['batch_code'], (string) $this->search);
+                $q->orWhereHas('samples', function ($sampleQuery): void {
+                    $this->applyCaseInsensitiveSearch($sampleQuery, ['sample_code'], (string) $this->search);
+                });
             });
         }
 
@@ -1772,12 +1770,11 @@ class WorkflowBoard extends Component
 
         // Apply search filter (batch_code and sample_code)
         if (!empty($this->search)) {
-            $searchTerm = '%' . $this->search . '%';
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('batch_code', 'like', $searchTerm)
-                    ->orWhereHas('samples', function ($sampleQuery) use ($searchTerm) {
-                        $sampleQuery->where('sample_code', 'like', $searchTerm);
-                    });
+            $query->where(function ($q) {
+                $this->applyCaseInsensitiveSearch($q, ['batch_code'], (string) $this->search);
+                $q->orWhereHas('samples', function ($sampleQuery) {
+                    $this->applyCaseInsensitiveSearch($sampleQuery, ['sample_code'], (string) $this->search);
+                });
             });
         }
 
@@ -1807,11 +1804,10 @@ class WorkflowBoard extends Component
             if ($this->submissionFormsSearch) {
                 $search = $this->submissionFormsSearch;
                 $query->whereHas('submissionFormInstance', function ($q) use ($search) {
-                    $q->where('form_number', 'like', "%{$search}%")
-                        ->orWhere('title', 'like', "%{$search}%")
-                        ->orWhereHas('submissionForm', function ($q) use ($search) {
-                            $q->where('name', 'like', "%{$search}%");
-                        });
+                    $this->applyCaseInsensitiveSearch($q, ['form_number', 'title'], (string) $search);
+                    $q->orWhereHas('submissionForm', function ($q) use ($search) {
+                        $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search);
+                    });
                 });
             }
 
@@ -2202,11 +2198,11 @@ class WorkflowBoard extends Component
             ->orderByDesc('created_at');
 
         if (! empty($this->search)) {
-            $search = '%'.$this->search.'%';
-            $query->where(function ($q) use ($search): void {
-                $q->where('unique_identification', 'like', $search)
-                    ->orWhere('reference_number', 'like', $search)
-                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $search));
+            $query->where(function ($q): void {
+                $this->applyCaseInsensitiveSearch($q, ['unique_identification', 'reference_number'], (string) $this->search);
+                $q->orWhereHas('customer', function ($c): void {
+                    $this->applyCaseInsensitiveSearch($c, ['name'], (string) $this->search);
+                });
             });
         }
 
@@ -2270,10 +2266,11 @@ class WorkflowBoard extends Component
             ->orderByDesc('submitted_by_date');
 
         if (!empty($this->search)) {
-            $search = '%' . $this->search . '%';
-            $query->where(function ($q) use ($search) {
-                $q->where('unique_identification', 'like', $search)
-                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $search));
+            $query->where(function ($q) {
+                $this->applyCaseInsensitiveSearch($q, ['unique_identification'], (string) $this->search);
+                $q->orWhereHas('customer', function ($c) {
+                    $this->applyCaseInsensitiveSearch($c, ['name'], (string) $this->search);
+                });
             });
         }
 
@@ -2299,8 +2296,7 @@ class WorkflowBoard extends Component
             ->orderBy('name');
 
         if (! empty($this->customerSearch)) {
-            $search = $this->customerSearch;
-            $query->where('name', 'like', '%'.$search.'%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->customerSearch);
         }
 
         $totalToShow = $this->customerPage * $this->customerPerPage;
@@ -2316,8 +2312,7 @@ class WorkflowBoard extends Component
         $query = CRMCustomer::query()->where('active', 1);
 
         if (! empty($this->customerSearch)) {
-            $search = $this->customerSearch;
-            $query->where('name', 'like', '%'.$search.'%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->customerSearch);
         }
 
         $totalLoaded = $this->customerPage * $this->customerPerPage;

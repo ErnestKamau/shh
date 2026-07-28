@@ -3,11 +3,13 @@
 namespace App\Livewire\GroupedWorksheets;
 
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class GroupedWorksheetHolderManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public string $search = '';
@@ -49,10 +51,7 @@ class GroupedWorksheetHolderManager extends Component
         $query = GroupedWorksheetHolder::query()->withCount('items');
 
         if ($this->search !== '') {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('description', 'like', '%'.$this->search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
         }
 
         $holders = $query->latest()->paginate($this->perPage);

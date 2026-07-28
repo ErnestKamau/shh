@@ -5,12 +5,14 @@ namespace App\Livewire\Lab;
 use Livewire\Component;
 use App\Models\SerWorksheetStep;
 use App\Models\Equipments\Equipment;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\ReportingUnit;
 use App\User;
 use Livewire\WithPagination;
 
 class SerWorksheetStepsManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -50,7 +52,7 @@ class SerWorksheetStepsManager extends Component
         $query = SerWorksheetStep::query();
 
         if ($this->search) {
-            $query->where('step', 'like', '%' . $this->search . '%');
+            $this->applyCaseInsensitiveSearch($query, ['step'], (string) $this->search);
         }
 
         $steps = $query->latest()->paginate($this->perPage);
@@ -58,22 +60,23 @@ class SerWorksheetStepsManager extends Component
         // Fetch data for dropdowns
         $equipments = [];
         if ($this->showEquipmentDropdown) {
-            $equipments = Equipment::where('name', 'like', '%' . $this->equipmentSearch . '%')
-                ->orWhere('equipment_number', 'like', '%' . $this->equipmentSearch . '%')
-                ->limit(10)->get();
+            $equipmentsQuery = Equipment::query();
+            $this->applyCaseInsensitiveSearch($equipmentsQuery, ['name', 'equipment_number'], (string) $this->equipmentSearch);
+            $equipments = $equipmentsQuery->limit(10)->get();
         }
 
         $analysts = [];
         if ($this->showAnalystDropdown) {
-            $analysts = User::where('name', 'like', '%' . $this->analystSearch . '%')
-                ->where('active', 1)
-                ->limit(10)->get();
+            $analystsQuery = User::query()->where('active', 1);
+            $this->applyCaseInsensitiveSearch($analystsQuery, ['name'], (string) $this->analystSearch);
+            $analysts = $analystsQuery->limit(10)->get();
         }
 
         $measurands = [];
         if ($this->showMeasurandDropdown) {
-            $measurands = ReportingUnit::where('name', 'like', '%' . $this->measurandSearch . '%')
-                ->limit(10)->get();
+            $measurandsQuery = ReportingUnit::query();
+            $this->applyCaseInsensitiveSearch($measurandsQuery, ['name'], (string) $this->measurandSearch);
+            $measurands = $measurandsQuery->limit(10)->get();
         }
 
         $selectedEquipment = $this->default_equipment_id ? Equipment::find($this->default_equipment_id) : null;

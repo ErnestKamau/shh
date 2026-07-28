@@ -11,6 +11,7 @@ use App\AnalysisType;
 use App\Analyte;
 use App\AnalysisMethod;
 use App\Imports\ImportAnalysisElements;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\User;
 use App\ReportingUnit;
@@ -22,6 +23,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ElementManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
     use WithFileUploads;
 
@@ -251,8 +253,8 @@ class ElementManager extends Component
         ])->where('analysis_type_id', $this->analysisTypeId);
 
         if ($this->search) {
-            $query->whereHas('analyte', function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%');
+            $query->whereHas('analyte', function ($q) {
+                $this->applyCaseInsensitiveSearch($q, ['name'], (string) $this->search);
             });
         }
 
@@ -822,7 +824,11 @@ class ElementManager extends Component
 
     public function selectAnalyte($id): void
     {
-        $analyte = Analyte::query()->where('active', 1)->find($id);
+        $analyte = Analyte::query()
+            ->where('active', 1)
+            ->with(['analysisMethods', 'equipmentItems', 'method', 'equipment'])
+            ->find($id);
+
         if (! $analyte) {
             return;
         }
@@ -831,8 +837,50 @@ class ElementManager extends Component
         $this->selectedAnalyteName = $analyte->name;
         $this->analyteSearch = $analyte->name;
         $this->showAnalyteDropdown = false;
+
+        if ($this->editingElement === null) {
+            $this->prefillElementFormFromAnalyte($analyte);
+        }
+
         $this->loadMethodSequencesForAnalyte();
         $this->reloadStageHeaderOptions();
+    }
+
+    /**
+     * Copy shared analyte fields into the add-parameter form when present.
+     * Values remain freely editable afterwards.
+     */
+    protected function prefillElementFormFromAnalyte(Analyte $analyte): void
+    {
+        if ($analyte->decimal_places !== null && is_numeric($analyte->decimal_places)) {
+            $this->elementForm['decimal_places'] = (int) $analyte->decimal_places;
+        }
+
+        if (filled($analyte->reporting_unit)) {
+            $this->elementForm['reporting_unit'] = (string) $analyte->reporting_unit;
+            $this->reportingUnitSearch = (string) $analyte->reporting_unit;
+        }
+
+        $this->elementForm['non_detectable'] = (bool) $analyte->non_detectable;
+        $this->elementForm['non_accredited'] = (bool) $analyte->non_accredited;
+        $this->elementForm['show_on_report'] = (bool) $analyte->show_on_report;
+        $this->elementForm['active'] = (bool) $analyte->active;
+
+        $method = $analyte->analysisMethods->first() ?? $analyte->method;
+
+        if ($method) {
+            $this->elementForm['method'] = $method->id;
+            $this->selectedMethodName = $method->name;
+            $this->methodSearch = $method->name;
+        }
+
+        $equipment = $analyte->equipmentItems->first() ?? $analyte->equipment;
+
+        if ($equipment) {
+            $this->elementForm['equipment_id'] = $equipment->id;
+            $this->selectedEquipmentName = $equipment->name;
+            $this->equipmentSearch = $equipment->name;
+        }
     }
 
     public function clearAnalyte(): void
@@ -1138,38 +1186,6 @@ class ElementManager extends Component
 
         $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->labSectionSearch);
         $this->filteredLabSections = $query->limit($this->searchResultLimit)->get();
-    }
-
-    /**
-     * Apply a driver-aware case-insensitive LIKE filter across columns.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
-     * @param  array<int, string>  $columns
-     */
-    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
-    {
-        $term = trim($term);
-
-        if ($term === '' || $columns === []) {
-            return;
-        }
-
-        $driver = DB::connection()->getDriverName();
-        $isPgsql = $driver === 'pgsql';
-        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
-
-        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
-            foreach ($columns as $index => $column) {
-                if ($isPgsql) {
-                    $method = $index === 0 ? 'where' : 'orWhere';
-                    $builder->{$method}($column, 'ilike', $like);
-                    continue;
-                }
-
-                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
-                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
-            }
-        });
     }
 
     public function selectLabSection(string $labSectionId): void

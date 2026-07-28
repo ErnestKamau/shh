@@ -3,6 +3,7 @@
 namespace App\Livewire\Lab;
 
 use App\AnalysisMethod;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Equipments\Equipment;
 use App\Models\QcModule\Configurations\QcSchemes;
@@ -19,6 +20,7 @@ use Livewire\WithPagination;
 
 class MethodManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -191,38 +193,6 @@ class MethodManager extends Component
         }
 
         return $query->orderBy('name')->paginate($this->perPage);
-    }
-
-    /**
-     * Apply a driver-aware case-insensitive LIKE filter across columns.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
-     * @param  array<int, string>  $columns
-     */
-    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
-    {
-        $term = trim($term);
-
-        if ($term === '' || $columns === []) {
-            return;
-        }
-
-        $driver = DB::connection()->getDriverName();
-        $isPgsql = $driver === 'pgsql';
-        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
-
-        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
-            foreach ($columns as $index => $column) {
-                if ($isPgsql) {
-                    $method = $index === 0 ? 'where' : 'orWhere';
-                    $builder->{$method}($column, 'ilike', $like);
-                    continue;
-                }
-
-                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
-                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
-            }
-        });
     }
 
     public function showCreateMethodModal(): void

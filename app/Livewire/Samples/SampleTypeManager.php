@@ -13,6 +13,7 @@ use App\SampleTypeCategory;
 use App\Lab;
 use App\Analyte;
 use App\AnalysisMethod;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\User;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ use Illuminate\Validation\Rule;
 
 class SampleTypeManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination, WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
@@ -194,10 +196,7 @@ class SampleTypeManager extends Component
         }, 'reportFormat', 'sampleAnalysisStages']);
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->search);
         }
 
         return $query->orderBy('name', 'asc')->paginate($this->perPage);
@@ -780,7 +779,7 @@ class SampleTypeManager extends Component
         $query = SampleTypeCategory::query();
         
         if (!empty($this->categorySearch)) {
-            $query->where('sample_type_category', 'like', '%' . $this->categorySearch . '%');
+            $this->applyCaseInsensitiveSearch($query, ['sample_type_category'], (string) $this->categorySearch);
         }
         
         return $query->limit(10)->get();
@@ -814,9 +813,10 @@ class SampleTypeManager extends Component
             return [];
         }
         
-        return \App\Models\RatingHeader::where('name', 'like', '%' . $this->ratingHeaderSearch . '%')
-            ->limit(10)
-            ->get();
+        $query = \App\Models\RatingHeader::query();
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->ratingHeaderSearch);
+
+        return $query->limit(10)->get();
     }
 
     public function getSelectedRatingHeaderProperty()
@@ -847,10 +847,10 @@ class SampleTypeManager extends Component
             return [];
         }
         
-        return \App\ReportFormat::where('report_name', 'like', '%' . $this->reportFormatSearch . '%')
-            ->orWhere('report_code', 'like', '%' . $this->reportFormatSearch . '%')
-            ->limit(10)
-            ->get();
+        $query = \App\ReportFormat::query();
+        $this->applyCaseInsensitiveSearch($query, ['report_name', 'report_code'], (string) $this->reportFormatSearch);
+
+        return $query->limit(10)->get();
     }
 
     public function getSelectedReportFormatProperty()
@@ -881,10 +881,10 @@ class SampleTypeManager extends Component
             return [];
         }
         
-        return Lab::where('name', 'like', '%' . $this->labSearch . '%')
-            ->where('active', 1)
-            ->limit(10)
-            ->get();
+        $query = Lab::query()->where('active', 1);
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->labSearch);
+
+        return $query->limit(10)->get();
     }
 
     public function getSelectedLabProperty()
@@ -914,7 +914,7 @@ class SampleTypeManager extends Component
         $query = \App\Models\CRM\CompanyProduct::where('active', 1);
         
         if (!empty($this->companyProductSearch)) {
-            $query->where('name', 'like', '%' . $this->companyProductSearch . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->companyProductSearch);
         }
         
         return $query->limit(10)->get();

@@ -3,6 +3,7 @@
 namespace App\Livewire\Lab;
 
 use App\LabSubCategory;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\SolutionPreparation;
 use App\ReportingUnit;
 use App\Services\Preparation\PreparationRunService;
@@ -13,6 +14,7 @@ use Livewire\WithPagination;
 
 class SolutionPreparationManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -223,10 +225,7 @@ class SolutionPreparationManager extends Component
         return SolutionPreparation::query()
             ->with(['solution', 'preparer'])
             ->when($this->search, function ($q) {
-                $q->where(function ($q2) {
-                    $q2->where('preparation_number', 'like', '%'.$this->search.'%')
-                        ->orWhere('batch_number', 'like', '%'.$this->search.'%');
-                });
+                $this->applyCaseInsensitiveSearch($q, ['preparation_number', 'batch_number'], (string) $this->search);
             })
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->solutionFilter, fn ($q) => $q->where('solution_id', $this->solutionFilter))

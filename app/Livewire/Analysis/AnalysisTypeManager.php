@@ -9,6 +9,7 @@ use App\AnalysisElements;
 use App\Lab;
 use App\Analyte;
 use App\AnalysisMethod;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\Standards;
 use App\User;
@@ -20,6 +21,7 @@ use Illuminate\Validation\Rule;
 
 class AnalysisTypeManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -167,10 +169,7 @@ class AnalysisTypeManager extends Component
         }
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->search);
         }
 
         if ($this->labFilter) {
@@ -502,10 +501,7 @@ class AnalysisTypeManager extends Component
         $query = InvoicableItem::where('active', 1);
 
         if ($this->invoicableItemSearch) {
-            $query->where(function($q) {
-                $q->where('item_code', 'like', "%{$this->invoicableItemSearch}%")
-                  ->orWhere('item_name', 'like', "%{$this->invoicableItemSearch}%");
-            });
+            $this->applyCaseInsensitiveSearch($query, ['item_code', 'item_name'], (string) $this->invoicableItemSearch);
         }
 
         return $query->orderBy('item_name')->limit(20)->get();
@@ -724,10 +720,7 @@ class AnalysisTypeManager extends Component
             ->where('active', 1);
 
         if (!empty($this->labSearch)) {
-            $query->where(function ($q): void {
-                $q->where('name', 'like', '%' . $this->labSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->labSearch . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->labSearch);
         }
 
         return $query->orderBy('name')->limit(20)->get();
@@ -820,10 +813,7 @@ class AnalysisTypeManager extends Component
         }
 
         if (! empty($this->labSectionSearch)) {
-            $query->where(function ($q): void {
-                $q->where('name', 'like', '%' . $this->labSectionSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->labSectionSearch . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->labSectionSearch);
         }
 
         return $query->orderBy('name')->limit(20)->get();
@@ -900,10 +890,7 @@ class AnalysisTypeManager extends Component
             ->where('is_active', true);
 
         if ($search !== '') {
-            $groupedQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($groupedQuery, ['name', 'description'], $search);
         }
 
         foreach ($groupedQuery->orderBy('name')->limit(15)->get() as $holder) {
@@ -919,10 +906,7 @@ class AnalysisTypeManager extends Component
             ->where('is_active', true);
 
         if ($search !== '') {
-            $hybridQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($hybridQuery, ['name', 'description'], $search);
         }
 
         foreach ($hybridQuery->orderBy('name')->limit(15)->get() as $hybrid) {
@@ -974,13 +958,10 @@ class AnalysisTypeManager extends Component
             return [];
         }
 
-        return \App\Models\Procedures\ProcedureWorksheet::where('is_active', 1)
-            ->where(function($q) {
-                $q->where('name', 'like', '%' . $this->procedureWorksheetSearch . '%')
-                  ->orWhere('description', 'like', '%' . $this->procedureWorksheetSearch . '%');
-            })
-            ->limit(10)
-            ->get();
+        $query = \App\Models\Procedures\ProcedureWorksheet::where('is_active', 1);
+        $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->procedureWorksheetSearch);
+
+        return $query->limit(10)->get();
     }
 
     public function getSelectedProcedureWorksheetProperty()

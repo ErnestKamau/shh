@@ -3,6 +3,7 @@
 namespace App\Livewire\Lab;
 
 use App\Lab;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -10,6 +11,7 @@ use Livewire\WithPagination;
 
 class LabManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -72,11 +74,7 @@ class LabManager extends Component
             ->where('is_external', $this->activeTab === 'external' ? 1 : 0);
 
         if (! empty($this->search)) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('code', 'like', '%'.$this->search.'%')
-                    ->orWhere('email', 'like', '%'.$this->search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code', 'email'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {
@@ -91,11 +89,7 @@ class LabManager extends Component
         $base = Lab::query();
 
         if (! empty($this->search)) {
-            $base->where(function ($q) {
-                $q->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('code', 'like', '%'.$this->search.'%')
-                    ->orWhere('email', 'like', '%'.$this->search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($base, ['name', 'code', 'email'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

@@ -7,11 +7,14 @@ use App\Models\MethodSequences\MethodSequenceStage;
 use App\Models\Equipments\Equipment;
 use App\LabSubCategory;
 use App\LabInventoryCategory;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 
 class MethodSequenceStageEditor extends Component
 {
+    use AppliesCaseInsensitiveSearch;
+
     public MethodSequenceVersion $version;
     
     // Stage creation/editing
@@ -324,9 +327,9 @@ class MethodSequenceStageEditor extends Component
     public function searchEquipments(): void
     {
         if (strlen($this->equipmentSearch) >= 2) {
-            $this->filteredEquipments = Equipment::where('name', 'like', '%' . $this->equipmentSearch . '%')
-                ->limit(10)
-                ->get();
+            $query = Equipment::query();
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->equipmentSearch);
+            $this->filteredEquipments = $query->limit(10)->get();
             $this->showEquipmentDropdown = true;
         } else {
             $this->showEquipmentDropdown = false;
@@ -337,8 +340,9 @@ class MethodSequenceStageEditor extends Component
     public function searchMedias(): void
     {
         if (strlen($this->mediaSearch) >= 2) {
-            $this->filteredMedias = LabSubCategory::with('category')
-                ->where('name', 'like', '%' . $this->mediaSearch . '%')
+            $query = LabSubCategory::with('category');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->mediaSearch);
+            $this->filteredMedias = $query
                 ->whereHas('category', function($query) {
                     // Filter for media categories - you may need to adjust this based on your category structure
                     $query->whereIn('name', ['Media', 'Media Used', 'Culture Media']);
@@ -355,8 +359,9 @@ class MethodSequenceStageEditor extends Component
     public function searchControls(): void
     {
         if (strlen($this->controlSearch) >= 2) {
-            $this->filteredControls = LabSubCategory::with('category')
-                ->where('name', 'like', '%' . $this->controlSearch . '%')
+            $query = LabSubCategory::with('category');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->controlSearch);
+            $this->filteredControls = $query
                 ->whereHas('category', function($query) {
                     // Filter for control categories - you may need to adjust this based on your category structure
                     $query->whereIn('name', ['Control', 'Controls', 'Quality Control']);

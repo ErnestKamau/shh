@@ -4,10 +4,12 @@ namespace App\Livewire\Lab;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\ReportingUnit;
 
 class ReportingUnitManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -103,7 +105,7 @@ class ReportingUnitManager extends Component
         $query = ReportingUnit::query();
 
         if ($this->search) {
-            $query->where('name', 'like', '%' . $this->search . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {
