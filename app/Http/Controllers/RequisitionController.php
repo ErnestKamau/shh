@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class RequisitionController extends Controller
 {
@@ -154,7 +155,13 @@ class RequisitionController extends Controller
 		// 	}
 		// }
 		if ($ammendment === false) {
-			$request = RequestEntity::where('id', $id)->where('request_type', $stage)->first() ?? new RequestEntity;
+			// "Create Request" links pass time() as a placeholder id — not a UUID.
+			// Only look up by id when the route param is a real UUID.
+			if (Str::isUuid((string) $id)) {
+				$request = RequestEntity::where('id', $id)->where('request_type', $stage)->first() ?? new RequestEntity;
+			} else {
+				$request = new RequestEntity;
+			}
 		} else {
 			$request = RequestEntity::where('request_code', $id)->where('request_type', $stage)->where('ammendment', $ammendment)->first();
 
@@ -216,26 +223,34 @@ class RequisitionController extends Controller
 
 		$reqlocs = \App\RequisitionLocation::orderBy('name')->get();
 
-		$itempIDs = RequestEntityItem::where('request_id', $id)->select('inventory_sub_category_id')->pluck('inventory_sub_category_id')->toArray();
+		$isExistingRequest = Str::isUuid((string) $id) && isset($request->id);
 
-		$similarItems = RequestEntityItem::join('request_entities as re', 're.id', 'request_id')
-			->select([
-				'request_entity_items.inventory_sub_category_id',
-				'request_entity_items.quantity',
-				'request_entity_items.uom',
-				'request_code',
-				'request_id',
-				DB::raw('(CURRENT_DATE - re.created_at::date) AS days_ago')
-			])->with('sub_category')
-			->whereIn('inventory_sub_category_id', $itempIDs)
-			->where('re.id', '<', $id)
-			->where('request_type', 'Purchase Request')
-			->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(4))
-			->get();
+		$itempIDs = $isExistingRequest
+			? RequestEntityItem::where('request_id', $id)->select('inventory_sub_category_id')->pluck('inventory_sub_category_id')->toArray()
+			: [];
+
+		$similarItems = $isExistingRequest && count($itempIDs) > 0
+			? RequestEntityItem::join('request_entities as re', 're.id', 'request_id')
+				->select([
+					'request_entity_items.inventory_sub_category_id',
+					'request_entity_items.quantity',
+					'request_entity_items.uom',
+					'request_code',
+					'request_id',
+					DB::raw('(CURRENT_DATE - re.created_at::date) AS days_ago')
+				])->with('sub_category')
+				->whereIn('inventory_sub_category_id', $itempIDs)
+				->where('re.id', '<', $id)
+				->where('request_type', 'Purchase Request')
+				->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(4))
+				->get()
+			: collect();
 
 		// return response()->json($similarItems);
 
-		$criteria = \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get();
+		$criteria = $isExistingRequest
+			? \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get()
+			: collect();
 
 		$ratingScores = [];
 		$ratingReason = [];
