@@ -62,7 +62,7 @@ class StockTransferController extends Controller
 			$req->store = $items['source_store_id'][$i];
 			$req->transfer_to = systemVariables("inter_store_department_id");
 			$req->issued_to = \Auth::user()->id;
-			$req->storage_state_id = 0;
+			$req->storage_state_id = null;
 			$req->po_number = $transfer->code;
 
 			$itemsTransferredArray['out'][] = array(
@@ -132,7 +132,7 @@ class StockTransferController extends Controller
 			$myRequest->expiry = $items['expiry'][$i];
 			$myRequest->inventory_department_id = $transfer->department_id;
 			$myRequest->override_location_id = $transfer->location_id;
-			$myRequest->storage_state_id = $items['target_state_id'][$i] ?? 0;
+			$myRequest->storage_state_id = $items['target_state_id'][$i] ?? null;
 
 			$itemsTransferredArray['in'][] = array(
 				"item"=>$targetSubCat->code." - ".$targetSubCat->name,
