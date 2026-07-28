@@ -1069,12 +1069,11 @@
 													$req_item->item_name }}</option>
 											</select>
 
-											@php($hiddenAccount = in_array($stage, ['Request to Store', 'Material Issuance', 'Goods
-											Receipt']))
+											@php($hiddenAccount = ! isETCU() || in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']))
 
-											<div {!! $hiddenAccount ? 'style="display: none"' : 'unset' !!}>
+											@if (! $hiddenAccount)
+											<div>
 												<div style="padding:3px 2px">Account</div>
-												@if ($stage != 'Goods Receipt')
 												<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]"
 													style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control"
 													placeholder="Select Account..." required>
@@ -1085,8 +1084,8 @@
 													</option>
 													@endforeach
 												</select>
-												@endif
 											</div>
+											@endif
 										</div>
 									</td>
 									<td>
@@ -3951,12 +3950,14 @@
 					<td>
 						<div class="form-group">
 							<select name="items[item_id][]" style="min-width: 200px; font-size: 12px" class="form-control selected-item" placeholder="Select Item..." required><option></option></select>
-							<select name="items[item_account_id][]" style="min-width: 200px; font-size: 12px" class="form-control" placeholder="Select Acoount..." required>
+							@if (isETCU() && ! in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']))
+							<select name="items[item_account_id][]" style="min-width: 200px; font-size: 12px" class="form-control" placeholder="Select Account..." required>
 								<option value="">Select Account...</option>
 								@foreach ($accounts as $acc)
 									<option value="{{ $acc->account_id }}"><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
 								@endforeach
 							</select>
+							@endif
 						</div>
 					</td>
 					<td>
