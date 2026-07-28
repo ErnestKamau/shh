@@ -438,7 +438,6 @@ class SampleAnalysisSetupService
             ->where('analysis_type_id', $analysisTypeId)
             ->where('active', 1)
             ->whereNotNull('lab_section_id')
-            ->where('lab_section_id', '!=', '')
             ->orderBy('level')
             ->value('lab_section_id');
 
