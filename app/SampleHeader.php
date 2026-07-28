@@ -81,6 +81,110 @@ class SampleHeader extends Model implements Auditable
 		return $this->hasMany('App\SampleDetails')->orderBy('id', 'asc');
 	}
 
+	public function lab()
+	{
+		return $this->belongsTo(Lab::class, 'lab_id');
+	}
+
+	/**
+	 * Unique labs performing analysis for this batch (header, sample details, subcontracted results).
+	 *
+	 * @return list<array{id: string, code: string, name: string, is_external: bool}>
+	 */
+	public function analysisLabsForDisplay(): array
+	{
+		$labIds = [];
+
+		$headerLabId = trim((string) ($this->lab_id ?? ''));
+		if ($headerLabId !== '') {
+			$labIds[$headerLabId] = true;
+		}
+
+		$this->loadMissing(['samples.lab']);
+
+		foreach ($this->samples as $sample) {
+			$detailLabId = trim((string) ($sample->lab_id ?? ''));
+			if ($detailLabId !== '') {
+				$labIds[$detailLabId] = true;
+			}
+		}
+
+		if (\Illuminate\Support\Facades\Schema::hasColumn('captured_results', 'subcontracted_lab_id')) {
+			$samplesHaveCaptured = $this->relationLoaded('samples')
+				&& $this->samples->every(static fn ($sample) => $sample->relationLoaded('captured_results'));
+
+			if ($samplesHaveCaptured) {
+				foreach ($this->samples as $sample) {
+					foreach ($sample->captured_results as $result) {
+						$id = trim((string) ($result->subcontracted_lab_id ?? ''));
+						if ($id !== '') {
+							$labIds[$id] = true;
+						}
+					}
+				}
+			} else {
+				$subcontractedIds = CapturedResult::query()
+					->where('sample_header_id', $this->id)
+					->whereNotNull('subcontracted_lab_id')
+					->distinct()
+					->pluck('subcontracted_lab_id');
+
+				foreach ($subcontractedIds as $id) {
+					$id = trim((string) $id);
+					if ($id !== '') {
+						$labIds[$id] = true;
+					}
+				}
+			}
+		}
+
+		if ($labIds === []) {
+			$analysisTypeIds = $this->samples
+				->flatMap(static function ($sample): array {
+					return array_values(array_filter(array_map(
+						static fn (string $id): string => trim($id),
+						explode(',', (string) ($sample->analysis_type_id ?? '')),
+					)));
+				})
+				->unique()
+				->values()
+				->all();
+
+			if ($analysisTypeIds !== []) {
+				$fromTypes = AnalysisType::query()
+					->whereIn('id', $analysisTypeIds)
+					->whereNotNull('lab_id')
+					->pluck('lab_id');
+
+				foreach ($fromTypes as $id) {
+					$id = trim((string) $id);
+					if ($id !== '') {
+						$labIds[$id] = true;
+					}
+				}
+			}
+		}
+
+		if ($labIds === []) {
+			return [];
+		}
+
+		return Lab::query()
+			->whereIn('id', array_keys($labIds))
+			->orderBy('code')
+			->orderBy('name')
+			->get(['id', 'code', 'name', 'is_external'])
+			->map(static fn (Lab $lab): array => [
+				'id' => (string) $lab->id,
+				'code' => trim((string) ($lab->code ?? '')),
+				'name' => trim((string) ($lab->name ?? '')),
+				'is_external' => (bool) ($lab->is_external ?? false),
+			])
+			->filter(static fn (array $lab): bool => $lab['code'] !== '' || $lab['name'] !== '')
+			->values()
+			->all();
+	}
+
 	public function shelfLifeStudy()
 	{
 		return $this->hasOne(\App\Models\ShelfLife\ShelfLifeStudy::class, 'sample_header_id');

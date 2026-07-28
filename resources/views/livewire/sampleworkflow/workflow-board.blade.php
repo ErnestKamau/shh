@@ -2932,7 +2932,35 @@
 														@if($status != 'Samples In Lab')
 															<td>{{ $item->client_unit ?? 'N/A' }}</td>
 														@endif
-														<td>{{ $item->lab->name ?? 'N/A' }}</td>
+														<td>
+															@php
+																$analysisLabs = $item->analysisLabsForDisplay();
+															@endphp
+															@if($analysisLabs === [])
+																<span class="text-muted">N/A</span>
+															@else
+																<div class="d-flex flex-wrap align-items-center" style="gap: 4px; max-width: 200px;">
+																	@foreach($analysisLabs as $analysisLab)
+																		@php
+																			$labTitle = trim(($analysisLab['name'] ?? '').(($analysisLab['is_external'] ?? false) ? ' (External)' : ''));
+																			$labLabel = ($analysisLab['code'] ?? '') !== ''
+																				? $analysisLab['code']
+																				: ($analysisLab['name'] ?? 'Lab');
+																		@endphp
+																		<span
+																			class="badge border {{ !empty($analysisLab['is_external']) ? 'badge-warning' : 'badge-light' }}"
+																			title="{{ $labTitle }}"
+																			style="font-weight: 500; white-space: nowrap;"
+																		>
+																			@if(!empty($analysisLab['is_external']))
+																				<i class="mdi mdi-earth mr-1" style="font-size: 11px;"></i>
+																			@endif
+																			{{ $labLabel }}
+																		</span>
+																	@endforeach
+																</div>
+															@endif
+														</td>
 														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
 														<td>{{ $item->is_routine ? 'Yes' : 'No' }}</td>
 													@endif

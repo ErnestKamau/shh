@@ -88,6 +88,12 @@ class SampleAnalysisSetupService
         ?string $labSectionOverride = null,
         array $context = [],
     ): void {
+        // null = legacy "all active elements for the type".
+        // [] = explicit empty selection — create nothing (do not expand to all).
+        if (is_array($analysisElementIds) && $analysisElementIds === []) {
+            return;
+        }
+
         $analysisElements = $context['analysis_elements'] ?? null;
 
         if ($analysisElements === null) {
@@ -96,12 +102,12 @@ class SampleAnalysisSetupService
                 ->where('analysis_type_id', $analysisTypeId)
                 ->where('active', 1);
 
-            if ($analysisElementIds !== null && $analysisElementIds !== []) {
+            if ($analysisElementIds !== null) {
                 $query->whereIn('id', $analysisElementIds);
             }
 
             $analysisElements = $query->get();
-        } elseif ($analysisElementIds !== null && $analysisElementIds !== []) {
+        } elseif ($analysisElementIds !== null) {
             $allowed = array_map('strval', $analysisElementIds);
             $analysisElements = $analysisElements
                 ->filter(fn (AnalysisElements $element) => in_array((string) $element->id, $allowed, true))

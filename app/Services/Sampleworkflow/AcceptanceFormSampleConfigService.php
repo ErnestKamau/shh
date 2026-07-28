@@ -215,6 +215,10 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * Fill empty parameter_keys from quotation lines. Existing selections from
+     * Process Enquiry / enquiry_sample_configuration are preserved so quotation
+     * expansion (analysis-type-only lines → all elements) cannot overwrite them.
+     *
      * @param  list<array<string, mixed>>  $configs
      * @param  list<array<string, mixed>>  $quotationLines
      * @return list<array<string, mixed>>
@@ -235,6 +239,19 @@ class AcceptanceFormSampleConfigService
         $sampleSlotByKey = [];
 
         foreach ($configs as $index => $config) {
+            $existingKeys = collect(is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [])
+                ->map(fn (mixed $key): string => trim((string) $key))
+                ->filter(fn (string $key): bool => $key !== '')
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($existingKeys !== []) {
+                $configs[$index]['parameter_keys'] = $existingKeys;
+
+                continue;
+            }
+
             $key = $this->configGroupingKey(
                 $config['sample_type_id'] ?? null,
                 $config['analysis_type_id'] ?? null,
