@@ -194,6 +194,7 @@ class TestRequestReportPdfService
                 'disclaimer' => 'إخلاء المسؤولية: تمت اختبار جميع العينات في مختبر طرف ثالث',
                 'supersedes_original' => 'هذا التقرير يحل محل التقرير الأصلي',
                 'amendment_reason' => 'سبب التعديل',
+                'amendment_revision' => 'رقم المراجعة',
             ],
             'pt' => [
                 'report_title' => 'RELATÓRIO DE ENSAIO',
@@ -249,6 +250,7 @@ class TestRequestReportPdfService
                 'disclaimer' => 'AVISO: TODAS AS AMOSTRAS FORAM ENSAIADAS NUM LABORATÓRIO EXTERNO',
                 'supersedes_original' => 'Este relatório substitui o relatório original',
                 'amendment_reason' => 'Motivo da emenda',
+                'amendment_revision' => 'N.º da revisão',
             ],
             default => [
                 'report_title' => 'TEST REPORT',
@@ -304,6 +306,7 @@ class TestRequestReportPdfService
                 'disclaimer' => 'DISCLAIMER: ALL THE SAMPLES WERE TESTED AT A THIRD-PARTY LABORATORY',
                 'supersedes_original' => 'This report supersedes the original report',
                 'amendment_reason' => 'Amendment Reason',
+                'amendment_revision' => 'Revision No.',
             ],
         };
     }

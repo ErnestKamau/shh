@@ -2054,6 +2054,16 @@
 													</select>
 												</div>
 											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Amendment</label>
+													<select wire:model.live="amendmentFilter" class="form-control form-control-sm">
+														<option value="all">All batches</option>
+														<option value="in_amendment">In amendment</option>
+														<option value="amended">Amended (any version)</option>
+													</select>
+												</div>
+											</div>
 											<div class="col-md-1 d-flex align-items-end">
 												<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
 													<i class="mdi mdi-refresh"></i>
@@ -2142,6 +2152,16 @@
 										<div class="form-group mb-3 mb-md-0">
 											<label class="form-label small fw-bold">Receipt To</label>
 											<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Amendment</label>
+											<select wire:model.live="amendmentFilter" class="form-control form-control-sm">
+												<option value="all">All batches</option>
+												<option value="in_amendment">In amendment</option>
+												<option value="amended">Amended (any version)</option>
+											</select>
 										</div>
 									</div>
 
@@ -2870,8 +2890,11 @@
 												$statusDays = \App\Livewire\Sampleworkflow\WorkflowBoard::statusDaysUntilTarget($targetDateRaw);
 												$sample_codes = $item->samples->pluck('sample_code')->toArray();
 												$sample_count = count($sample_codes);
+												$inAmendment = $item->isInAmendmentProcess();
+												$amendedVersion = $item->amendmentVersion();
+												$rowClass = $inAmendment ? 'ammend-bg-color' : '';
 												@endphp
-												<tr class="batch-row crm-customer-{{ $item->crm_customer_id }}" data-class="{{ $item->crm_customer_id }}">
+												<tr class="batch-row crm-customer-{{ $item->crm_customer_id }} {{ $rowClass }}" data-class="{{ $item->crm_customer_id }}">
 													<td>
 														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-lab-batch-select data-batch-code="{{$item->batch_code}}" data-customer-id="{{ $item->crm_customer_id }}">
 													</td>
@@ -2879,6 +2902,11 @@
 														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
 															<strong>{{ $item->batch_code }}</strong>
 														</a>
+														@if($inAmendment)
+															<span class="badge badge-warning ml-1" title="Sent back for amendment">Amendment V{{ $amendedVersion }}</span>
+														@elseif($amendedVersion > 1)
+															<span class="badge badge-light border ml-1" title="Previously amended">Amended V{{ $amendedVersion }}</span>
+														@endif
 													</td>
 													@if($status !== 'Samples En-Route' && auth()->user()->CheckViewQcSample())
 														<td>{{ $item->is_qc ? 'Yes' : 'No' }}</td>

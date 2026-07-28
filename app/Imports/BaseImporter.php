@@ -78,6 +78,7 @@ abstract class BaseImporter implements
 
             $this->batch = new BulkImportBatch([
                 'module' => 'generic',
+                'form_type' => 'generic',
                 'status' => 'processing',
                 'company_id' => $companyId,
                 'user_id' => $userId,

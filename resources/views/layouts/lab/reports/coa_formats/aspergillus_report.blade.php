@@ -610,6 +610,7 @@
             <p><strong>Report Type:</strong> {{ $report_type }}</p>
             @endif
             @if($ammendment)
+            <p><strong>Revision No.:</strong> R{{ str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT) }}</p>
             <p><strong>Amendment Reason:</strong> {{ $ammendment->reason }}</p>
             @endif
             <p>This certificate relates only to the samples tested. Results are valid at the time of testing. Samples were analyzed under controlled laboratory conditions.</p>

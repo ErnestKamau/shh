@@ -145,7 +145,7 @@ class CRMCustomerController extends Controller
   public function batch_report_data(Request $request){
 	$query = SampleHeader::with(['client', 'sample_type', 'samples','crmunit'])
 		->select('sample_headers.*')
-		->where('sample_headers.status', 'Completed'); // Only show completed batches
+		->whereIn('sample_headers.status', getCompletedReportStatuses()); // Only show completed batches
 
 	// Apply date range filter
 	if ($request->filled('date_from')) {
@@ -233,7 +233,7 @@ class CRMCustomerController extends Controller
   public function batch_report_export(Request $request){
 	$query = SampleHeader::with(['client', 'sample_type', 'samples','crmunit'])
 		->select('sample_headers.*')
-		->where('sample_headers.status', 'Completed'); // Only export completed batches
+		->whereIn('sample_headers.status', getCompletedReportStatuses()); // Only export completed batches
 
 	// Apply the same filters as data method
 	if ($request->filled('date_from')) {

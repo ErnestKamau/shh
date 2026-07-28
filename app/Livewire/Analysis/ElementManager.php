@@ -4,21 +4,26 @@ namespace App\Livewire\Analysis;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\WithFileUploads;
 use Livewire\Attributes\On;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Analyte;
 use App\AnalysisMethod;
+use App\Imports\ImportAnalysisElements;
 use App\Models\Equipments\Equipment;
 use App\User;
 use App\ReportingUnit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ElementManager extends Component
 {
     use WithPagination;
+    use WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -28,6 +33,8 @@ class ElementManager extends Component
     // Elements Management
     public $editingElement = null;
     public $showElementModal = false;
+    public bool $showImportModal = false;
+    public $importFile = null;
     
     // Element Form
     public $elementForm = [
@@ -266,6 +273,66 @@ class ElementManager extends Component
     public function updatedStatusFilter()
     {
         $this->resetPage();
+    }
+
+    public function openImportModal(): void
+    {
+        $this->resetValidation();
+        $this->importFile = null;
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->showImportModal = false;
+        $this->importFile = null;
+        $this->resetValidation();
+    }
+
+    public function downloadImportTemplate(): BinaryFileResponse|\Illuminate\Http\RedirectResponse
+    {
+        $templatePath = public_path('templates/import-analysis-type-elements.xlsx');
+
+        if (! is_file($templatePath)) {
+            $this->message = 'Import template file was not found.';
+            $this->messageType = 'danger';
+
+            return redirect()->back();
+        }
+
+        return response()->download(
+            $templatePath,
+            'import-analysis-type-elements.xlsx'
+        );
+    }
+
+    public function importParameters(): void
+    {
+        $this->validate([
+            'importFile' => 'required|file|mimes:xlsx,xls|max:5120',
+        ], [
+            'importFile.required' => 'Please choose an Excel file to import.',
+            'importFile.mimes' => 'The import file must be an Excel workbook (.xlsx or .xls).',
+        ]);
+
+        try {
+            $analysisType = AnalysisType::findOrFail($this->analysisTypeId);
+
+            Excel::import(new ImportAnalysisElements($analysisType), $this->importFile->getRealPath());
+
+            $this->closeImportModal();
+            $this->loadElements();
+            $this->message = 'Parameters imported successfully.';
+            $this->messageType = 'success';
+        } catch (\Throwable $e) {
+            Log::error('Analysis parameter import failed', [
+                'analysis_type_id' => $this->analysisTypeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->message = 'Error importing parameters: '.$e->getMessage();
+            $this->messageType = 'danger';
+        }
     }
 
     public function showCreateElementModal()

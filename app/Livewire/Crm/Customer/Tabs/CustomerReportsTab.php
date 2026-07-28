@@ -66,7 +66,7 @@ class CustomerReportsTab extends BaseCrmComponent
                 'st.name as sample_type'
             )
             ->where('sample_headers.crm_customer_id', $this->customer->id)
-            ->where('sample_headers.status', "Completed");
+            ->whereIn('sample_headers.status', getCompletedReportStatuses());
 
         if ($this->search) {
             $query->where(function($q) {
@@ -262,6 +262,8 @@ class CustomerReportsTab extends BaseCrmComponent
             'CRM amendment raised: ' . $this->amendmentReason
         );
         $batch->save();
+
+        BatchAmmendment::flagSamplesForAmendment($batch, $sampleIds, (int) $new_ammendment->version_number);
 
         app(JobSampleNumberingService::class)
             ->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);

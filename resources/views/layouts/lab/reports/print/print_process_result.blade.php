@@ -251,7 +251,7 @@
                         @if($sample->repeat_captured_id == '')
                         <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->seond_guide ?? '-'}}</td>
                         @endif
-                        <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->remarks}}</td>
+                        <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{ format_result_remark($sample->remarks) }}</td>
                     </tr>
 
                     @endforeach

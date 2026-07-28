@@ -360,9 +360,16 @@
 
                         {{-- Sample Code (readonly) --}}
                         <td>
-                            <input type="text" class="form-control form-control-sm"
-                                value="{{ format_sample_code($sampleForm['sample_code']) }}" readonly
-                                style="background: #f5f5f5; font-weight: bold;">
+                            <div class="d-flex align-items-center" style="gap:6px;">
+                                <input type="text" class="form-control form-control-sm"
+                                    value="{{ format_sample_code($sampleForm['sample_code']) }}" readonly
+                                    style="background: #f5f5f5; font-weight: bold;{{ !empty($sampleForm['is_ammendment']) ? ' border-color:#f59e0b;' : '' }}">
+                                @if(!empty($sampleForm['is_ammendment']))
+                                    <span class="badge badge-warning" title="Flagged for amendment">
+                                        Amend V{{ $sampleForm['ammendment_number'] ?? $batch->amendmentVersion() }}
+                                    </span>
+                                @endif
+                            </div>
                         </td>
 
                         {{-- Matrix (analysis types) --}}
@@ -941,14 +948,14 @@
                                     <th style="min-width: 100px;">Sample</th>
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
-                                    <th style="min-width: 100px;">Result</th>
+                                    <th style="min-width: 70px;">Result</th>
                                     <th style="min-width: 145px;">Start date</th>
                                     <th style="min-width: 145px;">End date</th>
                                     @if($uncertaintyRequired)
                                     <th style="min-width: 80px;">M.U.</th>
                                     @endif
                                     <th style="min-width: 150px;">Standard</th>
-                                    <th style="min-width: 100px;">Remark</th>
+                                    <th style="min-width: 180px;">Remark</th>
                                     <th style="min-width: 100px;">Unit</th>
                                     <th style="min-width: 120px;">Operator</th>
                                     <th style="min-width: 120px;">Method</th>
@@ -977,7 +984,7 @@
                                         @endif
                                     </td>
                                     <td>{{ $param['result_reporting_symbol'] ?? '-' }}</td>
-                                    <td style="min-width: 160px;">
+                                    <td style="min-width: 80px; max-width: 100px;">
                                         <div class="input-group input-group-sm">
                                             <input type="text"
                                                 class="form-control form-control-sm {{ $parametersDisabled ? '' : 'js-confirm-result' }}"
@@ -1007,8 +1014,9 @@
                                     </td>
                                     <td style="min-width: 145px;">
                                         <input type="date"
+                                            wire:key="end-date-{{ $id }}-{{ $parametersForm[$id]['end_analysis_date'] ?? 'empty' }}"
                                             class="form-control form-control-sm"
-                                            wire:model.defer="parametersForm.{{ $id }}.end_analysis_date"
+                                            wire:model="parametersForm.{{ $id }}.end_analysis_date"
                                             @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     @if($uncertaintyRequired)
@@ -1051,7 +1059,7 @@
                                         </div>
                                         @endif
                                     </td>
-                                    <td style="min-width: 110px;">
+                                    <td style="min-width: 180px;">
                                         <select class="form-control form-control-sm"
                                             wire:model="parametersForm.{{ $id }}.remark"
                                             style="pointer-events: none; background-color: #e9ecef;"

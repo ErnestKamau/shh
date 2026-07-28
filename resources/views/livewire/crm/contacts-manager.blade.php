@@ -250,17 +250,38 @@
                                             <label class="form-label fw-bold">
                                                 <i class="mdi mdi-draw-pen text-primary"></i> Signature
                                             </label>
-                                            <input type="file" wire:model="signatureFile" accept="image/*" class="form-control">
-                                            @if($contactForm['signature'])
-                                                <div class="mt-2">
-                                                    <small class="text-muted">{{ __('crm.current_signature') }}:</small>
-                                                    <div class="mt-1">
-                                                        <img src="{{ asset('storage/' . $contactForm['signature']) }}" alt="{{ __('crm.signature') }}" style="max-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
+                                            <p class="text-muted small mb-2">Optional — draw on the pad or upload an image/PDF of the signature.</p>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-2">
+                                                    <input type="file" id="contactsManagerSignatureUpload" wire:model="signatureFile" accept="image/*,.pdf,application/pdf" class="form-control">
+                                                    @error('signatureFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    @if($contactForm['signature'])
+                                                        <div class="mt-2">
+                                                            <small class="text-muted">{{ __('crm.current_signature') }}:</small>
+                                                            <div class="mt-1">
+                                                                <img src="{{ $contactForm['signature'] }}" alt="{{ __('crm.signature') }}" style="max-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
+                                                            </div>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" wire:click="clearContactSignature">
+                                                                Remove signature
+                                                            </button>
+                                                        </div>
+                                                    @endif
+                                                    <small class="form-text text-muted">PNG, JPG, GIF, WEBP, or PDF up to 5MB.</small>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <div id="contactsManagerSignatureCanvasWrap" wire:ignore style="position:relative;border:1px dashed #ced4da;border-radius:6px;background:#fff;overflow:hidden;">
+                                                        <canvas id="contactsManagerSignatureCanvas" width="620" height="160" style="width:100%;height:140px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                                                        <span id="contactsManagerSignaturePlaceholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;pointer-events:none;">Sign here</span>
+                                                    </div>
+                                                    <input type="hidden" id="contactsManagerSignatureData" wire:model="signatureData">
+                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                        <small id="contactsManagerSignatureStatus" class="text-muted">{{ $signatureData !== '' ? 'Signed' : 'Not signed' }}</small>
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" id="clearContactsManagerSignaturePad">
+                                                            <i class="mdi mdi-eraser"></i> Clear
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            @endif
-                                            @error('signatureFile') <span class="text-danger">{{ $message }}</span> @enderror
-                                            <small class="form-text text-muted">{{ __('crm.signature_upload_hint') }}</small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -308,7 +329,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-office-building text-primary"></i> {{ __('crm.company_units') }} <span class="text-danger">*</span>
+                                                <i class="mdi mdi-office-building text-primary"></i> {{ __('crm.company_units') }}
                                             </label>
                                             <div x-data="{
                                                 open: false,
@@ -943,4 +964,192 @@
         opacity: 0.5;
     }
     </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        (function () {
+            if (window.__contactsManagerSignaturePadInit) {
+                return;
+            }
+            window.__contactsManagerSignaturePadInit = true;
+
+            if (window.pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+
+            let isDrawing = false;
+            let hasSignatureStroke = false;
+
+            function nodes() {
+                return {
+                    canvas: document.getElementById('contactsManagerSignatureCanvas'),
+                    hiddenInput: document.getElementById('contactsManagerSignatureData'),
+                    clearBtn: document.getElementById('clearContactsManagerSignaturePad'),
+                    placeholder: document.getElementById('contactsManagerSignaturePlaceholder'),
+                    uploadInput: document.getElementById('contactsManagerSignatureUpload'),
+                    statusBadge: document.getElementById('contactsManagerSignatureStatus'),
+                };
+            }
+
+            function pointFromEvent(event, canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const source = event.touches && event.touches[0] ? event.touches[0] : event;
+                return {
+                    x: (source.clientX - rect.left) * (canvas.width / rect.width),
+                    y: (source.clientY - rect.top) * (canvas.height / rect.height),
+                };
+            }
+
+            function syncHiddenSignature() {
+                const { canvas, hiddenInput, statusBadge } = nodes();
+                if (!canvas || !hiddenInput) {
+                    return;
+                }
+                hiddenInput.value = hasSignatureStroke ? canvas.toDataURL('image/png') : '';
+                hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                const root = canvas.closest('[wire\\:id]');
+                if (root && window.Livewire && typeof Livewire.find === 'function') {
+                    const component = Livewire.find(root.getAttribute('wire:id'));
+                    if (component) {
+                        component.set('signatureData', hiddenInput.value, false);
+                    }
+                }
+                if (statusBadge) {
+                    statusBadge.textContent = hasSignatureStroke ? 'Signed' : 'Not signed';
+                }
+            }
+
+            function clearPad() {
+                const { canvas, placeholder } = nodes();
+                if (!canvas) {
+                    return;
+                }
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                hasSignatureStroke = false;
+                if (placeholder) {
+                    placeholder.style.display = 'flex';
+                }
+                syncHiddenSignature();
+            }
+
+            async function convertPdfToPad(file) {
+                if (!window.pdfjsLib) {
+                    return false;
+                }
+                const buffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const offscreen = document.createElement('canvas');
+                offscreen.width = viewport.width;
+                offscreen.height = viewport.height;
+                await page.render({ canvasContext: offscreen.getContext('2d'), viewport }).promise;
+                const { canvas, placeholder } = nodes();
+                if (!canvas) {
+                    return false;
+                }
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const scale = Math.min(canvas.width / offscreen.width, canvas.height / offscreen.height);
+                ctx.drawImage(
+                    offscreen,
+                    (canvas.width - offscreen.width * scale) / 2,
+                    (canvas.height - offscreen.height * scale) / 2,
+                    offscreen.width * scale,
+                    offscreen.height * scale
+                );
+                hasSignatureStroke = true;
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                syncHiddenSignature();
+                return true;
+            }
+
+            function bindPad() {
+                const { canvas, clearBtn, placeholder, uploadInput } = nodes();
+                if (!canvas || canvas.dataset.bound === '1') {
+                    return;
+                }
+                canvas.dataset.bound = '1';
+                const ctx = canvas.getContext('2d');
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#111827';
+
+                const start = function (event) {
+                    event.preventDefault();
+                    isDrawing = true;
+                    hasSignatureStroke = true;
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+                    const point = pointFromEvent(event, canvas);
+                    ctx.beginPath();
+                    ctx.moveTo(point.x, point.y);
+                };
+                const move = function (event) {
+                    if (!isDrawing) {
+                        return;
+                    }
+                    event.preventDefault();
+                    const point = pointFromEvent(event, canvas);
+                    ctx.lineTo(point.x, point.y);
+                    ctx.stroke();
+                };
+                const end = function () {
+                    if (!isDrawing) {
+                        return;
+                    }
+                    isDrawing = false;
+                    syncHiddenSignature();
+                };
+
+                canvas.addEventListener('mousedown', start);
+                canvas.addEventListener('mousemove', move);
+                canvas.addEventListener('mouseup', end);
+                canvas.addEventListener('mouseleave', end);
+                canvas.addEventListener('touchstart', start, { passive: false });
+                canvas.addEventListener('touchmove', move, { passive: false });
+                canvas.addEventListener('touchend', end);
+
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        clearPad();
+                    });
+                }
+
+                if (uploadInput) {
+                    uploadInput.addEventListener('change', async function () {
+                        const file = uploadInput.files && uploadInput.files[0] ? uploadInput.files[0] : null;
+                        if (!file) {
+                            return;
+                        }
+                        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+                            try {
+                                if (await convertPdfToPad(file)) {
+                                    uploadInput.value = '';
+                                }
+                            } catch (error) {
+                                console.error(error);
+                                alert('Could not read that PDF. Please upload an image or use the sign pad.');
+                            }
+                        }
+                    });
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', bindPad);
+            document.addEventListener('livewire:navigated', bindPad);
+            if (window.Livewire) {
+                Livewire.hook('morph.updated', function () {
+                    bindPad();
+                });
+            }
+            setTimeout(bindPad, 0);
+        })();
+    </script>
 </div>

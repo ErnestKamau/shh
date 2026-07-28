@@ -3,10 +3,12 @@
 namespace App\Livewire\Sampleworkflow;
 
 use App\Livewire\Sampleworkflow\Concerns\ManagesSampleConfigurationWizard;
+use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\CRM\ContactSignatureService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
@@ -301,6 +303,27 @@ class AcceptanceFormWizard extends Component
     public function updatedSelectedCustomerContactId(): void
     {
         $this->syncCustomerSignerNameFromContact();
+        $this->hydrateCustomerSignatureFromContact();
+    }
+
+    public function clearSavedCustomerSignature(): void
+    {
+        $this->customerSignature = '';
+        $this->dispatch('acceptance-wizard-signatures-step');
+    }
+
+    private function hydrateCustomerSignatureFromContact(): void
+    {
+        if ($this->selectedCustomerContactId === '') {
+            return;
+        }
+
+        $dataUri = app(ContactSignatureService::class)
+            ->dataUriForContact(CustomerContact::query()->find($this->selectedCustomerContactId));
+
+        if ($dataUri !== '') {
+            $this->customerSignature = $dataUri;
+        }
     }
 
     public function closeWizard(): void
@@ -501,6 +524,7 @@ class AcceptanceFormWizard extends Component
         }
 
         $this->syncCustomerSignerNameFromContact();
+        $this->hydrateCustomerSignatureFromContact();
     }
 
     private function syncCustomerSignerNameFromContact(): void

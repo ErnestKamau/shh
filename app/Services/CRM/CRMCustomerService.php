@@ -334,7 +334,7 @@ class CRMCustomerService
         $samplesSel = SampleHeader::join('sample_types as st', 'st.id', 'sample_type_id')
             ->selectRaw('sample_headers.*, st.name as sample_type')
             ->where('crm_customer_id', $id)
-            ->where('sample_headers.status', ['Completed'])
+            ->whereIn('sample_headers.status', getCompletedReportStatuses())
             ->orderBy('id', 'desc')
             ->get();
 
@@ -343,7 +343,7 @@ class CRMCustomerService
             ->selectRaw('sample_headers.id, sample_headers.batch_code, sample_headers.date_collected, sample_headers.reference_number, sample_headers.document_number, sample_headers.status, count(sd.id) as samples, st.name as sample_type')
             ->where('crm_customer_id', $id)
             ->groupBy('sample_headers.id', 'sample_headers.batch_code', 'sample_headers.date_collected', 'sample_headers.reference_number', 'sample_headers.document_number', 'sample_headers.status', 'st.name')
-            ->whereNotIn('status', ['Completed'])
+            ->whereNotIn('status', getCompletedReportStatuses())
             ->get();
 
         $samples = [];

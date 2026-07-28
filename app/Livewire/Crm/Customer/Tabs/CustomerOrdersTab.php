@@ -54,7 +54,7 @@ class CustomerOrdersTab extends BaseCrmComponent
                 });
             })
             ->groupBy('sample_headers.id', 'sample_headers.batch_code', 'sample_headers.date_collected', 'sample_headers.reference_number', 'sample_headers.document_number', 'sample_headers.status', 'st.name')
-            ->whereNotIn('sample_headers.status', ["Completed"])
+            ->whereNotIn('sample_headers.status', getCompletedReportStatuses())
             ->paginate($this->perPage);
     }
 

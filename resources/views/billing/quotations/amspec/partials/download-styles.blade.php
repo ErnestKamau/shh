@@ -167,6 +167,23 @@
         border: 1px solid #999999;
     }
 
+    body.amspec-download-body .amspec-test-table .amspec-num-cell {
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+        white-space: nowrap;
+    }
+
+    body.amspec-download-body .amspec-test-table .amspec-price-cell {
+        padding-left: 3px !important;
+        padding-right: 4px !important;
+        white-space: nowrap;
+    }
+
+    body.amspec-download-body .amspec-test-table .amspec-params-cell {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
     body.amspec-download-body .amspec-th-primary {
         background-color: {{ $primaryColor }} !important;
         color: #ffffff !important;

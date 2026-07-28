@@ -1447,16 +1447,22 @@ class SubmissionFormController extends Controller
                 ], 404);
             }
 
-            // Build full URL if path is relative
-            $signatureUrl = $signaturePath;
-            if (!filter_var($signaturePath, FILTER_VALIDATE_URL)) {
-                $signatureUrl = asset('storage/' . $signaturePath);
+            $signatureService = app(\App\Services\CRM\ContactSignatureService::class);
+            $signatureUrl = $signatureService->publicUrl($signaturePath);
+            $signatureDataUri = $signatureService->toDataUri($signaturePath);
+
+            if (! $signatureUrl && $signatureDataUri === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No signature available for this contact'
+                ], 404);
             }
 
             return response()->json([
                 'success' => true,
                 'signature_path' => $signaturePath,
-                'signature_url' => $signatureUrl
+                'signature_url' => $signatureUrl ?: $signatureDataUri,
+                'signature_data_uri' => $signatureDataUri,
             ]);
 
         } catch (\Exception $e) {
@@ -1485,45 +1491,29 @@ class SubmissionFormController extends Controller
             ]);
 
             $contact = \App\Models\CRM\CustomerContact::findOrFail($request->contact_id);
-            
-            // Decode base64 image
-            $signatureData = $request->signature;
-            
-            // Check if it's a data URL
-            if (preg_match('/^data:image\/(\w+);base64,/', $signatureData, $matches)) {
-                $imageData = substr($signatureData, strpos($signatureData, ',') + 1);
-                $imageData = base64_decode($imageData);
-                $extension = $matches[1];
-                
-                // Generate unique filename
-                $filename = 'contact_' . $contact->id . '_' . time() . '.' . $extension;
-                $path = 'signatures/' . $filename;
-                
-                // Save to storage
-                \Illuminate\Support\Facades\Storage::disk('public')->put($path, $imageData);
-                
-                // Delete old signature if exists
-                if ($contact->signature && \Illuminate\Support\Facades\Storage::disk('public')->exists($contact->signature)) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($contact->signature);
-                }
-                
-                // Update contact
-                $contact->signature = $path;
-                $contact->save();
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Signature saved successfully',
-                    'signature_path' => $path,
-                    'signature_url' => asset('storage/' . $path)
-                ]);
-            } else {
+
+            $applied = app(\App\Services\CRM\ContactSignatureService::class)->applyToContact(
+                $contact,
+                null,
+                (string) $request->signature,
+            );
+
+            if (! $applied) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid signature format'
                 ], 400);
             }
 
+            $contact->save();
+            $path = $contact->signature;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Signature saved successfully',
+                'signature_path' => $path,
+                'signature_url' => asset('storage/' . ltrim((string) $path, '/'))
+            ]);
         } catch (\Exception $e) {
             Log::error('Error saving contact signature: ' . $e->getMessage());
             return response()->json([

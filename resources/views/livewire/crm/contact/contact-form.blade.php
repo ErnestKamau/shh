@@ -360,7 +360,7 @@
                         </button>
                     </div>
 
-                    <form wire:submit.prevent="save" class="contact-modal-form">
+                    <form class="contact-modal-form" onsubmit="return false;">
                         <div class="modal-body contact-modal-body">
                             <section class="cf-section">
                                 <div class="cf-section-head">
@@ -394,7 +394,7 @@
                                     </div>
 
                                     <div class="cf-field">
-                                        <label>{{ __('crm.occupation') }} <span class="text-danger">*</span></label>
+                                        <label>{{ __('crm.occupation') }}</label>
                                         <input type="text"
                                             class="form-control @error('job_occupation') is-invalid @enderror"
                                             wire:model="job_occupation"
@@ -402,7 +402,7 @@
                                         @error('job_occupation') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                     <div class="cf-field">
-                                        <label>{{ __('crm.department') }} <span class="text-danger">*</span></label>
+                                        <label>{{ __('crm.department') }}</label>
                                         <div class="tag-select-container @error('unit_name') is-invalid @enderror"
                                             wire:click="$set('showUnitDropdown', true)"
                                             wire:click.outside="$set('showUnitDropdown', false)">
@@ -467,6 +467,8 @@
                                         @error('mobile') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
+
+                                @include('livewire.crm.partials.contact-signature-fields')
                             </section>
 
                             <section class="cf-section">
@@ -531,7 +533,7 @@
                             <button type="button" class="btn btn-secondary" wire:click="close" wire:loading.attr="disabled">
                                 {{ __('crm.close') }}
                             </button>
-                            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
+                            <button type="button" id="contactFormSaveButton" class="btn btn-primary" wire:loading.attr="disabled">
                                 <span wire:loading.remove wire:target="save">
                                     <i class="mdi mdi-content-save"></i> {{ __('crm.save') }}
                                 </span>
@@ -546,3 +548,239 @@
         </div>
     </template>
 </div>
+
+@script
+<script>
+    (function () {
+        const loadScript = (src, dataAttr) => new Promise((resolve, reject) => {
+            if (document.querySelector(`script[${dataAttr}]`)) {
+                resolve();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = src;
+            script.setAttribute(dataAttr.split('=')[0], '1');
+            script.onload = () => resolve();
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
+        let pad = null;
+        let resizeObserver = null;
+
+        const nodes = () => ({
+            canvas: document.getElementById('contactFormSignatureCanvas'),
+            wrap: document.getElementById('contactFormSignatureCanvasWrap'),
+            clearBtn: document.getElementById('clearContactFormSignaturePad'),
+            placeholder: document.getElementById('contactFormSignaturePlaceholder'),
+            status: document.getElementById('contactFormSignatureStatus'),
+            upload: document.getElementById('contactFormSignatureUpload'),
+            hidden: document.getElementById('contactFormSignatureData'),
+            saveBtn: document.getElementById('contactFormSaveButton'),
+        });
+
+        const setStatus = (signed) => {
+            const { status, placeholder } = nodes();
+            if (status) {
+                status.textContent = signed ? 'Signed' : 'Not signed';
+                status.classList.toggle('is-signed', signed);
+            }
+            if (placeholder) {
+                placeholder.style.display = signed ? 'none' : 'flex';
+            }
+        };
+
+        const currentPadDataUrl = () => {
+            if (!pad || pad.isEmpty()) {
+                return '';
+            }
+
+            return pad.toDataURL('image/png');
+        };
+
+        const syncToLivewire = async ({ clearIfEmpty = false } = {}) => {
+            const drawn = currentPadDataUrl();
+            const { hidden } = nodes();
+
+            if (drawn !== '') {
+                if (hidden) {
+                    hidden.value = drawn;
+                }
+                await $wire.set('signatureData', drawn);
+                await $wire.set('clearExistingSignature', false);
+                setStatus(true);
+                return drawn;
+            }
+
+            if (clearIfEmpty) {
+                if (hidden) {
+                    hidden.value = '';
+                }
+                await $wire.set('signatureData', '');
+                await $wire.set('clearExistingSignature', true);
+                setStatus(false);
+                return '';
+            }
+
+            // Keep any previously loaded/saved signatureData; do not wipe it because the pad looks empty.
+            const existing = $wire.get('signatureData') || '';
+            setStatus(existing !== '');
+            return existing;
+        };
+
+        const resizeCanvas = () => {
+            const { canvas, wrap } = nodes();
+            if (!canvas || !pad || typeof SignaturePad === 'undefined') {
+                return;
+            }
+            const data = pad.toData();
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const width = Math.max(wrap?.clientWidth || canvas.clientWidth || 620, 200);
+            const height = 160;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+            pad.clear();
+            if (data && data.length) {
+                pad.fromData(data);
+            }
+        };
+
+        const initPad = async () => {
+            const { canvas, clearBtn, upload, wrap, saveBtn } = nodes();
+            if (!canvas) {
+                return;
+            }
+
+            if (typeof SignaturePad === 'undefined') {
+                await loadScript(
+                    'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js',
+                    'data-contact-signature-pad'
+                );
+            }
+
+            if (pad) {
+                pad.off();
+                pad = null;
+            }
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const width = Math.max(wrap?.clientWidth || canvas.clientWidth || 620, 200);
+            canvas.width = width * ratio;
+            canvas.height = 160 * ratio;
+            canvas.style.width = width + 'px';
+            canvas.style.height = '160px';
+            canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+
+            pad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255,255,255)',
+                penColor: 'rgb(17, 24, 39)',
+                minWidth: 0.8,
+                maxWidth: 2.5,
+            });
+
+            const existing = $wire.get('signatureData');
+            if (existing && typeof existing === 'string' && existing.indexOf('data:image') === 0) {
+                try {
+                    await pad.fromDataURL(existing, { ratio });
+                } catch (error) {
+                    console.error(error);
+                }
+                setStatus(!pad.isEmpty());
+            } else {
+                setStatus(false);
+            }
+
+            pad.addEventListener('beginStroke', () => setStatus(true));
+            pad.addEventListener('endStroke', () => {
+                syncToLivewire();
+            });
+
+            if (clearBtn && clearBtn.dataset.bound !== '1') {
+                clearBtn.dataset.bound = '1';
+                clearBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    pad.clear();
+                    await syncToLivewire({ clearIfEmpty: true });
+                });
+            }
+
+            if (upload && upload.dataset.bound !== '1') {
+                upload.dataset.bound = '1';
+                upload.addEventListener('change', async () => {
+                    const file = upload.files && upload.files[0] ? upload.files[0] : null;
+                    if (!file) {
+                        return;
+                    }
+                    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+                        return;
+                    }
+                    try {
+                        if (typeof pdfjsLib === 'undefined') {
+                            await loadScript(
+                                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+                                'data-contact-pdfjs'
+                            );
+                        }
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        const buffer = await file.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+                        const page = await pdf.getPage(1);
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        const offscreen = document.createElement('canvas');
+                        offscreen.width = viewport.width;
+                        offscreen.height = viewport.height;
+                        await page.render({ canvasContext: offscreen.getContext('2d'), viewport }).promise;
+                        pad.fromDataURL(offscreen.toDataURL('image/png'));
+                        await syncToLivewire();
+                        upload.value = '';
+                        await $wire.set('signatureUpload', null);
+                    } catch (error) {
+                        console.error(error);
+                        alert('Could not read that PDF. Please upload an image or draw on the pad.');
+                    }
+                });
+            }
+
+            if (wrap && typeof ResizeObserver !== 'undefined') {
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                }
+                resizeObserver = new ResizeObserver(() => resizeCanvas());
+                resizeObserver.observe(wrap);
+            }
+
+            if (saveBtn && saveBtn.dataset.bound !== '1') {
+                saveBtn.dataset.bound = '1';
+                saveBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    await syncToLivewire();
+                    await $wire.save();
+                });
+            }
+        };
+
+        let attempts = 0;
+        const boot = () => {
+            attempts += 1;
+            const canvas = document.getElementById('contactFormSignatureCanvas');
+            const wrap = document.getElementById('contactFormSignatureCanvasWrap');
+            if (canvas && wrap && wrap.clientWidth > 0) {
+                initPad();
+                return;
+            }
+            if (canvas && attempts > 5) {
+                initPad().then(() => setTimeout(resizeCanvas, 100));
+                return;
+            }
+            if (attempts < 40) {
+                setTimeout(boot, 50);
+            }
+        };
+
+        boot();
+    })();
+</script>
+@endscript

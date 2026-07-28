@@ -33,4 +33,19 @@ class CustomerContact extends Model implements Auditable
     {
         return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
     }
+
+    public function signaturePublicUrl(): ?string
+    {
+        return app(\App\Services\CRM\ContactSignatureService::class)->publicUrl($this->signature);
+    }
+
+    public function signatureDataUri(): string
+    {
+        return app(\App\Services\CRM\ContactSignatureService::class)->toDataUri($this->signature);
+    }
+
+    public function hasSignatureImage(): bool
+    {
+        return app(\App\Services\CRM\ContactSignatureService::class)->hasUsableImageSignature($this->signature);
+    }
 }

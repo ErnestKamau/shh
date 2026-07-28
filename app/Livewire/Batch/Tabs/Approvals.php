@@ -292,6 +292,12 @@ class Approvals extends Component
             );
             $this->batch->save();
 
+            \App\BatchAmmendment::flagSamplesForAmendment(
+                $this->batch,
+                array_values($t),
+                (int) $new_ammendment->version_number
+            );
+
             app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
                 ->syncReportNumbersForBatch($this->batch, (int) $this->batch->is_amendment);
 

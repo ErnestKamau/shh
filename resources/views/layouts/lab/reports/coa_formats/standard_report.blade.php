@@ -328,7 +328,7 @@ $printed_pos = [];
                                 </td>
                                 <td class="parameter  {{ $captured->remark == 'FAIL' ? 'textBold text-danger' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->remark }}
+                                    {{ format_result_remark($captured->remark) }}
                                 </td>
 
                             </tr>
@@ -372,6 +372,9 @@ $printed_pos = [];
                 @if (isset($ammendment->id))
                     <tr>
                         <td style="font-size:10px !important;">
+                            <b>Revision No. : </b>
+                            R{{ str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT) }}
+                            <br>
                             <b>Ammendment Reason : </b><br>
                             {{ $ammendment->reason }}
                         </td>

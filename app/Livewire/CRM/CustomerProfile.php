@@ -223,7 +223,7 @@ class CustomerProfile extends Component
                 $this->reports = SampleHeader::join('sample_types as st', 'st.id', 'sample_type_id')
                     ->selectRaw('sample_headers.*, st.name as sample_type')
                     ->where('crm_customer_id', $this->customerId)
-                    ->where('sample_headers.status', 'Completed')
+                    ->whereIn('sample_headers.status', getCompletedReportStatuses())
                     ->orderBy('id', 'desc')
                     ->get();
                 break;

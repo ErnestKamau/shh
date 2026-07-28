@@ -163,13 +163,25 @@
                         </div>
 
                         <label class="form-label d-block">Customer Signature</label>
-                        <div class="bg-white border rounded p-2" style="max-width: 560px;" wire:ignore>
-                            <canvas id="customer-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-                            <div class="d-flex mt-2" style="gap: 8px;">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="customer-sign-clear" @if($readOnly) disabled @endif>Clear</button>
+                        @if(!empty($form['customer_signature']))
+                            <div class="mb-2" style="max-width: 560px;">
+                                <img src="{{ $form['customer_signature'] }}" alt="Saved contact signature" class="img-fluid border rounded p-2 bg-white" style="max-height: 140px; width: 100%; object-fit: contain;">
+                                @if(! $readOnly)
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" wire:click="$set('form.customer_signature', '')">
+                                        Clear and sign new
+                                    </button>
+                                @endif
                             </div>
-                        </div>
-                        <input type="hidden" id="customer-signature-input" wire:model.defer="form.customer_signature">
+                            <input type="hidden" id="customer-signature-input" wire:model.defer="form.customer_signature">
+                        @else
+                            <div class="bg-white border rounded p-2" style="max-width: 560px;" wire:ignore>
+                                <canvas id="customer-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
+                                <div class="d-flex mt-2" style="gap: 8px;">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="customer-sign-clear" @if($readOnly) disabled @endif>Clear</button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="customer-signature-input" wire:model.defer="form.customer_signature">
+                        @endif
                         @error('form.customer_signature')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                     </div>
                 </div>

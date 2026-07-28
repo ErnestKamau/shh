@@ -532,6 +532,7 @@
             @endif
             @if($sample->ammendment_number > 1)
                 <div class="comments" style="font-size: 8px !important;width:100%">
+                    <b>Revision No. :</b> R{{ str_pad((string) ($ammendment->version_number ?? $sample->ammendment_number), 2, '0', STR_PAD_LEFT) }}<br>
                     {{$ammendment->reason}}
                 </div>
             @endif

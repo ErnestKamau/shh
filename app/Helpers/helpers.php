@@ -713,6 +713,22 @@ function getSampleWorflowStages()
 	return array("All Samples", "Samples Receiving", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Completed Sample");
 }
 
+/**
+ * Status values that mean a batch report is finished / available on CRM reports.
+ * Lab workflow uses "Completed Sample"; older paths used "Completed" / "Finished Sample".
+ *
+ * @return list<string>
+ */
+function getCompletedReportStatuses(): array
+{
+	return ['Completed', 'Completed Sample', 'Finished Sample'];
+}
+
+function isCompletedReportStatus(?string $status): bool
+{
+	return in_array((string) $status, getCompletedReportStatuses(), true);
+}
+
 function getSampleWorkflowStageLabel($stage)
 {
 	$labels = [
@@ -2362,6 +2378,27 @@ function getCoaApproverSignature($signature): string
 
 	// Prefer public-disk path as default for newly uploaded Livewire signatures.
 	return storage_path('app/public/' . $relative);
+}
+
+/**
+ * Map stored lab remark codes to user-facing conforming language.
+ * Canonical storage remains PASS / FAIL for evaluation and analytics.
+ */
+function format_result_remark(?string $remark): string
+{
+	if ($remark === null) {
+		return '';
+	}
+
+	$normalized = strtoupper(trim($remark));
+
+	return match ($normalized) {
+		'PASS' => 'Conforming',
+		'FAIL' => 'Non-conforming',
+		'-' => '-',
+		'' => '',
+		default => trim($remark),
+	};
 }
 
 /**

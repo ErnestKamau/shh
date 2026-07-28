@@ -368,6 +368,13 @@ class LaboratoryAnalysisAcceptance extends Component
         $this->form['laboratory_name'] = $this->resolveLaboratoryName();
         $this->form['laboratory_manager_name'] = trim((string) (Auth::user()->name ?? ''));
         $this->form['manager_date'] = now()->format('Y-m-d');
+
+        if ($contact !== null) {
+            $savedSignature = app(\App\Services\CRM\ContactSignatureService::class)->dataUriForContact($contact);
+            if ($savedSignature !== '') {
+                $this->form['customer_signature'] = $savedSignature;
+            }
+        }
     }
 
     private function resolveLaboratoryName(): string

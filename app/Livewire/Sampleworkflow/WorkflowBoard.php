@@ -126,6 +126,7 @@ class WorkflowBoard extends Component
     public ?string $receiptDateTo = null;
     public ?int $customerFilter = null;
     public ?int $sampleTypeFilter = null;
+    public string $amendmentFilter = 'all';
     
     /**
      * Submission form filters (for Samples Reception).
@@ -1634,6 +1635,8 @@ class WorkflowBoard extends Component
             $query->whereDate('receipt_date', '<=', $this->receiptDateTo);
         }
 
+        $this->applyAmendmentFilter($query);
+
         if (! empty($this->allFilter['tat_date_from'])) {
             $tatQuery = SampleDate::query()
                 ->where('name', 'Target Date')
@@ -1775,6 +1778,8 @@ class WorkflowBoard extends Component
             $query->where('sample_type_id', $this->sampleTypeFilter);
         }
 
+        $this->applyAmendmentFilter($query);
+
         // Apply submission form filters to batches for certain stages
         if ($this->status === 'Samples In Lab' || ($this->isReceivingStage() && $this->workflowSubTab === 'requests')) {
             if ($this->submissionFormsSearch) {
@@ -1826,6 +1831,7 @@ class WorkflowBoard extends Component
         $this->receiptDateTo = null;
         $this->customerFilter = null;
         $this->sampleTypeFilter = null;
+        $this->amendmentFilter = 'all';
         $this->customerSearch = '';
         $this->showCustomerDropdown = false;
         $this->customerPage = 1;
@@ -1836,6 +1842,31 @@ class WorkflowBoard extends Component
         $this->allFilter = $this->defaultAllSamplesFilter();
         $this->resetPage('batches_page');
         $this->resetPage('forms_page');
+    }
+
+    protected function applyAmendmentFilter($query): void
+    {
+        if ($this->amendmentFilter === 'in_amendment') {
+            $query->where(function ($inner): void {
+                $inner->where('in_ammendment_proccess', 1)
+                    ->orWhere('in_ammendment_process', 1);
+            });
+
+            return;
+        }
+
+        if ($this->amendmentFilter === 'amended') {
+            $query->where(function ($inner): void {
+                $inner->where('is_amendment', '>', 1)
+                    ->orWhere('in_ammendment_proccess', 1)
+                    ->orWhere('in_ammendment_process', 1);
+            });
+        }
+    }
+
+    public function updatingAmendmentFilter(): void
+    {
+        $this->resetPage('batches_page');
     }
 
     public function updatingSearch(): void
@@ -1914,6 +1945,9 @@ class WorkflowBoard extends Component
             $count++;
         }
         if ($this->submissionFormsStatus !== '') {
+            $count++;
+        }
+        if ($this->amendmentFilter !== 'all') {
             $count++;
         }
         if (! empty($this->allFilter['tat_date_from'] ?? '')) {

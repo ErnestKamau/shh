@@ -187,6 +187,20 @@
                         {{ $batch->status ?? 'N/A' }}
                     </span>
                 @endif
+
+                @if(isset($batch->id) && $batch->isInAmendmentProcess())
+                    <span class="batch-priority-pill" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b;"
+                          title="This batch was sent back for amendment">
+                        <i class="mdi mdi-file-replace-outline" style="font-size:0.75rem;"></i>
+                        Amendment V{{ $batch->amendmentVersion() }}
+                    </span>
+                @elseif(isset($batch->id) && $batch->amendmentVersion() > 1)
+                    <span class="batch-priority-pill" style="background:#f8fafc; color:#475569; border:1px solid #cbd5e1;"
+                          title="This batch has been amended">
+                        <i class="mdi mdi-history" style="font-size:0.75rem;"></i>
+                        Amended V{{ $batch->amendmentVersion() }}
+                    </span>
+                @endif
             </div>
 
             {{-- Action Buttons --}}

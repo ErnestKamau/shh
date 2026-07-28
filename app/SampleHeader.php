@@ -90,6 +90,45 @@ class SampleHeader extends Model implements Auditable
 		return $this->hasMany('App\BatchAmmendment', 'batch_id')->orderBy('created_at', 'desc');
 	}
 
+	public function isInAmendmentProcess(): bool
+	{
+		return (int) ($this->in_ammendment_proccess ?? $this->in_ammendment_process ?? 0) === 1;
+	}
+
+	public function amendmentVersion(): int
+	{
+		return max(1, (int) ($this->is_amendment ?? 1));
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public function currentAmendmentSampleIds(): array
+	{
+		$amendment = BatchAmmendment::resolveForBatch($this);
+		if (! $amendment) {
+			return [];
+		}
+
+		$samples = json_decode((string) $amendment->samples, true);
+		if (! is_array($samples)) {
+			return [];
+		}
+
+		return collect($samples)
+			->map(fn ($id) => (string) $id)
+			->filter()
+			->values()
+			->all();
+	}
+
+	public function hasAmendmentHistory(): bool
+	{
+		return $this->amendmentVersion() > 1
+			|| $this->isInAmendmentProcess()
+			|| $this->batch_amendments()->exists();
+	}
+
 	public function payment_details()
 	{
 		return \App\InvoicePaymentDetail::where('invoice_id', $this->invoice_id)

@@ -54,6 +54,12 @@ class BatchAmmendmentController extends Controller
             );
             $batch->save();
 
+            BatchAmmendment::flagSamplesForAmendment(
+                $batch,
+                array_values($t),
+                (int) $new_ammendment->version_number
+            );
+
             app(JobSampleNumberingService::class)->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
 
             BatchLabSectionApprover::where('batch_id', $batch->id)

@@ -6,14 +6,18 @@ use App\Mail\ContactWelcomeMail;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\CRMCustomer;
 use App\Livewire\Crm\BaseCrmComponent;
+use App\Services\CRM\ContactSignatureService;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Livewire\WithFileUploads;
 
 class ContactForm extends BaseCrmComponent
 {
+    use WithFileUploads;
+
     public $contactId = null;
     public $customerId;
     public $first_name = '';
@@ -34,6 +38,14 @@ class ContactForm extends BaseCrmComponent
     public $showUnitDropdown = false;
 
     public $can_login = false;
+
+    public $signatureUpload = null;
+
+    public string $signatureData = '';
+
+    public ?string $currentSignature = null;
+
+    public bool $clearExistingSignature = false;
 
     public function mount($customerId, $contactId = null)
     {
@@ -59,6 +71,11 @@ class ContactForm extends BaseCrmComponent
                 $this->receive_feedback = (bool) ($contact->receive_feedback ?? 0);
                 $this->active = (bool) ($contact->active ?? 0);
                 $this->can_login = (bool) ($contact->can_login ?? 0);
+                $signatureService = app(ContactSignatureService::class);
+                $this->currentSignature = $signatureService->publicUrl($contact->signature);
+                // Prefill pad data so reopen/edit keeps the saved signature visible and saveable.
+                $this->signatureData = $signatureService->toDataUri($contact->signature);
+                $this->clearExistingSignature = false;
             }
         }
     }
@@ -157,9 +174,19 @@ class ContactForm extends BaseCrmComponent
             'email' => 'required|email|max:255',
             'telephone' => 'required|string|max:255',
             'mobile' => 'nullable|string|max:255',
-            'unit_name' => 'required|array',
-            'job_occupation' => 'required|string|max:255',
+            'unit_name' => 'nullable|array',
+            'job_occupation' => 'nullable|string|max:255',
+            'signatureUpload' => 'nullable|file|mimes:png,jpg,jpeg,gif,webp,pdf|max:5120',
+            'signatureData' => 'nullable|string',
         ];
+    }
+
+    public function clearContactSignature(): void
+    {
+        $this->signatureUpload = null;
+        $this->signatureData = '';
+        $this->clearExistingSignature = true;
+        $this->currentSignature = null;
     }
 
     public function save()
@@ -216,7 +243,7 @@ class ContactForm extends BaseCrmComponent
             $contact->middle_name = $this->second_name;
             $contact->last_name = $this->third_name;
             $contact->job_occupation = $this->job_occupation;
-            $contact->unit_name = implode(',', $this->unit_name);
+            $contact->unit_name = implode(',', array_filter($this->unit_name ?? []));
             $contact->email = $this->email;
             $contact->telephone = $this->telephone;
             $contact->mobile = $this->mobile;
@@ -230,7 +257,26 @@ class ContactForm extends BaseCrmComponent
             $contact->active = $this->active ? 1 : 0;
             $contact->can_login = $this->can_login ? 1 : 0;
 
+            $signatureService = app(ContactSignatureService::class);
+            $appliedSignature = $signatureService->applyToContact(
+                $contact,
+                $this->signatureUpload,
+                trim((string) $this->signatureData),
+            );
+
+            if (! $appliedSignature && $this->clearExistingSignature) {
+                $signatureService->clearSignature($contact);
+            }
+
             $contact->save();
+
+            // Refresh preview state from the persisted path.
+            $this->currentSignature = $signatureService->publicUrl($contact->signature);
+            if ($appliedSignature) {
+                $this->signatureData = $signatureService->toDataUri($contact->signature);
+                $this->signatureUpload = null;
+                $this->clearExistingSignature = false;
+            }
 
             if (! $this->can_login) {
                 User::deactivatePortalUsersForCustomerContact(

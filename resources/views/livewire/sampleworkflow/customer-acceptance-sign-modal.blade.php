@@ -184,12 +184,21 @@
                                     </p>
                                 </div>
                                 <label class="acc-label d-block mt-3">Customer signature</label>
-                                <div class="acc-signature-pad" wire:ignore>
-                                    <canvas id="customer-acceptance-signature-canvas"></canvas>
-                                    <div class="acc-signature-actions">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="customer-acceptance-sign-clear">Clear</button>
+                                @if($customerSignature !== '')
+                                    <div class="mb-2">
+                                        <img src="{{ $customerSignature }}" alt="Saved contact signature" style="max-height: 120px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; background: #fff; width: 100%; object-fit: contain;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" wire:click="clearSavedCustomerSignature">
+                                            Clear and sign new
+                                        </button>
                                     </div>
-                                </div>
+                                @else
+                                    <div class="acc-signature-pad" wire:ignore>
+                                        <canvas id="customer-acceptance-signature-canvas"></canvas>
+                                        <div class="acc-signature-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="customer-acceptance-sign-clear">Clear</button>
+                                        </div>
+                                    </div>
+                                @endif
                                 <input type="hidden" id="customer-acceptance-signature-input" wire:model="customerSignature">
                                 @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
                             </section>
@@ -501,11 +510,30 @@
             });
 
             $('#customer-acceptance-continue-receipt').off('click.customerSign').on('click.customerSign', function () {
+                const existing = @json($customerSignature);
+                if (existing) {
+                    @this.call('continueToReceiptStep');
+                    return;
+                }
+
                 if (!customerSignaturePad || customerSignaturePad.isEmpty()) {
                     alert('Please provide your signature on the Analysis Acceptance Form.');
                     return;
                 }
                 @this.set('customerSignature', customerSignaturePad.toDataURL('image/png'));
+                @this.call('continueToReceiptStep');
+            });
+        }
+
+        // When a saved signature is shown (no canvas), still wire the continue button.
+        function initCustomerContinueWithSavedSignature() {
+            const btn = document.getElementById('customer-acceptance-continue-receipt');
+            const canvas = document.getElementById('customer-acceptance-signature-canvas');
+            if (!btn || canvas) {
+                return;
+            }
+
+            $('#customer-acceptance-continue-receipt').off('click.customerSign').on('click.customerSign', function () {
                 @this.call('continueToReceiptStep');
             });
         }
@@ -612,6 +640,7 @@
 
             Livewire.on('customer-acceptance-sign-step2', function () {
                 setTimeout(initCustomerSignaturePad, 300);
+                setTimeout(initCustomerContinueWithSavedSignature, 320);
                 setTimeout(initCustomerDisclaimerClaimantPad, 350);
             });
 

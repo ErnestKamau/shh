@@ -420,7 +420,7 @@
                                     <td>
                                         @if($result->remark)
                                         <span class="badge badge-{{ $result->remark == 'FAIL' ? 'danger' : ($result->remark == 'PASS' ? 'success' : 'light') }}">
-                                            {{ $result->remark }}
+                                            {{ format_result_remark($result->remark) }}
                                         </span>
                                         @else
                                         <span class="text-muted">—</span>

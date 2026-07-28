@@ -143,7 +143,7 @@
 			$canUncertaintyBudget = $user->can('laboratory.components.uncertainty-budget.view');
 			$canStockMonitoring = $user->can('laboratory.components.stock-monitoring.view');
 			$canConfigRouteAccess = $user->can('laboratory.module.access');
-			$canProducts = $user->can('crm.components.products.view');
+			$canProducts = $user->can('crm.products.view');
 			$canLabReports = $user->can('laboratory.components.lab-reports.view');
 			$canReportingUnits = $user->can('laboratory.components.reporting-units.view');
 			$canEquipmentRequests = $user->can('laboratory.components.equipment-requests.view');
@@ -528,6 +528,12 @@
 	</a>
 	<div id="configuration-menu" class="collapse sidebar-submenu">
 
+		@if($canProducts)
+		<a href="{{ route('sample-product-index') }}" class="list-group-item list-group-item-action">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Products
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		@endif
 		@if($canSampleTypes)
 		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.sample_conditions') }}

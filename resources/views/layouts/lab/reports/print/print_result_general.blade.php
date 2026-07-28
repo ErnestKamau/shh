@@ -228,7 +228,7 @@
                         <td class="parameter text-center" style="font-size: 10px !important;">{{$sample->reporting_symbol}} {{$sample->result}}</td>
                         <td class="parameter text-center" style="font-size: 10px !important;">{{$sample->guide ?? '-'}}</td>
                         <td class="parameter text-center" style="font-size: 10px !important;">{{$sample->seond_guide ?? '-'}}</td>
-                        <td class="parameter text-center" style="font-size: 10px !important;">{{$sample->remarks}}</td>
+                        <td class="parameter text-center" style="font-size: 10px !important;">{{ format_result_remark($sample->remarks) }}</td>
                     </tr>
 
                     @endforeach

@@ -6890,6 +6890,22 @@ class SampleWorkFlowController extends Controller
         $batch->is_amendment = $amendment->version_number;
         $batch->save();
 
+        $selectedSampleIds = collect($request->selected_samples ?? [])
+            ->map(fn ($id) => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($selectedSampleIds === []) {
+            $selectedSampleIds = SampleDetails::query()
+                ->where('sample_header_id', $batch->id)
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
+        }
+
+        BatchAmmendment::flagSamplesForAmendment($batch, $selectedSampleIds, (int) $amendment->version_number);
+
         app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
             ->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
 

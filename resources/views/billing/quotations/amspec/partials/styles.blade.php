@@ -246,6 +246,23 @@
         margin-top: 2px;
     }
 
+    .amspec-test-table .amspec-num-cell {
+        padding-left: 3px !important;
+        padding-right: 3px !important;
+        white-space: nowrap;
+    }
+
+    .amspec-test-table .amspec-price-cell {
+        padding-left: 4px !important;
+        padding-right: 5px !important;
+        white-space: nowrap;
+    }
+
+    .amspec-test-table .amspec-params-cell {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
     .amspec-category-cell {
         background: var(--quotation-category-bg);
         padding: 8px 8px;

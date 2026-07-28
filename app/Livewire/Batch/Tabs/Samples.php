@@ -527,6 +527,8 @@ class Samples extends Component
                     'store_slot_id' => $sample->store_slot_id ? (string) $sample->store_slot_id : '',
                     'quantity' => $sample->quantity ?? 1,
                     'reporting_unit_id' => $sample->reporting_unit_id ? (string) $sample->reporting_unit_id : '',
+                    'is_ammendment' => (bool) ($sample->is_ammendment ?? false),
+                    'ammendment_number' => (int) ($sample->ammendment_number ?? 1),
                 ];
             }
 
@@ -3031,6 +3033,10 @@ class Samples extends Component
     private function autofillAnalysisDatesForFiledResult(string $id): void
     {
         if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        if (trim((string) ($this->parametersForm[$id]['result'] ?? '')) === '') {
             return;
         }
 

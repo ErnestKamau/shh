@@ -128,7 +128,15 @@ class CustomerAcceptanceSignModal extends Component
         $this->verifiedContactId = $result['contact_id'];
         $this->customerSignerName = $result['signer_name'];
         $this->password = '';
+        $this->customerSignature = app(\App\Services\CRM\ContactSignatureService::class)
+            ->dataUriForContact(CustomerContact::query()->find($this->verifiedContactId));
         $this->currentStep = 2;
+        $this->dispatch('customer-acceptance-sign-step2');
+    }
+
+    public function clearSavedCustomerSignature(): void
+    {
+        $this->customerSignature = '';
         $this->dispatch('customer-acceptance-sign-step2');
     }
 

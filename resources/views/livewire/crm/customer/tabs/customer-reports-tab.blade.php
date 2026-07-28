@@ -63,7 +63,7 @@
             @forelse($reports as $report)
                 <tr wire:key="report-{{ $report->batch_id }}">
                     <td class="text-center">
-                        @if($report->status == 'Completed')
+                        @if(isCompletedReportStatus($report->status))
                             <x-crm.action-buttons class="justify-content-center">
                                 <button type="button" class="btn crm-btn crm-btn-edit btn-sm"
                                     wire:click.prevent="loadAmendment('{{ $report->batch_id }}')" wire:loading.attr="disabled"

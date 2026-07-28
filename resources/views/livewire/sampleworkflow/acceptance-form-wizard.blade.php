@@ -119,7 +119,7 @@
 
                                         <div class="form-group">
                                             <label class="acc-label">Contact</label>
-                                            <select class="form-control acc-input" wire:model.defer="selectedCustomerContactId">
+                                            <select class="form-control acc-input" wire:model.live="selectedCustomerContactId">
                                                 <option value="">Select contact...</option>
                                                 @foreach($customerContactOptions as $contact)
                                                     <option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
@@ -138,13 +138,23 @@
                                             @error('customerSignedAt') <small class="text-danger">{{ $message }}</small> @enderror
                                         </div>
                                         <label class="acc-label d-block">Signature</label>
-                                        <div class="acc-signature-pad" wire:ignore>
-                                            <canvas id="acceptance-customer-signature-canvas"></canvas>
-                                            <div class="acc-signature-actions">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-customer-sign-clear">Clear</button>
+                                        @if($customerSignature !== '')
+                                            <div class="mb-2">
+                                                <img src="{{ $customerSignature }}" alt="Saved contact signature" style="max-height: 120px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; background: #fff; width: 100%; object-fit: contain;">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" wire:click="clearSavedCustomerSignature">
+                                                    Clear and sign new
+                                                </button>
                                             </div>
-                                        </div>
-                                        <input type="hidden" id="acceptance-customer-signature-input" wire:model="customerSignature">
+                                            <input type="hidden" id="acceptance-customer-signature-input" wire:model="customerSignature">
+                                        @else
+                                            <div class="acc-signature-pad" wire:ignore>
+                                                <canvas id="acceptance-customer-signature-canvas"></canvas>
+                                                <div class="acc-signature-actions">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-customer-sign-clear">Clear</button>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" id="acceptance-customer-signature-input" wire:model="customerSignature">
+                                        @endif
                                         @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
                                     </section>
                                 </div>
@@ -460,7 +470,11 @@
                     return;
                 }
 
-                if (!customerSignaturePad || customerSignaturePad.isEmpty()) {
+                const savedCustomerSignature = @this.get('customerSignature') || '';
+                const hasCustomerSignature = (customerSignaturePad && !customerSignaturePad.isEmpty())
+                    || (typeof savedCustomerSignature === 'string' && savedCustomerSignature.startsWith('data:image'));
+
+                if (!hasCustomerSignature) {
                     alert('Please provide the customer contact signature.');
                     e.preventDefault();
                     e.stopImmediatePropagation();
@@ -468,7 +482,9 @@
                 }
 
                 @this.set('receivingPersonSignature', receivingSignaturePad.toDataURL('image/png'));
-                @this.set('customerSignature', customerSignaturePad.toDataURL('image/png'));
+                if (customerSignaturePad && !customerSignaturePad.isEmpty()) {
+                    @this.set('customerSignature', customerSignaturePad.toDataURL('image/png'));
+                }
                 e.preventDefault();
                 @this.call('submitDualAccept');
             }, true);

@@ -115,7 +115,7 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
                     ->select('sample_headers.*', 'st.name as sample_type')
                     ->withCount('samples')
                     ->where('sample_headers.crm_customer_id', $this->customerId)
-                    ->whereNotIn('sample_headers.status', ['Completed'])
+                    ->whereNotIn('sample_headers.status', getCompletedReportStatuses())
                     ->when($this->search, function($query) {
                         $query->where(function($q) {
                             $q->where('sample_headers.batch_code', 'like', '%' . $this->search . '%')
@@ -132,7 +132,7 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
                     })
                     ->select('sample_headers.*', 'st.name as sample_type')
                     ->where('sample_headers.crm_customer_id', $this->customerId)
-                    ->where('sample_headers.status', 'Completed')
+                    ->whereIn('sample_headers.status', getCompletedReportStatuses())
                     ->when($this->search, function($query) {
                         $query->where(function($q) {
                             $q->where('sample_headers.batch_code', 'like', '%' . $this->search . '%')

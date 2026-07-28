@@ -6660,7 +6660,7 @@
 				@if(Auth::user()->is_client == 0)
 				<td nowrap data-toggle="tooltip" title="${data.analyte_name}">
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
-					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
+					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${(data.remark === 'PASS' ? 'Conforming' : (data.remark === 'FAIL' ? 'Non-conforming' : (data.remark ?? '')))}" name="remark[${data.id}]" placeholder="Remark..." />
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
 						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual no-select2">
 							<option value="" ${!data.remark || data.remark === '' ? 'selected' : ''}>- Select -</option>

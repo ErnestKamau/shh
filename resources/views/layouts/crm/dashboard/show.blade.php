@@ -871,13 +871,13 @@
 																		<div class="col-sm-4">
 																			<div class="form-group">
 																				<label class="control-label">Occupation</label>
-																				<input type="text" class="form-control" name="job_occupation" value="{{ $contact->job_occupation }}" placeholder="Occupation..." required />
+																				<input type="text" class="form-control" name="job_occupation" value="{{ $contact->job_occupation }}" placeholder="Occupation..." />
 																			</div>
 																		</div>
 																		<div class="col-sm-4">
 																			<div class="form-group">
 																				<label class="control-label">{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
-																				<select class="form-control" name="unit_name[]" multiple required placeholder="Select...">
+																				<select class="form-control" name="unit_name[]" multiple placeholder="Select...">
 																					<option></option>
 																					@foreach ($customer->units as $unit)
 																						<option value="{{ $unit->name }}" {{ hasUnitName($unit->name, $contact->unit_name) ? 'selected' : '' }}>{{ $unit->name }}</option>
@@ -1284,13 +1284,13 @@
 					<div class="col-sm-4">
 						<div class="form-group">
 							<label class="control-label">Job Occupation</label>
-							<input type="text" class="form-control" name="job_occupation" value="" placeholder="Job Title..." required />
+							<input type="text" class="form-control" name="job_occupation" value="" placeholder="Job Title..." />
 						</div>
 					</div>
 					<div class="col-sm-4">
 						<div class="form-group">
 							<label class="control-label">Company Units</label>
-							<select class="form-control" name="unit_name[]" multiple required>
+							<select class="form-control" name="unit_name[]" multiple>
 								<option value="">Select Company Unit...</option>
 								@foreach ($customer->units as $unit)
 									<option value="{{ $unit->name }}">{{ $unit->name }}</option>

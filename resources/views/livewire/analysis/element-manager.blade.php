@@ -13,6 +13,12 @@
                             <p class="text-muted mb-0">Manage analysis parameters for this analysis type</p>
                         </div>
                         <div class="d-flex flex-wrap align-items-center element-header-actions">
+                            <button type="button" wire:click="openImportModal" class="btn btn-outline-info element-add-btn">
+                                <i class="mdi mdi-upload"></i> Import
+                            </button>
+                            <button type="button" wire:click="downloadImportTemplate" class="btn btn-outline-secondary element-add-btn">
+                                <i class="mdi mdi-download"></i> Template
+                            </button>
                             <button wire:click="showCreateElementModal" class="btn btn-outline-primary element-add-btn">
                                 <i class="mdi mdi-plus"></i> Add Parameter
                             </button>
@@ -741,6 +747,83 @@
                         <button type="button" class="btn btn-secondary" wire:click="closeElementModal">Cancel</button>
                         <button type="submit" form="analysis-element-form" class="btn btn-primary" wire:loading.attr="disabled" wire:target="saveElement">
                             <i class="mdi mdi-content-save"></i> Save Parameter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Import Parameters Modal -->
+    @if($showImportModal)
+        <div class="modal fade show d-block element-manager-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-upload"></i> Import Parameters
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeImportModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info mb-3">
+                            <i class="mdi mdi-information-outline"></i>
+                            Upload an Excel file to import analytes into
+                            <strong>{{ $this->analysisType->name ?? 'this analysis type' }}</strong>.
+                            Columns: <code>parameter</code>, <code>reporting_unit</code>, <code>method</code>, <code>accredited</code>
+                            (1/Yes = accredited, 0/No = non-accredited).
+                        </div>
+
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="downloadImportTemplate" wire:loading.attr="disabled" wire:target="downloadImportTemplate">
+                                <span wire:loading.remove wire:target="downloadImportTemplate">
+                                    <i class="mdi mdi-download"></i> Download Template
+                                </span>
+                                <span wire:loading wire:target="downloadImportTemplate">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> Preparing...
+                                </span>
+                            </button>
+                        </div>
+
+                        <div class="form-group mb-0">
+                            <label class="form-label fw-bold" for="parameter-import-file">Excel file (.xlsx / .xls)</label>
+                            <input
+                                id="parameter-import-file"
+                                type="file"
+                                class="form-control @error('importFile') is-invalid @enderror"
+                                wire:model="importFile"
+                                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                            >
+                            @error('importFile')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                            <div wire:loading wire:target="importFile" class="small text-muted mt-2">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Uploading file...
+                            </div>
+                            @if($importFile)
+                                <div class="small text-success mt-2">
+                                    <i class="mdi mdi-check-circle"></i> {{ $importFile->getClientOriginalName() }}
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeImportModal" wire:loading.attr="disabled" wire:target="importParameters">
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            wire:click="importParameters"
+                            wire:loading.attr="disabled"
+                            wire:target="importParameters"
+                        >
+                            <span wire:loading.remove wire:target="importParameters">
+                                <i class="mdi mdi-upload"></i> Import
+                            </span>
+                            <span wire:loading wire:target="importParameters">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Importing...
+                            </span>
                         </button>
                     </div>
                 </div>

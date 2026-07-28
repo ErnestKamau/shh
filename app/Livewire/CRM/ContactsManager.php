@@ -5,11 +5,11 @@ namespace App\Livewire\CRM;
 use Livewire\Component;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\CRMCompanyUnit;
+use App\Services\CRM\ContactSignatureService;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\WithFileUploads;
 
@@ -48,8 +48,12 @@ class ContactsManager extends Component
         'confirm_password' => ''
     ];
     
-    // File upload
+    // File upload / pad
     public $signatureFile;
+
+    public string $signatureData = '';
+
+    public bool $clearExistingSignature = false;
 
     // Supporting Data
     public $units = [];
@@ -81,7 +85,7 @@ class ContactsManager extends Component
             'contactForm.first_name'  => 'required|string|max:255',
             'contactForm.email'       => 'required|email|max:255',
             'contactForm.telephone'   => 'required|string|max:50',
-            'contactForm.unit_name'   => 'required|array|min:1',
+            'contactForm.unit_name'   => 'nullable|array',
             'contactForm.main_password' => [
                 Rule::requiredIf($passwordRequired),
                 'nullable',
@@ -94,7 +98,8 @@ class ContactsManager extends Component
                 'string',
                 'same:contactForm.main_password',
             ],
-            'signatureFile'           => 'nullable|image|max:2048',
+            'signatureFile'           => 'nullable|file|mimes:png,jpg,jpeg,gif,webp,pdf|max:5120',
+            'signatureData'           => 'nullable|string',
         ];
     }
 
@@ -103,13 +108,20 @@ class ContactsManager extends Component
         'contactForm.email.required' => 'Email address is required.',
         'contactForm.email.email' => 'Please enter a valid email address.',
         'contactForm.telephone.required' => 'Telephone number is required.',
-        'contactForm.unit_name.required' => 'At least one unit must be selected.',
         'contactForm.main_password.required_if' => 'Password is required when creating user account.',
         'contactForm.confirm_password.required_if' => 'Password confirmation is required when creating user account.',
         'contactForm.confirm_password.same' => 'Password confirmation does not match.',
-        'signatureFile.image' => 'Signature must be an image file.',
-        'signatureFile.max' => 'Signature image must not exceed 2MB.',
+        'signatureFile.mimes' => 'Signature must be an image or PDF.',
+        'signatureFile.max' => 'Signature file must not exceed 5MB.',
     ];
+
+    public function clearContactSignature(): void
+    {
+        $this->signatureFile = null;
+        $this->signatureData = '';
+        $this->clearExistingSignature = true;
+        $this->contactForm['signature'] = null;
+    }
 
     public function mount($customerId)
     {
@@ -166,7 +178,7 @@ class ContactsManager extends Component
             'middle_name' => $contact->middle_name ?? '',
             'last_name' => $contact->last_name ?? '',
             'job_occupation' => $contact->job_occupation ?? '',
-            'unit_name' => explode(',', $contact->unit_name ?? ''),
+            'unit_name' => array_values(array_filter(explode(',', $contact->unit_name ?? ''))),
             'email' => $contact->email,
             'telephone' => $contact->telephone,
             'mobile' => $contact->mobile ?? '',
@@ -178,11 +190,13 @@ class ContactsManager extends Component
             'active' => $contact->active == 1,
             'can_login' => $contact->can_login == 1,
             'can_submit_sample' => $contact->can_submit_sample == 1,
-            'signature' => $contact->signature,
+            'signature' => app(ContactSignatureService::class)->publicUrl($contact->signature),
             'main_password' => '',
             'confirm_password' => ''
         ];
         $this->signatureFile = null;
+        $this->signatureData = app(ContactSignatureService::class)->toDataUri($contact->signature);
+        $this->clearExistingSignature = false;
         
         $this->editingContact = $contact;
         $this->showContactModal = true;
@@ -210,7 +224,7 @@ class ContactsManager extends Component
             $contact->middle_name = $this->contactForm['middle_name'];
             $contact->last_name = $this->contactForm['last_name'];
             $contact->job_occupation = $this->contactForm['job_occupation'];
-            $contact->unit_name = implode(',', $this->contactForm['unit_name']);
+            $contact->unit_name = implode(',', array_filter($this->contactForm['unit_name'] ?? []));
             $contact->email = $this->contactForm['email'];
             $contact->telephone = $this->contactForm['telephone'];
             $contact->mobile = $this->contactForm['mobile'];
@@ -221,6 +235,17 @@ class ContactsManager extends Component
             $contact->can_receive_payment_reminders = $this->contactForm['can_receive_payment_reminders'] ? 1 : 0;
             $contact->active = $this->contactForm['active'] ? 1 : 0;
             $contact->can_login = $this->contactForm['can_login'] ? 1 : 0;
+
+            $signatureService = app(ContactSignatureService::class);
+            $appliedSignature = $signatureService->applyToContact(
+                $contact,
+                $this->signatureFile,
+                $this->signatureData,
+            );
+
+            if (! $appliedSignature && $this->clearExistingSignature) {
+                $signatureService->clearSignature($contact);
+            }
 
             $contact->save();
 
@@ -360,6 +385,8 @@ class ContactsManager extends Component
             'confirm_password' => ''
         ];
         $this->signatureFile = null;
+        $this->signatureData = '';
+        $this->clearExistingSignature = false;
         $this->editingContact = null;
     }
 

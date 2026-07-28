@@ -79,4 +79,36 @@ class BatchAmmendment extends Model implements Auditable
 
         return '';
     }
+
+    /**
+     * Mark the samples included in an amendment and clear the flag on the rest.
+     *
+     * @param  list<string|int>  $sampleIds
+     */
+    public static function flagSamplesForAmendment(SampleHeader $batch, array $sampleIds, int $version): void
+    {
+        $version = max(1, $version);
+        $ids = collect($sampleIds)
+            ->map(fn ($id) => (string) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        SampleDetails::query()
+            ->where('sample_header_id', $batch->id)
+            ->update(['is_ammendment' => false]);
+
+        if ($ids === []) {
+            return;
+        }
+
+        SampleDetails::query()
+            ->where('sample_header_id', $batch->id)
+            ->whereIn('id', $ids)
+            ->update([
+                'is_ammendment' => true,
+                'ammendment_number' => $version,
+            ]);
+    }
 }

@@ -1025,7 +1025,7 @@
 																</div>
 																<div class="col-sm-4">
 																	<div class="form-group">
-																		<label class="control-label">{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }} <span class="text-danger">*</span></label>
+																		<label class="control-label">{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
 																		<select class="form-control" name="unit_name[]" multiple placeholder="Select...">
 																			<option></option>
 																			@foreach ($customer->units as $unit)
@@ -1497,8 +1497,8 @@
 					</div>
 					<div class="col-sm-4">
 						<div class="form-group">
-							<label class="control-label">Company Units <span class="text-danger">*</span> </label>
-							<select required class="form-control" name="unit_name[]" multiple>
+							<label class="control-label">Company Units</label>
+							<select class="form-control" name="unit_name[]" multiple>
 								<option value="">Select Company Unit...</option>
 								@foreach ($customer->units as $unit)
 								<option value="{{ $unit->name }}">{{ $unit->name }}</option>

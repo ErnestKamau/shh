@@ -949,8 +949,23 @@
         @endforelse
 
         @if(!empty($ammendment?->id))
+        @php
+            $amendmentRevision = (int) ($ammendment->version_number ?? ($batch->is_amendment ?? 0));
+            $amendmentRevisionLabel = $amendmentRevision > 0
+                ? 'R' . str_pad((string) $amendmentRevision, 2, '0', STR_PAD_LEFT)
+                : null;
+        @endphp
         <div class="sample-amendment">
             <div><strong>{{ $labels['supersedes_original'] ?? 'This report supersedes the original report' }}</strong></div>
+            @if($amendmentRevisionLabel)
+            <div style="margin-top:4px;">
+                <strong>{{ $labels['amendment_revision'] ?? 'Revision No.' }}:</strong>
+                {{ $amendmentRevisionLabel }}
+                @if(!empty($reportNumber))
+                    <span style="color:#555;">({{ $reportNumber }})</span>
+                @endif
+            </div>
+            @endif
             <div style="margin-top:4px;">
                 <strong>{{ $labels['amendment_reason'] ?? 'Amendment Reason' }}:</strong>
                 {{ $ammendment->reason }}
