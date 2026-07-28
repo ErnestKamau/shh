@@ -5,157 +5,146 @@ namespace App\Imports;
 use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\Analyte;
-use App\Models\BulkImportBatch;
+use App\AnalysisType;
 use App\ReportingUnit;
-use App\Imports\BaseImporter;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\Importable;
+use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ImportAnalysisElements extends BaseImporter
+class ImportAnalysisElements implements ToCollection, WithHeadingRow
 {
-    private $analysisType;
+    use Importable;
 
-    public function __construct($analysisType, $batch = null)
+    private AnalysisType $analysisType;
+
+    public int $importedRows = 0;
+
+    public int $skippedRows = 0;
+
+    /** @var list<string> */
+    public array $errors = [];
+
+    public function __construct(AnalysisType $analysisType)
     {
         $this->analysisType = $analysisType;
+    }
 
-        if ($batch === null) {
-            $companyId = '00000000-0000-0000-0000-000000000000';
-            try {
-                if (function_exists('getUserCompany')) {
-                    $companyId = getUserCompany() ?: $companyId;
-                }
-            } catch (\Throwable $t) {
+    public function collection(Collection $rows): void
+    {
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2; // heading row is 1
+            $rowData = $this->normalizeRow($row instanceof Collection ? $row->toArray() : (array) $row);
+
+            if ($this->isEmptyRow($rowData)) {
+                continue;
             }
 
-            $companyId = auth()->user()?->company_id ?: $companyId;
+            $parameter = trim((string) $this->value($rowData, ['parameter', 'analyte', 'name']));
+            $methodName = trim((string) $this->value($rowData, ['method']));
 
-            $userId = '00000000-0000-0000-0000-000000000000';
-            try {
-                if (auth()->check()) {
-                    $userId = auth()->id() ?: $userId;
-                }
-            } catch (\Throwable $t) {
+            if ($parameter === '' || $methodName === '') {
+                $this->skippedRows++;
+                $this->errors[] = "Row {$rowNumber}: parameter and method are required.";
+
+                continue;
             }
 
-            $batch = BulkImportBatch::create([
-                'module' => 'lab',
-                'form_type' => 'analysis_elements',
-                'status' => 'processing',
-                'company_id' => $companyId,
-                'user_id' => $userId,
-                'imported_rows' => 0,
-                'total_rows' => 0,
-                'error_rows' => 0,
-                'started_at' => now(),
-            ]);
-        }
+            try {
+                DB::transaction(function () use ($rowData, $parameter, $methodName): void {
+                    $method = $this->resolveAnalysisMethod($methodName);
 
-        parent::__construct($batch);
+                    $ltMethodName = trim((string) $this->value($rowData, ['ltmethod', 'ltm_method']));
+                    $ltMethod = $ltMethodName !== ''
+                        ? $this->resolveAnalysisMethod($ltMethodName, true)
+                        : null;
+
+                    $reportingUnit = $this->resolveReportingUnit(
+                        trim((string) $this->value($rowData, ['reporting_unit', 'unit']))
+                    );
+
+                    $nonAccredited = $this->parseAccreditedColumn(
+                        $this->value($rowData, ['accredited', 'is_accredited'], null)
+                    );
+
+                    $analyte = Analyte::query()
+                        ->where(function ($query) use ($parameter): void {
+                            $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($parameter)])
+                                ->orWhereRaw('LOWER(TRIM(code)) = ?', [strtolower($parameter)]);
+                        })
+                        ->first();
+
+                    if (! $analyte) {
+                        $analyte = Analyte::create([
+                            'code' => $parameter,
+                            'name' => $parameter,
+                            'decimal_places' => 2,
+                            'company_id' => getUserCompany(),
+                            'method' => $method->id,
+                            'reporting_unit' => $reportingUnit?->name,
+                            'non_accredited' => $nonAccredited,
+                            'show_on_report' => 1,
+                            'active' => 1,
+                        ]);
+                    }
+
+                    $payload = [
+                        'method' => $method->id,
+                        'reporting_unit' => $reportingUnit?->name,
+                        'analyte_id' => $analyte->id,
+                        'non_accredited' => $nonAccredited,
+                        'lab_section_id' => $this->resolveLabSectionId(),
+                        'analysis_type_id' => $this->analysisType->id,
+                        'ltm_method_id' => $ltMethod?->id,
+                        'reporting_time' => $this->value($rowData, ['tat', 'reporting_time']),
+                        'active' => 1,
+                        'show_on_report' => 1,
+                    ];
+
+                    $existing = AnalysisElements::query()
+                        ->where('analysis_type_id', $this->analysisType->id)
+                        ->where('analyte_id', $analyte->id)
+                        ->first();
+
+                    if ($existing) {
+                        $existing->update($payload);
+                    } else {
+                        $nextLevel = ((int) AnalysisElements::query()
+                            ->where('analysis_type_id', $this->analysisType->id)
+                            ->max('level')) + 1;
+
+                        AnalysisElements::create(array_merge($payload, [
+                            'level' => max($nextLevel, 1),
+                        ]));
+                    }
+
+                    $this->importedRows++;
+                });
+            } catch (\Throwable $e) {
+                $this->skippedRows++;
+                $this->errors[] = "Row {$rowNumber}: {$e->getMessage()}";
+                Log::error('Analysis parameter import row failed', [
+                    'analysis_type_id' => $this->analysisType->id,
+                    'row' => $rowNumber,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
-    protected function validateRow(array $row): array
+    protected function resolveLabSectionId(): ?string
     {
-        $errors = [];
-        if (empty($this->fuzzyGet($row, ['parameter', 'analyte', 'name']))) {
-            $errors[] = 'Parameter name is required';
-        }
-        if (empty($this->fuzzyGet($row, ['method']))) {
-            $errors[] = 'Method is required';
-        }
+        $labSectionId = $this->analysisType->lab_section_id;
 
-        return $errors;
-    }
-
-    protected function transformRow(array $row): mixed
-    {
-        $methodName = trim((string) $this->fuzzyGet($row, ['method']));
-        $method = $this->resolveAnalysisMethod($methodName);
-
-        $ltMethodName = trim((string) $this->fuzzyGet($row, ['ltmethod', 'ltm_method']));
-        $ltMethod = null;
-        if ($ltMethodName !== '') {
-            $ltMethod = $this->resolveAnalysisMethod($ltMethodName, true);
-        }
-
-        $reportingUnitName = trim((string) $this->fuzzyGet($row, ['reporting_unit', 'unit']));
-        $reportingUnit = $this->resolveReportingUnit($reportingUnitName);
-
-        $parameter = trim((string) $this->fuzzyGet($row, ['parameter', 'analyte', 'name']));
-        $analyte = Analyte::query()
-            ->where(function ($query) use ($parameter): void {
-                $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($parameter)])
-                    ->orWhereRaw('LOWER(TRIM(code)) = ?', [strtolower($parameter)]);
-            })
-            ->first();
-
-        $nonAccredited = $this->parseAccreditedColumn(
-            $this->fuzzyGet($row, ['accredited', 'is_accredited'], null)
-        );
-
-        if (! $analyte) {
-            $analyte = Analyte::create([
-                'code' => $parameter,
-                'name' => $parameter,
-                'decimal_places' => 2,
-                'company_id' => getUserCompany(),
-                'method' => $method->id,
-                'reporting_unit' => $reportingUnit?->name,
-                'non_accredited' => $nonAccredited,
-                'show_on_report' => (
-                    $this->fuzzyGet($row, ['show_on_report', 'show_on_reports']) !== null &&
-                    in_array(strtolower(trim((string) $this->fuzzyGet($row, ['show_on_report', 'show_on_reports']))), ['0', 'no', 'false', 'off'], true)
-                ) ? 0 : 1,
-                'active' => 1,
-            ]);
-        }
-
-        $labSectionId = $this->analysisType->lab_section_id
-            ?: $this->analysisType->lab_id;
-
-        return [
-            'method' => $method->id,
-            'reporting_unit' => $reportingUnit?->name,
-            'analyte_id' => $analyte->id,
-            'company_id' => getUserCompany(),
-            'non_accredited' => $nonAccredited,
-            'lab_section_id' => $labSectionId,
-            'analysis_type_id' => $this->analysisType->id,
-            'ltm_method_id' => $ltMethod?->id,
-            'reporting_time' => $this->fuzzyGet($row, ['tat', 'reporting_time']),
-            'active' => 1,
-            'show_on_report' => 1,
-        ];
-    }
-
-    protected function importRow(array $transformedData, array $originalRow): bool
-    {
-        $existing = AnalysisElements::query()
-            ->where('analysis_type_id', $transformedData['analysis_type_id'])
-            ->where('analyte_id', $transformedData['analyte_id'])
-            ->first();
-
-        if ($existing) {
-            $existing->update($transformedData);
-            $this->recordUpsert((string) $transformedData['analyte_id'], 'updated');
-
-            return true;
-        }
-
-        $nextLevel = ((int) AnalysisElements::query()
-            ->where('analysis_type_id', $transformedData['analysis_type_id'])
-            ->max('level')) + 1;
-
-        AnalysisElements::create(array_merge($transformedData, [
-            'level' => $nextLevel > 0 ? $nextLevel : 1,
-        ]));
-
-        $this->recordUpsert((string) $transformedData['analyte_id'], 'inserted');
-
-        return true;
+        return $labSectionId !== null && $labSectionId !== ''
+            ? (string) $labSectionId
+            : null;
     }
 
     /**
      * Template column "accredited": 1/yes/true => accredited (stores non_accredited=0).
-     * 0/no/false => not accredited (stores non_accredited=1).
      */
     protected function parseAccreditedColumn(mixed $value): int
     {
@@ -223,5 +212,63 @@ class ImportAnalysisElements extends BaseImporter
             'name' => $name,
             'active' => 1,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $keys
+     */
+    protected function value(array $row, array $keys, mixed $default = null): mixed
+    {
+        foreach ($keys as $key) {
+            $normalized = $this->normalizeHeaderName($key);
+            if (array_key_exists($normalized, $row) && $row[$normalized] !== null && trim((string) $row[$normalized]) !== '') {
+                return is_string($row[$normalized]) ? trim($row[$normalized]) : $row[$normalized];
+            }
+            if (array_key_exists($key, $row) && $row[$key] !== null && trim((string) $row[$key]) !== '') {
+                return is_string($row[$key]) ? trim($row[$key]) : $row[$key];
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function normalizeRow(array $row): array
+    {
+        $normalized = [];
+        foreach ($row as $key => $value) {
+            $normalized[$this->normalizeHeaderName((string) $key)] = is_string($value) ? trim($value) : $value;
+        }
+
+        return $normalized;
+    }
+
+    protected function normalizeHeaderName(string $header): string
+    {
+        $header = str_replace("\xA0", ' ', $header);
+        $header = strtolower(trim($header));
+        $header = str_replace('*', '', $header);
+        $header = preg_replace('/\s+/', '_', $header) ?? $header;
+        $header = preg_replace('/[^a-z0-9_]/', '', $header) ?? $header;
+
+        return $header;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    protected function isEmptyRow(array $row): bool
+    {
+        foreach ($row as $value) {
+            if ($value !== null && trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

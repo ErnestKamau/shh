@@ -402,9 +402,26 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 ->map(fn ($id) => (string) $id)
                 ->all();
 
+            $elementIds = $linesForType
+                ->flatMap(function (AnalysisAcceptanceFormLine $line): array {
+                    $raw = trim((string) ($line->analysis_element_id ?? ''));
+                    if ($raw === '') {
+                        return [];
+                    }
+
+                    return array_values(array_filter(array_map(
+                        static fn (string $id): string => trim($id),
+                        explode(',', $raw),
+                    )));
+                })
+                ->unique()
+                ->values()
+                ->all();
+
             $plans[] = [
                 'sample_type_id' => $sampleTypeKey !== '' ? $sampleTypeKey : null,
                 'analysis_type_ids' => $analysisTypeIds,
+                'analysis_element_ids' => $elementIds,
                 'count' => $singleSampleTypeGroup ? $numberOfSamples : 1,
                 'sample_code_prefix' => $this->inferPrefixForAnalysisTypes($analysisTypeIds),
             ];
@@ -588,9 +605,12 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $analysisTypeIds = $plan['analysis_type_ids'] ?? [];
                 $analysisSetupService->syncAnalysisRelations($header, $detail, $analysisTypeIds);
 
-                $elementFilter = $usesLegacyCountShape
-                    ? null
-                    : ($plan['analysis_element_ids'] ?? []);
+                $elementFilter = $this->resolveElementFilterForPlan(
+                    $plan,
+                    $analysisTypeIds,
+                    $approvedLines,
+                    $usesLegacyCountShape,
+                );
 
                 $standardsByKey = $analysisSetupService->preloadStandardsForDetail($detail, $allElements);
 
@@ -604,7 +624,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                         ! empty($plan['assigned_user_id'])
                             ? (string) $plan['assigned_user_id']
                             : $actingUserId,
-                        is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null,
+                        $elementFilter,
                         $elementFlagOverrides,
                         null,
                         [
@@ -625,6 +645,87 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         return $details;
+    }
+
+    /**
+     * Resolve which analysis elements to create for a sample detail plan.
+     *
+     * Prefer explicit plan IDs, then approved acceptance-form lines. Never coerce an
+     * empty selection to null (null means "all elements for the analysis type").
+     *
+     * @param  array<string, mixed>  $plan
+     * @param  list<string>  $analysisTypeIds
+     * @param  \Illuminate\Support\Collection<int, AnalysisAcceptanceFormLine>|null  $approvedLines
+     * @return list<string>|null
+     */
+    private function resolveElementFilterForPlan(
+        array $plan,
+        array $analysisTypeIds,
+        $approvedLines,
+        bool $usesLegacyCountShape,
+    ): ?array {
+        $fromPlan = $plan['analysis_element_ids'] ?? null;
+        if (is_array($fromPlan)) {
+            $fromPlan = array_values(array_filter(array_map(
+                static fn (mixed $id): string => trim((string) $id),
+                $fromPlan,
+            )));
+        } else {
+            $fromPlan = null;
+        }
+
+        if (is_array($fromPlan) && $fromPlan !== []) {
+            return $fromPlan;
+        }
+
+        $fromLines = $this->elementIdsFromApprovedLines($approvedLines, $analysisTypeIds);
+        if ($fromLines !== []) {
+            return $fromLines;
+        }
+
+        // Config/modern plans always carry analysis_element_ids (possibly empty).
+        // Empty means "create none", not "create all".
+        if (array_key_exists('analysis_element_ids', $plan) || ! $usesLegacyCountShape) {
+            return is_array($fromPlan) ? $fromPlan : [];
+        }
+
+        // True legacy plans with no element IDs on lines: preserve historical behaviour.
+        return null;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, AnalysisAcceptanceFormLine>|null  $approvedLines
+     * @param  list<string>  $analysisTypeIds
+     * @return list<string>
+     */
+    private function elementIdsFromApprovedLines($approvedLines, array $analysisTypeIds): array
+    {
+        if ($approvedLines === null || ! $approvedLines instanceof Collection || $approvedLines->isEmpty()) {
+            return [];
+        }
+
+        $typeSet = array_fill_keys(array_map('strval', $analysisTypeIds), true);
+
+        return $approvedLines
+            ->filter(function (AnalysisAcceptanceFormLine $line) use ($typeSet): bool {
+                $typeId = trim((string) ($line->analysis_type_id ?? ''));
+
+                return $typeId !== '' && isset($typeSet[$typeId]);
+            })
+            ->flatMap(function (AnalysisAcceptanceFormLine $line): array {
+                $raw = trim((string) ($line->analysis_element_id ?? ''));
+                if ($raw === '') {
+                    return [];
+                }
+
+                return array_values(array_filter(array_map(
+                    static fn (string $id): string => trim($id),
+                    explode(',', $raw),
+                )));
+            })
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function resolveLabOnce(SampleHeader $header): ?\App\Lab

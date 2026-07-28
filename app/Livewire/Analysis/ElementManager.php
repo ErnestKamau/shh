@@ -317,13 +317,34 @@ class ElementManager extends Component
 
         try {
             $analysisType = AnalysisType::findOrFail($this->analysisTypeId);
+            $importer = new ImportAnalysisElements($analysisType);
 
-            Excel::import(new ImportAnalysisElements($analysisType), $this->importFile->getRealPath());
+            Excel::import($importer, $this->importFile);
 
             $this->closeImportModal();
             $this->loadElements();
-            $this->message = 'Parameters imported successfully.';
-            $this->messageType = 'success';
+
+            if ($importer->importedRows === 0) {
+                $detail = $importer->errors !== []
+                    ? implode(' ', array_slice($importer->errors, 0, 3))
+                    : 'No valid parameter rows were found in the file. Check that columns are parameter, reporting_unit, method, and accredited.';
+                $this->message = 'Import finished but no parameters were saved. '.$detail;
+                $this->messageType = 'danger';
+
+                return;
+            }
+
+            $this->message = "Parameters imported successfully ({$importer->importedRows} row(s)).";
+            if ($importer->skippedRows > 0) {
+                $this->message .= " {$importer->skippedRows} row(s) were skipped.";
+                if ($importer->errors !== []) {
+                    $this->message .= ' '.implode(' ', array_slice($importer->errors, 0, 2));
+                }
+            }
+            $this->messageType = $importer->skippedRows > 0 ? 'danger' : 'success';
+            if ($importer->skippedRows > 0 && $importer->importedRows > 0) {
+                $this->messageType = 'success';
+            }
         } catch (\Throwable $e) {
             Log::error('Analysis parameter import failed', [
                 'analysis_type_id' => $this->analysisTypeId,

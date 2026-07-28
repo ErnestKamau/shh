@@ -1593,7 +1593,8 @@ class WorkflowBoard extends Component
     protected function baseBatchQuery()
     {
         return SampleHeader::with([
-            'samples',
+            'samples.lab',
+            'lab',
             'client',
             'sample_type',
             'invoice',

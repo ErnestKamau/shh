@@ -446,39 +446,20 @@ final class QuotationFromEnquiryService
                 );
             }
         } elseif ($analysisTypeIds !== []) {
+            // Type-only quotation lines must not expand into every active element
+            // under the analysis type — that incorrectly tests unselected parameters.
             foreach ($analysisTypeIds as $analysisTypeId) {
                 $analysisType = AnalysisType::query()->find($analysisTypeId);
-                $elements = $analysisType?->active_analysis_elements() ?? collect();
-
-                if ($elements->isEmpty()) {
-                    $expandedRows[] = $this->makeInlineRowFromDetail(
-                        $sampleTypeId,
-                        $analysisTypeId,
-                        null,
-                        (string) ($analysisType?->name ?? $detail->description ?? 'Analysis'),
-                        $quantity,
-                        $unitPrice,
-                        $tax,
-                        false,
-                    );
-
-                    continue;
-                }
-
-                foreach ($elements as $element) {
-                    $elementId = (string) $element->id;
-                    $elementModel = AnalysisElements::query()->with('analyte')->find($elementId);
-                    $expandedRows[] = $this->makeInlineRowFromDetail(
-                        $sampleTypeId,
-                        $analysisTypeId,
-                        $elementId,
-                        (string) ($elementModel?->analyte?->name ?? $elementModel?->name ?? 'Parameter'),
-                        $quantity,
-                        $unitPrice,
-                        $tax,
-                        in_array($elementId, $subcontractedIds, true),
-                    );
-                }
+                $expandedRows[] = $this->makeInlineRowFromDetail(
+                    $sampleTypeId,
+                    $analysisTypeId,
+                    null,
+                    (string) ($analysisType?->name ?? $detail->description ?? 'Analysis'),
+                    $quantity,
+                    $unitPrice,
+                    $tax,
+                    false,
+                );
             }
         } else {
             $expandedRows[] = $this->makeInlineRowFromDetail(
