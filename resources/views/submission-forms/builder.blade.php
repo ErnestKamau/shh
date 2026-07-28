@@ -100,6 +100,9 @@
                   <div class="element-type" data-type="textarea">
                     <i class="mdi mdi-text-box-outline"></i> Text Area
                   </div>
+                  <div class="element-type" data-type="rich_text">
+                    <i class="mdi mdi-format-text"></i> Rich Text
+                  </div>
                   <div class="element-type" data-type="plain_text">
                     <i class="mdi mdi-text"></i> Plain Text
                   </div>
@@ -373,6 +376,7 @@
                     <option value="date">Date</option>
                     <option value="datetime">Date & Time</option>
                     <option value="textarea">Text Area</option>
+                    <option value="rich_text">Rich Text</option>
                     <option value="plain_text">Plain Text</option>
                     <option value="select">Dropdown</option>
                     <option value="radio">Radio Buttons</option>

@@ -817,7 +817,9 @@
                             </h5>
                             <p class="text-muted mb-0 small">
                                 {{ $submissionForm->name }}
-                                · {{ $this->selectedSampleType?->name ?? 'Select sample type in form' }}
+                                @if ($this->selectedSampleType?->name)
+                                    · {{ $this->selectedSampleType->name }}
+                                @endif
                             </p>
                         </div>
                         <div class="submission-instance-actions ml-auto">
@@ -1048,12 +1050,14 @@
         open: false,
         openUp: false,
         search: '',
+        syncing: false,
+        debounceTimer: null,
         rowIndex: config.rowIndex ?? 0,
+        flat: !!config.flat,
         options: Array.isArray(config.options) ? config.options.slice() : [],
         selected: Array.isArray(config.selected) ? config.selected.slice() : [],
         hydrating: false,
         init() {
-            // Card body uses x-if: remount must re-read Livewire (wire:ignore freezes Blade snapshot).
             this.hydrateFromWire();
         },
         get filtered() {
@@ -1106,17 +1110,42 @@
             this.sync();
         },
         sync() {
-            if (this.$wire) {
-                this.$wire.setWalkInParameters(this.rowIndex, this.selected.slice());
-            }
-        },
-        applySelectedFromWire() {
             if (!this.$wire) {
                 return;
             }
+            this.syncing = true;
+            this.open = true;
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.flushSync(), 350);
+        },
+        async flushSync() {
+            if (!this.$wire) {
+                this.syncing = false;
+                return;
+            }
+            this.syncing = true;
+            this.open = true;
+            try {
+                await this.$wire.setWalkInParameters(this.flat ? -1 : this.rowIndex, this.selected.slice());
+            } finally {
+                this.$nextTick(() => {
+                    this.open = true;
+                    this.syncing = false;
+                    this.decideDirection();
+                });
+            }
+        },
+        applySelectedFromWire() {
+            if (!this.$wire || this.syncing) {
+                return;
+            }
 
-            const raw = this.$wire.get(`formData.parameters.${this.rowIndex}`);
-            if (Array.isArray(raw)) {
+            const raw = this.flat
+                ? this.$wire.get('formData.parameters')
+                : this.$wire.get(`formData.parameters.${this.rowIndex}`);
+            if (Array.isArray(raw) && raw.length && typeof raw[0] === 'object' && raw[0] !== null) {
+                this.selected = [];
+            } else if (Array.isArray(raw)) {
                 this.selected = raw.map((value) => String(value));
             } else if (raw !== null && raw !== undefined && raw !== '') {
                 this.selected = [String(raw)];
@@ -1125,7 +1154,7 @@
             }
         },
         async hydrateFromWire() {
-            if (!this.$wire || this.hydrating) {
+            if (!this.$wire || this.hydrating || this.syncing) {
                 return;
             }
 
@@ -1133,7 +1162,7 @@
             try {
                 this.applySelectedFromWire();
 
-                const state = await this.$wire.walkInParameterPickerState(this.rowIndex);
+                const state = await this.$wire.walkInParameterPickerState(this.flat ? null : this.rowIndex);
                 if (state && Array.isArray(state.options)) {
                     this.options = state.options.map((value) => String(value));
                 }
@@ -1144,6 +1173,115 @@
                 this.applySelectedFromWire();
             } finally {
                 this.hydrating = false;
+            }
+        },
+    }));
+
+    Alpine.data('rftIdLabelMultiPicker', (config = {}) => ({
+        open: false,
+        openUp: false,
+        search: '',
+        syncing: false,
+        debounceTimer: null,
+        wireKey: config.wireKey || '',
+        syncMethod: config.syncMethod || 'setWalkInSampleTypes',
+        options: Array.isArray(config.options) ? config.options.slice() : [],
+        selected: Array.isArray(config.selected) ? config.selected.map(String) : [],
+        placeholder: config.placeholder || 'Choose…',
+        emptyHint: config.emptyHint || 'No options available.',
+        init() {
+            this.applySelectedFromWire();
+        },
+        get filtered() {
+            const query = String(this.search || '').trim().toLowerCase();
+            if (!query) {
+                return this.options;
+            }
+
+            return this.options.filter((opt) => String(opt.label || '').toLowerCase().includes(query));
+        },
+        get selectedChips() {
+            const map = {};
+            this.options.forEach((opt) => { map[String(opt.id)] = opt; });
+            return this.selected
+                .map((id) => map[String(id)] || { id: String(id), label: String(id) })
+                .filter(Boolean);
+        },
+        get visibleChips() {
+            return this.selectedChips.slice(0, 8);
+        },
+        get hiddenCount() {
+            return Math.max(0, this.selectedChips.length - 8);
+        },
+        isSelected(id) {
+            return this.selected.includes(String(id));
+        },
+        toggleOpen() {
+            this.open = !this.open;
+            if (this.open) {
+                this.applySelectedFromWire();
+                this.$nextTick(() => this.decideDirection());
+            }
+        },
+        decideDirection() {
+            const rect = this.$el.getBoundingClientRect();
+            this.openUp = (window.innerHeight - rect.bottom) < 320;
+        },
+        toggle(id) {
+            const value = String(id);
+            if (this.isSelected(value)) {
+                this.selected = this.selected.filter((item) => item !== value);
+            } else {
+                this.selected = this.selected.concat([value]);
+            }
+            this.sync();
+        },
+        selectAll() {
+            this.selected = this.options.map((opt) => String(opt.id));
+            this.sync();
+        },
+        clearAll() {
+            this.selected = [];
+            this.search = '';
+            this.sync();
+        },
+        sync() {
+            if (!this.$wire || !this.syncMethod || !this.wireKey) {
+                return;
+            }
+            this.syncing = true;
+            this.open = true;
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.flushSync(), 350);
+        },
+        async flushSync() {
+            if (!this.$wire || !this.syncMethod || !this.wireKey) {
+                this.syncing = false;
+                return;
+            }
+            this.syncing = true;
+            this.open = true;
+            try {
+                await this.$wire[this.syncMethod](this.wireKey, this.selected.slice());
+            } finally {
+                this.$nextTick(() => {
+                    this.open = true;
+                    this.syncing = false;
+                    this.decideDirection();
+                });
+            }
+        },
+        applySelectedFromWire() {
+            if (!this.$wire || !this.wireKey || this.syncing) {
+                return;
+            }
+            const raw = this.$wire.get(this.wireKey);
+            if (Array.isArray(raw)) {
+                this.selected = raw.map(String).filter(Boolean);
+            } else if (raw !== null && raw !== undefined && raw !== '') {
+                this.selected = [String(raw)];
+            } else {
+                this.selected = [];
             }
         },
     }));

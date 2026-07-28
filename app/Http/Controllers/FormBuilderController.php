@@ -369,7 +369,7 @@ class FormBuilderController extends Controller
         Log::info('AddElement Request Data:', $request->all());
         
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,plain_text,select,radio,checkbox,file,camera_photo,image_upload,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature,depended_field,zone_select,pricelist_viewer,system_config_select',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,rich_text,plain_text,select,radio,checkbox,file,camera_photo,image_upload,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature,depended_field,zone_select,pricelist_viewer,system_config_select',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -472,7 +472,7 @@ class FormBuilderController extends Controller
         Log::info('UpdateElement Request Data:', $request->all());
         
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,plain_text,select,radio,checkbox,file,camera_photo,image_upload,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature,depended_field,zone_select,pricelist_viewer,system_config_select',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,rich_text,plain_text,select,radio,checkbox,file,camera_photo,image_upload,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature,depended_field,zone_select,pricelist_viewer,system_config_select',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',

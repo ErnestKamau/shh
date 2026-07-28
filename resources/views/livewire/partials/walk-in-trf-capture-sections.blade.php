@@ -1,5 +1,6 @@
 @php
     use App\Services\Sampleworkflow\WalkInTrfFieldMapper;
+    use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
     $fieldMapper = app(WalkInTrfFieldMapper::class);
     $hiddenWalkInTrfFields = [
         'job_number',
@@ -38,6 +39,16 @@
     $activeSection = $walkInSections->values()->get($walkInActiveStepIndex);
     $isCustomerSection = ($activeSection->title ?? '') === 'Customer details';
     $useCardRows = (bool) ($this->pageMode ?? false);
+
+    $shouldOmitWalkInElement = static function ($element) use ($activeSection, $hiddenWalkInTrfFields): bool {
+        $elementName = (string) ($element->name ?? '');
+
+        if ($elementName !== '' && in_array($elementName, $hiddenWalkInTrfFields, true)) {
+            return true;
+        }
+
+        return SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $activeSection);
+    };
 @endphp
 
 @if($submissionForm && $activeSection)
@@ -153,6 +164,7 @@
                 $allElements = $activeSection->elementHolders
                     ->sortBy('sort_order')
                     ->flatMap(fn ($holder) => $holder->elements->sortBy('sort_order'))
+                    ->reject(fn ($el) => $shouldOmitWalkInElement($el))
                     ->values();
                 $clientElement = $allElements->first(fn ($el) => in_array((string) $el->name, $customerPrimaryFields, true));
                 $contactElement = $allElements->first(fn ($el) => in_array((string) $el->name, $customerContactFields, true));
@@ -161,11 +173,10 @@
                     ->unique(fn ($el) => (string) $el->name)
                     ->values();
                 $remainingElements = $allElements
-                    ->filter(function ($el) use ($hiddenWalkInTrfFields, $customerPrimaryFields, $customerContactFields, $customerAutofillFields) {
+                    ->filter(function ($el) use ($customerPrimaryFields, $customerContactFields, $customerAutofillFields) {
                         $elementName = (string) ($el->name ?? '');
 
                         return $elementName !== ''
-                            && ! in_array($elementName, $hiddenWalkInTrfFields, true)
                             && ! in_array($elementName, $customerPrimaryFields, true)
                             && ! in_array($elementName, $customerContactFields, true)
                             && ! in_array($elementName, $customerAutofillFields, true);
@@ -191,13 +202,11 @@
             </div>
             <div class="row">
                 @foreach($autofillElements as $element)
-                    @if(! in_array((string) $element->name, $hiddenWalkInTrfFields, true))
-                        <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
-                            @include('livewire.sampleworkflow.test-request-field-render', [
-                                'field' => array_merge($fieldMapper->toField($element), ['readonly' => true]),
-                            ])
-                        </div>
-                    @endif
+                    <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
+                        @include('livewire.sampleworkflow.test-request-field-render', [
+                            'field' => array_merge($fieldMapper->toField($element), ['readonly' => true]),
+                        ])
+                    </div>
                 @endforeach
             </div>
             {{-- Render any remaining customer fields not covered above --}}
@@ -219,7 +228,7 @@
                             $hideInCollectionSection = ($activeSection->title ?? '') === 'Sample collection data'
                                 && in_array($elementName, $miscellaneousOnlyTrfFieldNames, true);
                         @endphp
-                        @if(! in_array($elementName, $hiddenWalkInTrfFields, true) && ! $hideInCollectionSection)
+                        @if(! $shouldOmitWalkInElement($element) && ! $hideInCollectionSection)
                             <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
                                 @include('livewire.sampleworkflow.test-request-field-render', [
                                     'field' => $fieldMapper->toField($element),

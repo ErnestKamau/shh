@@ -61,6 +61,11 @@
                   readonly>{{ $fieldValue }}</textarea>
         <div class="field-display-value">{{ $displayValue }}</div>
 
+    @elseif($element->element_type === 'rich_text')
+        <div class="rich-text-display border rounded p-2 bg-white" id="{{ $fieldId }}">
+            {!! $fieldValue !!}
+        </div>
+
     @elseif($element->element_type === 'number')
         <input type="number" 
                class="form-control" 

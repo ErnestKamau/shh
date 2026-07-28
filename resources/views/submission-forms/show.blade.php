@@ -525,7 +525,10 @@ function setupSampleTypeChangeHandlers() {
     
     // Use event delegation to handle dynamically added elements
     $(document).on('change.custom-elements', 'select[data-element-type="sample_type_select"]', function() {
-        const sampleTypeId = $(this).val();
+        const sampleTypeVal = $(this).val();
+        const sampleTypeId = Array.isArray(sampleTypeVal)
+            ? sampleTypeVal.filter(Boolean).join(',')
+            : sampleTypeVal;
         console.log('Sample type changed to:', sampleTypeId);
         
         // Find all dependent elements
@@ -766,6 +769,8 @@ function getElementIcon($elementType) {
             return 'calendar-clock';
         case 'textarea':
             return 'text-box-outline';
+        case 'rich_text':
+            return 'format-text';
         case 'select':
             return 'form-dropdown';
         case 'radio':

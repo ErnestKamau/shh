@@ -32,10 +32,6 @@ final class WalkInTrfFieldMapper
         };
         $label = (string) ($element->label ?? $element->name ?? '');
 
-        if ($name === 'analysis_type_id') {
-            $label = 'Sample Type';
-        }
-
         $readonly = (bool) ($element->is_readonly ?? false);
 
         if (in_array($name, ['customer_name', 'client_name', 'customer', 'client'], true)) {

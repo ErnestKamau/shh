@@ -26,6 +26,7 @@ use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Planner\SamplingScheduleCollectionProgress;
 use App\Services\Planner\SamplingScheduleSamplePlanHistoryRecorder;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 
@@ -1497,7 +1498,13 @@ class ScheduleSamplingManager extends Component
             $submissionForm = $this->submissionForm;
             if ($submissionForm) {
                 foreach ($submissionForm->sections->sortBy('sort_order') as $section) {
-                    $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order');
+                    if (SubmissionFormSchemaHelper::isBuilderHiddenSection($section)) {
+                        continue;
+                    }
+
+                    $elements = $section->elementHolders->flatMap->elements->sortBy('sort_order')
+                        ->reject(fn (SubmissionFormElement $element): bool => SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section));
+
                     if (($section->section_type ?? '') === 'rows_section') {
                         foreach ($elements as $element) {
                             $this->formData[$element->name] = [$this->defaultValueForElement($element)];
@@ -1640,6 +1647,10 @@ class ScheduleSamplingManager extends Component
         }
 
         foreach ($section->elementHolders->flatMap->elements as $element) {
+            if (SubmissionFormSchemaHelper::shouldOmitFromFillForm($element, $section)) {
+                continue;
+            }
+
             $existing = $this->formData[$element->name] ?? [];
             if (! is_array($existing)) {
                 $existing = [];
@@ -1690,7 +1701,43 @@ class ScheduleSamplingManager extends Component
             return [];
         }
 
+        if (
+            $element->element_type === 'sample_type_select'
+            || in_array((string) ($element->name ?? ''), ['sample_type_id', 'sample_type'], true)
+        ) {
+            return [];
+        }
+
+        if (
+            $element->element_type === 'analysis_type_select'
+            || in_array((string) ($element->name ?? ''), ['analysis_type_id', 'analysis_type', 'analysis_types'], true)
+        ) {
+            return [];
+        }
+
         return '';
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, AnalysisType>
+     */
+    public function analysisTypesForRow(?int $rowIndex = null): \Illuminate\Support\Collection
+    {
+        return $this->analysisTypes;
+    }
+
+    /**
+     * @param  list<string|int|float>  $sampleTypeIds
+     */
+    public function setWalkInSampleTypes(string $wireKey, array $sampleTypeIds): void
+    {
+        $relative = preg_replace('/^formData\./', '', $wireKey) ?: 'sample_type_id';
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => (string) $value,
+            $sampleTypeIds
+        ), static fn (string $id): bool => $id !== '')));
+
+        data_set($this->formData, $relative, $ids);
     }
 
     /**
@@ -1702,49 +1749,49 @@ class ScheduleSamplingManager extends Component
             return collect();
         }
 
-        $atName = null;
-        $atId = null;
-
-        foreach (['analysis_type', 'analysis_types'] as $key) {
+        $analysisTypeIds = [];
+        foreach (['analysis_type_id', 'analysis_type', 'analysis_types'] as $key) {
+            $value = $this->formData[$key] ?? null;
             if ($rowIndex !== null) {
-                if (! empty($this->formData[$key][$rowIndex] ?? null)) {
-                    $atName = $this->formData[$key][$rowIndex];
-                    break;
+                $value = is_array($value) ? ($value[$rowIndex] ?? null) : null;
+            }
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            if (! is_array($value)) {
+                $value = [(string) $value];
+            }
+
+            foreach ($value as $item) {
+                if (is_scalar($item) && (string) $item !== '') {
+                    $analysisTypeIds[] = (string) $item;
                 }
-            } elseif (! empty($this->formData[$key])) {
-                $atName = $this->formData[$key];
-                break;
             }
         }
 
-        if ($rowIndex !== null) {
-            $atId = $this->formData['analysis_type_id'][$rowIndex] ?? null;
-        } elseif (! empty($this->formData['analysis_type_id'])) {
-            $atId = is_array($this->formData['analysis_type_id'])
-                ? null
-                : $this->formData['analysis_type_id'];
-        }
-
-        if ($atId) {
-            $at = AnalysisType::query()
-                ->where('sample_type_id', $this->selectedSampleTypeId)
-                ->where('id', $atId)
-                ->first();
-        } elseif ($atName) {
-            $at = AnalysisType::query()
-                ->where('sample_type_id', $this->selectedSampleTypeId)
-                ->where('name', $atName)
-                ->first();
-        } else {
+        $analysisTypeIds = array_values(array_unique($analysisTypeIds));
+        if ($analysisTypeIds === []) {
             return collect();
         }
 
-        if (! $at) {
+        $validIds = AnalysisType::query()
+            ->where('sample_type_id', $this->selectedSampleTypeId)
+            ->where(function ($query) use ($analysisTypeIds): void {
+                $query->whereIn('id', $analysisTypeIds)
+                    ->orWhereIn('name', $analysisTypeIds);
+            })
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+
+        if ($validIds === []) {
             return collect();
         }
 
-        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($at): void {
-            $q->where('analysis_type_id', $at->id)->where('active', true);
+        return \App\Analyte::whereHas('analysis_elements', function ($q) use ($validIds): void {
+            $q->whereIn('analysis_type_id', $validIds)->where('active', true);
         })->orderBy('name')->get();
     }
 
@@ -1775,10 +1822,54 @@ class ScheduleSamplingManager extends Component
      */
     public function setWalkInParameters(int $rowIndex, array $parameters): void
     {
-        $this->formData['parameters'][$rowIndex] = array_values(array_map(
+        $normalized = array_values(array_map(
             static fn ($value): string => (string) $value,
             $parameters
         ));
+
+        if ($rowIndex < 0) {
+            $this->formData['parameters'] = $normalized;
+            if (array_key_exists('parameter', $this->formData)) {
+                $this->formData['parameter'] = $normalized;
+            }
+
+            return;
+        }
+
+        $this->formData['parameters'][$rowIndex] = $normalized;
+    }
+
+    /**
+     * @param  list<string|int|float>  $analysisTypeIds
+     */
+    public function setWalkInAnalysisTypes(string $wireKey, array $analysisTypeIds): void
+    {
+        $relative = preg_replace('/^formData\./', '', $wireKey) ?: 'analysis_type_id';
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => (string) $value,
+            $analysisTypeIds
+        ), static fn (string $id): bool => $id !== '')));
+
+        data_set($this->formData, $relative, $ids);
+
+        $rowIndex = null;
+        if (preg_match('/^(?:analysis_type_id|analysis_type|analysis_types)\.(\d+)$/', $relative, $matches)) {
+            $rowIndex = (int) $matches[1];
+        }
+
+        if ($rowIndex !== null) {
+            if (isset($this->formData['parameters'][$rowIndex])) {
+                $this->formData['parameters'][$rowIndex] = [];
+            }
+
+            return;
+        }
+
+        foreach (['parameter', 'parameters'] as $paramKey) {
+            if (array_key_exists($paramKey, $this->formData)) {
+                $this->formData[$paramKey] = [];
+            }
+        }
     }
 
     public function getCustomersProperty()
@@ -1795,6 +1886,17 @@ class ScheduleSamplingManager extends Component
         return AnalysisType::query()
             ->where('sample_type_id', $this->selectedSampleTypeId)
             ->where('active', true)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, SampleType>
+     */
+    public function getSampleTypesProperty(): Collection
+    {
+        return SampleType::query()
+            ->where('active', 1)
             ->orderBy('name')
             ->get();
     }
