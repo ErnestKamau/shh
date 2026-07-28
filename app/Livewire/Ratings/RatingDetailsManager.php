@@ -4,12 +4,14 @@ namespace App\Livewire\Ratings;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\RatingHeader;
 use App\Models\RatingDetail;
 use Illuminate\Validation\Rule;
 
 class RatingDetailsManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Rating Header
@@ -63,9 +65,7 @@ class RatingDetailsManager extends Component
         return RatingDetail::query()
             ->where('rating_header_id', $this->ratingHeaderId)
             ->when($this->search, function ($query) {
-                $query->where('key', 'like', '%' . $this->search . '%')
-                      ->orWhere('label', 'like', '%' . $this->search . '%')
-                      ->orWhere('interpretation', 'like', '%' . $this->search . '%');
+                $this->applyCaseInsensitiveSearch($query, ['key', 'label', 'interpretation'], (string) $this->search);
             })
             ->orderBy('key')
             ->paginate($this->perPage);

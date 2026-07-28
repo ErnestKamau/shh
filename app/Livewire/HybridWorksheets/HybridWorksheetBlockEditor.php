@@ -11,11 +11,14 @@ use App\Models\HybridWorksheets\HybridWorksheetBlock;
 use App\Models\HybridWorksheets\HybridWorksheetVersion;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\StageHeader;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Services\GroupedWorksheets\GroupedWorksheetReferenceValidator;
 use Livewire\Component;
 
 class HybridWorksheetBlockEditor extends Component
 {
+    use AppliesCaseInsensitiveSearch;
+
     public HybridWorksheetVersion $version;
 
     public bool $showAddModal = false;
@@ -115,15 +118,15 @@ class HybridWorksheetBlockEditor extends Component
 
         return match ($type) {
             HybridWorksheetBlockType::FormulaReference => Formula::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')->limit(30)->get(['id', 'name', 'description'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => $r->description])->all(),
             HybridWorksheetBlockType::ProcedureReference => ProcedureWorksheet::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')->limit(30)->get(['id', 'name', 'description'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => $r->description])->all(),
             HybridWorksheetBlockType::StageHeaderReference => StageHeader::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')->limit(30)->get(['id', 'name'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => null])->all(),
             default => [],

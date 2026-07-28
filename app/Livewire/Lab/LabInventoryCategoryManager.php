@@ -6,11 +6,13 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\LabInventoryCategory;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\File;
 
 class LabInventoryCategoryManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination, WithFileUploads;
 
     // Category Management
@@ -59,10 +61,7 @@ class LabInventoryCategoryManager extends Component
         $query = LabInventoryCategory::where('active', 1);
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($this->perPage);

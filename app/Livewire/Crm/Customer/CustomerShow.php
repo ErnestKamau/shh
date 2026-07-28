@@ -3,7 +3,6 @@
 namespace App\Livewire\Crm\Customer;
 
 use App\Models\CRM\CRMCustomer;
-use App\Models\System\SystemConfiguration;
 use App\Livewire\Crm\BaseCrmComponent;
 use Livewire\Attributes\On;
 
@@ -14,9 +13,6 @@ class CustomerShow extends BaseCrmComponent
     public $customer;
 
     public $activeTab = 'details';
-
-    /** @var SystemConfiguration|null Used to conditionally show tabs (e.g. Orders, Quotations). */
-    public $isQplus = null;
 
     protected $queryString = [
         'activeTab' => ['except' => 'details', 'as' => 'tab'],
@@ -35,7 +31,6 @@ class CustomerShow extends BaseCrmComponent
 
         $this->customerId = $customerId;
         $this->customer = CRMCustomer::with(['country'])->findOrFail($customerId);
-        $this->isQplus = SystemConfiguration::where('key', 'is_qplus')->first();
 
         if ($this->activeTab === 'contracts' && ! $this->customer->has_contract) {
             $this->activeTab = 'details';

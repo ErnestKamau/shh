@@ -4,11 +4,13 @@ namespace App\Livewire\Batch\Tabs;
 
 use App\SampleHeader;
 use App\InterLabLog;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class InterlabLogs extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
     
     public SampleHeader $batch;
@@ -36,19 +38,19 @@ class InterlabLogs extends Component
         
         return InterLabLog::whereIn('sample_id', $sampleIds)
             ->with(['sample', 'from_lab', 'to_lab', 'submitter'])
-            ->when($this->search, function($query) {
-                $query->where(function($q) {
-                    $q->whereHas('sample', function($sq) {
-                        $sq->where('sample_code', 'like', '%' . $this->search . '%');
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('sample', function ($sq) {
+                        $this->applyCaseInsensitiveSearch($sq, ['sample_code'], (string) $this->search);
                     })
-                    ->orWhereHas('from_lab', function($fl) {
-                        $fl->where('name', 'like', '%' . $this->search . '%');
+                    ->orWhereHas('from_lab', function ($fl) {
+                        $this->applyCaseInsensitiveSearch($fl, ['name'], (string) $this->search);
                     })
-                    ->orWhereHas('to_lab', function($tl) {
-                        $tl->where('name', 'like', '%' . $this->search . '%');
+                    ->orWhereHas('to_lab', function ($tl) {
+                        $this->applyCaseInsensitiveSearch($tl, ['name'], (string) $this->search);
                     })
-                    ->orWhereHas('submitter', function($sub) {
-                        $sub->where('name', 'like', '%' . $this->search . '%');
+                    ->orWhereHas('submitter', function ($sub) {
+                        $this->applyCaseInsensitiveSearch($sub, ['name'], (string) $this->search);
                     });
                 });
             })

@@ -84,6 +84,7 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
                             'company_id' => getUserCompany(),
                             'method' => $method->id,
                             'reporting_unit' => $reportingUnit?->name,
+                            'non_detectable' => 0,
                             'non_accredited' => $nonAccredited,
                             'show_on_report' => 1,
                             'active' => 1,

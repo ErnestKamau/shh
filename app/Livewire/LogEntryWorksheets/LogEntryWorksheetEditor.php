@@ -7,6 +7,7 @@ use App\Enums\LogEntryWorksheet\LogEntryRowDriver;
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\LogEntryWorksheets\LogEntryWorksheetColumn;
 use App\Models\LogEntryWorksheets\LogEntryWorksheetMandatoryField;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Services\Formulars\FormulaEvaluator;
 use App\Services\LogEntryWorksheets\LogEntryDatabaseSchemaService;
 use Illuminate\Support\Str;
@@ -15,6 +16,8 @@ use Livewire\Component;
 
 class LogEntryWorksheetEditor extends Component
 {
+    use AppliesCaseInsensitiveSearch;
+
     public LogEntryWorksheet $worksheet;
 
     public string $activeTab = 'general';
@@ -270,10 +273,7 @@ class LogEntryWorksheetEditor extends Component
             ->orderBy('order');
 
         if ($this->columnSearch !== '') {
-            $query->where(function ($q) {
-                $q->where('label', 'like', '%'.$this->columnSearch.'%')
-                    ->orWhere('key', 'like', '%'.$this->columnSearch.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['label', 'key'], (string) $this->columnSearch);
         }
 
         $this->columns = $query->get()->toArray();
@@ -285,10 +285,7 @@ class LogEntryWorksheetEditor extends Component
             ->orderBy('order');
 
         if ($this->fieldSearch !== '') {
-            $query->where(function ($q) {
-                $q->where('label', 'like', '%'.$this->fieldSearch.'%')
-                    ->orWhere('field_value_name', 'like', '%'.$this->fieldSearch.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['label', 'field_value_name'], (string) $this->fieldSearch);
         }
 
         $this->mandatoryFields = $query->get()->toArray();

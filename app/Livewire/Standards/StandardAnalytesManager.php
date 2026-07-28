@@ -8,11 +8,13 @@ use App\Standards;
 use App\StandardValue;
 use App\StandardAnalytes;
 use App\Analyte;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StandardAnalytesManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Standard ID
@@ -565,38 +567,6 @@ class StandardAnalytesManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
-    }
-
-    /**
-     * Apply a driver-aware case-insensitive LIKE filter across columns.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
-     * @param  array<int, string>  $columns
-     */
-    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
-    {
-        $term = trim($term);
-
-        if ($term === '' || $columns === []) {
-            return;
-        }
-
-        $driver = DB::connection()->getDriverName();
-        $isPgsql = $driver === 'pgsql';
-        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
-
-        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
-            foreach ($columns as $index => $column) {
-                if ($isPgsql) {
-                    $method = $index === 0 ? 'where' : 'orWhere';
-                    $builder->{$method}($column, 'ilike', $like);
-                    continue;
-                }
-
-                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
-                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
-            }
-        });
     }
 
     public function render()

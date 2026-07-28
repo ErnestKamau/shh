@@ -23,6 +23,7 @@ use App\Analyte;
 use App\Lab;
 use App\Models\Equipments\Equipment;
 use App\Services\Dashboards\Concerns\DashboardHelpers;
+use App\Support\CaseInsensitiveSearch;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class ModuleReportsController extends Controller
@@ -651,7 +652,7 @@ class ModuleReportsController extends Controller
                 }
                 if ($request->filled('batch_code')) {
                     $query->whereHas('sampleHeader', function ($q) use ($request) {
-                        $q->where('batch_code', 'like', '%' . $request->batch_code . '%');
+                        CaseInsensitiveSearch::apply($q, ['batch_code'], (string) $request->batch_code);
                     });
                 }
                 return $query->latest()->get();
@@ -665,7 +666,7 @@ class ModuleReportsController extends Controller
                     $query->whereDate('created_at', '<=', $request->date_to);
                 }
                 if ($request->filled('batch_code')) {
-                    $query->where('batch_code', 'like', '%' . $request->batch_code . '%');
+                    CaseInsensitiveSearch::apply($query, ['batch_code'], (string) $request->batch_code);
                 }
                 return $query->latest()->get();
 
@@ -694,7 +695,7 @@ class ModuleReportsController extends Controller
                 }
                 if ($request->filled('batch_code')) {
                     $query->whereHas('sampleHeader', function ($q) use ($request) {
-                        $q->where('batch_code', 'like', '%' . $request->batch_code . '%');
+                        CaseInsensitiveSearch::apply($q, ['batch_code'], (string) $request->batch_code);
                     });
                 }
                 return $query->latest()->get();

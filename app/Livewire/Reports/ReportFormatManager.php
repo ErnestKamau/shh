@@ -4,12 +4,14 @@ namespace App\Livewire\Reports;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\ReportFormat;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ReportFormatManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Report Formats Management
@@ -55,10 +57,7 @@ class ReportFormatManager extends Component
         $query = ReportFormat::query();
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('report_name', 'like', '%' . $this->search . '%')
-                  ->orWhere('report_code', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['report_name', 'report_code'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

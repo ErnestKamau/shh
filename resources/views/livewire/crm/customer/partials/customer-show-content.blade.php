@@ -38,25 +38,21 @@
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Contacts-tab" data-toggle="tab" href="#Contacts" role="tab" aria-controls="Contacts" aria-selected="false"><i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}</a>
 						</li>
-						@if(isset($is_qplus->id))
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Orders-tab" data-toggle="tab" href="#Orders" role="tab" aria-controls="Orders" aria-selected="false"><i class="mdi mdi-eyedropper-plus"></i> {{ __('crm.orders') }}</a>
 						</li>
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Samples-tab" data-toggle="tab" href="#Samples" role="tab" aria-controls="Samples" aria-selected="false"><i class="mdi mdi-test-tube"></i> {{ __('crm.reports') }}</a>
 						</li>
-						@endif
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Complaints-tab" data-toggle="tab" href="#Complaints" role="tab" aria-controls="Complaints" aria-selected="false"><i class="mdi mdi-comment-alert"></i> {{ __('crm.complaints') }}</a>
 						</li>
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Feedbacks-tab" data-toggle="tab" href="#Feedbacks" role="tab" aria-controls="Feedbacks" aria-selected="false"><i class="mdi mdi-file-account"></i> {{ __('crm.customer_feedback') }}</a>
 						</li>
-						@if(isset($is_qplus->id))
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Quotations-tab" data-toggle="tab" href="#quotations" role="tab" aria-controls="quotations" aria-selected="false"><i class="mdi mdi-file-settings"></i> {{ __('crm.quotation') }}</a>
 						</li>
-						@endif
 						{{-- Certifications tab disabled (use Documents tab instead)
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Certification-tab" data-toggle="tab" href="#Certification" role="tab" aria-controls="Certification" aria-selected="false"><i class="mdi mdi-file-certificate"></i> {{ __('crm.certifications') }}</a>
@@ -87,15 +83,13 @@
 						<livewire:crm.customer.tabs.contacts-manager :customerId="$customer->id" lazy="on-load" :key="'tab-contacts'" />
 					</div>
 
-					@if(isset($is_qplus->id))
-					{{-- QPLUS-only: Orders, Reports, Quotations --}}
+					{{-- Orders, Reports --}}
 					<div class="tab-pane fade p-3" id="Orders" role="tabpanel" aria-labelledby="Orders-tab">
 						<livewire:crm.customer.tabs.orders-list :customerId="$customer->id" lazy="on-load" :key="'tab-orders'" />
 					</div>
 					<div class="tab-pane fade p-3" id="Samples" role="tabpanel" aria-labelledby="Samples-tab">
 						<livewire:crm.customer.tabs.reports-list :customerId="$customer->id" lazy="on-load" :key="'tab-reports'" />
 					</div>
-					@endif
 
 					{{-- Secondary: Complaints, Feedbacks, Attachments, Configurations, Custom Fields, Details --}}
 					<div class="tab-pane fade p-3" id="Complaints" role="tabpanel" aria-labelledby="Complaints-tab">
@@ -106,11 +100,9 @@
 						<livewire:crm.customer.tabs.feedbacks-list :customerId="$customer->id" lazy="on-load" :key="'tab-feedbacks'" />
 					</div>
 
-					@if(isset($is_qplus->id))
 					<div class="tab-pane fade p-3" id="quotations" role="tabpanel" aria-labelledby="Quotations-tab">
 						@livewire(\App\Livewire\Crm\Customer\Tabs\QuotationsList::class, ['customer' => $customer], key('tab-quotations'))
 					</div>
-					@endif
 
 					{{-- Certifications tab disabled (use Documents tab instead)
 					<div class="tab-pane fade p-3" id="Certification" role="tabpanel" aria-labelledby="Certification-tab">

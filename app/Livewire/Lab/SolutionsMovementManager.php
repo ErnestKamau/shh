@@ -5,9 +5,11 @@ namespace App\Livewire\Lab;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\LabSubCategory;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 
 class SolutionsMovementManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Search and Filter
@@ -24,12 +26,11 @@ class SolutionsMovementManager extends Component
 
         // Apply search filter
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('category', function($catQ) {
-                      $catQ->where('name', 'like', '%' . $this->search . '%');
-                  });
+            $query->where(function ($q) {
+                $this->applyCaseInsensitiveSearch($q, ['name', 'description'], (string) $this->search);
+                $q->orWhereHas('category', function ($catQ) {
+                    $this->applyCaseInsensitiveSearch($catQ, ['name'], (string) $this->search);
+                });
             });
         }
 

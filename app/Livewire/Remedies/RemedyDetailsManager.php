@@ -4,12 +4,14 @@ namespace App\Livewire\Remedies;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\RemedyHeader;
 use App\Models\RemedyDetail;
 use Illuminate\Validation\Rule;
 
 class RemedyDetailsManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Remedy Header
@@ -65,8 +67,7 @@ class RemedyDetailsManager extends Component
         return RemedyDetail::query()
             ->where('remedy_header_id', $this->remedyHeaderId)
             ->when($this->search, function ($query) {
-                $query->where('antibiotic', 'like', '%' . $this->search . '%')
-                      ->orWhere('comments', 'like', '%' . $this->search . '%');
+                $this->applyCaseInsensitiveSearch($query, ['antibiotic', 'comments'], (string) $this->search);
             })
             ->when($this->sensitivityFilter, function ($query) {
                 $query->where('sensitivity', $this->sensitivityFilter);

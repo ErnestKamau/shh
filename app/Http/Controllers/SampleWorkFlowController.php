@@ -52,6 +52,7 @@ use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\ProcessedResultSyncService;
 use App\Services\StandardLimitDisplayService;
 use App\Services\SubmissionFormPdfService;
+use App\Support\CaseInsensitiveSearch;
 use App\ModulePreConfigs;
 use App\Pricelist;
 use App\PricelistCustomer;
@@ -192,13 +193,13 @@ class SampleWorkFlowController extends Controller
 
         if (trim((string) $request->get('q', '')) !== '') {
             $search = trim((string) $request->get('q'));
-            $query->where(function ($q) use ($search) {
-                $q->where('case_no', 'like', "%{$search}%")
-                    ->orWhere('offence', 'like', "%{$search}%")
-                    ->orWhere('submitting_officer_full_name', 'like', "%{$search}%")
-                    ->orWhere('submitting_agency', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
+            CaseInsensitiveSearch::apply($query, [
+                'case_no',
+                'offence',
+                'submitting_officer_full_name',
+                'submitting_agency',
+                'email',
+            ], $search);
         }
 
         // Tab filtering
@@ -7178,10 +7179,7 @@ class SampleWorkFlowController extends Controller
             ->where('active', 1);
 
         if ($term !== '') {
-            $builders->where(function ($query) use ($term) {
-                $query->where('name', 'like', '%' . $term . '%')
-                    ->orWhere('code', 'like', '%' . $term . '%');
-            });
+            CaseInsensitiveSearch::apply($builders, ['name', 'code'], $term);
         }
 
         $clients = $builders->orderBy('name')

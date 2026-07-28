@@ -6,6 +6,8 @@ use App\Exports\UncertaintyBudgetsExport;
 use App\UncertaintyBudget;
 use App\Analyte;
 use App\AnalysisMethod;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Support\CaseInsensitiveSearch;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Carbon\Carbon;
@@ -14,6 +16,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class UncertaintyBudgetsTable extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -155,39 +158,39 @@ class UncertaintyBudgetsTable extends Component
 
         // Apply search
         if ($this->search) {
-            $searchTerm = '%' . $this->search . '%';
-            $query->where(function($q) use ($searchTerm) {
-                $q->whereHas('analyte', function($analyteQuery) use ($searchTerm) {
-                    $analyteQuery->where('name', 'like', $searchTerm)
-                                ->orWhere('code', 'like', $searchTerm);
+            $searchTerm = CaseInsensitiveSearch::likePattern((string) $this->search);
+            $query->where(function ($q) use ($searchTerm): void {
+                $q->whereHas('analyte', function ($analyteQuery): void {
+                    $this->applyCaseInsensitiveSearch($analyteQuery, ['name', 'code'], (string) $this->search);
                 })
                 ->orWhereRaw('EXISTS (
                     SELECT 1 FROM analysis_methods 
                     WHERE FIND_IN_SET(analysis_methods.id, uncertainty_budgets.method_ids) > 0 
-                    AND (analysis_methods.name LIKE ? OR analysis_methods.code LIKE ?)
+                    AND ('.CaseInsensitiveSearch::columnLikeSql('analysis_methods.name').' OR '.CaseInsensitiveSearch::columnLikeSql('analysis_methods.code').')
                 )', [$searchTerm, $searchTerm]);
             });
         }
 
         // Apply advanced filters
         if ($this->filters['analyte_name']) {
-            $query->whereHas('analyte', function($q) {
-                $q->where('name', 'like', '%' . $this->filters['analyte_name'] . '%');
+            $query->whereHas('analyte', function ($q): void {
+                $this->applyCaseInsensitiveSearch($q, ['name'], (string) $this->filters['analyte_name']);
             });
         }
 
         if ($this->filters['analyte_code']) {
-            $query->whereHas('analyte', function($q) {
-                $q->where('code', 'like', '%' . $this->filters['analyte_code'] . '%');
+            $query->whereHas('analyte', function ($q): void {
+                $this->applyCaseInsensitiveSearch($q, ['code'], (string) $this->filters['analyte_code']);
             });
         }
 
         if ($this->filters['method_name']) {
+            $methodTerm = CaseInsensitiveSearch::likePattern((string) $this->filters['method_name']);
             $query->whereRaw('EXISTS (
                 SELECT 1 FROM analysis_methods 
                 WHERE FIND_IN_SET(analysis_methods.id, uncertainty_budgets.method_ids) > 0 
-                AND analysis_methods.name LIKE ?
-            )', ['%' . $this->filters['method_name'] . '%']);
+                AND '.CaseInsensitiveSearch::columnLikeSql('analysis_methods.name').'
+            )', [$methodTerm]);
         }
 
         if ($this->filters['coverage_factor_k']) {

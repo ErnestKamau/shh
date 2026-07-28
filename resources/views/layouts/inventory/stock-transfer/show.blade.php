@@ -53,7 +53,7 @@
 						<small class="text-info toggle-desc float-right {{ !isset($transfer->status) ? 'text' : '' }}"><i class="mdi mdi-pencil"></i> Edit</small>
 					</h5>
 					<hr>
-					<form method="POST" action="{{ route('stock-transfer-update', ['id'=>$transfer->id ?? time()]) }}" enctype="multipart/form-data">
+					<form method="POST" action="{{ route('stock-transfer-update', ['id'=>$transfer->id ?? 'new']) }}" enctype="multipart/form-data">
 						@csrf
 						<div class="form-group">
 							<div id="wyswyg-desc-text" class="text-view">{!! $transfer->description !!}</div>
@@ -71,7 +71,7 @@
 			<br>
 		</div>
 		<div class="col-sm-12">
-			<form class="card" method="POST" id="save-transfer-items" action="{{ route('stock-transfer-items-update', ['id'=>$transfer->id ?? time()]) }}">
+			<form class="card" method="POST" id="save-transfer-items" action="{{ route('stock-transfer-items-update', ['id'=>$transfer->id ?? 'new']) }}">
 				@csrf
 				<div class="card-body">
 					<h5 class="card-title"><i class="mdi mdi-package-variant"></i> Transfer Items

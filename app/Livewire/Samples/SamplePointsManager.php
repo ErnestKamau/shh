@@ -3,6 +3,7 @@
 namespace App\Livewire\Samples;
 
 use Livewire\Component;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\CRM\SamplePoint;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 class SamplePointsManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     public $customerId;
     public $customer;
 
@@ -80,20 +82,20 @@ class SamplePointsManager extends Component
         $query = SamplePoint::with('unit')
             ->where('crm_customer_id', $this->customerId)
             ->when($this->search, function ($query) use ($hasName, $hasCode, $hasDescription, $hasGps) {
-                $query->where(function ($subQuery) use ($hasName, $hasCode, $hasDescription, $hasGps) {
-                    if ($hasName) {
-                        $subQuery->orWhere('name', 'like', '%' . $this->search . '%');
-                    }
-                    if ($hasCode) {
-                        $subQuery->orWhere('code', 'like', '%' . $this->search . '%');
-                    }
-                    if ($hasDescription) {
-                        $subQuery->orWhere('description', 'like', '%' . $this->search . '%');
-                    }
-                    if ($hasGps) {
-                        $subQuery->orWhere('gps', 'like', '%' . $this->search . '%');
-                    }
-                });
+                $columns = [];
+                if ($hasName) {
+                    $columns[] = 'name';
+                }
+                if ($hasCode) {
+                    $columns[] = 'code';
+                }
+                if ($hasDescription) {
+                    $columns[] = 'description';
+                }
+                if ($hasGps) {
+                    $columns[] = 'gps';
+                }
+                $this->applyCaseInsensitiveSearch($query, $columns, (string) $this->search);
             })
             ->when($this->statusFilter !== '', function ($query) {
                 $query->where('active', $this->statusFilter);

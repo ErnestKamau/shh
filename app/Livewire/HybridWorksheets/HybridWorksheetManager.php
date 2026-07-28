@@ -4,12 +4,14 @@ namespace App\Livewire\HybridWorksheets;
 
 use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\HybridWorksheets\HybridWorksheetVersion;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class HybridWorksheetManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public string $search = '';
@@ -42,10 +44,7 @@ class HybridWorksheetManager extends Component
         $query = HybridWorksheet::with(['activeVersion']);
 
         if ($this->search !== '') {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('description', 'like', '%'.$this->search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
         }
 
         $worksheets = $query->latest()->paginate($this->perPage);

@@ -3,11 +3,13 @@
 namespace App\Livewire\LogEntryWorksheets;
 
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class LogEntryWorksheetManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public string $search = '';
@@ -49,10 +51,7 @@ class LogEntryWorksheetManager extends Component
         $query = LogEntryWorksheet::query()->withCount(['columns', 'mandatoryFields']);
 
         if ($this->search !== '') {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('description', 'like', '%'.$this->search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
         }
 
         $worksheets = $query->latest()->paginate($this->perPage);

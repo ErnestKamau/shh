@@ -8,11 +8,13 @@ use Livewire\WithFileUploads;
 use App\LabSubCategory;
 use App\LabInventoryCategory;
 use App\LabCategoryItems;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\ReportingUnit;
 use Illuminate\Support\Facades\Storage;
 
 class LabSubCategoryManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination, WithFileUploads;
 
     // Sub-Category Management
@@ -80,10 +82,7 @@ class LabSubCategoryManager extends Component
         $query = LabSubCategory::with(['category', 'reportingUnit']);
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                    ->orWhere('description', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
         }
 
         if ($this->categoryFilter) {

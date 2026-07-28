@@ -7,6 +7,7 @@ use App\Models\MethodSequences\MethodSequenceVersion;
 use App\Models\MethodSequences\MethodSequenceStage;
 use App\Analyte;
 use App\AnalysisMethod;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class MethodSequenceManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -71,13 +73,12 @@ class MethodSequenceManager extends Component
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('analyte', function ($aq) {
-                      $aq->where('name', 'like', '%' . $this->search . '%');
-                  })
+                $this->applyCaseInsensitiveSearch($q, ['name', 'description'], (string) $this->search);
+                $q->orWhereHas('analyte', function ($aq) {
+                    $this->applyCaseInsensitiveSearch($aq, ['name'], (string) $this->search);
+                })
                   ->orWhereHas('method', function ($mq) {
-                      $mq->where('name', 'like', '%' . $this->search . '%');
+                      $this->applyCaseInsensitiveSearch($mq, ['name'], (string) $this->search);
                   });
             });
         }
@@ -300,9 +301,9 @@ class MethodSequenceManager extends Component
     public function searchAnalytes(): void
     {
         if (strlen($this->analyteSearch) >= 2) {
-            $this->filteredAnalytes = Analyte::where('name', 'like', '%' . $this->analyteSearch . '%')
-                ->limit(10)
-                ->get();
+            $analyteQuery = Analyte::query();
+            $this->applyCaseInsensitiveSearch($analyteQuery, ['name'], (string) $this->analyteSearch);
+            $this->filteredAnalytes = $analyteQuery->limit(10)->get();
             $this->showAnalyteDropdown = true;
         } else {
             $this->showAnalyteDropdown = false;
@@ -317,11 +318,7 @@ class MethodSequenceManager extends Component
             ->orderBy('name');
 
         if ($this->methodSearch !== '') {
-            $search = $this->methodSearch;
-            $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->methodSearch);
         }
 
         $this->filteredMethods = $query->get();

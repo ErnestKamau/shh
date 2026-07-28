@@ -6,17 +6,18 @@ use App\Analyte;
 use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\CapturedResult;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
 use App\Result;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class AnalyteManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Pagination
@@ -561,38 +562,6 @@ class AnalyteManager extends Component
         return $this->reportingUnitOptionsQuery($this->reportingUnitSearch)
             ->limit($this->searchResultLimit)
             ->get();
-    }
-
-    /**
-     * Apply a driver-aware case-insensitive LIKE filter across columns.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
-     * @param  array<int, string>  $columns
-     */
-    protected function applyCaseInsensitiveSearch($query, array $columns, string $term): void
-    {
-        $term = trim($term);
-
-        if ($term === '' || $columns === []) {
-            return;
-        }
-
-        $driver = DB::connection()->getDriverName();
-        $isPgsql = $driver === 'pgsql';
-        $like = '%'.($isPgsql ? $term : mb_strtolower($term)).'%';
-
-        $query->where(function ($builder) use ($columns, $like, $isPgsql): void {
-            foreach ($columns as $index => $column) {
-                if ($isPgsql) {
-                    $method = $index === 0 ? 'where' : 'orWhere';
-                    $builder->{$method}($column, 'ilike', $like);
-                    continue;
-                }
-
-                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
-                $builder->{$method}('LOWER('.$column.') LIKE ?', [$like]);
-            }
-        });
     }
 
     public function render()

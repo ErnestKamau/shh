@@ -5,6 +5,7 @@ namespace App\Livewire\Lab\MethodValidation;
 use Livewire\Component;
 use App\AnalysisMethod;
 use App\Company;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\System\SystemConfigurationsType;
 use App\Models\System\SystemConfiguration;
 use Livewire\WithPagination;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class MethodRegistration extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -76,11 +78,7 @@ class MethodRegistration extends Component
 
         // Apply search
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code', 'description'], (string) $this->search);
         }
 
         // Apply filters

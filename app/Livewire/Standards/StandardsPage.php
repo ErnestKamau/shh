@@ -6,11 +6,13 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Standards;
 use App\StandardValue;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StandardsPage extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Tab Management
@@ -90,10 +92,7 @@ class StandardsPage extends Component
         $query = Standards::query();
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {
@@ -108,10 +107,7 @@ class StandardsPage extends Component
         $query = StandardValue::query();
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

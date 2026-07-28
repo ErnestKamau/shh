@@ -6,12 +6,26 @@ use App\InventoryItem;
 use App\StockTransfer;
 use App\StockTransferItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class StockTransferController extends Controller
 {
   public function __construct()
   {
     $this->middleware('auth');
+	}
+
+	/**
+	 * Resolve a stock transfer by UUID route param, or a new model for create flows.
+	 * Legacy "new" links used time() as a placeholder ID; that is not a valid UUID.
+	 */
+	protected function findTransferOrNew(mixed $id): StockTransfer
+	{
+		if (is_string($id) && Str::isUuid($id)) {
+			return StockTransfer::find($id) ?? new StockTransfer;
+		}
+
+		return new StockTransfer;
 	}
 
 	public function index()
@@ -29,15 +43,20 @@ class StockTransferController extends Controller
 
 	public function show($id)
 	{
-		$transfer = StockTransfer::find($id) ?? new StockTransfer;
-		$transfer_items = StockTransferItem::where('stock_transfer_id', $id)->get();
+		$transfer = $this->findTransferOrNew($id);
+		$transfer_items = (is_string($id) && Str::isUuid($id))
+			? StockTransferItem::where('stock_transfer_id', $id)->get()
+			: collect();
 		return view('layouts.inventory.stock-transfer.show', compact('transfer', 'transfer_items'));
 	}
 
 	public function transfer_items($request, $id){
 		// return '<pre>'.json_encode($request->all(), JSON_PRETTY_PRINT).'</pre>';
 		$items = $request->items;
-		$transfer = StockTransfer::find($id);
+		$transfer = $this->findTransferOrNew($id);
+		if (!$transfer->exists) {
+			return redirect()->back()->with('error', 'Stock Transfer not found.');
+		}
 		$companyDetails = getCompanyDetails();
 
 		$itemsTransferredArray = array("out"=>array(), "in"=>array());
@@ -46,7 +65,9 @@ class StockTransferController extends Controller
 		foreach($items['transfer_item_id'] as $i=>$tid){
 			$inventoryC = new \App\Http\Controllers\InventoryItemController;
 
-			$item = StockTransferItem::find($tid) ?? new StockTransferItem;
+			$item = (is_string($tid) && Str::isUuid($tid))
+				? (StockTransferItem::find($tid) ?? new StockTransferItem)
+				: new StockTransferItem;
 
 			$localSubCat = \App\InventorySubCategories::find($items['source_sub_category_id'][$i]);
 			$targetSubCat = \App\InventorySubCategories::find($items['target_sub_category_id'][$i]);
@@ -205,9 +226,16 @@ class StockTransferController extends Controller
 	public function save_items($request, $id){
 		$items = $request->items;
 
+		$transfer = $this->findTransferOrNew($id);
+		if (!$transfer->exists) {
+			return redirect()->back()->with('error', 'Stock Transfer not found.');
+		}
+
 		foreach($items['transfer_item_id'] as $i=>$tid){
-			$item = StockTransferItem::find($tid) ?? new StockTransferItem;
-			$item->stock_transfer_id = $id;
+			$item = (is_string($tid) && Str::isUuid($tid))
+				? (StockTransferItem::find($tid) ?? new StockTransferItem)
+				: new StockTransferItem;
+			$item->stock_transfer_id = $transfer->id;
 			$item->local_item_id = $items['source_sub_category_id'][$i];
 			$item->local_inventory_item_name = $items['source_sub_category_name'][$i];
 			$item->local_store_id = $items['source_store_id'][$i];
@@ -226,7 +254,6 @@ class StockTransferController extends Controller
 			$item->save();
 		}
 
-		$transfer = StockTransfer::find($id);
 		$transfer->status = "Transfer Items Updated";
 		$transfer->save();
 
@@ -248,7 +275,7 @@ class StockTransferController extends Controller
 
 	public function update(Request $request, $id)
 	{
-		$transfer = StockTransfer::find($id) ?? new StockTransfer;
+		$transfer = $this->findTransferOrNew($id);
 		$transfer->location_id = $request->location_id ?? \Auth::user()->location_id;
 		$transfer->department_id = $request->department_id ?? \Auth::user()->department_id;
 		$transfer->description = $request->description;
@@ -290,7 +317,17 @@ class StockTransferController extends Controller
 	}
 
 	public function delete_item(Request $request){
-		StockTransferItem::find($request->transfer_item_id)->delete();
+		$transferItemId = $request->transfer_item_id;
+		if (!is_string($transferItemId) || !Str::isUuid($transferItemId)) {
+			return response()->json(array("status"=>false, "message"=>"Invalid item id."), 422);
+		}
+
+		$item = StockTransferItem::find($transferItemId);
+		if (!$item) {
+			return response()->json(array("status"=>false, "message"=>"Item not found."), 404);
+		}
+
+		$item->delete();
 
 		return response()->json(array("status"=>true, "message"=>"Item deleted successfully!"), 200);
 	}

@@ -4,12 +4,14 @@ namespace App\Livewire\Ratings;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\RatingHeader;
 use App\Models\RatingDetail;
 use Illuminate\Validation\Rule;
 
 class RatingManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Rating Headers Management
@@ -56,8 +58,7 @@ class RatingManager extends Component
     {
         return RatingHeader::query()
             ->when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%')
-                      ->orWhere('description', 'like', '%' . $this->search . '%');
+                $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
             })
             ->withCount('ratingDetails')
             ->orderBy('created_at', 'desc')

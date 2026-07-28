@@ -4,12 +4,14 @@ namespace App\Livewire\Remedies;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\RemedyHeader;
 use App\Models\RemedyDetail;
 use Illuminate\Validation\Rule;
 
 class RemedyManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     // Remedy Headers Management
@@ -56,8 +58,7 @@ class RemedyManager extends Component
     {
         return RemedyHeader::query()
             ->when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%')
-                      ->orWhere('description', 'like', '%' . $this->search . '%');
+                $this->applyCaseInsensitiveSearch($query, ['name', 'description'], (string) $this->search);
             })
             ->withCount('remedyDetails')
             ->orderBy('created_at', 'desc')

@@ -73,7 +73,6 @@
                                     <i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}
                                 </a>
                             </li>
-                            @if(isset($isQplus->id))
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'orders' ? 'active' : '' }}"
                                     wire:click.prevent="switchTab('orders')" href="#Orders" role="tab">
@@ -86,7 +85,6 @@
                                     <i class="mdi mdi-test-tube"></i> {{ __('crm.reports') }}
                                 </a>
                             </li>
-                            @endif
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'complaints' ? 'active' : '' }}"
                                     wire:click.prevent="switchTab('complaints')" href="#Complaints" role="tab">
@@ -99,14 +97,12 @@
                                     <i class="mdi mdi-file-account"></i> {{ __('crm.customer_feedback') }}
                                 </a>
                             </li>
-                            @if(isset($isQplus->id))
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'quotations' ? 'active' : '' }}"
                                     wire:click.prevent="switchTab('quotations')" href="#quotations" role="tab">
                                     <i class="mdi mdi-file-settings"></i> {{ __('crm.quotation') }}
                                 </a>
                             </li>
-                            @endif
                             {{-- Certifications tab disabled (use Documents tab instead)
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'attachments' ? 'active' : '' }}"
@@ -151,11 +147,11 @@
                             <div class="tab-pane fade show active p-3" id="Contacts" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerContactsTab::class, ['customer' => $customer], key('tab-contacts'))
                             </div>
-                        @elseif(isset($isQplus->id) && $activeTab == 'orders')
+                        @elseif($activeTab == 'orders')
                             <div class="tab-pane fade show active p-3" id="Orders" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerOrdersTab::class, ['customer' => $customer], key('tab-orders'))
                             </div>
-                        @elseif(isset($isQplus->id) && $activeTab == 'reports')
+                        @elseif($activeTab == 'reports')
                             <div class="tab-pane fade show active p-3" id="Samples" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerReportsTab::class, ['customer' => $customer], key('tab-reports'))
                             </div>
@@ -167,7 +163,7 @@
                             <div class="tab-pane fade show active p-3" id="Feedbacks" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerFeedbacksTab::class, ['customer' => $customer], key('tab-feedbacks'))
                             </div>
-                        @elseif(isset($isQplus->id) && $activeTab == 'quotations')
+                        @elseif($activeTab == 'quotations')
                             <div class="tab-pane fade show active p-3" id="quotations" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\QuotationsList::class, ['customer' => $customer], key('tab-quotations'))
                             </div>
@@ -196,7 +192,6 @@
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerDetailsTab::class, ['customer' => $customer], 'details-' . $customer->id)
                             </div>
                         @else
-                            {{-- Fallback when tab is Qplus-only but isQplus not set (e.g. bookmarked URL) --}}
                             <div class="tab-pane fade show active p-3" id="Customer-Details" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerDetailsTab::class, ['customer' => $customer], 'details-' . $customer->id)
                             </div>

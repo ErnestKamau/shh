@@ -22,7 +22,7 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
       <i class="mdi mdi-bank-transfer-out"></i> Stock Transfer
-			<a class="btn btn-default text-primary btn-sm float-right" href="{{ route('stock-transfer-sheet', ['id'=>time()]) }}"><i class="mdi mdi-plus"></i> New Transfer</a>
+			<a class="btn btn-default text-primary btn-sm float-right" href="{{ route('stock-transfer-sheet', ['id'=>'new']) }}"><i class="mdi mdi-plus"></i> New Transfer</a>
     </h2>
     <br>
     <div class="table-responsive bg-light p-4">

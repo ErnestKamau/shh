@@ -4,10 +4,12 @@ namespace App\Livewire\Samples;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\CRM\CompanyProduct;
 
 class SampleProductManager extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     use WithPagination;
 
     public $search = '';
@@ -108,7 +110,7 @@ class SampleProductManager extends Component
         $query = CompanyProduct::query();
 
         if ($this->search) {
-            $query->where('name', 'like', '%' . $this->search . '%');
+            $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->search);
         }
 
         if ($this->statusFilter !== '') {

@@ -10,12 +10,15 @@ use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\StageHeader;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Services\GroupedWorksheets\GroupedWorksheetCapturePreviewService;
 use App\Services\GroupedWorksheets\GroupedWorksheetReferenceValidator;
 use Livewire\Component;
 
 class GroupedWorksheetItemEditor extends Component
 {
+    use AppliesCaseInsensitiveSearch;
+
     public GroupedWorksheetHolder $holder;
 
     public bool $showAddModal = false;
@@ -135,35 +138,35 @@ class GroupedWorksheetItemEditor extends Component
 
         return match (GroupedWorksheetItemType::tryFrom($this->item_type)) {
             GroupedWorksheetItemType::Formula => Formula::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')
                 ->limit(30)
                 ->get(['id', 'name', 'description'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => $r->description])
                 ->all(),
             GroupedWorksheetItemType::Procedure => ProcedureWorksheet::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')
                 ->limit(30)
                 ->get(['id', 'name', 'description'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => $r->description])
                 ->all(),
             GroupedWorksheetItemType::StageHeader => StageHeader::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')
                 ->limit(30)
                 ->get(['id', 'name'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => null])
                 ->all(),
             GroupedWorksheetItemType::HybridWorksheet => HybridWorksheet::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')
                 ->limit(30)
                 ->get(['id', 'name', 'description'])
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => $r->description])
                 ->all(),
             GroupedWorksheetItemType::LogEntryWorksheet => LogEntryWorksheet::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->when($search, fn ($q) => $this->applyCaseInsensitiveSearch($q, ['name'], (string) $search))
                 ->orderBy('name')
                 ->limit(30)
                 ->get(['id', 'name', 'description'])

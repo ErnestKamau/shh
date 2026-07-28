@@ -20,6 +20,7 @@ use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
+use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +30,7 @@ use Livewire\Component;
 
 class ReceiveSampleRequest extends Component
 {
+    use AppliesCaseInsensitiveSearch;
     /** @var array<int, string> */
     public array $selectedFormInstanceIds = [];
 
@@ -526,10 +528,7 @@ class ReceiveSampleRequest extends Component
 
         $search = trim($this->rftInstancesSearch);
         if ($search !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('form_number', 'like', '%'.$search.'%')
-                    ->orWhere('title', 'like', '%'.$search.'%');
-            });
+            $this->applyCaseInsensitiveSearch($query, ['form_number', 'title'], $search);
         }
 
         return $query->limit(25)->get();
@@ -567,11 +566,10 @@ class ReceiveSampleRequest extends Component
         $search = trim($this->rftInstancesSearch);
         if ($search !== '') {
             $query->where(function ($q) use ($search): void {
-                $q->where('title', 'like', '%'.$search.'%')
-                    ->orWhere('location', 'like', '%'.$search.'%')
-                    ->orWhereHas('client', function ($customerQuery) use ($search): void {
-                        $customerQuery->where('name', 'like', '%'.$search.'%');
-                    });
+                $this->applyCaseInsensitiveSearch($q, ['title', 'location'], $search);
+                $q->orWhereHas('client', function ($customerQuery) use ($search): void {
+                    $this->applyCaseInsensitiveSearch($customerQuery, ['name'], $search);
+                });
             });
         }
 
