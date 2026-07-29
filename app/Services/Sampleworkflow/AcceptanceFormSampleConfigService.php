@@ -2143,6 +2143,9 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * One sample line = one physical sample.
+     * Qty / unit (`sample_quantity`) must not inflate sample count.
+     *
      * @param  array<string, mixed>  $line
      */
     private function resolvePrefillLineNumberOfSamples(array $line): int
@@ -2151,14 +2154,7 @@ class AcceptanceFormSampleConfigService
             return max(1, (int) $line['number_of_samples']);
         }
 
-        if (isset($line['quantity']) && is_numeric($line['quantity'])) {
-            return max(1, (int) $line['quantity']);
-        }
-
-        $sampleQuantity = trim((string) ($line['sample_quantity'] ?? ''));
-        if ($sampleQuantity !== '' && is_numeric($sampleQuantity)) {
-            return max(1, (int) $sampleQuantity);
-        }
+        unset($line);
 
         return 1;
     }

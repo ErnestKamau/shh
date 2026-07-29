@@ -230,27 +230,70 @@ class SubmissionRequestSampleLineService
     private function parseRowsSections(SubmissionFormInstance $instance): array
     {
         $lines = [];
+        $rowsByIndex = [];
 
         foreach ($this->schemaHelper->uniqueSections($instance->submissionForm) as $section) {
-            if ((string) ($section->section_type ?? '') !== 'rows_section') {
+            if (! SubmissionFormSchemaHelper::sectionUsesSampleCards($section)) {
                 continue;
             }
 
+            // Merge every holder into one cell map per row index first so split
+            // holders cannot emit duplicate sample lines.
             foreach ($section->elementHolders as $holder) {
-                $rowsData = $this->groupHolderRows($instance, $holder->elements);
-
-                foreach ($rowsData as $rowIndex => $cells) {
-                    $line = $this->mapRowCells((int) $rowIndex, $cells);
-                    if ($this->rowHasAnalysisData($line)) {
-                        $lines[] = $line;
+                foreach ($this->groupHolderRows($instance, $holder->elements) as $rowIndex => $cells) {
+                    $index = (int) $rowIndex;
+                    if (! isset($rowsByIndex[$index])) {
+                        $rowsByIndex[$index] = [];
                     }
+                    $rowsByIndex[$index] = array_merge($rowsByIndex[$index], $cells);
                 }
+            }
+        }
+
+        ksort($rowsByIndex);
+
+        $anchorCount = $this->countAnchorRowsFromInstance($instance);
+        if ($anchorCount > 0) {
+            $rowsByIndex = array_filter(
+                $rowsByIndex,
+                static fn (array $cells, int|string $index): bool => (int) $index < $anchorCount,
+                ARRAY_FILTER_USE_BOTH,
+            );
+        }
+
+        foreach ($rowsByIndex as $rowIndex => $cells) {
+            $line = $this->mapRowCells((int) $rowIndex, $cells);
+            if ($this->rowHasAnalysisData($line) || $this->trfRowHasDisplayData($line)) {
+                $line['number_of_samples'] = 1;
+                $lines[] = $line;
             }
         }
 
         usort($lines, fn (array $a, array $b): int => $a['row_index'] <=> $b['row_index']);
 
         return $lines;
+    }
+
+    /**
+     * Prefer physical sample anchors over flat multi-select array indexes.
+     */
+    private function countAnchorRowsFromInstance(SubmissionFormInstance $instance): int
+    {
+        $anchorNames = SubmissionFormSchemaHelper::sampleRowAnchorFieldNames();
+        $count = 0;
+
+        foreach ($instance->values as $value) {
+            $name = (string) ($value->element?->name ?? '');
+            if ($name === '' || ! in_array($name, $anchorNames, true)) {
+                continue;
+            }
+            if ($value->array_index === null) {
+                continue;
+            }
+            $count = max($count, ((int) $value->array_index) + 1);
+        }
+
+        return $count;
     }
 
     /**
@@ -415,6 +458,10 @@ class SubmissionRequestSampleLineService
                 $this->applyAnalysisType($line, $rawValue, $display);
             } elseif ($type === 'analysis_elements_select') {
                 $this->applyAnalysisElement($line, $rawValue, $display);
+            } elseif ($name === 'sample_type_id') {
+                $this->applySampleType($line, $rawValue, $display);
+            } elseif ($name === 'analysis_type_id') {
+                $this->applyAnalysisType($line, $rawValue, $display);
             } elseif ($name === 'sample_description') {
                 $line['sample_description'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'parameter_category') {
@@ -424,9 +471,14 @@ class SubmissionRequestSampleLineService
             } elseif ($this->isCustomerSampleIdField($name, $mapping)) {
                 $line['customer_sample_id'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'number_of_samples') {
-                $line['number_of_samples'] = $this->resolveNumericValue($rawValue, $display);
+                // Legacy "Qty" field name — mass/volume, not a sample count.
+                if (($line['sample_quantity'] ?? null) === null || $line['sample_quantity'] === '') {
+                    $line['sample_quantity'] = $display !== '' ? $display : $rawValue;
+                }
+                $line['number_of_samples'] = 1;
             } elseif ($name === 'sample_quantity') {
                 $line['sample_quantity'] = $display !== '' ? $display : $rawValue;
+                $line['number_of_samples'] = 1;
             } elseif ($name === 'sample_quantity_unit') {
                 $line['sample_quantity_unit'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'test_category') {
@@ -594,10 +646,242 @@ class SubmissionRequestSampleLineService
     }
 
     /**
+     * Multi-pickers store their selections flat (CSV) on a single value row.
+     *
+     * @return list<string>
+     */
+    private function idTokens(mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        $candidates = is_array($value)
+            ? $value
+            : (preg_split('/[,;|\r\n]+/', (string) $value) ?: []);
+
+        $tokens = [];
+
+        foreach ($candidates as $candidate) {
+            if (is_array($candidate)) {
+                foreach ($this->idTokens($candidate) as $nested) {
+                    if (! in_array($nested, $tokens, true)) {
+                        $tokens[] = $nested;
+                    }
+                }
+
+                continue;
+            }
+
+            $token = trim((string) $candidate);
+            if ($token === '' || in_array($token, $tokens, true)) {
+                continue;
+            }
+
+            $tokens[] = $token;
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * @return array{ids: list<string>, names: list<string>}
+     */
+    private function resolveSampleTypeTokens(mixed $value, bool $uuidTokensOnly = false): array
+    {
+        $ids = [];
+        $names = [];
+
+        foreach ($this->idTokens($value) as $token) {
+            if (Str::isUuid($token)) {
+                $name = $this->resolveSampleTypeName($token);
+                if ($name === null || $name === '') {
+                    continue;
+                }
+
+                $ids[] = $token;
+                $names[] = $name;
+
+                continue;
+            }
+
+            if ($uuidTokensOnly) {
+                continue;
+            }
+
+            $sampleType = SampleType::query()->where('name', $token)->first();
+            if ($sampleType === null) {
+                continue;
+            }
+
+            $ids[] = (string) $sampleType->id;
+            $names[] = (string) $sampleType->name;
+        }
+
+        return [
+            'ids' => array_values(array_unique($ids)),
+            'names' => array_values(array_unique($names)),
+        ];
+    }
+
+    private function firstFoodSampleTypeLabel(mixed $value): ?string
+    {
+        $foodTypeResolver = app(TrfDocumentCodeForSampleType::class);
+
+        foreach ($this->idTokens($value) as $token) {
+            if ($foodTypeResolver->isFoodSampleTypeLabel($token)) {
+                return $token;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{ids: list<string>, names: list<string>, food_labels: list<string>}
+     */
+    private function resolveAnalysisTypeTokens(mixed $value): array
+    {
+        $foodTypeResolver = app(TrfDocumentCodeForSampleType::class);
+        $ids = [];
+        $names = [];
+        $foodLabels = [];
+
+        foreach ($this->idTokens($value) as $token) {
+            if ($foodTypeResolver->isFoodSampleTypeLabel($token)) {
+                $foodLabels[] = $token;
+
+                continue;
+            }
+
+            if (Str::isUuid($token)) {
+                $name = $this->resolveAnalysisTypeName($token);
+                if ($name === null || $name === '') {
+                    continue;
+                }
+
+                $ids[] = $token;
+                $names[] = $name;
+
+                continue;
+            }
+
+            $analysisType = AnalysisType::query()->where('name', $token)->first();
+            if ($analysisType === null) {
+                continue;
+            }
+
+            $ids[] = (string) $analysisType->id;
+            $names[] = (string) $analysisType->name;
+        }
+
+        return [
+            'ids' => array_values(array_unique($ids)),
+            'names' => array_values(array_unique($names)),
+            'food_labels' => array_values(array_unique($foodLabels)),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  list<string>  $ids
+     * @param  list<string>  $names
+     */
+    private function assignSampleTypes(array &$line, array $ids, array $names): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $line['sample_type_id'] = $ids[0];
+        $line['sample_type_name'] = $names !== []
+            ? implode(', ', $names)
+            : $this->resolveSampleTypeName($ids[0]);
+
+        if (count($ids) > 1) {
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['sample_type_ids'] = $ids;
+            $line['attributes']['sample_type_names'] = $names;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  list<string>  $ids
+     * @param  list<string>  $names
+     */
+    private function assignAnalysisTypes(array &$line, array $ids, array $names): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $line['analysis_type_id'] = $ids[0];
+        $line['analysis_type_name'] = $names !== []
+            ? implode(', ', $names)
+            : $this->resolveAnalysisTypeName($ids[0]);
+
+        if (count($ids) > 1) {
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['analysis_type_ids'] = $ids;
+            $line['attributes']['analysis_type_names'] = $names;
+        }
+
+        $this->fillSampleTypesFromAnalysisTypes($line, $ids);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     * @param  list<string>  $analysisTypeIds
+     */
+    private function fillSampleTypesFromAnalysisTypes(array &$line, array $analysisTypeIds): void
+    {
+        if (trim((string) ($line['sample_type_id'] ?? '')) !== '') {
+            return;
+        }
+
+        $ids = [];
+        $names = [];
+
+        foreach (AnalysisType::query()->whereKey($analysisTypeIds)->get() as $analysisType) {
+            $sampleTypeId = trim((string) ($analysisType->sample_type_id ?? ''));
+            if ($sampleTypeId === '' || in_array($sampleTypeId, $ids, true)) {
+                continue;
+            }
+
+            $name = $this->resolveSampleTypeName($sampleTypeId);
+            if ($name === null || $name === '') {
+                continue;
+            }
+
+            $ids[] = $sampleTypeId;
+            $names[] = $name;
+        }
+
+        $this->assignSampleTypes($line, $ids, $names);
+    }
+
+    /**
      * @param  array<string, mixed>  $line
      */
     private function applySampleType(array &$line, string $rawValue, string $display): void
     {
+        $resolved = $this->resolveSampleTypeTokens($rawValue !== '' ? $rawValue : $display);
+
+        if ($resolved['ids'] !== []) {
+            $this->assignSampleTypes($line, $resolved['ids'], $resolved['names']);
+
+            return;
+        }
+
+        // A name containing commas survives here because the whole value is matched.
+        $byName = SampleType::query()->where('name', trim($rawValue !== '' ? $rawValue : $display))->first();
+        if ($byName !== null) {
+            $this->assignSampleTypes($line, [(string) $byName->id], [(string) $byName->name]);
+
+            return;
+        }
+
         $line['sample_type_id'] = $rawValue !== '' ? $rawValue : null;
         $line['sample_type_name'] = $display !== '' ? $display : $this->resolveSampleTypeName($line['sample_type_id']);
     }
@@ -617,8 +901,32 @@ class SubmissionRequestSampleLineService
             return;
         }
 
-        $line['analysis_type_id'] = $rawValue !== '' ? $rawValue : null;
-        $line['analysis_type_name'] = $display !== '' ? $display : $this->resolveAnalysisTypeName($line['analysis_type_id']);
+        $candidate = $rawValue !== '' ? $rawValue : $display;
+        $resolved = $this->resolveAnalysisTypeTokens($candidate);
+
+        if ($resolved['ids'] === [] && $resolved['food_labels'] !== []) {
+            $foodLabel = $resolved['food_labels'][0];
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $line['attributes']['food_sample_type'] = $foodLabel;
+            $line['analysis_type_name'] = $foodLabel;
+            $this->resolveFoodMatrixAnalysisTypeOnLine($line, $foodLabel);
+
+            return;
+        }
+
+        if ($resolved['ids'] !== []) {
+            $this->assignAnalysisTypes($line, $resolved['ids'], $resolved['names']);
+        } else {
+            // Names containing commas survive here because the whole value is matched.
+            $byName = AnalysisType::query()->where('name', trim($candidate))->first();
+
+            if ($byName !== null) {
+                $this->assignAnalysisTypes($line, [(string) $byName->id], [(string) $byName->name]);
+            } else {
+                $line['analysis_type_id'] = $rawValue !== '' ? $rawValue : null;
+                $line['analysis_type_name'] = $display !== '' ? $display : $this->resolveAnalysisTypeName($line['analysis_type_id']);
+            }
+        }
 
         if ($line['analysis_type_name'] !== null
             && $foodTypeResolver->isFoodSampleTypeLabel((string) $line['analysis_type_name'])) {
@@ -649,6 +957,8 @@ class SubmissionRequestSampleLineService
 
         $resolvedLabels = [];
         $resolvedElementIds = [];
+        $elementAnalysisTypeIds = [];
+        $hadExplicitAnalysisType = ($line['analysis_type_id'] ?? null) !== null;
 
         foreach ($tokens as $token) {
             $token = trim($token);
@@ -661,6 +971,11 @@ class SubmissionRequestSampleLineService
             if ($elementRecord) {
                 $resolvedElementIds[] = (string) $elementRecord->id;
                 $resolvedLabels[] = $elementRecord->analyte?->name ?? $token;
+
+                $elementAnalysisTypeId = trim((string) ($elementRecord->analysis_type_id ?? ''));
+                if ($elementAnalysisTypeId !== '' && ! in_array($elementAnalysisTypeId, $elementAnalysisTypeIds, true)) {
+                    $elementAnalysisTypeIds[] = $elementAnalysisTypeId;
+                }
 
                 if ($line['analysis_type_id'] === null) {
                     $line['analysis_type_id'] = (string) $elementRecord->analysis_type_id;
@@ -687,6 +1002,18 @@ class SubmissionRequestSampleLineService
                 $line['attributes'] = [];
             }
             $line['attributes']['analysis_element_ids'] = $resolvedElementIds;
+
+            if (! $hadExplicitAnalysisType && count($elementAnalysisTypeIds) > 1) {
+                $names = [];
+                foreach ($elementAnalysisTypeIds as $analysisTypeId) {
+                    $name = $this->resolveAnalysisTypeName($analysisTypeId);
+                    if ($name !== null && $name !== '') {
+                        $names[] = $name;
+                    }
+                }
+
+                $this->assignAnalysisTypes($line, $elementAnalysisTypeIds, $names);
+            }
         }
 
         if ($resolvedLabels !== []) {
@@ -897,7 +1224,10 @@ class SubmissionRequestSampleLineService
         foreach ($instance->values as $value) {
             $element = $value->element;
             if ($element && $element->element_type === 'sample_type_select' && $value->value) {
-                return (string) $value->value;
+                $resolved = $this->resolveSampleTypeTokens($value->value);
+                if ($resolved['ids'] !== []) {
+                    return $resolved['ids'][0];
+                }
             }
         }
 
@@ -944,13 +1274,21 @@ class SubmissionRequestSampleLineService
     ): array {
         $quantityData = $this->resolveSampleQuantityFromRow($row);
 
+        // A card carries its own sample type on unlinked TRFs; the header default is only a fallback.
+        $rowSampleTypes = $this->resolveSampleTypeTokens($row['sample_type_id'] ?? null);
+        if ($rowSampleTypes['ids'] === []) {
+            $rowSampleTypes = $this->resolveSampleTypeTokens($row['sample_type'] ?? null, uuidTokensOnly: true);
+        }
+
         $line = [
             'row_index' => $rowIndex,
             'customer_sample_id' => $this->nullableString($row['sample_no'] ?? $row['lims_sample_no'] ?? null),
             'sample_description' => $this->nullableString($row['sample_description'] ?? null),
             'parameter_category' => null,
-            'sample_type_id' => $defaultSampleTypeId,
-            'sample_type_name' => $defaultSampleTypeName,
+            'sample_type_id' => $rowSampleTypes['ids'][0] ?? $defaultSampleTypeId,
+            'sample_type_name' => $rowSampleTypes['names'] !== []
+                ? implode(', ', $rowSampleTypes['names'])
+                : $defaultSampleTypeName,
             'analysis_type_id' => null,
             'analysis_type_name' => null,
             'analysis_element_id' => null,
@@ -973,30 +1311,35 @@ class SubmissionRequestSampleLineService
             'attributes' => [],
         ];
 
-        $foodSampleType = $this->nullableString($row['sample_type'] ?? null);
+        $foodSampleType = $this->firstFoodSampleTypeLabel($row['sample_type'] ?? null);
         if ($foodSampleType === null) {
-            $analysisTypeCandidate = $this->nullableString($row['analysis_type_id'] ?? null);
-            if ($analysisTypeCandidate !== null
-                && app(TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeCandidate)) {
-                $foodSampleType = $analysisTypeCandidate;
-            }
+            $foodSampleType = $this->firstFoodSampleTypeLabel($row['analysis_type_id'] ?? null);
         }
 
-        $this->applyRowAnalysisSelection($line, $row, $defaultSampleTypeId, $foodSampleType);
+        $rowSampleTypeName = $rowSampleTypes['names'] !== []
+            ? implode(', ', $rowSampleTypes['names'])
+            : $defaultSampleTypeName;
+
+        $this->applyRowAnalysisSelection(
+            $line,
+            $row,
+            $rowSampleTypes['ids'][0] ?? $defaultSampleTypeId,
+            $foodSampleType,
+        );
 
         if ($foodSampleType !== null
             && empty($line['attributes']['food_sample_type'])) {
             $line['attributes']['food_sample_type'] = $foodSampleType;
-            if ($defaultSampleTypeName !== null && $defaultSampleTypeName !== '') {
-                $line['sample_type_name'] = $defaultSampleTypeName.' — '.$foodSampleType;
+            if ($rowSampleTypeName !== null && $rowSampleTypeName !== '') {
+                $line['sample_type_name'] = $rowSampleTypeName.' — '.$foodSampleType;
             } else {
                 $line['sample_type_name'] = $foodSampleType;
             }
         } elseif (($line['attributes']['food_sample_type'] ?? null) !== null
-            && $defaultSampleTypeName !== null
-            && $defaultSampleTypeName !== ''
+            && $rowSampleTypeName !== null
+            && $rowSampleTypeName !== ''
             && ! str_contains((string) ($line['sample_type_name'] ?? ''), '—')) {
-            $line['sample_type_name'] = $defaultSampleTypeName.' — '.$line['attributes']['food_sample_type'];
+            $line['sample_type_name'] = $rowSampleTypeName.' — '.$line['attributes']['food_sample_type'];
         }
 
         $tests = [];
@@ -1067,6 +1410,11 @@ class SubmissionRequestSampleLineService
     {
         $quantity = $this->nullableString($row['sample_quantity'] ?? null);
         $unit = $this->nullableString($row['sample_quantity_unit'] ?? null);
+
+        if ($quantity === null && isset($row['number_of_samples']) && $row['number_of_samples'] !== '') {
+            // Legacy TRF "Qty" column name — treat as quantity, never as sample count.
+            $quantity = $this->nullableString($row['number_of_samples']);
+        }
 
         if ($quantity === null && isset($row['qty']) && $row['qty'] !== '') {
             $legacyQty = trim((string) $row['qty']);
@@ -1146,6 +1494,7 @@ class SubmissionRequestSampleLineService
         $elementIds = [];
         $resolvedLabels = [];
         $pinnedSampleTypeId = $line['sample_type_id'] ?? null;
+        $pinnedSampleTypeName = trim((string) ($line['sample_type_name'] ?? ''));
 
         foreach ($tokens as $token) {
             $token = trim($token);
@@ -1180,7 +1529,9 @@ class SubmissionRequestSampleLineService
 
         if ($pinnedSampleTypeId !== null) {
             $line['sample_type_id'] = $pinnedSampleTypeId;
-            $line['sample_type_name'] = $this->resolveSampleTypeName($pinnedSampleTypeId);
+            $line['sample_type_name'] = $pinnedSampleTypeName !== ''
+                ? $pinnedSampleTypeName
+                : $this->resolveSampleTypeName($pinnedSampleTypeId);
         }
 
         if ($elementIds === []) {
@@ -1217,25 +1568,39 @@ class SubmissionRequestSampleLineService
             return;
         }
 
-        $foodTypeResolver = app(TrfDocumentCodeForSampleType::class);
-        if ($foodTypeResolver->isFoodSampleTypeLabel($candidate)) {
+        $resolved = $this->resolveAnalysisTypeTokens($candidate);
+
+        if ($resolved['ids'] !== []) {
+            $this->assignAnalysisTypes($line, $resolved['ids'], $resolved['names']);
+
+            if ($resolved['food_labels'] !== []) {
+                $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+                $line['attributes']['food_sample_type'] = $resolved['food_labels'][0];
+            }
+
+            return;
+        }
+
+        if ($resolved['food_labels'] !== []) {
+            $foodLabel = $resolved['food_labels'][0];
             $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
-            $line['attributes']['food_sample_type'] = $candidate;
-            $line['analysis_type_name'] = $candidate;
-            $this->resolveFoodMatrixAnalysisTypeOnLine($line, $candidate, $defaultSampleTypeId);
+            $line['attributes']['food_sample_type'] = $foodLabel;
+            $line['analysis_type_name'] = $foodLabel;
+            $this->resolveFoodMatrixAnalysisTypeOnLine($line, $foodLabel, $defaultSampleTypeId);
 
             return;
         }
 
-        if (Str::isUuid($candidate)) {
-            $this->applyAnalysisType($line, $candidate, $this->resolveAnalysisTypeName($candidate) ?? '');
-
-            return;
-        }
-
+        // Names containing commas survive here because the whole value is matched.
         $analysisType = AnalysisType::query()->where('name', $candidate)->first();
         if ($analysisType !== null) {
-            $this->applyAnalysisType($line, (string) $analysisType->id, (string) $analysisType->name);
+            $this->assignAnalysisTypes($line, [(string) $analysisType->id], [(string) $analysisType->name]);
+
+            return;
+        }
+
+        if ($foodSampleTypeLabel !== null) {
+            $this->resolveFoodMatrixAnalysisTypeOnLine($line, $foodSampleTypeLabel, $defaultSampleTypeId);
         }
     }
 
@@ -1277,9 +1642,9 @@ class SubmissionRequestSampleLineService
         $query = AnalysisElements::query()->with('analyte')
             ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->where('name', $token));
 
-        $scopedAnalysisTypeId = $this->scopedAnalysisTypeIdForLine($line);
-        if ($scopedAnalysisTypeId !== null) {
-            $query->where('analysis_type_id', $scopedAnalysisTypeId);
+        $scopedAnalysisTypeIds = $this->scopedAnalysisTypeIdsForLine($line);
+        if ($scopedAnalysisTypeIds !== []) {
+            $query->whereIn('analysis_type_id', $scopedAnalysisTypeIds);
         }
 
         $element = $query->first();
@@ -1287,13 +1652,38 @@ class SubmissionRequestSampleLineService
             return $element;
         }
 
-        if ($scopedAnalysisTypeId !== null) {
+        if ($scopedAnalysisTypeIds !== []) {
             return null;
         }
 
         return AnalysisElements::query()->with('analyte')
             ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->where('name', $token))
             ->first();
+    }
+
+    /**
+     * A card can carry several analysis types, so parameters must resolve against all of them.
+     *
+     * @param  array<string, mixed>  $line
+     * @return list<string>
+     */
+    private function scopedAnalysisTypeIdsForLine(array $line): array
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $ids = [];
+
+        foreach ($this->idTokens($attributes['analysis_type_ids'] ?? null) as $token) {
+            if (Str::isUuid($token) && ! in_array($token, $ids, true)) {
+                $ids[] = $token;
+            }
+        }
+
+        $scoped = $this->scopedAnalysisTypeIdForLine($line);
+        if ($scoped !== null && ! in_array($scoped, $ids, true)) {
+            $ids[] = $scoped;
+        }
+
+        return $ids;
     }
 
     /**

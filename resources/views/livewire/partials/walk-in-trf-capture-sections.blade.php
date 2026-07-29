@@ -65,7 +65,7 @@
         @endif
 
         @php
-            $isRowsSection = ($activeSection->section_type ?? '') === 'rows_section';
+            $isRowsSection = $this->walkInSectionUsesSampleCards($activeSection);
         @endphp
 
         @if($isRowsSection)
@@ -78,8 +78,10 @@
                         $rowCount = max($rowCount, count($formData[$name]));
                     }
                 }
-                if (isset($formData['sample_quantity_unit']) && is_array($formData['sample_quantity_unit'])) {
-                    $rowCount = max($rowCount, count($formData['sample_quantity_unit']));
+                foreach (['sample_quantity', 'sample_quantity_unit'] as $qtyField) {
+                    if (isset($formData[$qtyField]) && is_array($formData[$qtyField])) {
+                        $rowCount = max($rowCount, count($formData[$qtyField]));
+                    }
                 }
             @endphp
 

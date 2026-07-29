@@ -3,6 +3,7 @@
 namespace App\Services\Commercial;
 
 use App\AnalysisElements;
+use App\AnalysisType;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SampleSubmissionRequestRequestedAnalysis;
 use App\Models\SubmissionFormInstance;
@@ -175,18 +176,14 @@ final class CommercialEnquirySampleLineSync
     }
 
     /**
+     * One TRF sample card / line = one physical sample.
+     * `sample_quantity` + unit are mass/volume, never a sample count.
+     *
      * @param  array<string, mixed>  $line
      */
     private function resolveLineNumberOfSamples(array $line): int
     {
-        if (isset($line['number_of_samples']) && is_numeric($line['number_of_samples'])) {
-            return max(1, (int) $line['number_of_samples']);
-        }
-
-        $sampleQuantity = trim((string) ($line['sample_quantity'] ?? ''));
-        if ($sampleQuantity !== '' && is_numeric($sampleQuantity)) {
-            return max(1, (int) $sampleQuantity);
-        }
+        unset($line);
 
         return 1;
     }
@@ -229,7 +226,6 @@ final class CommercialEnquirySampleLineSync
         ?string $elementId,
         string $analysisTypeId = '',
     ): void {
-        $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
         $elementId = trim((string) ($elementId ?? ''));
         $analysisTypeId = $analysisTypeId !== '' ? $analysisTypeId : (string) ($line['analysis_type_id'] ?? '');
 
@@ -238,11 +234,17 @@ final class CommercialEnquirySampleLineSync
             $element = AnalysisElements::query()->with('analyte')->find($elementId);
             if ($element !== null) {
                 $label = (string) ($element->analyte->name ?? $label);
-                $analysisTypeId = $analysisTypeId !== '' ? $analysisTypeId : (string) $element->analysis_type_id;
+                // A card can carry several analysis types; the parameter's own type is the truth.
+                $ownAnalysisTypeId = trim((string) ($element->analysis_type_id ?? ''));
+                if ($ownAnalysisTypeId !== '') {
+                    $analysisTypeId = $ownAnalysisTypeId;
+                }
             } elseif ($this->looksLikeUuidList($label)) {
                 $label = 'Parameter';
             }
         }
+
+        $sampleTypeId = $this->resolveSampleTypeIdForAnalysisType($line, $analysisTypeId);
 
         $label = $this->referenceLabelResolver->resolveToken($label);
 
@@ -287,6 +289,39 @@ final class CommercialEnquirySampleLineSync
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
             ]);
         }
+    }
+
+    /**
+     * Pick the sample type the given analysis type belongs to when the card holds several.
+     *
+     * @param  array<string, mixed>  $line
+     */
+    private function resolveSampleTypeIdForAnalysisType(array $line, string $analysisTypeId): string
+    {
+        $primary = trim((string) ($line['sample_type_id'] ?? ''));
+        if ($analysisTypeId === '' || ! Str::isUuid($analysisTypeId)) {
+            return $primary;
+        }
+
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $candidates = [];
+        foreach (is_array($attributes['sample_type_ids'] ?? null) ? $attributes['sample_type_ids'] : [] as $candidate) {
+            $candidate = trim((string) $candidate);
+            if ($candidate !== '') {
+                $candidates[] = $candidate;
+            }
+        }
+
+        $owner = trim((string) (AnalysisType::query()->whereKey($analysisTypeId)->value('sample_type_id') ?? ''));
+        if ($owner === '') {
+            return $primary;
+        }
+
+        if ($primary === '' || in_array($owner, $candidates, true)) {
+            return $owner;
+        }
+
+        return $primary;
     }
 
     private function looksLikeUuidList(string $label): bool

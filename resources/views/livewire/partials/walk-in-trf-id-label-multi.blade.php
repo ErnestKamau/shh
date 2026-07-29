@@ -44,8 +44,8 @@
         placeholder: @js($placeholder),
         emptyHint: @js($emptyHint),
     })"
-    @keydown.escape.window="open = false"
-    @click.outside="if (!syncing) open = false"
+    @keydown.escape.window="if (open) closePanel()"
+    @click.outside="if (open) closePanel()"
 >
     <button type="button" class="rft-param-picker__trigger w-100 text-left" @click.stop="toggleOpen()">
         <div class="rft-param-picker__chips">
@@ -55,7 +55,7 @@
             <template x-for="chip in visibleChips" :key="chip.id">
                 <span class="rft-param-chip">
                     <span x-text="chip.label" :title="chip.label"></span>
-                    <button type="button" class="rft-param-chip__remove" @click.stop="toggle(chip.id)" title="Remove" aria-label="Remove">
+                    <button type="button" class="rft-param-chip__remove" @click.stop="removeChip(chip.id)" title="Remove" aria-label="Remove">
                         <i class="mdi mdi-close"></i>
                     </button>
                 </span>
@@ -71,7 +71,6 @@
         class="rft-param-picker__panel"
         x-show="open"
         x-cloak
-        x-transition
         @click.stop
         :class="openUp ? 'is-up' : ''"
     >
