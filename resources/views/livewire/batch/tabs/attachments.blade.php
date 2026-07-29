@@ -1133,7 +1133,7 @@
                                                 </div>
                                             </div>
 
-                                            <label class="cf-input-label mt-3">Control Results (Pass/Fail)</label>
+                                            <label class="cf-input-label mt-3">Control Results (Conforming / Non-Conforming)</label>
                                             <div class="row mb-3">
                                                 <div class="col-6 mb-2">
                                                     <label class="text-muted small font-weight-bold" style="font-size: 0.68rem; text-transform: uppercase;">+ve Ctrl</label>

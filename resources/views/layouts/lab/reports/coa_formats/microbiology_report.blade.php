@@ -568,7 +568,7 @@
                         @foreach($parameters as $parameter)
                         <th>{{ $parameter->analyte_code }}</th>
                         @endforeach
-                        <th rowspan="2">Statement of Conformity. Pass/Fail</th>
+                        <th rowspan="2">Statement of Conformity</th>
                     </tr>
                     <tr>
                         @foreach($parameters as $parameter)
@@ -595,15 +595,14 @@
                         @php
                         $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
                         $value = $resultData['value'] ?? 'N/A';
-                        $remark = strtolower($resultData['remark'] ?? 'pass');
-                        $isFailed = $remark === 'fail' || $remark === 'failed' || $remark === 'failure';
+                        $isFailed = is_non_conforming_remark($resultData['remark'] ?? null);
                         @endphp
                         <td class="{{ $isFailed ? 'failed-result' : '' }}">
                             {{ $value }}
                         </td>
                         @endforeach
-                        <td class="{{ strtolower($sampleData['conformity']) == 'pass' ? 'conformity-pass' : 'conformity-fail' }}">
-                            {{ $sampleData['conformity'] }}
+                        <td class="{{ is_conforming_remark($sampleData['conformity'] ?? null) ? 'conformity-pass' : 'conformity-fail' }}">
+                            {{ format_result_remark($sampleData['conformity'] ?? 'PASS') }}
                         </td>
                     </tr>
                     @endforeach
@@ -618,15 +617,14 @@
                         @php
                         $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
                         $value = $resultData['value'] ?? 'N/A';
-                        $remark = strtolower($resultData['remark'] ?? 'pass');
-                        $isFailed = $remark === 'fail' || $remark === 'failed' || $remark === 'failure';
+                        $isFailed = is_non_conforming_remark($resultData['remark'] ?? null);
                         @endphp
                         <td class="{{ $isFailed ? 'failed-result' : '' }}">
                             {{ $value }}
                         </td>
                         @endforeach
-                        <td class="{{ strtolower($sampleData['conformity']) == 'pass' ? 'conformity-pass' : 'conformity-fail' }}">
-                            {{ $sampleData['conformity'] }}
+                        <td class="{{ is_conforming_remark($sampleData['conformity'] ?? null) ? 'conformity-pass' : 'conformity-fail' }}">
+                            {{ format_result_remark($sampleData['conformity'] ?? 'PASS') }}
                         </td>
                     </tr>
                     @endforeach
@@ -649,8 +647,8 @@
             {{-- Decision Rule --}}
             <div class="decision-rule">
                 <p><strong>Decision Rule:</strong></p>
-                <p>• <strong>PASS</strong> - Sample meets the acceptable standards for drinking water according to Kenya Standards</p>
-                <p>• <strong>FAIL</strong> - Sample does not meet one or more acceptable standards for drinking water according to Kenya Standards</p>
+                <p>• <strong>Conforming</strong> - Sample meets the acceptable standards for drinking water according to Kenya Standards</p>
+                <p>• <strong>Non-Conforming</strong> - Sample does not meet one or more acceptable standards for drinking water according to Kenya Standards</p>
             </div>
         </div>
 

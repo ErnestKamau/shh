@@ -989,13 +989,13 @@ class ReportHeaderDetailController extends Controller
 					$sampleResults[$parameter->analyte_code] = [
 						'value' => $result->result,
 						'unit' => $result->reporting_unit_id,
-						'remark' => $result->remark ?? 'Pass',
+						'remark' => $result->remark ?? 'PASS',
 						'lab_section' => $labSectionId
 							? ($labSectionNamesById[$labSectionId] ?? $result->labSection?->name)
 							: null,
 					];
 					$sampleTotal++;
-					if (strtolower($result->remark ?? 'pass') === 'pass') {
+					if (is_conforming_remark($result->remark ?? 'PASS')) {
 						$samplePasses++;
 					}
 				} else {
@@ -1008,7 +1008,7 @@ class ReportHeaderDetailController extends Controller
 				}
 			}
 
-			$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'Pass' : 'Fail';
+			$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'PASS' : 'FAIL';
 			// Resolve sample code and sampling point for display in results tables
 			$sampleDetail = $sampleDetailsById->get($sample->id);
 			$sampleCode = $sampleDetail->sample_code ?? ($sample->sample_code ?? null);

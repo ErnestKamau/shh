@@ -2447,11 +2447,11 @@
                 return null;
             }
             const u = t.toUpperCase();
-            if (u === 'PASS') {
-                return '<span class="badge badge-success">PASS</span>';
+            if (u === 'PASS' || u === 'PASSED' || u === 'CONFORMING' || u === 'COMPLIANT') {
+                return '<span class="badge badge-success">Conforming</span>';
             }
-            if (u === 'FAIL') {
-                return '<span class="badge badge-danger">FAIL</span>';
+            if (u === 'FAIL' || u === 'FAILED' || u === 'NON-CONFORMING' || u === 'NON-COMPLIANT') {
+                return '<span class="badge badge-danger">Non-Conforming</span>';
             }
             return '<span class="badge badge-info">' + this.escapeHtml(t) + '</span>';
         },
@@ -2757,9 +2757,9 @@
             // Prioritize remark from database/backend
             if (track.remark && track.remark !== '') {
                 if (track.remark === 'FAIL') {
-                    return '<span class="badge badge-danger">FAIL</span>';
+                    return '<span class="badge badge-danger">Non-Conforming</span>';
                 } else if (track.remark === 'PASS') {
-                    return '<span class="badge badge-success">PASS</span>';
+                    return '<span class="badge badge-success">Conforming</span>';
                 } else {
                     return '<span class="badge badge-secondary">' + track.remark + '</span>';
                 }
@@ -2786,9 +2786,9 @@
             
             // Return FAIL if any fail, otherwise PASS
             if (remarks.includes('FAIL')) {
-                return '<span class="badge badge-danger">FAIL</span>';
+                return '<span class="badge badge-danger">Non-Conforming</span>';
             } else if (remarks.includes('PASS')) {
-                return '<span class="badge badge-success">PASS</span>';
+                return '<span class="badge badge-success">Conforming</span>';
             } else {
                 return '<span class="badge badge-secondary">-</span>';
             }
@@ -2816,9 +2816,9 @@
             let remark = '-';
             if (!isNaN(result) && !isNaN(mainLow) && !isNaN(mainHigh)) {
                 if (result >= mainLow && result <= mainHigh) {
-                    remark = '<span class="badge badge-success">PASS</span>';
+                    remark = '<span class="badge badge-success">Conforming</span>';
                 } else {
-                    remark = '<span class="badge badge-danger">FAIL</span>';
+                    remark = '<span class="badge badge-danger">Non-Conforming</span>';
                 }
             }
             

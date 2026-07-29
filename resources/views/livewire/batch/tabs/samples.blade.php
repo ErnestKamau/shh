@@ -1066,7 +1066,7 @@
                                             @if($parametersDisabled) disabled @endif>
                                             <option value="">- Select -</option>
                                             <option value="PASS">Conforming</option>
-                                            <option value="FAIL">Non-conforming</option>
+                                            <option value="FAIL">Non-Conforming</option>
                                         </select>
                                     </td>
                                     <td style="min-width: 120px;">

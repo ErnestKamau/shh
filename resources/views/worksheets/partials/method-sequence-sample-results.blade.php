@@ -140,7 +140,7 @@
                                                     data-is-auto="false">
                                                 <option value="">--- Select ---</option>
                                                 <option value="PASS" {{ ($sample['remark'] ?? '') === 'PASS' ? 'selected' : '' }}>Conforming</option>
-                                                <option value="FAIL" {{ ($sample['remark'] ?? '') === 'FAIL' ? 'selected' : '' }}>Non-conforming</option>
+                                                <option value="FAIL" {{ ($sample['remark'] ?? '') === 'FAIL' ? 'selected' : '' }}>Non-Conforming</option>
                                                 <option value="REPEAT" {{ ($sample['remark'] ?? '') === 'REPEAT' ? 'selected' : '' }}>REPEAT</option>
                                                 <option value="INCONCLUSIVE" {{ ($sample['remark'] ?? '') === 'INCONCLUSIVE' ? 'selected' : '' }}>INCONCLUSIVE</option>
                                                 <option value="ERROR" {{ ($sample['remark'] ?? '') === 'ERROR' ? 'selected' : '' }}>ERROR</option>

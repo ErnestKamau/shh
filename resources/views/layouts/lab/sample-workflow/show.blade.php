@@ -3980,8 +3980,8 @@
 										<label for="" class="control-label">Remark</label>
 										<select name="" id="" class="form-control pesticide_remark">
 											<option value="">Choose Remark</option>
-											<option value="PASS">PASS</option>
-											<option value="PASS">FAIL</option>
+											<option value="PASS">Conforming</option>
+											<option value="FAIL">Non-Conforming</option>
 											<option value="-">-</option>
 										</select>
 									</div>
@@ -6660,12 +6660,12 @@
 				@if(Auth::user()->is_client == 0)
 				<td nowrap data-toggle="tooltip" title="${data.analyte_name}">
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
-					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${(data.remark === 'PASS' ? 'Conforming' : (data.remark === 'FAIL' ? 'Non-conforming' : (data.remark ?? '')))}" name="remark[${data.id}]" placeholder="Remark..." />
+					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${(data.remark === 'PASS' ? 'Conforming' : (data.remark === 'FAIL' ? 'Non-Conforming' : (data.remark ?? '')))}" name="remark[${data.id}]" placeholder="Remark..." />
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
 						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual no-select2">
 							<option value="" ${!data.remark || data.remark === '' ? 'selected' : ''}>- Select -</option>
 							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Conforming</option>
-							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Non-conforming</option>
+							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Non-Conforming</option>
 							<option value="-" ${data.remark == '-' ? 'selected' : ''}>-</option>
 						</select>
 					</div>

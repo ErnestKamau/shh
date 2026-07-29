@@ -26,8 +26,7 @@
                     return ($p->analyte_code ?? $p->name) === $analyteCode;
                     });
                     $specification = $standards[$analyteCode] ?? 'NS';
-                    $remark = strtolower($result['remark'] ?? 'pass');
-                    $isFailed = in_array($remark, ['fail', 'failed', 'failure', 'rejected']);
+                    $isFailed = is_non_conforming_remark($result['remark'] ?? null);
                     $labSection = $result['lab_section'] ?? $parameter->lab_section_name ?? '-';
                     @endphp
                     <tr>
@@ -43,8 +42,8 @@
                     <tr style="background-color: #f8f9fa;">
                         <td colspan="5" style="padding: 8px; font-weight: bold;">
                             Action/Recommendation:
-                            <span class="{{ strtolower($group['conformity'] ?? 'pass') == 'pass' ? 'text-success' : 'text-danger' }}">
-                                {{ $group['conformity'] ?? 'Pass' }}
+                            <span class="{{ is_conforming_remark($group['conformity'] ?? null) ? 'text-success' : 'text-danger' }}">
+                                {{ format_result_remark($group['conformity'] ?? 'PASS') }}
                             </span>
                         </td>
                     </tr>
@@ -80,8 +79,7 @@
                     return ($p->analyte_code ?? $p->name) === $analyteCode;
                     });
                     $specification = $standards[$analyteCode] ?? 'NS';
-                    $remark = strtolower($result['remark'] ?? 'pass');
-                    $isFailed = in_array($remark, ['fail', 'failed', 'failure', 'rejected']);
+                    $isFailed = is_non_conforming_remark($result['remark'] ?? null);
                     $labSection = $result['lab_section'] ?? $parameter->lab_section_name ?? '-';
                     @endphp
                     <tr>
@@ -97,8 +95,8 @@
                     <tr style="background-color: #f8f9fa;">
                         <td colspan="5" style="padding: 8px; font-weight: bold;">
                             Action/Recommendation:
-                            <span class="{{ strtolower($sampleData['conformity'] ?? 'pass') == 'pass' ? 'text-success' : 'text-danger' }}">
-                                {{ $sampleData['conformity'] ?? 'Pass' }}
+                            <span class="{{ is_conforming_remark($sampleData['conformity'] ?? null) ? 'text-success' : 'text-danger' }}">
+                                {{ format_result_remark($sampleData['conformity'] ?? 'PASS') }}
                             </span>
                         </td>
                     </tr>
