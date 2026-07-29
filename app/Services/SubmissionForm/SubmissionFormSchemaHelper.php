@@ -111,6 +111,85 @@ final class SubmissionFormSchemaHelper
     }
 
     /**
+     * Field names that define physical sample-card rows (not multi-select expansions).
+     *
+     * @return list<string>
+     */
+    public static function sampleRowAnchorFieldNames(): array
+    {
+        return [
+            'sample_description',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'sampling_point',
+            'location',
+            'batch_number',
+            'state_of_sample',
+            'production_date',
+            'expiration_date',
+            'sample_condition',
+            'picture_of_samples',
+            'picture_of_sample',
+        ];
+    }
+
+    /**
+     * Multi-select row fields that must never inflate sample-card count when stored flat.
+     *
+     * @return list<string>
+     */
+    public static function sampleRowMultiSelectFieldNames(): array
+    {
+        return [
+            'parameters',
+            'parameter',
+            'analysis_type_id',
+            'analysis_type',
+            'analysis_types',
+            'sample_type_id',
+            'sample_type',
+        ];
+    }
+
+    /**
+     * Rows section, or a regular section that holds sample-line fields (manual/unlinked TRFs).
+     */
+    public static function sectionUsesSampleCards(SubmissionFormSection $section): bool
+    {
+        if (($section->section_type ?? '') === 'rows_section') {
+            return true;
+        }
+
+        $section->loadMissing('elementHolders.elements');
+
+        foreach ($section->elementHolders->flatMap->elements as $element) {
+            $name = strtolower(trim((string) ($element->name ?? '')));
+            $type = (string) ($element->element_type ?? '');
+
+            if (in_array($type, ['sample_type_select', 'analysis_type_select', 'analysis_elements_select'], true)) {
+                return true;
+            }
+
+            if (in_array($name, [
+                'sample_type_id',
+                'sample_type',
+                'analysis_type_id',
+                'analysis_type',
+                'analysis_types',
+                'parameters',
+                'parameter',
+                'sample_quantity',
+                'number_of_samples',
+                'sample_description',
+            ], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param  iterable<int, SubmissionFormElement>  $holderElements
      */
     public static function shouldHideSupersededRowField(

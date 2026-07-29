@@ -156,22 +156,109 @@ class SubmissionFormSubmissionService
             $inputValue = $request->input($fieldName);
             $fileValue = $request->file($fieldName);
 
-            // Check if this is a multiple select field (has [] in form name but not from rows)
+            // Per-row multi-select: parameters[0] = [a,b], parameters[1] = [c]
+            // must stay row-indexed — never expand each token into its own array_index.
+            $isPerRowMultiSelect = is_array($inputValue) && $this->isPerRowMultiSelectValues($inputValue);
             $isMultipleSelect = $this->isMultipleSelectField($element, $request)
+                && ! $isPerRowMultiSelect
                 && ! $this->isIndexedRowFieldValues(is_array($inputValue) ? $inputValue : []);
 
             $isArray = is_array($inputValue) || is_array($fileValue);
 
             if ($isArray) {
-                if ($isMultipleSelect) {
+                if ($isPerRowMultiSelect || ($isArray && ! $isMultipleSelect && is_array($inputValue) && $this->isIndexedRowFieldValues($inputValue))) {
+                    // Row-indexed values (possibly nested multi-selects per row).
+                    $this->processArrayField(
+                        $instance,
+                        $element,
+                        $this->flattenPerRowMultiSelectValues($inputValue ?? []),
+                        $request,
+                        $fieldName,
+                    );
+                } elseif ($isMultipleSelect) {
                     $this->processMultipleSelectField($instance, $element, $inputValue ?? []);
                 } else {
-                    // Handle array fields (from rows sections)
                     $this->processArrayField($instance, $element, $inputValue ?? [], $request, $fieldName);
                 }
             } else {
                 $this->processSingleField($instance, $element, $inputValue, $request);
             }
+        }
+
+        $this->persistCanonicalQtyFields($instance, $request, $elements);
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function isPerRowMultiSelectValues(array $values): bool
+    {
+        if ($values === []) {
+            return false;
+        }
+
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     * @return array<int, mixed>
+     */
+    private function flattenPerRowMultiSelectValues(array $values): array
+    {
+        $out = [];
+        foreach ($values as $index => $value) {
+            if (is_array($value)) {
+                $tokens = [];
+                foreach ($value as $item) {
+                    if ($item === null || $item === '') {
+                        continue;
+                    }
+                    $tokens[] = (string) $item;
+                }
+                $out[(int) $index] = implode(',', $tokens);
+            } else {
+                $out[(int) $index] = $value;
+            }
+        }
+        ksort($out);
+
+        return $out;
+    }
+
+    /**
+     * Persist walk-in Qty/Unit even when the form only has legacy number_of_samples.
+     *
+     * @param  Collection<int, SubmissionFormElement>  $elements
+     */
+    private function persistCanonicalQtyFields(
+        SubmissionFormInstance $instance,
+        Request $request,
+        Collection $elements,
+    ): void {
+        $qtyValues = $request->input('sample_quantity');
+        $unitValues = $request->input('sample_quantity_unit');
+
+        if (! is_array($qtyValues) && ! is_array($unitValues)) {
+            return;
+        }
+
+        $byName = $elements->keyBy(fn (SubmissionFormElement $el): string => (string) $el->name);
+        $qtyElement = $byName->get('sample_quantity') ?? $byName->get('number_of_samples');
+        $unitElement = $byName->get('sample_quantity_unit');
+
+        if ($qtyElement instanceof SubmissionFormElement && is_array($qtyValues)) {
+            $this->processArrayField($instance, $qtyElement, $qtyValues);
+        }
+
+        if ($unitElement instanceof SubmissionFormElement && is_array($unitValues)) {
+            $this->processArrayField($instance, $unitElement, $unitValues);
         }
     }
 
@@ -552,6 +639,13 @@ class SubmissionFormSubmissionService
     {
         if ($values === []) {
             return false;
+        }
+
+        // Nested multi-select per sample card: [0 => ['a','b'], 1 => ['c']]
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                return true;
+            }
         }
 
         return array_keys($values) === array_keys(array_values($values));

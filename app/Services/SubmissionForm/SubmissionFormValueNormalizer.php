@@ -91,7 +91,7 @@ final class SubmissionFormValueNormalizer
 
         $rows = [];
         foreach (app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm) as $section) {
-            if ((string) ($section->section_type ?? '') !== 'rows_section') {
+            if (! SubmissionFormSchemaHelper::sectionUsesSampleCards($section)) {
                 continue;
             }
 
@@ -119,6 +119,27 @@ final class SubmissionFormValueNormalizer
 
         if ($rows !== []) {
             ksort($rows);
+            $anchorCount = 0;
+            foreach (SubmissionFormSchemaHelper::sampleRowAnchorFieldNames() as $anchor) {
+                $maxIndex = -1;
+                foreach ($rows as $rowIndex => $row) {
+                    if (isset($row[$anchor]) && $row[$anchor] !== null && $row[$anchor] !== '') {
+                        $maxIndex = max($maxIndex, (int) $rowIndex);
+                    }
+                }
+                if ($maxIndex >= 0) {
+                    $anchorCount = max($anchorCount, $maxIndex + 1);
+                }
+            }
+
+            if ($anchorCount > 0) {
+                $rows = array_filter(
+                    $rows,
+                    static fn (array $row, int|string $index): bool => (int) $index < $anchorCount,
+                    ARRAY_FILTER_USE_BOTH,
+                );
+            }
+
             $rows = $this->applyFoodSampleTypeAliasesToRows($rows);
             $raw['sample_rows'] = array_values($rows);
         }
@@ -135,7 +156,7 @@ final class SubmissionFormValueNormalizer
 
         $names = [];
         foreach (app(SubmissionFormSchemaHelper::class)->uniqueSections($instance->submissionForm) as $section) {
-            if ((string) ($section->section_type ?? '') !== 'rows_section') {
+            if (! SubmissionFormSchemaHelper::sectionUsesSampleCards($section)) {
                 continue;
             }
 
@@ -149,7 +170,13 @@ final class SubmissionFormValueNormalizer
             }
         }
 
-        return $names;
+        // Always include canonical qty fields so walk-in Qty/Unit persists/reads even when
+        // the builder only has legacy number_of_samples.
+        foreach (['sample_quantity', 'sample_quantity_unit', 'number_of_samples'] as $qtyField) {
+            $names[] = $qtyField;
+        }
+
+        return array_values(array_unique($names));
     }
 
     /**
@@ -161,6 +188,7 @@ final class SubmissionFormValueNormalizer
         $aliases = $this->scalarAliases();
         $rowAliases = $this->rowFieldAliases();
         $normalized = [];
+        $indexedFields = [];
 
         foreach ($raw as $key => $value) {
             $canonicalKey = $aliases[$key] ?? $rowAliases[$key] ?? $key;
@@ -171,10 +199,8 @@ final class SubmissionFormValueNormalizer
                 continue;
             }
 
-            if (is_array($value) && $this->looksLikeIndexedRowField($value)) {
-                $rows = $this->rowsFromIndexedField($rowAliases[$key] ?? $key, $value);
-                $existingRows = is_array($normalized['sample_rows'] ?? null) ? $normalized['sample_rows'] : [];
-                $normalized['sample_rows'] = $this->mergeSampleRows($existingRows, $rows);
+            if (is_array($value) && $this->hasSequentialKeys($value)) {
+                $indexedFields[$canonicalKey] = $value;
 
                 continue;
             }
@@ -186,7 +212,219 @@ final class SubmissionFormValueNormalizer
             $normalized[$canonicalKey] = $value;
         }
 
+        if ($indexedFields !== []) {
+            $fromIndexed = $this->sampleRowsFromIndexedFields($indexedFields, $rowAliases);
+            $existingRows = is_array($normalized['sample_rows'] ?? null) ? $normalized['sample_rows'] : [];
+            $normalized['sample_rows'] = $this->normalizeSampleRows(
+                $this->mergeSampleRows($existingRows, $fromIndexed),
+                $rowAliases,
+            );
+
+            // Keep per-row indexed keys for processFormData persistence.
+            foreach ($indexedFields as $field => $values) {
+                if (! isset($normalized[$field])) {
+                    $normalized[$field] = $this->normalizeIndexedMultiSelectForStorage($field, $values);
+                }
+            }
+        }
+
         return $normalized;
+    }
+
+    /**
+     * Build sample_rows using anchor fields for count so flat parameters cannot create N fake samples.
+     *
+     * @param  array<string, array<int|string, mixed>>  $indexedFields
+     * @param  array<string, string>  $rowAliases
+     * @return list<array<string, mixed>>
+     */
+    private function sampleRowsFromIndexedFields(array $indexedFields, array $rowAliases): array
+    {
+        unset($rowAliases);
+
+        $rowCount = $this->resolveSampleRowCountFromIndexedFields($indexedFields);
+        $rows = [];
+        for ($i = 0; $i < $rowCount; $i++) {
+            $rows[$i] = [];
+        }
+
+        foreach ($indexedFields as $field => $values) {
+            $normalizedValues = $this->normalizeIndexedMultiSelectForStorage($field, $values);
+
+            if (
+                in_array($field, SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(), true)
+                && count($normalizedValues) > $rowCount
+                && $this->allScalarValues($normalizedValues)
+            ) {
+                if (in_array($field, ['parameters', 'parameter'], true)) {
+                    // Flat parameter explosion — keep every token, attach to first sample card.
+                    $joined = implode(',', array_map(
+                        static fn ($value): string => trim((string) $value),
+                        array_values($normalizedValues),
+                    ));
+                    $joined = trim($joined, ',');
+                    if ($joined !== '' && isset($rows[0])) {
+                        $rows[0][$field] = $joined;
+                    }
+                } else {
+                    // Flat analysis/sample-type list longer than cards — keep one value per card.
+                    foreach (array_values($normalizedValues) as $index => $value) {
+                        if ($index >= $rowCount) {
+                            break;
+                        }
+                        $rows[$index][$field] = $value;
+                    }
+                }
+
+                continue;
+            }
+
+            foreach ($normalizedValues as $index => $value) {
+                $rowIndex = (int) $index;
+                if ($rowIndex < 0 || $rowIndex >= $rowCount) {
+                    continue;
+                }
+                $rows[$rowIndex][$field] = is_array($value) ? implode(',', array_map('strval', $value)) : $value;
+            }
+        }
+
+        return array_values($rows);
+    }
+
+    /**
+     * @param  array<string, array<int|string, mixed>>  $indexedFields
+     */
+    private function resolveSampleRowCountFromIndexedFields(array $indexedFields): int
+    {
+        $anchorNames = SubmissionFormSchemaHelper::sampleRowAnchorFieldNames();
+        $count = 0;
+
+        foreach ($anchorNames as $anchor) {
+            if (! isset($indexedFields[$anchor]) || ! is_array($indexedFields[$anchor])) {
+                continue;
+            }
+            $count = max($count, count($indexedFields[$anchor]));
+        }
+
+        if ($count > 0) {
+            return $count;
+        }
+
+        // No anchors: use nested multi-select row lists (list of arrays), never flat token lists.
+        foreach (SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames() as $multiField) {
+            if (! isset($indexedFields[$multiField]) || ! is_array($indexedFields[$multiField])) {
+                continue;
+            }
+            $values = $indexedFields[$multiField];
+            if ($this->containsArrayValues($values)) {
+                $count = max($count, count($values));
+            } elseif ($this->allScalarValues($values) && $this->countCsvLikeScalars($values) > 0) {
+                $count = max($count, count($values));
+            }
+        }
+
+        if ($count > 0) {
+            return $count;
+        }
+
+        foreach ($indexedFields as $values) {
+            if (is_array($values)) {
+                $count = max($count, count($values));
+            }
+        }
+
+        return max(1, $count);
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     * @return array<int, mixed>
+     */
+    private function normalizeIndexedMultiSelectForStorage(string $field, array $values): array
+    {
+        $out = [];
+        foreach ($values as $index => $value) {
+            if (is_array($value)) {
+                $flat = [];
+                foreach ($value as $item) {
+                    if ($item === null || $item === '') {
+                        continue;
+                    }
+                    $flat[] = (string) $item;
+                }
+                $out[(int) $index] = in_array($field, SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(), true)
+                    ? implode(',', $flat)
+                    : $value;
+            } else {
+                $out[(int) $index] = $value;
+            }
+        }
+        ksort($out);
+
+        return $out;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function hasSequentialKeys(array $values): bool
+    {
+        if ($values === []) {
+            return false;
+        }
+
+        return array_keys($values) === array_keys(array_values($values));
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function containsArrayValues(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function allScalarValues(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                return false;
+            }
+        }
+
+        return $values !== [];
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function countCsvLikeScalars(array $values): int
+    {
+        $count = 0;
+        foreach ($values as $value) {
+            if (is_string($value) && str_contains($value, ',')) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function looksLikeIndexedRowField(array $values): bool
+    {
+        return $this->hasSequentialKeys($values);
     }
 
     /**
@@ -304,20 +542,6 @@ final class SubmissionFormValueNormalizer
         }
 
         return $row;
-    }
-
-    /**
-     * @param  array<int|string, mixed>  $values
-     */
-    private function looksLikeIndexedRowField(array $values): bool
-    {
-        if ($values === []) {
-            return false;
-        }
-
-        $keys = array_keys($values);
-
-        return $keys === array_keys(array_values($values));
     }
 
     /**

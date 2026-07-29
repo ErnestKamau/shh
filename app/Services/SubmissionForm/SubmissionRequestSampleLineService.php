@@ -230,27 +230,70 @@ class SubmissionRequestSampleLineService
     private function parseRowsSections(SubmissionFormInstance $instance): array
     {
         $lines = [];
+        $rowsByIndex = [];
 
         foreach ($this->schemaHelper->uniqueSections($instance->submissionForm) as $section) {
-            if ((string) ($section->section_type ?? '') !== 'rows_section') {
+            if (! SubmissionFormSchemaHelper::sectionUsesSampleCards($section)) {
                 continue;
             }
 
+            // Merge every holder into one cell map per row index first so split
+            // holders cannot emit duplicate sample lines.
             foreach ($section->elementHolders as $holder) {
-                $rowsData = $this->groupHolderRows($instance, $holder->elements);
-
-                foreach ($rowsData as $rowIndex => $cells) {
-                    $line = $this->mapRowCells((int) $rowIndex, $cells);
-                    if ($this->rowHasAnalysisData($line)) {
-                        $lines[] = $line;
+                foreach ($this->groupHolderRows($instance, $holder->elements) as $rowIndex => $cells) {
+                    $index = (int) $rowIndex;
+                    if (! isset($rowsByIndex[$index])) {
+                        $rowsByIndex[$index] = [];
                     }
+                    $rowsByIndex[$index] = array_merge($rowsByIndex[$index], $cells);
                 }
+            }
+        }
+
+        ksort($rowsByIndex);
+
+        $anchorCount = $this->countAnchorRowsFromInstance($instance);
+        if ($anchorCount > 0) {
+            $rowsByIndex = array_filter(
+                $rowsByIndex,
+                static fn (array $cells, int|string $index): bool => (int) $index < $anchorCount,
+                ARRAY_FILTER_USE_BOTH,
+            );
+        }
+
+        foreach ($rowsByIndex as $rowIndex => $cells) {
+            $line = $this->mapRowCells((int) $rowIndex, $cells);
+            if ($this->rowHasAnalysisData($line) || $this->trfRowHasDisplayData($line)) {
+                $line['number_of_samples'] = 1;
+                $lines[] = $line;
             }
         }
 
         usort($lines, fn (array $a, array $b): int => $a['row_index'] <=> $b['row_index']);
 
         return $lines;
+    }
+
+    /**
+     * Prefer physical sample anchors over flat multi-select array indexes.
+     */
+    private function countAnchorRowsFromInstance(SubmissionFormInstance $instance): int
+    {
+        $anchorNames = SubmissionFormSchemaHelper::sampleRowAnchorFieldNames();
+        $count = 0;
+
+        foreach ($instance->values as $value) {
+            $name = (string) ($value->element?->name ?? '');
+            if ($name === '' || ! in_array($name, $anchorNames, true)) {
+                continue;
+            }
+            if ($value->array_index === null) {
+                continue;
+            }
+            $count = max($count, ((int) $value->array_index) + 1);
+        }
+
+        return $count;
     }
 
     /**

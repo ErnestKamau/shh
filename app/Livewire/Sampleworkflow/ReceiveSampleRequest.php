@@ -963,36 +963,7 @@ class ReceiveSampleRequest extends Component
      */
     public function walkInSectionUsesSampleCards(SubmissionFormSection $section): bool
     {
-        if (($section->section_type ?? '') === 'rows_section') {
-            return true;
-        }
-
-        $elements = $section->elementHolders->flatMap->elements;
-        foreach ($elements as $element) {
-            $name = strtolower(trim((string) ($element->name ?? '')));
-            $type = (string) ($element->element_type ?? '');
-
-            if (in_array($type, ['sample_type_select', 'analysis_type_select', 'analysis_elements_select'], true)) {
-                return true;
-            }
-
-            if (in_array($name, [
-                'sample_type_id',
-                'sample_type',
-                'analysis_type_id',
-                'analysis_type',
-                'analysis_types',
-                'parameters',
-                'parameter',
-                'sample_quantity',
-                'number_of_samples',
-                'sample_description',
-            ], true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return SubmissionFormSchemaHelper::sectionUsesSampleCards($section);
     }
 
     public function goToWalkInStep(int $index): void
@@ -2659,12 +2630,49 @@ class ReceiveSampleRequest extends Component
      */
     private function walkInSubmissionPayload(): array
     {
+        $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
+        $this->mirrorCanonicalQtyOntoLegacySchemaFields();
+
         $normalizer = app(SubmissionFormValueNormalizer::class);
 
         return array_merge(
             $this->formData,
             $normalizer->toRequestPayload($this->formData),
         );
+    }
+
+    /**
+     * If the builder only has legacy number_of_samples, copy Qty into that field for storage
+     * while keeping sample_quantity as the canonical walk-in source.
+     */
+    private function mirrorCanonicalQtyOntoLegacySchemaFields(): void
+    {
+        $qty = $this->formData['sample_quantity'] ?? null;
+        if (! is_array($qty)) {
+            return;
+        }
+
+        $hasSampleQuantityElement = false;
+        $hasNumberOfSamplesElement = false;
+
+        foreach ($this->walkInSections as $section) {
+            if (! $this->walkInSectionUsesSampleCards($section)) {
+                continue;
+            }
+            foreach ($section->elementHolders->flatMap->elements as $element) {
+                $name = (string) ($element->name ?? '');
+                if ($name === 'sample_quantity') {
+                    $hasSampleQuantityElement = true;
+                }
+                if ($name === 'number_of_samples') {
+                    $hasNumberOfSamplesElement = true;
+                }
+            }
+        }
+
+        if (! $hasSampleQuantityElement && $hasNumberOfSamplesElement) {
+            $this->formData['number_of_samples'] = $qty;
+        }
     }
 
     /**

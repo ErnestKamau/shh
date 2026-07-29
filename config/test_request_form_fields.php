@@ -44,6 +44,8 @@ return [
         'quantity' => 'sample_quantity',
         'unit' => 'sample_quantity_unit',
         'reporting_unit' => 'sample_quantity_unit',
+        // Legacy TRF "Qty" column — mass/volume, not a sample count.
+        'number_of_samples' => 'sample_quantity',
         'field_ph' => 'field_ph',
         'field_appearance' => 'field_appearance',
         'field_residual_chlorine' => 'field_residual_chlorine',
