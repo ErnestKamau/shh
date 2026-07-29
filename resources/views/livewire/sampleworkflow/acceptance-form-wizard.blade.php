@@ -414,6 +414,7 @@
 <script>
     (function () {
         let receivingSignaturePad = null;
+        let customerSignaturePad = null;
         let signaturePadsInitialized = false;
 
         function initSignaturePad(canvasId, propertyName, clearBtnId, existingDataUrl) {
@@ -451,7 +452,7 @@
             return pad;
         }
 
-        function initReceivingSignaturePad() {
+        function initSignaturePads() {
             signaturePadsInitialized = false;
 
             if (!document.getElementById('acceptance-receiving-signature-canvas')) {
@@ -464,6 +465,19 @@
                 'acceptance-receiving-sign-clear',
                 @this.receivingPersonSignature
             );
+
+            const customerCanvas = document.getElementById('acceptance-customer-signature-canvas');
+            if (customerCanvas) {
+                customerSignaturePad = initSignaturePad(
+                    'acceptance-customer-signature-canvas',
+                    'customerSignature',
+                    'acceptance-customer-sign-clear',
+                    @this.customerSignature
+                );
+            } else {
+                customerSignaturePad = null;
+            }
+
             signaturePadsInitialized = true;
         }
 
@@ -474,7 +488,7 @@
 
             Livewire.on('acceptance-wizard-signatures-step', function () {
                 signaturePadsInitialized = false;
-                setTimeout(initReceivingSignaturePad, 300);
+                setTimeout(initSignaturePads, 300);
             });
 
             document.addEventListener('click', function (e) {
