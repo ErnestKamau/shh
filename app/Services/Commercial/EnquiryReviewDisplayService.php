@@ -37,6 +37,9 @@ final class EnquiryReviewDisplayService
         ['value' => 'as_per_email', 'label' => 'As per Email'],
     ];
 
+    /** @var array<string, list<array<string, mixed>>> */
+    private array $linesCache = [];
+
     public function __construct(
         private SubmissionRequestSampleLineService $sampleLineService,
         private AnalysisReferenceLabelResolver $referenceLabelResolver,
@@ -104,6 +107,12 @@ final class EnquiryReviewDisplayService
             'submissionFormInstance.submissionForm.sampleTypes',
         ]);
 
+        // Cards carry their own sample types on unlinked TRFs, so the lines win over the header pick.
+        $label = $this->sampleTypeLabelFromLines($enquiry);
+        if ($label !== '') {
+            return $label;
+        }
+
         if ($enquiry->submissionFormInstance !== null) {
             $sampleTypeId = $enquiry->submissionFormInstance->resolveSelectedSampleTypeId();
             if ($sampleTypeId !== null) {
@@ -121,13 +130,6 @@ final class EnquiryReviewDisplayService
             }
         }
 
-        $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
-        if ($lines !== []) {
-            $label = $this->resolveTrfSampleTypeLabel($lines[0]);
-
-            return $label !== '—' ? $label : '—';
-        }
-
         if ($enquiry->sample_type_id) {
             $name = SampleType::query()->find($enquiry->sample_type_id)?->name;
             if (is_string($name) && $name !== '') {
@@ -136,6 +138,53 @@ final class EnquiryReviewDisplayService
         }
 
         return '—';
+    }
+
+    /**
+     * Distinct sample types across the TRF cards, empty when none resolve.
+     */
+    private function sampleTypeLabelFromLines(SampleSubmissionRequest $enquiry): string
+    {
+        $labels = [];
+
+        foreach ($this->resolveEnquiryLines($enquiry) as $line) {
+            $label = $this->resolveTrfSampleTypeLabel($line);
+            if ($label === '—') {
+                continue;
+            }
+
+            foreach ($this->splitStoredTokens($label) as $token) {
+                if (! in_array($token, $labels, true)) {
+                    $labels[] = $token;
+                }
+            }
+        }
+
+        return implode(', ', $labels);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function resolveEnquiryLines(SampleSubmissionRequest $enquiry): array
+    {
+        $cacheKey = (string) $enquiry->getKey();
+
+        if (array_key_exists($cacheKey, $this->linesCache)) {
+            return $this->linesCache[$cacheKey];
+        }
+
+        $lines = [];
+
+        if ($enquiry->submissionFormInstance !== null) {
+            $lines = $this->sampleLineService->linesForInstance($enquiry->submissionFormInstance);
+        }
+
+        if ($lines === []) {
+            $lines = is_array($enquiry->sample_lines) ? array_values($enquiry->sample_lines) : [];
+        }
+
+        return $this->linesCache[$cacheKey] = $lines;
     }
 
     /**
@@ -155,15 +204,7 @@ final class EnquiryReviewDisplayService
             'requestedAnalyses',
         ]);
 
-        $lines = [];
-
-        if ($enquiry->submissionFormInstance !== null) {
-            $lines = $this->sampleLineService->linesForInstance($enquiry->submissionFormInstance);
-        }
-
-        if ($lines === []) {
-            $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
-        }
+        $lines = $this->resolveEnquiryLines($enquiry);
 
         $rows = [];
 
@@ -202,7 +243,7 @@ final class EnquiryReviewDisplayService
 
         // Linked TRF instance is the source of truth for requested tests when present.
         if ($enquiry->submissionFormInstance !== null) {
-            $lines = $this->sampleLineService->linesForInstance($enquiry->submissionFormInstance);
+            $lines = $this->resolveEnquiryLines($enquiry);
             if ($lines !== []) {
                 $fromTrf = $this->resolveTestsRequestedParameters($lines);
                 if ($fromTrf['label'] !== '—') {
@@ -302,21 +343,43 @@ final class EnquiryReviewDisplayService
      */
     private function resolveTrfSampleTypeLabel(array $line): string
     {
-        $sampleTypeId = $line['sample_type_id'] ?? null;
-        if (is_string($sampleTypeId) && $sampleTypeId !== '' && Str::isUuid($sampleTypeId)) {
-            $resolved = SampleType::query()->find($sampleTypeId)?->name;
-            if (is_string($resolved) && $resolved !== '') {
-                return $resolved;
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        $sampleTypeIds = $this->splitStoredTokens($attributes['sample_type_ids'] ?? null);
+        if ($sampleTypeIds === []) {
+            $sampleTypeIds = $this->splitStoredTokens($line['sample_type_id'] ?? null);
+        }
+
+        $resolvedNames = [];
+        foreach ($sampleTypeIds as $sampleTypeId) {
+            if (! Str::isUuid($sampleTypeId)) {
+                continue;
             }
+
+            $resolved = SampleType::query()->find($sampleTypeId)?->name;
+            if (is_string($resolved) && $resolved !== '' && ! in_array($resolved, $resolvedNames, true)) {
+                $resolvedNames[] = $resolved;
+            }
+        }
+
+        if ($resolvedNames !== []) {
+            return implode(', ', $resolvedNames);
         }
 
         $name = trim((string) ($line['sample_type_name'] ?? ''));
         if ($name !== '') {
             if (str_contains($name, ' — ')) {
-                return trim((string) Str::before($name, ' — '));
+                $name = trim((string) Str::before($name, ' — '));
             }
 
-            return $name;
+            $names = array_values(array_filter(
+                $this->splitStoredTokens($name),
+                fn (string $token): bool => ! Str::isUuid($token),
+            ));
+
+            if ($names !== []) {
+                return implode(', ', $names);
+            }
         }
 
         $analysisTypeId = $line['analysis_type_id'] ?? null;
@@ -343,19 +406,34 @@ final class EnquiryReviewDisplayService
         foreach ($group as $line) {
             $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
             $foodSampleType = trim((string) ($attributes['food_sample_type'] ?? ''));
-            if ($foodSampleType !== '') {
+            if ($foodSampleType !== '' && ! Str::isUuid($foodSampleType)) {
                 $labels[] = $foodSampleType;
             }
 
-            $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
-            if ($analysisName !== '' && $analysisName !== $foodSampleType) {
-                $labels[] = $analysisName;
+            foreach ($this->splitStoredTokens($attributes['analysis_type_names'] ?? null) as $name) {
+                if (! Str::isUuid($name)) {
+                    $labels[] = $name;
+                }
             }
 
-            $analysisTypeId = $line['analysis_type_id'] ?? null;
-            if (is_string($analysisTypeId) && $analysisTypeId !== '' && Str::isUuid($analysisTypeId)) {
+            foreach ($this->splitStoredTokens($line['analysis_type_name'] ?? null) as $name) {
+                if (! Str::isUuid($name)) {
+                    $labels[] = $name;
+                }
+            }
+
+            $analysisTypeIds = $this->splitStoredTokens($attributes['analysis_type_ids'] ?? null);
+            if ($analysisTypeIds === []) {
+                $analysisTypeIds = $this->splitStoredTokens($line['analysis_type_id'] ?? null);
+            }
+
+            foreach ($analysisTypeIds as $analysisTypeId) {
+                if (! Str::isUuid($analysisTypeId)) {
+                    continue;
+                }
+
                 $resolved = AnalysisType::query()->find($analysisTypeId)?->name;
-                if (is_string($resolved) && $resolved !== '' && ! in_array($resolved, $labels, true)) {
+                if (is_string($resolved) && $resolved !== '') {
                     $labels[] = $resolved;
                 }
             }
@@ -364,6 +442,45 @@ final class EnquiryReviewDisplayService
         $labels = array_values(array_unique(array_filter($labels)));
 
         return $labels !== [] ? implode(', ', $labels) : '—';
+    }
+
+    /**
+     * Multi-pickers persist selections flat (CSV) on one value row.
+     *
+     * @return list<string>
+     */
+    private function splitStoredTokens(mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        $candidates = is_array($value)
+            ? $value
+            : (preg_split('/\s*,\s*/', (string) $value) ?: []);
+
+        $tokens = [];
+
+        foreach ($candidates as $candidate) {
+            if (is_array($candidate)) {
+                foreach ($this->splitStoredTokens($candidate) as $nested) {
+                    if (! in_array($nested, $tokens, true)) {
+                        $tokens[] = $nested;
+                    }
+                }
+
+                continue;
+            }
+
+            $token = trim((string) $candidate);
+            if ($token === '' || in_array($token, $tokens, true)) {
+                continue;
+            }
+
+            $tokens[] = $token;
+        }
+
+        return $tokens;
     }
 
     /**

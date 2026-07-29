@@ -7,6 +7,7 @@ use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
+use Illuminate\Support\Str;
 
 class RequestViewPagePresenter
 {
@@ -297,6 +298,26 @@ class RequestViewPagePresenter
         ];
     }
 
+    private function displayableLabel(mixed $value): string
+    {
+        $candidates = is_array($value)
+            ? $value
+            : (preg_split('/\s*,\s*/', (string) $value) ?: []);
+
+        $labels = [];
+
+        foreach ($candidates as $candidate) {
+            $label = trim((string) $candidate);
+            if ($label === '' || Str::isUuid($label) || in_array($label, $labels, true)) {
+                continue;
+            }
+
+            $labels[] = $label;
+        }
+
+        return implode(', ', $labels);
+    }
+
     /**
      * @param  list<array<string, mixed>>  $sampleLines
      * @return array{
@@ -326,10 +347,11 @@ class RequestViewPagePresenter
     public function testSamplesCard(array $sampleLines): array
     {
         $grouped = [];
+        // Multi-pickers store selections flat, so labels can arrive as CSV with unresolved ids mixed in.
 
         foreach ($sampleLines as $line) {
-            $typeName = trim((string) ($line['sample_type_name'] ?? $line['sample_type_id'] ?? ''));
-            $analysisName = trim((string) ($line['analysis_type_name'] ?? $line['analysis_type_id'] ?? ''));
+            $typeName = $this->displayableLabel($line['sample_type_name'] ?? $line['sample_type_id'] ?? '');
+            $analysisName = $this->displayableLabel($line['analysis_type_name'] ?? $line['analysis_type_id'] ?? '');
             $sampleId = trim((string) ($line['customer_sample_id'] ?? ''));
             $testCodes = $this->resolveTestCodesForLine($line);
             $quantity = $this->formatSampleQuantity($line);
