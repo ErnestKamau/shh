@@ -10,6 +10,7 @@ class SampleTypeTemplateExporter extends ExcelTemplateGenerator
     {
         return [
             'code*',
+            'name*',
             'is_results_attachable',
             'disposal_count',
             'report_template_code',
@@ -20,8 +21,8 @@ class SampleTypeTemplateExporter extends ExcelTemplateGenerator
     protected function defineExamples(): array
     {
         return [
-            ['ST-001', '1', '30', '', ''],
-            ['ST-002', '0', '60', '', ''],
+            ['ST-001', 'Water Material', '1', '30', '', ''],
+            ['ST-002', 'Soil Material', '0', '60', '', ''],
         ];
     }
 }

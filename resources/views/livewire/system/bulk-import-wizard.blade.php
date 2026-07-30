@@ -92,6 +92,23 @@
                         <p class="text-muted mb-4">
                             Choose the form you want to import for <strong>{{ $availableModules[$selectedModule]['name'] ?? $selectedModule }}</strong>:
                         </p>
+                        @if ($selectedModule === 'lab')
+                            <div class="alert alert-warning mb-4">
+                                <i class="fas fa-sitemap"></i>
+                                <strong>Recommended discrete import order:</strong>
+                                <ol class="mb-2 mt-2">
+                                    <li>Lab</li>
+                                    <li>Sample Type</li>
+                                    <li>Analysis Type (maps to Sample Type + Lab)</li>
+                                    <li>Analyte</li>
+                                    <li>Analysis Parameters / Elements (maps Analysis Type ↔ Analyte)</li>
+                                </ol>
+                                <p class="mb-0 small">
+                                    Or use <strong>Unified Lab Hierarchy</strong> / <strong>Amspec Parameters</strong> to create and map
+                                    Sample Type → Analysis Type → Analyte → Parameters in one spreadsheet (per row).
+                                </p>
+                            </div>
+                        @endif
                         <div class="list-group">
                             @foreach ($formTypes as $formTypeKey => $formTypeName)
                                 <button type="button" class="list-group-item list-group-item-action text-start" wire:click="selectFormType('{{ $formTypeKey }}')">
@@ -123,6 +140,18 @@
                                 <li>Download the template for <strong>{{ $formTypes[$selectedFormType] ?? $selectedFormType }}</strong></li>
                                 @if ($selectedFormType === 'analysis_method')
                                     <li>Or upload your AmSpec Parameters workbook directly (Reference Method + Test Method SOP columns are extracted)</li>
+                                @endif
+                                @if (in_array($selectedFormType, ['analysis_type', 'analysis_elements', 'sample_condition'], true))
+                                    <li>
+                                        This form depends on parents already existing —
+                                        @if ($selectedFormType === 'analysis_type')
+                                            import <strong>Sample Types</strong> and <strong>Labs</strong> first
+                                        @elseif ($selectedFormType === 'analysis_elements')
+                                            import <strong>Analysis Types</strong> and <strong>Analytes</strong> first
+                                        @else
+                                            import <strong>Sample Types</strong> first
+                                        @endif
+                                    </li>
                                 @endif
                                 <li>Enter your data starting from row 2 (just below the header row)</li>
                                 <li>Fields marked with <strong>*</strong> are required</li>

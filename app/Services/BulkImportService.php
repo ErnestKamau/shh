@@ -19,17 +19,19 @@ class BulkImportService
             'lab' => [
                 'name' => 'Lab Management',
                 'forms' => [
-                    'pricelist' => 'Pricelist & Items',
-                    'analyte' => 'Analyte',
-                    'lab' => 'Lab (with Zone Hierarchy)',
-                    'sample_type' => 'Sample Type',
-                    'analysis_type' => 'Analysis Type',
-                    'analysis_elements' => 'Analysis Elements',
+                    // Discrete forms in dependency order: Lab → Sample Type → Analysis Type → Analyte → Parameters
+                    'lab' => '1. Lab (with Zone Hierarchy)',
+                    'sample_type' => '2. Sample Type',
+                    'analysis_type' => '3. Analysis Type (requires Sample Type + Lab)',
+                    'analyte' => '4. Analyte',
+                    'analysis_elements' => '5. Analysis Parameters / Elements (requires Analysis Type + Analyte)',
+                    'sample_condition' => 'Sample Condition (requires Sample Type)',
                     'standard' => 'Standard & Analytes',
-                    'sample_condition' => 'Sample Condition',
-                    'lab_hierarchy' => 'Unified Lab Hierarchy (Sample Type -> Analysis Type -> Analysis Elements -> Analytes & Standards)',
-                    'amspec_parameters' => 'Amspec Parameters (Sample Types, Analysis Types, Parameters)',
+                    'pricelist' => 'Pricelist & Items',
                     'analysis_method' => 'Analysis Methods (Reference + Laboratory Test)',
+                    // End-to-end importers (create/map hierarchy in one sheet, per-row order)
+                    'lab_hierarchy' => 'Unified Lab Hierarchy (Sample Type → Analysis Type → Analyte → Parameters & Standards)',
+                    'amspec_parameters' => 'Amspec Parameters (Sample Types → Analysis Types → Parameters)',
                 ],
             ],
             'equipment' => [
@@ -186,9 +188,9 @@ class BulkImportService
         $formTypeMap = [
             'lab' => [
                 'pricelist' => 'App\Imports\Lab\PricelistImporter',
-                'analyte' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
+                'analyte' => 'App\Imports\Lab\AnalyteImporter',
                 'lab' => 'App\Imports\Lab\LabImporter',
-                'sample_type' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
+                'sample_type' => 'App\Imports\Lab\SampleTypeImporter',
                 'analysis_type' => 'App\Imports\Lab\AnalysisTypeImporter',
                 'analysis_elements' => 'App\Imports\Lab\AnalysisElementsImporter',
                 'standard' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
