@@ -5,17 +5,25 @@ namespace App\Livewire\Crm\Customer;
 use App\Models\CRM\CRMCustomer;
 use App\Country;
 use App\Services\Commercial\AccountPaymentTermsService;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Livewire\Crm\BaseCrmComponent;
+use Livewire\WithFileUploads;
 
 class CustomerForm extends BaseCrmComponent
 {
+    use WithFileUploads;
+
     public $customer = null;
     public $name = '';
     public $code = '';
+    public $contact_person = '';
+    public $designation = '';
     public $email = '';
     public $physical_address = '';
     public $postal_address = '';
+    public $billing_address = '';
     public $website = '';
     public $fax = '';
     public $telephone1 = '';
@@ -28,8 +36,12 @@ class CustomerForm extends BaseCrmComponent
     public $is_internal = false;
     public $account_status = '';
     public $lpos_required = false;
+    public $vat_no = '';
+    public $trade_license = '';
     public $contract_valid_from = '';
     public $contract_valid_to = '';
+    public $vatRegistrationCertificateFile = null;
+    public ?string $existingVatRegistrationCertificateUrl = null;
 
     public $countries = [];
     public $accounts = [];
@@ -65,9 +77,12 @@ class CustomerForm extends BaseCrmComponent
             $this->customer = $customer;
             $this->name = $customer->name;
             $this->code = $customer->code;
+            $this->contact_person = $customer->contact_person ?? '';
+            $this->designation = $customer->designation ?? '';
             $this->email = $customer->email;
             $this->physical_address = $customer->physical_address;
             $this->postal_address = $customer->postal_address;
+            $this->billing_address = $customer->billing_address ?? '';
             $this->website = $customer->website;
             $this->fax = $customer->fax;
             $this->telephone1 = $customer->telephone1;
@@ -80,8 +95,11 @@ class CustomerForm extends BaseCrmComponent
             $this->is_internal = (bool) ($customer->is_internal ?? false);
             $this->account_status = $customer->account_status;
             $this->lpos_required = (bool) ($customer->lpos_required ?? 0);
+            $this->vat_no = $customer->vat_no ?? '';
+            $this->trade_license = $customer->trade_license ?? '';
             $this->contract_valid_from = $customer->contract_valid_from ? substr($customer->contract_valid_from, 0, 10) : '';
             $this->contract_valid_to = $customer->contract_valid_to ? substr($customer->contract_valid_to, 0, 10) : '';
+            $this->existingVatRegistrationCertificateUrl = $customer->vatRegistrationCertificateUrl();
         }
     }
 
@@ -211,9 +229,12 @@ class CustomerForm extends BaseCrmComponent
 
         return [
             'name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'designation' => 'nullable|string|max:255',
             'email' => 'required|email|max:255',
             'physical_address' => 'required|string',
             'postal_address' => 'nullable|string',
+            'billing_address' => 'nullable|string|max:1000',
             'website' => 'nullable|url|max:255',
             'fax' => 'nullable|string|max:255',
             'telephone1' => 'required|string|max:255',
@@ -230,8 +251,11 @@ class CustomerForm extends BaseCrmComponent
             'active' => 'boolean',
             'is_internal' => 'boolean',
             'lpos_required' => 'boolean',
+            'vat_no' => 'nullable|string|max:100',
+            'trade_license' => 'nullable|string|max:255',
             'contract_valid_from' => 'nullable|date',
             'contract_valid_to' => 'nullable|date',
+            'vatRegistrationCertificateFile' => 'nullable|file|mimes:pdf,jpg,jpeg,png,gif,webp|max:10240',
         ];
     }
 
@@ -265,8 +289,11 @@ class CustomerForm extends BaseCrmComponent
         }
 
         $customer->name = $this->name;
+        $customer->contact_person = $this->contact_person;
+        $customer->designation = $this->designation;
         $customer->physical_address = $this->physical_address;
         $customer->postal_address = $this->postal_address;
+        $customer->billing_address = $this->billing_address;
         $customer->company_id = $this->getUserCompany();
         $customer->website = $this->website;
         $customer->email = $this->email;
@@ -278,6 +305,8 @@ class CustomerForm extends BaseCrmComponent
         $customer->is_internal = $this->is_internal ? 1 : 0;
         $customer->account_status = $this->account_status;
         $customer->lpos_required = $this->lpos_required ? 1 : 0;
+        $customer->vat_no = $this->vat_no;
+        $customer->trade_license = $this->trade_license;
         $customer->contract_valid_from = $this->contract_valid_from ?: null;
         $customer->contract_valid_to = $this->contract_valid_to ?: null;
 
@@ -291,9 +320,56 @@ class CustomerForm extends BaseCrmComponent
 
         $customer->save();
 
+        if ($this->vatRegistrationCertificateFile) {
+            $this->storeVatRegistrationCertificate($customer);
+        }
+
         $this->showSuccess($this->customer ? 'Customer edited successfully.' : 'Customer added successfully.');
         $this->dispatch('customer-saved');
         $this->close();
+    }
+
+    public function removeVatRegistrationCertificate(): void
+    {
+        if (! $this->customer) {
+            $this->vatRegistrationCertificateFile = null;
+            $this->existingVatRegistrationCertificateUrl = null;
+
+            return;
+        }
+
+        $this->checkPermission('crm.components.customer-list.edit');
+
+        if (filled($this->customer->vat_registration_certificate)) {
+            $relative = ltrim(preg_replace('#^/storage/#', '', (string) $this->customer->vat_registration_certificate), '/');
+            if ($relative !== '' && Storage::disk('public')->exists($relative)) {
+                Storage::disk('public')->delete($relative);
+            }
+            $this->customer->vat_registration_certificate = null;
+            $this->customer->save();
+        }
+
+        $this->vatRegistrationCertificateFile = null;
+        $this->existingVatRegistrationCertificateUrl = null;
+    }
+
+    protected function storeVatRegistrationCertificate(CRMCustomer $customer): void
+    {
+        $previousRelative = null;
+        if (filled($customer->vat_registration_certificate)) {
+            $previousRelative = ltrim(preg_replace('#^/storage/#', '', (string) $customer->vat_registration_certificate), '/');
+        }
+
+        $extension = strtolower((string) $this->vatRegistrationCertificateFile->getClientOriginalExtension());
+        $storedName = (string) Str::uuid() . ($extension !== '' ? '.' . $extension : '.pdf');
+        $path = $this->vatRegistrationCertificateFile->storeAs('crm-customer-vat-certificates', $storedName, 'public');
+
+        $customer->vat_registration_certificate = '/storage/' . $path;
+        $customer->save();
+
+        if ($previousRelative && $previousRelative !== $path && Storage::disk('public')->exists($previousRelative)) {
+            Storage::disk('public')->delete($previousRelative);
+        }
     }
 
     public function close()

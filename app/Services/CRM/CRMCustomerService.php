@@ -122,8 +122,11 @@ class CRMCustomerService
         $customer = new CRMCustomer;
         $customer->code = getNamingConventionCode('Customers', $data['name']);
         $customer->name = $data['name'];
+        $customer->contact_person = $data['contact_person'] ?? '';
+        $customer->designation = $data['designation'] ?? '';
         $customer->physical_address = $data['physical_address'] ?? '';
         $customer->postal_address = $data['postal_address'] ?? '';
+        $customer->billing_address = $data['billing_address'] ?? '';
         $customer->company_id = getUserCompany();
         $customer->website = ($data['website'] ?? '') === '' ? '' : ($data['website'] ?? '');
         $customer->email = $data['email'] ?? '';
@@ -135,6 +138,7 @@ class CRMCustomerService
         $customer->active = $data['active'] ?? 0;
         $customer->account_status = $data['account_id'] ?? null;
         $customer->vat_no = $data['vat_no'] ?? '';
+        $customer->trade_license = $data['trade_license'] ?? '';
         $customer->zoho_id = $data['zoho_code'] ?? null;
         $customer->currency_id = $data['currency_id'] ?? null;
         $customer->lpos_required = isset($data['lpos_required']) ? 1 : 0;
@@ -155,8 +159,11 @@ class CRMCustomerService
     {
         $customer = CRMCustomer::findOrFail($id);
         $customer->name = $data['name'] ?? $customer->name;
+        $customer->contact_person = $data['contact_person'] ?? $customer->contact_person;
+        $customer->designation = $data['designation'] ?? $customer->designation;
         $customer->physical_address = $data['physical_address'] ?? '';
         $customer->postal_address = $data['postal_address'] ?? '';
+        $customer->billing_address = $data['billing_address'] ?? $customer->billing_address;
         $customer->company_id = getUserCompany();
         $customer->website = $data['website'] ?? '';
         $customer->email = $data['email'] ?? '';
@@ -168,6 +175,7 @@ class CRMCustomerService
         $customer->active = $data['active'] ?? 0;
         $customer->account_status = $data['account_id'] ?? null;
         $customer->vat_no = $data['vat_no'] ?? '';
+        $customer->trade_license = $data['trade_license'] ?? $customer->trade_license;
         $customer->zoho_id = $data['zoho_code'] ?? null;
         $customer->currency_id = $data['currency_id'] ?? null;
         $customer->contract_valid_from = $data['contract_valid_from'] ?? null;

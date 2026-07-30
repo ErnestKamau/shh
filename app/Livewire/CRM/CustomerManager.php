@@ -33,8 +33,11 @@ class CustomerManager extends Component
     // Customer Form
     public $customerForm = [
         'name' => '',
+        'contact_person' => '',
+        'designation' => '',
         'postal_address' => '',
         'physical_address' => '',
+        'billing_address' => '',
         'website' => '',
         'email' => '',
         'telephone1' => '',
@@ -46,6 +49,7 @@ class CustomerManager extends Component
         'payment_terms_note' => '',
         'payment_method' => null,
         'vat_no' => '',
+        'trade_license' => '',
         'lpos_required' => false,
         'zoho_customer_id' => null,
         'has_contract' => false,
@@ -57,7 +61,11 @@ class CustomerManager extends Component
 
     public $logoFile = null;
 
+    public $vatRegistrationCertificateFile = null;
+
     public ?string $existingLogoUrl = null;
+
+    public ?string $existingVatRegistrationCertificateUrl = null;
 
     public bool $hasExistingContractAttachment = false;
 
@@ -111,8 +119,11 @@ class CustomerManager extends Component
 
         $rules = [
             'customerForm.name' => 'required|string|max:255',
+            'customerForm.contact_person' => 'nullable|string|max:255',
+            'customerForm.designation' => 'nullable|string|max:255',
             'customerForm.postal_address' => 'required|string|max:500',
             'customerForm.physical_address' => 'required|string|max:500',
+            'customerForm.billing_address' => 'nullable|string|max:1000',
             'customerForm.email' => 'required|email|max:255',
             'customerForm.telephone1' => 'required|string|max:50',
             'customerForm.country_id' => 'required|exists:countries,id',
@@ -124,6 +135,8 @@ class CustomerManager extends Component
                 ? ['required', Rule::in(array_keys(AccountPaymentTermsService::paymentMethodOptions()))]
                 : 'nullable|string|max:100',
             'customerForm.payment_terms_note' => 'nullable|string|max:500',
+            'customerForm.vat_no' => 'nullable|string|max:100',
+            'customerForm.trade_license' => 'nullable|string|max:255',
             'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
             'customerForm.has_contract' => 'boolean',
             'customerForm.contract_valid_from' => $hasContract ? 'nullable|date' : 'nullable',
@@ -140,6 +153,12 @@ class CustomerManager extends Component
                 'file',
                 'mimes:jpg,jpeg,png,gif,webp,svg',
                 'max:5120',
+            ],
+            'vatRegistrationCertificateFile' => [
+                'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png,gif,webp',
+                'max:10240',
             ],
         ];
 
@@ -464,8 +483,11 @@ class CustomerManager extends Component
 
         $this->customerForm = [
             'name' => $customer->name,
+            'contact_person' => $customer->contact_person ?? '',
+            'designation' => $customer->designation ?? '',
             'postal_address' => $customer->postal_address,
             'physical_address' => $customer->physical_address,
+            'billing_address' => $customer->billing_address ?? '',
             'website' => $customer->website ?? '',
             'email' => $customer->email,
             'telephone1' => $customer->telephone1,
@@ -477,6 +499,7 @@ class CustomerManager extends Component
             'payment_terms_note' => $customer->payment_terms_note ?? '',
             'payment_method' => $customer->payment_method,
             'vat_no' => $customer->vat_no ?? '',
+            'trade_license' => $customer->trade_license ?? '',
             'lpos_required' => $customer->lpos_required == 1,
             'zoho_customer_id' => $zohoCustomerId,
             'has_contract' => (bool) $customer->has_contract
@@ -494,7 +517,9 @@ class CustomerManager extends Component
 
         $this->contractFile = null;
         $this->logoFile = null;
+        $this->vatRegistrationCertificateFile = null;
         $this->existingLogoUrl = $customer->logoUrl();
+        $this->existingVatRegistrationCertificateUrl = $customer->vatRegistrationCertificateUrl();
         
         // Load data only when modal is opened to improve performance
         if (empty($this->countries)) {
@@ -570,8 +595,11 @@ class CustomerManager extends Component
             }
 
             $customer->name = $this->customerForm['name'];
+            $customer->contact_person = $this->customerForm['contact_person'] ?? '';
+            $customer->designation = $this->customerForm['designation'] ?? '';
             $customer->postal_address = $this->customerForm['postal_address'];
             $customer->physical_address = $this->customerForm['physical_address'];
+            $customer->billing_address = $this->customerForm['billing_address'] ?? '';
             $customer->company_id = getUserCompany();
             $customer->website = $this->customerForm['website'];
             $customer->email = $this->customerForm['email'];
@@ -594,6 +622,7 @@ class CustomerManager extends Component
                 $this->customerForm['payment_method'] ?? null
             );
             $customer->vat_no = $this->customerForm['vat_no'];
+            $customer->trade_license = $this->customerForm['trade_license'] ?? '';
             $customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
             $customer->has_contract = $hasContract;
             $customer->contract_valid_from = $hasContract
@@ -614,6 +643,10 @@ class CustomerManager extends Component
 
             if ($this->logoFile) {
                 $this->storeCustomerLogo($customer);
+            }
+
+            if ($this->vatRegistrationCertificateFile) {
+                $this->storeVatRegistrationCertificate($customer);
             }
 
             if ($hasContract) {
@@ -677,6 +710,49 @@ class CustomerManager extends Component
 
         $this->logoFile = null;
         $this->existingLogoUrl = null;
+        $this->editingCustomer = $customer->fresh();
+    }
+
+    protected function storeVatRegistrationCertificate(CRMCustomer $customer): void
+    {
+        $previousRelative = null;
+        if (filled($customer->vat_registration_certificate)) {
+            $previousRelative = ltrim(preg_replace('#^/storage/#', '', (string) $customer->vat_registration_certificate), '/');
+        }
+
+        $extension = strtolower((string) $this->vatRegistrationCertificateFile->getClientOriginalExtension());
+        $storedName = (string) Str::uuid() . ($extension !== '' ? '.' . $extension : '.pdf');
+        $path = $this->vatRegistrationCertificateFile->storeAs('crm-customer-vat-certificates', $storedName, 'public');
+
+        $customer->vat_registration_certificate = '/storage/' . $path;
+        $customer->save();
+
+        if ($previousRelative && $previousRelative !== $path && Storage::disk('public')->exists($previousRelative)) {
+            Storage::disk('public')->delete($previousRelative);
+        }
+    }
+
+    public function removeVatRegistrationCertificate(): void
+    {
+        if (! $this->editingCustomer) {
+            $this->vatRegistrationCertificateFile = null;
+            $this->existingVatRegistrationCertificateUrl = null;
+
+            return;
+        }
+
+        $customer = $this->editingCustomer;
+        if (filled($customer->vat_registration_certificate)) {
+            $relative = ltrim(preg_replace('#^/storage/#', '', (string) $customer->vat_registration_certificate), '/');
+            if ($relative !== '' && Storage::disk('public')->exists($relative)) {
+                Storage::disk('public')->delete($relative);
+            }
+            $customer->vat_registration_certificate = null;
+            $customer->save();
+        }
+
+        $this->vatRegistrationCertificateFile = null;
+        $this->existingVatRegistrationCertificateUrl = null;
         $this->editingCustomer = $customer->fresh();
     }
 
@@ -774,8 +850,11 @@ class CustomerManager extends Component
     {
         $this->customerForm = [
             'name' => '',
+            'contact_person' => '',
+            'designation' => '',
             'postal_address' => '',
             'physical_address' => '',
+            'billing_address' => '',
             'website' => '',
             'email' => '',
             'telephone1' => '',
@@ -787,6 +866,7 @@ class CustomerManager extends Component
             'payment_terms_note' => '',
             'payment_method' => null,
             'vat_no' => '',
+            'trade_license' => '',
             'lpos_required' => false,
             'zoho_customer_id' => null,
             'has_contract' => false,
@@ -795,7 +875,9 @@ class CustomerManager extends Component
         ];
         $this->contractFile = null;
         $this->logoFile = null;
+        $this->vatRegistrationCertificateFile = null;
         $this->existingLogoUrl = null;
+        $this->existingVatRegistrationCertificateUrl = null;
         $this->hasExistingContractAttachment = false;
         $this->editingCustomer = null;
     }
@@ -1004,8 +1086,11 @@ class CustomerManager extends Component
             $newCustomer = new CRMCustomer();
             $newCustomer->name = $this->cloneCustomerName;
             $newCustomer->code = getNamingConventionCode("Customers", $this->cloneCustomerName);
+            $newCustomer->contact_person = $this->customerToClone->contact_person;
+            $newCustomer->designation = $this->customerToClone->designation;
             $newCustomer->postal_address = $this->customerToClone->postal_address;
             $newCustomer->physical_address = $this->customerToClone->physical_address;
+            $newCustomer->billing_address = $this->customerToClone->billing_address;
             $newCustomer->website = $this->customerToClone->website;
             $newCustomer->fax = $this->customerToClone->fax;
             $newCustomer->email = $this->customerToClone->email;
@@ -1018,6 +1103,7 @@ class CustomerManager extends Component
             $newCustomer->active = $this->customerToClone->active;
             $newCustomer->account_status = $this->customerToClone->account_status;
             $newCustomer->vat_no = $this->customerToClone->vat_no;
+            $newCustomer->trade_license = $this->customerToClone->trade_license;
             $newCustomer->lpos_required = $this->customerToClone->lpos_required;
             $newCustomer->contract_valid_from = $this->customerToClone->contract_valid_from;
             $newCustomer->contract_valid_to = $this->customerToClone->contract_valid_to;

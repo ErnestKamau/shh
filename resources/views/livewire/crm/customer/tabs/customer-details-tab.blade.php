@@ -38,6 +38,24 @@
                     </div>
 
                     <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.contact_person') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control @error('contact_person') is-invalid @enderror"
+                                wire:model="contact_person" placeholder="{{ __('crm.contact_person_placeholder') }}">
+                            @error('contact_person') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.designation') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control @error('designation') is-invalid @enderror"
+                                wire:model="designation" placeholder="{{ __('crm.designation_placeholder') }}">
+                            @error('designation') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
                         <label class="col-sm-4 col-form-label">{{ __('crm.email_address') }}: <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
                             <input type="email" class="form-control @error('email') is-invalid @enderror"
@@ -145,7 +163,7 @@
                     </div>
 
                     <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">{{ __('crm.physical_address') }}: <span class="text-danger">*</span></label>
+                        <label class="col-sm-4 col-form-label">{{ __('crm.company_address') }}: <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
                             <input type="text" class="form-control @error('physical_address') is-invalid @enderror"
                                 wire:model="physical_address" placeholder="{{ __('crm.physical_address') }}...">
@@ -159,6 +177,56 @@
                             <textarea class="form-control @error('postal_address') is-invalid @enderror"
                                 wire:model="postal_address" rows="2" placeholder="{{ __('crm.postal_address') }}..."></textarea>
                             @error('postal_address') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.billing_address') }}:</label>
+                        <div class="col-sm-8">
+                            <textarea class="form-control @error('billing_address') is-invalid @enderror"
+                                wire:model="billing_address" rows="2" placeholder="{{ __('crm.billing_address_placeholder') }}"></textarea>
+                            @error('billing_address') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.vat_registration') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control @error('vat_no') is-invalid @enderror"
+                                wire:model="vat_no" placeholder="{{ __('crm.vat_number_placeholder') }}">
+                            @error('vat_no') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.trade_license') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control @error('trade_license') is-invalid @enderror"
+                                wire:model="trade_license" placeholder="{{ __('crm.trade_license_placeholder') }}">
+                            @error('trade_license') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.vat_registration_certificate') }}:</label>
+                        <div class="col-sm-8">
+                            <input type="file" class="form-control @error('vatRegistrationCertificateFile') is-invalid @enderror"
+                                wire:model="vatRegistrationCertificateFile" accept=".pdf,image/*">
+                            @error('vatRegistrationCertificateFile') <span class="text-danger small">{{ $message }}</span> @enderror
+                            <div wire:loading wire:target="vatRegistrationCertificateFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                            <small class="text-muted d-block mt-1">{{ __('crm.vat_registration_certificate_help') }}</small>
+                            @if($vatRegistrationCertificateFile)
+                                <small class="text-muted d-block mt-1">{{ $vatRegistrationCertificateFile->getClientOriginalName() }}</small>
+                            @elseif($customer->vatRegistrationCertificateUrl())
+                                <div class="mt-2 d-flex align-items-center" style="gap:10px;">
+                                    <a href="{{ $customer->vatRegistrationCertificateUrl() }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="mdi mdi-file-document-outline"></i> {{ __('crm.view_certificate') }}
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeVatRegistrationCertificate">
+                                        {{ __('crm.remove_certificate') }}
+                                    </button>
+                                </div>
+                            @endif
                         </div>
                     </div>
 
@@ -299,6 +367,14 @@
                             <td>{{ $customer->name ?? '—' }}</td>
                         </tr>
                         <tr>
+                            <th>{{ __('crm.contact_person') }}:</th>
+                            <td>{{ $customer->contact_person ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.designation') }}:</th>
+                            <td>{{ $customer->designation ?: '—' }}</td>
+                        </tr>
+                        <tr>
                             <th>{{ __('crm.email_address') }}:</th>
                             <td>
                                 @if($customer->email)
@@ -352,12 +428,36 @@
                             <td>{{ $customer->country->name ?? '—' }}</td>
                         </tr>
                         <tr>
-                            <th>{{ __('crm.physical_address') }}:</th>
+                            <th>{{ __('crm.company_address') }}:</th>
                             <td>{{ $customer->physical_address ?? '—' }}</td>
                         </tr>
                         <tr>
                             <th>{{ __('crm.postal_address') }}:</th>
                             <td>{{ $customer->postal_address ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.billing_address') }}:</th>
+                            <td>{{ $customer->billing_address ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.vat_registration') }}:</th>
+                            <td>{{ $customer->vat_no ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.trade_license') }}:</th>
+                            <td>{{ $customer->trade_license ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ __('crm.vat_registration_certificate') }}:</th>
+                            <td>
+                                @if($customer->vatRegistrationCertificateUrl())
+                                    <a href="{{ $customer->vatRegistrationCertificateUrl() }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="mdi mdi-file-document-outline"></i> {{ __('crm.view_certificate') }}
+                                    </a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                         </tr>
                         <tr>
                             <th>{{ __('crm.account_status') }}:</th>

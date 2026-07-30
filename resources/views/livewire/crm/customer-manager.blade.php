@@ -293,7 +293,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">{{ __('crm.name') }} <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold">{{ __('crm.company_name') }} <span class="text-danger">*</span></label>
                                         <input type="text" wire:model="customerForm.name" class="form-control" placeholder="{{ __('crm.customer_name_placeholder') }}">
                                         @error('customerForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
@@ -303,6 +303,23 @@
                                         <label class="form-label fw-bold">{{ __('crm.email') }} <span class="text-danger">*</span></label>
                                         <input type="email" wire:model="customerForm.email" class="form-control" placeholder="{{ __('crm.email_address_placeholder') }}">
                                         @error('customerForm.email') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">{{ __('crm.contact_person') }}</label>
+                                        <input type="text" wire:model="customerForm.contact_person" class="form-control" placeholder="{{ __('crm.contact_person_placeholder') }}">
+                                        @error('customerForm.contact_person') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">{{ __('crm.designation') }}</label>
+                                        <input type="text" wire:model="customerForm.designation" class="form-control" placeholder="{{ __('crm.designation_placeholder') }}">
+                                        @error('customerForm.designation') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -458,9 +475,15 @@
                             </div>
 
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">{{ __('crm.physical_address') }} <span class="text-danger">*</span></label>
+                                <label class="form-label fw-bold">{{ __('crm.company_address') }} <span class="text-danger">*</span></label>
                                 <input type="text" wire:model="customerForm.physical_address" class="form-control" placeholder="{{ __('crm.physical_address_placeholder') }}">
                                 @error('customerForm.physical_address') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">{{ __('crm.billing_address') }}</label>
+                                <textarea wire:model="customerForm.billing_address" class="form-control" rows="2" placeholder="{{ __('crm.billing_address_placeholder') }}"></textarea>
+                                @error('customerForm.billing_address') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 
                             <div class="row">
@@ -472,8 +495,40 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">{{ __('crm.vat_number') }}</label>
+                                        <label class="form-label fw-bold">{{ __('crm.vat_registration') }}</label>
                                         <input type="text" wire:model="customerForm.vat_no" class="form-control" placeholder="{{ __('crm.vat_number_placeholder') }}">
+                                        @error('customerForm.vat_no') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">{{ __('crm.trade_license') }}</label>
+                                        <input type="text" wire:model="customerForm.trade_license" class="form-control" placeholder="{{ __('crm.trade_license_placeholder') }}">
+                                        @error('customerForm.trade_license') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">{{ __('crm.vat_registration_certificate') }}</label>
+                                        <input type="file" wire:model="vatRegistrationCertificateFile" class="form-control" accept=".pdf,image/*">
+                                        @error('vatRegistrationCertificateFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <div wire:loading wire:target="vatRegistrationCertificateFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                                        <small class="text-muted d-block mt-1">{{ __('crm.vat_registration_certificate_help') }}</small>
+                                        @if($vatRegistrationCertificateFile)
+                                            <small class="text-muted d-block mt-1">{{ $vatRegistrationCertificateFile->getClientOriginalName() }}</small>
+                                        @elseif($existingVatRegistrationCertificateUrl)
+                                            <div class="mt-2 d-flex align-items-center" style="gap:12px;">
+                                                <a href="{{ $existingVatRegistrationCertificateUrl }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="mdi mdi-file-document-outline"></i> {{ __('crm.view_certificate') }}
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeVatRegistrationCertificate">
+                                                    {{ __('crm.remove_certificate') }}
+                                                </button>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>

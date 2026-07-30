@@ -563,7 +563,7 @@ class MethodSequenceWorksheet extends Component
 
                     if ($stage->is_end_stage_if_pass) {
                         // Only complete if result is conforming
-                        $shouldComplete = in_array((string) $remark, ['Pass', 'PASS', 'Conforming'], true);
+                        $shouldComplete = is_conforming_remark((string) $remark);
                     }
 
                     if ($shouldComplete) {

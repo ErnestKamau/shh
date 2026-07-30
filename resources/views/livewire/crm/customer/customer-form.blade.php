@@ -18,30 +18,79 @@
                         <div class="row">
                             <div class="col-sm-6">
                                 <div class="form-group">
-                                    <label class="control-label">Name <span class="text-danger">*</span></label>
+                                    <label class="control-label">{{ __('crm.company_name') }} <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                        wire:model="name" placeholder="Name..." required />
+                                        wire:model="name" placeholder="{{ __('crm.customer_name_placeholder') }}" required />
                                     @error('name') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="form-group">
-                                    <label class="control-label">Postal Address</label>
+                                    <label class="control-label">{{ __('crm.contact_person') }}</label>
+                                    <input type="text" class="form-control @error('contact_person') is-invalid @enderror"
+                                        wire:model="contact_person" placeholder="{{ __('crm.contact_person_placeholder') }}" />
+                                    @error('contact_person') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.designation') }}</label>
+                                    <input type="text" class="form-control @error('designation') is-invalid @enderror"
+                                        wire:model="designation" placeholder="{{ __('crm.designation_placeholder') }}" />
+                                    @error('designation') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.postal_address') }}</label>
                                     <textarea class="form-control @error('postal_address') is-invalid @enderror"
-                                        wire:model="postal_address" placeholder="Postal Address..."></textarea>
+                                        wire:model="postal_address" placeholder="{{ __('crm.postal_address_placeholder') }}"></textarea>
                                     @error('postal_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="form-group">
-                                    <label class="control-label">Physical Address <span
+                                    <label class="control-label">{{ __('crm.company_address') }} <span
                                             class="text-danger">*</span></label>
                                     <input type="text"
                                         class="form-control @error('physical_address') is-invalid @enderror"
-                                        wire:model="physical_address" placeholder="Location..." required />
+                                        wire:model="physical_address" placeholder="{{ __('crm.physical_address_placeholder') }}" required />
                                     @error('physical_address') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.billing_address') }}</label>
+                                    <textarea class="form-control @error('billing_address') is-invalid @enderror"
+                                        wire:model="billing_address" placeholder="{{ __('crm.billing_address_placeholder') }}"></textarea>
+                                    @error('billing_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="form-group">
                                     <label class="control-label">Website</label>
                                     <input type="text" class="form-control @error('website') is-invalid @enderror"
                                         wire:model="website" placeholder="Website..." />
                                     @error('website') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.vat_registration') }}</label>
+                                    <input type="text" class="form-control @error('vat_no') is-invalid @enderror"
+                                        wire:model="vat_no" placeholder="{{ __('crm.vat_number_placeholder') }}" />
+                                    @error('vat_no') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.trade_license') }}</label>
+                                    <input type="text" class="form-control @error('trade_license') is-invalid @enderror"
+                                        wire:model="trade_license" placeholder="{{ __('crm.trade_license_placeholder') }}" />
+                                    @error('trade_license') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.vat_registration_certificate') }}</label>
+                                    <input type="file" class="form-control @error('vatRegistrationCertificateFile') is-invalid @enderror"
+                                        wire:model="vatRegistrationCertificateFile" accept=".pdf,image/*" />
+                                    @error('vatRegistrationCertificateFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                    <div wire:loading wire:target="vatRegistrationCertificateFile" class="text-muted small mt-1">{{ __('crm.uploading') }}...</div>
+                                    @if($vatRegistrationCertificateFile)
+                                        <small class="text-muted d-block mt-1">{{ $vatRegistrationCertificateFile->getClientOriginalName() }}</small>
+                                    @elseif($existingVatRegistrationCertificateUrl)
+                                        <div class="mt-2 d-flex align-items-center" style="gap:8px;">
+                                            <a href="{{ $existingVatRegistrationCertificateUrl }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                {{ __('crm.view_certificate') }}
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeVatRegistrationCertificate">
+                                                {{ __('crm.remove_certificate') }}
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="form-group">
                                     <label class="control-label">Country</label>

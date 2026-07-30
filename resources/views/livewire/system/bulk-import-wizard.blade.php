@@ -95,18 +95,10 @@
                         @if ($selectedModule === 'lab')
                             <div class="alert alert-warning mb-4">
                                 <i class="fas fa-sitemap"></i>
-                                <strong>Recommended discrete import order:</strong>
-                                <ol class="mb-2 mt-2">
-                                    <li>Lab</li>
-                                    <li>Sample Type</li>
-                                    <li>Analysis Type (maps to Sample Type + Lab)</li>
-                                    <li>Analyte</li>
-                                    <li>Analysis Parameters / Elements (maps Analysis Type ↔ Analyte)</li>
-                                </ol>
-                                <p class="mb-0 small">
-                                    Or use <strong>Unified Lab Hierarchy</strong> / <strong>Amspec Parameters</strong> to create and map
-                                    Sample Type → Analysis Type → Analyte → Parameters in one spreadsheet (per row).
-                                </p>
+                                <strong>Tip:</strong>
+                                Use <strong>Amspec Parameters</strong> to create and map Sample Type → Analysis Type → Analyte → Parameters in one spreadsheet.
+                                On upload, check <em>Clear previous…</em> to replace existing hierarchy data cleanly before import.
+                                Discrete forms (Analysis Type, Analyte, etc.) expect their parent records to already exist unless you clear them via the same checkbox.
                             </div>
                         @endif
                         <div class="list-group">
@@ -141,15 +133,13 @@
                                 @if ($selectedFormType === 'analysis_method')
                                     <li>Or upload your AmSpec Parameters workbook directly (Reference Method + Test Method SOP columns are extracted)</li>
                                 @endif
-                                @if (in_array($selectedFormType, ['analysis_type', 'analysis_elements', 'sample_condition'], true))
+                                @if (in_array($selectedFormType, ['analysis_type', 'sample_condition'], true))
                                     <li>
                                         This form depends on parents already existing —
                                         @if ($selectedFormType === 'analysis_type')
-                                            import <strong>Sample Types</strong> and <strong>Labs</strong> first
-                                        @elseif ($selectedFormType === 'analysis_elements')
-                                            import <strong>Analysis Types</strong> and <strong>Analytes</strong> first
+                                            <strong>Sample Types</strong> and <strong>Labs</strong> must already exist
                                         @else
-                                            import <strong>Sample Types</strong> first
+                                            <strong>Sample Types</strong> must already exist
                                         @endif
                                     </li>
                                 @endif
@@ -224,20 +214,75 @@
                             </ul>
                         </div>
 
-                        @if ($selectedFormType === 'lab_hierarchy')
+                        @if ($selectedFormType === 'amspec_parameters')
                             <div class="alert alert-danger mb-4">
-                                <strong>Replace existing lab data</strong>
-                                <p class="mb-2 small">When enabled, all sample types, analysis types, analysis elements, and analytes for your company will be permanently deleted before import, along with all workflow requests/enquiries, submission forms, batches, samples, captured results, and related quotations. Standards are not deleted.</p>
+                                <strong>Replace existing lab hierarchy</strong>
+                                <p class="mb-2 small">
+                                    When enabled, all <strong>Sample Types</strong>, <strong>Analysis Types</strong>,
+                                    <strong>Analytes</strong>, and <strong>Analysis Parameters</strong> for your company
+                                    are permanently deleted before import — including dependent mappings
+                                    (lab links, sample conditions, pricelist lines tied to those records),
+                                    plus related workflow batches/samples/results so foreign keys stay clean.
+                                    Standards catalog rows are not deleted. After import, only the uploaded hierarchy remains.
+                                </p>
                                 <div class="form-check mb-3">
-                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_lab_hierarchy">
-                                    <label class="form-check-label" for="replace_existing_lab_hierarchy">
-                                        Replace all existing lab data for this company (including requests/enquiries, batches, samples, and results)
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_amspec_parameters">
+                                    <label class="form-check-label" for="replace_existing_amspec_parameters">
+                                        Clear previous Sample Types / Analysis Types / Parameters before import
                                     </label>
                                 </div>
                                 @if ($replaceExisting)
                                     <div class="mb-0">
-                                        <label class="form-label" for="purge_confirmation">Type <code>DELETE ALL LAB DATA</code> or your company name to confirm</label>
-                                        <input type="text" id="purge_confirmation" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL LAB DATA">
+                                        <label class="form-label" for="purge_confirmation_amspec">Type <code>DELETE ALL LAB DATA</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_amspec" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL LAB DATA">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
+                        @if ($selectedFormType === 'analysis_type')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing analysis types</strong>
+                                <p class="mb-2 small">
+                                    When enabled, all Analysis Types for your company are deleted before import,
+                                    along with their Analysis Parameters and analysis-type mappings
+                                    (lab links, guides, sample↔analysis-type relations). Sample Types and Analytes are kept.
+                                </p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_analysis_types">
+                                    <label class="form-check-label" for="replace_existing_analysis_types">
+                                        Clear previous Analysis Types before import
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation_analysis_types">Type <code>DELETE ALL ANALYSIS TYPES</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_analysis_types" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL ANALYSIS TYPES">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
+                        @if ($selectedFormType === 'analyte')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing analytes</strong>
+                                <p class="mb-2 small">
+                                    When enabled, all Analytes for your company are deleted before import,
+                                    along with Analysis Parameters and standard/analyte mappings that reference them,
+                                    so no orphan parameter rows remain. Sample Types and Analysis Types are kept.
+                                </p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_analytes">
+                                    <label class="form-check-label" for="replace_existing_analytes">
+                                        Clear previous Analytes before import
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation_analytes">Type <code>DELETE ALL ANALYTES</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_analytes" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL ANALYTES">
                                         @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 @endif
