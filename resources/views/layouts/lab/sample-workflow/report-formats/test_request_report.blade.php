@@ -498,16 +498,21 @@
 
     @if(!empty($isPdfMode))
     /*
-     * DomPDF repeats position:fixed on every page, relative to the PAGE box.
-     * @page margins must be taller than the fixed header/footer so body content
-     * never paints underneath them. Do NOT use a wrapping thead/tfoot table:
-     * nested result tables break that pattern and leave blank pages.
+     * Verified against this dompdf build (storage/tmp-pdf-test harness):
+     * - The `*` reset zeroes html margins, which dompdf uses as the page
+     *   margins — so page margins MUST be re-asserted on `html` here.
+     * - position:fixed is relative to the CONTENT box; negative offsets pull
+     *   the header/footer into the reserved margins on every page.
+     * - Fixed elements only repeat when they are direct children of <body>.
      */
     @page {
         size: A4 portrait;
-        margin: 52mm 12mm 92mm 12mm;
     }
-    html, body, main {
+    html {
+        margin: 52mm 12mm 100mm 12mm;
+        padding: 0;
+    }
+    body, main {
         margin: 0;
         padding: 0;
         background: #fff;
@@ -522,9 +527,10 @@
     }
     .pdf-doc-header {
         position: fixed;
-        top: 3mm;
-        left: 12mm;
-        right: 12mm;
+        /* Pull up into the 52mm top margin (4mm from the page edge). */
+        top: -48mm;
+        left: 0;
+        right: 0;
         width: auto;
         margin: 0;
         padding: 0;
@@ -568,9 +574,10 @@
     }
     .pdf-doc-footer {
         position: fixed;
-        bottom: 4mm;
-        left: 12mm;
-        right: 12mm;
+        /* Pull down into the 100mm bottom margin (6mm from the page edge). */
+        bottom: -94mm;
+        left: 0;
+        right: 0;
         width: auto;
         margin: 0;
         padding: 0;
@@ -816,10 +823,9 @@
         ?? ($labels['amendment_reason'] ?? 'Amendment Reason');
 @endphp
 
-<main>
-
 @if(!empty($isPdfMode))
-{{-- Repeating header / footer (DomPDF position:fixed) --}}
+{{-- Repeating header / footer. Must be direct children of <body> (outside
+     <main>) or DomPDF only paints them on the first page. --}}
 <div class="pdf-doc-header">
     @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
 </div>
@@ -854,6 +860,8 @@
     </div>
 </div>
 @endif
+
+<main>
 
     {{-- ── Screen toolbar / preview chrome ── --}}
     @if(empty($isPdfMode) && empty($isEmbedded) && empty($hideScreenToolbar))
