@@ -498,31 +498,19 @@
 
     @if(!empty($isPdfMode))
     /*
-     * Multi-page frame:
-     * - thead repeats at the top of every page
-     * - tfoot (after tbody) repeats at the bottom of every page
-     * - modest @page margins only (large bottom margins steal body space
-     *   and push all results onto later pages)
-     * Avoid position:fixed for the tall Notes→signature block: DomPDF 3
-     * either clips it in the margin box or parks it inside the content box.
+     * DomPDF repeats position:fixed on every page, relative to the PAGE box.
+     * @page margins must be taller than the fixed header/footer so body content
+     * never paints underneath them. Do NOT use a wrapping thead/tfoot table:
+     * nested result tables break that pattern and leave blank pages.
      */
     @page {
         size: A4 portrait;
-        margin: 8mm 14mm 10mm 14mm;
+        margin: 52mm 12mm 92mm 12mm;
     }
-    html {
-        margin: 0;
-        padding: 0;
-    }
-    body {
+    html, body, main {
         margin: 0;
         padding: 0;
         background: #fff;
-    }
-    main {
-        margin: 0;
-        padding: 0;
-        width: auto;
     }
     .trr-page {
         width: auto;
@@ -532,186 +520,185 @@
         padding: 0;
         overflow: visible;
     }
-    .pdf-page-frame {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-    .pdf-page-frame > thead {
-        display: table-header-group;
-    }
-    .pdf-page-frame > tfoot {
-        display: table-footer-group;
-    }
-    .pdf-page-frame > tbody {
-        display: table-row-group;
-    }
-    .pdf-page-frame > thead > tr > td,
-    .pdf-page-frame > tfoot > tr > td,
-    .pdf-page-frame > tbody > tr > td {
-        border: none;
+    .pdf-doc-header {
+        position: fixed;
+        top: 3mm;
+        left: 12mm;
+        right: 12mm;
+        width: auto;
+        margin: 0;
         padding: 0;
-        vertical-align: top;
+        background: #fff;
     }
-    /* Allow the body cell to split across pages so thead/tfoot can repeat. */
-    .pdf-page-frame > tbody > tr,
-    .pdf-page-frame > tbody > tr > td,
-    .pdf-frame-body {
-        page-break-inside: auto;
-    }
-    .pdf-frame-header {
-        padding-bottom: 6px;
-    }
-    .pdf-frame-header .pg-header {
-        margin-bottom: 2px;
+    .pdf-doc-header .pg-header {
+        margin-bottom: 1px;
         border-bottom: 1px solid #e5e5e5;
     }
-    .pdf-frame-header .pg-header td {
-        padding-bottom: 4px;
+    .pdf-doc-header .pg-header td {
+        padding-bottom: 2px;
+        border: none;
     }
-    .pdf-frame-header .pg-header-logo img,
-    .pdf-frame-header .pg-header-right img {
-        max-height: 48px;
-        max-width: 150px;
+    .pdf-doc-header .pg-header-logo img,
+    .pdf-doc-header .pg-header-right img {
+        max-height: 40px;
+        max-width: 140px;
     }
-    .pdf-frame-header .report-title-bar {
-        margin: 2px 0 4px;
-        padding: 3px 0 5px;
-        font-size: 11px;
-        letter-spacing: 1.2px;
+    .pdf-doc-header .logo-text {
+        font-size: 18px;
     }
-    .pdf-frame-header .info-table {
-        margin-bottom: 0;
-        font-size: 9.5px;
-    }
-    .pdf-frame-header .info-table td {
-        padding: 3px 6px;
-    }
-    .pdf-frame-header .info-table .lbl {
-        width: 130px;
-    }
-    .pdf-frame-footer {
-        padding-top: 4px;
-    }
-    .pdf-frame-footer .pdf-footer-closing {
-        border-top: 1px solid #cfcfcf;
-        padding-top: 3px;
-        margin-bottom: 3px;
-    }
-    .pdf-frame-footer .sample-notes,
-    .pdf-frame-footer .sample-amendment {
-        font-size: 8px;
-        padding: 2px 1px;
-        line-height: 1.35;
-        margin: 0;
-    }
-    .pdf-frame-footer .sample-amendment {
-        border: 1px solid #d4b896;
-        background: #fffaf0;
-        padding: 4px 6px;
-        margin: 3px 0;
-    }
-    .pdf-frame-footer .meta-box {
-        margin-top: 3px;
-        font-size: 8.5px;
-    }
-    .pdf-frame-footer .meta-box td {
-        padding: 3px 6px;
-    }
-    .pdf-frame-footer .sig-section {
-        margin-top: 4px;
-        padding-top: 4px;
-        border-top: 1px solid #c4c4c4;
-    }
-    .pdf-frame-footer .sig-section .sig-intro {
-        font-size: 8.5px;
-        margin-bottom: 3px;
-    }
-    .pdf-frame-footer .sig-name {
+    .pdf-doc-header .cert-no {
         font-size: 9px;
     }
-    .pdf-frame-footer .sig-title-line,
-    .pdf-frame-footer .sig-company-line {
+    .pdf-doc-header .report-title-bar {
+        margin: 2px 0 3px;
+        padding: 2px 0 4px;
+        font-size: 11px;
+        letter-spacing: 1px;
+        border-bottom-width: 1.5px;
+    }
+    .pdf-doc-header .info-table {
+        margin-bottom: 0;
+        font-size: 9px;
+    }
+    .pdf-doc-header .info-table td {
+        padding: 2px 5px;
+    }
+    .pdf-doc-header .info-table .lbl {
+        width: 120px;
+    }
+    .pdf-doc-footer {
+        position: fixed;
+        bottom: 4mm;
+        left: 12mm;
+        right: 12mm;
+        width: auto;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+    }
+    .pdf-doc-footer .pdf-footer-closing {
+        border-top: 1px solid #cfcfcf;
+        padding-top: 2px;
+        margin-bottom: 2px;
+    }
+    .pdf-doc-footer .sample-notes,
+    .pdf-doc-footer .sample-amendment {
+        font-size: 7.5px;
+        padding: 1px 0;
+        line-height: 1.3;
+        margin: 0;
+    }
+    .pdf-doc-footer .sample-amendment {
+        border: 1px solid #d4b896;
+        background: #fffaf0;
+        padding: 3px 5px;
+        margin: 2px 0;
+    }
+    .pdf-doc-footer .sample-amendment div[style] {
+        margin-top: 1px !important;
+    }
+    .pdf-doc-footer .meta-box {
+        margin-top: 2px;
+        font-size: 8px;
+    }
+    .pdf-doc-footer .meta-box td {
+        padding: 2px 5px;
+    }
+    .pdf-doc-footer .sig-section {
+        margin-top: 3px;
+        padding-top: 3px;
+        border-top: 1px solid #c4c4c4;
+    }
+    .pdf-doc-footer .sig-section .sig-intro {
+        font-size: 8px;
+        margin-bottom: 2px;
+    }
+    .pdf-doc-footer .sig-name {
         font-size: 8.5px;
     }
-    .pdf-frame-footer .sig-image {
-        min-height: 22px;
-        margin: 1px 0;
+    .pdf-doc-footer .sig-title-line,
+    .pdf-doc-footer .sig-company-line {
+        font-size: 8px;
     }
-    .pdf-frame-footer .sig-image img {
-        max-height: 30px;
-        max-width: 120px;
+    .pdf-doc-footer .sig-image {
+        min-height: 18px;
+        margin: 0;
     }
-    .pdf-frame-footer .sig-block .sig-right img {
-        max-height: 40px;
-        max-width: 100px;
+    .pdf-doc-footer .sig-image img {
+        max-height: 28px;
+        max-width: 110px;
     }
-    .pdf-frame-footer .sig-underline {
-        width: 140px;
+    .pdf-doc-footer .sig-block .sig-right img {
+        max-height: 36px;
+        max-width: 95px;
     }
-    .pdf-frame-footer .bottom-logos {
+    .pdf-doc-footer .sig-underline {
+        width: 130px;
+        margin-top: 0;
+    }
+    .pdf-doc-footer .bottom-logos {
         margin: 2px 0 1px;
     }
-    .pdf-frame-footer .bottom-logos img {
-        max-height: 32px !important;
-        max-width: 100px !important;
+    .pdf-doc-footer .bottom-logos img {
+        max-height: 28px !important;
+        max-width: 90px !important;
     }
-    .pdf-frame-footer .end-text {
+    .pdf-doc-footer .end-text {
         display: block;
         text-align: center;
-        font-size: 8px;
+        font-size: 7.5px;
         font-style: italic;
         color: #555;
         margin: 2px 0 3px;
     }
-    .pdf-frame-footer .pdf-footer-meta {
+    .pdf-doc-footer .pdf-footer-meta {
         border-top: 1px solid #cfcfcf;
         padding-top: 2px;
     }
-    .pdf-frame-footer .meta-top {
-        font-size: 7px;
-        line-height: 1.25;
-        color: #333;
-        margin-bottom: 2px;
-    }
-    .pdf-frame-footer .meta-issued {
-        text-align: center;
-        font-size: 7px;
+    .pdf-doc-footer .meta-top {
+        font-size: 6.5px;
+        line-height: 1.2;
         color: #333;
         margin-bottom: 1px;
     }
-    .pdf-frame-footer .meta-company {
+    .pdf-doc-footer .meta-issued {
         text-align: center;
-        font-size: 8px;
+        font-size: 6.5px;
+        color: #333;
+        margin-bottom: 1px;
+    }
+    .pdf-doc-footer .meta-company {
+        text-align: center;
+        font-size: 7.5px;
         font-weight: bold;
-        letter-spacing: .4px;
+        letter-spacing: .3px;
         margin-bottom: 2px;
         text-transform: uppercase;
         color: #111;
     }
-    .pdf-frame-footer .meta-legal-wrap {
+    .pdf-doc-footer .meta-legal-wrap {
         width: 100%;
         border-collapse: collapse;
     }
-    .pdf-frame-footer .meta-legal-wrap td {
+    .pdf-doc-footer .meta-legal-wrap td {
         border: none;
         vertical-align: top;
         padding: 0;
     }
-    .pdf-frame-footer .meta-legal {
-        font-size: 5.5px;
-        line-height: 1.3;
+    .pdf-doc-footer .meta-legal {
+        font-size: 5px;
+        line-height: 1.25;
         color: #222;
         font-weight: bold;
-        padding-right: 8px;
+        padding-right: 6px;
     }
-    .pdf-frame-footer .meta-qr {
-        width: 48px;
+    .pdf-doc-footer .meta-qr {
+        width: 42px;
         text-align: right;
     }
-    .pdf-frame-footer .meta-qr img {
-        width: 42px;
-        height: 42px;
+    .pdf-doc-footer .meta-qr img {
+        width: 38px;
+        height: 38px;
         display: block;
     }
     .info-table,
@@ -724,18 +711,42 @@
         margin-left: 0;
         margin-right: 0;
     }
-    .report-title-bar {
-        margin: 2px 0 8px;
-        padding: 6px 0 8px;
+    .detail-grid {
+        margin-bottom: 6px;
+        font-size: 9.5px;
+        page-break-inside: auto;
+        page-break-after: avoid;
+    }
+    .detail-grid td {
+        padding: 3px 5px;
+    }
+    .sample-ref-grid {
+        margin-bottom: 3px;
+        page-break-after: avoid;
     }
     .results-table {
+        font-size: 9px;
+        margin-bottom: 6px;
         page-break-inside: auto;
+    }
+    .results-table th {
+        padding: 4px 3px;
+        font-size: 8.5px;
+    }
+    .results-table td {
+        padding: 3px 3px;
+    }
+    .results-table thead {
+        display: table-header-group;
     }
     .results-table tr {
         page-break-inside: avoid;
         page-break-after: auto;
     }
-    .detail-grid {
+    .sample-remarks,
+    .sample-interpretations {
+        font-size: 9px;
+        padding: 3px 0;
         page-break-inside: avoid;
     }
     @endif
@@ -807,7 +818,42 @@
 
 <main>
 
-
+@if(!empty($isPdfMode))
+{{-- Repeating header / footer (DomPDF position:fixed) --}}
+<div class="pdf-doc-header">
+    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
+</div>
+<div class="pdf-doc-footer">
+    <div class="pdf-footer-closing">
+        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing')
+    </div>
+    <div class="pdf-footer-meta">
+        <div class="meta-top">
+            {{ $labels['results_relate'] }}<br>
+            {{ $labels['no_reproduce'] }}
+        </div>
+        <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
+        <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
+        <table class="meta-legal-wrap">
+            <tr>
+                <td class="meta-legal">
+                    This document is issued by the Company subject to the Terms and Conditions at
+                    https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
+                    information contained herein reflects the Company&#8217;s findings at the time and place of its
+                    intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
+                    responsibility is to its Client and the Company disclaims any liability to third parties.
+                    Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
+                </td>
+                <td class="meta-qr">
+                    @if(!empty($footerQrCode))
+                        <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                    @endif
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+@endif
 
     {{-- ── Screen toolbar / preview chrome ── --}}
     @if(empty($isPdfMode) && empty($isEmbedded) && empty($hideScreenToolbar))
@@ -839,25 +885,11 @@
 
     <div class="trr-page">
 
-        @if(!empty($isPdfMode))
-        <table class="pdf-page-frame">
-            <thead>
-                <tr>
-                    <td class="pdf-frame-header">
-                        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
-                    </td>
-                </tr>
-            </thead>
-            <tbody>
-        @else
+        @if(empty($isPdfMode))
         {{-- ══════════════ PAGE HEADER (logo + client info) ══════════════ --}}
         @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
         @endif
 
-        @if(!empty($isPdfMode))
-                <tr>
-                    <td class="pdf-frame-body">
-        @endif
         {{-- ══════════════ DETAIL GRID (omit unfilled TRF fields) ══════════════ --}}
         @php
             $isDetailFieldFilled = static function (mixed $value): bool {
@@ -932,17 +964,9 @@
             </tr>
             @endforeach
         </table>
-        @if(!empty($isPdfMode))
-                    </td>
-                </tr>
-        @endif
 
         {{-- ══════════════ TEST RESULTS ══════════════ --}}
         @forelse ($samples as $sample)
-        @if(!empty($isPdfMode))
-                <tr>
-                    <td class="pdf-frame-body">
-        @endif
 
             {{-- Per-sample subheader --}}
             <table class="detail-grid sample-ref-grid">
@@ -1056,20 +1080,8 @@
             </div>
             @endif
 
-        @if(!empty($isPdfMode))
-                    </td>
-                </tr>
-        @endif
         @empty
-        @if(!empty($isPdfMode))
-                <tr>
-                    <td class="pdf-frame-body">
-        @endif
             <div style="padding:14px 0;font-style:italic;color:#888;">{{ $labels['no_samples'] }}</div>
-        @if(!empty($isPdfMode))
-                    </td>
-                </tr>
-        @endif
         @endforelse
 
         @if(empty($isPdfMode))
@@ -1106,45 +1118,6 @@
         </div>
         @endif
 
-        @if(!empty($isPdfMode))
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td class="pdf-frame-footer">
-                        <div class="pdf-footer-closing">
-                            @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing')
-                        </div>
-                        <div class="pdf-footer-meta">
-                            <div class="meta-top">
-                                {{ $labels['results_relate'] }}<br>
-                                {{ $labels['no_reproduce'] }}
-                            </div>
-                            <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-                            <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
-                            <table class="meta-legal-wrap">
-                                <tr>
-                                    <td class="meta-legal">
-                                        This document is issued by the Company subject to the Terms and Conditions at
-                                        https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                                        information contained herein reflects the Company&#8217;s findings at the time and place of its
-                                        intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                                        responsibility is to its Client and the Company disclaims any liability to third parties.
-                                        Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-                                    </td>
-                                    <td class="meta-qr">
-                                        @if(!empty($footerQrCode))
-                                            <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                                        @endif
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
-        @endif
-
     </div>{{-- end .trr-page --}}
 
 </main>
@@ -1162,8 +1135,8 @@
         $size = 8;
         $font = $fontMetrics->getFont("DejaVu Sans");
         $width = $fontMetrics->get_text_width("Page 99 of 99", $font, $size);
-        // Match @page right margin (14mm ≈ 40pt).
-        $x = $pdf->get_width() - $width - 40;
+        // Match @page right margin (12mm ≈ 34pt).
+        $x = $pdf->get_width() - $width - 34;
         $y = $pdf->get_height() - 14;
         $pdf->page_text($x, $y, $pageText, $font, $size);
     }

@@ -2797,19 +2797,47 @@ class ReceiveSampleRequest extends Component
             return true;
         }
 
-        $analysisTypeId = trim((string) ($this->formData['analysis_type_id'][$index] ?? ''));
-        if ($analysisTypeId !== '' && app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeId)) {
-            return true;
-        }
+        $resolver = app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class);
 
-        foreach (['analysis_type', 'analysis_types'] as $key) {
-            $analysisTypeName = trim((string) ($this->formData[$key][$index] ?? ''));
-            if ($analysisTypeName !== '' && app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isFoodSampleTypeLabel($analysisTypeName)) {
-                return true;
+        foreach (['analysis_type_id', 'analysis_type', 'analysis_types'] as $key) {
+            foreach ($this->rowFieldStringTokens($index, $key) as $token) {
+                if ($resolver->isFoodSampleTypeLabel($token)) {
+                    return true;
+                }
             }
         }
 
         return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rowFieldStringTokens(int $index, string $fieldName): array
+    {
+        $raw = $this->formData[$fieldName][$index] ?? null;
+
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        $candidates = is_array($raw) ? $raw : [$raw];
+        $tokens = [];
+
+        foreach ($candidates as $candidate) {
+            if (is_array($candidate) || is_bool($candidate)) {
+                continue;
+            }
+
+            $token = trim((string) $candidate);
+            if ($token === '' || in_array($token, $tokens, true)) {
+                continue;
+            }
+
+            $tokens[] = $token;
+        }
+
+        return $tokens;
     }
 
     private function rowHasMultiOptionSelection(int $index, string $fieldName): bool
