@@ -37,11 +37,13 @@
                 $showMainStandard = (bool) ($showMainStandardOnConfig ?? true);
                 $showSecondaryStandard = (bool) ($showSecondaryStandardOnConfig ?? false);
                 $showLabId = (bool) ($showLabIdOnConfig ?? false);
+                $readOnlyLabId = (bool) ($readOnlyLabIdOnConfig ?? false);
                 $showAssignedUser = (bool) ($showAssignedUserOnConfig ?? false);
                 $showSampleDetails = (bool) ($showSampleDetailsOnConfig ?? ($showSampleInstancesOnConfig ?? false));
                 $showQuantity = (bool) ($showQuantityOnConfig ?? false);
                 $showParameters = (bool) ($showParametersOnConfig ?? true);
                 $showParameterLabSections = (bool) ($showParameterLabSectionsOnConfig ?? false);
+                $showSampleLabSections = (bool) ($showSampleLabSectionsOnConfig ?? false);
                 $showSectionAnalysts = (bool) ($showSectionAnalystsOnConfig ?? false);
                 $readOnlyTypes = (bool) ($readOnlyConfigTypes ?? false);
                 $expandParameters = (bool) ($defaultExpandParameters ?? false);
@@ -57,10 +59,19 @@
                     + ($showLabId ? 1 : 0)
                     + ($showAssignedUser ? 1 : 0)
                     + ($showQuantity ? 1 : 0);
+                $labSectionStepNumber = $showParameters ? 2 : 1;
+                $analystStepNumber = $labSectionStepNumber + (($showSampleLabSections || $showParameterLabSections) ? 1 : 0);
+                if (! $showSampleLabSections && ! $showParameterLabSections) {
+                    $analystStepNumber = $showParameters ? 2 : 1;
+                }
                 $sampleTypeName = collect($this->configSampleTypes)->firstWhere('id', (string) ($config['sample_type_id'] ?? ''))['name'] ?? '—';
                 $analysisTypeName = collect($analysisTypes)->firstWhere('id', (string) ($config['analysis_type_id'] ?? ''))['name'] ?? '—';
+                $defaultLabName = collect($this->configLabs)->firstWhere('id', (string) ($config['lab_id'] ?? ''))['name'] ?? '—';
                 $photoKey = $this->instancePhotoUploadKey($configId);
                 $selectedParamRows = $showParameterLabSections ? $this->selectedParametersWithLabSections($configIndex) : [];
+                $sampleLabSectionIds = ($showSampleLabSections && method_exists($this, 'sampleLabSectionIdsForConfigIndex'))
+                    ? $this->sampleLabSectionIdsForConfigIndex($configIndex)
+                    : [];
                 $sectionAnalystRows = $showSectionAnalysts ? $this->labSectionsForAnalystAssignment($configIndex) : [];
             @endphp
             <div
@@ -102,11 +113,14 @@
                                 @if($showMainStandard)
                                     <col class="acc-col-main-standard">
                                 @endif
-                                @if($showAssignedUser)
-                                    <col class="acc-col-assigned-user">
-                                @endif
                                 @if($showLabId)
                                     <col class="acc-col-lab">
+                                @endif
+                                @if($showSecondaryStandard)
+                                    <col class="acc-col-secondary-standard">
+                                @endif
+                                @if($showAssignedUser)
+                                    <col class="acc-col-assigned-user">
                                 @endif
                                 @if($showLabSection)
                                     <col class="acc-col-lab-section">
@@ -126,14 +140,14 @@
                                 @if($showMainStandard)
                                     <th>{{ $compactTable ? 'Specification' : 'Main standard' }}</th>
                                 @endif
+                                @if($showLabId)
+                                    <th>{{ $readOnlyLabId ? 'Default lab' : 'Lab' }}</th>
+                                @endif
                                 @if($showSecondaryStandard)
                                     <th>Secondary standard</th>
                                 @endif
                                 @if($showAssignedUser)
                                     <th>{{ $compactTable ? 'User' : 'Assigned user' }}</th>
-                                @endif
-                                @if($showLabId)
-                                    <th>Lab</th>
                                 @endif
                                 @if($showLabSection)
                                     <th>Lab section</th>
@@ -202,6 +216,21 @@
                                     @error('sampleConfigs.'.$configIndex.'.main_standard_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                 </td>
                                 @endif
+                                @if($showLabId)
+                                <td>
+                                    @if($readOnlyLabId)
+                                        <span class="acc-config-readonly" title="{{ $defaultLabName }}">{{ $defaultLabName }}</span>
+                                    @else
+                                        <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.lab_id">
+                                            <option value="">Select…</option>
+                                            @foreach($this->configLabs as $lab)
+                                                <option value="{{ $lab['id'] }}">{{ $lab['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('sampleConfigs.'.$configIndex.'.lab_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    @endif
+                                </td>
+                                @endif
                                 @if($showSecondaryStandard)
                                 <td>
                                     <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.secondary_standard_id">
@@ -222,17 +251,6 @@
                                         @endforeach
                                     </select>
                                     @error('sampleConfigs.'.$configIndex.'.assigned_user_id')<div class="text-danger small">{{ $message }}</div>@enderror
-                                </td>
-                                @endif
-                                @if($showLabId)
-                                <td>
-                                    <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.lab_id">
-                                        <option value="">Select…</option>
-                                        @foreach($this->configLabs as $lab)
-                                            <option value="{{ $lab['id'] }}">{{ $lab['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('sampleConfigs.'.$configIndex.'.lab_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                 </td>
                                 @endif
                                 @if($showLabSection)
@@ -312,6 +330,50 @@
                             </tr>
                             @endif
 
+                            @if($showSampleLabSections)
+                            <tr class="acc-sample-config-section-row">
+                                <td colspan="{{ $configColspan }}">
+                                    <div class="acc-sample-config-params-panel">
+                                        <div class="acc-sample-config-params-band">
+                                            <button
+                                                type="button"
+                                                class="acc-sample-config-section-toggle"
+                                                @click="showLabSections = !showLabSections"
+                                                :aria-expanded="showLabSections"
+                                            >
+                                                <span class="acc-sample-config-section-toggle-main">
+                                                    <i class="mdi acc-sample-config-chevron" :class="showLabSections ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
+                                                    <span class="acc-sample-config-params-label">{{ $labSectionStepNumber }}. Lab section(s)</span>
+                                                    @if(count($sampleLabSectionIds) > 0)
+                                                        <span class="acc-sample-config-section-badge">{{ count($sampleLabSectionIds) }} selected</span>
+                                                    @endif
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <div class="acc-sample-config-section-body" x-show="showLabSections" x-cloak>
+                                            <p class="acc-wizard-hint mb-2">Select every lab section that will run tests on this sample.</p>
+                                            <div class="acc-param-lab-section-multi">
+                                                @foreach($this->configLabSections as $section)
+                                                    @php $isChecked = in_array((string) $section['id'], $sampleLabSectionIds, true); @endphp
+                                                    <label class="acc-sample-config-param-chip {{ $isChecked ? 'is-selected' : '' }}" wire:key="sample-lab-section-{{ $configId }}-{{ $section['id'] }}">
+                                                        <input
+                                                            type="checkbox"
+                                                            @checked($isChecked)
+                                                            wire:click="toggleSampleLabSection('{{ $configId }}', '{{ $section['id'] }}')"
+                                                        >
+                                                        <span>{{ $section['name'] }}</span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                            @error('sampleConfigs.'.$configIndex.'.lab_section_ids')
+                                                <div class="text-danger small mt-2">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endif
+
                             @if($showParameterLabSections)
                             <tr class="acc-sample-config-section-row">
                                 <td colspan="{{ $configColspan }}">
@@ -325,7 +387,7 @@
                                             >
                                                 <span class="acc-sample-config-section-toggle-main">
                                                     <i class="mdi acc-sample-config-chevron" :class="showLabSections ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
-                                                    <span class="acc-sample-config-params-label">2. Lab section for each test</span>
+                                                    <span class="acc-sample-config-params-label">{{ $labSectionStepNumber }}. Lab section(s) for each test</span>
                                                     @if(count($selectedParamRows) > 0)
                                                         <span class="acc-sample-config-section-badge">{{ count($selectedParamRows) }}</span>
                                                     @endif
@@ -334,7 +396,7 @@
                                         </div>
                                         <div class="acc-sample-config-section-body" x-show="showLabSections" x-cloak>
                                             @if($selectedParamRows === [])
-                                                <p class="acc-wizard-hint mb-0">Select test parameters first.</p>
+                                                <p class="acc-wizard-hint mb-0">No test parameters were carried over from the enquiry.</p>
                                             @else
                                                 <div class="acc-param-lab-section-list">
                                                     @foreach($selectedParamRows as $paramRow)
@@ -343,23 +405,28 @@
                                                             $display = trim((string) ($paramRow['code'] ?? '')) !== ''
                                                                 ? (string) $paramRow['code']
                                                                 : (string) ($paramRow['name'] ?? 'Parameter');
+                                                            $selectedSectionIds = is_array($paramRow['lab_section_ids'] ?? null)
+                                                                ? $paramRow['lab_section_ids']
+                                                                : array_values(array_filter([(string) ($paramRow['lab_section_id'] ?? '')]));
                                                         @endphp
-                                                        <div class="acc-param-lab-section-row" wire:key="param-section-{{ $configId }}-{{ $paramKey }}">
+                                                        <div class="acc-param-lab-section-row acc-param-lab-section-row--multi" wire:key="param-section-{{ $configId }}-{{ $paramKey }}">
                                                             <div class="acc-param-lab-section-label" title="{{ $paramRow['label'] ?? $display }}">
                                                                 {{ $display }}
+                                                                <span class="acc-wizard-hint d-block">{{ count($selectedSectionIds) }} lab section{{ count($selectedSectionIds) === 1 ? '' : 's' }}</span>
                                                             </div>
-                                                            <select
-                                                                class="form-control form-control-sm acc-input"
-                                                                wire:change="setParameterLabSection('{{ $configId }}', '{{ $paramKey }}', $event.target.value)"
-                                                            >
-                                                                <option value="">Select lab section…</option>
+                                                            <div class="acc-param-lab-section-multi">
                                                                 @foreach($this->configLabSections as $section)
-                                                                    <option
-                                                                        value="{{ $section['id'] }}"
-                                                                        @selected((string) ($paramRow['lab_section_id'] ?? '') === (string) $section['id'])
-                                                                    >{{ $section['name'] }}</option>
+                                                                    @php $isChecked = in_array((string) $section['id'], $selectedSectionIds, true); @endphp
+                                                                    <label class="acc-sample-config-param-chip {{ $isChecked ? 'is-selected' : '' }}">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            @checked($isChecked)
+                                                                            wire:click="toggleParameterLabSection('{{ $configId }}', '{{ $paramKey }}', '{{ $section['id'] }}')"
+                                                                        >
+                                                                        <span>{{ $section['name'] }}</span>
+                                                                    </label>
                                                                 @endforeach
-                                                            </select>
+                                                            </div>
                                                             @error('sampleConfigs.'.$configIndex.'.parameter_lab_sections.'.$paramKey)
                                                                 <div class="text-danger small">{{ $message }}</div>
                                                             @enderror
@@ -386,7 +453,7 @@
                                             >
                                                 <span class="acc-sample-config-section-toggle-main">
                                                     <i class="mdi acc-sample-config-chevron" :class="showAnalysts ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
-                                                    <span class="acc-sample-config-params-label">3. Assign analyst(s)</span>
+                                                    <span class="acc-sample-config-params-label">{{ $analystStepNumber }}. Assign analyst(s)</span>
                                                     @if(count($sectionAnalystRows) > 0)
                                                         <span class="acc-sample-config-section-badge">{{ count($sectionAnalystRows) }} section{{ count($sectionAnalystRows) === 1 ? '' : 's' }}</span>
                                                     @endif
@@ -395,7 +462,7 @@
                                         </div>
                                         <div class="acc-sample-config-section-body" x-show="showAnalysts" x-cloak>
                                             @if($sectionAnalystRows === [])
-                                                <p class="acc-wizard-hint mb-0">Choose lab sections for the selected tests to load analysts.</p>
+                                                <p class="acc-wizard-hint mb-0">Choose lab section(s) above to load analysts.</p>
                                             @else
                                                 <div class="acc-section-analyst-list">
                                                     @foreach($sectionAnalystRows as $sectionRow)

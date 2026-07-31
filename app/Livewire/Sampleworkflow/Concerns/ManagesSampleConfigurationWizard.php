@@ -150,6 +150,15 @@ trait ManagesSampleConfigurationWizard
 
     public function setParameterLabSection(string $configId, string $parameterKey, string $labSectionId): void
     {
+        $this->toggleParameterLabSection($configId, $parameterKey, $labSectionId, replace: true);
+    }
+
+    public function toggleParameterLabSection(
+        string $configId,
+        string $parameterKey,
+        string $labSectionId,
+        bool $replace = false,
+    ): void {
         $configService = app(AcceptanceFormSampleConfigService::class);
 
         foreach ($this->sampleConfigs as $index => $config) {
@@ -160,12 +169,106 @@ trait ManagesSampleConfigurationWizard
             $sections = is_array($config['parameter_lab_sections'] ?? null)
                 ? $config['parameter_lab_sections']
                 : [];
-            $sections[$parameterKey] = $labSectionId;
+            $current = $configService->normalizeLabSectionIdList($sections[$parameterKey] ?? []);
+
+            if ($replace) {
+                $current = $labSectionId !== '' ? [$labSectionId] : [];
+            } elseif (in_array($labSectionId, $current, true)) {
+                $current = array_values(array_filter($current, fn (string $id) => $id !== $labSectionId));
+            } else {
+                $current[] = $labSectionId;
+            }
+
+            $sections[$parameterKey] = array_values(array_unique($current));
             $this->sampleConfigs[$index]['parameter_lab_sections'] = $sections;
             $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
 
             break;
         }
+    }
+
+    public function toggleSampleLabSection(string $configId, string $labSectionId): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $current = $configService->normalizeLabSectionIdList($config['lab_section_ids'] ?? []);
+
+            if (in_array($labSectionId, $current, true)) {
+                $current = array_values(array_filter($current, fn (string $id) => $id !== $labSectionId));
+            } else {
+                $current[] = $labSectionId;
+            }
+
+            $this->sampleConfigs[$index]['lab_section_ids'] = array_values(array_unique($current));
+            $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+            break;
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function sampleLabSectionIdsForConfigIndex(int $index): array
+    {
+        if (! isset($this->sampleConfigs[$index])) {
+            return [];
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $config = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+        return $configService->normalizeLabSectionIdList($config['lab_section_ids'] ?? []);
+    }
+
+    /**
+     * @return list<array{id: string, name: string, code?: string, label?: string, lab_section_id: ?string, lab_section_ids: list<string>}>
+     */
+    public function selectedParametersWithLabSections(int $index): array
+    {
+        if (! isset($this->sampleConfigs[$index])) {
+            return [];
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $config = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+        $selectedKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
+        $sectionMap = is_array($config['parameter_lab_sections'] ?? null) ? $config['parameter_lab_sections'] : [];
+        $parameters = $this->parametersForConfigIndex($index);
+        $byId = collect($parameters)->keyBy(
+            fn (array $param): string => (string) ($param['analysis_element_id'] ?? $param['id'] ?? '')
+        );
+
+        $rows = [];
+        foreach ($selectedKeys as $elementId) {
+            $elementId = (string) $elementId;
+            $param = $byId->get($elementId) ?? [
+                'id' => $elementId,
+                'analysis_element_id' => $elementId,
+                'label' => 'Parameter',
+                'code' => '',
+            ];
+
+            $sectionIds = $configService->normalizeLabSectionIdList($sectionMap[$elementId] ?? []);
+
+            $rows[] = [
+                'id' => $elementId,
+                'analysis_element_id' => $elementId,
+                'name' => (string) ($param['label'] ?? $param['code'] ?? 'Parameter'),
+                'code' => (string) ($param['code'] ?? ''),
+                'label' => (string) ($param['label'] ?? ''),
+                'lab_section_id' => $sectionIds[0] ?? null,
+                'lab_section_ids' => $sectionIds,
+            ];
+        }
+
+        return $rows;
     }
 
     public function toggleSectionAnalyst(string $configId, string $labSectionId, string $userId): void
@@ -196,48 +299,6 @@ trait ManagesSampleConfigurationWizard
 
             break;
         }
-    }
-
-    /**
-     * @return list<array{id: string, name: string, code?: string, label?: string, lab_section_id: ?string}>
-     */
-    public function selectedParametersWithLabSections(int $index): array
-    {
-        if (! isset($this->sampleConfigs[$index])) {
-            return [];
-        }
-
-        $configService = app(AcceptanceFormSampleConfigService::class);
-        $config = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
-
-        $selectedKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
-        $sectionMap = is_array($config['parameter_lab_sections'] ?? null) ? $config['parameter_lab_sections'] : [];
-        $parameters = $this->parametersForConfigIndex($index);
-        $byId = collect($parameters)->keyBy(
-            fn (array $param): string => (string) ($param['analysis_element_id'] ?? $param['id'] ?? '')
-        );
-
-        $rows = [];
-        foreach ($selectedKeys as $elementId) {
-            $elementId = (string) $elementId;
-            $param = $byId->get($elementId) ?? [
-                'id' => $elementId,
-                'analysis_element_id' => $elementId,
-                'label' => 'Parameter',
-                'code' => '',
-            ];
-
-            $rows[] = [
-                'id' => $elementId,
-                'analysis_element_id' => $elementId,
-                'name' => (string) ($param['label'] ?? $param['code'] ?? 'Parameter'),
-                'code' => (string) ($param['code'] ?? ''),
-                'label' => (string) ($param['label'] ?? ''),
-                'lab_section_id' => isset($sectionMap[$elementId]) ? (string) $sectionMap[$elementId] : null,
-            ];
-        }
-
-        return $rows;
     }
 
     /**

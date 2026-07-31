@@ -66,7 +66,7 @@
                                 <div class="row mt-3">
                                     <div class="col-12">
                                         <p class="acc-wizard-hint mb-2">
-                                            For each sample: select test parameters, choose the lab section for each test, then assign analyst(s) from that section.
+                                            Confirm condition and specification, review the default lab, choose one or more lab sections for the sample, then assign analyst(s).
                                         </p>
                                         <div class="custom-control custom-checkbox">
                                             <input

@@ -78,7 +78,9 @@ class AcceptanceFormWizard extends Component
 
     public bool $showSecondaryStandardOnConfig = false;
 
-    public bool $showLabIdOnConfig = false;
+    public bool $showLabIdOnConfig = true;
+
+    public bool $readOnlyLabIdOnConfig = true;
 
     public bool $showAssignedUserOnConfig = false;
 
@@ -90,9 +92,13 @@ class AcceptanceFormWizard extends Component
 
     public bool $showQuantityOnConfig = false;
 
-    public bool $showParametersOnConfig = true;
+    /** Parameters are chosen on Process Enquiry; do not re-list them here. */
+    public bool $showParametersOnConfig = false;
 
-    public bool $showParameterLabSectionsOnConfig = true;
+    /** Per-test lab section rows removed — use sample-level multi-select instead. */
+    public bool $showParameterLabSectionsOnConfig = false;
+
+    public bool $showSampleLabSectionsOnConfig = true;
 
     public bool $showSectionAnalystsOnConfig = true;
 
@@ -566,11 +572,12 @@ class AcceptanceFormWizard extends Component
 
     private function applySampleConfigAssignmentDefaults(): void
     {
+        $defaultLabId = \App\Lab::defaultLabId();
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
         foreach ($this->sampleConfigs as $index => $config) {
-            // Lab id remains master-data driven; lab sections are chosen per test parameter.
-            $this->sampleConfigs[$index]['lab_id'] = null;
-            $this->sampleConfigs[$index] = app(AcceptanceFormSampleConfigService::class)
-                ->syncParameterLabSections($this->sampleConfigs[$index]);
+            $this->sampleConfigs[$index]['lab_id'] = $defaultLabId;
+            $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
         }
     }
 

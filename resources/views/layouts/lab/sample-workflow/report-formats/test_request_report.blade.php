@@ -767,7 +767,10 @@
             border: none;
             margin: 0;
             max-width: 100%;
-            padding: 12px 18px;
+            /* DomPDF uses print media; page gutters come from the html margin,
+               so any padding here would misalign the body with the fixed
+               header/footer. Keep the padding for browser printing only. */
+            padding: {{ !empty($isPdfMode) ? '0' : '12px 18px' }};
             box-shadow: none;
         }
         /* Keep the draft watermark on printed / Save-as-PDF preview copies */

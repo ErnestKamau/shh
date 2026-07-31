@@ -39,13 +39,14 @@ class AcceptanceFormSampleConfigService
             'secondary_standard_id' => null,
             'zone_id' => null,
             'lab_section_id' => null,
+            'lab_section_ids' => [],
             'lab_id' => Lab::defaultLabId(),
             'assigned_user_id' => null,
             'row_index' => null,
             'number_of_samples' => 1,
             'parameter_keys' => [],
             'parameter_search' => '',
-            /** @var array<string, string> analysis_element_id => lab_section_id */
+            /** @var array<string, list<string>> analysis_element_id => lab_section_ids */
             'parameter_lab_sections' => [],
             /** @var array<string, list<string>> lab_section_id => user ids */
             'analysts_by_lab_section' => [],
@@ -1133,7 +1134,39 @@ class AcceptanceFormSampleConfigService
     }
 
     /**
+     * Normalize a stored lab-section value (legacy single id or list) to UUID list.
+     *
+     * @return list<string>
+     */
+    public function normalizeLabSectionIdList(mixed $value): array
+    {
+        if (is_array($value)) {
+            // Associative map accidentally passed — flatten values that are strings.
+            $candidates = [];
+            foreach ($value as $item) {
+                if (is_array($item)) {
+                    foreach ($item as $nested) {
+                        $candidates[] = (string) $nested;
+                    }
+                } else {
+                    $candidates[] = (string) $item;
+                }
+            }
+        } else {
+            $candidates = [(string) ($value ?? '')];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn (string $id): string => trim($id), $candidates),
+            static fn (string $id): bool => $id !== '' && Str::isUuid($id)
+        )));
+    }
+
+    /**
      * Keep parameter → lab section map aligned with selected parameters.
+     *
+     * When sample-level `lab_section_ids` is set, those sections are applied to every
+     * selected parameter (Analysis Acceptance multi-lab flow).
      *
      * @param  array<string, mixed>  $config
      * @return array<string, mixed>
@@ -1149,10 +1182,18 @@ class AcceptanceFormSampleConfigService
             ? $config['parameter_lab_sections']
             : [];
 
+        $sampleLevelSectionIds = $this->normalizeLabSectionIdList($config['lab_section_ids'] ?? []);
+
         $synced = [];
         foreach ($parameterKeys as $elementId) {
-            $current = (string) ($existing[$elementId] ?? '');
-            if ($current !== '' && Str::isUuid($current)) {
+            if ($sampleLevelSectionIds !== []) {
+                $synced[$elementId] = $sampleLevelSectionIds;
+
+                continue;
+            }
+
+            $current = $this->normalizeLabSectionIdList($existing[$elementId] ?? []);
+            if ($current !== []) {
                 $synced[$elementId] = $current;
 
                 continue;
@@ -1160,13 +1201,28 @@ class AcceptanceFormSampleConfigService
 
             $resolved = $this->resolveLabSectionIdForElement($elementId, $analysisTypeId);
             if ($resolved !== null) {
-                $synced[$elementId] = $resolved;
+                $synced[$elementId] = [$resolved];
             }
         }
 
         $config['parameter_lab_sections'] = $synced;
 
-        $sectionIds = array_values(array_unique(array_filter(array_values($synced))));
+        $sectionIds = [];
+        foreach ($synced as $ids) {
+            foreach ($ids as $sectionId) {
+                $sectionIds[] = $sectionId;
+            }
+        }
+        $sectionIds = array_values(array_unique($sectionIds));
+
+        if ($sampleLevelSectionIds === [] && $sectionIds !== []) {
+            $config['lab_section_ids'] = $sectionIds;
+        } else {
+            $config['lab_section_ids'] = $sampleLevelSectionIds !== []
+                ? $sampleLevelSectionIds
+                : $sectionIds;
+        }
+
         $analystsBySection = is_array($config['analysts_by_lab_section'] ?? null)
             ? $config['analysts_by_lab_section']
             : [];
@@ -1210,11 +1266,24 @@ class AcceptanceFormSampleConfigService
     public function distinctLabSectionIdsFromConfig(array $config): array
     {
         $config = $this->syncParameterLabSections($config);
+
+        $sampleLevel = $this->normalizeLabSectionIdList($config['lab_section_ids'] ?? []);
+        if ($sampleLevel !== []) {
+            return $sampleLevel;
+        }
+
         $sections = is_array($config['parameter_lab_sections'] ?? null)
-            ? array_values($config['parameter_lab_sections'])
+            ? $config['parameter_lab_sections']
             : [];
 
-        return array_values(array_unique(array_filter(array_map('strval', $sections))));
+        $ids = [];
+        foreach ($sections as $value) {
+            foreach ($this->normalizeLabSectionIdList($value) as $sectionId) {
+                $ids[] = $sectionId;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -1579,23 +1648,13 @@ class AcceptanceFormSampleConfigService
 
             $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
             if ($parameterKeys === []) {
-                $errors["sampleConfigs.{$index}.parameter_keys"] = "Sample {$row}: select at least one test parameter.";
+                $errors["sampleConfigs.{$index}.parameter_keys"] = "Sample {$row}: enquiry has no test parameters to accept.";
             }
 
-            $parameterLabSections = is_array($config['parameter_lab_sections'] ?? null)
-                ? $config['parameter_lab_sections']
-                : [];
-
-            foreach ($parameterKeys as $elementId) {
-                $elementId = (string) $elementId;
-                if ($elementId === '') {
-                    continue;
-                }
-
-                if (empty($parameterLabSections[$elementId])) {
-                    $errors["sampleConfigs.{$index}.parameter_lab_sections.{$elementId}"] =
-                        "Sample {$row}: choose a lab section for each selected test.";
-                }
+            $sampleLabSections = $this->normalizeLabSectionIdList($config['lab_section_ids'] ?? []);
+            if ($sampleLabSections === []) {
+                $errors["sampleConfigs.{$index}.lab_section_ids"] =
+                    "Sample {$row}: choose at least one lab section.";
             }
 
             $sectionIds = $this->distinctLabSectionIdsFromConfig($config);
@@ -1859,12 +1918,21 @@ class AcceptanceFormSampleConfigService
             $details = $this->sampleDetailsFromConfig($config);
 
             $parameterLabSections = [];
-            foreach (is_array($config['parameter_lab_sections'] ?? null) ? $config['parameter_lab_sections'] : [] as $elementId => $sectionId) {
+            foreach (is_array($config['parameter_lab_sections'] ?? null) ? $config['parameter_lab_sections'] : [] as $elementId => $sectionIds) {
                 $elementId = (string) $elementId;
-                $sectionId = (string) $sectionId;
-                if ($elementId !== '' && $sectionId !== '' && Str::isUuid($elementId) && Str::isUuid($sectionId)) {
-                    $parameterLabSections[$elementId] = $sectionId;
+                if ($elementId === '' || ! Str::isUuid($elementId)) {
+                    continue;
                 }
+
+                $normalized = $this->normalizeLabSectionIdList($sectionIds);
+                if ($normalized !== []) {
+                    $parameterLabSections[$elementId] = $normalized;
+                }
+            }
+
+            $labSectionIds = $this->normalizeLabSectionIdList($config['lab_section_ids'] ?? []);
+            if ($labSectionIds === []) {
+                $labSectionIds = $this->distinctLabSectionIdsFromConfig($config);
             }
 
             $analystsBySection = [];
@@ -1888,7 +1956,8 @@ class AcceptanceFormSampleConfigService
                 'main_standard_id' => $config['main_standard_id'] ?? null,
                 'secondary_standard_id' => $config['secondary_standard_id'] ?? null,
                 'zone_id' => $this->resolveZoneIdFromConfig($config),
-                'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : null,
+                'lab_section_id' => ! empty($config['lab_section_id']) ? (string) $config['lab_section_id'] : ($labSectionIds[0] ?? null),
+                'lab_section_ids' => $labSectionIds,
                 'lab_id' => ! empty($config['lab_id']) ? (string) $config['lab_id'] : null,
                 'assigned_user_id' => $this->primaryAssignedAnalystId($config),
                 'row_index' => isset($config['row_index']) ? (int) $config['row_index'] : null,
@@ -1920,7 +1989,7 @@ class AcceptanceFormSampleConfigService
      *     zone_id: ?string,
      *     lab_section_id: ?string,
      *     assigned_user_id: ?string,
-     *     parameter_lab_sections: array<string, string>,
+     *     parameter_lab_sections: array<string, list<string>>,
      *     analysts_by_lab_section: array<string, list<string>>,
      *     customer_sample_id: ?string,
      *     sample_marking: ?string,
@@ -1943,9 +2012,13 @@ class AcceptanceFormSampleConfigService
             $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
             $details = $this->sampleDetailsFromConfig($config);
             $elementIds = $this->resolveElementIdsForAnalysisType($parameterKeys, $analysisTypeId);
-            $parameterLabSections = is_array($config['parameter_lab_sections'] ?? null)
-                ? $config['parameter_lab_sections']
-                : [];
+            $parameterLabSections = [];
+            foreach (is_array($config['parameter_lab_sections'] ?? null) ? $config['parameter_lab_sections'] : [] as $elementId => $sectionIds) {
+                $normalized = $this->normalizeLabSectionIdList($sectionIds);
+                if ($normalized !== []) {
+                    $parameterLabSections[(string) $elementId] = $normalized;
+                }
+            }
             $analystsBySection = is_array($config['analysts_by_lab_section'] ?? null)
                 ? $config['analysts_by_lab_section']
                 : [];
