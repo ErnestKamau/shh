@@ -48,11 +48,70 @@ trait ManagesSampleConfigurationWizard
             return;
         }
 
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs[$index] = $configService->syncSampleTypeIdsOnConfig(
+            $this->sampleConfigs[$index],
+            [trim((string) ($this->sampleConfigs[$index]['sample_type_id'] ?? ''))],
+        );
         $this->sampleConfigs[$index]['analysis_type_id'] = null;
+        $this->sampleConfigs[$index]['analysis_type_ids'] = [];
         $this->sampleConfigs[$index]['parameter_keys'] = [];
         $this->sampleConfigs[$index]['lab_section_id'] = null;
         $this->sampleConfigs[$index]['parameter_lab_sections'] = [];
         $this->sampleConfigs[$index]['analysts_by_lab_section'] = [];
+    }
+
+    public function setConfigSampleType(int $index, string $sampleTypeId): void
+    {
+        if (! isset($this->sampleConfigs[$index])) {
+            return;
+        }
+
+        $this->sampleConfigs[$index]['sample_type_id'] = trim($sampleTypeId);
+        $this->onConfigSampleTypeChanged($index);
+    }
+
+    public function toggleConfigSampleType(string $configId, string $sampleTypeId): void
+    {
+        $sampleTypeId = trim($sampleTypeId);
+        if ($sampleTypeId === '') {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $ids = $configService->sampleTypeIdsFromConfig($config);
+            if (in_array($sampleTypeId, $ids, true)) {
+                $ids = array_values(array_filter($ids, fn (string $id): bool => $id !== $sampleTypeId));
+            } else {
+                $ids[] = $sampleTypeId;
+            }
+
+            $this->sampleConfigs[$index] = $configService->syncSampleTypeIdsOnConfig($config, $ids);
+
+            $availableAnalysisTypeIds = collect(
+                $configService->allAnalysisTypesForSampleTypes($ids),
+            )->pluck('id')->map(fn ($id): string => (string) $id)->all();
+
+            $keptAnalysisTypeIds = array_values(array_filter(
+                $configService->analysisTypeIdsFromConfig($this->sampleConfigs[$index]),
+                fn (string $id): bool => in_array($id, $availableAnalysisTypeIds, true),
+            ));
+            $this->sampleConfigs[$index] = $configService->syncAnalysisTypeIdsOnConfig(
+                $this->sampleConfigs[$index],
+                $keptAnalysisTypeIds,
+            );
+            $this->sampleConfigs[$index]['parameter_keys'] = [];
+            $this->sampleConfigs[$index]['parameter_lab_sections'] = [];
+            $this->sampleConfigs[$index]['analysts_by_lab_section'] = [];
+
+            break;
+        }
     }
 
     public function onConfigAnalysisTypeChanged(int $index): void
@@ -61,17 +120,62 @@ trait ManagesSampleConfigurationWizard
             return;
         }
 
-        $config = $this->sampleConfigs[$index];
         $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs[$index] = $configService->syncAnalysisTypeIdsOnConfig($this->sampleConfigs[$index]);
+        $config = $this->sampleConfigs[$index];
+        $analysisTypeIds = $configService->analysisTypeIdsFromConfig($config);
 
-        $this->sampleConfigs[$index]['lab_section_id'] = ! empty($config['analysis_type_id'])
-            ? $configService->resolveLabSectionIdForAnalysisType((string) $config['analysis_type_id'])
+        $this->sampleConfigs[$index]['lab_section_id'] = $analysisTypeIds !== []
+            ? $configService->resolveLabSectionIdForAnalysisType($analysisTypeIds[0])
             : null;
 
         // Start empty so the user picks parameters from the dropdown (or Select all).
         $this->sampleConfigs[$index]['parameter_keys'] = [];
         $this->sampleConfigs[$index]['parameter_lab_sections'] = [];
         $this->sampleConfigs[$index]['analysts_by_lab_section'] = [];
+    }
+
+    public function toggleConfigAnalysisType(string $configId, string $analysisTypeId): void
+    {
+        $analysisTypeId = trim($analysisTypeId);
+        if ($analysisTypeId === '') {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $ids = $configService->analysisTypeIdsFromConfig($config);
+            if (in_array($analysisTypeId, $ids, true)) {
+                $ids = array_values(array_filter($ids, fn (string $id): bool => $id !== $analysisTypeId));
+            } else {
+                $ids[] = $analysisTypeId;
+            }
+
+            $this->sampleConfigs[$index] = $configService->syncAnalysisTypeIdsOnConfig($config, $ids);
+            $this->sampleConfigs[$index]['lab_section_id'] = $ids !== []
+                ? $configService->resolveLabSectionIdForAnalysisType($ids[0])
+                : null;
+
+            if (property_exists($this, 'crmCustomerId')
+                && is_string($this->crmCustomerId)
+                && trim($this->crmCustomerId) !== '') {
+                $this->sampleConfigs[$index] = $configService->reconcileParameterKeysForConfig(
+                    $this->sampleConfigs[$index],
+                    $this->crmCustomerId,
+                );
+            } else {
+                $this->sampleConfigs[$index]['parameter_keys'] = [];
+            }
+
+            $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+            break;
+        }
     }
 
     public function toggleConfigParameter(string $configId, string $parameterKey): void
@@ -116,7 +220,7 @@ trait ManagesSampleConfigurationWizard
             $parameters = $configService->parametersForConfig(
                 $this->crmCustomerId ?? '',
                 $config['sample_type_id'] ?? null,
-                $config['analysis_type_id'] ?? null
+                $configService->analysisTypeIdsFromConfig($config),
             );
 
             $config['parameter_keys'] = collect($parameters)
@@ -160,7 +264,30 @@ trait ManagesSampleConfigurationWizard
             $sections = is_array($config['parameter_lab_sections'] ?? null)
                 ? $config['parameter_lab_sections']
                 : [];
-            $sections[$parameterKey] = $labSectionId;
+            $sections[$parameterKey] = $configService->normalizeLabSectionIds($labSectionId);
+            $this->sampleConfigs[$index]['parameter_lab_sections'] = $sections;
+            $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
+
+            break;
+        }
+    }
+
+    /**
+     * @param  list<string>  $labSectionIds
+     */
+    public function setParameterLabSections(string $configId, string $parameterKey, array $labSectionIds): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $sections = is_array($config['parameter_lab_sections'] ?? null)
+                ? $config['parameter_lab_sections']
+                : [];
+            $sections[$parameterKey] = $configService->normalizeLabSectionIds($labSectionIds);
             $this->sampleConfigs[$index]['parameter_lab_sections'] = $sections;
             $this->sampleConfigs[$index] = $configService->syncParameterLabSections($this->sampleConfigs[$index]);
 
@@ -233,7 +360,10 @@ trait ManagesSampleConfigurationWizard
                 'name' => (string) ($param['label'] ?? $param['code'] ?? 'Parameter'),
                 'code' => (string) ($param['code'] ?? ''),
                 'label' => (string) ($param['label'] ?? ''),
-                'lab_section_id' => isset($sectionMap[$elementId]) ? (string) $sectionMap[$elementId] : null,
+                'lab_section_id' => app(AcceptanceFormSampleConfigService::class)
+                    ->primaryLabSectionId($sectionMap[$elementId] ?? null),
+                'lab_section_ids' => app(AcceptanceFormSampleConfigService::class)
+                    ->normalizeLabSectionIds($sectionMap[$elementId] ?? null),
             ];
         }
 
@@ -358,13 +488,21 @@ trait ManagesSampleConfigurationWizard
             return [];
         }
 
-        $sampleTypeId = $this->sampleConfigs[$index]['sample_type_id'] ?? null;
-        if (! $sampleTypeId) {
+        $config = $this->sampleConfigs[$index];
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $sampleTypeIds = $configService->sampleTypeIdsFromConfig($config);
+        if ($sampleTypeIds === []) {
             return [];
         }
 
-        return app(AcceptanceFormSampleConfigService::class)
-            ->allAnalysisTypesForPicker((string) $sampleTypeId);
+        $types = count($sampleTypeIds) > 1 || (bool) ($config['allows_multiple_sample_types'] ?? false)
+            ? $configService->allAnalysisTypesForSampleTypes($sampleTypeIds)
+            : $configService->allAnalysisTypesForPicker($sampleTypeIds[0]);
+
+        return $configService->withSelectedAnalysisTypes(
+            $types,
+            $configService->analysisTypeIdsFromConfig($config),
+        );
     }
 
     public function parametersForConfigIndex(int $index): array
@@ -374,11 +512,12 @@ trait ManagesSampleConfigurationWizard
         }
 
         $config = $this->sampleConfigs[$index];
+        $configService = app(AcceptanceFormSampleConfigService::class);
 
-        return app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
+        return $configService->parametersForConfig(
             $this->crmCustomerId ?? '',
             $config['sample_type_id'] ?? null,
-            $config['analysis_type_id'] ?? null
+            $configService->analysisTypeIdsFromConfig($config),
         );
     }
 

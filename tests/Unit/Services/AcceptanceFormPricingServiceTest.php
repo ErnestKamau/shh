@@ -238,4 +238,132 @@ class AcceptanceFormPricingServiceTest extends TestCase
         $this->assertSame(6580.0, $resolved['price']);
         $this->assertSame($metalsPricelist->id, $resolved['pricelist']?->id);
     }
+
+    public function test_resolve_line_price_falls_back_to_same_analyte_on_pricelist(): void
+    {
+        $sampleType = \App\SampleType::query()->create([
+            'name' => 'Food Price Fallback '. \Illuminate\Support\Str::random(4),
+            'code' => 'FOOD-PF-'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'active' => 1,
+        ]);
+        $analysisType = \App\AnalysisType::query()->create([
+            'name' => 'Food and feed PF '. \Illuminate\Support\Str::random(4),
+            'code' => 'FF-PF-'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+        $analyte = \App\Analyte::query()->create([
+            'name' => 'Bacillus cereus PF '. \Illuminate\Support\Str::random(4),
+            'code' => 'BACILLUS_PF_'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $pricedElement = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+            'level' => 1,
+        ]);
+        $trfElement = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+            'level' => 2,
+        ]);
+
+        $pricelist = Pricelist::query()->create([
+            'code' => 'PL-PF-'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'description' => 'Analyte fallback pricelist',
+            'active' => true,
+            'is_master' => true,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleType->id,
+            'analysis_id' => $analysisType->id,
+            'analysis_element_id' => $pricedElement->id,
+            'selling_price' => 93.0,
+            'active' => true,
+            'is_package' => false,
+        ]);
+
+        $service = app(AcceptanceFormPricingService::class);
+        $price = $service->resolveLinePrice(
+            $pricelist,
+            (string) $sampleType->id,
+            (string) $analysisType->id,
+            (string) $trfElement->id,
+        );
+
+        $this->assertSame(93.0, $price);
+    }
+
+    public function test_resolve_line_price_falls_back_to_matching_analyte_name(): void
+    {
+        $sampleType = \App\SampleType::query()->create([
+            'name' => 'Food Name Fallback '. \Illuminate\Support\Str::random(4),
+            'code' => 'FOOD-NF-'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'active' => 1,
+        ]);
+        $analysisType = \App\AnalysisType::query()->create([
+            'name' => 'Food and feed NF '. \Illuminate\Support\Str::random(4),
+            'code' => 'FF-NF-'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+        $sharedName = 'Coliforms NF '. \Illuminate\Support\Str::random(4);
+        $sharedCode = 'COLIFORMS_NF_'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4));
+
+        $pricedAnalyte = \App\Analyte::query()->create([
+            'name' => $sharedName,
+            'code' => $sharedCode,
+            'active' => 1,
+        ]);
+        $trfAnalyte = \App\Analyte::query()->create([
+            'name' => $sharedName,
+            'code' => $sharedCode.'_TRF',
+            'active' => 1,
+        ]);
+
+        $pricedElement = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $pricedAnalyte->id,
+            'active' => 1,
+            'level' => 1,
+        ]);
+        $trfElement = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $trfAnalyte->id,
+            'active' => 1,
+            'level' => 2,
+        ]);
+
+        $pricelist = Pricelist::query()->create([
+            'code' => 'PL-NF-'. \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'description' => 'Name fallback pricelist',
+            'active' => true,
+            'is_master' => true,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleType->id,
+            'analysis_id' => $analysisType->id,
+            'analysis_element_id' => $pricedElement->id,
+            'selling_price' => 110.0,
+            'active' => true,
+            'is_package' => false,
+        ]);
+
+        $service = app(AcceptanceFormPricingService::class);
+        $price = $service->resolveLinePrice(
+            $pricelist,
+            (string) $sampleType->id,
+            (string) $analysisType->id,
+            (string) $trfElement->id,
+        );
+
+        $this->assertSame(110.0, $price);
+    }
 }

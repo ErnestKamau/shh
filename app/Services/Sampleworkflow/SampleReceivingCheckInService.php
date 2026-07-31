@@ -92,7 +92,6 @@ final class SampleReceivingCheckInService
                 : '',
             'quotation_number' => (string) ($acceptedQuotation?->quote_number ?? ''),
             'client_po_number' => (string) ($enquiry?->client_po_number ?? ''),
-            'advance_payment_reference' => (string) ($enquiry?->advance_payment_reference ?? ''),
             'can_receive' => $this->canReceiveInstance($instance, $enquiry),
             'receive_block_reason' => $this->receiveBlockReason($instance, $enquiry),
             'is_commercial_trf' => $this->commercialEnquiryService->isCommercialTestRequestForm($instance),
@@ -196,6 +195,8 @@ final class SampleReceivingCheckInService
         return match ((string) $enquiry->status) {
             SampleSubmissionRequest::STATUS_REQUESTED,
             SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => 'Quotation has not been sent to the customer yet.',
+            SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL => 'Quotation is pending lab manager approval.',
+            SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND => 'Quotation is approved but has not been sent to the customer yet.',
             SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Waiting for the client to accept the quotation.',
             SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the client.',
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO before physical samples can be received.',

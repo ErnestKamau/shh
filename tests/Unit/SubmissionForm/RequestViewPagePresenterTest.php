@@ -14,7 +14,7 @@ class RequestViewPagePresenterTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_ready_for_reception_shows_accept_sample_action(): void
+    public function test_ready_for_reception_shows_receive_samples_action(): void
     {
         [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION
@@ -35,18 +35,45 @@ class RequestViewPagePresenterTest extends TestCase
         $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
-        $this->assertSame('accept_samples', $actions['primary']['key'] ?? null);
-        $this->assertSame('Accept sample', $actions['primary']['label'] ?? null);
+        $this->assertSame('receive_samples', $actions['primary']['key'] ?? null);
+        $this->assertSame('Receive Samples', $actions['primary']['label'] ?? null);
         $this->assertNotContains('process_enquiry', $keys);
         $this->assertNotContains('record_po', $keys);
         $this->assertNotContains('record_walk_in_acceptance', $keys);
         $this->assertNotContains('open_receiving_board', $keys);
         $this->assertNotContains('edit', $keys);
+        $this->assertNotContains('accept_samples', $keys);
+        $this->assertContains('receive_samples', $keys);
+    }
+
+    public function test_sample_integrity_check_shows_accept_sample_action(): void
+    {
+        [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK
+        );
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form,
+            commercialEnquiry: $enquiry,
+            isTrfForm: true,
+        );
+
+        $this->assertSame(
+            RequestViewPagePresenter::STAGE_SAMPLE_INTEGRITY_CHECK,
+            $presenter->enquiryDisplayStatus()
+        );
+
+        $actions = $presenter->nextStepActions('Samples Receiving');
+        $keys = $this->actionKeys($actions);
+
+        $this->assertSame('accept_samples', $actions['primary']['key'] ?? null);
+        $this->assertSame('Accept sample', $actions['primary']['label'] ?? null);
         $this->assertNotContains('receive_samples', $keys);
         $this->assertContains('accept_samples', $keys);
     }
 
-    public function test_legacy_in_review_enquiry_maps_to_ready_for_reception_with_accept(): void
+    public function test_legacy_in_review_enquiry_maps_to_ready_for_reception_without_receive_primary(): void
     {
         [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
             SampleSubmissionRequest::STATUS_IN_REVIEW
@@ -69,12 +96,14 @@ class RequestViewPagePresenterTest extends TestCase
         $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
-        $this->assertSame('accept_samples', $actions['primary']['key'] ?? null);
-        $this->assertSame('Accept sample', $actions['primary']['label'] ?? null);
+        // Legacy In Review display stage still maps to Ready for Reception stage label,
+        // but Accept now lives on Sample Integrity Check for the commercial path.
+        $this->assertSame('receive_samples', $actions['primary']['key'] ?? null);
+        $this->assertSame('Receive Samples', $actions['primary']['label'] ?? null);
         $this->assertNotContains('open_review_board', $keys);
         $this->assertNotContains('process_enquiry', $keys);
         $this->assertNotContains('record_po', $keys);
-        $this->assertNotContains('receive_samples', $keys);
+        $this->assertNotContains('accept_samples', $keys);
     }
 
     public function test_accepted_enquiry_shows_accepted_and_hides_accept_sample(): void

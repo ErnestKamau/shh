@@ -119,7 +119,8 @@ class RequestViewPageTest extends TestCase
             ->call('openAcceptSampleWizard')
             ->assertDispatched('open-acceptance-wizard', function ($eventName, $params) use ($instance, $enquiry): bool {
                 return ($params['submissionFormInstanceId'] ?? null) === $instance->id
-                    && ($params['submissionRequestId'] ?? null) === $enquiry->id;
+                    && ($params['submissionRequestId'] ?? null) === $enquiry->id
+                    && ($params['mode'] ?? null) === 'receive_only';
             });
     }
 
@@ -192,7 +193,25 @@ class RequestViewPageTest extends TestCase
         $customer->account_status = $creditStatus->id;
         $customer->save();
 
-        $instance->refresh();
+        $quotation = \App\QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ-RV-PO-001',
+            'quote_date' => now()->toDateString(),
+            'sent_to_customer_at' => now(),
+            'status' => 'Quote Complete',
+            'crm_customer_id' => $customer->id,
+        ]);
+
+        \App\Models\SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'status' => \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            'source_channel' => 'walk_in',
+            'crm_customer_id' => $customer->id,
+            'current_quotation_header_id' => $quotation->id,
+            'accepted_quotation_header_id' => $quotation->id,
+            'number_of_samples' => 1,
+        ]);
 
         Livewire::actingAs($this->user)
             ->test(RequestViewPage::class, [
@@ -200,9 +219,10 @@ class RequestViewPageTest extends TestCase
                 'instanceId' => $instance->id,
             ])
             ->call('openPoCaptureModal')
+            ->assertSet('showQuotationAcceptanceModal', true)
+            ->assertSet('quotationAcceptancePoOnly', true)
             ->assertSet('poRequiresPo', true)
             ->set('clientPoNumber', '')
-            ->set('poSkipped', false)
             ->call('submitPoAndReadyForReception')
             ->assertHasErrors(['client_po_number']);
 

@@ -450,10 +450,19 @@ class AcceptanceFormSampleHeaderService
             $parameterSections = is_array($config['parameter_lab_sections'] ?? null)
                 ? $config['parameter_lab_sections']
                 : [];
-            foreach ($parameterSections as $sectionId) {
-                $sectionId = trim((string) $sectionId);
-                if ($sectionId !== '' && Str::isUuid($sectionId)) {
-                    $sectionIds[] = $sectionId;
+            // Values are lists of section IDs (multi-section per test); legacy strings still supported.
+            foreach ($parameterSections as $sectionValue) {
+                $ids = is_array($sectionValue)
+                    ? $sectionValue
+                    : [$sectionValue];
+                foreach ($ids as $sectionId) {
+                    if (is_array($sectionId)) {
+                        continue;
+                    }
+                    $sectionId = trim((string) $sectionId);
+                    if ($sectionId !== '' && Str::isUuid($sectionId)) {
+                        $sectionIds[] = $sectionId;
+                    }
                 }
             }
 

@@ -48,9 +48,6 @@ class HomeController extends Controller
   public function index()
   {
 	$user = auth()->user();
-	$user->is_client = 0;
-	$user->save();
-	$user->assignRole('admin');
 	if ($user->active == 0){
 		\Auth::logout();
 		return redirect()->route('login');

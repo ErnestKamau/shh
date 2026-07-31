@@ -756,12 +756,6 @@
                                     <span class="receive-checkin-stat__value">{{ $context['client_po_number'] }}</span>
                                 </div>
                             @endif
-                            @if (!empty($context['advance_payment_reference']))
-                                <div class="receive-checkin-stat">
-                                    <span class="receive-checkin-stat__label">Advance payment</span>
-                                    <span class="receive-checkin-stat__value">{{ $context['advance_payment_reference'] }}</span>
-                                </div>
-                            @endif
                             @if (!empty($context['sample_description']) || !empty($context['sample_description_html']))
                                 <div class="receive-checkin-stat receive-checkin-stat--full">
                                     <span class="receive-checkin-stat__label">Sample description</span>

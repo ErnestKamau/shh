@@ -305,4 +305,84 @@ class ProcessEnquiryWizardTest extends TestCase
         $this->assertCount(1, $lines);
         $this->assertSame(95.0, (float) $lines[0]['unit_price']);
     }
+
+    public function test_build_inline_lines_resolves_price_when_trf_element_differs_from_pricelist_element(): void
+    {
+        $customerId = (string) Str::uuid();
+        $suffix = Str::upper(Str::random(4));
+
+        $sampleType = \App\SampleType::query()->create([
+            'name' => 'Food Sync '.$suffix,
+            'code' => 'FOOD-SYNC-'.$suffix,
+            'active' => 1,
+        ]);
+        $analysisType = \App\AnalysisType::query()->create([
+            'name' => 'Food and feed Sync '.$suffix,
+            'code' => 'FF-SYNC-'.$suffix,
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+        $analyte = \App\Analyte::query()->create([
+            'name' => 'Bacillus cereus Sync '.$suffix,
+            'code' => 'BACILLUS_SYNC_'.$suffix,
+            'active' => 1,
+        ]);
+
+        $pricedElement = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+            'level' => 1,
+        ]);
+        $trfElement = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+            'level' => 2,
+        ]);
+
+        $pricelist = Pricelist::query()->create([
+            'code' => 'PL-SYNC-'.$suffix,
+            'description' => 'Master sync fallback',
+            'active' => true,
+            'is_master' => true,
+        ]);
+
+        PricelistCustomer::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'customer_id' => $customerId,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleType->id,
+            'analysis_id' => $analysisType->id,
+            'analysis_element_id' => $pricedElement->id,
+            'selling_price' => 93,
+            'vat' => true,
+            'active' => true,
+            'is_package' => false,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            'source_channel' => 'walk_in',
+        ]);
+
+        $lines = app(QuotationFromEnquiryService::class)->buildInlineLinesFromAcceptanceLines($enquiry, [
+            [
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'analysis_element_id' => (string) $trfElement->id,
+                'parameter_label' => (string) $analyte->name,
+                'unit_amount' => 0,
+                'number_of_samples' => 1,
+            ],
+        ]);
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(93.0, (float) $lines[0]['unit_price']);
+    }
 }

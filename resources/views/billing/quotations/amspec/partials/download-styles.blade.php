@@ -222,8 +222,28 @@
         line-height: 1.25;
     }
 
-    body.amspec-download-body .amspec-signature-row {
+    body.amspec-download-body .amspec-signature-closing {
         margin-top: 8px;
+        width: 100%;
+        font-size: 9.5pt;
+    }
+
+    body.amspec-download-body .amspec-signature-closing p {
+        margin: 0;
+    }
+
+    body.amspec-download-body .amspec-signature-intro {
+        margin-top: 10px;
+        width: 50%;
+        padding-right: 12px;
+        font-size: 9.5pt;
+    }
+
+    body.amspec-download-body .amspec-signature-intro p {
+        margin: 0 0 4px 0;
+    }
+
+    body.amspec-download-body .amspec-signature-row {
         display: table;
         width: 100%;
         table-layout: fixed;

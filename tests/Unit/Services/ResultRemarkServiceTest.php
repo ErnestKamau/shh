@@ -30,6 +30,24 @@ class ResultRemarkServiceTest extends TestCase
         $this->assertSame($expected, $remark);
     }
 
+    #[DataProvider('reportingSymbolStandardProvider')]
+    public function test_reporting_symbol_is_applied_to_manual_max_min_limits(
+        string $standard,
+        string $result,
+        ?string $symbol,
+        string $expected,
+    ): void {
+        $remark = $this->service->calculateRemark(
+            null,
+            $result,
+            null,
+            $standard,
+            $symbol,
+        );
+
+        $this->assertSame($expected, $remark);
+    }
+
     /**
      * @return array<string, array{0: string, 1: string, 2: string}>
      */
@@ -45,6 +63,21 @@ class ResultRemarkServiceTest extends TestCase
             'nil + absent => PASS' => ['NIL', 'Absent', 'PASS'],
             'max still works' => ['max 34', '34', 'PASS'],
             'max fail still works' => ['max 34', '36', 'FAIL'],
+        ];
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string, 2: ?string, 3: string}>
+     */
+    public static function reportingSymbolStandardProvider(): array
+    {
+        return [
+            'lt + under max => PASS' => ['max 50', '4', '<', 'PASS'],
+            'lt + equal max => PASS' => ['max 50', '50', '<', 'PASS'],
+            'no symbol under max => PASS' => ['max 50', '4', null, 'PASS'],
+            'gt under max still PASS by legacy rule' => ['max 50', '4', '>', 'PASS'],
+            'gt at max => FAIL' => ['max 50', '50', '>', 'FAIL'],
+            'typed limit via evaluateTypedLimit lt' => ['max 50', '4', '<', 'PASS'],
         ];
     }
 }

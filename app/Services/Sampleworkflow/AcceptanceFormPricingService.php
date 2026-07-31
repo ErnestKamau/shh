@@ -473,6 +473,18 @@ class AcceptanceFormPricingService
             if ($item) {
                 return (float) $item->selling_price;
             }
+
+            // TRF/catalog often keeps a different element UUID than the pricelist row for the
+            // same analyte (re-imports, Food vs Food & Feed duplicates). Match by analyte.
+            $analytePrice = $this->resolveLinePriceByAnalyte(
+                $pricelist,
+                $sampleTypeId,
+                $analysisTypeId,
+                $analysisElementId,
+            );
+            if ($analytePrice > 0) {
+                return $analytePrice;
+            }
         }
 
         if ($analysisTypeId !== '') {
@@ -482,6 +494,78 @@ class AcceptanceFormPricingService
                 ->first();
             if ($item) {
                 return (float) $item->selling_price;
+            }
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Resolve selling price when the line's analysis_element_id is not on the pricelist,
+     * but another element for the same analyte (id / name / code) is.
+     */
+    private function resolveLinePriceByAnalyte(
+        Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        string $analysisElementId,
+    ): float {
+        $element = AnalysisElements::query()
+            ->with('analyte:id,name,code')
+            ->find($analysisElementId);
+
+        if ($element === null) {
+            return 0.0;
+        }
+
+        $analyteId = trim((string) ($element->analyte_id ?? ''));
+        $analyteName = strtolower(trim((string) ($element->analyte?->name ?? '')));
+        $analyteCode = strtolower(trim((string) ($element->analyte?->code ?? '')));
+
+        if ($analyteId === '' && $analyteName === '' && $analyteCode === '') {
+            return 0.0;
+        }
+
+        $baseQuery = PricelistItem::query()
+            ->where('pricelist_id', $pricelist->id)
+            ->where('active', 1)
+            ->where('is_package', false)
+            ->whereNotNull('analysis_element_id');
+
+        $scoped = (clone $baseQuery);
+        if (! empty($sampleTypeId)) {
+            $scoped->where('sample_type_id', $sampleTypeId);
+        }
+        if ($analysisTypeId !== '') {
+            $scoped->where('analysis_id', $analysisTypeId);
+        }
+
+        foreach ([$scoped, $baseQuery] as $query) {
+            if ($analyteId !== '') {
+                $item = (clone $query)
+                    ->whereHas('analysisElement', fn ($elementQuery) => $elementQuery->where('analyte_id', $analyteId))
+                    ->first();
+                if ($item !== null) {
+                    return (float) $item->selling_price;
+                }
+            }
+
+            if ($analyteName !== '' || $analyteCode !== '') {
+                $item = (clone $query)
+                    ->whereHas('analysisElement.analyte', function ($analyteQuery) use ($analyteName, $analyteCode): void {
+                        $analyteQuery->where(function ($match) use ($analyteName, $analyteCode): void {
+                            if ($analyteName !== '') {
+                                $match->whereRaw('LOWER(name) = ?', [$analyteName]);
+                            }
+                            if ($analyteCode !== '') {
+                                $match->orWhereRaw('LOWER(code) = ?', [$analyteCode]);
+                            }
+                        });
+                    })
+                    ->first();
+                if ($item !== null) {
+                    return (float) $item->selling_price;
+                }
             }
         }
 

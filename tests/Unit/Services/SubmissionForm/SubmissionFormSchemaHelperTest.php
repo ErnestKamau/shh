@@ -287,6 +287,78 @@ class SubmissionFormSchemaHelperTest extends TestCase
         );
     }
 
+    public function test_selected_checkbox_keys_returns_truthy_option_keys(): void
+    {
+        $this->assertSame(
+            ['microbiology', 'chemistry'],
+            SubmissionFormSchemaHelper::selectedCheckboxKeys([
+                'microbiology' => true,
+                'legionella' => false,
+                'chemistry' => true,
+            ]),
+        );
+
+        $this->assertSame([], SubmissionFormSchemaHelper::selectedCheckboxKeys([
+            'microbiology' => false,
+        ]));
+    }
+
+    public function test_selected_checkbox_keys_ignores_non_checkbox_maps(): void
+    {
+        // Flat token lists (e.g. analysis-type CSV pickers) must not be treated as checkbox maps.
+        $this->assertNull(SubmissionFormSchemaHelper::selectedCheckboxKeys(['uuid-a', 'uuid-b']));
+
+        // Nested per-row multi-selects are not checkbox maps either.
+        $this->assertNull(SubmissionFormSchemaHelper::selectedCheckboxKeys([0 => ['a', 'b']]));
+
+        // Value maps (key === value) are selection lists, not booleans.
+        $this->assertNull(SubmissionFormSchemaHelper::selectedCheckboxKeys(['grab' => 'grab']));
+    }
+
+    public function test_test_category_tokens_drops_legacy_stringified_booleans(): void
+    {
+        $this->assertSame([], SubmissionFormSchemaHelper::testCategoryTokens('1,1'));
+        $this->assertSame([], SubmissionFormSchemaHelper::testCategoryTokens('1,'));
+    }
+
+    public function test_test_category_tokens_canonicalizes_and_dedupes(): void
+    {
+        $this->assertSame(
+            ['microbiology', 'chemistry'],
+            SubmissionFormSchemaHelper::testCategoryTokens('microbiology, chemical_analysis'),
+        );
+
+        $this->assertSame(
+            ['chemistry'],
+            SubmissionFormSchemaHelper::testCategoryTokens('chemical,chemistry'),
+        );
+    }
+
+    public function test_test_category_tokens_accepts_checkbox_map(): void
+    {
+        $this->assertSame(
+            ['microbiology', 'legionella'],
+            SubmissionFormSchemaHelper::testCategoryTokens([
+                'microbiology' => true,
+                'legionella' => true,
+                'chemistry' => false,
+            ]),
+        );
+    }
+
+    public function test_test_category_label_humanizes_tokens(): void
+    {
+        $this->assertSame(
+            'Microbiology, Chemistry',
+            SubmissionFormSchemaHelper::testCategoryLabel('microbiology,chemistry'),
+        );
+
+        $this->assertSame('', SubmissionFormSchemaHelper::testCategoryLabel('1,1'));
+
+        // Unknown categories are preserved (title-cased) rather than dropped.
+        $this->assertSame('Routine', SubmissionFormSchemaHelper::testCategoryLabel('routine'));
+    }
+
     private function createFieldHolder(SubmissionFormSection $section, string $name): SubmissionFormElement
     {
         $holder = SubmissionFormElementHolder::query()->create([

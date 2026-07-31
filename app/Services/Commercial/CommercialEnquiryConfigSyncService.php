@@ -126,22 +126,38 @@ final class CommercialEnquiryConfigSyncService
         $lineNo = 1;
 
         foreach ($configs as $config) {
+            $sampleTypeIds = $this->configService->sampleTypeIdsFromConfig($config);
             $parameterKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
             $rowIndex = $config['row_index'] ?? null;
             $details = $this->configService->sampleDetailsFromConfig($config);
 
             if ($parameterKeys === []) {
-                $lines[] = [
-                    'line_no' => $lineNo++,
-                    'row_index' => $rowIndex,
-                    'sample_type_id' => $config['sample_type_id'] ?? null,
-                    'analysis_type_id' => $config['analysis_type_id'] ?? null,
-                    'analysis_element_id' => null,
-                    'parameter_label' => 'Parameter',
-                    'number_of_samples' => 1,
-                    'sample_condition_id' => $config['sample_condition_id'] ?? null,
-                    'customer_sample_id' => $details['customer_sample_id'] !== '' ? $details['customer_sample_id'] : null,
-                ];
+                $analysisTypeIds = $this->configService->analysisTypeIdsFromConfig($config);
+                if ($analysisTypeIds === []) {
+                    $analysisTypeIds = [null];
+                }
+
+                foreach ($analysisTypeIds as $analysisTypeId) {
+                    $lines[] = [
+                        'line_no' => $lineNo++,
+                        'row_index' => $rowIndex,
+                        'sample_type_id' => $config['sample_type_id'] ?? null,
+                        'sample_type_ids' => $sampleTypeIds,
+                        'allows_multiple_sample_types' => (bool) ($config['allows_multiple_sample_types'] ?? false),
+                        'analysis_type_id' => $analysisTypeId,
+                        'analysis_element_id' => null,
+                        'parameter_label' => 'Parameter',
+                        'number_of_samples' => 1,
+                        'sample_condition_id' => $config['sample_condition_id'] ?? null,
+                        'customer_sample_id' => $details['customer_sample_id'] !== '' ? $details['customer_sample_id'] : null,
+                        'attributes' => array_filter([
+                            'analysis_type_ids' => count($analysisTypeIds) > 1
+                                ? array_values(array_filter($analysisTypeIds))
+                                : null,
+                            'sample_type_ids' => count($sampleTypeIds) > 1 ? $sampleTypeIds : null,
+                        ], static fn (mixed $value): bool => $value !== null),
+                    ];
+                }
 
                 continue;
             }
@@ -151,12 +167,20 @@ final class CommercialEnquiryConfigSyncService
                     'line_no' => $lineNo++,
                     'row_index' => $rowIndex,
                     'sample_type_id' => $config['sample_type_id'] ?? null,
+                    'sample_type_ids' => $sampleTypeIds,
+                    'allows_multiple_sample_types' => (bool) ($config['allows_multiple_sample_types'] ?? false),
                     'analysis_type_id' => $config['analysis_type_id'] ?? null,
                     'analysis_element_id' => (string) $paramKey,
                     'parameter_label' => 'Parameter',
                     'number_of_samples' => 1,
                     'sample_condition_id' => $config['sample_condition_id'] ?? null,
                     'customer_sample_id' => $details['customer_sample_id'] !== '' ? $details['customer_sample_id'] : null,
+                    'attributes' => array_filter([
+                        'analysis_type_ids' => count($this->configService->analysisTypeIdsFromConfig($config)) > 1
+                            ? $this->configService->analysisTypeIdsFromConfig($config)
+                            : null,
+                        'sample_type_ids' => count($sampleTypeIds) > 1 ? $sampleTypeIds : null,
+                    ], static fn (mixed $value): bool => $value !== null),
                 ];
             }
         }

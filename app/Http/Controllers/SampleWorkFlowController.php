@@ -48,6 +48,7 @@ use App\Services\ResultRemarkService;
 use App\Services\Qc\QcBatchCompletionService;
 use App\Services\Lab\MethodConfigurationResolver;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
+use App\Services\Sampleworkflow\BatchVerificationReadinessService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\ProcessedResultSyncService;
 use App\Services\StandardLimitDisplayService;
@@ -2817,6 +2818,13 @@ class SampleWorkFlowController extends Controller
     public function move_to_workflow(Request $request, $status, $batch_id)
     {
         $batch = SampleHeader::find($batch_id);
+
+        if ($batch->status == 'Samples In Lab' && $status == 'Sample Verification') {
+            $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($batch);
+            if ($resultsBlockReason !== null) {
+                return redirect()->back()->with('error', $resultsBlockReason);
+            }
+        }
 
         if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
             // Validate verification approval order first
@@ -6716,6 +6724,13 @@ class SampleWorkFlowController extends Controller
     {
         $batch = SampleHeader::find($request->batch_id);
         $previousWorkflow = $batch->status;
+
+        if ($request->status == 'Sample Verification') {
+            $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($batch);
+            if ($resultsBlockReason !== null) {
+                return redirect()->back()->with('error', $resultsBlockReason);
+            }
+        }
 
         if ($batch->lab_section_ids == '') {
             return redirect()->back()->with('error', 'Kindly provide the lab sections associated with the sample at batch information section');

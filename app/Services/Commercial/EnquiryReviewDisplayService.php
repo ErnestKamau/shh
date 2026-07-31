@@ -439,9 +439,18 @@ final class EnquiryReviewDisplayService
             }
         }
 
-        $labels = array_values(array_unique(array_filter($labels)));
+        // Reference names carry stray whitespace/casing, so dedupe on a normalized key.
+        $unique = [];
+        foreach ($labels as $label) {
+            $label = trim((string) $label);
+            $key = mb_strtolower($label);
+            if ($label === '' || isset($unique[$key])) {
+                continue;
+            }
+            $unique[$key] = $label;
+        }
 
-        return $labels !== [] ? implode(', ', $labels) : '—';
+        return $unique !== [] ? implode(', ', array_values($unique)) : '—';
     }
 
     /**

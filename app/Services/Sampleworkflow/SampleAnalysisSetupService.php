@@ -413,6 +413,14 @@ class SampleAnalysisSetupService
             return null;
         }
 
+        // Multi-section assignments store a list; use the primary section for captured results.
+        if (is_array($candidate)) {
+            $candidate = $candidate[0] ?? null;
+            if ($candidate === null || $candidate === '' || is_array($candidate)) {
+                return null;
+            }
+        }
+
         $id = (string) $candidate;
         if (! Str::isUuid($id)) {
             return null;

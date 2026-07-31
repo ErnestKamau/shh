@@ -91,7 +91,7 @@ final class EnquiryAccountSettingsService
             self::TYPE_ADVANCE => [
                 'type' => $type,
                 'requires_po' => false,
-                'requires_advance_reference' => true,
+                'requires_advance_reference' => false,
                 'allows_po_skip' => false,
             ],
             default => [
@@ -110,18 +110,11 @@ final class EnquiryAccountSettingsService
     {
         $rules = $this->poRulesForCustomer($customer);
         $poNumber = trim((string) ($payload['client_po_number'] ?? ''));
-        $advanceRef = trim((string) ($payload['advance_payment_reference'] ?? ''));
         $poSkipped = filter_var($payload['po_skipped'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($rules['requires_po'] && $poNumber === '') {
             throw ValidationException::withMessages([
                 'client_po_number' => ['Purchase order number is required for credit account customers.'],
-            ]);
-        }
-
-        if ($rules['requires_advance_reference'] && $advanceRef === '') {
-            throw ValidationException::withMessages([
-                'advance_payment_reference' => ['Advance payment reference is required for this customer account.'],
             ]);
         }
 

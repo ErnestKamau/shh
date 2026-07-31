@@ -67,13 +67,23 @@
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             @else
-                                <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled($lines === [])>
-                                    <span wire:loading.remove wire:target="sendQuotation">
-                                        <i class="mdi mdi-send"></i>
-                                        {{ $quotationSent ? 'Send again' : 'Send to customer' }}
-                                    </span>
-                                    <span wire:loading wire:target="sendQuotation">Sending…</span>
-                                </button>
+                                @if($quotationMode === 'use_existing' || $quotationApprovedReadyToSend || $quotationSent)
+                                    <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled($lines === [] || $quotationPendingApproval)>
+                                        <span wire:loading.remove wire:target="sendQuotation">
+                                            <i class="mdi mdi-send"></i>
+                                            {{ $quotationSent ? 'Send again' : 'Send to customer' }}
+                                        </span>
+                                        <span wire:loading wire:target="sendQuotation">Sending…</span>
+                                    </button>
+                                @else
+                                    <button type="button" class="btn btn-primary btn-sm" wire:click="openSendForApprovalModal" wire:loading.attr="disabled" @disabled($lines === [] || $quotationPendingApproval)>
+                                        <span wire:loading.remove wire:target="openSendForApprovalModal,submitQuotationForApproval">
+                                            <i class="mdi mdi-account-check"></i>
+                                            {{ $quotationPendingApproval ? 'Pending approval' : 'Send for Approval' }}
+                                        </span>
+                                        <span wire:loading wire:target="openSendForApprovalModal,submitQuotationForApproval">Submitting…</span>
+                                    </button>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -264,8 +274,21 @@
                                         @endif
                                     </h6>
                                     <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
+                                        @if($quoteNumber !== '')
+                                            <span class="badge badge-light border">Quote {{ $quoteNumber }}</span>
+                                        @endif
                                         @if($quotationSent)
                                             <span class="badge badge-success">Quotation Sent</span>
+                                        @elseif($quotationPendingApproval)
+                                            <span class="badge badge-warning">Pending Approval</span>
+                                        @elseif($quotationApprovedReadyToSend)
+                                            <span class="badge badge-info">
+                                                @if($quotationReviewedByName !== '')
+                                                    Reviewed By: {{ $quotationReviewedByName }}
+                                                @else
+                                                    Ready to send
+                                                @endif
+                                            </span>
                                         @elseif($quotationBuilt && $quotationMode === 'build_new')
                                             <span class="badge badge-success">Quotation saved</span>
                                         @endif
@@ -300,13 +323,12 @@
                                                 <th>Parameter</th>
                                                 <th class="text-center">LOQ</th>
                                                 <th class="text-center">MU%</th>
-                                                <th class="text-right">Unit price</th>
-                                                <th class="text-center">Samples</th>
+                                                <th class="text-right" style="width: 104px;">Unit price</th>
+                                                <th class="text-center" style="width: 64px;">Samples</th>
                                                 <th class="text-right">Line total</th>
                                                 <th class="text-center">Has VAT</th>
-                                                <th class="text-center">Subcontract</th>
                                                 @if($quotationMode === 'build_new')
-                                                    <th class="text-center" style="width: 90px;">Actions</th>
+                                                    <th class="text-center" style="width: 48px;">Actions</th>
                                                 @endif
                                             </tr>
                                         </thead>
@@ -353,15 +375,16 @@
                                                     </td>
                                                     <td class="text-center text-muted small">{{ $line['loq'] ?? '—' }}</td>
                                                     <td class="text-center text-muted small">{{ $line['mu_percent'] ?? '—' }}</td>
-                                                    <td class="text-right">
+                                                    <td class="text-right" style="width: 104px;">
                                                         @if($readOnly)
                                                             {{ number_format($unitPrice, 2) }}
                                                         @else
                                                             <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
+                                                                   style="max-width: 104px; margin-left: auto;"
                                                                    wire:model.blur="lines.{{ $index }}.unit_price">
                                                         @endif
                                                     </td>
-                                                    <td class="text-center text-muted">{{ $sampleCount }}</td>
+                                                    <td class="text-center text-muted" style="width: 64px;">{{ $sampleCount }}</td>
                                                     <td class="text-right text-muted">{{ number_format($lineTotal, 2) }}</td>
                                                     <td class="text-center">
                                                         @php $hasVat = (float) ($line['tax'] ?? 0) > 0; @endphp
@@ -376,31 +399,18 @@
                                                             >
                                                         @endif
                                                     </td>
-                                                    <td class="text-center">
-                                                        @if($readOnly)
-                                                            {{ !empty($line['subcontracted']) ? 'Yes' : 'No' }}
-                                                        @else
-                                                            <input type="checkbox" wire:model.live="lines.{{ $index }}.subcontracted">
-                                                        @endif
-                                                    </td>
                                                     @if($quotationMode === 'build_new')
                                                         <td class="text-center">
-                                                            <div class="btn-group btn-group-sm">
-                                                                <button type="button" class="btn btn-outline-secondary btn-sm" title="Reset price from pricelist"
-                                                                        wire:click="resetLinePriceFromPricelist({{ $index }})">
-                                                                    <i class="mdi mdi-currency-usd"></i>
-                                                                </button>
-                                                                <button type="button" class="btn btn-outline-danger btn-sm" title="Remove line"
-                                                                        wire:click="removeQuotationLine({{ $index }})">
-                                                                    <i class="mdi mdi-trash-can-outline"></i>
-                                                                </button>
-                                                            </div>
+                                                            <button type="button" class="btn btn-outline-danger btn-sm" title="Remove line"
+                                                                    wire:click="removeQuotationLine({{ $index }})">
+                                                                <i class="mdi mdi-trash-can-outline"></i>
+                                                            </button>
                                                         </td>
                                                     @endif
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="{{ $quotationMode === 'use_existing' ? 9 : 10 }}" class="text-muted text-center py-4">
+                                                    <td colspan="{{ $quotationMode === 'use_existing' ? 8 : 9 }}" class="text-muted text-center py-4">
                                                         @if($quotationMode === 'use_existing')
                                                             Select an existing quotation to preview lines and send.
                                                         @else
@@ -412,11 +422,11 @@
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Subtotal</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 6 : 7 }}" class="text-right">Subtotal</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 6 : 7 }}" class="text-right">
                                                     Tax
                                                     @if($quotationMode === 'build_new' && $this->taxRate > 0)
                                                         <span class="text-muted small fw-normal">({{ number_format($this->taxRate, 0) }}%)</span>
@@ -425,7 +435,7 @@
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 6 : 7 }}" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['total'], 2) }}</th>
                                             </tr>
                                         </tfoot>
@@ -610,6 +620,59 @@
                         <button type="button" class="btn btn-light" wire:click="$set('showAddLineModal', false)">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="confirmAddQuotationLine"
                                 @disabled($addLineAllParametersSelected || !$addLineAnalysisTypeId)>Add to quotation</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showApprovalModal)
+        <div class="acc-wizard-backdrop acc-wizard-backdrop--nested" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+                <div class="modal-content acc-wizard-modal">
+                    <div class="acc-wizard-header acc-wizard-header--compact">
+                        <h5 class="acc-wizard-title mb-0">Send for Approval</h5>
+                        <button type="button" class="acc-wizard-close" wire:click="closeSendForApprovalModal">
+                            <i class="mdi mdi-close"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body px-4 py-3">
+                        <p class="text-muted small mb-3">
+                            Assign a Lab Manager to approve
+                            @if($quoteNumber !== '')
+                                quotation <strong>{{ $quoteNumber }}</strong>
+                            @else
+                                this quotation
+                            @endif
+                            before it can be sent to the customer.
+                        </p>
+                        <div class="form-group">
+                            <label class="acc-label" for="enquiry-approval-manager">Lab Manager <span class="text-danger">*</span></label>
+                            <select id="enquiry-approval-manager" class="form-control acc-input" wire:model="approvalLabManagerId">
+                                <option value="">Select Lab Manager…</option>
+                                @foreach($labManagerOptions as $manager)
+                                    <option value="{{ $manager['id'] }}">{{ $manager['name'] }}</option>
+                                @endforeach
+                            </select>
+                            @error('approvalLabManagerId') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="acc-label" for="enquiry-approval-comments">Comments (optional)</label>
+                            <textarea id="enquiry-approval-comments" class="form-control acc-input" rows="2" wire:model="approvalComments" placeholder="Notes for the lab manager"></textarea>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify" wire:model="approvalNotifyEmail">
+                            <label class="form-check-label" for="enquiry-approval-notify">Email notification to lab manager</label>
+                        </div>
+                    </div>
+                    <div class="acc-wizard-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeSendForApprovalModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="submitQuotationForApproval" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="submitQuotationForApproval">
+                                <i class="mdi mdi-account-check"></i> Submit for approval
+                            </span>
+                            <span wire:loading wire:target="submitQuotationForApproval">Submitting…</span>
+                        </button>
                     </div>
                 </div>
             </div>

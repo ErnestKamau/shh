@@ -933,6 +933,17 @@
         box-shadow: 0 0 0 3px var(--ls-color-primary-focus, rgba(128, 0, 0, 0.15));
     }
 
+    .acc-param-tags__control.is-disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        background: #f8f9fa;
+    }
+
+    .acc-analysis-type-tags,
+    .acc-sample-type-tags {
+        min-width: 10rem;
+    }
+
     .acc-param-tags__chips {
         display: flex;
         flex-wrap: wrap;
@@ -1012,6 +1023,7 @@
         left: auto;
         right: auto;
         top: auto;
+        bottom: auto;
         z-index: 2050;
     }
 
@@ -1073,6 +1085,28 @@
 
     .acc-wizard-root--enquiry .acc-sample-config-table-wrap {
         overflow: visible;
+    }
+
+    /* Process Enquiry Step 2 shows only Sample type + Analysis type(s) — span full width. */
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact th:nth-child(1),
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact td:nth-child(1) {
+        width: 32%;
+        min-width: 140px;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact th:nth-child(2),
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact td:nth-child(2) {
+        width: 68%;
+        min-width: 220px;
+    }
+
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact th:nth-child(3),
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact td:nth-child(3),
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact th:nth-child(4),
+    .acc-wizard-root--enquiry .acc-sample-config-table--compact td:nth-child(4) {
+        width: auto;
+        min-width: 0;
+        max-width: none;
     }
 
     .acc-wizard-root--enquiry .acc-sample-config-params-row td {

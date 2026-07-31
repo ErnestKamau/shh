@@ -515,9 +515,16 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     $prefix = $this->inferPrefixForAnalysisTypes($plan['analysis_type_ids'], $analysisTypesById, $numberingService);
                 }
 
+                $planAnalysisTypeIds = array_values(array_filter(array_map(
+                    static fn ($id): string => trim((string) $id),
+                    $plan['analysis_type_ids'] ?? [],
+                )));
+                // sample_details.analysis_type_id is uuid; multi-types live on sample_analysis_type_relation.
+                $primaryAnalysisTypeId = $planAnalysisTypeIds[0] ?? null;
+
                 $detailAttributes = [
                     'sample_type_id' => $plan['sample_type_id'] ?? null,
-                    'analysis_type_id' => implode(',', $plan['analysis_type_ids'] ?? []),
+                    'analysis_type_id' => $primaryAnalysisTypeId,
                 ];
 
                 if (! $usesLegacyCountShape) {

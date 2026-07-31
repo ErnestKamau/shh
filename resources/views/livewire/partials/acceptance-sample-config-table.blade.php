@@ -49,7 +49,8 @@
                 $showInstancePhoto = (bool) ($showInstancePhotoOnConfig ?? false);
                 $showInstanceDisposal = (bool) ($showInstanceDisposalOnConfig ?? false);
                 $compactTable = (bool) ($compactConfigTable ?? false);
-                $configColspan = 3
+                // Always-present columns: Sample type + Analysis type(s).
+                $configColspan = 2
                     + ($showLabSection ? 1 : 0)
                     + ($showCondition ? 1 : 0)
                     + ($showMainStandard ? 1 : 0)
@@ -57,8 +58,41 @@
                     + ($showLabId ? 1 : 0)
                     + ($showAssignedUser ? 1 : 0)
                     + ($showQuantity ? 1 : 0);
-                $sampleTypeName = collect($this->configSampleTypes)->firstWhere('id', (string) ($config['sample_type_id'] ?? ''))['name'] ?? '—';
-                $analysisTypeName = collect($analysisTypes)->firstWhere('id', (string) ($config['analysis_type_id'] ?? ''))['name'] ?? '—';
+                $sampleConfigService = app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class);
+                $selectedSampleTypeIds = $sampleConfigService->sampleTypeIdsFromConfig($config);
+                $selectedSampleTypes = collect($this->configSampleTypes)->whereIn('id', $selectedSampleTypeIds)->values();
+                $selectedSampleTypeNames = $selectedSampleTypes->pluck('name')->filter()->values()->all();
+                $sampleTypeName = $selectedSampleTypeNames !== [] ? implode(', ', $selectedSampleTypeNames) : '—';
+                $allowsMultipleSampleTypes = (bool) ($config['allows_multiple_sample_types'] ?? false);
+                $availableSampleTypes = collect($this->configSampleTypes)
+                    ->reject(fn (array $type): bool => in_array((string) ($type['id'] ?? ''), $selectedSampleTypeIds, true))
+                    ->values();
+                $selectedAnalysisTypeIds = $sampleConfigService->analysisTypeIdsFromConfig($config);
+                $selectedAnalysisTypeNames = collect($analysisTypes)
+                    ->whereIn('id', $selectedAnalysisTypeIds)
+                    ->pluck('name')
+                    ->filter()
+                    ->values()
+                    ->all();
+                $analysisTypeName = $selectedAnalysisTypeNames !== []
+                    ? implode(', ', $selectedAnalysisTypeNames)
+                    : '—';
+                $availableAnalysisTypes = collect($analysisTypes)
+                    ->reject(fn (array $type): bool => in_array((string) ($type['id'] ?? ''), $selectedAnalysisTypeIds, true))
+                    ->values()
+                    ->all();
+                // Never surface a raw id if the analysis type no longer exists in the catalog.
+                $selectedAnalysisTypeChips = collect($selectedAnalysisTypeIds)
+                    ->map(function (string $selectedTypeId) use ($analysisTypes): array {
+                        $match = collect($analysisTypes)->firstWhere('id', $selectedTypeId);
+                        $label = trim((string) ($match['name'] ?? ''));
+
+                        return [
+                            'id' => $selectedTypeId,
+                            'name' => $label !== '' ? $label : 'Unknown analysis type',
+                        ];
+                    })
+                    ->all();
                 $photoKey = $this->instancePhotoUploadKey($configId);
                 $selectedParamRows = $showParameterLabSections ? $this->selectedParametersWithLabSections($configIndex) : [];
                 $sectionAnalystRows = $showSectionAnalysts ? $this->labSectionsForAnalystAssignment($configIndex) : [];
@@ -119,7 +153,7 @@
                         <thead>
                             <tr>
                                 <th>Sample type</th>
-                                <th>Analysis type</th>
+                                <th>Analysis type(s)</th>
                                 @if($showCondition)
                                     <th>{{ $compactTable ? 'Condition' : 'Condition of sample' }}</th>
                                 @endif
@@ -148,17 +182,34 @@
                                 <td>
                                     @if($readOnlyTypes)
                                         <span class="acc-config-readonly">{{ $sampleTypeName }}</span>
+                                    @elseif($allowsMultipleSampleTypes)
+                                        @include('livewire.partials.acc-tag-combobox', [
+                                            'comboKey' => 'sample-types-'.$configId,
+                                            'comboClass' => 'acc-sample-type-tags',
+                                            'comboOptions' => $availableSampleTypes,
+                                            'comboSelected' => $selectedSampleTypes,
+                                            'comboToggleMethod' => 'toggleConfigSampleType',
+                                            'comboToggleArgs' => [$configId],
+                                            'comboAriaLabel' => 'Search sample types',
+                                            'comboPlaceholder' => 'Search sample type…',
+                                            'comboChipsEmptyText' => 'No sample types selected',
+                                            'comboOptionsEmptyText' => 'All sample types are selected.',
+                                        ])
+                                        @error('sampleConfigs.'.$configIndex.'.sample_type_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                     @else
-                                        <select
-                                            class="form-control form-control-sm acc-input"
-                                            wire:model.live="sampleConfigs.{{ $configIndex }}.sample_type_id"
-                                            wire:change="onConfigSampleTypeChanged({{ $configIndex }})"
-                                        >
-                                            <option value="">Select…</option>
-                                            @foreach($this->configSampleTypes as $type)
-                                                <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
-                                            @endforeach
-                                        </select>
+                                        @include('livewire.partials.acc-tag-combobox', [
+                                            'comboKey' => 'sample-type-'.$configId,
+                                            'comboClass' => 'acc-sample-type-tags',
+                                            'comboOptions' => $availableSampleTypes,
+                                            'comboSelected' => $selectedSampleTypes,
+                                            'comboToggleMethod' => 'setConfigSampleType',
+                                            'comboToggleArgs' => [$configIndex],
+                                            'comboRemoveValue' => '',
+                                            'comboAriaLabel' => 'Search sample types',
+                                            'comboPlaceholder' => 'Search sample type…',
+                                            'comboChipsEmptyText' => 'No sample type selected',
+                                            'comboOptionsEmptyText' => 'No sample types available.',
+                                        ])
                                         @error('sampleConfigs.'.$configIndex.'.sample_type_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                     @endif
                                 </td>
@@ -166,17 +217,22 @@
                                     @if($readOnlyTypes)
                                         <span class="acc-config-readonly">{{ $analysisTypeName }}</span>
                                     @else
-                                        <select
-                                            class="form-control form-control-sm acc-input"
-                                            wire:model.live="sampleConfigs.{{ $configIndex }}.analysis_type_id"
-                                            wire:change="onConfigAnalysisTypeChanged({{ $configIndex }})"
-                                            @disabled(empty($config['sample_type_id']))
-                                        >
-                                            <option value="">Select…</option>
-                                            @foreach($analysisTypes as $type)
-                                                <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
-                                            @endforeach
-                                        </select>
+                                        @include('livewire.partials.acc-tag-combobox', [
+                                            'comboKey' => 'analysis-types-'.$configId,
+                                            'comboClass' => 'acc-analysis-type-tags',
+                                            'comboOptions' => $availableAnalysisTypes,
+                                            'comboSelected' => $selectedAnalysisTypeChips,
+                                            'comboToggleMethod' => 'toggleConfigAnalysisType',
+                                            'comboToggleArgs' => [$configId],
+                                            'comboDisabled' => $selectedSampleTypeIds === [],
+                                            'comboAriaLabel' => 'Search analysis types',
+                                            'comboPlaceholder' => 'Search analysis type…',
+                                            'comboDisabledPlaceholder' => 'Select sample type first…',
+                                            'comboChipsEmptyText' => 'No analysis types selected',
+                                            'comboOptionsEmptyText' => $selectedSampleTypeIds === []
+                                                ? 'Select a sample type first.'
+                                                : 'All analysis types are selected.',
+                                        ])
                                         @error('sampleConfigs.'.$configIndex.'.analysis_type_id')<div class="text-danger small">{{ $message }}</div>@enderror
                                     @endif
                                 </td>
@@ -240,7 +296,7 @@
                                     <select
                                         class="form-control form-control-sm acc-input"
                                         wire:model.live="sampleConfigs.{{ $configIndex }}.lab_section_id"
-                                        @disabled(empty($config['analysis_type_id']))
+                                        @disabled($selectedAnalysisTypeIds === [])
                                     >
                                         <option value="">Select…</option>
                                         @foreach($this->configLabSections as $section)
@@ -279,7 +335,7 @@
                                             >
                                                 <span class="acc-sample-config-section-toggle-main">
                                                     <i class="mdi acc-sample-config-chevron" :class="showParameters ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
-                                                    <span class="acc-sample-config-params-label">1. Test parameters</span>
+                                                    <span class="acc-sample-config-params-label">Test parameters</span>
                                                     @if(count($selectedKeys) > 0)
                                                         <span class="acc-sample-config-section-badge">{{ count($selectedKeys) }} selected</span>
                                                     @endif
@@ -290,7 +346,7 @@
                                                     type="button"
                                                     class="btn btn-sm acc-sample-config-select-all"
                                                     wire:click.prevent="selectAllConfigParameters('{{ $configId }}')"
-                                                    @disabled(empty($config['analysis_type_id']))
+                                                    @disabled($selectedAnalysisTypeIds === [])
                                                 >
                                                     Select all
                                                 </button>
@@ -298,7 +354,7 @@
                                                     type="button"
                                                     class="btn btn-sm acc-sample-config-select-all"
                                                     wire:click.prevent="deselectAllConfigParameters('{{ $configId }}')"
-                                                    @disabled(empty($config['analysis_type_id']) || count($selectedKeys) === 0)
+                                                    @disabled($selectedAnalysisTypeIds === [] || count($selectedKeys) === 0)
                                                 >
                                                     Deselect all
                                                 </button>

@@ -4,6 +4,7 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\InventorySubCategories;
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CustomerContact;
 use App\Models\Sampleworkflow\SampleHeaderUserAssignment;
 use App\SampleAnalysisStage;
 use App\SampleDate;
@@ -38,6 +39,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Support\VarcharUuidSql;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use Throwable;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -59,6 +61,7 @@ class WorkflowBoard extends Component
         return [
             'submitted' => 'Submitted Requests',
             'ready_for_reception' => 'Ready for Reception',
+            'sample_integrity_check' => 'Sample Integrity & Acceptance Check',
             'accepted' => 'Accepted',
             'in_additional_info' => 'Request Additional Info',
             // 'complete' => 'Complete Requests',
@@ -174,9 +177,10 @@ class WorkflowBoard extends Component
      */
     public array $receiveFormSummaries = [];
 
-    public bool $showPoCaptureModal = false;
-
     public bool $showQuotationAcceptanceModal = false;
+
+    /** When true, modal only captures PO for an already-accepted quotation. */
+    public bool $quotationAcceptancePoOnly = false;
 
     public ?string $quotationAcceptanceEnquiryId = null;
 
@@ -186,24 +190,18 @@ class WorkflowBoard extends Component
 
     public ?string $quotationAcceptanceContactId = null;
 
+    /** Contact the currently held signature belongs to, so re-sent updates don't reset the pad. */
+    #[Locked]
+    public string $quotationAcceptanceAppliedContactId = '';
+
     /** @var list<array{id: string, label: string}> */
     public array $quotationAcceptanceContactOptions = [];
 
-    public ?string $poCaptureEnquiryId = null;
-
     public string $clientPoNumber = '';
-
-    public bool $poSkipped = false;
-
-    public string $advancePaymentReference = '';
 
     public string $poRuleType = 'walk_in';
 
     public bool $poRequiresPo = false;
-
-    public bool $poRequiresAdvanceReference = false;
-
-    public bool $poAllowsSkip = true;
 
     public string $poRuleMessage = '';
 
@@ -266,8 +264,11 @@ class WorkflowBoard extends Component
         $requestedTab = strtolower((string) ($this->initialFilters['tab'] ?? request()->query('tab', 'requests')));
         if ($this->status === 'Samples Receiving') {
             $defaultTab = 'submitted';
-            // Legacy In Review / received tabs fold into Ready for Reception.
-            if (in_array($requestedTab, ['received', 'in_review'], true)) {
+            // Legacy In Review folds into Integrity Accept; received → Ready for Reception rename path.
+            if ($requestedTab === 'in_review') {
+                $requestedTab = 'sample_integrity_check';
+            }
+            if ($requestedTab === 'received') {
                 $requestedTab = 'ready_for_reception';
             }
             $this->workflowSubTab = in_array($requestedTab, array_keys(self::receivingRequestTabs()), true)
@@ -694,7 +695,7 @@ class WorkflowBoard extends Component
     {
         return array_values(array_filter(
             array_keys(self::receivingRequestTabs()),
-            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sub_contracting', 'accepted'], true)
+            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sample_integrity_check', 'sub_contracting', 'accepted'], true)
         ));
     }
 
@@ -796,7 +797,7 @@ class WorkflowBoard extends Component
     public function isReceivingReviewOutcomeTab(): bool
     {
         return $this->isSamplesReceiving()
-            && in_array($this->workflowSubTab, ['ready_for_reception', 'accepted'], true);
+            && in_array($this->workflowSubTab, ['ready_for_reception', 'sample_integrity_check', 'accepted'], true);
     }
 
     protected function receivingSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
@@ -805,9 +806,8 @@ class WorkflowBoard extends Component
     }
 
     /**
-     * Submission forms awaiting Accept Samples (Ready for Reception, plus legacy In Review).
-     * Requests that still need subcontracting dispatch are excluded — they belong on the
-     * Sub-contracting tab until an external lab is assigned and dispatch is confirmed.
+     * Submission forms awaiting Receive Samples (Ready for Reception handoff into Integrity).
+     * Subcontract dispatch is no longer a blocker here — it is enforced at Integrity Accept.
      */
     protected function readyForPhysicalReceptionSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
     {
@@ -817,9 +817,6 @@ class WorkflowBoard extends Component
             })
             ->whereDoesntHave('analysisAcceptanceForms', function ($acceptanceQuery): void {
                 $acceptanceQuery->where('status', \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_COMPLETED);
-            })
-            ->whereDoesntHave('sampleSubmissionRequest', function ($enquiryQuery): void {
-                $enquiryQuery->whereSubcontractDispatchPending();
             });
 
         $query->where(function ($outer): void {
@@ -828,16 +825,42 @@ class WorkflowBoard extends Component
                     ->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
                         $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION);
                     });
-            })->orWhere(function ($legacy): void {
-                // Former In Review queue (physical check-in already done).
-                $legacy->whereIn('status', ['in_review', 'In Review', 'received'])
-                    ->orWhereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
-                        $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_IN_REVIEW);
-                    });
             });
         });
 
         return $query;
+    }
+
+    /**
+     * Submission forms in Sample Integrity & Acceptance Check (after Receive Samples handoff).
+     * Subcontracted work may still be pending dispatch; Accept is not blocked by that.
+     */
+    protected function sampleIntegrityCheckSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->receivingSubmissionFormsBaseQuery()
+            ->whereDoesntHave('batches', function ($batchQuery) {
+                $batchQuery->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+            })
+            ->whereDoesntHave('analysisAcceptanceForms', function ($acceptanceQuery): void {
+                $acceptanceQuery->where('status', \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_COMPLETED);
+            })
+            ->where(function ($outer): void {
+                $outer->where(function ($integrity): void {
+                    $integrity->whereIn('status', ['submitted', 'Submitted', 'received', 'in_review', 'In Review'])
+                        ->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                            $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK);
+                        });
+                })->orWhere(function ($legacy): void {
+                    // Former In Review queue (physical check-in already done) lands here for Accept.
+                    $legacy->whereIn('status', ['in_review', 'In Review', 'received'])
+                        ->where(function ($legacyInner): void {
+                            $legacyInner->whereDoesntHave('sampleSubmissionRequest')
+                                ->orWhereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                                    $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_IN_REVIEW);
+                                });
+                        });
+                });
+            });
     }
 
     /**
@@ -849,6 +872,7 @@ class WorkflowBoard extends Component
             SampleSubmissionRequest::COMMERCIAL_PIPELINE_STATUSES,
             fn (string $status): bool => ! in_array($status, [
                 SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+                SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
             ], true)
         ));
 
@@ -1221,6 +1245,12 @@ class WorkflowBoard extends Component
                     $counts[$tabKey] = (int) $readyQuery->count();
                     continue;
                 }
+                if ($tabKey === 'sample_integrity_check') {
+                    $integrityQuery = $this->sampleIntegrityCheckSubmissionFormsQuery();
+                    $this->applyReceivingSubmissionFormFilters($integrityQuery);
+                    $counts[$tabKey] = (int) $integrityQuery->count();
+                    continue;
+                }
                 if ($tabKey === 'sub_contracting') {
                     $subcontractingQuery = $this->subcontractingSubmissionFormsQuery();
                     $this->applyReceivingSubmissionFormFilters($subcontractingQuery);
@@ -1395,13 +1425,14 @@ class WorkflowBoard extends Component
                 $eagerLoads[] = 'sampleSubmissionRequest.subcontractingDispatchAssignments.analysisElement.analyte';
             }
 
-            if (in_array($this->workflowSubTab, ['ready_for_reception', 'accepted'], true)) {
+            if (in_array($this->workflowSubTab, ['ready_for_reception', 'sample_integrity_check', 'accepted'], true)) {
                 $eagerLoads[] = 'analysisAcceptanceForms';
                 $eagerLoads[] = 'workflowForms';
             }
 
             $query = match ($this->workflowSubTab) {
                 'ready_for_reception' => $this->readyForPhysicalReceptionSubmissionFormsQuery(),
+                'sample_integrity_check' => $this->sampleIntegrityCheckSubmissionFormsQuery(),
                 'submitted' => $this->submittedCommercialPipelineSubmissionFormsQuery(),
                 'sub_contracting' => $this->subcontractingSubmissionFormsQuery(),
                 'accepted' => SubmissionFormInstance::query()->requestReviewAccepted(),
@@ -2160,7 +2191,7 @@ class WorkflowBoard extends Component
     /**
      * Dashboard KPIs for the Samples Receiving board.
      *
-     * @return array{sub_contracting: int, submitted: int, ready_for_reception: int, accepted: int, todays_check_ins: int}
+     * @return array{sub_contracting: int, submitted: int, ready_for_reception: int, sample_integrity_check: int, accepted: int, todays_check_ins: int}
      */
     public function getReceivingDashboardStatsProperty(): array
     {
@@ -2169,6 +2200,7 @@ class WorkflowBoard extends Component
                 'sub_contracting' => 0,
                 'submitted' => 0,
                 'ready_for_reception' => 0,
+                'sample_integrity_check' => 0,
                 'accepted' => 0,
                 'todays_check_ins' => 0,
             ];
@@ -2186,6 +2218,7 @@ class WorkflowBoard extends Component
                 ),
                 'submitted' => (int) ($tabCounts['submitted'] ?? 0),
                 'ready_for_reception' => (int) ($tabCounts['ready_for_reception'] ?? 0),
+                'sample_integrity_check' => (int) ($tabCounts['sample_integrity_check'] ?? 0),
                 'accepted' => (int) ($tabCounts['accepted'] ?? 0),
                 'todays_check_ins' => $this->receivingTodayCheckInCount,
             ];
@@ -2480,46 +2513,84 @@ class WorkflowBoard extends Component
             return;
         }
 
+        $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceEnquiryId = $enquiryId;
-        $this->quotationAcceptanceSignerName = trim(implode(' ', array_filter([
-            $enquiry->contact?->first_name,
-            $enquiry->contact?->last_name,
-        ])));
-        $this->quotationAcceptanceSignature = '';
         $this->quotationAcceptanceContactId = $enquiry->crm_customer_contact_id
             ? (string) $enquiry->crm_customer_contact_id
             : null;
         $this->quotationAcceptanceContactOptions = app(\App\Services\Sampleworkflow\CustomerContactVerificationService::class)
             ->activeContactsForCustomer((string) $enquiry->crm_customer_id);
+        $this->hydrateQuotationAcceptancePoRules($enquiry);
+        $this->applyQuotationAcceptanceContact($this->quotationAcceptanceContactId);
         $this->showQuotationAcceptanceModal = true;
-        $this->dispatch('quotation-acceptance-modal-opened');
+        $this->dispatch(
+            'quotation-acceptance-modal-opened',
+            signature: $this->quotationAcceptanceSignature,
+        );
     }
 
     public function closeQuotationAcceptanceModal(): void
     {
         $this->showQuotationAcceptanceModal = false;
+        $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceEnquiryId = null;
         $this->quotationAcceptanceSignerName = '';
         $this->quotationAcceptanceSignature = '';
         $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceAppliedContactId = '';
         $this->quotationAcceptanceContactOptions = [];
+        $this->clientPoNumber = '';
+        $this->poRuleType = 'walk_in';
+        $this->poRequiresPo = false;
+        $this->poRuleMessage = '';
     }
 
-    public function submitQuotationAcceptanceSignature(): void
+    public function updatedQuotationAcceptanceContactId(?string $contactId): void
     {
+        if ((string) $contactId === $this->quotationAcceptanceAppliedContactId) {
+            return;
+        }
+
+        $this->applyQuotationAcceptanceContact($contactId);
+        $this->dispatch(
+            'quotation-acceptance-signature-changed',
+            signature: $this->quotationAcceptanceSignature,
+        );
+    }
+
+    public function submitQuotationAcceptanceSignature(?string $signature = null): void
+    {
+        if ($signature !== null && str_starts_with($signature, 'data:image/')) {
+            $this->quotationAcceptanceSignature = $signature;
+        }
+
         if ($this->quotationAcceptanceEnquiryId === null) {
             return;
         }
 
+        if ($this->quotationAcceptancePoOnly) {
+            $this->submitPoAndReadyForReception();
+
+            return;
+        }
+
         $this->validate([
-            'quotationAcceptanceSignerName' => ['required', 'string', 'max:255'],
+            'quotationAcceptanceContactId' => ['required', 'string'],
             'quotationAcceptanceSignature' => ['required', 'string'],
         ], [
-            'quotationAcceptanceSignerName.required' => 'Enter the customer signer name.',
+            'quotationAcceptanceContactId.required' => 'Select the customer contact.',
             'quotationAcceptanceSignature.required' => 'Provide the customer signature.',
         ]);
 
-        $enquiry = SampleSubmissionRequest::query()->find($this->quotationAcceptanceEnquiryId);
+        $signerName = $this->resolveQuotationAcceptanceSignerName($this->quotationAcceptanceContactId);
+        if ($signerName === '') {
+            $this->addError('quotationAcceptanceContactId', 'Select a valid customer contact.');
+
+            return;
+        }
+        $this->quotationAcceptanceSignerName = $signerName;
+
+        $enquiry = SampleSubmissionRequest::query()->with('customer')->find($this->quotationAcceptanceEnquiryId);
         if ($enquiry === null) {
             $this->closeQuotationAcceptanceModal();
 
@@ -2527,7 +2598,14 @@ class WorkflowBoard extends Component
         }
 
         try {
-            app(\App\Services\Commercial\QuotationFromEnquiryService::class)->recordWalkInAcceptance(
+            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
+                $enquiry->customer,
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                ],
+            );
+
+            $accepted = app(\App\Services\Commercial\QuotationFromEnquiryService::class)->recordWalkInAcceptance(
                 $enquiry,
                 null,
                 false,
@@ -2537,11 +2615,20 @@ class WorkflowBoard extends Component
                     'contact_id' => $this->quotationAcceptanceContactId,
                 ],
             );
-            $enquiryId = (string) $enquiry->id;
+
+            app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+                $accepted,
+                (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                ],
+            );
+
             $this->selectedFormInstanceIds = [];
             $this->closeQuotationAcceptanceModal();
-            $this->workflowNotify('success', 'Quotation accepted. Record the customer PO to move this request to Ready for Reception.');
-            $this->openPoCaptureModal($enquiryId);
+            $this->workflowNotify('success', 'Quotation accepted. Request is ready for physical reception.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
         } catch (\Throwable $exception) {
             $this->workflowNotify('error', $exception->getMessage());
         }
@@ -2632,49 +2719,39 @@ class WorkflowBoard extends Component
 
     public function openPoCaptureModal(string $enquiryId): void
     {
-        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
+        $enquiry = SampleSubmissionRequest::query()->with(['customer', 'contact'])->find($enquiryId);
         if ($enquiry === null || $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED) {
             $this->workflowNotify('error', 'PO can only be recorded for accepted quotations.');
 
             return;
         }
 
-        $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
-        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
-        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
-        $this->poRequiresAdvanceReference = (bool) ($rules['requires_advance_reference'] ?? false);
-        $this->poAllowsSkip = (bool) ($rules['allows_po_skip'] ?? true);
-        $this->poRuleMessage = $this->resolvePoRuleMessage();
-        $this->poCaptureEnquiryId = $enquiryId;
-        $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
-        $this->poSkipped = (bool) ($enquiry->po_skipped && $this->poAllowsSkip);
-        $this->advancePaymentReference = (string) ($enquiry->advance_payment_reference ?? '');
-        $this->showPoCaptureModal = true;
+        $this->quotationAcceptancePoOnly = true;
+        $this->quotationAcceptanceEnquiryId = $enquiryId;
+        $this->quotationAcceptanceSignerName = '';
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceAppliedContactId = '';
+        $this->quotationAcceptanceContactOptions = [];
+        $this->hydrateQuotationAcceptancePoRules($enquiry);
+        $this->showQuotationAcceptanceModal = true;
+        $this->dispatch('quotation-acceptance-modal-opened', signature: '');
     }
 
     public function closePoCaptureModal(): void
     {
-        $this->showPoCaptureModal = false;
-        $this->poCaptureEnquiryId = null;
-        $this->clientPoNumber = '';
-        $this->poSkipped = false;
-        $this->advancePaymentReference = '';
-        $this->poRuleType = 'walk_in';
-        $this->poRequiresPo = false;
-        $this->poRequiresAdvanceReference = false;
-        $this->poAllowsSkip = true;
-        $this->poRuleMessage = '';
+        $this->closeQuotationAcceptanceModal();
     }
 
     public function submitPoAndReadyForReception(): void
     {
-        if ($this->poCaptureEnquiryId === null) {
+        if ($this->quotationAcceptanceEnquiryId === null) {
             return;
         }
 
-        $enquiry = SampleSubmissionRequest::query()->find($this->poCaptureEnquiryId);
+        $enquiry = SampleSubmissionRequest::query()->with('customer')->find($this->quotationAcceptanceEnquiryId);
         if ($enquiry === null) {
-            $this->closePoCaptureModal();
+            $this->closeQuotationAcceptanceModal();
 
             return;
         }
@@ -2684,8 +2761,6 @@ class WorkflowBoard extends Component
                 $enquiry->customer,
                 [
                     'client_po_number' => $this->clientPoNumber,
-                    'po_skipped' => $this->poSkipped,
-                    'advance_payment_reference' => $this->advancePaymentReference,
                 ],
             );
 
@@ -2694,16 +2769,61 @@ class WorkflowBoard extends Component
                 (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
                 [
                     'client_po_number' => $this->clientPoNumber,
-                    'po_skipped' => $this->poSkipped,
-                    'advance_payment_reference' => $this->advancePaymentReference,
                 ],
             );
 
-            $this->closePoCaptureModal();
+            $this->closeQuotationAcceptanceModal();
             $this->workflowNotify('success', 'PO recorded. Request is ready for physical reception.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
         } catch (Throwable $exception) {
             $this->workflowNotify('error', $exception->getMessage());
         }
+    }
+
+    protected function hydrateQuotationAcceptancePoRules(SampleSubmissionRequest $enquiry): void
+    {
+        $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
+        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
+        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
+        $this->poRuleMessage = $this->resolvePoRuleMessage();
+        $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
+    }
+
+    protected function applyQuotationAcceptanceContact(?string $contactId): void
+    {
+        $contactId = filled($contactId) ? (string) $contactId : null;
+        $this->quotationAcceptanceContactId = $contactId;
+        $this->quotationAcceptanceAppliedContactId = (string) $contactId;
+        $this->quotationAcceptanceSignerName = $this->resolveQuotationAcceptanceSignerName($contactId);
+        $this->quotationAcceptanceSignature = '';
+
+        if ($contactId === null) {
+            return;
+        }
+
+        $contact = CustomerContact::query()->find($contactId);
+        if ($contact !== null && $contact->hasSignatureImage()) {
+            $this->quotationAcceptanceSignature = $contact->signatureDataUri();
+        }
+    }
+
+    protected function resolveQuotationAcceptanceSignerName(?string $contactId): string
+    {
+        if (! filled($contactId)) {
+            return '';
+        }
+
+        $contact = CustomerContact::query()->find((string) $contactId);
+        if ($contact === null) {
+            return '';
+        }
+
+        return trim(implode(' ', array_filter([
+            $contact->first_name,
+            $contact->middle_name,
+            $contact->last_name,
+        ]))) ?: (string) ($contact->email ?? '');
     }
 
     protected function resolvePoRuleMessage(): string
@@ -2712,15 +2832,7 @@ class WorkflowBoard extends Component
             return 'This customer account requires a purchase order number before the request can be marked ready.';
         }
 
-        if ($this->poRequiresAdvanceReference) {
-            return 'This customer account requires an advance payment reference before the request can be marked ready.';
-        }
-
-        if ($this->poAllowsSkip) {
-            return 'This customer may proceed without a PO number.';
-        }
-
-        return '';
+        return 'This customer may proceed without a PO number.';
     }
 
     protected function workflowNotify(string $type, string $message): void
@@ -3079,28 +3191,41 @@ class WorkflowBoard extends Component
     }
 
     #[Renderless]
-    public function openAcceptSampleWizardFromSelection(): void
+    public function openAcceptSampleWizardFromSelection(array|string $ids = []): void
     {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+
         if (count($this->selectedFormInstanceIds) !== 1) {
-            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before accepting.');
+            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before continuing.');
 
             return;
         }
 
-        if ($this->blockAcceptWhenSubcontractDispatchPending($this->selectedFormInstanceIds[0])) {
-            return;
-        }
+        $mode = $this->workflowSubTab === 'sample_integrity_check'
+            ? 'accept_register'
+            : 'receive_only';
 
         $this->dispatch(
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
             submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
+            mode: $mode,
         )->to(AcceptanceFormWizard::class);
     }
 
     #[Renderless]
-    public function openRejectSampleWizardFromSelection(): void
+    public function openRejectSampleWizardFromSelection(array|string $ids = []): void
     {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+
         if (count($this->selectedFormInstanceIds) !== 1) {
             $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before rejecting.');
 
@@ -3127,41 +3252,57 @@ class WorkflowBoard extends Component
         $this->syncSelectedFormInstanceIds($ids);
 
         if ($this->selectedFormInstanceIds === [] || count($this->selectedFormInstanceIds) > 1) {
-            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before accepting.');
+            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before continuing.');
 
             return;
         }
 
-        if ($this->blockAcceptWhenSubcontractDispatchPending($this->selectedFormInstanceIds[0])) {
-            return;
-        }
+        $mode = $this->workflowSubTab === 'sample_integrity_check'
+            ? 'accept_register'
+            : 'receive_only';
 
         $this->dispatch(
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->selectedFormInstanceIds[0],
             submissionRequestId: $this->resolveSubmissionRequestIdForFormInstance($this->selectedFormInstanceIds[0]),
+            mode: $mode,
         )->to(AcceptanceFormWizard::class);
     }
 
-    protected function blockAcceptWhenSubcontractDispatchPending(string $formInstanceId): bool
+    public function openSampleIntegrityCheckPageFromSelection(array|string $ids = []): void
     {
-        $enquiryId = $this->resolveSubmissionRequestIdForFormInstance($formInstanceId);
-        if ($enquiryId === null || $enquiryId === '') {
-            return false;
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
         }
 
-        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
-        if ($enquiry === null || ! $enquiry->needsSubcontractDispatch()) {
-            return false;
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+
+        if (count($this->selectedFormInstanceIds) !== 1) {
+            $this->workflowNotify(
+                'error',
+                'Please select exactly one submission request or form row.'
+            );
+
+            return;
         }
 
-        $this->workflowNotify(
-            'error',
-            'This request has subcontracted tests. Dispatch it from the Sub-contracting tab before accepting into Samples In Lab.'
-        );
-        $this->setWorkflowSubTab('sub_contracting');
+        $instance = SubmissionFormInstance::query()
+            ->with('submissionForm')
+            ->find($this->selectedFormInstanceIds[0]);
 
-        return true;
+        if ($instance === null || $instance->submission_form_id === null || $instance->submission_form_id === '') {
+            $this->workflowNotify(
+                'error',
+                'Unable to open Sample Integrity Check for the selected request.'
+            );
+
+            return;
+        }
+
+        $this->redirectRoute('submission-forms.instances.sample-integrity-check', [
+            'submissionForm' => $instance->submission_form_id,
+            'instance' => $instance->id,
+        ]);
     }
 
     /**
@@ -3436,6 +3577,43 @@ class WorkflowBoard extends Component
         }
 
         return $statusDays.' day'.($statusDays === 1 ? '' : 's').' left';
+    }
+
+    /**
+     * Format receipt as Y-m-d, appending radio_active_levels when it looks like a clock time.
+     */
+    public static function formatReceiptDateTime(mixed $receiptDate, mixed $receiptTime = null): string
+    {
+        $dateOnly = self::formatDateOnly($receiptDate);
+        if ($dateOnly === 'N/A') {
+            return 'N/A';
+        }
+
+        $time = trim((string) ($receiptTime ?? ''));
+        if ($time === '' || ! preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $time)) {
+            return $dateOnly;
+        }
+
+        try {
+            $normalizedTime = Carbon::parse($time)->format('H:i');
+        } catch (\Throwable) {
+            return $dateOnly;
+        }
+
+        return $dateOnly.' '.$normalizedTime;
+    }
+
+    public static function formatDateOnly(mixed $date): string
+    {
+        if ($date === null || trim((string) $date) === '') {
+            return 'N/A';
+        }
+
+        try {
+            return Carbon::parse($date)->format('Y-m-d');
+        } catch (\Throwable) {
+            return trim((string) $date);
+        }
     }
 
     /**

@@ -4,25 +4,31 @@ namespace App\Http\Controllers\Lab;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sampleworkflow\SampleHeaderUserAssignment;
+use App\Services\Commercial\QuotationApprovalService;
+use App\Services\Lab\PersonalDashboardHistoryService;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class PersonalDashboardController extends Controller
 {
     public function __construct(
         private readonly SubmissionFormIntrayService $intrayService,
+        private readonly QuotationApprovalService $quotationApprovalService,
+        private readonly PersonalDashboardHistoryService $historyService,
     ) {
         $this->middleware('auth');
     }
 
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $user = $request->user();
 
         $request->validate([
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date'],
+            'history_tab' => ['nullable', 'in:quotations,assignments,verifications,approvals'],
         ]);
 
         $startDate = $request->filled('start_date')
@@ -61,6 +67,38 @@ class PersonalDashboardController extends Controller
                 return $assignment->created_at->gte($startDate) && $assignment->created_at->lte($endDate);
             })
             ->values();
+
+        $quotationApprovals = $this->quotationApprovalService
+            ->pendingApprovalsForUser((string) $user->id)
+            ->filter(function ($header) use ($startDate, $endDate): bool {
+                $stamp = $header->approval_requested_at ?? $header->updated_at;
+                if ($stamp === null) {
+                    return true;
+                }
+
+                return $stamp->gte($startDate) && $stamp->lte($endDate);
+            })
+            ->values()
+            ->map(function ($header): array {
+                $enquiry = $header->sampleSubmissionRequest;
+                $openUrl = $enquiry?->staffViewUrl() ?? route('add-qoute-details-view', ['id' => $header->id]);
+                if ($enquiry?->submissionFormInstance?->submissionForm) {
+                    $openUrl .= (str_contains($openUrl, '?') ? '&' : '?').'tab=quotation_approvals';
+                }
+
+                return [
+                    'quote_number' => (string) ($header->quote_number ?? '—'),
+                    'customer' => (string) ($header->customer?->name ?? '—'),
+                    'requested_at' => optional($header->approval_requested_at)->format('Y-m-d H:i') ?? '—',
+                    'open_url' => $openUrl,
+                ];
+            });
+
+        $historyTab = (string) $request->input('history_tab', 'quotations');
+        $quotationApprovalHistory = $this->historyService->quotationApprovals((string) $user->id);
+        $labAssignmentHistory = $this->historyService->labAssignments((string) $user->id);
+        $sampleVerificationHistory = $this->historyService->sampleVerifications((string) $user->id);
+        $sampleApprovalHistory = $this->historyService->sampleApprovals((string) $user->id);
 
         $assignedHeaders = $batchAssignments
             ->pluck('sampleHeader')
@@ -167,8 +205,14 @@ class PersonalDashboardController extends Controller
             'statusCounts' => $statusCounts,
             'tatStats' => $tatStats,
             'requestAssignments' => $requestAssignments,
+            'quotationApprovals' => $quotationApprovals,
             'batchAssignmentsPage' => $batchAssignmentsPage,
             'chartSeries' => $chartSeries,
+            'historyTab' => $historyTab,
+            'quotationApprovalHistory' => $quotationApprovalHistory,
+            'labAssignmentHistory' => $labAssignmentHistory,
+            'sampleVerificationHistory' => $sampleVerificationHistory,
+            'sampleApprovalHistory' => $sampleApprovalHistory,
         ]);
     }
 }

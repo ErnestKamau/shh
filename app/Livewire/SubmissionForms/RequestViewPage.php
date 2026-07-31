@@ -8,6 +8,7 @@ use App\Livewire\Sampleworkflow\AcceptanceFormWizard;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Livewire\Sampleworkflow\SampleRejectionWizard;
+use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
@@ -19,6 +20,7 @@ use App\Services\SubmissionFormBatchSyncService;
 use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\SubmissionForm\RequestViewPagePresenter;
@@ -27,6 +29,7 @@ use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
@@ -71,6 +74,18 @@ class RequestViewPage extends Component
 
     public string $noteVisibility = SubmissionFormInstanceNote::VISIBILITY_INTERNAL;
 
+    public bool $quotationPendingApproval = false;
+
+    public bool $quotationApprovedReadyToSend = false;
+
+    public bool $canApproveQuotation = false;
+
+    public string $approvalDecisionComments = '';
+
+    public bool $sendPortal = true;
+
+    public bool $sendEmail = false;
+
     public SubmissionFormInstance $instance;
 
     public SubmissionForm $submissionForm;
@@ -83,9 +98,10 @@ class RequestViewPage extends Component
 
     public bool $sendTrfEmail = true;
 
-    public bool $showPoCaptureModal = false;
-
     public bool $showQuotationAcceptanceModal = false;
+
+    /** When true, modal only captures PO for an already-accepted quotation. */
+    public bool $quotationAcceptancePoOnly = false;
 
     public string $quotationAcceptanceSignerName = '';
 
@@ -93,22 +109,18 @@ class RequestViewPage extends Component
 
     public ?string $quotationAcceptanceContactId = null;
 
+    /** Contact the currently held signature belongs to, so re-sent updates don't reset the pad. */
+    #[Locked]
+    public string $quotationAcceptanceAppliedContactId = '';
+
     /** @var list<array{id: string, label: string}> */
     public array $quotationAcceptanceContactOptions = [];
 
     public string $clientPoNumber = '';
 
-    public bool $poSkipped = false;
-
-    public string $advancePaymentReference = '';
-
     public string $poRuleType = 'walk_in';
 
     public bool $poRequiresPo = false;
-
-    public bool $poRequiresAdvanceReference = false;
-
-    public bool $poAllowsSkip = true;
 
     public string $poRuleMessage = '';
 
@@ -126,7 +138,7 @@ class RequestViewPage extends Component
         $this->submissionForm = SubmissionForm::query()->findOrFail($submissionFormId);
         $this->instance = SubmissionFormInstance::query()
             ->with([
-                'sampleSubmissionRequest.currentQuotation',
+                'sampleSubmissionRequest.currentQuotation.approvedByUser',
                 'sampleSubmissionRequest.contact',
                 'sampleSubmissionRequest.customer',
                 'submissionForm',
@@ -159,6 +171,15 @@ class RequestViewPage extends Component
         }
 
         $this->loadAvailableAttachmentTypes();
+
+        $this->syncQuotationApprovalUiState();
+
+        $requestedTab = (string) request()->query('tab', '');
+        if (in_array($requestedTab, ['tests', 'notes', 'attachments', 'custody', 'quotation_approvals'], true)) {
+            $this->activeTab = $requestedTab;
+        } elseif ($this->quotationPendingApproval || $this->quotationApprovedReadyToSend) {
+            $this->activeTab = 'quotation_approvals';
+        }
     }
 
     /**
@@ -194,48 +215,99 @@ class RequestViewPage extends Component
             return;
         }
 
-        $enquiry = $this->commercialEnquiry->loadMissing(['contact']);
-        $this->quotationAcceptanceSignerName = trim(implode(' ', array_filter([
-            $enquiry->contact?->first_name,
-            $enquiry->contact?->last_name,
-        ])));
-        $this->quotationAcceptanceSignature = '';
+        if ($this->commercialEnquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_SENT) {
+            session()->flash('request_view_message', 'Quotation can only be accepted when the enquiry is Quotation Sent.');
+
+            return;
+        }
+
+        $enquiry = $this->commercialEnquiry->loadMissing(['customer', 'contact']);
+        $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceContactId = $enquiry->crm_customer_contact_id
             ? (string) $enquiry->crm_customer_contact_id
             : null;
         $this->quotationAcceptanceContactOptions = app(\App\Services\Sampleworkflow\CustomerContactVerificationService::class)
             ->activeContactsForCustomer((string) $enquiry->crm_customer_id);
+        $this->hydrateQuotationAcceptancePoRules($enquiry);
+        $this->applyQuotationAcceptanceContact($this->quotationAcceptanceContactId);
         $this->showQuotationAcceptanceModal = true;
-        $this->dispatch('quotation-acceptance-modal-opened');
+        $this->dispatch(
+            'quotation-acceptance-modal-opened',
+            signature: $this->quotationAcceptanceSignature,
+        );
     }
 
     public function closeQuotationAcceptanceModal(): void
     {
         $this->showQuotationAcceptanceModal = false;
+        $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceSignerName = '';
         $this->quotationAcceptanceSignature = '';
         $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceAppliedContactId = '';
         $this->quotationAcceptanceContactOptions = [];
+        $this->clientPoNumber = '';
+        $this->poRuleType = 'walk_in';
+        $this->poRequiresPo = false;
+        $this->poRuleMessage = '';
     }
 
-    public function submitQuotationAcceptanceSignature(): void
+    public function updatedQuotationAcceptanceContactId(?string $contactId): void
     {
+        if ((string) $contactId === $this->quotationAcceptanceAppliedContactId) {
+            return;
+        }
+
+        $this->applyQuotationAcceptanceContact($contactId);
+        $this->dispatch(
+            'quotation-acceptance-signature-changed',
+            signature: $this->quotationAcceptanceSignature,
+        );
+    }
+
+    public function submitQuotationAcceptanceSignature(?string $signature = null): void
+    {
+        if ($signature !== null && str_starts_with($signature, 'data:image/')) {
+            $this->quotationAcceptanceSignature = $signature;
+        }
+
         $this->authorizeFormAccess(auth()->user());
 
         if ($this->commercialEnquiry === null) {
             return;
         }
 
+        if ($this->quotationAcceptancePoOnly) {
+            $this->submitPoAndReadyForReception();
+
+            return;
+        }
+
         $this->validate([
-            'quotationAcceptanceSignerName' => ['required', 'string', 'max:255'],
+            'quotationAcceptanceContactId' => ['required', 'string'],
             'quotationAcceptanceSignature' => ['required', 'string'],
         ], [
-            'quotationAcceptanceSignerName.required' => 'Enter the customer signer name.',
+            'quotationAcceptanceContactId.required' => 'Select the customer contact.',
             'quotationAcceptanceSignature.required' => 'Provide the customer signature.',
         ]);
 
+        $signerName = $this->resolveQuotationAcceptanceSignerName($this->quotationAcceptanceContactId);
+        if ($signerName === '') {
+            $this->addError('quotationAcceptanceContactId', 'Select a valid customer contact.');
+
+            return;
+        }
+        $this->quotationAcceptanceSignerName = $signerName;
+
         try {
-            app(QuotationFromEnquiryService::class)->recordWalkInAcceptance(
+            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
+                $this->commercialEnquiry->customer,
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                ],
+            );
+
+            $accepted = app(QuotationFromEnquiryService::class)->recordWalkInAcceptance(
                 $this->commercialEnquiry,
                 null,
                 false,
@@ -245,10 +317,19 @@ class RequestViewPage extends Component
                     'contact_id' => $this->quotationAcceptanceContactId,
                 ],
             );
-            $this->commercialEnquiry = $this->commercialEnquiry->fresh(['currentQuotation']);
+
+            $this->commercialEnquiry = app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+                $accepted,
+                (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                ],
+            );
+
             $this->closeQuotationAcceptanceModal();
-            $this->openPoCaptureModal();
-            session()->flash('request_view_message', 'Quotation accepted. Record the customer PO below to move this request to Ready for Reception.');
+            session()->flash('request_view_message', 'Quotation accepted. This request is ready for physical reception on the Samples Receiving board.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
         } catch (\Throwable $exception) {
             session()->flash('request_view_message', $exception->getMessage());
         }
@@ -261,30 +342,21 @@ class RequestViewPage extends Component
             return;
         }
 
-        $rules = app(EnquiryAccountSettingsService::class)
-            ->poRulesForCustomer($this->commercialEnquiry->customer);
-        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
-        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
-        $this->poRequiresAdvanceReference = (bool) ($rules['requires_advance_reference'] ?? false);
-        $this->poAllowsSkip = (bool) ($rules['allows_po_skip'] ?? true);
-        $this->poRuleMessage = $this->resolvePoRuleMessage();
-        $this->clientPoNumber = (string) ($this->commercialEnquiry->client_po_number ?? '');
-        $this->poSkipped = (bool) ($this->commercialEnquiry->po_skipped && $this->poAllowsSkip);
-        $this->advancePaymentReference = (string) ($this->commercialEnquiry->advance_payment_reference ?? '');
-        $this->showPoCaptureModal = true;
+        $enquiry = $this->commercialEnquiry->loadMissing(['customer']);
+        $this->quotationAcceptancePoOnly = true;
+        $this->quotationAcceptanceSignerName = '';
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceAppliedContactId = '';
+        $this->quotationAcceptanceContactOptions = [];
+        $this->hydrateQuotationAcceptancePoRules($enquiry);
+        $this->showQuotationAcceptanceModal = true;
+        $this->dispatch('quotation-acceptance-modal-opened', signature: '');
     }
 
     public function closePoCaptureModal(): void
     {
-        $this->showPoCaptureModal = false;
-        $this->clientPoNumber = '';
-        $this->poSkipped = false;
-        $this->advancePaymentReference = '';
-        $this->poRuleType = 'walk_in';
-        $this->poRequiresPo = false;
-        $this->poRequiresAdvanceReference = false;
-        $this->poAllowsSkip = true;
-        $this->poRuleMessage = '';
+        $this->closeQuotationAcceptanceModal();
     }
 
     public function submitPoAndReadyForReception(): void
@@ -300,8 +372,6 @@ class RequestViewPage extends Component
                 $this->commercialEnquiry->customer,
                 [
                     'client_po_number' => $this->clientPoNumber,
-                    'po_skipped' => $this->poSkipped,
-                    'advance_payment_reference' => $this->advancePaymentReference,
                 ],
             );
 
@@ -310,12 +380,10 @@ class RequestViewPage extends Component
                 (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
                 [
                     'client_po_number' => $this->clientPoNumber,
-                    'po_skipped' => $this->poSkipped,
-                    'advance_payment_reference' => $this->advancePaymentReference,
                 ],
             );
 
-            $this->closePoCaptureModal();
+            $this->closeQuotationAcceptanceModal();
             session()->flash('request_view_message', 'PO recorded. This request is ready for physical reception on the Samples Receiving board.');
         } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->setErrorBag($exception->validator->errors());
@@ -324,21 +392,58 @@ class RequestViewPage extends Component
         }
     }
 
+    protected function hydrateQuotationAcceptancePoRules(SampleSubmissionRequest $enquiry): void
+    {
+        $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
+        $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
+        $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
+        $this->poRuleMessage = $this->resolvePoRuleMessage();
+        $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
+    }
+
+    protected function applyQuotationAcceptanceContact(?string $contactId): void
+    {
+        $contactId = filled($contactId) ? (string) $contactId : null;
+        $this->quotationAcceptanceContactId = $contactId;
+        $this->quotationAcceptanceAppliedContactId = (string) $contactId;
+        $this->quotationAcceptanceSignerName = $this->resolveQuotationAcceptanceSignerName($contactId);
+        $this->quotationAcceptanceSignature = '';
+
+        if ($contactId === null) {
+            return;
+        }
+
+        $contact = CustomerContact::query()->find($contactId);
+        if ($contact !== null && $contact->hasSignatureImage()) {
+            $this->quotationAcceptanceSignature = $contact->signatureDataUri();
+        }
+    }
+
+    protected function resolveQuotationAcceptanceSignerName(?string $contactId): string
+    {
+        if (! filled($contactId)) {
+            return '';
+        }
+
+        $contact = CustomerContact::query()->find((string) $contactId);
+        if ($contact === null) {
+            return '';
+        }
+
+        return trim(implode(' ', array_filter([
+            $contact->first_name,
+            $contact->middle_name,
+            $contact->last_name,
+        ]))) ?: (string) ($contact->email ?? '');
+    }
+
     protected function resolvePoRuleMessage(): string
     {
         if ($this->poRequiresPo) {
             return 'This customer account requires a purchase order number before the request can be marked ready.';
         }
 
-        if ($this->poRequiresAdvanceReference) {
-            return 'This customer account requires an advance payment reference before the request can be marked ready.';
-        }
-
-        if ($this->poAllowsSkip) {
-            return 'This customer may proceed without a PO number.';
-        }
-
-        return '';
+        return 'This customer may proceed without a PO number.';
     }
 
     public function openPhysicalReceiveModal(): void
@@ -386,9 +491,28 @@ class RequestViewPage extends Component
         $this->authorizeFormAccess(auth()->user());
 
         $enquiry = $this->commercialEnquiry;
-        if ($enquiry === null
-            || ! app(EnquiryReceptionReadinessService::class)->isEligibleForSampleAcceptance($enquiry, $this->instance)) {
-            session()->flash('request_view_message', 'Sample acceptance is only available when the request is Ready for Reception.');
+        if ($enquiry === null) {
+            session()->flash('request_view_message', 'No commercial enquiry is linked to this request.');
+
+            return;
+        }
+
+        $readiness = app(EnquiryReceptionReadinessService::class);
+        $mode = (string) $enquiry->status === SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION
+            ? 'receive_only'
+            : 'accept_register';
+
+        $eligible = $mode === 'receive_only'
+            ? $readiness->isEligibleForReceiveHandoff($enquiry, $this->instance)
+            : $readiness->isEligibleForSampleAcceptance($enquiry, $this->instance);
+
+        if (! $eligible) {
+            session()->flash(
+                'request_view_message',
+                $mode === 'receive_only'
+                    ? 'Receive Samples is only available when the request is Ready for Reception.'
+                    : 'Sample acceptance is only available during Sample Integrity & Acceptance Check (after Receive Samples).'
+            );
 
             return;
         }
@@ -397,16 +521,164 @@ class RequestViewPage extends Component
             'open-acceptance-wizard',
             submissionFormInstanceId: $this->instance->id,
             submissionRequestId: $enquiry->id,
+            mode: $mode,
         )->to(AcceptanceFormWizard::class);
     }
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['tests', 'notes', 'attachments', 'custody'], true)) {
+        if (! in_array($tab, ['tests', 'notes', 'attachments', 'custody', 'quotation_approvals'], true)) {
             return;
         }
 
         $this->activeTab = $tab;
+    }
+
+    public function approveEnquiryQuotation(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        try {
+            $enquiry = $this->commercialEnquiry->loadMissing('currentQuotation');
+            $header = $enquiry->currentQuotation;
+            if ($header === null) {
+                throw new \RuntimeException('No quotation is linked to this request.');
+            }
+
+            $enquiry = app(QuotationApprovalService::class)->approve(
+                $enquiry,
+                $header,
+                $this->approvalDecisionComments !== '' ? $this->approvalDecisionComments : null,
+            );
+
+            $this->commercialEnquiry = $enquiry->fresh(['currentQuotation.approvedByUser', 'customer', 'contact']) ?? $enquiry;
+            $this->approvalDecisionComments = '';
+            $this->canApproveQuotation = false;
+            $this->syncQuotationApprovalUiState();
+            session()->flash('request_view_message', 'Quotation approved. It can now be sent to the customer.');
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', $exception->getMessage());
+        }
+    }
+
+    public function rejectEnquiryQuotation(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        $this->validate([
+            'approvalDecisionComments' => ['required', 'string', 'max:5000'],
+        ], [
+            'approvalDecisionComments.required' => 'Provide a rejection comment.',
+        ]);
+
+        try {
+            $enquiry = $this->commercialEnquiry->loadMissing('currentQuotation');
+            $header = $enquiry->currentQuotation;
+            if ($header === null) {
+                throw new \RuntimeException('No quotation is linked to this request.');
+            }
+
+            $enquiry = app(QuotationApprovalService::class)->reject(
+                $enquiry,
+                $header,
+                $this->approvalDecisionComments,
+            );
+
+            $this->commercialEnquiry = $enquiry;
+            $this->approvalDecisionComments = '';
+            $this->syncQuotationApprovalUiState();
+            session()->flash('request_view_message', 'Quotation returned for revision.');
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', $exception->getMessage());
+        }
+    }
+
+    public function sendApprovedQuotationToCustomer(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        $channel = strtolower((string) ($this->commercialEnquiry->source_channel ?? ''));
+        if ($channel !== 'portal') {
+            $this->sendPortal = false;
+        }
+        if ($channel === 'walk_in') {
+            $this->sendPortal = false;
+            $this->sendEmail = true;
+        }
+
+        if (! $this->sendPortal && ! $this->sendEmail) {
+            session()->flash('request_view_message', 'Select at least one delivery channel (portal or email).');
+
+            return;
+        }
+
+        try {
+            $enquiry = $this->commercialEnquiry->loadMissing(['currentQuotation', 'contact', 'customer']);
+            $header = $enquiry->currentQuotation;
+            if ($header === null) {
+                throw new \RuntimeException('No quotation is linked to this request.');
+            }
+
+            $enquiry = app(QuotationFromEnquiryService::class)->sendToCustomer(
+                $enquiry,
+                $header,
+                $this->sendPortal,
+                $this->sendEmail,
+            );
+
+            $this->commercialEnquiry = $enquiry;
+            $this->syncQuotationApprovalUiState();
+            session()->flash(
+                'request_view_message',
+                $channel === 'walk_in'
+                    ? 'Quotation sent by email. Record walk-in acceptance, then capture the PO.'
+                    : 'Quotation sent to customer.'
+            );
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', $exception->getMessage());
+        }
+    }
+
+    private function syncQuotationApprovalUiState(): void
+    {
+        $enquiry = $this->commercialEnquiry;
+        if ($enquiry === null) {
+            $this->quotationPendingApproval = false;
+            $this->quotationApprovedReadyToSend = false;
+            $this->canApproveQuotation = false;
+
+            return;
+        }
+
+        $enquiry->loadMissing('currentQuotation');
+        $header = $enquiry->currentQuotation;
+        $approvalService = app(QuotationApprovalService::class);
+
+        $this->quotationPendingApproval = $approvalService->isPendingApproval($enquiry, $header);
+        $this->quotationApprovedReadyToSend = $approvalService->isApprovedReadyToSend($enquiry, $header);
+        $this->canApproveQuotation = $header !== null && $approvalService->canCurrentUserApprove($header);
+
+        $channel = strtolower((string) ($enquiry->source_channel ?? ''));
+        if ($channel === 'walk_in') {
+            $this->sendPortal = false;
+            $this->sendEmail = true;
+        } elseif ($channel === 'portal') {
+            $this->sendPortal = true;
+        } else {
+            $this->sendPortal = false;
+        }
     }
 
     public function generateTestRequestFormReport(): void
@@ -948,6 +1220,10 @@ class RequestViewPage extends Component
         $sampleLines = $this->sampleLines;
         $boardStatus = $this->workflowBoardStatus();
 
+        $quotationHeader = $this->commercialEnquiry?->currentQuotation;
+        $approvalService = app(QuotationApprovalService::class);
+        $quotationApproverName = $approvalService->resolveApproverName($quotationHeader);
+
         return view('livewire.submission-forms.request-view-page', [
             'formData' => $formData,
             'attachmentInstances' => $attachmentInstances,
@@ -966,6 +1242,8 @@ class RequestViewPage extends Component
             'nextStepActions' => $presenter->nextStepActions($boardStatus),
             'boardStatus' => $boardStatus,
             'boardTab' => $this->workflowBoardTab(),
+            'quotationHeader' => $quotationHeader,
+            'quotationApproverName' => $quotationApproverName,
         ]);
     }
 }

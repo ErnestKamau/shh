@@ -6,11 +6,17 @@
         : null;
 @endphp
 
+<div class="amspec-signature-closing">
+    <p>{{ $copy['closing'] ?? '' }}</p>
+</div>
+
+<div class="amspec-signature-intro">
+    <p>Thanking You,<br>Yours faithfully,</p>
+</div>
+
 <div class="amspec-signature-row">
     <div class="amspec-signature amspec-signature-lab">
-        <p>{{ $copy['closing'] ?? '' }}</p>
-        <p style="margin-top: 16px;">Thanking You,<br>Yours faithfully,</p>
-        <p class="amspec-signature-entity">
+        <p class="amspec-signature-entity" style="margin-top: 0;">
             For {{ strtoupper($copy['legal_entity'] ?: ($company->name ?? '')) }}
         </p>
         @if(!empty($reportHeader->prepared_by_signature))

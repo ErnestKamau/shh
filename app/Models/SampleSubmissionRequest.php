@@ -32,6 +32,10 @@ class SampleSubmissionRequest extends Model
 
     public const STATUS_QUOTATION_IN_PROGRESS = 'Quotation In Progress';
 
+    public const STATUS_QUOTATION_PENDING_APPROVAL = 'Quotation Pending Approval';
+
+    public const STATUS_QUOTATION_READY_TO_SEND = 'Quotation Ready to Send';
+
     public const STATUS_QUOTATION_SENT = 'Quotation Sent';
 
     public const STATUS_QUOTATION_UNDER_REVIEW = 'Quotation Under Review';
@@ -39,6 +43,8 @@ class SampleSubmissionRequest extends Model
     public const STATUS_QUOTATION_ACCEPTED = 'Quotation Accepted';
 
     public const STATUS_READY_FOR_RECEPTION = 'Ready for Reception';
+
+    public const STATUS_SAMPLE_INTEGRITY_CHECK = 'Sample Integrity Check';
 
     public const STATUS_IN_REVIEW = 'In Review';
 
@@ -67,10 +73,13 @@ class SampleSubmissionRequest extends Model
     public const COMMERCIAL_PIPELINE_STATUSES = [
         self::STATUS_REQUESTED,
         self::STATUS_QUOTATION_IN_PROGRESS,
+        self::STATUS_QUOTATION_PENDING_APPROVAL,
+        self::STATUS_QUOTATION_READY_TO_SEND,
         self::STATUS_QUOTATION_SENT,
         self::STATUS_QUOTATION_UNDER_REVIEW,
         self::STATUS_QUOTATION_ACCEPTED,
         self::STATUS_READY_FOR_RECEPTION,
+        self::STATUS_SAMPLE_INTEGRITY_CHECK,
     ];
 
     protected $keyType = 'string';
@@ -241,7 +250,9 @@ class SampleSubmissionRequest extends Model
 
         return match ($status) {
             'submitted', 'Submitted' => self::STATUS_REQUESTED,
-            'Quotation Ready to Send', 'Pending Quotation' => 'Quotation Pending',
+            self::STATUS_QUOTATION_READY_TO_SEND, 'Pending Quotation' => 'Quotation Pending',
+            self::STATUS_QUOTATION_PENDING_APPROVAL => self::STATUS_QUOTATION_PENDING_APPROVAL,
+            self::STATUS_SAMPLE_INTEGRITY_CHECK => self::STATUS_SAMPLE_INTEGRITY_CHECK,
             self::STATUS_READY_FOR_RECEPTION => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
             // Legacy In Review folds into Ready for Reception (Accept Samples).
             self::STATUS_IN_REVIEW => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
@@ -266,10 +277,7 @@ class SampleSubmissionRequest extends Model
             return false;
         }
 
-        if ($this->needsSubcontractDispatch()) {
-            return false;
-        }
-
+        // Subcontract dispatch is enforced at Integrity Accept, not at Ready for Reception.
         return $this->accepted_quotation_header_id !== null
             || $this->current_quotation_header_id !== null
             || $this->quotation_accepted_at !== null;

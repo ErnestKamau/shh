@@ -72,4 +72,21 @@ class WorkflowBoardSidebarCountsTest extends TestCase
         $this->assertSame('Due today', WorkflowBoard::formatStatusDaysLabel(0));
         $this->assertSame('—', WorkflowBoard::formatStatusDaysLabel(null));
     }
+
+    #[Test]
+    public function format_receipt_date_time_appends_clock_time_from_radio_active_levels(): void
+    {
+        $this->assertSame('2026-07-29 14:30', WorkflowBoard::formatReceiptDateTime('2026-07-29 00:00:00', '14:30'));
+        $this->assertSame('2026-07-29 09:05', WorkflowBoard::formatReceiptDateTime('2026-07-29', '9:05:00'));
+        $this->assertSame('2026-07-29', WorkflowBoard::formatReceiptDateTime('2026-07-29 00:00:00', null));
+        $this->assertSame('2026-07-29', WorkflowBoard::formatReceiptDateTime('2026-07-29', 'Consignee text'));
+        $this->assertSame('N/A', WorkflowBoard::formatReceiptDateTime(null, '14:30'));
+    }
+
+    #[Test]
+    public function format_date_only_strips_midnight_time(): void
+    {
+        $this->assertSame('2026-07-22', WorkflowBoard::formatDateOnly('2026-07-22 00:00:00'));
+        $this->assertSame('N/A', WorkflowBoard::formatDateOnly(null));
+    }
 }

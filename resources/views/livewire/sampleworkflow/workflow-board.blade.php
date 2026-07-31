@@ -682,14 +682,29 @@
 		}
 	}
 
-	#receive-sample-modal .modal-content {
+	#receive-sample-modal .modal-content,
+	#request-additional-info-modal .modal-content,
+	#send-for-analyst-review-modal .modal-content,
+	#subcontract-dispatch-modal .modal-content,
+	#move-to-intray-modal .modal-content,
+	#assign-user-modal .modal-content {
 		max-height: calc(100vh - 2rem);
 	}
 
-	#receive-sample-modal .modal-body {
+	#receive-sample-modal .modal-body,
+	#request-additional-info-modal .modal-body,
+	#send-for-analyst-review-modal .modal-body,
+	#subcontract-dispatch-modal .modal-body,
+	#move-to-intray-modal .modal-body,
+	#assign-user-modal .modal-body {
 		padding: 0 1.5rem 1.25rem;
 		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 		overscroll-behavior: contain;
+	}
+
+	#assign-user-modal .modal-body {
+		padding: 1rem;
 	}
 
 	.receive-sample-modal-body {
@@ -1007,7 +1022,7 @@
 								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
 									class="badge badge-light badge-pill pt-1">{{ $tatTodayCount }}</span></span>
 						@endif
-						{{-- Physical check-in removed: Accept Samples on Ready for Reception creates the batch/job. --}}
+						{{-- Ready for Reception: Receive Samples handoff (status-only) into Integrity Check. --}}
 						{{-- Sample Submissions dropdown hidden: walk-ins use Receive Sample only (P1.1)
 						<div class="btn-group" role="group">
 							<button type="button" class="btn btn-sm btn-primary btn-action-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -1116,15 +1131,6 @@
 								@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
 									<li>
 										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-request-review"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
-											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for review
-										</button>
-									</li>
-									<li>
-										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-action-request-additional-info"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
@@ -1230,6 +1236,30 @@
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
 											wire:click.prevent="openAcceptSampleWizardFromSelection">
+											<i class="mdi mdi-package-down mr-2"></i> Receive Samples
+										</button>
+									</li>
+									<li>
+
+										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i class="mdi mdi-printer mr-2"></i>Print Labels</button>
+									</li>
+								@endif
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'sample_integrity_check')
+									<li>
+										<button type="button" class="dropdown-item"
+											data-sf-trigger="workflow-action-integrity-view"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openSampleIntegrityCheckPageFromSelection(ids); } })()">
+											<i class="mdi mdi-clipboard-check-outline mr-2"></i> Open Integrity Check
+										</button>
+									</li>
+									<li>
+										<button type="button" class="dropdown-item"
+											data-sf-trigger="workflow-action-approve-request"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openAcceptSampleWizardFromSelection(ids); } })()">
 											<i class="mdi mdi-check-circle-outline mr-2"></i> Accept sample
 										</button>
 									</li>
@@ -1238,13 +1268,9 @@
 											data-sf-trigger="workflow-action-reject-request"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											wire:click.prevent="openRejectSampleWizardFromSelection">
+											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openRejectSampleWizardFromSelection(ids); } })()">
 											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject sample
 										</button>
-									</li>
-									<li>
-
-										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i class="mdi mdi-printer mr-2"></i>Print Labels</button>
 									</li>
 								@endif
 								@if(in_array($status, ['Samples Reception', 'Samples Receiving']) || (in_array($status, ['Samples En-Route']) && $workflowSubTab === 'requests'))
@@ -1405,22 +1431,30 @@
 											class="btn btn-sm btn-primary"
 											data-sf-trigger="workflow-action-approve-request"
 											@click.prevent="selectedCount > 0 && $wire.openAcceptSampleWizardFromSelection()">
+											<i class="mdi mdi-package-down mr-1"></i> Receive Samples
+										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'sample_integrity_check')
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-action-integrity-view"
+											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openSampleIntegrityCheckPageFromSelection(ids); } })()">
+											<i class="mdi mdi-clipboard-check-outline mr-1"></i> Open Integrity Check
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-primary"
+											data-sf-trigger="workflow-action-approve-request"
+											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openAcceptSampleWizardFromSelection(ids); } })()">
 											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
 										</button>
 										<button type="button"
 											class="btn btn-sm btn-outline-danger"
 											data-sf-trigger="workflow-action-reject-request"
-											@click.prevent="selectedCount > 0 && $wire.openRejectSampleWizardFromSelection()">
+											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openRejectSampleWizardFromSelection(ids); } })()">
 											<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
 										</button>
 									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
-										<button type="button"
-											class="btn btn-sm btn-outline-primary"
-											data-sf-trigger="workflow-action-request-review"
-											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
-											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for review
-										</button>
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-action-request-additional-info"
@@ -2486,6 +2520,35 @@
 																		title="View details">
 																		<i class="mdi mdi-eye"></i>
 																	</a>
+																	@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+																		@php
+																			$readyQuotationId = $instance->sampleSubmissionRequest?->accepted_quotation_header_id
+																				?? $instance->sampleSubmissionRequest?->current_quotation_header_id
+																				?? $instance->sampleSubmissionRequest?->currentQuotation?->id;
+																			$trfDocumentCode = strtoupper((string) ($instance->submissionForm?->document_code ?? ''));
+																			$usesAmSpecTrfPdf = str_starts_with($trfDocumentCode, 'TRF-');
+																		@endphp
+																		@if(! empty($readyQuotationId))
+																			<a href="{{ route('quotation.preview', ['id' => $readyQuotationId]) }}"
+																				class="btn btn-sm rm-act-btn rm-act-btn--view"
+																				target="_blank"
+																				rel="noopener noreferrer"
+																				title="View quotation PDF">
+																				<i class="mdi mdi-file-pdf-box"></i>
+																			</a>
+																		@endif
+																		@if($instance->submissionForm)
+																			<a href="{{ $usesAmSpecTrfPdf
+																					? route('submission-forms.instances.trf-pdf', [$instance->submissionForm, $instance])
+																					: route('test-request-form.pdf', $instance->id) }}"
+																				class="btn btn-sm rm-act-btn rm-act-btn--view"
+																				target="_blank"
+																				rel="noopener noreferrer"
+																				title="View TRF PDF">
+																				<i class="mdi mdi-clipboard-text-outline"></i>
+																			</a>
+																		@endif
+																	@endif
 																	@php
 																		$enquiryStatus = trim((string) ($instance->sampleSubmissionRequest?->status ?? ''));
 																		$normalizedEnquiryStatus = strtolower($enquiryStatus);
@@ -2783,6 +2846,8 @@
 											No commercial enquiries match your current filters.
 										@elseif($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
 											No test requests are ready for physical receive. Quotation must be accepted first.
+										@elseif($status === 'Samples Receiving' && $workflowSubTab === 'sample_integrity_check')
+											No requests are in Sample Integrity & Acceptance Check. Use Receive Samples from Ready for Reception first.
 										@else
 											No portal-submitted requests match your current filters.
 										@endif
@@ -2850,14 +2915,13 @@
 										<thead>
 											<tr>
 												<th style="width: 40px;"></th>
-												<th>Batch Code</th>
+												<th>Job No</th>
 												@if($status !== 'Samples En-Route' && auth()->user()->CheckViewQcSample())
 													<th>Is Qc</th>
 												@endif
 												@if($status !== 'Samples En-Route')
-													<th>Sample Codes</th>
+													<th style="min-width: 220px;">Sample Codes</th>
 													<th>Draft Invoice</th>
-													<th>Stage</th>
 												@else
 													<th>Client</th>
 												@endif
@@ -2875,7 +2939,6 @@
 													@endif
 													<th>Lab</th>
 													<th nowrap>Sample Type</th>
-													<th>Routine</th>
 												@endif
 												@if($status == 'Samples In Lab')
 													<th>Assigned User</th>
@@ -2912,20 +2975,19 @@
 														<td>{{ $item->is_qc ? 'Yes' : 'No' }}</td>
 													@endif
 													@if($status !== 'Samples En-Route')
-														<td>
+														<td style="min-width: 220px;">
 															<small>{{ $sample_codes[0] ?? '' }} ... {{ end($sample_codes) ?? '' }}</small>
 														</td>
 														<td>{{ $item->invoice->invoice_number ?? 'N/A' }}</td>
-														<td>{{ $item->prelim_batch_status }}</td>
 													@else
 														<td>{{ $item->client->name ?? 'N/A' }}</td>
 													@endif
 													@if($status !== 'Samples En-Route')
 														<td>{{ $item->client->name ?? 'N/A' }} / {{ $item->lpo_ref ?? 'N/A' }}</td>
 													@endif
-													<td nowrap>{{ $item->receipt_date }}</td>
+													<td nowrap>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatReceiptDateTime($item->receipt_date, $item->radio_active_levels) }}</td>
 													@if($status !== 'Samples En-Route')
-														<td nowrap>{{ $item->date_collected }}</td>
+														<td nowrap>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatDateOnly($item->date_collected) }}</td>
 														<td nowrap>{{ $targetDateRaw ? \Illuminate\Support\Carbon::parse($targetDateRaw)->format('Y-m-d') : 'N/A' }}</td>
 														<td nowrap @class(['text-danger font-weight-bold' => $statusDays !== null && $statusDays < 0])>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatStatusDaysLabel($statusDays) }}</td>
 														<td>{{ $sample_count }}</td>
@@ -2962,7 +3024,6 @@
 															@endif
 														</td>
 														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
-														<td>{{ $item->is_routine ? 'Yes' : 'No' }}</td>
 													@endif
 													@if($status == 'Samples In Lab')
 														@php
@@ -3464,7 +3525,7 @@
 			</div>
 			<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 			<div id="request-additional-info-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-lg modal-dialog-centered">
+				<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -3485,7 +3546,7 @@
 				</div>
 			</div>
 			<div id="send-for-analyst-review-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-lg modal-dialog-centered">
+				<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -3506,7 +3567,7 @@
 				</div>
 			</div>
 			<div id="subcontract-dispatch-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-lg modal-dialog-centered">
+				<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -3529,7 +3590,7 @@
 		@endif
 		@if (in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
 			<div id="move-to-intray-modal" class="modal fade" tabindex="-1" role="dialog">
-				<div class="modal-dialog modal-lg modal-dialog-centered">
+				<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
 							<div>
@@ -4003,7 +4064,7 @@
 
 			@if(auth()->user()->can('laboratory.components.sample-workflow.assign-user'))
 			<div id="assign-user-modal" class="modal fade" role="dialog">
-				<div class="modal-dialog">
+				<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
 					<form class="modal-content" method="POST" action="{{ route('sample-workflow.assign-user') }}" id="assign-user-form" data-users-url="{{ route('sample-workflow.assign-user.users') }}">
 						@csrf
 						<div class="modal-header">
@@ -7118,92 +7179,63 @@
 	@livewire('sampleworkflow.process-enquiry-wizard')
 
 	@if($showQuotationAcceptanceModal)
-		<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45);">
-			<div class="modal-dialog">
+		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45); overflow-y: auto;">
+			<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h5 class="modal-title">Customer quotation acceptance</h5>
+						<h5 class="modal-title">
+							{{ $quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance' }}
+						</h5>
 						<button type="button" class="close" wire:click="closeQuotationAcceptanceModal"><span>&times;</span></button>
 					</div>
 					<div class="modal-body">
-						<p class="small text-muted mb-3">Capture the customer signature to accept this quotation. The signature will appear on the quotation PDF.</p>
-						@if(count($quotationAcceptanceContactOptions) > 0)
+						@if(! $quotationAcceptancePoOnly)
+							<p class="small text-muted mb-3">Capture the customer signature to accept this quotation. The signature will appear on the quotation PDF.</p>
 							<div class="form-group">
-								<label>Customer contact</label>
-								<select class="form-control" wire:model="quotationAcceptanceContactId">
+								<label>Customer contact <span class="text-danger">*</span></label>
+								<select class="form-control" wire:model.live="quotationAcceptanceContactId">
 									<option value="">Select contact...</option>
 									@foreach($quotationAcceptanceContactOptions as $contact)
 										<option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
 									@endforeach
 								</select>
+								@error('quotationAcceptanceContactId')
+									<small class="text-danger d-block mt-1">{{ $message }}</small>
+								@enderror
+							</div>
+							<label class="d-block">Signature <span class="text-danger">*</span></label>
+							<div class="acc-signature-pad border rounded p-2 bg-white" wire:ignore>
+								<canvas id="quotation-acceptance-signature-canvas" style="width: 100%; height: 160px; touch-action: none;"></canvas>
+								<div class="mt-2">
+									<button type="button" class="btn btn-sm btn-outline-secondary" id="quotation-acceptance-sign-clear">Clear</button>
+								</div>
+							</div>
+							@error('quotationAcceptanceSignature')
+								<small class="text-danger d-block mt-1">{{ $message }}</small>
+							@enderror
+							<hr class="my-3">
+						@endif
+
+						@if($poRuleMessage !== '')
+							<div class="alert alert-info py-2 mb-3 small">
+								{{ $poRuleMessage }}
 							</div>
 						@endif
 						<div class="form-group">
-							<label>Signer name <span class="text-danger">*</span></label>
-							<input type="text" class="form-control" wire:model.defer="quotationAcceptanceSignerName">
-							@error('quotationAcceptanceSignerName')
+							<label>Client PO number</label>
+							<input type="text" class="form-control" wire:model.defer="clientPoNumber">
+							@error('client_po_number')
 								<small class="text-danger d-block mt-1">{{ $message }}</small>
 							@enderror
 						</div>
-						<label class="d-block">Signature <span class="text-danger">*</span></label>
-						<div class="acc-signature-pad border rounded p-2 bg-white" wire:ignore>
-							<canvas id="quotation-acceptance-signature-canvas" style="width: 100%; height: 160px; touch-action: none;"></canvas>
-							<div class="mt-2">
-								<button type="button" class="btn btn-sm btn-outline-secondary" id="quotation-acceptance-sign-clear">Clear</button>
-							</div>
-						</div>
-						<input type="hidden" id="quotation-acceptance-signature-input" wire:model="quotationAcceptanceSignature">
-						@error('quotationAcceptanceSignature')
-							<small class="text-danger d-block mt-1">{{ $message }}</small>
-						@enderror
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>
-						<button type="button" class="btn btn-primary" id="quotation-acceptance-sign-submit">Accept quotation</button>
-					</div>
-				</div>
-			</div>
-		</div>
-	@endif
-
-	@if($showPoCaptureModal)
-		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45);">
-			<div class="modal-dialog">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title">Record PO</h5>
-						<button type="button" class="close" wire:click="closePoCaptureModal"><span>&times;</span></button>
-					</div>
-					<div class="modal-body">
-							<div class="alert alert-info py-2 mb-3 small">
-							{{ $poRuleMessage }}
-							</div>
-						<div class="form-group">
-							<label>Client PO number</label>
-							<input type="text" class="form-control" wire:model.defer="clientPoNumber">
-								@error('client_po_number')
-									<small class="text-danger d-block mt-1">{{ $message }}</small>
-								@enderror
-						</div>
-						<div class="form-group">
-							<label>Advance payment reference</label>
-							<input type="text" class="form-control" wire:model.defer="advancePaymentReference">
-								@error('advance_payment_reference')
-									<small class="text-danger d-block mt-1">{{ $message }}</small>
-								@enderror
-						</div>
-						<div class="form-check">
-								<input type="checkbox" class="form-check-input" id="poSkippedCheck" wire:model="poSkipped" @disabled(! $poAllowsSkip)>
-							<label class="form-check-label" for="poSkippedCheck">PO not required / skipped</label>
-								@error('po_skipped')
-									<small class="text-danger d-block mt-1">{{ $message }}</small>
-								@enderror
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-outline-secondary" wire:click="closePoCaptureModal">Cancel</button>
-						<button type="button" class="btn btn-primary" wire:click="submitPoAndReadyForReception">Mark ready for reception</button>
+						@if($quotationAcceptancePoOnly)
+							<button type="button" class="btn btn-primary" wire:click="submitPoAndReadyForReception">Mark ready for reception</button>
+						@else
+							<button type="button" class="btn btn-primary" id="quotation-acceptance-sign-submit">Accept quotation</button>
+						@endif
 					</div>
 				</div>
 			</div>
@@ -7245,7 +7277,38 @@
 
 			let quotationAcceptancePad = null;
 
-			function initQuotationAcceptancePad() {
+			function ensureSignaturePadLoaded() {
+				if (typeof SignaturePad !== 'undefined') {
+					return Promise.resolve();
+				}
+
+				if (!window.__signaturePadLoader) {
+					window.__signaturePadLoader = new Promise(function (resolve, reject) {
+						const script = document.createElement('script');
+						script.src = 'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js';
+						script.onload = resolve;
+						script.onerror = reject;
+						document.head.appendChild(script);
+					});
+				}
+
+				return window.__signaturePadLoader;
+			}
+
+			function applyQuotationAcceptanceSignature(signature) {
+				if (!quotationAcceptancePad) {
+					return;
+				}
+
+				quotationAcceptancePad.clear();
+				if (signature && String(signature).startsWith('data:image/')) {
+					try {
+						quotationAcceptancePad.fromDataURL(String(signature));
+					} catch (e) {}
+				}
+			}
+
+			function initQuotationAcceptancePad(initialSignature) {
 				const canvas = document.getElementById('quotation-acceptance-signature-canvas');
 				const clearBtn = document.getElementById('quotation-acceptance-sign-clear');
 				if (!canvas || typeof SignaturePad === 'undefined') {
@@ -7258,27 +7321,33 @@
 				canvas.getContext('2d').scale(ratio, ratio);
 
 				quotationAcceptancePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
-				quotationAcceptancePad.addEventListener('endStroke', function () {
-					const component = Livewire.find(canvas.closest('[wire\\:id]')?.getAttribute('wire:id'));
-					const value = quotationAcceptancePad.isEmpty() ? '' : quotationAcceptancePad.toDataURL('image/png');
-					if (component) {
-						component.set('quotationAcceptanceSignature', value);
-					}
-				});
 
 				if (clearBtn) {
 					clearBtn.onclick = function () {
 						quotationAcceptancePad.clear();
-						const component = Livewire.find(canvas.closest('[wire\\:id]')?.getAttribute('wire:id'));
-						if (component) {
-							component.set('quotationAcceptanceSignature', '');
-						}
 					};
 				}
+
+				applyQuotationAcceptanceSignature(initialSignature || '');
 			}
 
-			Livewire.on('quotation-acceptance-modal-opened', function () {
-				setTimeout(initQuotationAcceptancePad, 250);
+			Livewire.on('quotation-acceptance-modal-opened', function (payload) {
+				const data = payload?.detail ?? payload ?? {};
+				const signature = data.signature ?? data[0]?.signature ?? '';
+				quotationAcceptancePad = null;
+				ensureSignaturePadLoaded().then(function () {
+					setTimeout(function () {
+						initQuotationAcceptancePad(signature);
+					}, 250);
+				}).catch(function () {});
+			});
+
+			Livewire.on('quotation-acceptance-signature-changed', function (payload) {
+				const data = payload?.detail ?? payload ?? {};
+				const signature = data.signature ?? data[0]?.signature ?? '';
+				setTimeout(function () {
+					applyQuotationAcceptanceSignature(signature);
+				}, 50);
 			});
 
 			document.addEventListener('click', function (e) {
@@ -7302,9 +7371,7 @@
 					return;
 				}
 
-				component.set('quotationAcceptanceSignature', quotationAcceptancePad.toDataURL('image/png')).then(function () {
-					component.call('submitQuotationAcceptanceSignature');
-				});
+				component.call('submitQuotationAcceptanceSignature', quotationAcceptancePad.toDataURL('image/png'));
 			}, true);
 		});
 	</script>

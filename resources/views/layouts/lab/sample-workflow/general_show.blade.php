@@ -161,11 +161,14 @@
 				<!-- <button class="btn btn-outline-primary btn-sm float-right"  data-target="#dispatch-to-labs-modal" data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</button> -->
 			@endif
 			@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
-				{{-- @if($equipment_data['captured'] > 0) --}}
+				@php
+					$canSendToVerification = app(\App\Services\Sampleworkflow\BatchVerificationReadinessService::class)->canMoveToVerification($batch);
+				@endphp
+				@if($canSendToVerification)
 					<button class="btn btn-outline-danger btn-sm float-right" data-target="#send-to-verification-modal" data-toggle="modal" title="Send To Verification"><i class="mdi mdi-check-decagram"></i> Send To Verification</button>
-				{{-- @else
-					<button class="btn btn-outline-dark btn-sm float-right" disabled><i class="mdi mdi-check-decagram"></i> Send To Verification</button>
-				@endif --}}
+				@else
+					<button class="btn btn-outline-dark btn-sm float-right" disabled title="Capture at least one result before sending to verification"><i class="mdi mdi-check-decagram"></i> Send To Verification</button>
+				@endif
 			@endif
 			@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports to Email","Payments")) && Auth::user()->is_client == 0)
 				@if($batch->status == "Sample Verification")

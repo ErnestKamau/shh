@@ -13,6 +13,7 @@ use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Commercial\CommercialEnquiryCustomerResolver;
 use App\Services\Commercial\EnquiryReviewDisplayService;
+use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
@@ -114,6 +115,23 @@ class ProcessEnquiryWizard extends Component
 
     /** Soft mismatch warning when using an existing quotation. */
     public string $quotationMismatchWarning = '';
+
+    public bool $quotationPendingApproval = false;
+
+    public bool $quotationApprovedReadyToSend = false;
+
+    public string $quotationReviewedByName = '';
+
+    public bool $showApprovalModal = false;
+
+    public ?string $approvalLabManagerId = null;
+
+    public bool $approvalNotifyEmail = true;
+
+    public string $approvalComments = '';
+
+    /** @var list<array{id: string, name: string}> */
+    public array $labManagerOptions = [];
 
     /** Hides the Condition of sample column on the sample config table (Process Enquiry does not need it). */
     public bool $showSampleConditionOnConfig = false;
@@ -307,8 +325,14 @@ class ProcessEnquiryWizard extends Component
         $this->statusAutoDismiss = false;
         $this->pdfGenerated = ! empty($header?->upload_url);
         $this->quotationSent = $this->enquiryQuotationWasSent($enquiry, $header);
+        $this->syncApprovalState($enquiry, $header);
         $this->quotationManuallyEdited = false;
         $this->showBuildQuotationModal = false;
+        $this->showApprovalModal = false;
+        $this->approvalLabManagerId = null;
+        $this->approvalNotifyEmail = true;
+        $this->approvalComments = '';
+        $this->refreshLabManagerOptions();
         $this->quotationMode = 'build_new';
         $this->quotationModeRenderKey = 0;
         $this->selectedExistingQuotationId = null;
@@ -412,7 +436,11 @@ class ProcessEnquiryWizard extends Component
 
     private function normalizeSampleConfigs(): void
     {
-        $this->sampleConfigs = array_values(array_map(function (array $config): array {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        $this->sampleConfigs = array_values(array_map(function (array $config) use ($configService): array {
+            $config = $configService->syncSampleTypeIdsOnConfig($config);
+            $config = $configService->syncAnalysisTypeIdsOnConfig($config);
             $config['parameter_search'] = (string) ($config['parameter_search'] ?? '');
 
             return $config;
@@ -816,8 +844,12 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        $this->reconcileSampleConfigParameterKeys();
         $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
+            $this->sampleConfigs,
+            $this->crmCustomerId,
+        );
+        $this->reconcileSampleConfigParameterKeys();
         $acceptanceLines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
         $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
         if ($enquiry === null) {
@@ -1133,87 +1165,106 @@ class ProcessEnquiryWizard extends Component
         }
     }
 
-    public function resetLinePriceFromPricelist(int $index): void
+    public function openSendForApprovalModal(): void
     {
-        if (! isset($this->lines[$index]) || ! $this->crmCustomerId) {
+        if ($this->quotationMode !== 'build_new') {
             return;
         }
 
-        $pricing = app(AcceptanceFormPricingService::class);
-        $taxResolver = app(QuotationLineTaxResolver::class);
-        $preferredPricelist = $pricing->resolveCustomerAssignedPricelist($this->crmCustomerId);
+        if ($this->lines === []) {
+            $this->setStatus('error', 'No quotation lines to submit. Complete sample configuration and sync prices first.');
 
-        $line = $this->lines[$index];
-        $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
-        $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+            return;
+        }
 
-        if (! empty($line['is_package'])) {
-            $requestedElementIds = array_values(array_filter(array_map(
-                'strval',
-                $line['package_element_ids'] ?? []
-            )));
-            $match = $pricing->resolvePackageForGroup(
-                $this->crmCustomerId,
-                $sampleTypeId !== '' ? $sampleTypeId : null,
-                $analysisTypeId,
-                $requestedElementIds,
-                $preferredPricelist,
-            );
+        $this->refreshLabManagerOptions();
+        if ($this->labManagerOptions === []) {
+            $this->setStatus('error', 'No active Lab Manager users are available for approval.');
 
-            if ($match !== null) {
-                $this->lines[$index]['unit_price'] = (float) $match['item']->selling_price;
-                $this->lines[$index]['package_pricelist_item_id'] = (string) $match['item']->id;
+            return;
+        }
+
+        $this->approvalLabManagerId = $this->labManagerOptions[0]['id'] ?? null;
+        $this->approvalNotifyEmail = true;
+        $this->approvalComments = '';
+        $this->showApprovalModal = true;
+    }
+
+    public function closeSendForApprovalModal(): void
+    {
+        $this->showApprovalModal = false;
+    }
+
+    public function submitQuotationForApproval(): void
+    {
+        if ($this->quotationMode !== 'build_new') {
+            $this->setStatus('error', 'Only newly built quotations are submitted for approval.');
+
+            return;
+        }
+
+        $this->validate([
+            'approvalLabManagerId' => ['required', 'uuid'],
+        ], [
+            'approvalLabManagerId.required' => 'Select a lab manager to approve this quotation.',
+        ]);
+
+        try {
+            $enquiry = SampleSubmissionRequest::query()
+                ->with(['customer', 'contact', 'requestedAnalyses'])
+                ->find($this->enquiryId);
+
+            if ($enquiry === null) {
+                throw new \RuntimeException('Enquiry not found.');
             }
 
-            $vatState = $taxResolver->resolveLineVatState(
-                $match['pricelist'] ?? null,
-                $sampleTypeId !== '' ? $sampleTypeId : null,
-                $analysisTypeId,
-                null,
-                true,
-                $match !== null ? (string) $match['item']->id : (string) ($line['package_pricelist_item_id'] ?? ''),
-            );
-            $this->lines[$index]['tax'] = $vatState['tax'];
-            $this->lines[$index]['vat_from_pricelist'] = $vatState['vat_from_pricelist'];
-            $this->lines[$index]['vat_manual'] = false;
-            $this->quotationManuallyEdited = true;
-            $this->quotationBuilt = false;
+            $this->normalizeQuotationLineQuantities();
+            $this->applyPricelistVatToLines(preserveManualVat: true);
             $this->refreshLineLabMetrics();
-            $this->setStatus('success', 'Package price reset from pricelist.');
 
-            return;
+            $header = $this->ensureQuotationHeader();
+            $header->show_unit_price_column = true;
+            $header->save();
+
+            $this->persistQuotationLines();
+            $this->persistSampleConfiguration($enquiry);
+
+            $header = $header->fresh() ?? $header;
+            $enquiry = app(QuotationApprovalService::class)->submitForApproval(
+                $enquiry,
+                $header,
+                (string) $this->approvalLabManagerId,
+                $this->approvalNotifyEmail,
+                $this->approvalComments !== '' ? $this->approvalComments : null,
+            );
+
+            $header = $enquiry->currentQuotation ?? $header->fresh();
+            $this->quotationHeaderId = $header?->id;
+            $this->quoteNumber = (string) ($header?->quote_number ?? '');
+            $this->enquiryStatus = (string) $enquiry->status;
+            $this->quotationBuilt = true;
+            $this->quotationManuallyEdited = false;
+            $this->pdfGenerated = ! empty($header?->upload_url);
+            $this->syncApprovalState($enquiry, $header);
+            $this->showApprovalModal = false;
+
+            $flashMessage = 'Quotation '.$this->quoteNumber.' sent for lab manager approval.';
+            $this->dispatch('notify', type: 'success', message: $flashMessage);
+            $this->setStatus('success', $flashMessage, true);
+            $this->dispatch('process-enquiry-completed');
+        } catch (Throwable $exception) {
+            $this->setStatus('error', $exception->getMessage());
         }
-
-        $elementId = (string) ($line['analysis_element_id'] ?? '');
-
-        $resolved = $pricing->resolveLinePriceWithPricelist(
-            $this->crmCustomerId,
-            $sampleTypeId !== '' ? $sampleTypeId : null,
-            $analysisTypeId,
-            $elementId !== '' ? $elementId : null,
-            $preferredPricelist,
-        );
-
-        $vatState = $taxResolver->resolveLineVatState(
-            $resolved['pricelist'],
-            $sampleTypeId !== '' ? $sampleTypeId : null,
-            $analysisTypeId,
-            $elementId !== '' ? $elementId : null,
-        );
-
-        $this->lines[$index]['unit_price'] = $resolved['price'];
-        $this->lines[$index]['tax'] = $vatState['tax'];
-        $this->lines[$index]['vat_from_pricelist'] = $vatState['vat_from_pricelist'];
-        $this->lines[$index]['vat_manual'] = false;
-
-        $this->quotationManuallyEdited = true;
-        $this->quotationBuilt = false;
-        $this->refreshLineLabMetrics();
-        $this->setStatus('success', 'Line price reset from pricelist.');
     }
 
     public function sendQuotation(): void
     {
+        if ($this->quotationMode === 'build_new' && ! $this->quotationApprovedReadyToSend && ! $this->quotationSent) {
+            $this->openSendForApprovalModal();
+
+            return;
+        }
+
         if (strtolower($this->sourceChannel) !== 'portal') {
             $this->sendPortal = false;
         }
@@ -1314,6 +1365,7 @@ class ProcessEnquiryWizard extends Component
                 $enquiry = $quotationService->ensureEnquiryReflectsSentQuotation($enquiry);
                 $this->enquiryStatus = (string) $enquiry->status;
                 $this->quotationSent = true;
+                $this->syncApprovalState($enquiry, $enquiry->currentQuotation);
             }
 
             $this->dispatch('process-enquiry-completed');
@@ -1388,6 +1440,34 @@ class ProcessEnquiryWizard extends Component
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
         ], true);
+    }
+
+    private function syncApprovalState(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): void
+    {
+        $approvalService = app(QuotationApprovalService::class);
+        $this->quotationPendingApproval = $approvalService->isPendingApproval($enquiry, $header);
+        $this->quotationApprovedReadyToSend = $approvalService->isApprovedReadyToSend($enquiry, $header)
+            || (
+                $header !== null
+                && (int) $header->is_approved === 1
+                && $header->sent_to_customer_at === null
+                && (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND
+            );
+
+        $this->quotationReviewedByName = $approvalService->resolveApproverName($header);
+    }
+
+    private function refreshLabManagerOptions(): void
+    {
+        $excludeId = auth()->id() !== null ? (string) auth()->id() : null;
+        $this->labManagerOptions = app(QuotationApprovalService::class)
+            ->eligibleLabManagers($excludeId)
+            ->map(fn ($user): array => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->values()
+            ->all();
     }
 
     private function resolveOpeningStep(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): string
@@ -1494,11 +1574,16 @@ class ProcessEnquiryWizard extends Component
         $configService = app(AcceptanceFormSampleConfigService::class);
 
         foreach ($this->sampleConfigs as $index => $config) {
-            if (! empty($config['lab_section_id']) || empty($config['analysis_type_id'])) {
+            if (! empty($config['lab_section_id'])) {
                 continue;
             }
 
-            $resolved = $configService->resolveLabSectionIdForAnalysisType((string) $config['analysis_type_id']);
+            $analysisTypeIds = $configService->analysisTypeIdsFromConfig($config);
+            if ($analysisTypeIds === []) {
+                continue;
+            }
+
+            $resolved = $configService->resolveLabSectionIdForAnalysisType($analysisTypeIds[0]);
             if ($resolved !== null) {
                 $this->sampleConfigs[$index]['lab_section_id'] = $resolved;
             }
@@ -1665,9 +1750,10 @@ class ProcessEnquiryWizard extends Component
 
         foreach ($this->sampleConfigs as $index => $config) {
             $configSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
-            $configAnalysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            $configAnalysisTypeIds = app(AcceptanceFormSampleConfigService::class)
+                ->analysisTypeIdsFromConfig($config);
 
-            if ($configAnalysisTypeId !== $analysisTypeId) {
+            if (! in_array($analysisTypeId, $configAnalysisTypeIds, true)) {
                 continue;
             }
 
@@ -1696,7 +1782,7 @@ class ProcessEnquiryWizard extends Component
         $configService = app(AcceptanceFormSampleConfigService::class);
         $empty = $configService->emptyConfig();
         $empty['sample_type_id'] = $sampleTypeId !== '' ? $sampleTypeId : null;
-        $empty['analysis_type_id'] = $analysisTypeId;
+        $empty = $configService->syncAnalysisTypeIdsOnConfig($empty, [$analysisTypeId]);
         $empty['parameter_keys'] = [$elementId];
         $empty['lab_section_id'] = $configService->resolveLabSectionIdForAnalysisType($analysisTypeId);
         $empty['zone_id'] = $configService->resolveZoneIdFromInstance(
@@ -1723,9 +1809,10 @@ class ProcessEnquiryWizard extends Component
 
         foreach ($this->sampleConfigs as $index => $config) {
             $configSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
-            $configAnalysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            $configAnalysisTypeIds = app(AcceptanceFormSampleConfigService::class)
+                ->analysisTypeIdsFromConfig($config);
 
-            if ($analysisTypeId !== '' && $configAnalysisTypeId !== '' && $configAnalysisTypeId !== $analysisTypeId) {
+            if ($analysisTypeId !== '' && $configAnalysisTypeIds !== [] && ! in_array($analysisTypeId, $configAnalysisTypeIds, true)) {
                 continue;
             }
 
@@ -1784,9 +1871,12 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        $this->reconcileSampleConfigParameterKeys();
-
         $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->alignPrefillParameterKeysForConfigs(
+            $this->sampleConfigs,
+            $this->crmCustomerId,
+        );
+        $this->reconcileSampleConfigParameterKeys();
         $acceptanceLines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
         $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
         if ($enquiry === null) {

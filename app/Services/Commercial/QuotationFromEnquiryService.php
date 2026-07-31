@@ -68,15 +68,15 @@ final class QuotationFromEnquiryService
             $header->expiring_date = now()->addDays(30)->toDateString();
             $header->prepared_by_id = (string) $preparedById;
             $header->quotation_type = 'Analysis';
-            $header->status = 'Quote Complete';
+            $header->status = QuotationApprovalService::HEADER_STATUS_IN_PREPARATION;
             $header->from_enquiry = true;
             $header->sample_submission_request_id = $enquiry->id;
             $header->pricelist_id = $pricelist?->id;
             $header->currency_id = $pricelist?->currency_id
                 ?? $enquiry->customer?->currency_id;
             $header->is_draft = 0;
-            $header->is_complete = 1;
-            $header->is_approved = 1;
+            $header->is_complete = 0;
+            $header->is_approved = 0;
             $header->show_unit_price_column = true;
             $header->save();
 
@@ -602,6 +602,12 @@ final class QuotationFromEnquiryService
             throw new RuntimeException('Select at least one delivery channel (portal or email).');
         }
 
+        // Enquiry-built quotations (build new) require lab-manager approval first.
+        // Reused existing quotes are already Quote Complete + approved.
+        if ((bool) $header->from_enquiry && (int) $header->is_approved !== 1) {
+            app(QuotationApprovalService::class)->assertReadyToSend($header);
+        }
+
         return DB::transaction(function () use ($enquiry, $header, $sendPortal, $sendEmail): SampleSubmissionRequest {
             if (empty($header->upload_url)) {
                 $header = $this->generatePdf($header);
@@ -610,7 +616,9 @@ final class QuotationFromEnquiryService
             $now = now();
             $header->sent_to_customer_at = $now;
             $header->email_to_customer = $sendEmail ? $now->toDateString() : $header->email_to_customer;
-            $header->status = 'Quote Complete';
+            $header->status = QuotationApprovalService::HEADER_STATUS_COMPLETE;
+            $header->is_approved = 1;
+            $header->is_complete = 1;
             $header->save();
 
             if ($sendEmail && $enquiry->contact?->email) {
@@ -637,6 +645,19 @@ final class QuotationFromEnquiryService
                         'error' => $exception->getMessage(),
                     ]);
                 }
+            }
+
+            try {
+                \App\Models\QuotationApprovalLog::query()->create([
+                    'quotation_header_id' => $header->id,
+                    'sample_submission_request_id' => $enquiry->id,
+                    'actor_user_id' => Auth::id() !== null ? (string) Auth::id() : null,
+                    'assignee_user_id' => $header->approved_by,
+                    'action' => \App\Models\QuotationApprovalLog::ACTION_SENT,
+                    'comments' => null,
+                ]);
+            } catch (\Throwable) {
+                // Approval log is optional for legacy quotes without the table yet.
             }
 
             return $this->ensureEnquiryReflectsSentQuotation($enquiry->fresh(['customer', 'contact', 'requestedAnalyses', 'currentQuotation']));
@@ -704,9 +725,9 @@ final class QuotationFromEnquiryService
             $header = $this->quotationRevisionService->createRevision($priorHeader, [
                 'from_enquiry' => true,
                 'sample_submission_request_id' => $enquiry->id,
-                'status' => 'Quote Complete',
-                'is_complete' => 1,
-                'is_approved' => 1,
+                'status' => QuotationApprovalService::HEADER_STATUS_IN_PREPARATION,
+                'is_complete' => 0,
+                'is_approved' => 0,
             ]);
 
             $enquiry->current_quotation_header_id = $header->id;
@@ -808,6 +829,9 @@ final class QuotationFromEnquiryService
 
         $header->sample_submission_request_id = $enquiry->id;
         $header->from_enquiry = true;
+        // Existing completed quotations are treated as already approved for customer send.
+        $header->is_approved = 1;
+        $header->is_complete = 1;
         $header->save();
 
         $enquiry->current_quotation_header_id = $header->id;
@@ -1024,13 +1048,19 @@ final class QuotationFromEnquiryService
             $enquiry->save();
         });
 
+        $signedQuotation = null;
+
         try {
-            app(QuotationReportService::class)->storePdf($quotation->fresh());
+            $signedQuotation = app(QuotationReportService::class)->storePdf($quotation->fresh());
         } catch (\Throwable $exception) {
             Log::warning('Failed to regenerate quotation PDF after walk-in acceptance.', [
                 'quotation_header_id' => (string) $quotation->id,
                 'message' => $exception->getMessage(),
             ]);
+        }
+
+        if ($signedQuotation !== null) {
+            $this->refreshQuotationAttachment($enquiry, $signedQuotation);
         }
 
         app(QuotationAcceptanceTatService::class)->recalculateCustomerTat((string) $enquiry->crm_customer_id);
@@ -1047,5 +1077,31 @@ final class QuotationFromEnquiryService
         }
 
         return $enquiry->fresh(['customer', 'contact', 'requestedAnalyses']);
+    }
+
+    /**
+     * The request attachment stores a physical copy of the quotation PDF taken when it was
+     * sent, so it has to be re-copied once the signed PDF replaces it.
+     */
+    private function refreshQuotationAttachment(SampleSubmissionRequest $enquiry, QuotationHeader $quotation): void
+    {
+        $instance = $enquiry->submissionFormInstance;
+        if ($instance === null || blank($quotation->upload_url)) {
+            return;
+        }
+
+        try {
+            app(SubmissionFormInstanceDocumentAttachmentService::class)->attachQuotation(
+                $instance,
+                $quotation,
+                Auth::id(),
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to refresh the quotation attachment after acceptance.', [
+                'instance_id' => (string) $instance->id,
+                'quotation_header_id' => (string) $quotation->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 }

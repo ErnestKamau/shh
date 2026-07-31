@@ -16,6 +16,7 @@ class BatchCustodyTimelineBuilderTest extends TestCase
 
         $this->assertSame('Submitted Requests', $tabs['submitted'] ?? null);
         $this->assertSame('Ready for Reception', $tabs['ready_for_reception'] ?? null);
+        $this->assertSame('Sample Integrity & Acceptance Check', $tabs['sample_integrity_check'] ?? null);
         $this->assertSame('Accepted', $tabs['accepted'] ?? null);
         $this->assertSame('Request Additional Info', $tabs['in_additional_info'] ?? null);
 

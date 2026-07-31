@@ -5,6 +5,7 @@ namespace App\Livewire\Batch;
 use App\Livewire\Batch\Concerns\InteractsWithCaseFileReviewForm;
 use App\SampleHeader;
 use App\CapturedResult;
+use App\Services\Sampleworkflow\BatchVerificationReadinessService;
 use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
 use App\Services\WorkflowService;
 use Illuminate\Validation\ValidationException;
@@ -378,6 +379,13 @@ class Header extends Component
         $batch->refresh();
         $this->batch = $batch;
 
+        $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($batch);
+        if ($resultsBlockReason !== null) {
+            session()->flash('error', $resultsBlockReason);
+
+            return;
+        }
+
         if (empty($batch->lab_section_ids)) {
             session()->flash('error', 'Kindly provide the lab sections associated with the sample at batch information section');
             return;
@@ -535,9 +543,26 @@ class Header extends Component
 
     public function openVerificationModal()
     {
+        $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($this->batch);
+        if ($resultsBlockReason !== null) {
+            session()->flash('error', $resultsBlockReason);
+
+            return;
+        }
+
         $this->prepareVerificationForm();
         $this->verificationActiveTab = 'assign_approvers';
         $this->showVerificationModal = true;
+    }
+
+    public function getCanSendToVerificationProperty(): bool
+    {
+        return app(BatchVerificationReadinessService::class)->canMoveToVerification($this->batch);
+    }
+
+    public function getVerificationResultsBlockReasonProperty(): ?string
+    {
+        return app(BatchVerificationReadinessService::class)->blockingReason($this->batch);
     }
 
     /**

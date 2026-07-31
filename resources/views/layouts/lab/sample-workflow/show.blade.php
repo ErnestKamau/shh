@@ -637,9 +637,19 @@
 				@endif</li>
 				--}}
 				<li>
-					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
-						<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
-					</span>
+					@php
+						$canSendToVerification = app(\App\Services\Sampleworkflow\BatchVerificationReadinessService::class)->canMoveToVerification($batch);
+					@endphp
+					@if($canSendToVerification)
+						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
+							<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
+						</span>
+					@else
+						<span class="dropdown-item text-danger small" style="cursor: not-allowed;"
+							title="Capture at least one result before sending to verification">
+							<i class="mdi mdi-alert mr-2"></i> Send for Verification (No results captured)
+						</span>
+					@endif
 				</li>
 
 				@if( $batch->prelim_report_status != 0 && $status == 'Sample Verification')

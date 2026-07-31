@@ -937,6 +937,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples')->middleware('can:laboratory.components.all samples.add');
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status')->middleware('can:submission-forms.access');
         Route::get('/{instance}/sample-collection-label', 'FormInstanceController@sampleCollectionLabel')->name('sample-collection-label')->middleware('can:submission-forms.access');
+        Route::get('/{submissionForm}/{instance}/sample-integrity-check', 'FormInstanceController@sampleIntegrityCheck')
+            ->name('sample-integrity-check')
+            ->middleware('can:submission-forms.access');
         Route::post('/{instance}/intake-case/confirm', 'LabIntakeCaseController@confirm')->name('intake-case.confirm')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/accept', 'LabIntakeCaseController@accept')->name('intake-case.accept')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/reject', 'LabIntakeCaseController@reject')->name('intake-case.reject')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
