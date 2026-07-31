@@ -332,11 +332,19 @@ class ProcessEnquiryWizard extends Component
             $this->rebuildQuotationLinesFromSampleConfigs();
         }
         $this->activeStep = $this->resolveOpeningStep($enquiry, $header);
-        $this->statusMessage = $this->quotationSent
-            ? 'Quotation '.$this->quoteNumber.' has been sent. Saved sample configuration and pricing are shown below.'
-            : '';
-        $this->statusLevel = 'info';
-        $this->statusAutoDismiss = $this->statusMessage !== '';
+        if ($enquiry->isQuotationUnderReview()) {
+            $this->statusMessage = $this->customerFeedbackNotes !== ''
+                ? 'Customer sent this quotation back for review. See their reason below, revise pricing if needed, then send again.'
+                : 'Customer sent this quotation back for review. Revise as needed, then send again for acceptance.';
+            $this->statusLevel = 'warning';
+            $this->statusAutoDismiss = false;
+        } else {
+            $this->statusMessage = $this->quotationSent
+                ? 'Quotation '.$this->quoteNumber.' has been sent. Saved sample configuration and pricing are shown below.'
+                : '';
+            $this->statusLevel = 'info';
+            $this->statusAutoDismiss = $this->statusMessage !== '';
+        }
         $this->showModal = true;
     }
 

@@ -70,7 +70,13 @@
                                 <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled($lines === [])>
                                     <span wire:loading.remove wire:target="sendQuotation">
                                         <i class="mdi mdi-send"></i>
-                                        {{ $quotationSent ? 'Send again' : 'Send to customer' }}
+                                        @if($enquiryStatus === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
+                                            Send revised quotation
+                                        @elseif($quotationSent)
+                                            Send again
+                                        @else
+                                            Send to customer
+                                        @endif
                                     </span>
                                     <span wire:loading wire:target="sendQuotation">Sending…</span>
                                 </button>
@@ -82,6 +88,7 @@
                         @if($activeStep === 'review')
                             <section class="acc-wizard-section">
                                 @include('livewire.partials.process-enquiry-status-alert')
+                                @include('livewire.partials.process-enquiry-customer-review-alert')
 
                                 <h6 class="acc-wizard-section-title">Request summary</h6>
                                 <div class="row acc-wizard-fields mb-3">
@@ -143,18 +150,12 @@
                                     </div>
                                 @endif
 
-                                @if($customerFeedbackNotes !== '')
-                                    <div class="alert alert-warning py-2 mb-3">
-                                        <strong class="d-block mb-1">Customer feedback (read-only)</strong>
-                                        <div class="small mb-0" style="white-space: pre-wrap;">{{ $customerFeedbackNotes }}</div>
-                                    </div>
-                                @endif
-
                             </section>
                         @endif
 
                         @if($activeStep === 'sample_config')
                             @include('livewire.partials.process-enquiry-status-alert')
+                            @include('livewire.partials.process-enquiry-customer-review-alert')
 
                             @include('livewire.partials.acceptance-sample-config-table')
                         @endif
@@ -162,6 +163,7 @@
                         @if($activeStep === 'pricing')
                             <div wire:key="enquiry-wizard-pricing-{{ $quotationMode }}-{{ $quotationModeRenderKey }}">
                             @include('livewire.partials.process-enquiry-status-alert')
+                            @include('livewire.partials.process-enquiry-customer-review-alert')
 
                             <section class="acc-wizard-section acc-pricing-section">
                                 <div class="acc-pricing-mode mb-3" wire:key="enquiry-pricing-mode-{{ $quotationMode }}-{{ $quotationModeRenderKey }}">

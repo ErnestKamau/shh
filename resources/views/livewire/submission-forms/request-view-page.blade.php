@@ -23,10 +23,21 @@
         'nextStepActions' => $nextStepActions,
     ])
 
-    @if($commercialEnquiry && $commercialEnquiry->hasCustomerFeedback())
+    @if($commercialEnquiry && ($commercialEnquiry->isQuotationUnderReview() || $commercialEnquiry->hasCustomerFeedback()))
         <div class="alert alert-warning mb-3">
-            <strong><i class="mdi mdi-comment-alert-outline"></i> Customer requested quotation changes</strong>
-            <div class="mt-2 mb-0" style="white-space: pre-wrap;">{{ $commercialEnquiry->customerFeedbackNotes() }}</div>
+            <strong>
+                <i class="mdi mdi-comment-alert-outline"></i>
+                @if($commercialEnquiry->isQuotationUnderReview())
+                    Customer sent this quotation back for review
+                @else
+                    Customer feedback on quotation
+                @endif
+            </strong>
+            @if($commercialEnquiry->hasCustomerFeedback())
+                <div class="mt-2 mb-0" style="white-space: pre-wrap;">{{ $commercialEnquiry->customerFeedbackNotes() }}</div>
+            @else
+                <div class="mt-2 mb-0 text-muted">No review reason was recorded.</div>
+            @endif
         </div>
     @endif
 

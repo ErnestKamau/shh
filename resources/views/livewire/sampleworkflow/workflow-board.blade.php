@@ -273,6 +273,32 @@
 		border-color: #cbd5e1;
 		color: #475569;
 	}
+	.workflow-table .rm-act-btn--review {
+		border: 1px solid #fcd34d;
+		color: #b45309;
+		background: #fffbeb;
+	}
+	.workflow-table .rm-act-btn--review:hover {
+		background: #fef3c7;
+		border-color: #fbbf24;
+		color: #92400e;
+	}
+	.workflow-table .enquiry-review-reason {
+		max-width: 220px;
+		margin-top: 4px;
+		padding: 4px 8px;
+		border-radius: 6px;
+		border: 1px solid #fcd34d;
+		background: #fffbeb;
+		color: #92400e;
+		font-size: 11px;
+		line-height: 1.35;
+		white-space: normal;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
 	.form-template-block {
 		display: flex;
 		flex-direction: column;
@@ -2489,17 +2515,19 @@
 																	@php
 																		$enquiryStatus = trim((string) ($instance->sampleSubmissionRequest?->status ?? ''));
 																		$normalizedEnquiryStatus = strtolower($enquiryStatus);
+																		$isQuotationUnderReview = $instance->sampleSubmissionRequest?->isQuotationUnderReview() ?? false;
 																		$reviewQuotationId = $instance->sampleSubmissionRequest?->current_quotation_header_id
 																			?? $instance->sampleSubmissionRequest?->currentQuotation?->id
 																			?? $instance->sampleSubmissionRequest?->accepted_quotation_header_id;
+																		$customerReviewReason = $isQuotationUnderReview
+																			? trim((string) ($instance->sampleSubmissionRequest?->latestCustomerFeedbackNotes() ?? ''))
+																			: '';
 																	@endphp
-																	@if(($normalizedEnquiryStatus === strtolower(\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
-																			|| str_contains($normalizedEnquiryStatus, 'quotation under review'))
-																		&& !empty($reviewQuotationId))
+																	@if($isQuotationUnderReview && !empty($reviewQuotationId))
 																		<button type="button"
 																			wire:click="openReviewQuotationByEnquiryId('{{ $instance->sampleSubmissionRequest->id }}')"
-																			class="btn btn-sm rm-act-btn rm-act-btn--view"
-																			title="Review quotation">
+																			class="btn btn-sm rm-act-btn rm-act-btn--review"
+																			title="{{ $customerReviewReason !== '' ? 'Review quotation — '.$customerReviewReason : 'Review quotation sent back by customer' }}">
 																			<i class="mdi mdi-file-document-edit-outline"></i>
 																		</button>
 																	@endif
@@ -2555,7 +2583,27 @@
 														@if($status === 'Samples Receiving')
 															<td>
 																@if($linkedEnquiry)
-																	<span class="small">{{ $linkedEnquiry->commercialStatus() }}</span>
+																	@php
+																		$commercialLabel = $linkedEnquiry->commercialStatus();
+																		$isUnderReviewRow = $linkedEnquiry->isQuotationUnderReview();
+																		$rowReviewReason = $isUnderReviewRow
+																			? trim($linkedEnquiry->latestCustomerFeedbackNotes())
+																			: '';
+																	@endphp
+																	@if($isUnderReviewRow)
+																		<span class="badge badge-warning text-dark" title="Customer requested quotation changes">
+																			<i class="mdi mdi-comment-alert-outline mr-1"></i>{{ $commercialLabel }}
+																		</span>
+																		@if($rowReviewReason !== '')
+																			<div class="enquiry-review-reason" title="{{ $rowReviewReason }}">
+																				{{ $rowReviewReason }}
+																			</div>
+																		@else
+																			<div class="small text-warning mt-1">Needs revision — open review to revise and resend</div>
+																		@endif
+																	@else
+																		<span class="small">{{ $commercialLabel }}</span>
+																	@endif
 																@else
 																	<span class="text-muted small">—</span>
 																@endif
@@ -2737,8 +2785,8 @@
 															@if(($request->status ?? '') === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW && !empty($request->current_quotation_header_id))
 																<button type="button"
 																	wire:click="openProcessEnquiryByEnquiryId('{{ $request->id }}')"
-																	class="btn btn-sm rm-act-btn rm-act-btn--view"
-																	title="Review quotation">
+																	class="btn btn-sm rm-act-btn rm-act-btn--review"
+																	title="{{ trim($request->latestCustomerFeedbackNotes()) !== '' ? 'Review quotation — '.trim($request->latestCustomerFeedbackNotes()) : 'Review quotation sent back by customer' }}">
 																	<i class="mdi mdi-file-document-edit-outline"></i>
 																</button>
 															@endif
@@ -2751,9 +2799,26 @@
 														<td>{{ $request->case_no ?? 'N/A' }}</td>
 														<td class="text-center">{{ $request->exhibits->count() }}</td>
 														<td>
-															<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
-																{{ $statusText }}
-															</span>
+															@php
+																$isPortalUnderReview = ($request->status ?? '') === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW;
+																$portalReviewReason = $isPortalUnderReview
+																	? trim($request->latestCustomerFeedbackNotes())
+																	: '';
+															@endphp
+															@if($isPortalUnderReview)
+																<span class="badge badge-warning text-dark" title="Customer requested quotation changes">
+																	<i class="mdi mdi-comment-alert-outline mr-1"></i>{{ $statusText }}
+																</span>
+																@if($portalReviewReason !== '')
+																	<div class="enquiry-review-reason" title="{{ $portalReviewReason }}">
+																		{{ $portalReviewReason }}
+																	</div>
+																@endif
+															@else
+																<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
+																	{{ $statusText }}
+																</span>
+															@endif
 														</td>
 														<td nowrap>{{ optional($request->submitted_by_date)->format('Y-m-d') ?? 'N/A' }}</td>
 														<td nowrap>
