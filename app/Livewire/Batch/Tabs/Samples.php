@@ -2514,6 +2514,7 @@ class Samples extends Component
                     'value_limit_type' => $valueLimitType,
                     'standard_limit_value' => $standardLimitValue,
                     'standard_editable' => false,
+                    'can_edit' => $access->canEditCapturedResult($user, $result),
                     'batch_attachment_id' => $result->batch_attachment_id,
                     'batch_attachment_url' => $batchAttachmentUrl,
                 ];
@@ -3070,7 +3071,7 @@ class Samples extends Component
             }
 
             if ($editableIds === []) {
-                session()->flash('error', 'You can only save parameters for your assigned lab section(s).');
+                session()->flash('error', $access->denyEditMessage($user));
                 return;
             }
 
@@ -3764,14 +3765,57 @@ class Samples extends Component
         $this->changeSectionAffectAll = true;
     }
 
-    private function userCanEditParameterRow(string $id): bool
+    public function userCanEditParameterRow(string $id): bool
     {
+        if (array_key_exists('can_edit', $this->parametersForm[$id] ?? [])) {
+            return (bool) $this->parametersForm[$id]['can_edit'];
+        }
+
+        if (array_key_exists('can_edit', $this->sampleParameters[$id] ?? [])) {
+            return (bool) $this->sampleParameters[$id]['can_edit'];
+        }
+
         $captured = CapturedResult::query()->find($id);
         if (! $captured) {
             return false;
         }
 
         return app(LabSectionResultAccess::class)->canEditCapturedResult(auth()->user(), $captured);
+    }
+
+    public function getParametersDenyEditMessageProperty(): string
+    {
+        return app(LabSectionResultAccess::class)->denyEditMessage(auth()->user());
+    }
+
+    public function getHasEditableParametersProperty(): bool
+    {
+        if ($this->parametersReadOnly) {
+            return false;
+        }
+
+        foreach ($this->parametersForm as $id => $row) {
+            if ($this->userCanEditParameterRow((string) $id)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function getHasNonEditableParametersProperty(): bool
+    {
+        if ($this->parametersReadOnly || $this->parametersForm === []) {
+            return false;
+        }
+
+        foreach ($this->parametersForm as $id => $row) {
+            if (! $this->userCanEditParameterRow((string) $id)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ========== Comments & Interpretations Feature ==========

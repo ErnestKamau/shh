@@ -951,26 +951,34 @@
                         <i class="mdi mdi-lock-outline"></i>
                         Assign a lab section in your profile before capturing results. You can view parameters but cannot fill or save them.
                     </div>
-                    @elseif($parametersSectionFiltered)
-                    <div class="alert alert-light border mb-3 d-flex align-items-center flex-wrap" style="gap: 0.35rem;">
-                        <i class="mdi mdi-flask-outline text-primary"></i>
-                        @if(!empty($parameterLabSections))
-                            @foreach($parameterLabSections as $sectionLabel)
-                                <span class="badge badge-light border font-weight-normal">{{ $sectionLabel }}</span>
-                            @endforeach
-                        @elseif(auth()->user()?->labsectionname)
-                            <span class="badge badge-light border font-weight-normal">{{ auth()->user()->labsectionname }}</span>
-                        @else
-                            <span class="text-muted">Lab section assigned</span>
+                    @else
+                        @if($this->hasNonEditableParameters)
+                        <div class="alert alert-warning border mb-3">
+                            <i class="mdi mdi-lock-outline"></i>
+                            {{ $this->parametersDenyEditMessage }}
+                            Rows outside your lab section(s) are view-only.
+                        </div>
                         @endif
-                    </div>
+                        @if($parametersSectionFiltered)
+                        <div class="alert alert-light border mb-3 d-flex align-items-center flex-wrap" style="gap: 0.35rem;">
+                            <i class="mdi mdi-flask-outline text-primary"></i>
+                            @if(!empty($parameterLabSections))
+                                @foreach($parameterLabSections as $sectionLabel)
+                                    <span class="badge badge-light border font-weight-normal">{{ $sectionLabel }}</span>
+                                @endforeach
+                            @elseif(auth()->user()?->labsectionname)
+                                <span class="badge badge-light border font-weight-normal">{{ auth()->user()->labsectionname }}</span>
+                            @else
+                                <span class="text-muted">Lab section assigned</span>
+                            @endif
+                        </div>
+                        @endif
                     @endif
 
                     @if(!empty($sampleParameters))
                     @php
                         $parameterColspan = ($uncertaintyRequired ? 17 : 16);
                         $groupedParameters = $this->groupedParametersForm;
-                        $parametersDisabled = $parametersReadOnly;
                         $reportingSymbols = $this->reportingSymbolOptions();
                         $subcontractedSummary = collect($sampleParameters)
                             ->filter(fn ($param) => ! empty($param['subcontracted']) && ! empty($param['subcontracted_lab_name']))
@@ -1033,8 +1041,13 @@
                                     $showSecondaryStandard = $secStandardDisplay !== ''
                                         && strcasecmp($secStandardDisplay, $mainStandardDisplay) !== 0;
                                     $selectedSymbol = (string) ($parametersForm[$id]['result_reporting_symbol'] ?? $param['result_reporting_symbol'] ?? '');
+                                    $rowCanEdit = ! $parametersReadOnly && (bool) ($param['can_edit'] ?? false);
+                                    if (! array_key_exists('can_edit', $param)) {
+                                        $rowCanEdit = ! $parametersReadOnly && $this->userCanEditParameterRow((string) $id);
+                                    }
+                                    $parametersDisabled = ! $rowCanEdit;
                                 @endphp
-                                <tr wire:key="param-{{ $id }}">
+                                <tr wire:key="param-{{ $id }}" class="{{ $parametersDisabled ? 'sample-parameters-row--readonly' : '' }}">
                                     <td><strong>{{ format_sample_code($param['sample_code']) }}</strong></td>
                                     <td class="sample-parameters-modal__analyte">
                                         <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
@@ -1242,7 +1255,7 @@
                     <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
                         <i class="mdi mdi-close"></i> Close
                     </button>
-                    @if(! $parametersReadOnly && ! empty($sampleParameters))
+                    @if($this->hasEditableParameters && ! empty($sampleParameters))
                     <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
                         wire:loading.attr="disabled" wire:target="saveParameters">
                         <span wire:loading.remove wire:target="saveParameters">
@@ -1270,6 +1283,15 @@
             border-radius: 16px;
             box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
             overflow: hidden;
+        }
+
+        .sample-parameters-modal .sample-parameters-row--readonly td {
+            background-color: #f8fafc;
+        }
+
+        .sample-parameters-modal .sample-parameters-row--readonly input:disabled,
+        .sample-parameters-modal .sample-parameters-row--readonly select:disabled {
+            cursor: not-allowed;
         }
 
         .btn-icon {
@@ -2978,13 +3000,10 @@
                 const $el = window.jQuery(this);
                 const $wrap = $el.closest('.param-equipment-select2-wrap');
 
+                // Already owned by Select2 — do not destroy/reinit on every Livewire
+                // commit (that reset selection back to stale data-initial).
                 if ($el.hasClass('select2-hidden-accessible')) {
-                    try {
-                        $el.off('change.paramEquipmentSelect2');
-                        $el.select2('destroy');
-                    } catch (e) {
-                        // Ignore already-destroyed instances.
-                    }
+                    return;
                 }
 
                 $el.select2({
@@ -3016,7 +3035,8 @@
                         return;
                     }
 
-                    const vals = $el.val() || [];
+                    const vals = ($el.val() || []).map(String);
+                    $wrap.attr('data-initial', JSON.stringify(vals));
                     $wire.set('parametersForm.' + paramId + '.equipment_ids', vals);
                 });
             });
