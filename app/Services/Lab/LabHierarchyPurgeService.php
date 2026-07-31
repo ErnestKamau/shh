@@ -43,43 +43,182 @@ final class LabHierarchyPurgeService
                     ->whereIn('analysis_type_id', $analysisTypeIds)
                     ->pluck('id');
 
-            $submissionFormInstanceIds = $this->resolveSubmissionFormInstanceIds();
-            $submissionRequestIds = $this->resolveSubmissionRequestIds($submissionFormInstanceIds);
-
-            $sampleHeaderIds = $this->resolveSampleHeaderIds(
-                $sampleTypeIds,
-                $submissionFormInstanceIds,
-                $submissionRequestIds
-            );
-
-            $sampleDetailIds = $sampleHeaderIds->isEmpty()
-                ? collect()
-                : SampleDetails::query()
-                    ->whereIn('sample_header_id', $sampleHeaderIds)
-                    ->pluck('id');
-
-            $summary['sample_types'] = $sampleTypeIds->count();
-            $summary['analysis_types'] = $analysisTypeIds->count();
-            $summary['analytes'] = $analyteIds->count();
-            $summary['analysis_elements'] = $analysisElementIds->count();
-            $summary['sample_headers'] = $sampleHeaderIds->count();
-            $summary['sample_details'] = $sampleDetailIds->count();
-            $summary['submission_form_instances'] = $submissionFormInstanceIds->count();
-            $summary['sample_submission_requests'] = $submissionRequestIds->count();
-
-            $this->purgeBatchTrees($sampleHeaderIds, $sampleDetailIds, $summary);
-            $this->purgeRequestPipeline($submissionFormInstanceIds, $submissionRequestIds, $summary);
-            $this->purgeConfigurationData(
+            $this->purgeHierarchyGraph(
                 $companyId,
                 $sampleTypeIds,
                 $analysisTypeIds,
                 $analyteIds,
                 $analysisElementIds,
-                $summary
+                $summary,
+                includeRequestPipeline: true,
             );
         });
 
         return $summary;
+    }
+
+    /**
+     * Replace Analysis Types only: remove types + their parameter mappings and
+     * sample↔analysis-type links, leaving Sample Types and Analyte catalog intact.
+     *
+     * @return array<string, int>
+     */
+    public function purgeAnalysisTypesForCompany(string $companyId): array
+    {
+        $summary = [];
+
+        DB::transaction(function () use ($companyId, &$summary): void {
+            $analysisTypeIds = AnalysisType::query()
+                ->where('company_id', $companyId)
+                ->pluck('id');
+
+            $analysisElementIds = $analysisTypeIds->isEmpty()
+                ? collect()
+                : AnalysisElements::query()
+                    ->whereIn('analysis_type_id', $analysisTypeIds)
+                    ->pluck('id');
+
+            $summary['analysis_types'] = $analysisTypeIds->count();
+            $summary['analysis_elements'] = $analysisElementIds->count();
+
+            if ($analysisElementIds->isNotEmpty()) {
+                $this->deleteWhereIn('pricelist_items', 'analysis_element_id', $analysisElementIds->all());
+            }
+
+            if ($analysisTypeIds->isNotEmpty()) {
+                $analysisTypeIdList = $analysisTypeIds->all();
+                $summary['analysis_guides'] = $this->deleteWhereIn('analysis_guides', 'analysis_type_id', $analysisTypeIdList);
+                $this->deleteWhereIn('qc_processed_result', 'analysis_type_id', $analysisTypeIdList);
+                $this->deleteWhereIn('qc_results', 'analysis_type_id', $analysisTypeIdList);
+                $this->deleteWhereIn('analysis_type_invoicable_item', 'analysis_type_id', $analysisTypeIdList);
+                $this->deleteWhereIn('sample_analysis_type_relation', 'analysis_type_id', $analysisTypeIdList);
+
+                if (Schema::hasTable('analysis_type_lab_relation')) {
+                    $this->deleteWhereIn('analysis_type_lab_relation', 'analysis_type_id', $analysisTypeIdList);
+                }
+
+                $summary['analysis_elements_deleted'] = AnalysisElements::query()
+                    ->whereIn('analysis_type_id', $analysisTypeIdList)
+                    ->delete();
+
+                $summary['analysis_types_deleted'] = AnalysisType::query()
+                    ->where('company_id', $companyId)
+                    ->delete();
+            }
+        });
+
+        return $summary;
+    }
+
+    /**
+     * Replace Analytes only: remove analytes and any Analysis Elements / standard
+     * mappings that point at them so no orphan parameter rows remain.
+     *
+     * @return array<string, int>
+     */
+    public function purgeAnalytesForCompany(string $companyId): array
+    {
+        $summary = [];
+
+        DB::transaction(function () use ($companyId, &$summary): void {
+            $analyteIds = Analyte::query()
+                ->where('company_id', $companyId)
+                ->pluck('id');
+
+            $summary['analytes'] = $analyteIds->count();
+
+            if ($analyteIds->isEmpty()) {
+                return;
+            }
+
+            $analyteIdList = $analyteIds->all();
+
+            $analysisElementIds = AnalysisElements::query()
+                ->whereIn('analyte_id', $analyteIdList)
+                ->pluck('id');
+
+            $summary['analysis_elements'] = $analysisElementIds->count();
+
+            if ($analysisElementIds->isNotEmpty()) {
+                $this->deleteWhereIn('pricelist_items', 'analysis_element_id', $analysisElementIds->all());
+                $summary['analysis_elements_deleted'] = AnalysisElements::query()
+                    ->whereIn('id', $analysisElementIds->all())
+                    ->delete();
+            }
+
+            $summary['uncertainty_budgets'] = $this->deleteWhereIn('uncertainty_budgets', 'analyte_id', $analyteIdList);
+            $this->deleteWhereIn('analysis_method_elements', 'analyte_id', $analyteIdList);
+            $this->deleteWhereIn('qc_processed_result', 'analyte_id', $analyteIdList);
+            $this->deleteWhereIn('standard_analytes', 'analyte_id', $analyteIdList);
+            $this->deleteWhereIn('captured_results', 'analyte_id', $analyteIdList);
+            $this->deleteWhereIn('results', 'analyte_id', $analyteIdList);
+
+            $summary['analytes_deleted'] = Analyte::query()
+                ->where('company_id', $companyId)
+                ->delete();
+        });
+
+        return $summary;
+    }
+
+    /**
+     * @param  Collection<int, string>  $sampleTypeIds
+     * @param  Collection<int, string>  $analysisTypeIds
+     * @param  Collection<int, string>  $analyteIds
+     * @param  Collection<int, string>  $analysisElementIds
+     * @param  array<string, int>  $summary
+     */
+    private function purgeHierarchyGraph(
+        string $companyId,
+        Collection $sampleTypeIds,
+        Collection $analysisTypeIds,
+        Collection $analyteIds,
+        Collection $analysisElementIds,
+        array &$summary,
+        bool $includeRequestPipeline = true,
+    ): void {
+        $submissionFormInstanceIds = $includeRequestPipeline
+            ? $this->resolveSubmissionFormInstanceIds()
+            : collect();
+        $submissionRequestIds = $includeRequestPipeline
+            ? $this->resolveSubmissionRequestIds($submissionFormInstanceIds)
+            : collect();
+
+        $sampleHeaderIds = $this->resolveSampleHeaderIds(
+            $sampleTypeIds,
+            $submissionFormInstanceIds,
+            $submissionRequestIds
+        );
+
+        $sampleDetailIds = $sampleHeaderIds->isEmpty()
+            ? collect()
+            : SampleDetails::query()
+                ->whereIn('sample_header_id', $sampleHeaderIds)
+                ->pluck('id');
+
+        $summary['sample_types'] = $sampleTypeIds->count();
+        $summary['analysis_types'] = $analysisTypeIds->count();
+        $summary['analytes'] = $analyteIds->count();
+        $summary['analysis_elements'] = $analysisElementIds->count();
+        $summary['sample_headers'] = $sampleHeaderIds->count();
+        $summary['sample_details'] = $sampleDetailIds->count();
+        $summary['submission_form_instances'] = $submissionFormInstanceIds->count();
+        $summary['sample_submission_requests'] = $submissionRequestIds->count();
+
+        $this->purgeBatchTrees($sampleHeaderIds, $sampleDetailIds, $summary);
+
+        if ($includeRequestPipeline) {
+            $this->purgeRequestPipeline($submissionFormInstanceIds, $submissionRequestIds, $summary);
+        }
+
+        $this->purgeConfigurationData(
+            $companyId,
+            $sampleTypeIds,
+            $analysisTypeIds,
+            $analyteIds,
+            $analysisElementIds,
+            $summary
+        );
     }
 
     /**

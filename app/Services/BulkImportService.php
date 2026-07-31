@@ -19,17 +19,13 @@ class BulkImportService
             'lab' => [
                 'name' => 'Lab Management',
                 'forms' => [
-                    'pricelist' => 'Pricelist & Items',
+                    'analysis_type' => 'Analysis Type (requires Sample Type + Lab)',
                     'analyte' => 'Analyte',
-                    'lab' => 'Lab (with Zone Hierarchy)',
-                    'sample_type' => 'Sample Type',
-                    'analysis_type' => 'Analysis Type',
-                    'analysis_elements' => 'Analysis Elements',
+                    'sample_condition' => 'Sample Condition (requires Sample Type)',
                     'standard' => 'Standard & Analytes',
-                    'sample_condition' => 'Sample Condition',
-                    'lab_hierarchy' => 'Unified Lab Hierarchy (Sample Type -> Analysis Type -> Analysis Elements -> Analytes & Standards)',
-                    'amspec_parameters' => 'Amspec Parameters (Sample Types, Analysis Types, Parameters)',
+                    'pricelist' => 'Pricelist & Items',
                     'analysis_method' => 'Analysis Methods (Reference + Laboratory Test)',
+                    'amspec_parameters' => 'Amspec Parameters (Sample Types → Analysis Types → Parameters)',
                 ],
             ],
             'equipment' => [
@@ -116,7 +112,7 @@ class BulkImportService
             $batch->save();
 
             $purgeSummary = null;
-            if ($replaceExisting && $batch->module === 'lab' && $batch->form_type === 'lab_hierarchy') {
+            if ($replaceExisting && $batch->module === 'lab' && in_array($batch->form_type, ['lab_hierarchy', 'amspec_parameters'], true)) {
                 $purgeSummary = app(\App\Services\Lab\LabHierarchyPurgeService::class)
                     ->purgeForCompany((string) $batch->company_id);
             }
@@ -124,6 +120,16 @@ class BulkImportService
             if ($replaceExisting && $batch->module === 'lab' && $batch->form_type === 'analysis_method') {
                 $purgeSummary = app(\App\Services\Lab\AnalysisMethodPurgeService::class)
                     ->purgeForCompany((string) $batch->company_id);
+            }
+
+            if ($replaceExisting && $batch->module === 'lab' && $batch->form_type === 'analysis_type') {
+                $purgeSummary = app(\App\Services\Lab\LabHierarchyPurgeService::class)
+                    ->purgeAnalysisTypesForCompany((string) $batch->company_id);
+            }
+
+            if ($replaceExisting && $batch->module === 'lab' && $batch->form_type === 'analyte') {
+                $purgeSummary = app(\App\Services\Lab\LabHierarchyPurgeService::class)
+                    ->purgeAnalytesForCompany((string) $batch->company_id);
             }
 
             $importerClass = $this->getImporterClass($batch->module, $batch->form_type);
@@ -186,9 +192,9 @@ class BulkImportService
         $formTypeMap = [
             'lab' => [
                 'pricelist' => 'App\Imports\Lab\PricelistImporter',
-                'analyte' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
+                'analyte' => 'App\Imports\Lab\AnalyteImporter',
                 'lab' => 'App\Imports\Lab\LabImporter',
-                'sample_type' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
+                'sample_type' => 'App\Imports\Lab\SampleTypeImporter',
                 'analysis_type' => 'App\Imports\Lab\AnalysisTypeImporter',
                 'analysis_elements' => 'App\Imports\Lab\AnalysisElementsImporter',
                 'standard' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',

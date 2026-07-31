@@ -834,6 +834,9 @@ class SubmissionFormInstance extends Model implements Auditable
 
     /**
      * Lab resumes reception after customer response (Ready for Reception).
+     *
+     * Commercial Ready for Reception rows use instance status "submitted" + enquiry
+     * "Ready for Reception". Resuming to "received" drops the row out of that queue.
      */
     public function resumeFromAdditionalInfo(User $user, ?string $notes = null): bool
     {
@@ -842,19 +845,44 @@ class SubmissionFormInstance extends Model implements Auditable
         }
 
         $previousStatus = $this->status;
+        $resumeStatus = $this->resolveStatusAfterAdditionalInfoResume();
 
         $this->update([
-            'status' => 'received',
+            'status' => $resumeStatus,
             'additional_info_responded_at' => null,
             'reviewed_by' => $user->id,
             'review_notes' => $notes ?? $this->review_notes,
         ]);
 
         $this->logAction('additional_info_resumed', $user, [
-            'status' => ['from' => $previousStatus, 'to' => 'received'],
+            'status' => ['from' => $previousStatus, 'to' => $resumeStatus],
         ], $notes);
 
         return true;
+    }
+
+    /**
+     * Prefer restoring to the commercial Ready for Reception instance status.
+     */
+    private function resolveStatusAfterAdditionalInfoResume(): string
+    {
+        $this->loadMissing('sampleSubmissionRequest');
+
+        $enquiryStatus = (string) ($this->sampleSubmissionRequest?->status ?? '');
+
+        if ($enquiryStatus === SampleSubmissionRequest::STATUS_IN_REVIEW) {
+            return 'in_review';
+        }
+
+        if (in_array($enquiryStatus, [
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+        ], true)) {
+            return 'submitted';
+        }
+
+        // Legacy physical-check-in path (no commercial Ready for Reception enquiry).
+        return 'received';
     }
 
     public function hasCustomerRespondedToAdditionalInfo(): bool

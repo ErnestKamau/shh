@@ -37,6 +37,21 @@ class PortalSubmissionFormAccess
     }
 
     /**
+     * LIMS users.id for the authenticated portal account (gateway maps portal_accounts.lims_user_id).
+     */
+    public function limsUserIdFromRequest(Request $request): ?string
+    {
+        $userId = $request->header('X-Lims-User-Id')
+            ?? $request->input('lims_user_id');
+
+        if ($userId === null || $userId === '') {
+            return null;
+        }
+
+        return (string) $userId;
+    }
+
+    /**
      * Portal submission instances for a customer (all accounts under that customer).
      */
     public function portalInstancesQuery(string $crmCustomerId): Builder

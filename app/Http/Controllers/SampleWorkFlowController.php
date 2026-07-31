@@ -2943,35 +2943,18 @@ class SampleWorkFlowController extends Controller
             }
         }
         if ($batch->status == 'Samples In Lab') {
-            $fail = SystemConfiguration::where('key', 'lab_report_comment_fail')->first();
-            $pass = SystemConfiguration::where('key', 'lab_report_comment_pass')->first();
-            if (!isset($fail->id) && !isset($pass->id)) {
-                return redirect()->back()->with('error', 'Kindly add the PASS and FAIL lab report comments on system configurations.');
-            }
-            // $fail_arr = explode('_', $fail->value);
+            // Lab report remarks use Conforming / Non-Conforming (canonical storage remains PASS / FAIL).
+            // Prefer conforming config keys; fall back to legacy pass/fail keys if still present.
+            $conforming = SystemConfiguration::query()->where('key', 'lab_report_comment_conforming')->first()
+                ?? SystemConfiguration::query()->where('key', 'lab_report_comment_pass')->first();
+            $nonConforming = SystemConfiguration::query()->where('key', 'lab_report_comment_non_conforming')->first()
+                ?? SystemConfiguration::query()->where('key', 'lab_report_comment_fail')->first();
 
-            // $pass_arr = explode('_', $pass->value);
-
-            // $sample_type = SampleType::find($batch->sample_type_id);
-            $samples = SampleDetails::where('sample_header_id', $batch->id)->get();
-            // return response()->json($samples,200);
-            foreach ($samples as $sample) {
-                $captured = CapturedResult::where('sample_detail_id', $sample->id)->where('remark', 'FAIL')->get();
-                $analytes = [];
-                foreach ($captured as $ca) {
-                    $a = Analyte::find($ca->analyte_id);
-                    // return response()->json($a->name,200);
-                    array_push($analytes, $a->name);
-                }
-                //$main_s = Standards::find($sample->main_standard);
-                //if (sizeof($analytes) > 0) {
-                //$message = $fail_arr[0] . ' ' . $sample_type->name . ' (' . $main_s->name . ')' . $fail_arr[4] . ' ' . implode(', ', $analytes) . ' ' . $fail_arr[5];
-                //$sample->header_body = $message;
-                //} else {
-                //	$message = $pass_arr[0] . ' ' . $sample_type->name . ' (' . $main_s->name . ')';
-                //	$sample->header_body = $message;
-                //}
-                $sample->save();
+            if (! isset($nonConforming->id) && ! isset($conforming->id)) {
+                return redirect()->back()->with(
+                    'error',
+                    'Kindly add the Conforming and Non-Conforming lab report comments on system configurations.'
+                );
             }
         }
 

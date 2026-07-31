@@ -25,6 +25,7 @@ use App\Services\Sampleworkflow\CommentsInterpretationsDefaultsService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
+use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Services\ResultRemarkService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
@@ -2166,6 +2167,57 @@ class Samples extends Component
     }
 
     /**
+     * @return array{0: string, 1: string} [lab_id, lab_label]
+     */
+    private function resolveSubcontractedLabDisplay(
+        CapturedResult $result,
+        array $labIdByElementId,
+        $labsById,
+        string $fallbackDispatchLabNames = '',
+    ): array {
+        $labId = trim((string) ($result->subcontracted_lab_id ?? ''));
+        if ($labId === '') {
+            $elementId = trim((string) ($result->analysis_element_id ?? ''));
+            if ($elementId !== '') {
+                $labId = trim((string) ($labIdByElementId[$elementId] ?? ''));
+            }
+        }
+
+        if ($labId !== '') {
+            $lab = $result->relationLoaded('subcontractedLab') && $result->subcontractedLab
+                && (string) $result->subcontractedLab->id === $labId
+                ? $result->subcontractedLab
+                : ($labsById[$labId] ?? null);
+
+            $label = $this->formatSubcontractedLabLabel($lab instanceof Lab ? $lab : null);
+            if ($label !== '') {
+                return [$labId, $label];
+            }
+        }
+
+        if ((int) ($result->analyte_status_contracted ?? 0) === 1 && $fallbackDispatchLabNames !== '') {
+            return ['', $fallbackDispatchLabNames];
+        }
+
+        return ['', ''];
+    }
+
+    private function fallbackSubcontractDispatchLabNames(): string
+    {
+        if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_lab_names')) {
+            return '';
+        }
+
+        return \App\Models\SampleSubmissionRequest::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->pluck('subcontracting_dispatch_lab_names')
+            ->map(fn ($names) => trim((string) $names))
+            ->filter()
+            ->unique()
+            ->implode(', ');
+    }
+
+    /**
      * Phase 5: View Parameters Modal - Show all captured results for a sample
      */
     public function viewParameters($sampleCode)
@@ -2243,6 +2295,47 @@ class Samples extends Component
                 $this->showParametersModal = true;
                 return;
             }
+
+            $assignmentService = app(SubcontractingAssignmentService::class);
+            $labIdByElementId = $assignmentService->labByElementIdForSampleHeader((string) $this->batch->id);
+            if ($labIdByElementId !== []) {
+                $needsBackfill = $capturedResults->contains(function (CapturedResult $result) use ($labIdByElementId): bool {
+                    if (! (int) ($result->analyte_status_contracted ?? 0)) {
+                        return false;
+                    }
+
+                    if (trim((string) ($result->subcontracted_lab_id ?? '')) !== '') {
+                        return false;
+                    }
+
+                    $elementId = trim((string) ($result->analysis_element_id ?? ''));
+
+                    return $elementId !== '' && isset($labIdByElementId[$elementId]);
+                });
+
+                if ($needsBackfill) {
+                    $assignmentService->applyAssignmentsToCapturedResults((string) $this->batch->id, $labIdByElementId);
+                    $capturedResults = $capturedResultsQuery->get();
+                }
+            }
+
+            $labsById = collect();
+            $labIdsForLookup = $capturedResults
+                ->pluck('subcontracted_lab_id')
+                ->merge(array_values($labIdByElementId))
+                ->map(fn ($id) => trim((string) $id))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            if ($labIdsForLookup !== []) {
+                $labsById = Lab::query()
+                    ->whereIn('id', $labIdsForLookup)
+                    ->get(['id', 'code', 'name'])
+                    ->keyBy(fn (Lab $lab) => (string) $lab->id);
+            }
+
+            $fallbackDispatchLabNames = $this->fallbackSubcontractDispatchLabNames();
 
             // Enrich each result with additional data
             $analysisDateRecord = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
@@ -2371,6 +2464,13 @@ class Samples extends Component
                     $endAnalysisDate = $this->normalizeDateOnly($result->updated_at);
                 }
 
+                [$resolvedSubLabId, $resolvedSubLabName] = $this->resolveSubcontractedLabDisplay(
+                    $result,
+                    $labIdByElementId,
+                    $labsById,
+                    $fallbackDispatchLabNames,
+                );
+
                 $parameters[$result->id] = [
                     'id' => $result->id,
                     'sample_code' => $result->sample_detail_code,
@@ -2404,8 +2504,8 @@ class Samples extends Component
                     'start_analysis_date' => $startAnalysisDate ?? '',
                     'end_analysis_date' => $endAnalysisDate ?? '',
                     'subcontracted' => $result->analyte_status_contracted,
-                    'subcontracted_lab_id' => $result->subcontracted_lab_id ? (string) $result->subcontracted_lab_id : '',
-                    'subcontracted_lab_name' => $this->formatSubcontractedLabLabel($result->subcontractedLab ?? null),
+                    'subcontracted_lab_id' => $resolvedSubLabId,
+                    'subcontracted_lab_name' => $resolvedSubLabName,
                     'accredited' => $result->analyte_accredited,
                     'result_confirmation' => $result->result, // Initialize with same value
                     'limit_type' => $limitType,

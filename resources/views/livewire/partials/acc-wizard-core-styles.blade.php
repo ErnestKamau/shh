@@ -823,6 +823,16 @@
         align-items: center;
     }
 
+    .acc-param-lab-section-row--multi {
+        align-items: start;
+    }
+
+    .acc-param-lab-section-multi {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+        gap: 0.5rem;
+    }
+
     .acc-param-lab-section-label {
         font-size: 0.8125rem;
         font-weight: 600;

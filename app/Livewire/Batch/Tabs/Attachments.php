@@ -535,7 +535,7 @@ class Attachments extends Component
                 'id' => $instance->id,
                 'title' => TestRequestFormPdfService::ATTACHMENT_TITLE,
                 'submitted_at' => $instance->updated_at ?? $instance->created_at,
-                'attachment_url' => route('submission-forms.trf-pdf', [
+                'attachment_url' => route('submission-forms.instances.trf-pdf', [
                     'submissionForm' => $instance->submission_form_id,
                     'instance' => $instance->id,
                 ]),

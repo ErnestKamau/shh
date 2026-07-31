@@ -8,15 +8,16 @@ use App\AnalysisMethod;
 use App\AnalysisType;
 use App\Imports\BaseImporter;
 use App\Lab;
-use App\LabSection;
 use App\Models\Equipments\Equipment;
 use App\Models\MethodSequences\MethodSequence;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\ReportingUnit;
+use App\SampleAnalysisStage;
 use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
 use App\StandardValue;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class UnifiedLabHierarchyImporter extends BaseImporter
@@ -721,45 +722,77 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         }
 
         if ($analysisType && $analyte) {
+            // analysis_elements.lab_section_id references sample_analysis_stages (operational
+            // departments, is_sample_stage = 0), not the Monitoring module's lab_sections table.
             $labSectionId = null;
             if (! empty($transformedData['lab_section_code'])) {
                 $sectionLabel = $this->humanizeLabel((string) $transformedData['lab_section_code'])
                     ?: (string) $transformedData['lab_section_code'];
                 $sectionCode = $this->resolveCodeFromName($sectionLabel);
 
-                $section = LabSection::where('lab_id', $labId)
+                $section = SampleAnalysisStage::query()
+                    ->where('company_id', $this->batch->company_id)
+                    ->where('is_sample_stage', 0)
                     ->where(function ($q) use ($transformedData, $sectionCode, $sectionLabel) {
                         $q->where('code', $transformedData['lab_section_code'])
                             ->orWhere('code', $sectionCode)
-                            ->orWhere('name', $transformedData['lab_section_code'])
-                            ->orWhere('name', $sectionLabel);
-                    })->first();
+                            ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower((string) $transformedData['lab_section_code'])])
+                            ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower($sectionLabel)]);
+                    })
+                    ->first();
+
                 if (! $section) {
-                    $section = LabSection::create([
-                        'lab_id' => $labId,
-                        'code' => $sectionCode,
-                        'name' => $sectionLabel,
-                        'active' => 1,
-                        'company_id' => $this->batch->company_id,
-                    ]);
-                } elseif ($section->name !== $sectionLabel) {
-                    $section->update(['name' => $sectionLabel]);
+                    try {
+                        $section = DB::transaction(fn () => SampleAnalysisStage::create([
+                            'lab_id' => $labId,
+                            'code' => $sectionCode,
+                            'name' => $sectionLabel,
+                            'active' => 1,
+                            'is_sample_stage' => 0,
+                            'company_id' => $this->batch->company_id,
+                        ]));
+                    } catch (\Exception $e) {
+                        \Log::warning('Could not create lab section during hierarchy import: '.$e->getMessage());
+                        $section = null;
+                    }
+                } else {
+                    $sectionUpdates = [];
+                    if ($section->name !== $sectionLabel) {
+                        $sectionUpdates['name'] = $sectionLabel;
+                    }
+                    if ($labId && empty($section->lab_id)) {
+                        $sectionUpdates['lab_id'] = $labId;
+                    }
+                    if ($sectionUpdates !== []) {
+                        $section->update($sectionUpdates);
+                    }
                 }
-                $labSectionId = $section->id;
+
+                $labSectionId = $section?->id;
             }
             if (! $labSectionId) {
-                $firstSection = LabSection::where('lab_id', $labId)->first();
+                $firstSection = SampleAnalysisStage::query()
+                    ->where('company_id', $this->batch->company_id)
+                    ->where('is_sample_stage', 0)
+                    ->when($labId, fn ($q) => $q->where('lab_id', $labId))
+                    ->first();
+
                 if ($firstSection) {
                     $labSectionId = $firstSection->id;
                 } else {
-                    $defaultSection = LabSection::create([
-                        'lab_id' => $labId,
-                        'code' => 'LS-DEFAULT',
-                        'name' => 'Default Lab Section',
-                        'active' => 1,
-                        'company_id' => $this->batch->company_id,
-                    ]);
-                    $labSectionId = $defaultSection->id;
+                    try {
+                        $defaultSection = DB::transaction(fn () => SampleAnalysisStage::create([
+                            'lab_id' => $labId,
+                            'code' => 'LS-DEFAULT',
+                            'name' => 'Default Lab Section',
+                            'active' => 1,
+                            'is_sample_stage' => 0,
+                            'company_id' => $this->batch->company_id,
+                        ]));
+                        $labSectionId = $defaultSection->id;
+                    } catch (\Exception $e) {
+                        \Log::warning('Could not create default lab section during hierarchy import: '.$e->getMessage());
+                    }
                 }
             }
 

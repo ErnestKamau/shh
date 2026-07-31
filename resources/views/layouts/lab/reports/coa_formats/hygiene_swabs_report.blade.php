@@ -649,8 +649,7 @@
                             @php
                             $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
                             $value = $resultData['value'] ?? 'N/A';
-                            $remark = strtolower($resultData['remark'] ?? 'pass');
-                            $isFailed = $remark === 'fail' || $remark === 'failed' || $remark === 'failure';
+                            $isFailed = is_non_conforming_remark($resultData['remark'] ?? null);
                             @endphp
                             <td class="{{ $isFailed ? 'failed-result' : '' }}">
                                 {{ $value }}
@@ -696,8 +695,7 @@
                             @php
                             $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
                             $value = $resultData['value'] ?? 'N/A';
-                            $remark = strtolower($resultData['remark'] ?? 'pass');
-                            $isFailed = $remark === 'fail' || $remark === 'failed' || $remark === 'failure';
+                            $isFailed = is_non_conforming_remark($resultData['remark'] ?? null);
                             @endphp
                             <td class="{{ $isFailed ? 'failed-result' : '' }}">
                                 {{ $value }}
@@ -815,7 +813,7 @@
         <div class="conformity-section">
             <div class="section-title">Statement of Conformity</div>
             @php
-            $conformityStatus = $overallHygieneScore >= 70 ? 'PASS' : 'FAIL';
+            $conformityStatus = $overallHygieneScore >= 70 ? 'Conforming' : 'Non-Conforming';
             $conformityClass = $overallHygieneScore >= 70 ? 'score-excellent' : 'score-poor';
             @endphp
             <p>Based on the hygiene monitoring results, the overall hygiene status is:

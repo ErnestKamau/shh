@@ -497,24 +497,25 @@
     }
 
     @if(!empty($isPdfMode))
+    /*
+     * Verified against this dompdf build (storage/tmp-pdf-test harness):
+     * - The `*` reset zeroes html margins, which dompdf uses as the page
+     *   margins — so page margins MUST be re-asserted on `html` here.
+     * - position:fixed is relative to the CONTENT box; negative offsets pull
+     *   the header/footer into the reserved margins on every page.
+     * - Fixed elements only repeat when they are direct children of <body>.
+     */
     @page {
         size: A4 portrait;
-        /* Bottom margin reserves space for the fixed disclaimer footer + page number. */
-        margin: 8mm 16mm 48mm 16mm;
     }
     html {
-        margin: 0;
+        margin: 52mm 12mm 100mm 12mm;
         padding: 0;
     }
-    body {
+    body, main {
         margin: 0;
         padding: 0;
         background: #fff;
-    }
-    main {
-        margin: 0;
-        padding: 0;
-        width: auto;
     }
     .trr-page {
         width: auto;
@@ -524,89 +525,161 @@
         padding: 0;
         overflow: visible;
     }
-    .info-table,
-    .detail-grid,
-    .results-table,
-    .meta-box,
-    .sig-block,
-    .pg-header {
-        width: 100%;
-        margin-left: 0;
-        margin-right: 0;
-    }
-    .pg-header {
-        margin-bottom: 4px;
-    }
-    .pg-header td {
-        padding-bottom: 4px;
-    }
-    .pg-header-logo img,
-    .pg-header-right img {
-        max-height: 68px;
-    }
-    .report-title-bar {
-        margin: 2px 0 8px;
-        padding: 6px 0 8px;
-    }
-    .sig-section {
-        page-break-inside: avoid;
-        margin-top: 12px;
-        margin-bottom: 4px;
-    }
-    .sig-image img,
-    .sig-block .sig-right img {
-        position: relative;
-        z-index: 1;
-    }
-    .sig-block .sig-right img {
-        max-height: 60px;
-        max-width: 140px;
-    }
-    .bottom-logos {
-        page-break-inside: avoid;
-        margin: 8px 0 4px;
-    }
-    .end-text {
-        display: block;
-        text-align: center;
-        font-size: 9.5px;
-        font-style: italic;
-        color: #555;
-        margin: 10px 0 8px;
-        page-break-inside: avoid;
-        page-break-before: avoid;
-    }
-    /* Fixed on every PDF page (DomPDF repeats position:fixed elements). */
-    .pdf-doc-footer {
+    .pdf-doc-header {
         position: fixed;
-        left: 16mm;
-        right: 16mm;
-        bottom: 6mm;
+        /* Pull up into the 52mm top margin (4mm from the page edge). */
+        top: -48mm;
+        left: 0;
+        right: 0;
         width: auto;
         margin: 0;
-        padding: 4px 0 0;
-        border-top: 1px solid #cfcfcf;
+        padding: 0;
         background: #fff;
-        page-break-inside: avoid;
+    }
+    .pdf-doc-header .pg-header {
+        margin-bottom: 1px;
+        border-bottom: 1px solid #e5e5e5;
+    }
+    .pdf-doc-header .pg-header td {
+        padding-bottom: 2px;
+        border: none;
+    }
+    .pdf-doc-header .pg-header-logo img,
+    .pdf-doc-header .pg-header-right img {
+        max-height: 40px;
+        max-width: 140px;
+    }
+    .pdf-doc-header .logo-text {
+        font-size: 18px;
+    }
+    .pdf-doc-header .cert-no {
+        font-size: 9px;
+    }
+    .pdf-doc-header .report-title-bar {
+        margin: 2px 0 3px;
+        padding: 2px 0 4px;
+        font-size: 11px;
+        letter-spacing: 1px;
+        border-bottom-width: 1.5px;
+    }
+    .pdf-doc-header .info-table {
+        margin-bottom: 0;
+        font-size: 9px;
+    }
+    .pdf-doc-header .info-table td {
+        padding: 2px 5px;
+    }
+    .pdf-doc-header .info-table .lbl {
+        width: 120px;
+    }
+    .pdf-doc-footer {
+        position: fixed;
+        /* Pull down into the 100mm bottom margin (6mm from the page edge). */
+        bottom: -94mm;
+        left: 0;
+        right: 0;
+        width: auto;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+    }
+    .pdf-doc-footer .pdf-footer-closing {
+        border-top: 1px solid #cfcfcf;
+        padding-top: 2px;
+        margin-bottom: 2px;
+    }
+    .pdf-doc-footer .sample-notes,
+    .pdf-doc-footer .sample-amendment {
+        font-size: 7.5px;
+        padding: 1px 0;
+        line-height: 1.3;
+        margin: 0;
+    }
+    .pdf-doc-footer .sample-amendment {
+        border: 1px solid #d4b896;
+        background: #fffaf0;
+        padding: 3px 5px;
+        margin: 2px 0;
+    }
+    .pdf-doc-footer .sample-amendment div[style] {
+        margin-top: 1px !important;
+    }
+    .pdf-doc-footer .meta-box {
+        margin-top: 2px;
+        font-size: 8px;
+    }
+    .pdf-doc-footer .meta-box td {
+        padding: 2px 5px;
+    }
+    .pdf-doc-footer .sig-section {
+        margin-top: 3px;
+        padding-top: 3px;
+        border-top: 1px solid #c4c4c4;
+    }
+    .pdf-doc-footer .sig-section .sig-intro {
+        font-size: 8px;
+        margin-bottom: 2px;
+    }
+    .pdf-doc-footer .sig-name {
+        font-size: 8.5px;
+    }
+    .pdf-doc-footer .sig-title-line,
+    .pdf-doc-footer .sig-company-line {
+        font-size: 8px;
+    }
+    .pdf-doc-footer .sig-image {
+        min-height: 18px;
+        margin: 0;
+    }
+    .pdf-doc-footer .sig-image img {
+        max-height: 28px;
+        max-width: 110px;
+    }
+    .pdf-doc-footer .sig-block .sig-right img {
+        max-height: 36px;
+        max-width: 95px;
+    }
+    .pdf-doc-footer .sig-underline {
+        width: 130px;
+        margin-top: 0;
+    }
+    .pdf-doc-footer .bottom-logos {
+        margin: 2px 0 1px;
+    }
+    .pdf-doc-footer .bottom-logos img {
+        max-height: 28px !important;
+        max-width: 90px !important;
+    }
+    .pdf-doc-footer .end-text {
+        display: block;
+        text-align: center;
+        font-size: 7.5px;
+        font-style: italic;
+        color: #555;
+        margin: 2px 0 3px;
+    }
+    .pdf-doc-footer .pdf-footer-meta {
+        border-top: 1px solid #cfcfcf;
+        padding-top: 2px;
     }
     .pdf-doc-footer .meta-top {
-        font-size: 8px;
-        line-height: 1.35;
+        font-size: 6.5px;
+        line-height: 1.2;
         color: #333;
-        margin-bottom: 3px;
+        margin-bottom: 1px;
     }
     .pdf-doc-footer .meta-issued {
         text-align: center;
-        font-size: 8px;
+        font-size: 6.5px;
         color: #333;
-        margin-bottom: 2px;
+        margin-bottom: 1px;
     }
     .pdf-doc-footer .meta-company {
         text-align: center;
-        font-size: 9px;
+        font-size: 7.5px;
         font-weight: bold;
-        letter-spacing: .4px;
-        margin-bottom: 4px;
+        letter-spacing: .3px;
+        margin-bottom: 2px;
         text-transform: uppercase;
         color: #111;
     }
@@ -620,20 +693,68 @@
         padding: 0;
     }
     .pdf-doc-footer .meta-legal {
-        font-size: 6px;
-        line-height: 1.4;
+        font-size: 5px;
+        line-height: 1.25;
         color: #222;
         font-weight: bold;
-        padding-right: 8px;
+        padding-right: 6px;
     }
     .pdf-doc-footer .meta-qr {
-        width: 54px;
+        width: 42px;
         text-align: right;
     }
     .pdf-doc-footer .meta-qr img {
-        width: 48px;
-        height: 48px;
+        width: 38px;
+        height: 38px;
         display: block;
+    }
+    .info-table,
+    .detail-grid,
+    .results-table,
+    .meta-box,
+    .sig-block,
+    .pg-header {
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .detail-grid {
+        margin-bottom: 6px;
+        font-size: 9.5px;
+        page-break-inside: auto;
+        page-break-after: avoid;
+    }
+    .detail-grid td {
+        padding: 3px 5px;
+    }
+    .sample-ref-grid {
+        margin-bottom: 3px;
+        page-break-after: avoid;
+    }
+    .results-table {
+        font-size: 9px;
+        margin-bottom: 6px;
+        page-break-inside: auto;
+    }
+    .results-table th {
+        padding: 4px 3px;
+        font-size: 8.5px;
+    }
+    .results-table td {
+        padding: 3px 3px;
+    }
+    .results-table thead {
+        display: table-header-group;
+    }
+    .results-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    .sample-remarks,
+    .sample-interpretations {
+        font-size: 9px;
+        padding: 3px 0;
+        page-break-inside: avoid;
     }
     @endif
 
@@ -646,7 +767,10 @@
             border: none;
             margin: 0;
             max-width: 100%;
-            padding: 12px 18px;
+            /* DomPDF uses print media; page gutters come from the html margin,
+               so any padding here would misalign the body with the fixed
+               header/footer. Keep the padding for browser printing only. */
+            padding: {{ !empty($isPdfMode) ? '0' : '12px 18px' }};
             box-shadow: none;
         }
         /* Keep the draft watermark on printed / Save-as-PDF preview copies */
@@ -675,6 +799,69 @@
 
 @if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
     <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>
+@endif
+
+@php
+    $footerNotesBodies = collect($samples ?? [])
+        ->map(static fn ($sample) => $sample->notes_body ?? null)
+        ->filter(static fn ($body) => filled(trim(strip_tags((string) $body))))
+        ->values()
+        ->all();
+
+    $amendmentRevision = (int) ($ammendment?->version_number ?? ($batch->is_amendment ?? 0));
+    $display = $amendmentDisplay ?? [];
+    $amendmentRevisionLabel = $display['formattedRevision']
+        ?? $display['formatted_revision']
+        ?? ($amendmentRevision > 0
+            ? 'R' . str_pad((string) $amendmentRevision, 2, '0', STR_PAD_LEFT)
+            : null);
+    $supersedesText = $display['supersedesText']
+        ?? $display['supersedes_text']
+        ?? ($labels['supersedes_original'] ?? 'This report supersedes the original report');
+    $revisionLabel = $display['revisionLabel']
+        ?? $display['revision_label']
+        ?? ($labels['amendment_revision'] ?? 'Revision No.');
+    $reasonLabel = $display['reasonLabel']
+        ?? $display['reason_label']
+        ?? ($labels['amendment_reason'] ?? 'Amendment Reason');
+@endphp
+
+@if(!empty($isPdfMode))
+{{-- Repeating header / footer. Must be direct children of <body> (outside
+     <main>) or DomPDF only paints them on the first page. --}}
+<div class="pdf-doc-header">
+    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
+</div>
+<div class="pdf-doc-footer">
+    <div class="pdf-footer-closing">
+        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing')
+    </div>
+    <div class="pdf-footer-meta">
+        <div class="meta-top">
+            {{ $labels['results_relate'] }}<br>
+            {{ $labels['no_reproduce'] }}
+        </div>
+        <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
+        <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
+        <table class="meta-legal-wrap">
+            <tr>
+                <td class="meta-legal">
+                    This document is issued by the Company subject to the Terms and Conditions at
+                    https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
+                    information contained herein reflects the Company&#8217;s findings at the time and place of its
+                    intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
+                    responsibility is to its Client and the Company disclaims any liability to third parties.
+                    Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
+                </td>
+                <td class="meta-qr">
+                    @if(!empty($footerQrCode))
+                        <img src="{{ $footerQrCode }}" alt="Report QR Code">
+                    @endif
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
 @endif
 
 <main>
@@ -709,50 +896,10 @@
 
     <div class="trr-page">
 
-        {{-- ══════════════ PAGE HEADER (logo + cert no) ══════════════ --}}
-        <table class="pg-header">
-            <tr>
-                <td class="pg-header-logo">
-                    @if(!empty($reportLogos['top_left']))
-                        <img src="{{ $reportLogos['top_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
-                    @elseif($reportLogo && empty($reportLogos))
-                        <img src="{{ $reportLogo }}" alt="{{ $company->name ?? 'AmSpec' }}">
-                    @else
-                        <span class="logo-text">{{ $company->name ?? 'AmSpec' }}</span>
-                    @endif
-                </td>
-                <td class="pg-header-center">
-                    <div class="cert-no">{{ $labels['certificate_no'] }}: {{ $reportNumber }}</div>
-                </td>
-                <td class="pg-header-right">
-                    @if(!empty($reportLogos['top_right']))
-                        <img src="{{ $reportLogos['top_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
-                    @endif
-                </td>
-            </tr>
-        </table>
-
-        {{-- ══════════════ REPORT TITLE ══════════════ --}}
-        <div class="report-title-bar">{{ $labels['report_title'] }}</div>
-
-        {{-- ══════════════ ATTENTION / CLIENT / ADDRESS ══════════════ --}}
-        <table class="info-table">
-            <tr>
-                <td class="lbl">{{ $labels['attention'] }}</td>
-                <td class="colon">:</td>
-                <td>{{ $attention ?? $batch->getContactPersonDetail() }}</td>
-            </tr>
-            <tr>
-                <td class="lbl">{{ $labels['client'] }}</td>
-                <td class="colon">:</td>
-                <td>{{ $customer->name ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="lbl">{{ $labels['address'] }}</td>
-                <td class="colon">:</td>
-                <td>{{ $customer->physical_address ?? ($customer->postal_address ?? '-') }}</td>
-            </tr>
-        </table>
+        @if(empty($isPdfMode))
+        {{-- ══════════════ PAGE HEADER (logo + client info) ══════════════ --}}
+        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
+        @endif
 
         {{-- ══════════════ DETAIL GRID (omit unfilled TRF fields) ══════════════ --}}
         @php
@@ -930,7 +1077,7 @@
 
             @if($sample->header_body)
             <div class="sample-remarks">
-                <strong>Remarks:</strong> {!! str_ireplace('not conforming', 'non-conforming', $sample->header_body) !!}
+                <strong>Remarks:</strong> {!! str_ireplace(['not conforming', 'non-conforming'], 'Non-Conforming', $sample->header_body) !!}
             </div>
             @endif
             @if($sample->main_body)
@@ -938,7 +1085,7 @@
                 <strong>Recommendations / Interpretations:</strong> {!! $sample->main_body !!}
             </div>
             @endif
-            @if($sample->notes_body)
+            @if(empty($isPdfMode) && $sample->notes_body)
             <div class="sample-notes">
                 <strong>Notes:</strong> {!! $sample->notes_body !!}
             </div>
@@ -948,110 +1095,10 @@
             <div style="padding:14px 0;font-style:italic;color:#888;">{{ $labels['no_samples'] }}</div>
         @endforelse
 
-        @if(!empty($ammendment?->id))
-        @php
-            $amendmentRevision = (int) ($ammendment->version_number ?? ($batch->is_amendment ?? 0));
-            $display = $amendmentDisplay ?? [];
-            $amendmentRevisionLabel = $display['formattedRevision']
-                ?? $display['formatted_revision']
-                ?? ($amendmentRevision > 0
-                    ? 'R' . str_pad((string) $amendmentRevision, 2, '0', STR_PAD_LEFT)
-                    : null);
-            $supersedesText = $display['supersedesText']
-                ?? $display['supersedes_text']
-                ?? ($labels['supersedes_original'] ?? 'This report supersedes the original report');
-            $revisionLabel = $display['revisionLabel']
-                ?? $display['revision_label']
-                ?? ($labels['amendment_revision'] ?? 'Revision No.');
-            $reasonLabel = $display['reasonLabel']
-                ?? $display['reason_label']
-                ?? ($labels['amendment_reason'] ?? 'Amendment Reason');
-        @endphp
-        <div class="sample-amendment">
-            <div><strong>{{ $supersedesText }}</strong></div>
-            @if($amendmentRevisionLabel)
-            <div style="margin-top:4px;">
-                <strong>{{ $revisionLabel }}:</strong>
-                {{ $amendmentRevisionLabel }}
-                @if(!empty($reportNumber))
-                    <span style="color:#555;">({{ $reportNumber }})</span>
-                @endif
-            </div>
-            @endif
-            <div style="margin-top:4px;">
-                <strong>{{ $reasonLabel }}:</strong>
-                {{ $ammendment->reason }}
-            </div>
-        </div>
-        @endif
-
-        {{-- ══════════════ ANALYSIS CONDUCTED / TEST METHOD ══════════════ --}}
-        <table class="meta-box">
-            <tr>
-                <td>
-                    {{ $labels['analysis_conducted'] }}: {{ $batch->getLabSectionsNames() ?: 'Laboratory' }}
-                </td>
-                <td>
-                    {{ $labels['test_method_dev'] }}
-                </td>
-            </tr>
-        </table>
-
-        {{-- ══════════════ SIGNATURE SECTION ══════════════ --}}
-        <div class="sig-section">
-            <div class="sig-intro">
-                {{ $labels['signed_behalf'] }} {{ $company->name ?? 'AmSpec Inspection &amp; Testing Services' }}
-            </div>
-
-            <table class="sig-block">
-                <tr>
-                    <td class="sig-left">
-                        <div class="sig-name">{{ $approverUser->name ?? '&nbsp;' }}</div>
-                        <div class="sig-title-line">
-                            {{ $approverRole ?? '&nbsp;' }}
-                            @if($company->location ?? null) | {{ $company->location }} @endif
-                        </div>
-                        <div class="sig-company-line">{{ $company->name ?? '&nbsp;' }}</div>
-                        <div class="sig-image">
-                            @if(!empty($signatureSrc))
-                                <img src="{{ $signatureSrc }}" alt="Signature">
-                            @else
-                                <span style="color:#aaa;font-size:9px;font-style:italic;">{{ $labels['no_signature'] }}</span>
-                            @endif
-                        </div>
-                        <div class="sig-underline"></div>
-                    </td>
-                    <td class="sig-right">
-                        @if($companyLogo)
-                            <img src="{{ $companyLogo }}" alt="{{ $company->name ?? 'AmSpec' }}">
-                        @endif
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        {{-- ══════════════ BOTTOM LOGOS ══════════════ --}}
-        @if(!empty($reportLogos['bottom_left']) || !empty($reportLogos['bottom_right']))
-        <table class="bottom-logos" style="width:100%;border-collapse:collapse;margin:8px 0 4px;">
-            <tr>
-                <td style="border:none;padding:0;vertical-align:bottom;text-align:left;">
-                    @if(!empty($reportLogos['bottom_left']))
-                        <img src="{{ $reportLogos['bottom_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:60px;max-width:160px;object-fit:contain;">
-                    @endif
-                </td>
-                <td style="border:none;padding:0;vertical-align:bottom;text-align:right;">
-                    @if(!empty($reportLogos['bottom_right']))
-                        <img src="{{ $reportLogos['bottom_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:60px;max-width:160px;object-fit:contain;">
-                    @endif
-                </td>
-            </tr>
-        </table>
-        @endif
-
-        {{-- ══════════════ END OF TEXT ══════════════ --}}
-        <div class="end-text">{{ $labels['end_of_text'] }}</div>
-
         @if(empty($isPdfMode))
+        {{-- ══════════════ CLOSING (Notes → End of text) ══════════════ --}}
+        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing')
+
         <div class="report-footer-text">
             {{ $labels['results_relate'] }}<br>
             {{ $labels['no_reproduce'] }}
@@ -1086,34 +1133,6 @@
 
 </main>
 @if(!empty($isPdfMode))
-{{-- Fixed footer: DomPDF repeats position:fixed on every page --}}
-<div class="pdf-doc-footer">
-    <div class="meta-top">
-        {{ $labels['results_relate'] }}<br>
-        {{ $labels['no_reproduce'] }}
-    </div>
-    <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-    <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
-    <table class="meta-legal-wrap">
-        <tr>
-            <td class="meta-legal">
-                This document is issued by the Company subject to the Terms and Conditions at
-                https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                information contained herein reflects the Company&#8217;s findings at the time and place of its
-                intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                responsibility is to its Client and the Company disclaims any liability to third parties.
-                Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-            </td>
-            <td class="meta-qr">
-                @if(!empty($footerQrCode))
-                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                @endif
-            </td>
-        </tr>
-    </table>
-</div>
-@endif
-@if(!empty($isPdfMode))
 @php
     $pageNumberText = match ($language ?? 'en') {
         'ar' => 'صفحة {PAGE_NUM} من {PAGE_COUNT}',
@@ -1127,8 +1146,8 @@
         $size = 8;
         $font = $fontMetrics->getFont("DejaVu Sans");
         $width = $fontMetrics->get_text_width("Page 99 of 99", $font, $size);
-        // Match @page right margin (16mm ≈ 45pt). Sit below the fixed footer.
-        $x = $pdf->get_width() - $width - 45;
+        // Match @page right margin (12mm ≈ 34pt).
+        $x = $pdf->get_width() - $width - 34;
         $y = $pdf->get_height() - 14;
         $pdf->page_text($x, $y, $pageText, $font, $size);
     }

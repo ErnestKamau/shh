@@ -14,6 +14,15 @@ class BulkImportWizard extends Component
 {
     use WithFileUploads;
 
+    /** @var list<string> */
+    private const REPLACEABLE_FORM_TYPES = [
+        'amspec_parameters',
+        'analysis_type',
+        'analyte',
+        'analysis_method',
+        'lab_hierarchy',
+    ];
+
     public int $currentStep = 1;
     public ?string $selectedModule = null;
     public ?string $selectedFormType = null;
@@ -85,22 +94,14 @@ class BulkImportWizard extends Component
     public function uploadFile(): void
     {
         $rules = [];
+        $confirmationPhrase = $this->purgeConfirmationPhrase();
 
-        if ($this->selectedFormType === 'lab_hierarchy' && $this->replaceExisting) {
+        if ($this->supportsReplaceExisting() && $this->replaceExisting) {
             $companyName = $this->resolveCompanyName();
             $rules['purgeConfirmation'] = [
                 'required',
                 'string',
-                Rule::in(['DELETE ALL LAB DATA', $companyName]),
-            ];
-        }
-
-        if ($this->selectedFormType === 'analysis_method' && $this->replaceExisting) {
-            $companyName = $this->resolveCompanyName();
-            $rules['purgeConfirmation'] = [
-                'required',
-                'string',
-                Rule::in(['DELETE ALL METHODS', $companyName]),
+                Rule::in(array_values(array_filter([$confirmationPhrase, $companyName]))),
             ];
         }
 
@@ -108,9 +109,7 @@ class BulkImportWizard extends Component
         $rules['uploadedFile'] = 'required|file|mimes:xlsx,xls,csv|max:'.$maxUploadKilobytes;
 
         $this->validate($rules, [
-            'purgeConfirmation.in' => $this->selectedFormType === 'analysis_method'
-                ? 'Type DELETE ALL METHODS or your company name exactly to confirm.'
-                : 'Type DELETE ALL LAB DATA or your company name exactly to confirm.',
+            'purgeConfirmation.in' => 'Type '.$confirmationPhrase.' or your company name exactly to confirm.',
         ]);
 
         try {
@@ -119,7 +118,7 @@ class BulkImportWizard extends Component
                 $this->selectedFormType
             );
 
-            $shouldReplaceExisting = $this->replaceExisting && in_array($this->selectedFormType, ['lab_hierarchy', 'analysis_method'], true);
+            $shouldReplaceExisting = $this->replaceExisting && $this->supportsReplaceExisting();
 
             $results = $this->bulkImportService()->processImport(
                 $this->currentBatch,
@@ -175,6 +174,22 @@ class BulkImportWizard extends Component
         }
 
         return (string) (Company::query()->whereKey($companyId)->value('name') ?? '');
+    }
+
+    public function supportsReplaceExisting(): bool
+    {
+        return in_array($this->selectedFormType, self::REPLACEABLE_FORM_TYPES, true);
+    }
+
+    public function purgeConfirmationPhrase(): string
+    {
+        return match ($this->selectedFormType) {
+            'analysis_method' => 'DELETE ALL METHODS',
+            'analysis_type' => 'DELETE ALL ANALYSIS TYPES',
+            'analyte' => 'DELETE ALL ANALYTES',
+            'amspec_parameters', 'lab_hierarchy' => 'DELETE ALL LAB DATA',
+            default => 'CONFIRM REPLACE',
+        };
     }
 
     public function downloadErrorReport()

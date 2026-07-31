@@ -42,7 +42,7 @@
                                 <td>{{ $result->analyte_code ?? 'N/A' }}</td>
                                 <td><strong>{{ $result->result }}</strong></td>
                                 <td>{{ $result->captured->operator->name ?? 'N/A' }}</td>
-                                <td><small>{{ $result->remarks ?? '-' }}</small></td>
+                                <td><small>{{ format_result_remark($result->remarks ?? null) ?: ($result->remarks ?? '-') }}</small></td>
                             </tr>
                             @endforeach
                         </tbody>

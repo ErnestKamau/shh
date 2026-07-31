@@ -171,17 +171,24 @@ class SampleAnalysisSetupService
             $reportingUnit = $this->resolveReportingUnitFromElement($element, $reportingUnitsByKey);
 
             $elementId = (string) ($element->id ?? '');
-            $acceptanceSectionOverride = $this->resolveValidLabSectionId($labSectionByElement[$elementId] ?? null);
+            $acceptanceSectionIds = $this->resolveLabSectionIdsFromElementMap(
+                $labSectionByElement[$elementId] ?? null
+            );
 
-            // Acceptance wizard override → element master data → analysis type → plan override
-            // → sibling elements → batch header → lab's sections → any active section.
-            $labSectionId = $acceptanceSectionOverride
-                ?? $this->resolveValidLabSectionId($element->lab_section_id)
-                ?? $labSectionIdFromAnalysisType
-                ?? $resolvedLabSectionOverride
-                ?? $this->resolveFallbackLabSectionId($analysisTypeId, $analysisType, $lab, $sampleHeader);
+            $fallbackLabSectionId = $acceptanceSectionIds === []
+                ? (
+                    $this->resolveValidLabSectionId($element->lab_section_id)
+                    ?? $labSectionIdFromAnalysisType
+                    ?? $resolvedLabSectionOverride
+                    ?? $this->resolveFallbackLabSectionId($analysisTypeId, $analysisType, $lab, $sampleHeader)
+                )
+                : null;
 
-            if ($labSectionId === null) {
+            $labSectionIdsForElement = $acceptanceSectionIds !== []
+                ? $acceptanceSectionIds
+                : ($fallbackLabSectionId !== null ? [$fallbackLabSectionId] : []);
+
+            if ($labSectionIdsForElement === []) {
                 throw new \InvalidArgumentException(
                     'Lab section is required to create captured results. Set lab_section_id on analysis element '
                     . (string) ($element->id ?? '')
@@ -191,11 +198,6 @@ class SampleAnalysisSetupService
                 );
             }
 
-            $sectionUserId = (string) ($userIdByLabSection[$labSectionId] ?? '');
-            $userId = ($sectionUserId !== '' && Str::isUuid($sectionUserId))
-                ? $sectionUserId
-                : $defaultUserId;
-
             $subcontractedLabByElement = $context['subcontracted_lab_by_element'] ?? [];
             $assignedLabId = isset($subcontractedLabByElement[(string) $element->id])
                 ? trim((string) $subcontractedLabByElement[(string) $element->id])
@@ -204,58 +206,65 @@ class SampleAnalysisSetupService
                 ? 1
                 : $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides);
 
-            $capturedResult = new CapturedResult();
-            $capturedResult->fill([
-                'sample_detail_code' => $sampleCode,
-                'sample_detail_id' => $sampleDetailId,
-                'sample_header_id' => $batchId,
-                'analyte_id' => $element->analyte_id,
-                'analyte_code' => $analyteCode,
-                'analysis_element_id' => $element->id,
-                'equipment_id' => (empty($element->equipment_id) || $element->equipment_id === '0' || $element->equipment_id === 0) ? null : $element->equipment_id,
-                'result' => null,
-                'user_id' => $userId,
-                'analysis_type_id' => $analysisTypeId,
-                'operator_id' => null,
-                'method_id' => $this->resolveValidMethodId($element->method),
-                'reporting_unit_id' => $reportingUnit?->id,
-                'ltm_method_id' => $this->resolveValidMethodId($element->ltm_method_id),
-                'analyte_accredited' => $this->resolveAccreditedFlag($element, $elementFlagOverrides),
-                'analyte_status_contracted' => $isSubcontracted,
-                'subcontracted_lab_id' => $assignedLabId !== '' ? $assignedLabId : null,
-                'lab_section_id' => $labSectionId,
-                'parameters_order' => $element->level ?? 0,
-                'remark_is_manual' => $element->remark_is_manual,
-                'remark' => null,
-                'main_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $standardID, 'main_standard'),
-                'secondary_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $secondaryStandardID, 'secondary_standard'),
-                'third_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $thirdStandardID, 'third_standard_id'),
-                'analysis_type_order' => $element->analysis_type_order ?? 0,
-                'remark_colour' => null,
-                'repeat_captured_id' => null,
-                'has_no_result_capture' => $analysisTypeHasNoResultCapture,
-            ]);
-            $capturedResult->save();
+            foreach ($labSectionIdsForElement as $labSectionId) {
+                $sectionUserId = (string) ($userIdByLabSection[$labSectionId] ?? '');
+                $userId = ($sectionUserId !== '' && Str::isUuid($sectionUserId))
+                    ? $sectionUserId
+                    : $defaultUserId;
 
-            $result = new Result();
-            $result->fill([
-                'captured_result_id' => $capturedResult->id,
-                'sample_detail_code' => $sampleCode,
-                'sample_detail_id' => $sampleDetailId,
-                'sample_header_id' => $batchId,
-                'analyte_id' => $element->analyte_id,
-                'analyte_code' => $analyteCode,
-                'analysis_type_id' => $analysisTypeId,
-                'unit_code' => $reportingUnit?->name ?? $element->reporting_unit,
-                'reporting_symbol' => $element->reporting_symbol ?? null,
-                'recheck' => 0,
-                'analyte_status_contracted' => $isSubcontracted,
-                'lab_section_id' => $labSectionId,
-                'parameters_order' => $element->level ?? 0,
-                'remark_is_manual' => $element->remark_is_manual,
-                'has_no_result_capture' => $analysisTypeHasNoResultCapture,
-            ]);
-            $result->save();
+                $capturedResult = new CapturedResult();
+                $capturedResult->fill([
+                    'sample_detail_code' => $sampleCode,
+                    'sample_detail_id' => $sampleDetailId,
+                    'sample_header_id' => $batchId,
+                    'analyte_id' => $element->analyte_id,
+                    'analyte_code' => $analyteCode,
+                    'analysis_element_id' => $element->id,
+                    'equipment_id' => (empty($element->equipment_id) || $element->equipment_id === '0' || $element->equipment_id === 0) ? null : $element->equipment_id,
+                    'result' => null,
+                    'user_id' => $userId,
+                    'analysis_type_id' => $analysisTypeId,
+                    'operator_id' => null,
+                    'method_id' => $this->resolveValidMethodId($element->method),
+                    'reporting_unit_id' => $reportingUnit?->id,
+                    'ltm_method_id' => $this->resolveValidMethodId($element->ltm_method_id),
+                    'analyte_accredited' => $this->resolveAccreditedFlag($element, $elementFlagOverrides),
+                    'analyte_status_contracted' => $isSubcontracted,
+                    'subcontracted_lab_id' => $assignedLabId !== '' ? $assignedLabId : null,
+                    'lab_section_id' => $labSectionId,
+                    'parameters_order' => $element->level ?? 0,
+                    'remark_is_manual' => $element->remark_is_manual,
+                    'remark' => null,
+                    'main_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $standardID, 'main_standard'),
+                    'secondary_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $secondaryStandardID, 'secondary_standard'),
+                    'third_standard_id' => $this->resolveCapturedResultStandardId($sampleDetail, $thirdStandardID, 'third_standard_id'),
+                    'analysis_type_order' => $element->analysis_type_order ?? 0,
+                    'remark_colour' => null,
+                    'repeat_captured_id' => null,
+                    'has_no_result_capture' => $analysisTypeHasNoResultCapture,
+                ]);
+                $capturedResult->save();
+
+                $result = new Result();
+                $result->fill([
+                    'captured_result_id' => $capturedResult->id,
+                    'sample_detail_code' => $sampleCode,
+                    'sample_detail_id' => $sampleDetailId,
+                    'sample_header_id' => $batchId,
+                    'analyte_id' => $element->analyte_id,
+                    'analyte_code' => $analyteCode,
+                    'analysis_type_id' => $analysisTypeId,
+                    'unit_code' => $reportingUnit?->name ?? $element->reporting_unit,
+                    'reporting_symbol' => $element->reporting_symbol ?? null,
+                    'recheck' => 0,
+                    'analyte_status_contracted' => $isSubcontracted,
+                    'lab_section_id' => $labSectionId,
+                    'parameters_order' => $element->level ?? 0,
+                    'remark_is_manual' => $element->remark_is_manual,
+                    'has_no_result_capture' => $analysisTypeHasNoResultCapture,
+                ]);
+                $result->save();
+            }
         }
     }
 
@@ -409,6 +418,17 @@ class SampleAnalysisSetupService
 
     private function resolveValidLabSectionId(mixed $candidate): ?string
     {
+        if (is_array($candidate)) {
+            foreach ($candidate as $item) {
+                $resolved = $this->resolveValidLabSectionId($item);
+                if ($resolved !== null) {
+                    return $resolved;
+                }
+            }
+
+            return null;
+        }
+
         if ($candidate === null || $candidate === '' || $candidate === '0' || $candidate === 0) {
             return null;
         }
@@ -431,6 +451,27 @@ class SampleAnalysisSetupService
         }
 
         return $this->labSectionValidityCache[$id] ? $id : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveLabSectionIdsFromElementMap(mixed $candidate): array
+    {
+        if ($candidate === null || $candidate === '' || $candidate === '0' || $candidate === 0) {
+            return [];
+        }
+
+        $values = is_array($candidate) ? $candidate : [$candidate];
+        $ids = [];
+        foreach ($values as $value) {
+            $resolved = $this->resolveValidLabSectionId($value);
+            if ($resolved !== null) {
+                $ids[] = $resolved;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**

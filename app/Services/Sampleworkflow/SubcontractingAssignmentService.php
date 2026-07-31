@@ -429,17 +429,109 @@ class SubcontractingAssignmentService
             ->all();
     }
 
-    public function syncAssignmentsToSampleHeader(SampleSubmissionRequest $enquiry, string $sampleHeaderId): void
+    /**
+     * Resolve analysis_element_id => lab_id for a sample batch.
+     *
+     * Prefers explicit dispatch assignment rows, then falls back to a single
+     * enquiry-level dispatch lab for all subcontracted captured results.
+     *
+     * @return array<string, string>
+     */
+    public function labByElementIdForSampleHeader(string $sampleHeaderId): array
     {
-        if (! Schema::hasTable('subcontracting_dispatch_assignments')) {
-            return;
+        $sampleHeaderId = trim($sampleHeaderId);
+        if ($sampleHeaderId === '') {
+            return [];
         }
 
-        SubcontractingDispatchAssignment::query()
-            ->where('sample_submission_request_id', $enquiry->id)
-            ->update(['sample_header_id' => $sampleHeaderId]);
+        if (Schema::hasTable('subcontracting_dispatch_assignments')) {
+            $byHeader = SubcontractingDispatchAssignment::query()
+                ->where('sample_header_id', $sampleHeaderId)
+                ->get(['analysis_element_id', 'lab_id'])
+                ->mapWithKeys(fn (SubcontractingDispatchAssignment $row): array => [
+                    (string) $row->analysis_element_id => (string) $row->lab_id,
+                ])
+                ->all();
 
-        $this->applyAssignmentsToCapturedResults($sampleHeaderId, $this->labByElementIdForRequest($enquiry));
+            if ($byHeader !== []) {
+                return $byHeader;
+            }
+
+            $requestIds = SampleSubmissionRequest::query()
+                ->where('sample_header_id', $sampleHeaderId)
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
+
+            $byEnquiry = $this->labByElementIdForEnquiries($requestIds);
+            if ($byEnquiry !== []) {
+                return $byEnquiry;
+            }
+        }
+
+        return $this->fallbackLabByElementFromEnquiryDispatchLabs($sampleHeaderId);
+    }
+
+    /**
+     * When per-test assignment rows are missing but the enquiry stores one
+     * receiving lab, map that lab onto every subcontracted captured result.
+     *
+     * @return array<string, string>
+     */
+    private function fallbackLabByElementFromEnquiryDispatchLabs(string $sampleHeaderId): array
+    {
+        if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_lab_ids')) {
+            return [];
+        }
+
+        $labIds = SampleSubmissionRequest::query()
+            ->where('sample_header_id', $sampleHeaderId)
+            ->pluck('subcontracting_dispatch_lab_ids')
+            ->flatMap(function ($raw): array {
+                return collect(explode(',', (string) $raw))
+                    ->map(fn ($id) => trim((string) $id))
+                    ->filter()
+                    ->all();
+            })
+            ->unique()
+            ->values()
+            ->all();
+
+        if (count($labIds) !== 1) {
+            return [];
+        }
+
+        $onlyLabId = $labIds[0];
+        $elementIds = CapturedResult::query()
+            ->where('sample_header_id', $sampleHeaderId)
+            ->where('analyte_status_contracted', 1)
+            ->whereNotNull('analysis_element_id')
+            ->pluck('analysis_element_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($elementIds === []) {
+            return [];
+        }
+
+        return array_fill_keys($elementIds, $onlyLabId);
+    }
+
+    public function syncAssignmentsToSampleHeader(SampleSubmissionRequest $enquiry, string $sampleHeaderId): void
+    {
+        if (Schema::hasTable('subcontracting_dispatch_assignments')) {
+            SubcontractingDispatchAssignment::query()
+                ->where('sample_submission_request_id', $enquiry->id)
+                ->update(['sample_header_id' => $sampleHeaderId]);
+        }
+
+        $this->applyAssignmentsToCapturedResults(
+            $sampleHeaderId,
+            $this->labByElementIdForSampleHeader($sampleHeaderId)
+        );
     }
 
     /**

@@ -661,8 +661,8 @@
                                             @php
                                                 $sampleId = (string) ($row['sample_id'] ?? '');
                                                 $remark = strtoupper(trim((string) ($row['remark'] ?? '')));
-                                                $isPass = $remark === 'PASS' || $remark === 'COMPLIANT';
-                                                $isFail = $remark === 'FAIL' || $remark === 'NON-COMPLIANT';
+                                                $isPass = in_array($remark, ['PASS', 'PASSED', 'CONFORMING', 'COMPLIANT'], true);
+                                                $isFail = in_array($remark, ['FAIL', 'FAILED', 'NON-CONFORMING', 'NON-COMPLIANT'], true);
                                             @endphp
                                             <tr wire:key="post-preview-{{ $row['captured_result_id'] }}">
                                                 <td><strong>{{ $row['sample_code'] }}</strong></td>
@@ -759,9 +759,9 @@
                                                 <td>{{ $row['standard_limits'] ?: '—' }}</td>
                                                 <td>
                                                     @if($isPass)
-                                                        <span class="badge badge-success">{{ $remark }}</span>
+                                                        <span class="badge badge-success">Conforming</span>
                                                     @elseif($isFail)
-                                                        <span class="badge badge-danger">{{ $remark }}</span>
+                                                        <span class="badge badge-danger">Non-Conforming</span>
                                                     @elseif($remark !== '' && $remark !== '-')
                                                         <span class="badge badge-secondary">{{ $row['remark'] }}</span>
                                                     @else
@@ -782,7 +782,7 @@
                                 <ul class="mb-0 mt-2">
                                     <li>Standard changes update the shared sample record and affect future results</li>
                                     @if($lookupStandardInfo)
-                                        <li>When "Use Lookup" is checked, remark comes from the lookup table instead of standard-based PASS/FAIL</li>
+                                        <li>When "Use Lookup" is checked, remark comes from the lookup table instead of standard-based Conforming / Non-Conforming</li>
                                     @endif
                                     <li>Posting will use the standards and remark mode shown above</li>
                                 </ul>

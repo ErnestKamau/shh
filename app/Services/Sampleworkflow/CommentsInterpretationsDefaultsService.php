@@ -105,8 +105,7 @@ class CommentsInterpretationsDefaultsService
         };
 
         foreach ($results as $result) {
-            $remark = strtoupper(trim((string) ($result->{$remarkColumn} ?? '')));
-            if ($remark === 'FAIL') {
+            if (is_non_conforming_remark($result->{$remarkColumn} ?? null)) {
                 return false;
             }
         }

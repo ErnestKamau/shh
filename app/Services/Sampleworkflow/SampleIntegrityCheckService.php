@@ -130,6 +130,10 @@ final class SampleIntegrityCheckService
         }
 
         $subcontractedElementIds = [];
+        /** @var array<string, true> $touchedConfigIds */
+        $touchedConfigIds = [];
+        /** @var array<string, array<string, list<string>>> $analystsByConfig */
+        $analystsByConfig = [];
 
         foreach ($rows as $row) {
             $configId = (string) ($row['config_id'] ?? '');
@@ -138,6 +142,8 @@ final class SampleIntegrityCheckService
                 continue;
             }
 
+            $touchedConfigIds[$configId] = true;
+
             $sectionIds = $this->configService->normalizeLabSectionIds($row['lab_section_ids'] ?? []);
             $sections = is_array($configsById[$configId]['parameter_lab_sections'] ?? null)
                 ? $configsById[$configId]['parameter_lab_sections']
@@ -145,25 +151,36 @@ final class SampleIntegrityCheckService
             $sections[$elementId] = $sectionIds;
             $configsById[$configId]['parameter_lab_sections'] = $sections;
 
+            if (! empty($row['subcontracted'])) {
+                $subcontractedElementIds[] = $elementId;
+
+                // Analysts are sample-level (keyed by lab section). Subcontracted
+                // rows intentionally have empty analyst picks — never let them wipe
+                // shared section assignments from in-house tests on the same sample.
+                continue;
+            }
+
             $incomingAnalysts = is_array($row['analysts_by_lab_section'] ?? null)
                 ? $row['analysts_by_lab_section']
                 : [];
-            $bySection = is_array($configsById[$configId]['analysts_by_lab_section'] ?? null)
-                ? $configsById[$configId]['analysts_by_lab_section']
-                : [];
 
             foreach ($sectionIds as $sectionId) {
-                $bySection[$sectionId] = array_values(array_unique(array_filter(array_map(
+                $incoming = array_values(array_unique(array_filter(array_map(
                     'strval',
                     is_array($incomingAnalysts[$sectionId] ?? null) ? $incomingAnalysts[$sectionId] : []
                 ))));
-            }
 
-            $configsById[$configId]['analysts_by_lab_section'] = $bySection;
+                // Prefer non-empty picks when multiple in-house tests share a section.
+                if ($incoming === [] && isset($analystsByConfig[$configId][$sectionId])) {
+                    continue;
+                }
 
-            if (! empty($row['subcontracted'])) {
-                $subcontractedElementIds[] = $elementId;
+                $analystsByConfig[$configId][$sectionId] = $incoming;
             }
+        }
+
+        foreach (array_keys($touchedConfigIds) as $configId) {
+            $configsById[$configId]['analysts_by_lab_section'] = $analystsByConfig[$configId] ?? [];
         }
 
         $normalized = $this->configService->normalizeConfigsForStorage(

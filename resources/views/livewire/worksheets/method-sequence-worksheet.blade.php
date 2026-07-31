@@ -536,13 +536,13 @@
                                                                         placeholder="Enter result" id="result-{{ $stageData->id }}">
                                                                 </div>
                                                                 <div class="col-md-6">
-                                                                    <label class="form-label small">Remark (Pass/Fail)</label>
+                                                                    <label class="form-label small">Remark (Conforming / Non-Conforming)</label>
                                                                     <select class="form-control form-control-sm"
                                                                         id="remark-{{ $stageData->id }}"
                                                                         wire:change="updateResult({{ $stageData->id }}, document.getElementById('result-{{ $stageData->id }}').value, $event.target.value)">
                                                                         <option value="">Select...</option>
-                                                                        <option value="Pass">Pass</option>
-                                                                        <option value="Fail">Fail</option>
+                                                                        <option value="PASS">Conforming</option>
+                                                                        <option value="FAIL">Non-Conforming</option>
                                                                     </select>
                                                                 </div>
                                                             </div>

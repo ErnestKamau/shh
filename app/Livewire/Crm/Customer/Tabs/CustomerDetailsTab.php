@@ -19,9 +19,12 @@ class CustomerDetailsTab extends BaseCrmComponent
 
     // Editable Properties
     public $name;
+    public $contact_person;
+    public $designation;
     public $email;
     public $physical_address;
     public $postal_address;
+    public $billing_address;
     public $website;
     public $fax;
     public $telephone1;
@@ -34,6 +37,8 @@ class CustomerDetailsTab extends BaseCrmComponent
     public $lpos_required;
     public $is_internal;
     public $account_status;
+    public $vat_no;
+    public $trade_license;
     public $accounts = [];
     public $account_settings = null;
     public $countrySearch = '';
@@ -42,6 +47,7 @@ class CustomerDetailsTab extends BaseCrmComponent
     public $showAccountDropdown = false;
 
     public $logoFile = null;
+    public $vatRegistrationCertificateFile = null;
 
     public function mount($customer)
     {
@@ -61,9 +67,12 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->isEditing = true;
 
         $this->name = $this->customer->name;
+        $this->contact_person = $this->customer->contact_person ?? '';
+        $this->designation = $this->customer->designation ?? '';
         $this->email = $this->customer->email;
         $this->physical_address = $this->customer->physical_address;
         $this->postal_address = $this->customer->postal_address;
+        $this->billing_address = $this->customer->billing_address ?? '';
         $this->website = $this->customer->website;
         $this->fax = $this->customer->fax;
         $this->telephone1 = $this->customer->telephone1;
@@ -76,13 +85,17 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->lpos_required = (bool) $this->customer->lpos_required;
         $this->is_internal = (bool) ($this->customer->is_internal ?? false);
         $this->account_status = $this->customer->account_status;
+        $this->vat_no = $this->customer->vat_no ?? '';
+        $this->trade_license = $this->customer->trade_license ?? '';
         $this->logoFile = null;
+        $this->vatRegistrationCertificateFile = null;
     }
 
     public function cancel()
     {
         $this->isEditing = false;
         $this->logoFile = null;
+        $this->vatRegistrationCertificateFile = null;
         $this->resetValidation();
     }
 
@@ -190,9 +203,12 @@ class CustomerDetailsTab extends BaseCrmComponent
 
         return [
             'name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'designation' => 'nullable|string|max:255',
             'email' => 'required|email|max:255',
             'physical_address' => 'required|string',
             'postal_address' => 'nullable|string',
+            'billing_address' => 'nullable|string|max:1000',
             'website' => 'nullable|url|max:255',
             'fax' => 'nullable|string|max:255',
             'telephone1' => 'required|string|max:255',
@@ -209,7 +225,10 @@ class CustomerDetailsTab extends BaseCrmComponent
             'lpos_required' => 'boolean',
             'is_internal' => 'boolean',
             'account_status' => 'nullable|exists:system_configurations,id',
+            'vat_no' => 'nullable|string|max:100',
+            'trade_license' => 'nullable|string|max:255',
             'logoFile' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'vatRegistrationCertificateFile' => 'nullable|file|mimes:pdf,jpg,jpeg,png,gif,webp|max:10240',
         ];
     }
 
@@ -219,9 +238,12 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->validate();
 
         $this->customer->name = $this->name;
+        $this->customer->contact_person = $this->contact_person;
+        $this->customer->designation = $this->designation;
         $this->customer->email = $this->email;
         $this->customer->physical_address = $this->physical_address;
         $this->customer->postal_address = $this->postal_address;
+        $this->customer->billing_address = $this->billing_address;
         $this->customer->website = $this->website;
         $this->customer->fax = $this->fax;
         $this->customer->telephone1 = $this->telephone1;
@@ -231,6 +253,8 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->customer->lpos_required = $this->lpos_required ? 1 : 0;
         $this->customer->is_internal = $this->is_internal ? 1 : 0;
         $this->customer->account_status = $this->account_status;
+        $this->customer->vat_no = $this->vat_no;
+        $this->customer->trade_license = $this->trade_license;
 
         app(AccountPaymentTermsService::class)->syncCustomerFromAccountSetting(
             $this->customer,
@@ -244,12 +268,17 @@ class CustomerDetailsTab extends BaseCrmComponent
             $this->storeCustomerLogo();
         }
 
+        if ($this->vatRegistrationCertificateFile) {
+            $this->storeVatRegistrationCertificate();
+        }
+
         $this->customer->save();
         $this->customer = $this->customer->fresh(['country']);
 
         $this->showSuccess('Customer updated successfully.');
         $this->isEditing = false;
         $this->logoFile = null;
+        $this->vatRegistrationCertificateFile = null;
         $this->dispatch('customer-updated');
     }
 
@@ -284,6 +313,43 @@ class CustomerDetailsTab extends BaseCrmComponent
         $path = $this->logoFile->storeAs('crm-customer-logos', $storedName, 'public');
 
         $this->customer->logo = '/storage/' . $path;
+
+        if ($previousRelative && $previousRelative !== $path && Storage::disk('public')->exists($previousRelative)) {
+            Storage::disk('public')->delete($previousRelative);
+        }
+    }
+
+    public function removeVatRegistrationCertificate(): void
+    {
+        $this->checkPermission('crm.components.customer-list.edit');
+
+        if (filled($this->customer->vat_registration_certificate)) {
+            $relative = ltrim(preg_replace('#^/storage/#', '', (string) $this->customer->vat_registration_certificate), '/');
+            if ($relative !== '' && Storage::disk('public')->exists($relative)) {
+                Storage::disk('public')->delete($relative);
+            }
+            $this->customer->vat_registration_certificate = null;
+            $this->customer->save();
+            $this->customer = $this->customer->fresh(['country']);
+        }
+
+        $this->vatRegistrationCertificateFile = null;
+        $this->dispatch('customer-updated');
+        $this->showSuccess(__('crm.certificate_removed'));
+    }
+
+    protected function storeVatRegistrationCertificate(): void
+    {
+        $previousRelative = null;
+        if (filled($this->customer->vat_registration_certificate)) {
+            $previousRelative = ltrim(preg_replace('#^/storage/#', '', (string) $this->customer->vat_registration_certificate), '/');
+        }
+
+        $extension = strtolower((string) $this->vatRegistrationCertificateFile->getClientOriginalExtension());
+        $storedName = (string) Str::uuid() . ($extension !== '' ? '.' . $extension : '.pdf');
+        $path = $this->vatRegistrationCertificateFile->storeAs('crm-customer-vat-certificates', $storedName, 'public');
+
+        $this->customer->vat_registration_certificate = '/storage/' . $path;
 
         if ($previousRelative && $previousRelative !== $path && Storage::disk('public')->exists($previousRelative)) {
             Storage::disk('public')->delete($previousRelative);

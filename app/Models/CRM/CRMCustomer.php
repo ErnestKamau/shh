@@ -28,8 +28,11 @@ class CRMCustomer extends Model implements Auditable
 		'is_one_time' => 'boolean',
 		'quotation_acceptance_tat_minutes' => 'integer',
 		'code' => \App\Casts\SafeEncrypted::class,
+		'contact_person' => \App\Casts\SafeEncrypted::class,
+		'designation' => \App\Casts\SafeEncrypted::class,
 		'postal_address' => \App\Casts\SafeEncrypted::class,
 		'physical_address' => \App\Casts\SafeEncrypted::class,
+		'billing_address' => \App\Casts\SafeEncrypted::class,
 		'email' => \App\Casts\SafeEncrypted::class,
 		'telephone1' => \App\Casts\SafeEncrypted::class,
 		'telephone2' => \App\Casts\SafeEncrypted::class,
@@ -43,21 +46,31 @@ class CRMCustomer extends Model implements Auditable
 
   public function logoUrl(): ?string
   {
-      if (! filled($this->logo)) {
+      return $this->publicStorageUrl($this->logo);
+  }
+
+  public function vatRegistrationCertificateUrl(): ?string
+  {
+      return $this->publicStorageUrl($this->vat_registration_certificate);
+  }
+
+  protected function publicStorageUrl(mixed $path): ?string
+  {
+      if (! filled($path)) {
           return null;
       }
 
-      $logo = (string) $this->logo;
+      $value = (string) $path;
 
-      if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://')) {
-          return $logo;
+      if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+          return $value;
       }
 
-      if (str_starts_with($logo, '/storage/')) {
-          return $logo;
+      if (str_starts_with($value, '/storage/')) {
+          return $value;
       }
 
-      return '/storage/' . ltrim($logo, '/');
+      return '/storage/' . ltrim($value, '/');
   }
 
   public function units(){

@@ -216,7 +216,13 @@ class SubmissionFormInstanceController extends Controller
 
         $instance = SubmissionFormInstance::create($instanceData);
 
-        $this->prefillPortalCustomerFields($instance, $form, $customerId, $portalAccountId);
+        $this->prefillPortalCustomerFields(
+            $instance,
+            $form,
+            $customerId,
+            $portalAccountId,
+            $this->access->limsUserIdFromRequest($request),
+        );
         try {
             app(CommercialEnquiryFromFormService::class)->syncFromDraftInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
         } catch (\Throwable $th) {
@@ -380,6 +386,10 @@ class SubmissionFormInstanceController extends Controller
 
         $actor = $this->resolvePortalActor($request, $instanceModel);
 
+        if (empty($instanceModel->submitted_by)) {
+            $instanceModel->forceFill(['submitted_by' => $actor->id])->save();
+        }
+
         if (! $instanceModel->markAdditionalInfoProvided($actor, $message !== '' ? $message : null)) {
             throw ValidationException::withMessages([
                 'action' => ['Unable to record the additional information response.'],
@@ -464,19 +474,31 @@ class SubmissionFormInstanceController extends Controller
 
     private function resolvePortalActor(Request $request, SubmissionFormInstance $instance): User
     {
-        $portalAccountId = $this->access->portalAccountIdFromRequest($request);
+        $candidateIds = array_values(array_unique(array_filter([
+            $this->access->limsUserIdFromRequest($request),
+            $instance->submitted_by ? (string) $instance->submitted_by : null,
+            // Legacy mistaken mapping: some older callers treated portal_account_id as users.id.
+            $this->access->portalAccountIdFromRequest($request),
+        ])));
 
-        if ($portalAccountId !== null) {
-            $user = User::query()->find($portalAccountId);
+        foreach ($candidateIds as $candidateId) {
+            $user = User::query()->find($candidateId);
             if ($user instanceof User) {
                 return $user;
             }
         }
 
-        if ($instance->submitted_by) {
-            $user = User::query()->find($instance->submitted_by);
-            if ($user instanceof User) {
-                return $user;
+        $customerId = (string) ($instance->crm_customer_id ?? '');
+        if ($customerId !== '') {
+            $customerUser = User::query()
+                ->where('is_client', 1)
+                ->where('client_id', $customerId)
+                ->where('active', 1)
+                ->orderByDesc('updated_at')
+                ->first();
+
+            if ($customerUser instanceof User) {
+                return $customerUser;
             }
         }
 
@@ -684,7 +706,8 @@ class SubmissionFormInstanceController extends Controller
         SubmissionFormInstance $instance,
         \App\Models\SubmissionForm $form,
         string $customerId,
-        ?string $portalAccountId
+        ?string $portalAccountId,
+        ?string $limsUserId = null,
     ): void {
         $customer = CRMCustomer::query()
             ->where('id', $customerId)
@@ -695,10 +718,14 @@ class SubmissionFormInstanceController extends Controller
         }
 
         $contactId = null;
-        if ($portalAccountId !== null && $portalAccountId !== '') {
+        foreach (array_filter([$limsUserId, $portalAccountId]) as $candidateUserId) {
             $contactId = User::query()
-                ->where('id', $portalAccountId)
+                ->where('id', $candidateUserId)
                 ->value('crm_contact_id');
+
+            if ($contactId !== null && $contactId !== '') {
+                break;
+            }
         }
 
         if ($contactId === null || $contactId === '') {

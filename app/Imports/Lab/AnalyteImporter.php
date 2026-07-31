@@ -2,8 +2,8 @@
 
 namespace App\Imports\Lab;
 
-use App\Imports\BaseImporter;
 use App\Analyte;
+use App\Imports\BaseImporter;
 
 class AnalyteImporter extends BaseImporter
 {
@@ -11,17 +11,15 @@ class AnalyteImporter extends BaseImporter
     {
         $errors = [];
 
-        if (empty($row['code'] ?? null)) {
-            $errors[] = 'Code is required';
-        } elseif (Analyte::where('code', $row['code'])->where('company_id', $this->batch->company_id)->exists()) {
-            // Allow duplicates for upsert
+        $code = $this->fuzzyGet($row, ['code', 'analyte_code', 'parameter_code', 'id']);
+        $name = $this->fuzzyGet($row, ['name', 'analyte_name', 'parameter', 'parameter_name', 'title']);
+
+        if (empty($code) && empty($name)) {
+            $errors[] = 'Either Code or Name is required';
         }
 
-        if (empty($row['name'] ?? null)) {
-            $errors[] = 'Name is required';
-        }
-
-        if (!empty($row['decimal_places'] ?? null) && !is_numeric($row['decimal_places'])) {
+        $decimalPlaces = $this->fuzzyGet($row, ['decimal_places', 'decimals']);
+        if ($decimalPlaces !== null && $decimalPlaces !== '' && ! is_numeric($decimalPlaces)) {
             $errors[] = 'Decimal places must be numeric';
         }
 
@@ -30,18 +28,35 @@ class AnalyteImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
+        $code = trim((string) $this->fuzzyGet($row, ['code', 'analyte_code', 'parameter_code', 'id'], ''));
+        $name = trim((string) $this->fuzzyGet($row, ['name', 'analyte_name', 'parameter', 'parameter_name', 'title'], ''));
+
+        if ($code === '' && $name !== '') {
+            $code = strtoupper(substr(preg_replace('/[^A-Za-z0-9]+/', '_', $name) ?? '', 0, 100));
+            $code = trim($code, '_') ?: ('AN-'.uniqid());
+        }
+
+        if ($name === '' && $code !== '') {
+            $name = $code;
+        }
+
+        $nonDetectable = $this->fuzzyGet($row, ['non_detectable'], 0);
+        $nonAccredited = $this->fuzzyGet($row, ['non_accredited'], 0);
+        $showOnReport = $this->fuzzyGet($row, ['show_on_report', 'show_on_reports'], 1);
+
         return [
-            'code' => $row['code'],
-            'name' => $row['name'] ?? ('Analyte ' . $row['code']),
-            'decimal_places' => $row['decimal_places'] ?? 2,
-            'reporting_symbol' => $row['reporting_symbol'] ?? null,
-            'reporting_unit' => $row['reporting_unit'] ?? null,
-            'equipment_id' => null, // Would resolve from equipment_code
-            'non_detectable' => $row['non_detectable'] ?? 0,
-            'non_accredited' => $row['non_accredited'] ?? 0,
-            'show_on_report' => (isset($row['show_on_report']) && in_array(strtolower(trim((string)$row['show_on_report'])), ['0', 'no', 'false', 'off'])) ? 0 : (
-                (isset($row['show_on_reports']) && in_array(strtolower(trim((string)$row['show_on_reports'])), ['0', 'no', 'false', 'off'])) ? 0 : 1
-            ),
+            'code' => $code,
+            'name' => $name,
+            'decimal_places' => is_numeric($this->fuzzyGet($row, ['decimal_places', 'decimals']))
+                ? (int) $this->fuzzyGet($row, ['decimal_places', 'decimals'])
+                : 2,
+            'reporting_symbol' => $this->fuzzyGet($row, ['reporting_symbol', 'symbol']),
+            'reporting_unit' => $this->fuzzyGet($row, ['reporting_unit', 'unit', 'units']),
+            'equipment_id' => null,
+            'non_detectable' => ! in_array(strtolower((string) $nonDetectable), ['0', 'no', 'false', 'off', ''], true) ? 1 : 0,
+            'non_accredited' => ! in_array(strtolower((string) $nonAccredited), ['0', 'no', 'false', 'off', ''], true) ? 1 : 0,
+            'show_on_report' => in_array(strtolower((string) $showOnReport), ['0', 'no', 'false', 'off'], true) ? 0 : 1,
+            'active' => 1,
             'company_id' => $this->batch->company_id,
         ];
     }
@@ -49,14 +64,13 @@ class AnalyteImporter extends BaseImporter
     protected function importRow(array $transformedData, array $originalRow): bool
     {
         try {
-            $analyteName = $transformedData['code'] ?? 'unknown';
-            
             Analyte::updateOrCreate(
                 ['code' => $transformedData['code'], 'company_id' => $this->batch->company_id],
                 $transformedData
             );
 
-            $this->recordUpsert($analyteName, 'inserted');
+            $this->recordUpsert($transformedData['code'], 'upserted');
+
             return true;
         } catch (\Exception $e) {
             throw new \Exception("Failed to import analyte: {$e->getMessage()}");

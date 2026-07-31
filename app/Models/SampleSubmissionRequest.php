@@ -69,6 +69,22 @@ class SampleSubmissionRequest extends Model
 
     public const CUSTOMER_FEEDBACK_PREFIX = '[Customer feedback]';
 
+    /** Written by the customer portal / gateway when a quote is sent back for review. */
+    public const CUSTOMER_QUOTATION_REVIEW_PREFIX = '[Customer quotation review request]';
+
+    /**
+     * Prefixes that mark customer-authored enquiry note blocks.
+     *
+     * @return list<string>
+     */
+    public static function customerFeedbackPrefixes(): array
+    {
+        return [
+            self::CUSTOMER_FEEDBACK_PREFIX,
+            self::CUSTOMER_QUOTATION_REVIEW_PREFIX,
+        ];
+    }
+
     /** @var list<string> */
     public const COMMERCIAL_PIPELINE_STATUSES = [
         self::STATUS_REQUESTED,
@@ -519,20 +535,33 @@ class SampleSubmissionRequest extends Model
 
     public function customerFeedbackNotes(): string
     {
-        $notes = (string) ($this->enquiry_notes ?? '');
-        if ($notes === '') {
-            return '';
-        }
-
         $feedbackBlocks = [];
-        foreach (preg_split("/\n\n/", $notes) ?: [] as $block) {
-            $trimmed = trim((string) $block);
-            if ($trimmed !== '' && str_starts_with($trimmed, self::CUSTOMER_FEEDBACK_PREFIX)) {
-                $feedbackBlocks[] = trim(substr($trimmed, strlen(self::CUSTOMER_FEEDBACK_PREFIX)));
+        foreach ($this->enquiryNoteBlocks() as $trimmed) {
+            $message = self::stripCustomerFeedbackPrefix($trimmed);
+            if ($message !== null) {
+                $feedbackBlocks[] = $message;
             }
         }
 
         return implode("\n\n", $feedbackBlocks);
+    }
+
+    /**
+     * Most recent customer review / feedback message (portal send-back reason).
+     */
+    public function latestCustomerFeedbackNotes(): string
+    {
+        $all = $this->customerFeedbackNotes();
+        if ($all === '') {
+            return '';
+        }
+
+        $parts = preg_split("/\n\n/", $all) ?: [];
+        if ($parts === []) {
+            return '';
+        }
+
+        return trim((string) end($parts));
     }
 
     public function hasCustomerFeedback(): bool
@@ -540,17 +569,19 @@ class SampleSubmissionRequest extends Model
         return $this->customerFeedbackNotes() !== '';
     }
 
+    public function isQuotationUnderReview(): bool
+    {
+        $status = strtolower(trim((string) ($this->status ?? '')));
+
+        return $status === strtolower(self::STATUS_QUOTATION_UNDER_REVIEW)
+            || str_contains($status, 'quotation under review');
+    }
+
     public function staffCommercialNotes(): string
     {
-        $notes = (string) ($this->enquiry_notes ?? '');
-        if ($notes === '') {
-            return '';
-        }
-
         $staffBlocks = [];
-        foreach (preg_split("/\n\n/", $notes) ?: [] as $block) {
-            $trimmed = trim((string) $block);
-            if ($trimmed !== '' && ! str_starts_with($trimmed, self::CUSTOMER_FEEDBACK_PREFIX)) {
+        foreach ($this->enquiryNoteBlocks() as $trimmed) {
+            if (! self::isCustomerFeedbackBlock($trimmed)) {
                 $staffBlocks[] = $trimmed;
             }
         }
@@ -564,7 +595,7 @@ class SampleSubmissionRequest extends Model
         if (is_string($existingNotes) && trim($existingNotes) !== '') {
             foreach (preg_split("/\n\n/", $existingNotes) ?: [] as $block) {
                 $trimmed = trim((string) $block);
-                if ($trimmed !== '' && str_starts_with($trimmed, self::CUSTOMER_FEEDBACK_PREFIX)) {
+                if ($trimmed !== '' && self::isCustomerFeedbackBlock($trimmed)) {
                     $feedbackBlocks[] = $trimmed;
                 }
             }
@@ -586,5 +617,47 @@ class SampleSubmissionRequest extends Model
         }
 
         return $staff."\n\n".$feedback;
+    }
+
+    public static function isCustomerFeedbackBlock(string $block): bool
+    {
+        return self::stripCustomerFeedbackPrefix($block) !== null;
+    }
+
+    public static function stripCustomerFeedbackPrefix(string $block): ?string
+    {
+        $trimmed = trim($block);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        foreach (self::customerFeedbackPrefixes() as $prefix) {
+            if (str_starts_with($trimmed, $prefix)) {
+                return trim(substr($trimmed, strlen($prefix)));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function enquiryNoteBlocks(): array
+    {
+        $notes = trim((string) ($this->enquiry_notes ?? ''));
+        if ($notes === '') {
+            return [];
+        }
+
+        $blocks = [];
+        foreach (preg_split("/\n\n/", $notes) ?: [] as $block) {
+            $trimmed = trim((string) $block);
+            if ($trimmed !== '') {
+                $blocks[] = $trimmed;
+            }
+        }
+
+        return $blocks;
     }
 }

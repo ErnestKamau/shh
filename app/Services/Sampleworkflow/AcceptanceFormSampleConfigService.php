@@ -2110,39 +2110,7 @@ class AcceptanceFormSampleConfigService
                 $errors["sampleConfigs.{$index}.parameter_keys"] = "Sample {$row}: select at least one test parameter.";
             }
 
-            $parameterLabSections = is_array($config['parameter_lab_sections'] ?? null)
-                ? $config['parameter_lab_sections']
-                : [];
-
-            foreach ($parameterKeys as $elementId) {
-                $elementId = (string) $elementId;
-                if ($elementId === '') {
-                    continue;
-                }
-
-                if (empty($parameterLabSections[$elementId])) {
-                    $errors["sampleConfigs.{$index}.parameter_lab_sections.{$elementId}"] =
-                        "Sample {$row}: choose a lab section for each selected test.";
-                }
-            }
-
-            $sectionIds = $this->distinctLabSectionIdsFromConfig($config);
-            $analystsBySection = is_array($config['analysts_by_lab_section'] ?? null)
-                ? $config['analysts_by_lab_section']
-                : [];
-
-            foreach ($sectionIds as $sectionId) {
-                $assigned = is_array($analystsBySection[$sectionId] ?? null)
-                    ? array_filter($analystsBySection[$sectionId])
-                    : [];
-
-                if ($assigned === []) {
-                    $sectionName = SampleAnalysisStage::query()->whereKey($sectionId)->value('name')
-                        ?? 'selected lab section';
-                    $errors["sampleConfigs.{$index}.analysts_by_lab_section.{$sectionId}"] =
-                        "Sample {$row}: assign at least one analyst for {$sectionName}.";
-                }
-            }
+            // Lab section + analyst assignment is validated on Sample Integrity Check, not here.
         }
 
         if ($errors !== []) {

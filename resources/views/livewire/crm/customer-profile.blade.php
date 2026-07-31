@@ -182,7 +182,7 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">{{ __('crm.name') }} <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">{{ __('crm.company_name') }} <span class="text-danger">*</span></label>
                                             <input type="text" wire:model="customerForm.name" class="form-control">
                                             @error('customerForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
@@ -192,6 +192,23 @@
                                             <label class="form-label fw-bold">{{ __('crm.email') }} <span class="text-danger">*</span></label>
                                             <input type="email" wire:model="customerForm.email" class="form-control">
                                             @error('customerForm.email') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">{{ __('crm.contact_person') }}</label>
+                                            <input type="text" wire:model="customerForm.contact_person" class="form-control">
+                                            @error('customerForm.contact_person') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">{{ __('crm.designation') }}</label>
+                                            <input type="text" wire:model="customerForm.designation" class="form-control">
+                                            @error('customerForm.designation') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -298,9 +315,15 @@
                                 </div>
 
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">{{ __('crm.physical_address') }} <span class="text-danger">*</span></label>
+                                    <label class="form-label fw-bold">{{ __('crm.company_address') }} <span class="text-danger">*</span></label>
                                     <input type="text" wire:model="customerForm.physical_address" class="form-control">
                                     @error('customerForm.physical_address') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="form-label fw-bold">{{ __('crm.billing_address') }}</label>
+                                    <textarea wire:model="customerForm.billing_address" class="form-control" rows="2"></textarea>
+                                    @error('customerForm.billing_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="row">
@@ -321,10 +344,19 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">{{ __('crm.vat_number') }}</label>
+                                            <label class="form-label fw-bold">{{ __('crm.vat_registration') }}</label>
                                             <input type="text" wire:model="customerForm.vat_no" class="form-control">
                                         </div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">{{ __('crm.trade_license') }}</label>
+                                            <input type="text" wire:model="customerForm.trade_license" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
@@ -419,7 +451,7 @@
                                         <div class="col-md-6">
                                             <div class="info-card">
                                                 <div class="info-label">
-                                                    <i class="mdi mdi-account text-primary"></i> Name
+                                                    <i class="mdi mdi-account text-primary"></i> {{ __('crm.company_name') }}
                                                 </div>
                                                 <div class="info-value">{{ $customer->name }}</div>
                                             </div>
@@ -430,6 +462,25 @@
                                                     <i class="mdi mdi-email text-info"></i> Email
                                                 </div>
                                                 <div class="info-value">{{ $customer->email }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-account-outline text-primary"></i> {{ __('crm.contact_person') }}
+                                                </div>
+                                                <div class="info-value">{{ $customer->contact_person ?: 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-badge-account-outline text-primary"></i> {{ __('crm.designation') }}
+                                                </div>
+                                                <div class="info-value">{{ $customer->designation ?: 'N/A' }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -504,9 +555,20 @@
                                         <div class="col-md-12">
                                             <div class="info-card">
                                                 <div class="info-label">
-                                                    <i class="mdi mdi-home-map-marker text-danger"></i> Physical Address
+                                                    <i class="mdi mdi-home-map-marker text-danger"></i> {{ __('crm.company_address') }}
                                                 </div>
                                                 <div class="info-value">{{ $customer->physical_address }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-12">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-cash-multiple text-success"></i> {{ __('crm.billing_address') }}
+                                                </div>
+                                                <div class="info-value">{{ $customer->billing_address ?: 'N/A' }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -549,9 +611,34 @@
                                         <div class="col-md-6">
                                             <div class="info-card">
                                                 <div class="info-label">
-                                                    <i class="mdi mdi-receipt text-warning"></i> VAT Number
+                                                    <i class="mdi mdi-receipt text-warning"></i> {{ __('crm.vat_registration') }}
                                                 </div>
                                                 <div class="info-value text-muted">{{ $customer->vat_no ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-card-account-details-outline text-warning"></i> {{ __('crm.trade_license') }}
+                                                </div>
+                                                <div class="info-value text-muted">{{ $customer->trade_license ?: 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-file-document-outline text-warning"></i> {{ __('crm.vat_registration_certificate') }}
+                                                </div>
+                                                <div class="info-value">
+                                                    @if($customer->vatRegistrationCertificateUrl())
+                                                        <a href="{{ $customer->vatRegistrationCertificateUrl() }}" target="_blank">{{ __('crm.view_certificate') }}</a>
+                                                    @else
+                                                        <span class="text-muted">N/A</span>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="col-md-6">

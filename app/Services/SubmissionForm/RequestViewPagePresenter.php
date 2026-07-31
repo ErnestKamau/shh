@@ -1357,12 +1357,15 @@ class RequestViewPagePresenter
         if ($earlyQuote) {
             $walkIn = $stage === self::STAGE_QUOTATION_SENT
                 && strtolower((string) ($this->commercialEnquiry?->source_channel ?? '')) === 'walk_in';
+            $processEnquiryLabel = $stage === self::STAGE_QUOTATION_UNDER_REVIEW
+                ? 'Review quotation'
+                : 'Process enquiry';
 
             if ($walkIn) {
                 $primary = $this->action('record_walk_in_acceptance', 'Record walk-in acceptance', 'mdi-check-decagram', 'wire', 'recordWalkInQuotationAcceptance');
-                $secondary[] = $this->action('process_enquiry', 'Process enquiry', 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');
+                $secondary[] = $this->action('process_enquiry', $processEnquiryLabel, 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');
             } else {
-                $primary = $this->action('process_enquiry', 'Process enquiry', 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');
+                $primary = $this->action('process_enquiry', $processEnquiryLabel, 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');
             }
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');

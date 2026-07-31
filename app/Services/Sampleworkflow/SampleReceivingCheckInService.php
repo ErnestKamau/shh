@@ -198,7 +198,7 @@ final class SampleReceivingCheckInService
             SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL => 'Quotation is pending lab manager approval.',
             SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND => 'Quotation is approved but has not been sent to the customer yet.',
             SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Waiting for the client to accept the quotation.',
-            SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the client.',
+            SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Customer sent the quotation back for lab review.',
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO before physical samples can be received.',
             default => 'Quotation must be accepted and PO recorded before physical samples can be received.',
         };

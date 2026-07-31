@@ -2391,14 +2391,39 @@ function format_result_remark(?string $remark): string
 	}
 
 	$normalized = strtoupper(trim($remark));
+	$normalized = str_replace(['_', ' '], '-', $normalized);
 
 	return match ($normalized) {
-		'PASS' => 'Conforming',
-		'FAIL' => 'Non-conforming',
+		'PASS', 'PASSED', 'CONFORMING', 'COMPLIANT' => 'Conforming',
+		'FAIL', 'FAILED', 'FAILURE', 'REJECTED', 'NON-CONFORMING', 'NON-CONFORMANCE', 'NON-COMPLIANT' => 'Non-Conforming',
 		'-' => '-',
 		'' => '',
 		default => trim($remark),
 	};
+}
+
+/**
+ * Whether a stored or display remark represents a failing / non-conforming result.
+ */
+function is_non_conforming_remark(?string $remark): bool
+{
+	if ($remark === null || trim($remark) === '') {
+		return false;
+	}
+
+	return format_result_remark($remark) === 'Non-Conforming';
+}
+
+/**
+ * Whether a stored or display remark represents a passing / conforming result.
+ */
+function is_conforming_remark(?string $remark): bool
+{
+	if ($remark === null || trim($remark) === '') {
+		return false;
+	}
+
+	return format_result_remark($remark) === 'Conforming';
 }
 
 /**

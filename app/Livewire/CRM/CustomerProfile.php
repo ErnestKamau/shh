@@ -39,8 +39,11 @@ class CustomerProfile extends Component
     // Customer Form
     public $customerForm = [
         'name' => '',
+        'contact_person' => '',
+        'designation' => '',
         'postal_address' => '',
         'physical_address' => '',
+        'billing_address' => '',
         'website' => '',
         'fax' => '',
         'email' => '',
@@ -53,6 +56,7 @@ class CustomerProfile extends Component
         'active' => true,
         'account_status' => null,
         'vat_no' => '',
+        'trade_license' => '',
         'lpos_required' => false,
         'contract_valid_from' => '',
         'contract_valid_to' => '',
@@ -91,8 +95,11 @@ class CustomerProfile extends Component
 
         return [
             'customerForm.name' => 'required|string|max:255',
+            'customerForm.contact_person' => 'nullable|string|max:255',
+            'customerForm.designation' => 'nullable|string|max:255',
             'customerForm.postal_address' => 'required|string|max:500',
             'customerForm.physical_address' => 'required|string|max:500',
+            'customerForm.billing_address' => 'nullable|string|max:1000',
             'customerForm.email' => 'required|email|max:255',
             'customerForm.telephone1' => 'required|string|max:50',
             'customerForm.country_id' => 'required|exists:countries,id',
@@ -104,6 +111,8 @@ class CustomerProfile extends Component
                 ? ['required', Rule::in(array_keys(AccountPaymentTermsService::paymentMethodOptions()))]
                 : 'nullable|string|max:100',
             'customerForm.payment_terms_note' => 'nullable|string|max:500',
+            'customerForm.vat_no' => 'nullable|string|max:100',
+            'customerForm.trade_license' => 'nullable|string|max:255',
             'customerForm.contract_valid_from' => 'nullable|date',
             'customerForm.contract_valid_to' => 'nullable|date',
         ];
@@ -146,8 +155,11 @@ class CustomerProfile extends Component
     {
         $this->customerForm = [
             'name' => $this->customer->name,
+            'contact_person' => $this->customer->contact_person ?? '',
+            'designation' => $this->customer->designation ?? '',
             'postal_address' => $this->customer->postal_address,
             'physical_address' => $this->customer->physical_address,
+            'billing_address' => $this->customer->billing_address ?? '',
             'website' => $this->customer->website ?? '',
             'fax' => $this->customer->fax ?? '',
             'email' => $this->customer->email,
@@ -160,6 +172,7 @@ class CustomerProfile extends Component
             'active' => $this->customer->active == 1,
             'account_status' => $this->customer->account_status,
             'vat_no' => $this->customer->vat_no ?? '',
+            'trade_license' => $this->customer->trade_license ?? '',
             'lpos_required' => $this->customer->lpos_required == 1,
             'contract_valid_from' => $this->customer->contract_valid_from ? substr($this->customer->contract_valid_from, 0, 10) : '',
             'contract_valid_to' => $this->customer->contract_valid_to ? substr($this->customer->contract_valid_to, 0, 10) : '',
@@ -389,8 +402,11 @@ class CustomerProfile extends Component
             DB::beginTransaction();
 
             $this->customer->name = $this->customerForm['name'];
+            $this->customer->contact_person = $this->customerForm['contact_person'] ?? '';
+            $this->customer->designation = $this->customerForm['designation'] ?? '';
             $this->customer->postal_address = $this->customerForm['postal_address'];
             $this->customer->physical_address = $this->customerForm['physical_address'];
+            $this->customer->billing_address = $this->customerForm['billing_address'] ?? '';
             $this->customer->website = $this->customerForm['website'];
             $this->customer->fax = $this->customerForm['fax'];
             $this->customer->email = $this->customerForm['email'];
@@ -409,6 +425,7 @@ class CustomerProfile extends Component
                 $this->customerForm['payment_method'] ?? null
             );
             $this->customer->vat_no = $this->customerForm['vat_no'];
+            $this->customer->trade_license = $this->customerForm['trade_license'] ?? '';
             $this->customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
             $this->customer->contract_valid_from = $this->customerForm['contract_valid_from'] ?: null;
             $this->customer->contract_valid_to = $this->customerForm['contract_valid_to'] ?: null;
