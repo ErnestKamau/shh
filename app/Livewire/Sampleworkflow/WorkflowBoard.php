@@ -686,16 +686,22 @@ class WorkflowBoard extends Component
     }
 
     /**
-     * Submission form status keys for Samples Receiving (excludes interzone tab).
+     * Submission form status keys included in the Samples Receiving board base query.
+     * Tab keys are not 1:1 with instance statuses — Ready for Reception is driven by
+     * enquiry status + submitted/received/in_review instance status.
      *
      * @return array<int, string>
      */
     public static function receivingRequestStatusKeys(): array
     {
-        return array_values(array_filter(
-            array_keys(self::receivingRequestTabs()),
-            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception', 'sub_contracting', 'accepted'], true)
-        ));
+        return [
+            'submitted',
+            'Submitted',
+            'in_additional_info',
+            'received',
+            'in_review',
+            'In Review',
+        ];
     }
 
     /**
