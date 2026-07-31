@@ -320,6 +320,7 @@ class FormSchemaBuilder
                 'Authorization' => 'Bearer {PORTAL_GATEWAY_API_KEY}',
                 'X-CRM-Customer-Id' => 'required for customer scoping',
                 'X-Portal-Account-Id' => 'optional portal account uuid',
+                'X-Lims-User-Id' => 'optional LIMS users.id for the portal account',
             ],
         ];
     }
