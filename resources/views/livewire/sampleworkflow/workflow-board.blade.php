@@ -1185,12 +1185,12 @@
 									</li>
 									@endif
 
+									@if($status !== 'Samples Receiving')
 									<li>
 										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal"
 											data-sf-trigger="workflow-action-print-labels"><i
 												class="mdi mdi-printer mr-2"></i> Labels</button>
 									</li>
-									@if($status !== 'Samples Receiving')
 									<li>
 										<button type="button" class="dropdown-item" disabled data-target="#dispatch-to-labs-modal"
 											data-sf-trigger="workflow-action-request-review"
@@ -1269,8 +1269,14 @@
 										</button>
 									</li>
 									<li>
-
-										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i class="mdi mdi-printer mr-2"></i>Print Labels</button>
+										<button type="button" class="dropdown-item"
+											data-target="#print-trf-labels-modal"
+											data-toggle="modal"
+											data-sf-trigger="workflow-action-print-labels"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+											<i class="mdi mdi-printer mr-2"></i>Print Labels
+										</button>
 									</li>
 								@endif
 								@if(in_array($status, ['Samples Reception', 'Samples Receiving']) || (in_array($status, ['Samples En-Route']) && $workflowSubTab === 'requests'))
@@ -2462,12 +2468,12 @@
 																	value="{{ $instance->id }}"
 																	class="mr-1"
 																	title="Select"
+																	data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
 																	@if($showRequestReviewCheckbox && $status !== 'Samples Receiving')
 																		name="submission_form_instance_id[]"
 																		data-source-selection="1"
 																		data-selection-purpose="request-review"
 																		form="dispatch-to-labs-modal-form"
-																		data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
 																		data-form-name="{{ $instance->receivingFormDisplayName() }}"
 																		data-customer-name="{{ $instanceCustomerName }}"
 																		data-customer-email="{{ $instanceCustomerEmail }}"
@@ -3852,6 +3858,57 @@
 							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 						</div>
 					</form>
+				</div>
+			</div>
+
+			<div id="print-trf-labels-modal" class="modal fade" role="dialog" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-printer"></i> Print Labels</h4>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<p class="mb-2 text-muted">Choose which label to generate for the selected request(s). Each option opens in a new tab.</p>
+							<div class="form-group mb-3">
+								<label class="control-label">Selected request(s)</label>
+								<div class="selected-trf-labels">
+									<div class="alert alert-callout alert-danger mb-0">
+										<i class="fas fa-exclamation-triangle"></i> No request selected.
+									</div>
+								</div>
+							</div>
+							<div class="list-group">
+								<button type="button"
+									class="list-group-item list-group-item-action js-open-trf-label"
+									data-label-type="collection">
+									<div class="d-flex align-items-center">
+										<i class="mdi mdi-tag-outline mr-2 text-primary" aria-hidden="true"></i>
+										<div class="text-left">
+											<strong class="d-block">Sample Collection Label</strong>
+											<small class="text-muted">Collection details with TRF barcode</small>
+										</div>
+									</div>
+								</button>
+								<button type="button"
+									class="list-group-item list-group-item-action js-open-trf-label"
+									data-label-type="registration">
+									<div class="d-flex align-items-center">
+										<i class="mdi mdi-barcode mr-2 text-primary" aria-hidden="true"></i>
+										<div class="text-left">
+											<strong class="d-block">Registration Label with barcode</strong>
+											<small class="text-muted">Job / sample registration label for scanning</small>
+										</div>
+									</div>
+								</button>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		@endif
@@ -5509,6 +5566,48 @@
 
 			window.rebuildLabBatchPrintLabels = rebuildLabBatchPrintLabels;
 
+			const trfLabelUrlTemplate = @json(route('submission-forms.instances.sample-collection-label', ['instance' => '__INSTANCE_ID__']));
+
+			const buildTrfLabelUrl = function (instanceId, labelType) {
+				return trfLabelUrlTemplate
+					.replace('__INSTANCE_ID__', encodeURIComponent(String(instanceId)))
+					+ (trfLabelUrlTemplate.includes('?') ? '&' : '?')
+					+ 'type=' + encodeURIComponent(String(labelType));
+			};
+
+			const getSelectedTrfInstanceIds = function () {
+				return $('input[data-instance-select]:checked').filter(function () {
+					return $(this).closest('.modal').length === 0;
+				}).map(function () {
+					return String($(this).val() || '').trim();
+				}).get().filter(Boolean);
+			};
+
+			const rebuildTrfPrintLabels = function () {
+				const $container = $('#print-trf-labels-modal .selected-trf-labels');
+				if ($container.length === 0) {
+					return;
+				}
+
+				const selectedIds = getSelectedTrfInstanceIds();
+				$container.empty();
+
+				if (selectedIds.length === 0) {
+					$container.html('<div class="alert alert-callout alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> No request selected.</div>');
+					return;
+				}
+
+				selectedIds.forEach(function (instanceId) {
+					const $source = $('input[data-instance-select][value="' + instanceId + '"]').first();
+					const label = $source.data('form-number')
+						|| $source.closest('tr').find('td').eq(2).text().trim()
+						|| ('Request ' + instanceId);
+					$container.append('<span class="badge badge-light border mr-1 mb-1 p-2">' + $('<div>').text(label).html() + '</span>');
+				});
+			};
+
+			window.rebuildTrfPrintLabels = rebuildTrfPrintLabels;
+
 			const rebuildEmailReportsSelection = function () {
 				if ($('#send-email-reports-modal').length === 0) {
 					return;
@@ -5818,6 +5917,26 @@
 				rebuildLabBatchPrintLabels();
 			});
 
+			$('#print-trf-labels-modal').off('show.bs.modal.workflowTrfLabels').on('show.bs.modal', function () {
+				rebuildTrfPrintLabels();
+			});
+
+			$('#print-trf-labels-modal').off('click.workflowTrfLabels', '.js-open-trf-label').on('click', '.js-open-trf-label', function () {
+				const labelType = $(this).data('label-type') || 'collection';
+				const selectedIds = getSelectedTrfInstanceIds();
+
+				if (selectedIds.length === 0) {
+					alert('Please select at least one request before printing labels.');
+					return;
+				}
+
+				selectedIds.forEach(function (instanceId) {
+					window.open(buildTrfLabelUrl(instanceId, labelType), '_blank');
+				});
+
+				$('#print-trf-labels-modal').modal('hide');
+			});
+
 			$('#print-labels-modal').off('click.workflowLabBatch', '.print-label-btn').on('click', '.print-label-btn', function () {
 				const $form = $(this).closest('form');
 
@@ -5831,12 +5950,22 @@
 			});
 
 			$(document)
-				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"], [data-target="#send-email-reports-modal"]')
-				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"], [data-target="#send-email-reports-modal"]', function (event) {
+				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"], [data-target="#print-trf-labels-modal"], [data-target="#send-email-reports-modal"]')
+				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"], [data-target="#print-labels-modal"], [data-target="#print-trf-labels-modal"], [data-target="#send-email-reports-modal"]', function (event) {
 					const target = $(this).data('target');
 					rebuildSelectionLists();
 					if (target === '#print-labels-modal') {
 						rebuildLabBatchPrintLabels();
+					}
+					if (target === '#print-trf-labels-modal') {
+						const selectedIds = getSelectedTrfInstanceIds();
+						if (selectedIds.length === 0) {
+							event.preventDefault();
+							event.stopImmediatePropagation();
+							alert('Please select at least one request before printing labels.');
+							return false;
+						}
+						rebuildTrfPrintLabels();
 					}
 					if (target === '#send-email-reports-modal') {
 						const selectedCount = $('input[data-lab-batch-select]:checked').filter(function () {

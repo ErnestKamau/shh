@@ -1504,13 +1504,14 @@ class RequestViewPagePresenter
 
         return $this->action(
             'sample_label',
-            'Sample collection label',
-            'mdi-label',
-            'href',
+            'Print labels',
+            'mdi-printer',
+            'modal',
             null,
-            route('submission-forms.instances.sample-collection-label', $this->instance->id),
             null,
-            true
+            null,
+            false,
+            '#print-sample-labels-modal'
         );
     }
 
@@ -1577,6 +1578,7 @@ class RequestViewPagePresenter
         ?string $href = null,
         ?string $confirm = null,
         bool $targetBlank = false,
+        ?string $modal = null,
     ): array {
         return [
             'key' => $key,
@@ -1587,6 +1589,7 @@ class RequestViewPagePresenter
             'href' => $href,
             'confirm' => $confirm,
             'target_blank' => $targetBlank,
+            'modal' => $modal,
         ];
     }
 

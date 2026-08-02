@@ -21,6 +21,13 @@
         wire:target="{{ $action['wire'] }}">
         <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
     </button>
+@elseif($type === 'modal')
+    <button type="button"
+        class="{{ $classes }}"
+        data-toggle="modal"
+        data-target="{{ $action['modal'] }}">
+        <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
+    </button>
 @elseif($type === 'create_samples')
     <a href="#"
         class="{{ $classes }} create-samples-btn"

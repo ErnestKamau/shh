@@ -926,8 +926,8 @@ class ProcedureWorksheetEditor extends Component
             $this->default_value = '';
             $this->default_measurand_values = [];
         } else {
-            $this->table_mode = null;
-            $this->row_driver = null;
+            $this->table_mode = 'dynamic';
+            $this->row_driver = 'captured_result';
             $this->allow_manual_rows = false;
         }
 

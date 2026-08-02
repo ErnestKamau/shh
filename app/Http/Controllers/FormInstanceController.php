@@ -1820,12 +1820,23 @@ class FormInstanceController extends Controller
     }
 
     /**
-     * Generate Sample Collection Label PDF
+     * Generate Sample Collection / Registration labels (one type per request).
      */
-    public function sampleCollectionLabel(SubmissionFormInstance $instance)
+    public function sampleCollectionLabel(Request $request, SubmissionFormInstance $instance)
     {
-        $instance->load(['submissionForm', 'crmCustomer', 'values.element', 'sampleSubmissionRequest.batch']);
-        
+        $instance->load([
+            'submissionForm',
+            'crmCustomer',
+            'values.element',
+            'sampleSubmissionRequest.batch.samples',
+            'batches.samples',
+        ]);
+
+        $labelType = strtolower(trim((string) $request->query('type', 'collection')));
+        if (! in_array($labelType, ['collection', 'registration'], true)) {
+            $labelType = 'collection';
+        }
+
         // Prefer active company logo (main app pattern), then fallback to legacy system config key.
         $activeCompany = \App\Company::query()
             ->where('active', 1)
@@ -1843,8 +1854,10 @@ class FormInstanceController extends Controller
                 ->first();
             $logoPath = $companyLogoConfig ? $companyLogoConfig->value : null;
         }
-        
-        // Get form data
+
+        // Embed as data URI so the logo renders on-screen and when printing (no external fetch).
+        $logoSrc = $this->resolveLabelLogoDataUri(is_string($logoPath) ? $logoPath : null);
+
         $formData = [];
         foreach ($instance->values as $value) {
             $fieldName = $value->element?->name ?? $value->element_name ?? null;
@@ -1852,15 +1865,10 @@ class FormInstanceController extends Controller
                 $formData[$fieldName] = $value->value;
             }
         }
-        
-        // Debug: Log the available form data
-        Log::info('Sample Collection Label - Form Data', [
-            'instance_id' => $instance->id,
-            'form_number' => $instance->form_number,
-            'form_data_keys' => array_keys($formData),
-            'form_data' => $formData,
-        ]);
-        
+
+        $sampleLines = app(\App\Services\SubmissionForm\SubmissionRequestSampleLineService::class)
+            ->linesForInstance($instance);
+
         // Get job number.
         // For subcontracted requests awaiting dispatch, job number must remain empty
         // and only be shown once a real batch/job has been created after dispatch.
@@ -1877,49 +1885,112 @@ class FormInstanceController extends Controller
         if ($isAwaitingSubcontractDispatch) {
             $jobNumber = '';
         } else {
-            $jobNumber = (string) ($formData['job_number'] ?? '');
+            $jobNumber = $this->plainLabelText((string) ($formData['job_number'] ?? ''));
 
-            if ($jobNumber === '' && $submissionRequest?->sample_header_id) {
-                $jobNumber = (string) (optional($submissionRequest->batch)->batch_code ?? '');
+            if ($this->isBlankLabelValue($jobNumber) && $submissionRequest?->sample_header_id) {
+                $jobNumber = $this->plainLabelText((string) (optional($submissionRequest->batch)->batch_code ?? ''));
             }
 
-            if ($jobNumber === '') {
-                $jobNumber = (string) ($instance->form_number ?? 'N/A');
+            if ($this->isBlankLabelValue($jobNumber)) {
+                $jobNumber = $this->plainLabelText((string) (
+                    $instance->batches->pluck('batch_code')->filter()->first() ?? ''
+                ));
+            }
+
+            // Job ID is the lab job/batch number only — never the TRF/form number.
+            if ($this->isBlankLabelValue($jobNumber) || $this->isUuidLike($jobNumber)) {
+                $jobNumber = '';
             }
         }
-        
-        // Get customer details
-        $customerName = $instance->crmCustomer->name ?? $formData['customer_name'] ?? $formData['client_name'] ?? 'N/A';
-        $customerAddress = $instance->crmCustomer->physical_address ?? $formData['customer_address'] ?? $formData['address'] ?? 'N/A';
-        $customerPhone = $instance->crmCustomer->telephone1 ?? $formData['customer_phone'] ?? $formData['phone'] ?? 'N/A';
-        
-        // Get sample details - use actual field names from form data
-        $sampleType = $formData['type_of_samples'] ?? $formData['sample_type'] ?? $formData['sample_types_ww'] ?? $formData['sample_type_select'] ?? 'N/A';
-        $sampleDescription = $formData['parameter_requested'] ?? $formData['sample_description'] ?? $formData['sample_name'] ?? 'N/A';
-        $samplingDate = $formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? now()->format('Y-m-d');
-        // Sampling Point/Location - check multiple field names
-        $samplingPoint = $formData['sampling_location'] ?? $formData['location'] ?? $formData['sampling_point'] ?? $formData['customer_address'] ?? 'N/A';
-        
-        // Additional fields for the label
-        $sampleName = $formData['sample_name'] ?? $formData['sample_description'] ?? 'N/A';
-        $batchNumber = $jobNumber;
+
+        $customerName = $this->firstResolvedLabelValue(
+            $instance,
+            ['customer_name', 'client_name'],
+            (string) ($instance->crmCustomer->name ?? $formData['customer_name'] ?? $formData['client_name'] ?? '')
+        );
+        $customerAddress = $this->firstResolvedLabelValue(
+            $instance,
+            ['customer_address', 'address'],
+            (string) ($instance->crmCustomer->physical_address ?? $formData['customer_address'] ?? $formData['address'] ?? '')
+        );
+        $customerPhone = $this->firstResolvedLabelValue(
+            $instance,
+            ['customer_phone', 'phone', 'mobile_number'],
+            (string) ($instance->crmCustomer->telephone1 ?? $formData['customer_phone'] ?? $formData['phone'] ?? '')
+        );
+
+        $sampleType = $this->firstResolvedLabelValue(
+            $instance,
+            ['type_of_samples', 'sample_type', 'sample_types_ww', 'sample_type_select'],
+            (string) ($formData['type_of_samples'] ?? $formData['sample_type'] ?? '')
+        );
+
+        $sampleName = $this->firstResolvedLabelValue(
+            $instance,
+            ['sample_name', 'sample_description', 'sample_information'],
+            (string) ($formData['sample_name'] ?? $formData['sample_description'] ?? $formData['sample_information'] ?? '')
+        );
+
+        $sampleDescription = $this->firstResolvedLabelValue(
+            $instance,
+            ['sample_description', 'sample_name', 'sample_information'],
+            (string) ($formData['sample_description'] ?? $formData['sample_name'] ?? $formData['sample_information'] ?? '')
+        );
+
+        $siteLocation = $this->resolveSiteLocationForLabel($instance, $sampleLines, $formData);
+        $samplingPoint = $siteLocation;
+
+        $samplingDate = $this->plainLabelText(
+            (string) ($formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? now()->format('Y-m-d'))
+        );
+        $dateTimeOfCollection = $this->resolveCollectionDateTime($formData);
+
+        $batchNumberFromForm = $this->firstResolvedLabelValue(
+            $instance,
+            ['batch_number'],
+            (string) ($formData['batch_number'] ?? '')
+        );
+        $batchNumber = ! $this->isBlankLabelValue($batchNumberFromForm)
+            ? $batchNumberFromForm
+            : ($this->isBlankLabelValue((string) $jobNumber) ? 'N/A' : (string) $jobNumber);
+
         $clientName = $customerName;
-        $siteLocation = $samplingPoint;
-        $dateTimeOfCollection = $formData['date_of_sampling'] ?? $formData['sampling_date'] ?? now()->format('Y-m-d H:i');
-        $sampleTemperature = $formData['sample_temp'] ?? 'N/A';
-        $collectedBy = $formData['collected_by'] ?? 'N/A';
-        $preservationApplied = $formData['preservation_applied'] ?? 'No';
-        $containerType = $formData['container_type'] ?? 'N/A';
-        $sampleCollectionFor = $formData['sample_collection_for'] ?? 'N/A';
-        $sampleId = $formData['sample_id'] ?? $instance->id ?? 'N/A';
-        $testRequirement = $formData['parameter_requested'] ?? $formData['test_requirement'] ?? 'N/A';
-        
-        // Get sample rows if available
+        $sampleTemperature = $this->firstResolvedLabelValue(
+            $instance,
+            ['sample_temp', 'field_sample_temp'],
+            (string) ($formData['sample_temp'] ?? $formData['field_sample_temp'] ?? '')
+        );
+        $collectedBy = $this->firstResolvedLabelValue(
+            $instance,
+            ['collected_by', 'sampled_by'],
+            (string) ($formData['collected_by'] ?? $formData['sampled_by'] ?? '')
+        );
+        $preservationApplied = $this->firstResolvedLabelValue(
+            $instance,
+            ['preservation_applied'],
+            (string) ($formData['preservation_applied'] ?? 'No')
+        );
+        $containerType = $this->firstResolvedLabelValue(
+            $instance,
+            ['container_type'],
+            (string) ($formData['container_type'] ?? '')
+        );
+        $sampleCollectionFor = $this->firstResolvedLabelValue(
+            $instance,
+            ['sample_collection_for'],
+            (string) ($formData['sample_collection_for'] ?? '')
+        );
+
+        $sampleId = $this->resolveSampleIdForLabel($instance, $sampleLines, $formData);
+        $testRequirement = $this->resolveTestRequirementForLabel($instance, $sampleLines, $formData);
+
         $sampleRows = $formData['sample_rows'] ?? [];
-        
+
         return view('submission-forms.instances.sample-collection-label', compact(
             'instance',
             'logoPath',
+            'logoSrc',
+            'labelType',
             'jobNumber',
             'customerName',
             'customerAddress',
@@ -1943,5 +2014,249 @@ class FormInstanceController extends Controller
             'sampleId',
             'testRequirement'
         ));
+    }
+
+    private function resolveLabelLogoDataUri(?string $logoPath): string
+    {
+        $absolutePath = $this->resolveLabelLogoAbsolutePath($logoPath);
+        if ($absolutePath === '') {
+            return '';
+        }
+
+        $contents = @file_get_contents($absolutePath);
+        if ($contents === false) {
+            return '';
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            default => 'image/png',
+        };
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
+    }
+
+    private function resolveLabelLogoAbsolutePath(?string $logoPath): string
+    {
+        $candidates = [];
+
+        $normalized = trim((string) $logoPath);
+        if ($normalized !== '') {
+            if (Str::startsWith($normalized, ['http://', 'https://'])) {
+                $normalized = (string) (parse_url($normalized, PHP_URL_PATH) ?? $normalized);
+            }
+
+            $normalized = ltrim($normalized, '/');
+            $filename = basename($normalized);
+
+            if ($filename !== '') {
+                $relative = preg_replace('#^storage/#', '', $normalized);
+                if (is_string($relative) && $relative !== $normalized) {
+                    $candidates[] = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                }
+
+                $candidates[] = storage_path('app/companies/'.$filename);
+                $candidates[] = public_path($normalized);
+                $candidates[] = public_path('storage/companies/'.$filename);
+            }
+        }
+
+        $candidates[] = public_path('images/company_logo.png');
+        $candidates[] = public_path('images/logo.png');
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  list<string>  $elementNames
+     */
+    private function firstResolvedLabelValue(SubmissionFormInstance $instance, array $elementNames, string $fallback = ''): string
+    {
+        foreach ($elementNames as $elementName) {
+            $display = $instance->resolveDisplayValueByName($elementName);
+            if ($display === null) {
+                continue;
+            }
+
+            $plain = $this->plainLabelText(is_scalar($display) ? (string) $display : '');
+            if (! $this->isBlankLabelValue($plain) && ! $this->isUuidLike($plain)) {
+                return $plain;
+            }
+        }
+
+        $fallbackPlain = $this->plainLabelText($fallback);
+
+        return (! $this->isBlankLabelValue($fallbackPlain) && ! $this->isUuidLike($fallbackPlain))
+            ? $fallbackPlain
+            : 'N/A';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveSiteLocationForLabel(
+        SubmissionFormInstance $instance,
+        array $sampleLines,
+        array $formData
+    ): string {
+        $fromLines = collect($sampleLines)
+            ->map(fn (array $line): string => $this->plainLabelText((string) (($line['sampling_point'] ?? null) ?: ($line['location'] ?? ''))))
+            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
+            ->unique()
+            ->values();
+
+        if ($fromLines->isNotEmpty()) {
+            return $fromLines->implode(', ');
+        }
+
+        return $this->firstResolvedLabelValue(
+            $instance,
+            ['sampling_location', 'sampling_point', 'location'],
+            (string) ($formData['sampling_location'] ?? $formData['sampling_point'] ?? $formData['location'] ?? '')
+        );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveSampleIdForLabel(
+        SubmissionFormInstance $instance,
+        array $sampleLines,
+        array $formData
+    ): string {
+        $fromLines = collect($sampleLines)
+            ->map(fn (array $line): string => $this->plainLabelText((string) ($line['customer_sample_id'] ?? '')))
+            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
+            ->unique()
+            ->values();
+
+        if ($fromLines->isNotEmpty()) {
+            return $fromLines->implode(', ');
+        }
+
+        $fromForm = $this->firstResolvedLabelValue(
+            $instance,
+            ['customer_sample_id', 'client_sample_id', 'sample_id'],
+            (string) ($formData['customer_sample_id'] ?? $formData['client_sample_id'] ?? $formData['sample_id'] ?? '')
+        );
+        if (! $this->isBlankLabelValue($fromForm) && ! $this->isUuidLike($fromForm)) {
+            return $fromForm;
+        }
+
+        $sampleCodes = collect()
+            ->merge($instance->batches)
+            ->merge($instance->sampleSubmissionRequest?->batch ? [$instance->sampleSubmissionRequest->batch] : [])
+            ->flatMap(fn ($batch) => $batch->samples ?? [])
+            ->map(fn ($sample): string => $this->plainLabelText((string) ($sample->sample_code ?? '')))
+            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
+            ->unique()
+            ->values();
+
+        if ($sampleCodes->isNotEmpty()) {
+            return $sampleCodes->implode(', ');
+        }
+
+        return 'N/A';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveTestRequirementForLabel(
+        SubmissionFormInstance $instance,
+        array $sampleLines,
+        array $formData
+    ): string {
+        $fromLines = collect($sampleLines)
+            ->map(fn (array $line): string => $this->plainLabelText((string) ($line['parameter_label'] ?? '')))
+            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
+            ->flatMap(fn (string $value) => preg_split('/\s*,\s*/', $value) ?: [])
+            ->map(fn (string $value): string => trim($value))
+            ->reject(fn (string $value): bool => $value === '')
+            ->unique()
+            ->values();
+
+        if ($fromLines->isNotEmpty()) {
+            return $fromLines->implode(', ');
+        }
+
+        $rawParameters = $this->plainLabelText((string) ($formData['parameters'] ?? ''));
+        if (! $this->isBlankLabelValue($rawParameters) && ! $this->isUuidLike($rawParameters)) {
+            $tokens = collect(preg_split('/\s*,\s*/', $rawParameters) ?: [])
+                ->map(fn (string $token): string => trim($token))
+                ->reject(fn (string $token): bool => $token === '' || $this->isUuidLike($token))
+                ->unique()
+                ->values();
+
+            if ($tokens->isNotEmpty()) {
+                return $tokens->implode(', ');
+            }
+        }
+
+        return $this->firstResolvedLabelValue(
+            $instance,
+            ['parameters', 'parameter_requested', 'test_requirement', 'tests_required', 'analysis_elements_select'],
+            (string) ($formData['parameter_requested'] ?? $formData['test_requirement'] ?? '')
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveCollectionDateTime(array $formData): string
+    {
+        $date = trim((string) ($formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? ''));
+        $time = trim((string) ($formData['sampling_time'] ?? $formData['collection_time'] ?? ''));
+
+        if ($date !== '' && $time !== '') {
+            return $date.' '.$time;
+        }
+
+        if ($date !== '') {
+            return $date;
+        }
+
+        return now()->format('Y-m-d H:i');
+    }
+
+    private function plainLabelText(?string $value): string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($decoded)) ?? '');
+
+        return $plain;
+    }
+
+    private function isBlankLabelValue(?string $value): bool
+    {
+        $value = trim((string) $value);
+
+        return $value === '' || strcasecmp($value, 'N/A') === 0;
+    }
+
+    private function isUuidLike(?string $value): bool
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' && Str::isUuid($value);
     }
 }

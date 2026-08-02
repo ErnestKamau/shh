@@ -20,6 +20,7 @@ use App\Models\CRM\CustomerFeedback;
 use App\Models\CRM\CustomerNotification;
 use App\Models\TestRequestReportLanguageFile;
 use App\Models\SubmissionFormInstance;
+use App\SampleDetails;
 use App\SampleHeader;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -64,6 +65,7 @@ class DashboardRepository
             counts: [
                 'notifications_unread' => $this->countUnreadNotifications($customerId),
                 'open_complaints' => $this->countOpenComplaints($customerId),
+                'amendments_in_progress' => $this->countAmendmentsInProgress($customerId),
             ],
         );
     }
@@ -309,7 +311,10 @@ class DashboardRepository
         $reportStatus = (string) config('dashboard.report_status', 'Completed');
 
         return SampleHeader::query()
-            ->with(['sample_type:id,name'])
+            ->with([
+                'sample_type:id,name',
+                'samples:id,sample_header_id,report_number',
+            ])
             ->where('crm_customer_id', $customerId)
             ->where(function (Builder $query): void {
                 $query->whereNotNull('batch_report_url')
@@ -365,14 +370,59 @@ class DashboardRepository
         }
 
         return new RecentReportDTO(
-            reportNumber: $header->document_number ?? $header->batch_code,
-            submissionRequestNumber: $header->reference_number ?? $header->batch_code,
+            reportNumber: $this->resolveReportNumber($header),
+            submissionRequestNumber: $this->resolveRequestReference($header),
             releasedDate: $header->updated_at?->toIso8601String(),
             reportType: $header->relationLoaded('sample_type') ? $header->sample_type?->name : null,
             downloadUrl: $downloadUrl,
             releaseStatus: $this->publicStatusLabel((string) $header->status),
             availableLanguages: $availableLanguages,
+            batchId: (string) $header->id,
+            canRaiseAmendment: ! $header->isInAmendmentProcess(),
         );
+    }
+
+    private function resolveReportNumber(SampleHeader $header): ?string
+    {
+        $documentNumber = trim((string) ($header->document_number ?? ''));
+        if ($documentNumber !== '') {
+            return $documentNumber;
+        }
+
+        $sampleReportNumber = null;
+        if ($header->relationLoaded('samples')) {
+            $sampleReportNumber = $header->samples
+                ->map(fn ($sample) => trim((string) ($sample->report_number ?? '')))
+                ->first(fn (string $value) => $value !== '');
+        } else {
+            $sampleReportNumber = SampleDetails::query()
+                ->where('sample_header_id', $header->id)
+                ->whereNotNull('report_number')
+                ->orderBy('id')
+                ->value('report_number');
+            $sampleReportNumber = trim((string) ($sampleReportNumber ?? ''));
+            $sampleReportNumber = $sampleReportNumber !== '' ? $sampleReportNumber : null;
+        }
+
+        if (is_string($sampleReportNumber) && $sampleReportNumber !== '') {
+            return $sampleReportNumber;
+        }
+
+        $batchCode = trim((string) ($header->batch_code ?? ''));
+
+        return $batchCode !== '' ? $batchCode : null;
+    }
+
+    private function resolveRequestReference(SampleHeader $header): ?string
+    {
+        $reference = trim((string) ($header->reference_number ?? ''));
+        if ($reference !== '') {
+            return $reference;
+        }
+
+        $batchCode = trim((string) ($header->batch_code ?? ''));
+
+        return $batchCode !== '' ? $batchCode : null;
     }
 
     /**
@@ -462,6 +512,14 @@ class DashboardRepository
         return Complaint::query()
             ->where('client_id', $customerId)
             ->where('is_closed', false)
+            ->count();
+    }
+
+    private function countAmendmentsInProgress(string $customerId): int
+    {
+        return SampleHeader::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('in_ammendment_proccess', 1)
             ->count();
     }
 
