@@ -263,6 +263,20 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $service->validateReceptionConfigs([$config]);
     }
 
+    public function test_validate_reception_configs_can_skip_parameter_assignments(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = 'st-1';
+        $config['analysis_type_id'] = 'at-1';
+        $config['main_standard_id'] = 'std-1';
+        $config['parameter_keys'] = [];
+
+        $service->validateReceptionConfigs([$config], requireParameterAssignments: false);
+
+        $this->assertTrue(true);
+    }
+
     public function test_validate_reception_configs_does_not_require_lab_fields(): void
     {
         $service = app(AcceptanceFormSampleConfigService::class);
@@ -878,5 +892,118 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         $this->assertSame((string) $sampleType->id, $configs[0]['sample_type_id']);
         $this->assertSame((string) $analysisType->id, $configs[0]['analysis_type_id']);
         $this->assertSame([(string) $currentElement->id], $configs[0]['parameter_keys']);
+    }
+
+    public function test_build_configs_from_prefill_accumulates_multiple_analysis_types_per_sample(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $configs = $service->buildConfigsFromPrefill([
+            [
+                'row_index' => 0,
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'analysis_element_id' => 'el-1',
+                'attributes' => [
+                    'analysis_type_ids' => ['at-1', 'at-2'],
+                    'analysis_element_ids' => ['el-1', 'el-2'],
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $configs);
+        $this->assertSame('at-1', $configs[0]['analysis_type_id']);
+        $this->assertSame(['at-1', 'at-2'], $configs[0]['analysis_type_ids']);
+        $this->assertSame(['el-1', 'el-2'], $configs[0]['parameter_keys']);
+    }
+
+    public function test_build_configs_preserves_multiple_sample_types_on_one_physical_sample(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $configs = $service->buildConfigsFromPrefill([
+            [
+                'row_index' => 0,
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'analysis_element_id' => 'el-1',
+                'attributes' => [
+                    'sample_type_ids' => ['st-1', 'st-2'],
+                    'analysis_type_ids' => ['at-1', 'at-2'],
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $configs);
+        $this->assertSame('st-1', $configs[0]['sample_type_id']);
+        $this->assertSame(['st-1', 'st-2'], $configs[0]['sample_type_ids']);
+        $this->assertTrue($configs[0]['allows_multiple_sample_types']);
+        $this->assertSame(['at-1', 'at-2'], $configs[0]['analysis_type_ids']);
+    }
+
+    public function test_sample_type_fields_keep_primary_id_for_legacy_consumers(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $config = $service->syncSampleTypeIdsOnConfig(
+            $service->emptyConfig(),
+            ['st-2', 'st-1', 'st-2'],
+        );
+
+        $this->assertSame('st-2', $config['sample_type_id']);
+        $this->assertSame(['st-2', 'st-1'], $config['sample_type_ids']);
+        $this->assertSame(['st-2', 'st-1'], $service->sampleTypeIdsFromConfig($config));
+    }
+
+    public function test_build_configs_merges_analysis_types_when_prefill_lines_share_physical_sample(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $configs = $service->buildConfigsFromPrefill([
+            [
+                'row_index' => 0,
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-1',
+                'analysis_element_id' => 'el-1',
+                'customer_sample_id' => 'CUST-1',
+            ],
+            [
+                'row_index' => 0,
+                'sample_type_id' => 'st-1',
+                'analysis_type_id' => 'at-2',
+                'analysis_element_id' => 'el-2',
+                'customer_sample_id' => 'CUST-1',
+            ],
+        ]);
+
+        $this->assertCount(1, $configs);
+        $this->assertSame(['at-1', 'at-2'], $configs[0]['analysis_type_ids']);
+        $this->assertSame(['el-1', 'el-2'], $configs[0]['parameter_keys']);
+    }
+
+    public function test_build_detail_plans_includes_all_analysis_type_ids(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config = $service->syncAnalysisTypeIdsOnConfig($config, ['at-1', 'at-2']);
+        $config['sample_type_id'] = 'st-1';
+        $config['parameter_keys'] = ['el-1', 'el-2'];
+
+        $plans = $service->buildDetailPlansFromConfigs([$config]);
+
+        $this->assertCount(1, $plans);
+        $this->assertSame(['at-1', 'at-2'], $plans[0]['analysis_type_ids']);
+    }
+
+    public function test_validate_configs_requires_at_least_one_analysis_type(): void
+    {
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = 'st-1';
+        $config['parameter_keys'] = ['el-1'];
+
+        $this->expectException(ValidationException::class);
+
+        $service->validateConfigs([$config]);
     }
 }

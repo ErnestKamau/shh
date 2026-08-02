@@ -689,11 +689,15 @@ class QuotationReportService
     {
         $this->ensureHeaderMetadata($header);
         $header->refresh();
-        $header->loadMissing(['customer', 'contact', 'currency', 'revisionOf']);
+        $header->loadMissing(['customer', 'contact', 'currency', 'revisionOf', 'approvedByUser']);
 
         $preparedBy = getUserById($header->prepared_by_id);
-        $position = $preparedBy?->position
-            ? \App\ModulePreConfigs::find($preparedBy->position)?->name
+        // After lab-manager approval, the Authorized Signature block shows the approver.
+        $signatory = ((int) $header->is_approved === 1 && ! empty($header->approved_by))
+            ? (getUserById($header->approved_by) ?? $header->approvedByUser ?? $preparedBy)
+            : $preparedBy;
+        $position = $signatory?->position
+            ? \App\ModulePreConfigs::find($signatory->position)?->name
             : null;
 
         $batch = SampleHeader::where('quote_id', $header->id)->orderByDesc('created_at')->first();
@@ -718,13 +722,13 @@ class QuotationReportService
             'customer_name' => $header->customer?->name,
             'postal_address' => $header->customer?->postal_address,
             'physical_address' => $header->customer?->physical_address,
-            'prepared_by_name' => $preparedBy?->name,
+            'prepared_by_name' => $signatory?->name,
             'prepared_by_position' => $position,
-            'prepared_by_email' => $preparedBy?->email,
-            'prepared_by_phone' => $preparedBy?->phone,
+            'prepared_by_email' => $signatory?->email,
+            'prepared_by_phone' => $signatory?->phone,
             'prepared_by_signature' => function_exists('signatureToDataUri')
-                ? signatureToDataUri($preparedBy?->electronic_sig)
-                : ($preparedBy?->electronic_sig ?? null),
+                ? signatureToDataUri($signatory?->electronic_sig)
+                : ($signatory?->electronic_sig ?? null),
             'attention' => $attention,
             'sampling_location_display' => $samplingLocation ?? '-',
             'laboratory_ref_display' => $header->laboratory_ref ?? $batch?->batch_code ?? $header->quote_number,

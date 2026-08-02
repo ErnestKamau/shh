@@ -69,10 +69,15 @@ class SubmissionFormController extends Controller
         ];
 
         if ($form->isTestRequestTemplate()) {
+            $resolvedSampleTypes = $this->sampleTypeResolver->resolveForForm($form);
+            $tied = $resolvedSampleTypes->isNotEmpty();
+
             $response['meta'] = [
                 'crm_customer_id' => $customerId,
-                'sample_type_id' => $form->sampleTypes->first()?->id,
+                'sample_type_id' => $tied ? $resolvedSampleTypes->first()?->id : null,
                 'sample_types' => $this->sampleTypeResolver->mapForApi($form),
+                'sample_types_tied' => $tied,
+                'sample_type_options' => $this->sampleTypeResolver->selectableOptionsForApi($form),
             ];
         }
 

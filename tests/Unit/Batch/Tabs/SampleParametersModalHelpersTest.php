@@ -54,13 +54,40 @@ class SampleParametersModalHelpersTest extends TestCase
     }
 
     #[Test]
-    public function it_ignores_blank_reporting_unit_names(): void
+    public function it_exposes_editable_parameter_flags_from_can_edit(): void
     {
-        $this->assertNull(resolveReportingUnitIdFromName(null));
-        $this->assertNull(resolveReportingUnitIdFromName(''));
-        $this->assertNull(resolveReportingUnitIdFromName('   '));
-        $this->assertNull(ensureReportingUnitIdFromName(null));
-        $this->assertNull(ensureReportingUnitIdFromName(''));
-        $this->assertNull(ensureReportingUnitIdFromName((string) Str::uuid()));
+        $helper = new class extends Samples
+        {
+            public function bootFlags(array $parametersForm, bool $readOnly = false): void
+            {
+                $this->parametersForm = $parametersForm;
+                $this->parametersReadOnly = $readOnly;
+            }
+        };
+
+        $helper->bootFlags([
+            'a' => ['can_edit' => true, 'analyte_name' => 'A'],
+            'b' => ['can_edit' => false, 'analyte_name' => 'B'],
+        ]);
+
+        $this->assertTrue($helper->userCanEditParameterRow('a'));
+        $this->assertFalse($helper->userCanEditParameterRow('b'));
+        $this->assertTrue($helper->hasEditableParameters);
+        $this->assertTrue($helper->hasNonEditableParameters);
+
+        $helper->bootFlags([
+            'a' => ['can_edit' => false],
+            'b' => ['can_edit' => false],
+        ]);
+
+        $this->assertFalse($helper->hasEditableParameters);
+        $this->assertTrue($helper->hasNonEditableParameters);
+
+        $helper->bootFlags([
+            'a' => ['can_edit' => true],
+        ], true);
+
+        $this->assertFalse($helper->hasEditableParameters);
+        $this->assertFalse($helper->hasNonEditableParameters);
     }
 }

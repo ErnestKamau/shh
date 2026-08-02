@@ -4,155 +4,124 @@
 <title>Personal Dashboard | Lab</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
-    .personal-dashboard-shell {
-        background: linear-gradient(180deg, #f6f8fc 0%, #edf1f7 100%);
-        border: 1px solid #e4e8f0;
-        border-radius: 16px;
-        padding: 1.25rem;
-    }
-
-    .personal-hero {
-        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
-        border-radius: 14px;
-        color: #fff;
-        padding: 1rem 1.1rem;
-        box-shadow: 0 12px 24px var(--color-primary-highlight);
-        margin-bottom: 1rem;
-    }
-
-    .personal-hero h4 {
-        color: #fff;
-        margin-bottom: 0.2rem;
-    }
-
-    .personal-hero .text-muted {
-        color: rgba(255, 255, 255, 0.86) !important;
-    }
-
-    .personal-date-filter {
+    .personal-dashboard-page .personal-date-filter {
         background: rgba(255, 255, 255, 0.12);
         border: 1px solid rgba(255, 255, 255, 0.22);
-        border-radius: 10px;
-        padding: 0.55rem;
-        backdrop-filter: blur(2px);
+        border-radius: var(--radius-md);
+        padding: var(--space-sm);
     }
 
-    .personal-date-filter .form-control {
-        background: #fff;
-        border-color: rgba(255, 255, 255, 0.4);
+    .personal-dashboard-page .personal-date-filter label {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: var(--text-caption);
+        font-weight: var(--font-semibold);
+        margin: 0;
     }
 
-    .personal-date-filter .btn {
-        border-color: #fff;
-        color: #fff;
-        background: transparent;
-        font-weight: 600;
+    .personal-dashboard-page .personal-date-filter .form-control {
+        background: var(--color-surface);
+        border-color: rgba(255, 255, 255, 0.45);
+        min-width: 138px;
     }
 
-    .personal-date-filter .btn:hover {
-        background: #fff;
+    .personal-dashboard-page .personal-date-filter .btn {
+        background: var(--color-surface);
+        border-color: var(--color-surface);
         color: var(--color-primary);
     }
 
-    .personal-kpi-card {
-        border-radius: 12px;
-        border: 1px solid #e3e8f3;
-        background: #fff;
-        box-shadow: 0 6px 12px rgba(32, 45, 69, 0.06);
-        height: 100%;
+    .personal-dashboard-page .personal-stat-strip {
+        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+        margin-bottom: var(--space-lg);
     }
 
-    .personal-kpi-card .card-body {
-        padding: 1rem;
+    .personal-dashboard-page .personal-stat-strip .workflow-stat-strip__item {
+        align-items: center;
     }
 
-    .personal-kpi-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #6f7c91;
-        font-weight: 700;
+    .personal-dashboard-page .personal-stat-strip .workflow-stat-strip__dot {
+        margin-top: 0;
     }
 
-    .personal-kpi-value {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #1d293d;
-        margin-top: 0.35rem;
-        line-height: 1.1;
+    .personal-dashboard-page .personal-chart-body {
+        height: 290px;
+        min-height: 290px;
     }
 
-    .personal-kpi-card.kpi-tat-met {
-        border-left: 4px solid #16a34a;
-    }
-
-    .personal-kpi-card.kpi-tat-not-met {
-        border-left: 4px solid #dc2626;
-    }
-
-    .personal-panel {
-        border-radius: 12px;
-        border: 1px solid #e3e8f3;
-        background: #fff;
-        box-shadow: 0 8px 16px rgba(24, 35, 58, 0.06);
-        height: 100%;
-    }
-
-    .personal-panel .card-header {
-        border-bottom: 1px solid #edf1f7;
-        background: #fff;
-        font-weight: 700;
-        color: #1f2d44;
-    }
-
-    .personal-table-wrap {
-        border-radius: 12px;
-        border: 1px solid #e3e8f3;
-        background: #fff;
-        box-shadow: 0 8px 16px rgba(24, 35, 58, 0.06);
-        overflow: hidden;
-    }
-
-    .personal-table-wrap .table {
+    .personal-dashboard-page .workflow-table {
         margin-bottom: 0;
     }
 
-    .personal-table-wrap thead th {
-        background: #f8fafd;
-        border-bottom: 1px solid #e3e8f3;
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #68768f;
-        font-weight: 700;
+    .personal-dashboard-page .workflow-table thead th:first-child,
+    .personal-dashboard-page .workflow-table tbody td:first-child {
+        padding-left: 1rem !important;
     }
 
-    .personal-table-wrap tbody td {
-        vertical-align: middle;
+    .personal-dashboard-page .workflow-table thead th:last-child,
+    .personal-dashboard-page .workflow-table tbody td:last-child {
+        padding-right: 1rem !important;
     }
 
-    .personal-status-pill {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 0.2rem 0.55rem;
-        font-size: 0.72rem;
-        font-weight: 700;
-        background: #eef2f8;
-        color: #334155;
+    .personal-dashboard-page .history-tabs {
+        border-bottom: 1px solid var(--color-border);
+        padding: 0 var(--space-md);
+        background: var(--color-surface);
+        display: flex;
+        gap: var(--space-xs);
+        overflow-x: auto;
+    }
+
+    .personal-dashboard-page .history-tabs .nav-link {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        padding: 0.8rem 0.75rem;
+        white-space: nowrap;
+    }
+
+    .personal-dashboard-page .history-tabs .nav-link.active {
+        border-bottom-color: var(--color-primary);
+        color: var(--color-primary);
+        background: var(--color-primary-soft-light);
+    }
+
+    .personal-dashboard-page .history-count {
+        border-radius: var(--radius-pill);
+        background: var(--color-bg);
+        color: var(--color-muted);
+        font-size: var(--text-caption);
+        margin-left: var(--space-xs);
+        padding: 0.1rem 0.45rem;
+    }
+
+    .personal-dashboard-page .history-tabs .nav-link.active .history-count {
+        background: var(--color-primary-soft-medium);
+        color: var(--color-primary);
+    }
+
+    .personal-dashboard-page .history-status--rejected {
+        background: var(--color-error-soft, #fee2e2);
+        border: 1px solid #fecaca;
+        color: var(--color-error);
     }
 
     @media (max-width: 991.98px) {
-        .personal-dashboard-shell {
-            padding: 0.8rem;
+        .personal-dashboard-page .personal-date-filter {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .personal-dashboard-page .personal-date-filter {
+            align-items: stretch !important;
+            flex-direction: column;
         }
 
-        .personal-hero {
-            padding: 0.85rem;
-        }
-
-        .personal-kpi-value {
-            font-size: 1.45rem;
+        .personal-dashboard-page .personal-date-filter .form-control {
+            min-width: 0;
+            width: 100%;
         }
     }
 </style>
@@ -167,141 +136,352 @@
         ];
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
+    <div data-sf-slot="after_breadcrumb"></div>
+    @include('layouts.partials.dashboard-page-styles')
 
-    <div class="p-4 personal-dashboard-shell">
-        <div class="personal-hero d-flex flex-wrap align-items-center justify-content-between" style="gap: 12px;">
+    <div class="container-fluid workflow-board-page lab-dashboard-page personal-dashboard-page lab-panel-theme workflow-theme lab-surface-theme" data-ls-type="plex">
+        <div class="dashboard-welcome-hero d-flex flex-wrap align-items-center justify-content-between" style="gap: 16px;">
             <div>
-                <h4>Personal Dashboard</h4>
-                <div class="text-muted">Track your assigned batches, progress, and turnaround performance.</div>
+                <h3>Personal Dashboard</h3>
+                <div class="dashboard-welcome-subtitle">Your active workload, turnaround performance, and complete activity history.</div>
             </div>
-            <form method="GET" action="{{ route('dashboard-lab-personal') }}" class="d-flex align-items-center personal-date-filter" style="gap: 8px;">
-                <input type="date" name="start_date" value="{{ $startDate }}" class="form-control form-control-sm">
-                <input type="date" name="end_date" value="{{ $endDate }}" class="form-control form-control-sm">
-                <button type="submit" class="btn btn-sm">Apply</button>
+            <form method="GET" action="{{ route('dashboard-lab-personal') }}" class="d-flex align-items-end personal-date-filter" style="gap: 8px;">
+                <div>
+                    <label for="personal-start-date">From</label>
+                    <input id="personal-start-date" type="date" name="start_date" value="{{ $startDate }}" class="form-control form-control-sm">
+                </div>
+                <div>
+                    <label for="personal-end-date">To</label>
+                    <input id="personal-end-date" type="date" name="end_date" value="{{ $endDate }}" class="form-control form-control-sm">
+                </div>
+                <button type="submit" class="btn btn-sm btn-action-sm">Apply</button>
             </form>
         </div>
 
-        <div class="row mb-3">
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">Assigned</div>
-                        <div class="personal-kpi-value">{{ $statusCounts['assigned_total'] }}</div>
-                    </div>
+        <div class="workflow-stat-strip personal-stat-strip">
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot workflow-stat-strip__dot--primary"></span>
+                <div>
+                    <p class="workflow-stat-strip__value">{{ $statusCounts['assigned_total'] }}</p>
+                    <p class="workflow-stat-strip__label">Assigned</p>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">In Lab</div>
-                        <div class="personal-kpi-value">{{ $statusCounts['in_lab'] }}</div>
-                    </div>
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot workflow-stat-strip__dot--info"></span>
+                <div>
+                    <p class="workflow-stat-strip__value">{{ $statusCounts['in_lab'] }}</p>
+                    <p class="workflow-stat-strip__label">In Lab</p>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">Verification</div>
-                        <div class="personal-kpi-value">{{ $statusCounts['verification'] }}</div>
-                    </div>
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot workflow-stat-strip__dot--warning"></span>
+                <div>
+                    <p class="workflow-stat-strip__value">{{ $statusCounts['verification'] }}</p>
+                    <p class="workflow-stat-strip__label">Verification</p>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">Approval</div>
-                        <div class="personal-kpi-value">{{ $statusCounts['approval'] }}</div>
-                    </div>
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot workflow-stat-strip__dot--neutral"></span>
+                <div>
+                    <p class="workflow-stat-strip__value">{{ $statusCounts['approval'] }}</p>
+                    <p class="workflow-stat-strip__label">Approval</p>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">Complete</div>
-                        <div class="personal-kpi-value">{{ $statusCounts['complete'] }}</div>
-                    </div>
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot workflow-stat-strip__dot--success"></span>
+                <div>
+                    <p class="workflow-stat-strip__value">{{ $statusCounts['complete'] }}</p>
+                    <p class="workflow-stat-strip__label">Complete</p>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card kpi-tat-met">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">TAT Met</div>
-                        <div class="personal-kpi-value text-success">{{ $tatStats['met'] }}</div>
-                    </div>
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot workflow-stat-strip__dot--success"></span>
+                <div>
+                    <p class="workflow-stat-strip__value text-success">{{ $tatStats['met'] }}</p>
+                    <p class="workflow-stat-strip__label">TAT Met</p>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="personal-kpi-card kpi-tat-not-met">
-                    <div class="card-body">
-                        <div class="personal-kpi-label">TAT Not Met</div>
-                        <div class="personal-kpi-value text-danger">{{ $tatStats['not_met'] }}</div>
-                    </div>
+            <div class="workflow-stat-strip__item">
+                <span class="workflow-stat-strip__dot" style="background: var(--color-error);"></span>
+                <div>
+                    <p class="workflow-stat-strip__value text-danger">{{ $tatStats['not_met'] }}</p>
+                    <p class="workflow-stat-strip__label">TAT Not Met</p>
                 </div>
             </div>
         </div>
 
         <div class="row mb-3">
             <div class="col-lg-8 mb-3">
-                <div class="card personal-panel">
-                    <div class="card-header">Performance Trend</div>
-                    <div class="card-body"><canvas id="personalTrendChart" height="120"></canvas></div>
-                </div>
+                <section class="workflow-board-panel h-100">
+                    <div class="workflow-board-panel-header">
+                        <h5><i class="mdi mdi-chart-line" aria-hidden="true"></i> Performance Trend</h5>
+                        <span class="text-muted small">{{ $startDate }} to {{ $endDate }}</span>
+                    </div>
+                    <div class="workflow-board-panel-body personal-chart-body">
+                        <canvas id="personalTrendChart" role="img" aria-label="Assigned work, completions, and turnaround performance over the selected period"></canvas>
+                    </div>
+                </section>
             </div>
             <div class="col-lg-4 mb-3">
-                <div class="card personal-panel">
-                    <div class="card-header">Assigned Status Breakdown</div>
-                    <div class="card-body"><canvas id="personalStatusChart" height="120"></canvas></div>
+                <section class="workflow-board-panel h-100">
+                    <div class="workflow-board-panel-header">
+                        <h5><i class="mdi mdi-chart-donut" aria-hidden="true"></i> Workload Status</h5>
+                    </div>
+                    <div class="workflow-board-panel-body personal-chart-body">
+                        <canvas id="personalStatusChart" role="img" aria-label="Current assigned workload by status"></canvas>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <section class="workflow-board-panel">
+            <div class="workflow-board-panel-header">
+                <h5><i class="mdi mdi-file-sign" aria-hidden="true"></i> Quotation Approvals</h5>
+                <span class="text-muted small">{{ $quotationApprovals->count() }} pending</span>
+            </div>
+            <div class="workflow-board-panel-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover workflow-table">
+                        <thead>
+                            <tr>
+                                <th>Quotation</th>
+                                <th>Customer</th>
+                                <th>Requested</th>
+                                <th class="text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($quotationApprovals as $approval)
+                                <tr>
+                                    <td class="font-weight-bold">{{ $approval['quote_number'] }}</td>
+                                    <td>{{ $approval['customer'] }}</td>
+                                    <td>{{ $approval['requested_at'] }}</td>
+                                    <td class="text-right">
+                                        <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ $approval['open_url'] }}">Review</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="text-center text-muted py-4">No quotations are awaiting your approval in this period.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="personal-table-wrap">
-            <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="background: #fff;">
-                <h6 class="mb-0" style="font-weight: 700; color: #1f2d44;">Assigned Batches</h6>
+        <section class="workflow-board-panel">
+            <div class="workflow-board-panel-header">
+                <h5><i class="mdi mdi-flask-outline" aria-hidden="true"></i> Active Assigned Batches</h5>
                 <span class="text-muted small">{{ $batchAssignmentsPage->total() }} total</span>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead>
-                        <tr>
-                            <th>Batch</th>
-                            <th>Client</th>
-                            <th>Status</th>
-                            <th>Target Date</th>
-                            <th>Assigned On</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($batchAssignmentsPage as $assignment)
-                            @php $batch = $assignment->sampleHeader; @endphp
+            <div class="workflow-board-panel-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover workflow-table">
+                        <thead>
                             <tr>
-                                <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
-                                <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
-                                <td>
-                                    <span class="personal-status-pill">{{ $batch?->status ?? 'N/A' }}</span>
-                                </td>
-                                <td>{{ $batch?->get_target_date?->date ?? 'N/A' }}</td>
-                                <td>{{ optional($assignment->created_at)->format('Y-m-d H:i') }}</td>
-                                <td>
-                                    @if($batch)
-                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
-                                    @else
-                                        <span class="text-muted">N/A</span>
-                                    @endif
-                                </td>
+                                <th>Batch</th>
+                                <th>Client</th>
+                                <th>Status</th>
+                                <th>Target Date</th>
+                                <th>Assigned On</th>
+                                <th class="text-right">Action</th>
                             </tr>
-                        @empty
-                            <tr><td colspan="6" class="text-center text-muted py-4">No assigned batches in selected period.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @forelse($batchAssignmentsPage as $assignment)
+                                @php $batch = $assignment->sampleHeader; @endphp
+                                <tr>
+                                    <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
+                                    <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
+                                    <td><span class="workflow-status-chip">{{ $batch?->status ?? 'N/A' }}</span></td>
+                                    <td>{{ $batch?->get_target_date?->date ?? 'N/A' }}</td>
+                                    <td>{{ optional($assignment->created_at)->format('Y-m-d H:i') }}</td>
+                                    <td class="text-right">
+                                        @if($batch)
+                                            <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6" class="text-center text-muted py-4">No active assigned batches in this period.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
+            @if($batchAssignmentsPage->hasPages())
+                <div class="px-3 pt-3 border-top">
+                    {{ $batchAssignmentsPage->links() }}
+                </div>
+            @endif
+        </section>
 
-        <div class="mt-3">
-            {{ $batchAssignmentsPage->links() }}
-        </div>
+        <section id="activity-history" class="workflow-board-panel">
+            <div class="workflow-board-panel-header">
+                <div>
+                    <h5><i class="mdi mdi-history" aria-hidden="true"></i> Complete Activity History</h5>
+                    <div class="text-muted small mt-1">All recorded quotation decisions, assignments, verifications, and approvals completed by you.</div>
+                </div>
+            </div>
+            <nav class="history-tabs" aria-label="Activity history categories">
+                <a class="nav-link {{ $historyTab === 'quotations' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'quotations']) }}#activity-history">
+                    Quotation approvals <span class="history-count">{{ $quotationApprovalHistory->total() }}</span>
+                </a>
+                <a class="nav-link {{ $historyTab === 'assignments' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'assignments']) }}#activity-history">
+                    Lab work assigned <span class="history-count">{{ $labAssignmentHistory->total() }}</span>
+                </a>
+                <a class="nav-link {{ $historyTab === 'verifications' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'verifications']) }}#activity-history">
+                    Sample verification <span class="history-count">{{ $sampleVerificationHistory->total() }}</span>
+                </a>
+                <a class="nav-link {{ $historyTab === 'approvals' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'approvals']) }}#activity-history">
+                    Sample approval <span class="history-count">{{ $sampleApprovalHistory->total() }}</span>
+                </a>
+            </nav>
+
+            <div class="workflow-board-panel-body p-0">
+                @if($historyTab === 'quotations')
+                    <div class="table-responsive">
+                        <table class="table table-hover workflow-table">
+                            <thead>
+                                <tr>
+                                    <th>Quotation</th>
+                                    <th>Customer</th>
+                                    <th>Decision</th>
+                                    <th>Comments</th>
+                                    <th>Completed</th>
+                                    <th class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($quotationApprovalHistory as $approvalLog)
+                                    @php
+                                        $quote = $approvalLog->quotationHeader;
+                                        $enquiry = $approvalLog->enquiry;
+                                        $quoteUrl = $enquiry?->staffViewUrl() ?? ($quote ? route('add-qoute-details-view', ['id' => $quote->id]) : null);
+                                        if ($quoteUrl && $enquiry?->submissionFormInstance?->submissionForm) {
+                                            $quoteUrl .= (str_contains($quoteUrl, '?') ? '&' : '?').'tab=quotation_approvals';
+                                        }
+                                    @endphp
+                                    <tr>
+                                        <td class="font-weight-bold">{{ $quote?->quote_number ?? 'N/A' }}</td>
+                                        <td>{{ $quote?->customer?->name ?? 'N/A' }}</td>
+                                        <td>
+                                            <span class="workflow-status-pill {{ $approvalLog->action === \App\Models\QuotationApprovalLog::ACTION_APPROVED ? 'workflow-status-pill--complete' : 'history-status--rejected' }}">
+                                                {{ ucfirst($approvalLog->action) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ $approvalLog->comments ?: '—' }}</td>
+                                        <td>{{ optional($approvalLog->created_at)->format('Y-m-d H:i') }}</td>
+                                        <td class="text-right">
+                                            @if($quoteUrl)
+                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ $quoteUrl }}">Open</a>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No quotation approval decisions have been recorded for you.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($quotationApprovalHistory->hasPages())
+                        <div class="px-3 pt-3 border-top">{{ $quotationApprovalHistory->links() }}</div>
+                    @endif
+                @elseif($historyTab === 'assignments')
+                    <div class="table-responsive">
+                        <table class="table table-hover workflow-table">
+                            <thead>
+                                <tr>
+                                    <th>Batch</th>
+                                    <th>Client</th>
+                                    <th>Assigned By</th>
+                                    <th>Assigned</th>
+                                    <th>Status</th>
+                                    <th>Completed</th>
+                                    <th class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($labAssignmentHistory as $assignment)
+                                    @php $batch = $assignment->sampleHeader; @endphp
+                                    <tr>
+                                        <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
+                                        <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
+                                        <td>{{ $assignment->assignedBy?->name ?? 'N/A' }}</td>
+                                        <td>{{ optional($assignment->created_at)->format('Y-m-d H:i') }}</td>
+                                        <td>
+                                            <span class="workflow-status-pill {{ $assignment->status === \App\Models\Sampleworkflow\SampleHeaderUserAssignment::STATUS_COMPLETED ? 'workflow-status-pill--complete' : 'workflow-status-pill--pending' }}">
+                                                {{ ucfirst($assignment->status) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ optional($assignment->completed_at)->format('Y-m-d H:i') ?? '—' }}</td>
+                                        <td class="text-right">
+                                            @if($batch)
+                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="7" class="text-center text-muted py-4">No lab assignments have been recorded for you.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($labAssignmentHistory->hasPages())
+                        <div class="px-3 pt-3 border-top">{{ $labAssignmentHistory->links() }}</div>
+                    @endif
+                @else
+                    @php
+                        $workflowHistory = $historyTab === 'verifications' ? $sampleVerificationHistory : $sampleApprovalHistory;
+                        $activityLabel = $historyTab === 'verifications' ? 'verification' : 'approval';
+                    @endphp
+                    <div class="table-responsive">
+                        <table class="table table-hover workflow-table">
+                            <thead>
+                                <tr>
+                                    <th>Batch</th>
+                                    <th>Client</th>
+                                    <th>Stage Entered</th>
+                                    <th>Completed</th>
+                                    <th>Notes</th>
+                                    <th class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($workflowHistory as $custody)
+                                    @php $batch = $custody->sampleHeader; @endphp
+                                    <tr>
+                                        <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
+                                        <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
+                                        <td>{{ optional($custody->created_at)->format('Y-m-d H:i') }}</td>
+                                        <td>{{ $custody->moved_out_date ? \Carbon\Carbon::parse((string) $custody->moved_out_date)->format('Y-m-d H:i') : '—' }}</td>
+                                        <td>{{ $custody->comments ?: '—' }}</td>
+                                        <td class="text-right">
+                                            @if($batch)
+                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No sample {{ $activityLabel }} activity has been recorded for you.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($workflowHistory->hasPages())
+                        <div class="px-3 pt-3 border-top">{{ $workflowHistory->links() }}</div>
+                    @endif
+                @endif
+            </div>
+        </section>
     </div>
 </main>
 @endsection
@@ -310,6 +490,20 @@
 <script>
     (function () {
         const chartSeries = @json($chartSeries);
+        const rootStyles = window.getComputedStyle(document.documentElement);
+        const themeColor = (name, fallback) => rootStyles.getPropertyValue(name).trim() || fallback;
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const colors = {
+            primary: themeColor('--color-primary', '#2563eb'),
+            success: themeColor('--color-success', '#16a34a'),
+            successStrong: themeColor('--color-success-strong', '#15803d'),
+            warning: themeColor('--color-warning', '#f59e0b'),
+            error: themeColor('--color-error', '#dc2626'),
+            info: themeColor('--color-info', '#0ea5e9'),
+            muted: themeColor('--color-muted', '#64748b'),
+            border: themeColor('--color-border', '#e2e8f0'),
+            primarySoft: themeColor('--color-primary-soft', '#eef2ff'),
+        };
 
         const trendCtx = document.getElementById('personalTrendChart');
         if (trendCtx && window.Chart) {
@@ -318,17 +512,23 @@
                 data: {
                     labels: chartSeries.labels,
                     datasets: [
-                        { label: 'Assigned', data: chartSeries.assigned, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.2)', fill: true, tension: 0.25 },
-                        { label: 'Completed', data: chartSeries.completed, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,.15)', fill: true, tension: 0.25 },
-                        { label: 'TAT Met', data: chartSeries.tat_met, borderColor: '#15803d', fill: false, tension: 0.2 },
-                        { label: 'TAT Not Met', data: chartSeries.tat_not_met, borderColor: '#dc2626', fill: false, tension: 0.2 },
+                        { label: 'Assigned', data: chartSeries.assigned, borderColor: colors.primary, backgroundColor: colors.primarySoft, fill: true, tension: 0.25 },
+                        { label: 'Completed', data: chartSeries.completed, borderColor: colors.success, fill: false, tension: 0.25 },
+                        { label: 'TAT Met', data: chartSeries.tat_met, borderColor: colors.successStrong, fill: false, tension: 0.2 },
+                        { label: 'TAT Not Met', data: chartSeries.tat_not_met, borderColor: colors.error, fill: false, tension: 0.2 },
                     ],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: reduceMotion ? false : undefined,
                     scales: {
-                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { grid: { display: false } },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 },
+                            grid: { color: colors.border },
+                        },
                     },
                 },
             });
@@ -342,12 +542,13 @@
                     labels: Object.keys(chartSeries.status_breakdown),
                     datasets: [{
                         data: Object.values(chartSeries.status_breakdown),
-                        backgroundColor: ['#3b82f6', '#f59e0b', '#ef4444', '#10b981'],
+                        backgroundColor: [colors.info, colors.warning, colors.error, colors.success],
                     }],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: reduceMotion ? false : undefined,
                     plugins: {
                         legend: { position: 'bottom' },
                     },

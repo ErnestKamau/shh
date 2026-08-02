@@ -42,11 +42,11 @@ class ResultRemarkService
         }
 
         if ($normalizedProvided !== null) {
-            return $this->calculateFromManualLimit($normalizedResult, $normalizedProvided);
+            return $this->calculateFromManualLimit($normalizedResult, $normalizedProvided, $reportingSymbol);
         }
 
         if ($normalizedDefault !== null) {
-            return $this->calculateFromManualLimit($normalizedResult, $normalizedDefault);
+            return $this->calculateFromManualLimit($normalizedResult, $normalizedDefault, $reportingSymbol);
         }
 
         return '-';
@@ -61,7 +61,7 @@ class ResultRemarkService
             return null;
         }
 
-        $reportingSymbol = $this->normalizeString($reportingSymbol ?? $capturedResult->result_reporting_symbol ?? $capturedResult->reporting_symbol ?? null);
+        $reportingSymbol = $this->normalizeReportingSymbol($reportingSymbol ?? $capturedResult->result_reporting_symbol ?? $capturedResult->reporting_symbol ?? null);
 
         if ($capturedResult->repeat_captured_id > 0) {
             $range = $capturedResult->repeatsampleresult;
@@ -225,7 +225,7 @@ class ResultRemarkService
             $result = 0.0;
         }
 
-        if ($symbol === '>') {
+        if (in_array($symbol, ['>', '≥', '>='], true)) {
             if (in_array($valueType, ['max', ''], true)) {
                 return $result < $standardValue ? 'PASS' : 'FAIL';
             }
@@ -241,7 +241,7 @@ class ResultRemarkService
             if ($valueType === 'greater_than') {
                 return $result > $standardValue ? 'PASS' : 'FAIL';
             }
-        } elseif ($symbol === '<') {
+        } elseif (in_array($symbol, ['<', '≤', '<='], true)) {
             if (in_array($valueType, ['max', ''], true)) {
                 return $result <= $standardValue ? 'PASS' : 'FAIL';
             }
@@ -278,7 +278,7 @@ class ResultRemarkService
         return null;
     }
 
-    protected function calculateFromManualLimit(string $result, string $standardLimit): string
+    protected function calculateFromManualLimit(string $result, string $standardLimit, ?string $reportingSymbol = null): string
     {
         if ($standardLimit === '') {
             return '-';
@@ -286,6 +286,7 @@ class ResultRemarkService
 
         $resultTrim = trim($result);
         $standardTrim = trim($standardLimit);
+        $symbol = $this->normalizeReportingSymbol($reportingSymbol);
 
         $resultUpper = strtoupper($resultTrim);
         $standardUpper = strtoupper($standardTrim);
@@ -320,11 +321,11 @@ class ResultRemarkService
         }
 
         if (preg_match('/^(min|max)\s+(\d+(?:\.\d+)?)$/i', $standardTrim, $matches)) {
-            return $this->evaluateManualLimitOperator($effectiveResult, $matches[2], strtolower($matches[1]));
+            return $this->evaluateManualLimitOperator($effectiveResult, $matches[2], strtolower($matches[1]), $symbol);
         }
 
         if (preg_match('/^(\d+(?:\.\d+)?)\s+(min|max)$/i', $standardTrim, $matches)) {
-            return $this->evaluateManualLimitOperator($effectiveResult, $matches[1], strtolower($matches[2]));
+            return $this->evaluateManualLimitOperator($effectiveResult, $matches[1], strtolower($matches[2]), $symbol);
         }
 
         // Handle numeric limits with optional prefixes (MAX, MIN, <, >, <=, >=)
@@ -501,15 +502,35 @@ class ResultRemarkService
         ], true);
     }
 
-    protected function evaluateManualLimitOperator(string $result, string $limitValue, string $operator): string
-    {
+    protected function evaluateManualLimitOperator(
+        string $result,
+        string $limitValue,
+        string $operator,
+        ?string $reportingSymbol = null,
+    ): string {
         if (! $this->isNumeric($result) || ! $this->isNumeric($limitValue)) {
             return '-';
         }
 
-        $remark = $this->evaluateNumericValue((float) $result, (float) $limitValue, $operator, null);
+        $remark = $this->evaluateNumericValue(
+            (float) $result,
+            (float) $limitValue,
+            $operator,
+            $this->normalizeReportingSymbol($reportingSymbol),
+        );
 
         return $remark ?? '-';
+    }
+
+    protected function normalizeReportingSymbol(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     protected function resolveAnalyteForCapturedResult(CapturedResult $capturedResult): ?Analyte

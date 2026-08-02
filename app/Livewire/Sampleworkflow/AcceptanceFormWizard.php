@@ -92,15 +92,12 @@ class AcceptanceFormWizard extends Component
 
     public bool $showQuantityOnConfig = false;
 
-    /** Parameters are chosen on Process Enquiry; do not re-list them here. */
-    public bool $showParametersOnConfig = false;
+    public bool $showParametersOnConfig = true;
 
-    /** Per-test lab section rows removed — use sample-level multi-select instead. */
+    /** Lab section + analyst assignment happens on Sample Integrity Check, not here. */
     public bool $showParameterLabSectionsOnConfig = false;
 
-    public bool $showSampleLabSectionsOnConfig = true;
-
-    public bool $showSectionAnalystsOnConfig = true;
+    public bool $showSectionAnalystsOnConfig = false;
 
     public bool $showInstancePhotoOnConfig = true;
 
@@ -114,6 +111,9 @@ class AcceptanceFormWizard extends Component
 
     public bool $defaultExpandSampleDetails = true;
 
+    /** receive_only = Ready for Reception handoff; accept_register = Integrity Accept creates job/samples. */
+    public string $wizardMode = 'accept_register';
+
     public function mount(): void
     {
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');
@@ -122,9 +122,20 @@ class AcceptanceFormWizard extends Component
         $this->customerSignedAt = now()->format('Y-m-d');
     }
 
+    public function isReceiveOnlyMode(): bool
+    {
+        return $this->wizardMode === 'receive_only';
+    }
+
     /** @return list<array{key: string, label: string}> */
     public function getWizardStepsProperty(): array
     {
+        if ($this->isReceiveOnlyMode()) {
+            return [
+                ['key' => 'sample_config', 'label' => 'Sample configuration'],
+            ];
+        }
+
         return [
             ['key' => 'sample_config', 'label' => 'Sample configuration'],
             ['key' => 'signatures', 'label' => 'Sign & accept'],
@@ -132,14 +143,21 @@ class AcceptanceFormWizard extends Component
     }
 
     #[On('open-acceptance-wizard')]
-    public function openWizard(?string $submissionFormInstanceId = null, ?string $submissionRequestId = null): void
-    {
+    public function openWizard(
+        ?string $submissionFormInstanceId = null,
+        ?string $submissionRequestId = null,
+        string $mode = 'accept_register',
+    ): void {
         $this->resetWizard();
+        $this->wizardMode = in_array($mode, ['receive_only', 'accept_register'], true)
+            ? $mode
+            : 'accept_register';
+        $this->configureConfigVisibilityForMode();
         $this->submissionFormInstanceId = $submissionFormInstanceId ?: null;
         $this->submissionRequestId = $submissionRequestId ?: null;
 
         if (! $this->submissionFormInstanceId && ! $this->submissionRequestId) {
-            $this->dispatch('notify', type: 'error', message: 'Select exactly one request or form row before accepting.');
+            $this->dispatch('notify', type: 'error', message: 'Select exactly one request or form row before continuing.');
 
             return;
         }
@@ -162,16 +180,20 @@ class AcceptanceFormWizard extends Component
                 return;
             }
 
-            if (! $readiness->isEligibleForSampleAcceptance($enquiry, $instance)) {
+            $eligible = $this->isReceiveOnlyMode()
+                ? $readiness->isEligibleForReceiveHandoff($enquiry, $instance)
+                : $readiness->isEligibleForSampleAcceptance($enquiry, $instance);
+
+            if (! $eligible) {
                 $message = match (true) {
-                    $enquiry->needsSubcontractDispatch() => 'This request has subcontracted tests. Dispatch it from Samples Receiving → Sub-contracting before accepting into Samples In Lab.',
                     in_array((string) $enquiry->status, [
                         SampleSubmissionRequest::STATUS_REQUESTED,
                         SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
-                    ], true) => 'Complete enquiry processing and send the quotation before accepting samples.',
+                    ], true) => 'Complete enquiry processing and send the quotation before continuing.',
                     (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Record customer acceptance on the request view page first.',
                     (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the customer.',
-                    (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before accepting samples.',
+                    (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before continuing.',
+                    $this->isReceiveOnlyMode() => 'This request is not ready to receive samples yet.',
                     default => 'This request is not ready for sample acceptance yet.',
                 };
                 $this->dispatch('notify', type: 'error', message: $message);
@@ -209,11 +231,12 @@ class AcceptanceFormWizard extends Component
             );
         } elseif (is_array($enquiry?->enquiry_sample_configuration) && $enquiry->enquiry_sample_configuration !== []) {
             $this->sampleConfigs = $configService->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration);
+            $this->sampleConfigs = $configService->normalizeConfigsAnalysisTypeIds($this->sampleConfigs);
             $this->sampleConfigs = $configService->syncParameterKeysFromQuotationLines($this->sampleConfigs, $quotationLines);
             foreach ($this->sampleConfigs as $index => $config) {
-                $this->sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisType(
+                $this->sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisTypes(
                     is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [],
-                    (string) ($config['analysis_type_id'] ?? ''),
+                    $configService->analysisTypeIdsFromConfig($config),
                 );
             }
         } else {
@@ -273,6 +296,12 @@ class AcceptanceFormWizard extends Component
 
     public function goToStep(string $step): void
     {
+        if ($this->isReceiveOnlyMode()) {
+            $this->activeStep = 'sample_config';
+
+            return;
+        }
+
         if (! in_array($step, ['sample_config', 'signatures'], true)) {
             return;
         }
@@ -292,12 +321,21 @@ class AcceptanceFormWizard extends Component
 
     public function saveSampleConfigAndContinue(): void
     {
+        if ($this->isReceiveOnlyMode()) {
+            $this->submitReceiveSamples();
+
+            return;
+        }
+
         $configService = app(AcceptanceFormSampleConfigService::class);
 
         try {
             $this->mergeInstancePhotoUploadsIntoConfigs();
             $this->sampleConfigs = $configService->syncParameterLabSectionsForConfigs($this->sampleConfigs);
-            $configService->validateReceptionConfigs($this->sampleConfigs);
+            $configService->validateReceptionConfigs(
+                $this->sampleConfigs,
+                requireParameterAssignments: true,
+            );
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? 'Complete all required sample configuration fields.';
             $this->dispatch('notify', type: 'error', message: $message);
@@ -307,6 +345,45 @@ class AcceptanceFormWizard extends Component
 
         $this->activeStep = 'signatures';
         $this->dispatch('acceptance-wizard-signatures-step');
+    }
+
+    /**
+     * Ready for Reception: persist sample config and hand off to Integrity (no signatures / no job).
+     */
+    public function submitReceiveSamples(): void
+    {
+        if (! $this->isReceiveOnlyMode()) {
+            $this->submitDualAccept();
+
+            return;
+        }
+
+        $this->validate([
+            'modeOfWork' => ['required', 'in:Normal,Express'],
+            'lines' => ['required', 'array', 'min:1'],
+        ]);
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        try {
+            $this->mergeInstancePhotoUploadsIntoConfigs();
+            $this->sampleConfigs = $configService->syncParameterLabSectionsForConfigs($this->sampleConfigs);
+            $configService->validateReceptionConfigs(
+                $this->sampleConfigs,
+                requireParameterAssignments: false,
+            );
+            $normalizedConfigs = $configService->normalizeConfigsForStorage(
+                $this->sampleConfigs,
+                $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
+            );
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first() ?? 'Complete all required sample configuration fields.';
+            $this->dispatch('notify', type: 'error', message: $message);
+
+            return;
+        }
+
+        $this->submitReceiveOnlyHandoff($normalizedConfigs);
     }
 
     public function goBackToSampleConfig(): void
@@ -378,9 +455,9 @@ class AcceptanceFormWizard extends Component
         if (($quotationPrefill['quotation_locked'] ?? false) && $quotationLines !== []) {
             $this->sampleConfigs = $configService->syncParameterKeysFromQuotationLines($this->sampleConfigs, $quotationLines);
             foreach ($this->sampleConfigs as $index => $config) {
-                $this->sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisType(
+                $this->sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisTypes(
                     is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [],
-                    (string) ($config['analysis_type_id'] ?? ''),
+                    $configService->analysisTypeIdsFromConfig($config),
                 );
             }
         }
@@ -394,6 +471,12 @@ class AcceptanceFormWizard extends Component
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? 'Sample configuration is invalid.';
             $this->dispatch('notify', type: 'error', message: $message);
+
+            return;
+        }
+
+        if ($this->isReceiveOnlyMode()) {
+            $this->submitReceiveOnlyHandoff($normalizedConfigs);
 
             return;
         }
@@ -486,6 +569,51 @@ class AcceptanceFormWizard extends Component
 
         $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
         session()->flash('success', "Samples accepted. Job number {$batchCode} created and moved to Samples In Lab.");
+    }
+
+    /**
+     * Ready for Reception → Sample Integrity Check (persist config, no job/sample creation).
+     *
+     * @param  list<array<string, mixed>>  $normalizedConfigs
+     */
+    private function submitReceiveOnlyHandoff(array $normalizedConfigs): void
+    {
+        $enquiry = null;
+        if ($this->submissionRequestId) {
+            $enquiry = SampleSubmissionRequest::query()->find($this->submissionRequestId);
+        }
+
+        if ($enquiry === null && $this->submissionFormInstanceId) {
+            $enquiry = SampleSubmissionRequest::query()
+                ->where('submission_form_instance_id', $this->submissionFormInstanceId)
+                ->first();
+        }
+
+        if ($enquiry === null) {
+            $this->dispatch('notify', type: 'error', message: 'No commercial enquiry is linked to this request.');
+
+            return;
+        }
+
+        $enquiry->enquiry_sample_configuration = $normalizedConfigs;
+        $enquiry->save();
+
+        app(EnquiryReceptionReadinessService::class)->markSampleIntegrityCheck($enquiry);
+
+        app(CustomerAnalysisTypeStandardService::class)->syncPreferencesFromConfigs(
+            $this->crmCustomerId !== null ? (string) $this->crmCustomerId : null,
+            $normalizedConfigs,
+        );
+
+        $this->closeWizard();
+
+        $redirectUrl = route('sample-workflow', [
+            'status' => 'Samples Receiving',
+            'tab' => 'sample_integrity_check',
+        ]);
+
+        $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
+        session()->flash('success', 'Samples received. Continue with Sample Integrity & Acceptance Check.');
     }
 
     private function mergeInstancePhotoUploadsIntoConfigs(): void
@@ -584,6 +712,8 @@ class AcceptanceFormWizard extends Component
     private function resetWizard(): void
     {
         $this->activeStep = 'sample_config';
+        $this->wizardMode = 'accept_register';
+        $this->configureConfigVisibilityForMode();
         $this->submissionFormInstanceId = null;
         $this->submissionRequestId = null;
         $this->lines = [];
@@ -606,6 +736,17 @@ class AcceptanceFormWizard extends Component
         $this->customerContactOptions = [];
         $this->labCapable = true;
         $this->clientInstructionClear = true;
+    }
+
+    private function configureConfigVisibilityForMode(): void
+    {
+        $isReceiveOnly = $this->isReceiveOnlyMode();
+
+        // Receive Samples only captures condition / specification / sample details.
+        // Lab-section and analyst assignment are owned by Sample Integrity Check.
+        $this->showParametersOnConfig = ! $isReceiveOnly;
+        $this->showParameterLabSectionsOnConfig = false;
+        $this->showSectionAnalystsOnConfig = false;
     }
 
     public function render()

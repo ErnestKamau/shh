@@ -215,6 +215,14 @@ class SubmissionFormSubmissionService
         $out = [];
         foreach ($values as $index => $value) {
             if (is_array($value)) {
+                $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
+
+                if ($selectedKeys !== null) {
+                    $out[(int) $index] = implode(',', $selectedKeys);
+
+                    continue;
+                }
+
                 $tokens = [];
                 foreach ($value as $item) {
                     if ($item === null || $item === '') {

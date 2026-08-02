@@ -7,7 +7,7 @@
                         <div class="acc-wizard-header-text">
                             <h4 class="acc-wizard-title">
                                 <i class="mdi mdi-file-document-edit-outline"></i>
-                                Analysis Acceptance
+                                {{ $wizardMode === 'receive_only' ? 'Receive Samples' : 'Analysis Acceptance' }}
                             </h4>
                         </div>
                         <button type="button" class="acc-wizard-close" wire:click="closeWizard" aria-label="Close">
@@ -15,6 +15,7 @@
                         </button>
                     </div>
 
+                    @if(count($this->wizardSteps) > 1)
                     <div class="acc-wizard-steps" role="tablist">
                         @php
                             $activeIndex = collect($this->wizardSteps)->search(fn ($s) => $s['key'] === $activeStep);
@@ -41,6 +42,7 @@
                             </button>
                         @endforeach
                     </div>
+                    @endif
 
                     <div class="acc-wizard-body">
                         @if($activeStep === 'sample_config')
@@ -66,7 +68,11 @@
                                 <div class="row mt-3">
                                     <div class="col-12">
                                         <p class="acc-wizard-hint mb-2">
-                                            Confirm condition and specification, review the default lab, choose one or more lab sections for the sample, then assign analyst(s).
+                                            @if($this->isReceiveOnlyMode())
+                                                Confirm condition, specification, and sample details for each sample before receiving.
+                                            @else
+                                                Confirm condition, specification, and sample details. Lab sections and analysts are assigned on Sample Integrity Check.
+                                            @endif
                                         </p>
                                         <div class="custom-control custom-checkbox">
                                             <input
@@ -207,11 +213,16 @@
                     </div>
 
                     <div class="acc-wizard-footer">
-                        @if($activeStep === 'signatures')
+                        @if($activeStep === 'signatures' && ! $this->isReceiveOnlyMode())
                             <button type="button" class="btn btn-light acc-btn-ghost mr-auto" wire:click="goBackToSampleConfig">Back</button>
                         @endif
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
-                        @if($activeStep === 'sample_config')
+                        @if($this->isReceiveOnlyMode())
+                            <button type="button" class="btn acc-btn-success" wire:click="submitReceiveSamples" wire:loading.attr="disabled">
+                                <span wire:loading wire:target="submitReceiveSamples" class="spinner-border spinner-border-sm mr-1"></span>
+                                Receive Samples
+                            </button>
+                        @elseif($activeStep === 'sample_config')
                             <button type="button" class="btn acc-btn-success" wire:click="saveSampleConfigAndContinue" wire:loading.attr="disabled">
                                 <span wire:loading wire:target="saveSampleConfigAndContinue" class="spinner-border spinner-border-sm mr-1"></span>
                                 Continue

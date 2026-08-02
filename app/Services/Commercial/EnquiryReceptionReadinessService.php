@@ -54,16 +54,24 @@ final class EnquiryReceptionReadinessService
         return $enquiry->fresh();
     }
 
+    /**
+     * Move a Ready-for-Reception enquiry into Sample Integrity Check (no job creation).
+     */
+    public function markSampleIntegrityCheck(SampleSubmissionRequest $enquiry): SampleSubmissionRequest
+    {
+        $enquiry->status = SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK;
+        $enquiry->save();
+
+        return $enquiry->fresh() ?? $enquiry;
+    }
+
     public function isEligibleForPhysicalReceive(SampleSubmissionRequest $enquiry): bool
     {
         if ((string) $enquiry->status !== SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION) {
             return false;
         }
 
-        if ($enquiry->needsSubcontractDispatch()) {
-            return false;
-        }
-
+        // Subcontract dispatch is enforced at Integrity Accept, not at physical receive handoff.
         if ($this->contractCustomerService->bypassesCommercialQuotationGate($enquiry)) {
             return true;
         }
@@ -74,23 +82,13 @@ final class EnquiryReceptionReadinessService
     }
 
     /**
-     * True when the enquiry is ready for dual-signature sample acceptance
-     * (Ready for Reception → Accept creates the batch/job and samples).
-     *
-     * Legacy "In Review" enquiry/instance statuses remain eligible so existing
-     * records can still be accepted after the In Review step was removed.
-     *
-     * Requests with pending subcontract dispatch must go through the
-     * Sub-contracting tab first (even when only some parameters are subcontracted).
+     * True when the enquiry can open the Receive Samples wizard (status-only handoff
+     * from Ready for Reception into Sample Integrity Check).
      */
-    public function isEligibleForSampleAcceptance(
+    public function isEligibleForReceiveHandoff(
         SampleSubmissionRequest $enquiry,
         ?SubmissionFormInstance $instance = null,
     ): bool {
-        if ($enquiry->needsSubcontractDispatch()) {
-            return false;
-        }
-
         if (in_array((string) $enquiry->status, [
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
             SampleSubmissionRequest::STATUS_IN_REVIEW,
@@ -98,7 +96,29 @@ final class EnquiryReceptionReadinessService
             return true;
         }
 
-        // Legacy physical check-in left the instance in in_review/received.
+        return $instance !== null
+            && in_array(strtolower((string) $instance->status), ['in_review', 'received'], true);
+    }
+
+    /**
+     * True when the enquiry is ready for dual-signature sample acceptance
+     * (Sample Integrity Check → Accept creates the batch/job and samples).
+     *
+     * Subcontract dispatch is independent and does not block Accept.
+     */
+    public function isEligibleForSampleAcceptance(
+        SampleSubmissionRequest $enquiry,
+        ?SubmissionFormInstance $instance = null,
+    ): bool {
+        if (in_array((string) $enquiry->status, [
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
+            // Legacy: records already in Ready for Reception before Integrity split.
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_IN_REVIEW,
+        ], true)) {
+            return true;
+        }
+
         return $instance !== null
             && in_array(strtolower((string) $instance->status), ['in_review', 'received'], true);
     }

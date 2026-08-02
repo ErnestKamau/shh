@@ -23,7 +23,9 @@ class RequestViewPagePresenter
 
     public const STAGE_READY_FOR_RECEPTION = 'Ready for Reception';
 
-    /** @deprecated In Review was removed; Accept Samples runs from Ready for Reception. */
+    public const STAGE_SAMPLE_INTEGRITY_CHECK = 'Sample Integrity Check';
+
+    /** @deprecated In Review was removed; Accept Samples runs from Sample Integrity Check. */
     public const STAGE_IN_REVIEW = 'In Review';
 
     public const STAGE_ACCEPTED = 'Accepted';
@@ -153,13 +155,15 @@ class RequestViewPagePresenter
 
         return match ($raw) {
             'submitted', 'Submitted' => self::STAGE_REQUESTED,
-            'Quotation Ready to Send', 'Pending Quotation' => self::STAGE_QUOTATION_IN_PROGRESS,
+            SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND, 'Pending Quotation' => self::STAGE_QUOTATION_IN_PROGRESS,
             SampleSubmissionRequest::STATUS_REQUESTED => self::STAGE_REQUESTED,
             SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => self::STAGE_QUOTATION_IN_PROGRESS,
+            SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL => self::STAGE_QUOTATION_IN_PROGRESS,
             SampleSubmissionRequest::STATUS_QUOTATION_SENT => self::STAGE_QUOTATION_SENT,
             SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => self::STAGE_QUOTATION_UNDER_REVIEW,
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => self::STAGE_QUOTATION_ACCEPTED,
-            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => self::STAGE_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK => self::STAGE_SAMPLE_INTEGRITY_CHECK,
             SampleSubmissionRequest::STATUS_IN_REVIEW => self::STAGE_READY_FOR_RECEPTION,
             'received_at_lab' => self::STAGE_ACCEPTED,
             default => $commercial !== '' ? $commercial : ($raw !== '' ? $raw : null),
@@ -373,7 +377,7 @@ class RequestViewPagePresenter
             ]);
 
             $samplingPoint = trim((string) (($line['sampling_point'] ?? null) ?: ($line['location'] ?? '')));
-            $testCategory = trim((string) (($line['parameter_category'] ?? null) ?: ($line['attributes']['test_category'] ?? '')));
+            $testCategory = $this->testCategoryLabel($line);
             $productionDate = trim((string) ($line['production_date'] ?? ''));
             $expiryDate = trim((string) (($line['expiration_date'] ?? null) ?: ($line['expiry_date'] ?? '')));
             $batchNumber = trim((string) ($line['batch_number'] ?? ''));
@@ -507,6 +511,18 @@ class RequestViewPagePresenter
     }
 
     /**
+     * Test category is a checkbox group, so it is stored as a slug CSV.
+     *
+     * @param  array<string, mixed>  $line
+     */
+    private function testCategoryLabel(array $line): string
+    {
+        return SubmissionFormSchemaHelper::testCategoryLabel(
+            ($line['parameter_category'] ?? null) ?: ($line['attributes']['test_category'] ?? ''),
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $line
      */
     private function formatSampleQuantity(array $line): string
@@ -540,7 +556,7 @@ class RequestViewPagePresenter
             ['label' => 'Production date', 'value' => trim((string) ($line['production_date'] ?? ''))],
             ['label' => 'Expiration date', 'value' => trim((string) ($line['expiration_date'] ?? ''))],
             ['label' => 'Sampling point / location', 'value' => trim((string) (($line['sampling_point'] ?? null) ?: ($line['location'] ?? '')))],
-            ['label' => 'Test category', 'value' => trim((string) (($line['parameter_category'] ?? null) ?: ($line['attributes']['test_category'] ?? '')))],
+            ['label' => 'Test category', 'value' => $this->testCategoryLabel($line)],
             ['label' => 'Sample type', 'value' => $sampleType === '—' ? '' : $sampleType],
             ['label' => 'Analysis type', 'value' => $analysisType === '—' ? '' : $analysisType],
             ['label' => 'Sample description', 'value' => trim(strip_tags((string) ($line['sample_description'] ?? '')))],
@@ -1355,6 +1371,14 @@ class RequestViewPagePresenter
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');
         } elseif ($stage === self::STAGE_READY_FOR_RECEPTION) {
             $primary = $this->action(
+                'receive_samples',
+                'Receive Samples',
+                'mdi-package-down',
+                'wire',
+                'openAcceptSampleWizard'
+            );
+        } elseif ($stage === self::STAGE_SAMPLE_INTEGRITY_CHECK) {
+            $primary = $this->action(
                 'accept_samples',
                 'Accept sample',
                 'mdi-check-circle-outline',
@@ -1373,6 +1397,13 @@ class RequestViewPagePresenter
     {
         $blockedByStage = match ($stage) {
             self::STAGE_READY_FOR_RECEPTION => [
+                'process_enquiry',
+                'record_po',
+                'record_walk_in_acceptance',
+                'send_for_review',
+                'accept_samples',
+            ],
+            self::STAGE_SAMPLE_INTEGRITY_CHECK => [
                 'process_enquiry',
                 'record_po',
                 'record_walk_in_acceptance',

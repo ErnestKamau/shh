@@ -245,6 +245,13 @@
                     wire:loading.attr="disabled">
                     <i class="mdi mdi-content-duplicate"></i> Duplicate
                 </button>
+                <button type="button" wire:click="viewParametersForSelected"
+                    class="btn btn-info btn-sm btn-action-sm text-white"
+                    wire:loading.attr="disabled"
+                    wire:target="viewParametersForSelected,viewParameters,viewSingleSampleParameters"
+                    title="Capture results for selected samples">
+                    <i class="mdi mdi-flask-outline"></i> Capture results
+                </button>
             </div>
         </div>
         <div class="workflow-board-panel-body flush-top">
@@ -295,7 +302,7 @@
                             <div class="d-flex justify-content-center align-items-center gap-2">
                                 {{-- View Parameters Icon --}}
                                 @if($sampleForm['id'])
-                                <button type="button" wire:click="viewParameters('{{ $sampleForm['sample_code'] }}')"
+                                <button type="button" wire:click="viewSingleSampleParameters('{{ $sampleForm['sample_code'] }}')"
                                     class="btn btn-sm btn-icon btn-light text-info mx-1" title="View Parameters">
                                     <i class="mdi mdi-eye"></i>
                                 </button>
@@ -867,7 +874,7 @@
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content sample-parameters-modal__content">
                 <div class="modal-header border-0 sample-parameters-modal__header">
-                    <div>
+                    <div class="flex-grow-1 pr-3">
                         <h5 class="modal-title mb-1">
                             <i class="mdi mdi-flask-outline text-primary"></i>
                             Parameters for sample
@@ -877,7 +884,43 @@
                             @if(!empty($sampleParameters))
                                 <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
                             @endif
+                            @if(count($parameterModalSampleCodes) > 1)
+                                <span class="ml-2 text-muted">
+                                    {{ $parameterModalSampleIndex + 1 }} of {{ count($parameterModalSampleCodes) }}
+                                </span>
+                            @endif
                         </p>
+                        @if(count($parameterModalSampleCodes) > 1)
+                        <div class="d-flex align-items-center flex-wrap mt-2 sample-parameters-modal__nav" style="gap: 0.35rem;">
+                            <button type="button"
+                                class="btn btn-sm btn-light border"
+                                wire:click="previousParameterSample"
+                                @disabled($parameterModalSampleIndex <= 0)
+                                wire:loading.attr="disabled"
+                                title="Previous sample">
+                                <i class="mdi mdi-chevron-left"></i>
+                            </button>
+                            <div class="sample-parameters-modal__tabs d-flex flex-wrap" style="gap: 0.25rem;">
+                                @foreach($parameterModalSampleCodes as $tabIndex => $tabCode)
+                                <button type="button"
+                                    class="btn btn-sm {{ (string) $selectedSampleCode === (string) $tabCode ? 'btn-primary' : 'btn-light border' }}"
+                                    wire:click="switchParameterSample('{{ $tabCode }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:key="param-tab-{{ $tabCode }}">
+                                    {{ format_sample_code($tabCode) }}
+                                </button>
+                                @endforeach
+                            </div>
+                            <button type="button"
+                                class="btn btn-sm btn-light border"
+                                wire:click="nextParameterSample"
+                                @disabled($parameterModalSampleIndex >= count($parameterModalSampleCodes) - 1)
+                                wire:loading.attr="disabled"
+                                title="Next sample">
+                                <i class="mdi mdi-chevron-right"></i>
+                            </button>
+                        </div>
+                        @endif
                     </div>
                     <button type="button" class="close" wire:click="cancelViewParameters" aria-label="Close">
                         <span>&times;</span>
@@ -885,14 +928,14 @@
                 </div>
 
                 {{-- Loading Indicator --}}
-                <div wire:loading wire:target="viewParameters" class="text-center py-5">
+                <div wire:loading wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample" class="text-center py-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="sr-only">Loading parameters...</span>
                     </div>
                     <p class="mt-2 text-muted">Loading parameters...</p>
                 </div>
 
-                <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
+                <div wire:loading.remove wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample" class="modal-body sample-parameters-modal__body">
                     @if (session()->has('error'))
                     <div class="alert alert-danger border mb-3">
                         <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
@@ -908,18 +951,35 @@
                         <i class="mdi mdi-lock-outline"></i>
                         Assign a lab section in your profile before capturing results. You can view parameters but cannot fill or save them.
                     </div>
-                    @elseif($parametersSectionFiltered)
-                    <div class="alert alert-light border mb-3">
-                        <i class="mdi mdi-flask-outline text-primary"></i>
-                        Showing parameters for your lab section(s) only.
-                    </div>
+                    @else
+                        @if($this->hasNonEditableParameters)
+                        <div class="alert alert-warning border mb-3">
+                            <i class="mdi mdi-lock-outline"></i>
+                            {{ $this->parametersDenyEditMessage }}
+                            Rows outside your lab section(s) are view-only.
+                        </div>
+                        @endif
+                        @if($parametersSectionFiltered)
+                        <div class="alert alert-light border mb-3 d-flex align-items-center flex-wrap" style="gap: 0.35rem;">
+                            <i class="mdi mdi-flask-outline text-primary"></i>
+                            @if(!empty($parameterLabSections))
+                                @foreach($parameterLabSections as $sectionLabel)
+                                    <span class="badge badge-light border font-weight-normal">{{ $sectionLabel }}</span>
+                                @endforeach
+                            @elseif(auth()->user()?->labsectionname)
+                                <span class="badge badge-light border font-weight-normal">{{ auth()->user()->labsectionname }}</span>
+                            @else
+                                <span class="text-muted">Lab section assigned</span>
+                            @endif
+                        </div>
+                        @endif
                     @endif
 
                     @if(!empty($sampleParameters))
                     @php
                         $parameterColspan = ($uncertaintyRequired ? 17 : 16);
                         $groupedParameters = $this->groupedParametersForm;
-                        $parametersDisabled = $parametersReadOnly;
+                        $reportingSymbols = $this->reportingSymbolOptions();
                         $subcontractedSummary = collect($sampleParameters)
                             ->filter(fn ($param) => ! empty($param['subcontracted']) && ! empty($param['subcontracted_lab_name']))
                             ->groupBy('subcontracted_lab_name')
@@ -975,7 +1035,19 @@
                                     </td>
                                 </tr>
                                 @foreach($groupedParams as $id => $param)
-                                <tr wire:key="param-{{ $id }}">
+                                @php
+                                    $mainStandardDisplay = trim((string) ($param['standard_value'] ?? ''));
+                                    $secStandardDisplay = trim((string) ($param['sec_standard_value'] ?? ''));
+                                    $showSecondaryStandard = $secStandardDisplay !== ''
+                                        && strcasecmp($secStandardDisplay, $mainStandardDisplay) !== 0;
+                                    $selectedSymbol = (string) ($parametersForm[$id]['result_reporting_symbol'] ?? $param['result_reporting_symbol'] ?? '');
+                                    $rowCanEdit = ! $parametersReadOnly && (bool) ($param['can_edit'] ?? false);
+                                    if (! array_key_exists('can_edit', $param)) {
+                                        $rowCanEdit = ! $parametersReadOnly && $this->userCanEditParameterRow((string) $id);
+                                    }
+                                    $parametersDisabled = ! $rowCanEdit;
+                                @endphp
+                                <tr wire:key="param-{{ $id }}" class="{{ $parametersDisabled ? 'sample-parameters-row--readonly' : '' }}">
                                     <td><strong>{{ format_sample_code($param['sample_code']) }}</strong></td>
                                     <td class="sample-parameters-modal__analyte">
                                         <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
@@ -983,7 +1055,17 @@
                                             <small class="text-muted">{{ $param['analyte_code'] }}</small>
                                         @endif
                                     </td>
-                                    <td>{{ $param['result_reporting_symbol'] ?? '-' }}</td>
+                                    <td style="min-width: 72px;">
+                                        <select class="form-control form-control-sm"
+                                            wire:model.live="parametersForm.{{ $id }}.result_reporting_symbol"
+                                            @if($parametersDisabled) disabled @endif>
+                                            @foreach($reportingSymbols as $symbolOption)
+                                            <option value="{{ $symbolOption['value'] }}" @selected($selectedSymbol === (string) $symbolOption['value'])>
+                                                {{ $symbolOption['label'] }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
                                     <td style="min-width: 80px; max-width: 100px;">
                                         <div class="input-group input-group-sm">
                                             <input type="text"
@@ -1042,7 +1124,7 @@
                                             </button>
                                             @endif
                                         </div>
-                                        @if($param['sec_standard_value'])
+                                        @if($showSecondaryStandard)
                                         <div class="d-flex align-items-center justify-content-between mt-1">
                                             <small class="text-muted">{{ $param['sec_standard_value'] }}</small>
                                             @if($param['sec_standard_id'] && ! $parametersDisabled)
@@ -1088,7 +1170,6 @@
                                         <small class="text-muted d-block">
                                             {{ $param['operator_name'] ?? auth()->user()?->name ?? 'Current user' }}
                                         </small>
-                                        <span class="badge badge-light border">Auto on save</span>
                                     </td>
                                     <td style="min-width: 140px;">
                                         <select class="form-control form-control-sm"
@@ -1174,7 +1255,7 @@
                     <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
                         <i class="mdi mdi-close"></i> Close
                     </button>
-                    @if(! $parametersReadOnly && ! empty($sampleParameters))
+                    @if($this->hasEditableParameters && ! empty($sampleParameters))
                     <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
                         wire:loading.attr="disabled" wire:target="saveParameters">
                         <span wire:loading.remove wire:target="saveParameters">
@@ -1202,6 +1283,15 @@
             border-radius: 16px;
             box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
             overflow: hidden;
+        }
+
+        .sample-parameters-modal .sample-parameters-row--readonly td {
+            background-color: #f8fafc;
+        }
+
+        .sample-parameters-modal .sample-parameters-row--readonly input:disabled,
+        .sample-parameters-modal .sample-parameters-row--readonly select:disabled {
+            cursor: not-allowed;
         }
 
         .btn-icon {
@@ -1332,17 +1422,30 @@
         }
 
         .sample-parameters-table .select2-selection--multiple {
-            min-height: var(--control-h, 34px);
+            min-height: 30px !important;
+            height: auto !important;
             border-radius: var(--radius-sm, 6px);
             border-color: var(--color-border, #e2e8f0);
             background: #fff;
-            padding: 0.2rem 0.35rem 0.15rem;
+            padding: 0.1rem 0.25rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 0;
+            margin: 0;
         }
 
         .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            margin: 0.15rem 0.25rem 0.15rem 0;
-            padding: 0.15rem 0.35rem 0.15rem 0.45rem;
-            font-size: 0.75rem;
+            margin: 0.1rem 0.2rem 0.1rem 0;
+            padding: 0.05rem 0.3rem 0.05rem 0.35rem;
+            font-size: 0.65rem;
+            line-height: 1.25;
             font-weight: 600;
             background: var(--color-primary-soft);
             border: 1px solid var(--color-primary-border-soft);
@@ -1350,10 +1453,27 @@
             color: var(--color-primary);
         }
 
+        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            font-size: 0.7rem;
+            margin-right: 0.15rem;
+        }
+
+        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
+            margin-top: 0;
+            height: 22px;
+            min-height: 22px;
+            font-size: 0.75rem;
+        }
+
         .sample-parameters-table .select2-container--default.select2-container--focus .select2-selection--multiple,
         .sample-parameters-table .select2-container--default.select2-container--open .select2-selection--multiple {
             border-color: var(--color-primary);
             box-shadow: 0 0 0 3px var(--color-primary-focus);
+        }
+
+        .sample-parameters-modal__tabs .btn {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.55rem;
         }
     </style>
     @endif
@@ -2880,6 +3000,8 @@
                 const $el = window.jQuery(this);
                 const $wrap = $el.closest('.param-equipment-select2-wrap');
 
+                // Already owned by Select2 — do not destroy/reinit on every Livewire
+                // commit (that reset selection back to stale data-initial).
                 if ($el.hasClass('select2-hidden-accessible')) {
                     return;
                 }
@@ -2905,9 +3027,7 @@
                     initial = initial ? [String(initial)] : [];
                 }
 
-                if (initial.length) {
-                    $el.val(initial.map(String)).trigger('change.select2');
-                }
+                $el.val(initial.map(String)).trigger('change.select2');
 
                 $el.off('change.paramEquipmentSelect2').on('change.paramEquipmentSelect2', function () {
                     const paramId = String($wrap.data('param-id') || '');
@@ -2915,7 +3035,8 @@
                         return;
                     }
 
-                    const vals = $el.val() || [];
+                    const vals = ($el.val() || []).map(String);
+                    $wrap.attr('data-initial', JSON.stringify(vals));
                     $wire.set('parametersForm.' + paramId + '.equipment_ids', vals);
                 });
             });

@@ -308,9 +308,16 @@
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)"
                                             style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample
                                             Data</span></li>
-                                    <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
-                                            style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
-                                            Verification</span></li>
+                                    @if($this->canSendToVerification)
+                                        <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
+                                                style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
+                                                Verification</span></li>
+                                    @else
+                                        <li><span class="dropdown-item text-danger small" style="cursor: not-allowed;"
+                                                title="{{ $this->verificationResultsBlockReason }}">
+                                                <i class="mdi mdi-alert mr-2"></i> Send for Verification (No results captured)
+                                            </span></li>
+                                    @endif
                                 @endif
 
                                 @if(isset($batch->status) && Auth::user()->is_client == 0 && $status == 'Sample Verification')

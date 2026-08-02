@@ -39,11 +39,29 @@ class QuotationHeader extends Model implements Auditable
             'customer_acceptance_signed_at' => 'datetime',
             'prepared_by_id' => 'string',
             'approved_by' => 'string',
+            'approval_requested_at' => 'datetime',
+            'approval_requested_by' => 'string',
+            'approval_decision_at' => 'datetime',
             'show_loq_column' => 'boolean',
             'show_mu_column' => 'boolean',
             'show_unit_price_column' => 'boolean',
             'structured_terms' => 'array',
         ];
+    }
+
+    public function approvalLogs()
+    {
+        return $this->hasMany(\App\Models\QuotationApprovalLog::class, 'quotation_header_id');
+    }
+
+    public function approvedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function approvalRequestedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approval_requested_by');
     }
 
     public function acceptanceContact(): BelongsTo

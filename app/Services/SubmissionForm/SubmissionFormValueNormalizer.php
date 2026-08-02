@@ -209,6 +209,15 @@ final class SubmissionFormValueNormalizer
                 continue;
             }
 
+            if (is_array($value)) {
+                $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
+                if ($selectedKeys !== null) {
+                    $normalized[$canonicalKey] = implode(',', $selectedKeys);
+
+                    continue;
+                }
+            }
+
             $normalized[$canonicalKey] = $value;
         }
 
@@ -284,7 +293,15 @@ final class SubmissionFormValueNormalizer
                 if ($rowIndex < 0 || $rowIndex >= $rowCount) {
                     continue;
                 }
-                $rows[$rowIndex][$field] = is_array($value) ? implode(',', array_map('strval', $value)) : $value;
+
+                if (is_array($value)) {
+                    $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
+                    $rows[$rowIndex][$field] = $selectedKeys !== null
+                        ? implode(',', $selectedKeys)
+                        : implode(',', array_map('strval', $value));
+                } else {
+                    $rows[$rowIndex][$field] = $value;
+                }
             }
         }
 
@@ -345,6 +362,14 @@ final class SubmissionFormValueNormalizer
         $out = [];
         foreach ($values as $index => $value) {
             if (is_array($value)) {
+                $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
+
+                if ($selectedKeys !== null) {
+                    $out[(int) $index] = implode(',', $selectedKeys);
+
+                    continue;
+                }
+
                 $flat = [];
                 foreach ($value as $item) {
                     if ($item === null || $item === '') {
@@ -486,29 +511,27 @@ final class SubmissionFormValueNormalizer
      */
     private function normalizeTestCategoryOnRow(array $row): array
     {
-        $category = strtolower(trim((string) ($row['test_category'] ?? '')));
+        $categoryTokens = SubmissionFormSchemaHelper::testCategoryTokens($row['test_category'] ?? null);
+        $category = $categoryTokens[0] ?? '';
 
         if (isset($row['test_requirements']) && is_string($row['test_requirements'])) {
             $decoded = json_decode($row['test_requirements'], true);
             if (is_array($decoded)) {
                 $row['test_requirements'] = $decoded;
             } else {
-                $selected = strtolower(trim($row['test_requirements']));
-                if ($selected !== '') {
+                $selected = SubmissionFormSchemaHelper::testCategoryTokens($row['test_requirements']);
+                if ($selected !== []) {
                     $row['test_requirements'] = [
-                        'microbiology' => $selected === 'microbiology',
-                        'legionella' => $selected === 'legionella',
-                        'chemistry' => $selected === 'chemistry',
+                        'microbiology' => in_array('microbiology', $selected, true),
+                        'legionella' => in_array('legionella', $selected, true),
+                        'chemistry' => in_array('chemistry', $selected, true),
                     ];
-                    if ($category === '') {
-                        $category = $selected;
+                    if ($categoryTokens === []) {
+                        $categoryTokens = $selected;
+                        $category = $selected[0];
                     }
                 }
             }
-        }
-
-        if ($category === 'chemical_analysis' || $category === 'chemical') {
-            $category = 'chemistry';
         }
 
         if ($category === '' && isset($row['test_requirements'])) {
@@ -521,24 +544,31 @@ final class SubmissionFormValueNormalizer
                 } elseif (! empty($reqs['chemistry'])) {
                     $category = 'chemistry';
                 }
+
+                if ($category !== '') {
+                    $categoryTokens = [$category];
+                }
             }
         }
 
-        if ($category === '') {
+        if ($categoryTokens === []) {
             if (filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $category = 'microbiology';
-            } elseif (filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $category = 'legionella';
-            } elseif (filter_var($row['chemistry'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $category = 'chemistry';
+                $categoryTokens[] = 'microbiology';
             }
+            if (filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $categoryTokens[] = 'legionella';
+            }
+            if (filter_var($row['chemistry'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $categoryTokens[] = 'chemistry';
+            }
+            $category = $categoryTokens[0] ?? '';
         }
 
-        if ($category !== '') {
-            $row['test_category'] = $category;
-            $row['microbiology'] = $category === 'microbiology';
-            $row['legionella'] = $category === 'legionella';
-            $row['chemistry'] = $category === 'chemistry';
+        if ($categoryTokens !== []) {
+            $row['test_category'] = implode(',', $categoryTokens);
+            $row['microbiology'] = in_array('microbiology', $categoryTokens, true);
+            $row['legionella'] = in_array('legionella', $categoryTokens, true);
+            $row['chemistry'] = in_array('chemistry', $categoryTokens, true);
         }
 
         return $row;

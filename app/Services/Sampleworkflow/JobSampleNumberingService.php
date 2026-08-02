@@ -100,6 +100,9 @@ class JobSampleNumberingService
     /**
      * Resolve prefix from TRF row test_category string or legacy boolean flags.
      *
+     * The category may hold several checkbox selections ("microbiology,chemistry");
+     * the first recognised one wins because a sample code carries a single category.
+     *
      * @param  array<string, mixed>  $row
      */
     public function resolveCategoryPrefixFromRow(array $row): string
@@ -107,12 +110,33 @@ class JobSampleNumberingService
         $category = strtolower(trim((string) ($row['test_category'] ?? '')));
 
         if ($category !== '') {
-            return match ($category) {
-                'microbiology', 'micro' => self::PREFIX_MICROBIOLOGY,
-                'legionella' => self::PREFIX_LEGIONELLA,
-                'chemistry', 'chemical_analysis', 'chemical' => self::PREFIX_CHEMISTRY,
-                default => throw new InvalidArgumentException("Unknown test category: {$category}"),
-            };
+            $unknown = [];
+
+            foreach (preg_split('/[,;|]+/', $category) ?: [] as $token) {
+                $token = trim($token);
+
+                // "1" / "0" are legacy artefacts of checkbox maps flattened by value.
+                if ($token === '' || preg_match('/^[01]$/', $token) === 1) {
+                    continue;
+                }
+
+                $prefix = match ($token) {
+                    'microbiology', 'micro' => self::PREFIX_MICROBIOLOGY,
+                    'legionella' => self::PREFIX_LEGIONELLA,
+                    'chemistry', 'chemical_analysis', 'chemical' => self::PREFIX_CHEMISTRY,
+                    default => null,
+                };
+
+                if ($prefix !== null) {
+                    return $prefix;
+                }
+
+                $unknown[] = $token;
+            }
+
+            if ($unknown !== []) {
+                throw new InvalidArgumentException('Unknown test category: '.implode(',', $unknown));
+            }
         }
 
         $microbiology = filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN);

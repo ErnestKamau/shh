@@ -499,6 +499,22 @@ class FormInstanceController extends Controller
     }
 
     /**
+     * Sample Integrity & Acceptance Check page for a submitted commercial request.
+     */
+    public function sampleIntegrityCheck(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to view this form instance.');
+        }
+
+        if ((string) $instance->submission_form_id !== (string) $submissionForm->id) {
+            abort(404);
+        }
+
+        return view('submission-forms.instances.sample-integrity-check', compact('submissionForm', 'instance'));
+    }
+
+    /**
      * Display the specified form instance
      */
     public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)

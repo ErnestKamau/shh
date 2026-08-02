@@ -482,8 +482,14 @@ class SubmissionRequestSampleLineService
             } elseif ($name === 'sample_quantity_unit') {
                 $line['sample_quantity_unit'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'test_category') {
-                $category = strtolower(trim($display !== '' ? $display : $rawValue));
-                if ($category !== '') {
+                $categories = SubmissionFormSchemaHelper::testCategoryTokens($display !== '' ? $display : $rawValue);
+                if ($categories === []) {
+                    $categories = SubmissionFormSchemaHelper::testCategoryTokens(
+                        $this->recoverLegacyCheckboxSelection($element, $rawValue),
+                    );
+                }
+                if ($categories !== []) {
+                    $category = implode(',', $categories);
                     $line['parameter_category'] = $category;
                     if (! isset($line['attributes'])) {
                         $line['attributes'] = [];
@@ -493,12 +499,17 @@ class SubmissionRequestSampleLineService
             } elseif ($name === 'test_requirements') {
                 $decoded = json_decode($rawValue, true);
                 if (! is_array($decoded)) {
-                    $selected = strtolower(trim($rawValue));
-                    if ($selected !== '') {
+                    $selected = SubmissionFormSchemaHelper::testCategoryTokens($rawValue);
+                    if ($selected === []) {
+                        $selected = SubmissionFormSchemaHelper::testCategoryTokens(
+                            $this->recoverLegacyCheckboxSelection($element, $rawValue),
+                        );
+                    }
+                    if ($selected !== []) {
                         $decoded = [
-                            'microbiology' => $selected === 'microbiology',
-                            'legionella' => $selected === 'legionella',
-                            'chemistry' => $selected === 'chemistry',
+                            'microbiology' => in_array('microbiology', $selected, true),
+                            'legionella' => in_array('legionella', $selected, true),
+                            'chemistry' => in_array('chemistry', $selected, true),
                         ];
                     }
                 }
@@ -564,14 +575,9 @@ class SubmissionRequestSampleLineService
                 }
             }
 
-            $category = strtolower(trim((string) ($line['parameter_category'] ?? '')));
-            if ($tests === [] && $category !== '') {
-                $tests[] = match ($category) {
-                    'microbiology' => 'Microbiology',
-                    'legionella' => 'Legionella',
-                    'chemistry', 'chemical', 'chemical_analysis' => 'Chemistry',
-                    default => ucfirst($category),
-                };
+            $categoryLabel = SubmissionFormSchemaHelper::testCategoryLabel($line['parameter_category'] ?? '');
+            if ($tests === [] && $categoryLabel !== '') {
+                $tests[] = $categoryLabel;
             }
 
             if ($tests !== []) {
@@ -1311,6 +1317,11 @@ class SubmissionRequestSampleLineService
             'attributes' => [],
         ];
 
+        if (count($rowSampleTypes['ids']) > 1) {
+            $line['attributes']['sample_type_ids'] = $rowSampleTypes['ids'];
+            $line['attributes']['sample_type_names'] = $rowSampleTypes['names'];
+        }
+
         $foodSampleType = $this->firstFoodSampleTypeLabel($row['sample_type'] ?? null);
         if ($foodSampleType === null) {
             $foodSampleType = $this->firstFoodSampleTypeLabel($row['analysis_type_id'] ?? null);
@@ -1362,22 +1373,17 @@ class SubmissionRequestSampleLineService
                 }
             }
 
-            $category = strtolower(trim((string) ($row['test_category'] ?? $row['parameter_category'] ?? '')));
+            $category = $this->rowTestCategory($row);
             if ($category !== '') {
                 $line['parameter_category'] = $category;
             }
 
             if ($tests === [] && $category !== '') {
-                $tests[] = match ($category) {
-                    'microbiology' => 'Microbiology',
-                    'legionella' => 'Legionella',
-                    'chemistry', 'chemical', 'chemical_analysis' => 'Chemistry',
-                    default => ucfirst($category),
-                };
+                $tests[] = SubmissionFormSchemaHelper::testCategoryLabel($category);
             }
         }
 
-        $category = strtolower(trim((string) ($row['test_category'] ?? $row['parameter_category'] ?? '')));
+        $category = $this->rowTestCategory($row);
         if ($category !== '' && ! isset($line['parameter_category'])) {
             $line['parameter_category'] = $category;
         }
@@ -1712,12 +1718,62 @@ class SubmissionRequestSampleLineService
 
     private function isTestCategoryLabel(string $label): bool
     {
-        return in_array(strtolower(trim($label)), [
-            'microbiology',
-            'chemistry',
-            'chemical',
-            'chemical analysis',
-            'legionella',
-        ], true);
+        foreach (preg_split('/\s*,\s*/', strtolower(trim($label))) ?: [] as $part) {
+            if (! in_array($part, [
+                'microbiology',
+                'chemistry',
+                'chemical',
+                'chemical analysis',
+                'legionella',
+            ], true)) {
+                return false;
+            }
+        }
+
+        return trim($label) !== '';
+    }
+
+    /**
+     * Rows saved before checkbox groups stored option keys hold the stringified
+     * booleans of each option ("1," / "1,1"), so position still identifies the
+     * selection. Map those positions back onto the element's options.
+     */
+    private function recoverLegacyCheckboxSelection(SubmissionFormElement $element, string $rawValue): string
+    {
+        if ($rawValue === '' || preg_match('/^[01]?(,[01]?)*$/', $rawValue) !== 1) {
+            return '';
+        }
+
+        $options = $element->options ?? [];
+        if (! is_array($options) || array_is_list($options) === false) {
+            return '';
+        }
+
+        $selected = [];
+        foreach (explode(',', $rawValue) as $position => $token) {
+            $option = $options[$position] ?? null;
+            if (trim($token) !== '1' || $option === null) {
+                continue;
+            }
+
+            $value = trim((string) (is_array($option) ? ($option['value'] ?? $option['label'] ?? '') : $option));
+            if ($value !== '') {
+                $selected[] = $value;
+            }
+        }
+
+        return implode(',', $selected);
+    }
+
+    /**
+     * Canonical test-category slugs for a TRF row, tolerating multi-select CSVs.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function rowTestCategory(array $row): string
+    {
+        return implode(',', SubmissionFormSchemaHelper::testCategoryTokens(
+            $row['test_category'] ?? $row['parameter_category'] ?? null,
+        ));
     }
 }

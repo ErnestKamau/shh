@@ -228,6 +228,8 @@ class ReceiveSampleRequestTest extends TestCase
         Livewire::actingAs($this->user)
             ->test(WorkflowBoard::class, ['status' => 'Samples Receiving'])
             ->call('openPoCaptureModal', $enquiry->id)
+            ->assertSet('showQuotationAcceptanceModal', true)
+            ->assertSet('quotationAcceptancePoOnly', true)
             ->assertSet('poRequiresPo', true)
             ->set('clientPoNumber', '')
             ->call('submitPoAndReadyForReception')

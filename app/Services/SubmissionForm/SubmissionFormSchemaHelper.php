@@ -152,6 +152,91 @@ final class SubmissionFormSchemaHelper
     }
 
     /**
+     * Checkbox groups post associative maps keyed by option value
+     * (e.g. ['microbiology' => true, 'chemistry' => false]). Returns the selected
+     * option keys, or null when the value is not such a map.
+     *
+     * @param  array<int|string, mixed>  $values
+     * @return list<string>|null
+     */
+    public static function selectedCheckboxKeys(array $values): ?array
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        $selected = [];
+
+        foreach ($values as $key => $value) {
+            if (! is_string($key) || $key === '' || is_array($value)) {
+                return null;
+            }
+
+            if ($value !== null && ! is_bool($value) && ! in_array($value, [0, 1, '', '0', '1', 'true', 'false'], true)) {
+                return null;
+            }
+
+            if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                $selected[] = $key;
+            }
+        }
+
+        return $selected;
+    }
+
+    /**
+     * Canonical test-category slugs from a stored value, dropping legacy
+     * stringified booleans ("1", "1,1") written by the checkbox-group flattening bug.
+     *
+     * @return list<string>
+     */
+    public static function testCategoryTokens(mixed $value): array
+    {
+        if (is_array($value)) {
+            $selected = self::selectedCheckboxKeys($value);
+            $value = implode(',', $selected ?? array_map('strval', array_values($value)));
+        }
+
+        $tokens = [];
+
+        foreach (preg_split('/[,;|]+/', (string) $value) ?: [] as $token) {
+            $token = strtolower(trim($token));
+
+            if ($token === '' || preg_match('/^[01]$/', $token) === 1) {
+                continue;
+            }
+
+            $token = match ($token) {
+                'chemical', 'chemical_analysis' => 'chemistry',
+                'micro' => 'microbiology',
+                default => $token,
+            };
+
+            if (! in_array($token, $tokens, true)) {
+                $tokens[] = $token;
+            }
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * Human readable test category, e.g. "Microbiology, Chemistry".
+     */
+    public static function testCategoryLabel(mixed $value): string
+    {
+        return implode(', ', array_map(
+            static fn (string $token): string => match ($token) {
+                'microbiology' => 'Microbiology',
+                'legionella' => 'Legionella',
+                'chemistry' => 'Chemistry',
+                default => ucwords(str_replace('_', ' ', $token)),
+            },
+            self::testCategoryTokens($value),
+        ));
+    }
+
+    /**
      * Rows section, or a regular section that holds sample-line fields (manual/unlinked TRFs).
      */
     public static function sectionUsesSampleCards(SubmissionFormSection $section): bool

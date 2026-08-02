@@ -342,6 +342,211 @@ class AcceptanceFormService
         });
     }
 
+    /**
+     * Accept from Sample Integrity Check with no signatures.
+     *
+     * Uses enquiry sample configuration (lab sections / analysts already assigned)
+     * and creates the JO/batch + samples in one step.
+     */
+    public function acceptFromIntegrityCheck(
+        string $submissionFormInstanceId,
+        string $submissionRequestId,
+        ?string $createdBy = null,
+        string $modeOfWork = 'Normal',
+        bool $isShelfLife = false,
+    ): AnalysisAcceptanceForm {
+        $enquiry = SampleSubmissionRequest::query()
+            ->with(['currentQuotation.details', 'acceptedQuotation.details', 'customer', 'contact'])
+            ->findOrFail($submissionRequestId);
+
+        $instance = SubmissionFormInstance::query()->findOrFail($submissionFormInstanceId);
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $prefill = $this->pricingService->buildPrefillFromSelection($submissionRequestId, $submissionFormInstanceId);
+        $quotationLines = $this->pricingService->deduplicateRedundantAnalysisTypeLines($prefill['lines'] ?? []);
+        $quotationLocked = (bool) ($prefill['quotation_locked'] ?? false);
+
+        if ($quotationLocked) {
+            $sampleConfigs = $configService->prepareAcceptanceConfigsFromQuotation(
+                $enquiry,
+                $quotationLines,
+                $instance,
+            );
+        } elseif (is_array($enquiry->enquiry_sample_configuration) && $enquiry->enquiry_sample_configuration !== []) {
+            $sampleConfigs = $configService->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration);
+            $sampleConfigs = $configService->normalizeConfigsAnalysisTypeIds($sampleConfigs);
+            $sampleConfigs = $configService->syncParameterKeysFromQuotationLines($sampleConfigs, $quotationLines);
+            foreach ($sampleConfigs as $index => $config) {
+                $sampleConfigs[$index]['parameter_keys'] = $configService->resolveElementIdsForAnalysisTypes(
+                    is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [],
+                    $configService->analysisTypeIdsFromConfig($config),
+                );
+            }
+        } else {
+            $prefillLines = $configService->buildPrefillLinesFromEnquiry(
+                $enquiry,
+                collect($quotationLines)->map(function (array $line, int $index): array {
+                    return array_merge($line, [
+                        'row_index' => $line['row_index'] ?? $index,
+                        'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
+                    ]);
+                })->all()
+            );
+            $sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
+            $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);
+            if ($defaultZoneId !== null) {
+                foreach ($sampleConfigs as $index => $config) {
+                    if (empty($config['zone_id'])) {
+                        $sampleConfigs[$index]['zone_id'] = $defaultZoneId;
+                    }
+                }
+            }
+        }
+
+        $customerId = (string) ($prefill['customer_id'] ?? $enquiry->customer_id ?? '');
+        $sampleConfigs = app(\App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService::class)
+            ->applyPrefillToConfigs($sampleConfigs, $customerId !== '' ? $customerId : null);
+        $sampleConfigs = $configService->syncParameterLabSectionsForConfigs($sampleConfigs);
+        $normalizedConfigs = $configService->normalizeConfigsForStorage(
+            $sampleConfigs,
+            $customerId !== '' ? $customerId : null,
+        );
+
+        $assignedAnalystIds = $configService->collectAssignedAnalystIds($normalizedConfigs);
+        $analystSectionAssignments = $configService->collectAnalystLabSectionAssignments($normalizedConfigs);
+        $leadAnalystId = $assignedAnalystIds[0] ?? null;
+
+        $fallbackSampleTypeId = collect($normalizedConfigs)
+            ->pluck('sample_type_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->first();
+
+        $lines = collect($quotationLines)->map(function (array $line, int $index) use ($fallbackSampleTypeId): array {
+            $sampleTypeId = $line['sample_type_id'] ?? null;
+            if (($sampleTypeId === null || $sampleTypeId === '') && $fallbackSampleTypeId) {
+                $sampleTypeId = $fallbackSampleTypeId;
+            }
+
+            return [
+                'line_no' => $index + 1,
+                'sample_type_id' => $sampleTypeId,
+                'sample_type_name' => $line['sample_type_name'] ?? '',
+                'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                'analysis_type_name' => $line['analysis_type_name'] ?? '',
+                'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                'parameter_label' => $line['parameter_label'] ?? '',
+                'unit_amount' => (float) ($line['unit_amount'] ?? 0),
+                'number_of_samples' => 1,
+                'is_approved' => (bool) ($line['is_approved'] ?? true),
+                'sort_order' => $index,
+            ];
+        })->values()->all();
+
+        $header = [
+            'crm_customer_id' => $customerId !== '' ? $customerId : null,
+            'customer_name' => (string) ($prefill['customer_name'] ?? ''),
+            'request_date' => $prefill['request_date'] ?? now()->format('Y-m-d'),
+            'number_of_samples' => $configService->totalSampleCount($normalizedConfigs),
+            'mode_of_work' => in_array($modeOfWork, ['Normal', 'Express'], true) ? $modeOfWork : 'Normal',
+            'date_of_sampling' => $prefill['date_of_sampling'] ?? null,
+            'sample_configuration_payload' => $normalizedConfigs,
+            'lab_capable' => true,
+            'client_instruction_clear' => true,
+            'is_shelf_life' => $isShelfLife,
+            'assigned_analyst_ids' => $assignedAnalystIds,
+            'lead_analyst_id' => $leadAnalystId,
+            'analyst_lab_section_assignments' => $analystSectionAssignments,
+        ];
+
+        return DB::transaction(function () use (
+            $submissionFormInstanceId,
+            $submissionRequestId,
+            $header,
+            $lines,
+            $createdBy,
+            $prefill,
+            $customerId,
+        ) {
+            $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
+
+            $form = AnalysisAcceptanceForm::query()->create([
+                'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+                'submission_form_instance_id' => $submissionFormInstanceId,
+                'sample_submission_request_id' => $submissionRequestId,
+                'crm_customer_id' => $customerId !== '' ? $customerId : null,
+                'pricelist_id' => $pricelist?->id,
+                'currency_id' => $pricelist?->currency_id,
+                'customer_name' => (string) ($header['customer_name'] ?? ''),
+                'request_date' => $header['request_date'] ?? now()->format('Y-m-d'),
+                'number_of_samples' => (int) ($header['number_of_samples'] ?? 1),
+                'mode_of_work' => (string) ($header['mode_of_work'] ?? 'Normal'),
+                'date_of_sampling' => $header['date_of_sampling'] ?? null,
+                'customer_certification_text' => self::CUSTOMER_CERTIFICATION_TEXT,
+                'customer_signer_name' => null,
+                'customer_signature' => null,
+                'customer_signed_at' => null,
+                'manager_signer_name' => null,
+                'manager_signature' => null,
+                'manager_signed_at' => null,
+                'receipt_notification_payload' => [
+                    'sample_receiving_date' => now()->format('Y-m-d'),
+                    'sample_receiving_time' => now()->format('H:i'),
+                ],
+                'manager_assignment_payload' => [
+                    'assigned_analyst_ids' => array_values(array_filter(
+                        (array) ($header['assigned_analyst_ids'] ?? [])
+                    )),
+                    'lead_analyst_id' => $header['lead_analyst_id'] ?? null,
+                    'technical_signatory_id' => null,
+                    'lab_capable' => true,
+                    'client_instruction_clear' => true,
+                    'analyst_lab_section_assignments' => is_array($header['analyst_lab_section_assignments'] ?? null)
+                        ? $header['analyst_lab_section_assignments']
+                        : [],
+                ],
+                'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
+                    ? $header['sample_configuration_payload']
+                    : null,
+                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
+                'created_by' => $createdBy,
+            ]);
+
+            $this->syncLines($form, $lines, $pricelist);
+            $form->recalculateTotal();
+
+            $this->dispatchSampleCreationJob((string) $form->id);
+
+            $completed = $this->ensureSampleBatchForManagerApproval(
+                $form->fresh(['lines', 'sampleHeader'])
+            )->fresh(['lines', 'sampleHeader']);
+
+            if ($completed->sample_header_id) {
+                $assignedAnalystIds = array_values(array_filter(
+                    (array) ($header['assigned_analyst_ids'] ?? [])
+                ));
+                $leadAnalystId = isset($header['lead_analyst_id']) && is_string($header['lead_analyst_id'])
+                    ? $header['lead_analyst_id']
+                    : null;
+                $analystSectionAssignments = is_array($header['analyst_lab_section_assignments'] ?? null)
+                    ? $header['analyst_lab_section_assignments']
+                    : [];
+
+                $this->routeAcceptedBatch(
+                    $completed,
+                    $leadAnalystId,
+                    null,
+                    $assignedAnalystIds,
+                    $analystSectionAssignments,
+                );
+                $completed = $completed->fresh(['lines', 'sampleHeader']);
+            }
+
+            \App\Jobs\Sampleworkflow\GenerateAcceptanceFormPdfJob::dispatch((string) $completed->id);
+
+            return $completed;
+        });
+    }
+
     private function dispatchSampleCreationJob(string $acceptanceFormId): void
     {
         $runSync = (bool) config('sampleworkflow.acceptance_form.dispatch_sample_creation_sync', true);

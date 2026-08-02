@@ -109,6 +109,11 @@
                         <i class="mdi mdi-sitemap"></i> Chain of custody
                     </button>
                 </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link {{ $activeTab === 'quotation_approvals' ? 'active' : '' }}" wire:click="setTab('quotation_approvals')">
+                        <i class="mdi mdi-file-check-outline"></i> Quotation approvals
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content">
@@ -139,6 +144,17 @@
                         @include('livewire.submission-forms.request-view.tabs.chain-of-custody', [
                             'custodyTimeline' => $this->custodyTimeline,
                             'custodyEnteredLab' => $this->custodyEnteredLab,
+                        ])
+                    </div>
+                @elseif($activeTab === 'quotation_approvals')
+                    <div class="tab-pane-pad">
+                        @include('livewire.submission-forms.request-view.tabs.quotation-approvals', [
+                            'quotationHeader' => $quotationHeader,
+                            'quotationApproverName' => $quotationApproverName,
+                            'commercialEnquiry' => $commercialEnquiry,
+                            'quotationPendingApproval' => $quotationPendingApproval,
+                            'quotationApprovedReadyToSend' => $quotationApprovedReadyToSend,
+                            'canApproveQuotation' => $canApproveQuotation,
                         ])
                     </div>
                 @endif
@@ -223,98 +239,67 @@
     </div>
 
     @if($showQuotationAcceptanceModal)
-        <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
-            <div class="modal-dialog" role="document">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45); overflow-y: auto;">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Customer quotation acceptance</h5>
+                        <h5 class="modal-title">
+                            {{ $quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance' }}
+                        </h5>
                         <button type="button" class="close" wire:click="closeQuotationAcceptanceModal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
-                        <p class="small text-muted mb-3">Capture the customer signature to accept this quotation. The signature will appear on the quotation PDF.</p>
-                        @if(count($quotationAcceptanceContactOptions) > 0)
+                        @if(! $quotationAcceptancePoOnly)
+                            <p class="small text-muted mb-3">Capture the customer signature to accept this quotation. The signature will appear on the quotation PDF.</p>
                             <div class="form-group">
-                                <label>Customer contact</label>
-                                <select class="form-control" wire:model="quotationAcceptanceContactId">
+                                <label>Customer contact <span class="text-danger">*</span></label>
+                                <select class="form-control" wire:model.live="quotationAcceptanceContactId">
                                     <option value="">Select contact...</option>
                                     @foreach($quotationAcceptanceContactOptions as $contact)
                                         <option value="{{ $contact['id'] }}">{{ $contact['label'] }}</option>
                                     @endforeach
                                 </select>
+                                @error('quotationAcceptanceContactId')
+                                    <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                @enderror
+                            </div>
+                            <label class="d-block">Signature <span class="text-danger">*</span></label>
+                            <div class="border rounded p-2 bg-white" wire:ignore>
+                                <canvas id="request-view-quotation-acceptance-canvas" style="width: 100%; height: 160px; touch-action: none;"></canvas>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="request-view-quotation-acceptance-clear">Clear</button>
+                                </div>
+                            </div>
+                            @error('quotationAcceptanceSignature')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
+                            <hr class="my-3">
+                        @endif
+
+                        @if($poRuleMessage !== '')
+                            <div class="alert alert-info py-2 mb-3 small">
+                                {{ $poRuleMessage }}
                             </div>
                         @endif
                         <div class="form-group">
-                            <label for="quotationAcceptanceSignerName">Signer name <span class="text-danger">*</span></label>
-                            <input type="text" id="quotationAcceptanceSignerName" class="form-control" wire:model.defer="quotationAcceptanceSignerName">
-                            @error('quotationAcceptanceSignerName')
-                                <small class="text-danger d-block mt-1">{{ $message }}</small>
-                            @enderror
-                        </div>
-                        <label class="d-block">Signature <span class="text-danger">*</span></label>
-                        <div class="border rounded p-2 bg-white" wire:ignore>
-                            <canvas id="request-view-quotation-acceptance-canvas" style="width: 100%; height: 160px; touch-action: none;"></canvas>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="request-view-quotation-acceptance-clear">Clear</button>
-                            </div>
-                        </div>
-                        <input type="hidden" wire:model="quotationAcceptanceSignature">
-                        @error('quotationAcceptanceSignature')
-                            <small class="text-danger d-block mt-1">{{ $message }}</small>
-                        @enderror
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" id="request-view-quotation-acceptance-submit">Accept quotation</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if($showPoCaptureModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Record customer PO</h5>
-                        <button type="button" class="close" wire:click="closePoCaptureModal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-info py-2 mb-3 small">
-                            {{ $poRuleMessage }}
-                        </div>
-                        <div class="form-group">
                             <label for="clientPoNumber">Client PO number</label>
-                            <input type="text" id="clientPoNumber" class="form-control" wire:model="clientPoNumber" @disabled($poSkipped)>
+                            <input type="text" id="clientPoNumber" class="form-control" wire:model.defer="clientPoNumber">
                             @error('client_po_number')
                                 <small class="text-danger d-block mt-1">{{ $message }}</small>
                             @enderror
                         </div>
-                        <div class="form-group form-check">
-                            <input type="checkbox" class="form-check-input" id="poSkipped" wire:model.live="poSkipped" @disabled(! $poAllowsSkip)>
-                            <label class="form-check-label" for="poSkipped">Skip PO (non-credit / walk-in without PO)</label>
-                            @error('po_skipped')
-                                <small class="text-danger d-block mt-1">{{ $message }}</small>
-                            @enderror
-                        </div>
-                        <div class="form-group mb-0">
-                            <label for="advancePaymentReference">Advance payment reference (optional)</label>
-                            <input type="text" id="advancePaymentReference" class="form-control" wire:model="advancePaymentReference">
-                            @error('advance_payment_reference')
-                                <small class="text-danger d-block mt-1">{{ $message }}</small>
-                            @enderror
-                        </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" wire:click="closePoCaptureModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="submitPoAndReadyForReception" wire:loading.attr="disabled">
-                            Save PO &amp; mark ready for reception
-                        </button>
+                        <button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>
+                        @if($quotationAcceptancePoOnly)
+                            <button type="button" class="btn btn-primary" wire:click="submitPoAndReadyForReception" wire:loading.attr="disabled">
+                                Mark ready for reception
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-primary" id="request-view-quotation-acceptance-submit">Accept quotation</button>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -376,7 +361,38 @@
 
     let requestViewQuotationPad = null;
 
-    function initRequestViewQuotationPad() {
+    function ensureSignaturePadLoaded() {
+        if (typeof SignaturePad !== 'undefined') {
+            return Promise.resolve();
+        }
+
+        if (!window.__signaturePadLoader) {
+            window.__signaturePadLoader = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        return window.__signaturePadLoader;
+    }
+
+    function applyRequestViewQuotationSignature(signature) {
+        if (!requestViewQuotationPad) {
+            return;
+        }
+
+        requestViewQuotationPad.clear();
+        if (signature && String(signature).startsWith('data:image/')) {
+            try {
+                requestViewQuotationPad.fromDataURL(String(signature));
+            } catch (e) {}
+        }
+    }
+
+    function initRequestViewQuotationPad(initialSignature) {
         const canvas = document.getElementById('request-view-quotation-acceptance-canvas');
         const clearBtn = document.getElementById('request-view-quotation-acceptance-clear');
         if (!canvas || typeof SignaturePad === 'undefined') {
@@ -389,20 +405,29 @@
         canvas.getContext('2d').scale(ratio, ratio);
 
         requestViewQuotationPad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
-        requestViewQuotationPad.addEventListener('endStroke', function () {
-            $wire.set('quotationAcceptanceSignature', requestViewQuotationPad.isEmpty() ? '' : requestViewQuotationPad.toDataURL('image/png'));
-        });
 
         if (clearBtn) {
             clearBtn.onclick = function () {
                 requestViewQuotationPad.clear();
-                $wire.set('quotationAcceptanceSignature', '');
             };
         }
+
+        applyRequestViewQuotationSignature(initialSignature || '');
     }
 
-    Livewire.on('quotation-acceptance-modal-opened', () => {
-        setTimeout(initRequestViewQuotationPad, 250);
+    Livewire.on('quotation-acceptance-modal-opened', (payload) => {
+        const data = payload?.detail ?? payload ?? {};
+        const signature = data.signature ?? data[0]?.signature ?? '';
+        requestViewQuotationPad = null;
+        ensureSignaturePadLoaded()
+            .then(() => setTimeout(() => initRequestViewQuotationPad(signature), 250))
+            .catch(() => {});
+    });
+
+    Livewire.on('quotation-acceptance-signature-changed', (payload) => {
+        const data = payload?.detail ?? payload ?? {};
+        const signature = data.signature ?? data[0]?.signature ?? '';
+        setTimeout(() => applyRequestViewQuotationSignature(signature), 50);
     });
 
     document.addEventListener('click', (e) => {
@@ -419,9 +444,7 @@
             return;
         }
 
-        $wire.set('quotationAcceptanceSignature', requestViewQuotationPad.toDataURL('image/png')).then(() => {
-            $wire.call('submitQuotationAcceptanceSignature');
-        });
+        $wire.call('submitQuotationAcceptanceSignature', requestViewQuotationPad.toDataURL('image/png'));
     }, true);
 </script>
 @endscript

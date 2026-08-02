@@ -307,4 +307,54 @@ class AcceptanceFormSampleHeaderServiceTest extends TestCase
 
         $this->assertSame($section->id, $attributes['lab_section_ids']);
     }
+
+    public function test_build_create_attributes_collects_multi_section_parameter_lab_sections(): void
+    {
+        SampleAnalysisStage::query()->create([
+            'name' => 'Request Review',
+            'code' => 'SRR-HDR5',
+            'active' => 1,
+            'sample_workflow' => 'Samples Request Review',
+            'level' => 1,
+        ]);
+
+        $sectionA = (string) Str::uuid();
+        $sectionB = (string) Str::uuid();
+        $sectionC = (string) Str::uuid();
+        $elementId = (string) Str::uuid();
+
+        $customer = CRMCustomer::query()->create([
+            'name' => 'Multi Section Customer',
+            'code' => 'MSC001',
+        ]);
+
+        $acceptanceForm = AnalysisAcceptanceForm::query()->create([
+            'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+            'crm_customer_id' => $customer->id,
+            'customer_name' => 'Multi Section Customer',
+            'request_date' => '2026-05-18',
+            'number_of_samples' => 1,
+            'mode_of_work' => 'Normal',
+            'sample_configuration_payload' => [
+                [
+                    'analysis_type_id' => (string) Str::uuid(),
+                    'parameter_lab_sections' => [
+                        $elementId => [$sectionA, $sectionB, $sectionC],
+                    ],
+                ],
+            ],
+        ]);
+
+        $attributes = app(AcceptanceFormSampleHeaderService::class)->buildCreateAttributes(
+            $acceptanceForm,
+            (string) Str::uuid(),
+            null,
+            null,
+        );
+
+        $expected = implode(',', [$sectionA, $sectionB, $sectionC]);
+        $this->assertSame($expected, $attributes['lab_section_ids']);
+        $this->assertGreaterThan(100, strlen($expected));
+    }
 }
+

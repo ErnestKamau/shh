@@ -50,6 +50,12 @@ class AnalysisType extends Model implements Auditable
     'hybrid_worksheet_id' => 'string',
   ];
   protected $appends = ['labsectionname'];
+
+  public function setNameAttribute(mixed $value): void
+  {
+    $this->attributes['name'] = is_string($value) ? trim($value) : $value;
+  }
+
   public function lab()
   {
     return $this->belongsTo('App\Lab');

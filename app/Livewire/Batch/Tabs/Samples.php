@@ -119,6 +119,16 @@ class Samples extends Component
     public bool $parametersReadOnly = false;
     /** True when rows were filtered to the user's assigned lab section(s). */
     public bool $parametersSectionFiltered = false;
+    /** Sample codes open in the parameters modal (supports multi-sample capture). */
+    public array $parameterModalSampleCodes = [];
+    /** Index into parameterModalSampleCodes for the active sample. */
+    public int $parameterModalSampleIndex = 0;
+    /**
+     * Unsaved parameter drafts keyed by sample code when switching samples in the modal.
+     *
+     * @var array<string, array{parametersForm: array, sampleParameters: array, parameterLabSections: array, dateOfAnalysisBySection: array}>
+     */
+    public array $parametersDraftBySample = [];
     public $activeField = '';
 
     public $activeRowIndex = null;
@@ -2214,6 +2224,31 @@ class Samples extends Component
     {
         try {
             $this->selectedSampleCode = $sampleCode;
+
+            if ($this->parameterModalSampleCodes === []) {
+                $this->parameterModalSampleCodes = [(string) $sampleCode];
+                $this->parameterModalSampleIndex = 0;
+            } else {
+                $index = array_search((string) $sampleCode, $this->parameterModalSampleCodes, true);
+                $this->parameterModalSampleIndex = $index === false ? 0 : (int) $index;
+            }
+
+            if (isset($this->parametersDraftBySample[(string) $sampleCode])) {
+                $draft = $this->parametersDraftBySample[(string) $sampleCode];
+                $this->parametersForm = $draft['parametersForm'] ?? [];
+                $this->sampleParameters = $draft['sampleParameters'] ?? [];
+                $this->parameterLabSections = $draft['parameterLabSections'] ?? [];
+                $this->dateOfAnalysisBySection = $draft['dateOfAnalysisBySection'] ?? [];
+                $access = app(LabSectionResultAccess::class);
+                $user = auth()->user();
+                $this->parametersReadOnly = ! $access->hasLabSectionAssignment($user);
+                $this->parametersSectionFiltered = $access->hasLabSectionAssignment($user);
+                $this->uncertaintyRequired = $this->batch->require_mu == 1;
+                $this->showParametersModal = true;
+
+                return;
+            }
+
             $hasAttachmentColumn = Schema::hasColumn('captured_results', 'batch_attachment_id');
 
             // Find the sample
@@ -2479,6 +2514,7 @@ class Samples extends Component
                     'value_limit_type' => $valueLimitType,
                     'standard_limit_value' => $standardLimitValue,
                     'standard_editable' => false,
+                    'can_edit' => $access->canEditCapturedResult($user, $result),
                     'batch_attachment_id' => $result->batch_attachment_id,
                     'batch_attachment_url' => $batchAttachmentUrl,
                 ];
@@ -2570,6 +2606,155 @@ class Samples extends Component
             Log::error('Error loading sample parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to load parameters: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Open the parameters modal for a single sample (eye icon).
+     */
+    public function viewSingleSampleParameters(string $sampleCode): void
+    {
+        $this->parametersDraftBySample = [];
+        $this->parameterModalSampleCodes = [(string) $sampleCode];
+        $this->parameterModalSampleIndex = 0;
+        $this->viewParameters($sampleCode);
+    }
+
+    /**
+     * Open the parameters modal for all selected sample rows that have a saved sample code.
+     */
+    public function viewParametersForSelected(): void
+    {
+        if ($this->selectedRows === []) {
+            session()->flash('error', 'Select at least one sample to capture results.');
+
+            return;
+        }
+
+        $codes = [];
+        foreach ($this->selectedRows as $index) {
+            if (! isset($this->sampleForms[$index])) {
+                continue;
+            }
+
+            $form = $this->sampleForms[$index];
+            $code = trim((string) ($form['sample_code'] ?? ''));
+            if ($code === '' || empty($form['id'])) {
+                continue;
+            }
+
+            $codes[] = $code;
+        }
+
+        $codes = array_values(array_unique($codes));
+
+        if ($codes === []) {
+            session()->flash('error', 'Selected rows must be saved samples with a sample code.');
+
+            return;
+        }
+
+        $this->parametersDraftBySample = [];
+        $this->parameterModalSampleCodes = $codes;
+        $this->parameterModalSampleIndex = 0;
+        $this->viewParameters($codes[0]);
+    }
+
+    public function switchParameterSample(string $sampleCode): void
+    {
+        $sampleCode = (string) $sampleCode;
+        if ($sampleCode === '' || ! in_array($sampleCode, $this->parameterModalSampleCodes, true)) {
+            return;
+        }
+
+        if ((string) $this->selectedSampleCode === $sampleCode) {
+            return;
+        }
+
+        $this->stashCurrentParametersDraft();
+        $this->viewParameters($sampleCode);
+    }
+
+    public function nextParameterSample(): void
+    {
+        if (count($this->parameterModalSampleCodes) < 2) {
+            return;
+        }
+
+        $next = $this->parameterModalSampleIndex + 1;
+        if ($next >= count($this->parameterModalSampleCodes)) {
+            return;
+        }
+
+        $this->switchParameterSample($this->parameterModalSampleCodes[$next]);
+    }
+
+    public function previousParameterSample(): void
+    {
+        if (count($this->parameterModalSampleCodes) < 2) {
+            return;
+        }
+
+        $prev = $this->parameterModalSampleIndex - 1;
+        if ($prev < 0) {
+            return;
+        }
+
+        $this->switchParameterSample($this->parameterModalSampleCodes[$prev]);
+    }
+
+    private function stashCurrentParametersDraft(): void
+    {
+        $code = (string) ($this->selectedSampleCode ?? '');
+        if ($code === '') {
+            return;
+        }
+
+        $this->parametersDraftBySample[$code] = [
+            'parametersForm' => $this->parametersForm,
+            'sampleParameters' => $this->sampleParameters,
+            'parameterLabSections' => $this->parameterLabSections,
+            'dateOfAnalysisBySection' => $this->dateOfAnalysisBySection,
+        ];
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public function reportingSymbolOptions(): array
+    {
+        return [
+            ['value' => '', 'label' => '—'],
+            ['value' => '=', 'label' => '='],
+            ['value' => '<', 'label' => '<'],
+            ['value' => '>', 'label' => '>'],
+            ['value' => '≤', 'label' => '≤'],
+            ['value' => '≥', 'label' => '≥'],
+        ];
+    }
+
+    public function updatedParametersForm(mixed $value, ?string $key): void
+    {
+        if (! is_string($key) || $key === '') {
+            return;
+        }
+
+        $parts = explode('.', $key);
+        if (count($parts) < 2) {
+            return;
+        }
+
+        $id = (string) $parts[0];
+        $field = (string) $parts[1];
+
+        if (! in_array($field, ['result', 'result_reporting_symbol'], true)) {
+            return;
+        }
+
+        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
+            return;
+        }
+
+        $this->evaluateResult($id);
     }
 
     /**
@@ -2877,21 +3062,26 @@ class Samples extends Component
                 return;
             }
 
+            $editableIds = [];
             foreach (array_keys($this->parametersForm) as $id) {
                 $captured = CapturedResult::query()->find($id);
-                if (! $captured || ! $access->canEditCapturedResult($user, $captured)) {
-                    session()->flash('error', 'You can only save parameters for your assigned lab section(s).');
-                    return;
+                if ($captured && $access->canEditCapturedResult($user, $captured)) {
+                    $editableIds[] = $id;
                 }
             }
 
-            foreach (array_keys($this->parametersForm) as $id) {
+            if ($editableIds === []) {
+                session()->flash('error', $access->denyEditMessage($user));
+                return;
+            }
+
+            foreach ($editableIds as $id) {
                 $this->evaluateResult($id);
             }
 
             // Persist receipt-based start dates even when no result is filed yet.
             // When a result is present, also autofill end date if still empty.
-            foreach (array_keys($this->parametersForm) as $id) {
+            foreach ($editableIds as $id) {
                 if (empty($this->parametersForm[$id]['start_analysis_date'])) {
                     $receiptDate = $this->defaultStartAnalysisDateFromReceipt();
                     if ($receiptDate !== null) {
@@ -2904,7 +3094,8 @@ class Samples extends Component
                 }
             }
 
-            foreach ($this->parametersForm as $data) {
+            foreach ($editableIds as $id) {
+                $data = $this->parametersForm[$id] ?? [];
                 $startDate = $this->normalizeDateOnly($data['start_analysis_date'] ?? null);
                 $endDate = $this->normalizeDateOnly($data['end_analysis_date'] ?? null);
 
@@ -2917,7 +3108,8 @@ class Samples extends Component
                 }
             }
 
-            foreach ($this->parametersForm as $id => $data) {
+            foreach ($editableIds as $id) {
+                $data = $this->parametersForm[$id] ?? [];
                 $captured = CapturedResult::query()->find($id);
                 if (! $captured) {
                     continue;
@@ -2934,9 +3126,12 @@ class Samples extends Component
 
                 $labSectionId = $this->resolveLabSectionIdForSave($captured, $user, $access);
 
+                $symbol = trim((string) ($data['result_reporting_symbol'] ?? ''));
+
                 // Keep resolved lab_section_id; do not trust form-posted section for auth.
                 $saveAttributes = [
                     'result' => ($data['result'] ?? '') === '' || $data['result'] === null ? null : (string) $data['result'],
+                    'result_reporting_symbol' => $symbol === '' ? null : $symbol,
                     'measure_uncertanity' => $data['measure_uncertanity'] ?: null,
                     'remark' => $data['remark'] ?: null,
                     'reporting_unit_id' => $this->resolveReportingUnitId($data['reporting_unit'] ?? null),
@@ -2964,11 +3159,21 @@ class Samples extends Component
 
             $this->persistSampleAnalysisDateRange();
 
+            if ($this->selectedSampleCode) {
+                unset($this->parametersDraftBySample[(string) $this->selectedSampleCode]);
+            }
+
             session()->flash('message', 'Parameters saved successfully.');
             $this->loadIncompleteCapturedResults();
             $this->loadNotCaptured();
             $this->dispatch('resultsUpdated');
-            $this->showParametersModal = false;
+
+            // Stay open when capturing multiple samples so the analyst can continue.
+            if (count($this->parameterModalSampleCodes) > 1) {
+                $this->sampleParameters = $this->parametersForm;
+            } else {
+                $this->showParametersModal = false;
+            }
         } catch (\Exception $e) {
             Log::error('Error saving parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to save parameters: ' . $e->getMessage());
@@ -3551,20 +3756,66 @@ class Samples extends Component
         $this->parametersSectionFiltered = false;
         $this->dateOfAnalysisBySection = [];
         $this->parameterLabSections = [];
+        $this->parameterModalSampleCodes = [];
+        $this->parameterModalSampleIndex = 0;
+        $this->parametersDraftBySample = [];
         $this->showChangeSectionPanel = false;
         $this->changeSectionLabSectionId = '';
         $this->changeSectionAffectBatch = false;
         $this->changeSectionAffectAll = true;
     }
 
-    private function userCanEditParameterRow(string $id): bool
+    public function userCanEditParameterRow(string $id): bool
     {
+        if (array_key_exists('can_edit', $this->parametersForm[$id] ?? [])) {
+            return (bool) $this->parametersForm[$id]['can_edit'];
+        }
+
+        if (array_key_exists('can_edit', $this->sampleParameters[$id] ?? [])) {
+            return (bool) $this->sampleParameters[$id]['can_edit'];
+        }
+
         $captured = CapturedResult::query()->find($id);
         if (! $captured) {
             return false;
         }
 
         return app(LabSectionResultAccess::class)->canEditCapturedResult(auth()->user(), $captured);
+    }
+
+    public function getParametersDenyEditMessageProperty(): string
+    {
+        return app(LabSectionResultAccess::class)->denyEditMessage(auth()->user());
+    }
+
+    public function getHasEditableParametersProperty(): bool
+    {
+        if ($this->parametersReadOnly) {
+            return false;
+        }
+
+        foreach ($this->parametersForm as $id => $row) {
+            if ($this->userCanEditParameterRow((string) $id)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function getHasNonEditableParametersProperty(): bool
+    {
+        if ($this->parametersReadOnly || $this->parametersForm === []) {
+            return false;
+        }
+
+        foreach ($this->parametersForm as $id => $row) {
+            if (! $this->userCanEditParameterRow((string) $id)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ========== Comments & Interpretations Feature ==========

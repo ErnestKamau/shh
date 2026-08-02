@@ -121,6 +121,27 @@ class JobSampleNumberingServiceTest extends TestCase
     }
 
     /** @test */
+    public function it_resolves_prefix_from_first_category_in_multi_select_csv(): void
+    {
+        $this->assertSame(
+            JobSampleNumberingService::PREFIX_MICROBIOLOGY,
+            $this->service->resolveCategoryPrefixFromRow(['test_category' => 'microbiology,chemistry']),
+        );
+    }
+
+    /** @test */
+    public function it_ignores_legacy_stringified_booleans_and_falls_back_to_flags(): void
+    {
+        $this->assertSame(
+            JobSampleNumberingService::PREFIX_CHEMISTRY,
+            $this->service->resolveCategoryPrefixFromRow([
+                'test_category' => '1,1',
+                'chemistry' => true,
+            ]),
+        );
+    }
+
+    /** @test */
     public function it_syncs_report_numbers_for_batch_amendment(): void
     {
         Schema::dropIfExists('sample_details');
