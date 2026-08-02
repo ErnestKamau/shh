@@ -250,6 +250,14 @@
                                             <i class="mdi mdi-clipboard-edit-outline"></i>
                                         </a>
                                     @endif
+                                    <a href="{{ route('system-planner.schedule-sampling.sample-collection-label', ['schedule' => $s->id]) }}"
+                                       class="ss-act ss-act--label"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="Sample collection label"
+                                       aria-label="Sample collection label">
+                                        <i class="mdi mdi-printer"></i>
+                                    </a>
                                     <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="View schedule"><i class="mdi mdi-eye-outline"></i></button>
                                     <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="Edit"><i class="mdi mdi-pencil-outline"></i></button>
                                     <button wire:click="delete('{{ $s->id }}')" class="ss-act ss-act--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this schedule?')"><i class="mdi mdi-trash-can-outline"></i></button>
@@ -913,6 +921,12 @@
                 </div>
                 <div class="modal-footer bg-light p-3" style="flex-shrink:0;">
                     <button type="button" class="btn btn-secondary" wire:click="closeModal"><i class="mdi mdi-close mr-1"></i>Close</button>
+                    <a href="{{ route('system-planner.schedule-sampling.sample-collection-label', ['schedule' => $viewingSchedule->id]) }}"
+                       class="btn btn-outline-primary"
+                       target="_blank"
+                       rel="noopener">
+                        <i class="mdi mdi-printer mr-1"></i>Sample collection label
+                    </a>
                     <button type="button" class="btn btn-primary" wire:click="showEditModal('{{ $viewingSchedule->id }}')"><i class="mdi mdi-pencil mr-1"></i>Edit</button>
                 </div>
             </div>
@@ -1648,6 +1662,7 @@
         text-decoration:none;
     }
     .ss-act--form{color:#856404;background:#fff8e8;border-color:#f0e0b2;}
+    .ss-act--label{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe;}
     .ss-act--view{color:#1b5e20;background:#edf7ee;border-color:#c9e6cb;}
     .ss-act--edit{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe;}
     .ss-act--delete{color:#b91c1c;background:#fef2f2;border-color:#fecaca;}
@@ -1658,7 +1673,7 @@
     .ss-col-tests{min-width:190px;}
     .ss-col-personnel{min-width:120px;}
     .ss-col-forms{width:70px;}
-    .ss-col-actions{width:140px;}
+    .ss-col-actions{width:172px;}
     @media (max-width: 991.98px) {
         .schedule-sampling-page .card-body.p-4{padding:1rem!important;}
         .ss-title{max-width:160px;}

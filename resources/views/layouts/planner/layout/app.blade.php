@@ -466,17 +466,17 @@
 				</div>
 			</a>
 
-			<a href="{{ route('system-planner.schedule-sampling') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.schedule-sampling') ? 'active' : '' }}">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-clock-outline fa-fw mr-1"></span>
-					<span class="menu-collapsed">{{ __('planner.sampling_schedule') }}</span>
-				</div>
-			</a>
-
 			<a href="{{ route('system-planner.fill-sampling-forms') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.fill-sampling-forms*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-edit-outline fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('planner.fill_sampling_forms') }}</span>
+				</div>
+			</a>
+
+			<a href="{{ route('system-planner.schedule-sampling') }}" class="list-group-item list-group-item-action {{ request()->routeIs('system-planner.schedule-sampling') || request()->routeIs('system-planner.schedule-sampling.*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-clock-outline fa-fw mr-1"></span>
+					<span class="menu-collapsed">{{ __('planner.sampling_schedule') }}</span>
 				</div>
 			</a>
 

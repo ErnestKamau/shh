@@ -216,7 +216,10 @@
             $logoSrc = asset('images/company_logo.png');
         }
 
-        $barcodeValue = trim((string) ($instance->form_number ?: ''));
+        $barcodeValue = trim((string) ($barcodeValue ?? ''));
+        if ($barcodeValue === '') {
+            $barcodeValue = trim((string) ($instance->form_number ?? ''));
+        }
         if ($barcodeValue === '' || \Illuminate\Support\Str::isUuid($barcodeValue)) {
             $barcodeValue = '';
         }

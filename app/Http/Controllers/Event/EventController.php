@@ -804,5 +804,36 @@ class EventController extends Controller
     {
         return view('layouts.planner.kpi_reports');
     }
+
+    /**
+     * Sample Collection Label for a System Planner sampling schedule.
+     * Prefers a linked submitted form instance when available; otherwise uses schedule details.
+     */
+    public function samplingScheduleCollectionLabel(string $schedule)
+    {
+        $samplingSchedule = SamplingSchedule::query()
+            ->visibleTo()
+            ->with([
+                'client',
+                'samplePoint',
+                'sample_type',
+                'analysis_type',
+                'submissionFormInstances' => fn ($query) => $query->latest(),
+            ])
+            ->findOrFail($schedule);
+
+        $linkedInstance = $samplingSchedule->submissionFormInstances->first();
+        if ($linkedInstance !== null) {
+            return redirect()->route('submission-forms.instances.sample-collection-label', [
+                'instance' => $linkedInstance->id,
+                'type' => 'collection',
+            ]);
+        }
+
+        $viewData = app(\App\Services\Planner\SamplingScheduleCollectionLabelService::class)
+            ->viewData($samplingSchedule);
+
+        return view('submission-forms.instances.sample-collection-label', $viewData);
+    }
 }
 

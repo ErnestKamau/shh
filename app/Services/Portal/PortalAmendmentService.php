@@ -237,7 +237,7 @@ class PortalAmendmentService
                     ->orWhereExists(function ($sub): void {
                         $sub->select(DB::raw(1))
                             ->from('test_request_report_deliveries')
-                            ->whereColumn('test_request_report_deliveries.batch_id', 'sample_headers.id')
+                            ->whereRaw('test_request_report_deliveries.batch_id = sample_headers.id::text')
                             ->where('channel', 'portal')
                             ->where('status', 'sent');
                     });
