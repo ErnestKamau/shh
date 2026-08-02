@@ -252,7 +252,7 @@ Defined on `FormulaStep`:
 | `input` | User-entered value |
 | `derived` | Expression (Symfony ExpressionLanguage) over prior variables |
 | `lookup` | Lookup table resolution |
-| `parameter_result` | Pulls from related parameter / result context |
+| `parameter_result` | Analyst enters results for one or more selected analytes; posting writes each value to the matching sibling CapturedResult on the same sample |
 | `static_text` | Display only |
 | `checkbox` | Checkbox options (often shared across samples) |
 | `custom_table` | Dynamic table with row drivers |

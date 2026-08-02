@@ -315,20 +315,6 @@
         }
     });
 
-    Livewire.on('notify', (payload) => {
-        const data = payload?.detail ?? payload ?? {};
-        const type = data.type ?? 'info';
-        const message = data.message ?? data[0]?.message ?? '';
-        if (!message) {
-            return;
-        }
-        if (typeof toastr !== 'undefined') {
-            toastr[type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'success')](message);
-            return;
-        }
-        alert(message);
-    });
-
     Livewire.on('acceptance-form-completed', (event) => {
         const redirectUrl = event?.redirectUrl ?? event?.detail?.redirectUrl;
         if (redirectUrl) {

@@ -6,7 +6,7 @@
         'input' => ['icon' => 'mdi-form-textbox', 'color' => 'input', 'hint' => 'Analyst enters a value during worksheet capture'],
         'derived' => ['icon' => 'mdi-function-variant', 'color' => 'derived', 'hint' => 'Calculated from an expression using prior steps'],
         'lookup' => ['icon' => 'mdi-table-search', 'color' => 'lookup', 'hint' => 'Resolves a value from a configured lookup table'],
-        'parameter_result' => ['icon' => 'mdi-flask-outline', 'color' => 'result', 'hint' => 'Posts results for a selected analyte parameter'],
+        'parameter_result' => ['icon' => 'mdi-flask-outline', 'color' => 'result', 'hint' => 'Posts results for selected analyte parameters'],
         'static_text' => ['icon' => 'mdi-text-box-outline', 'color' => 'input', 'hint' => 'Read-only information on the worksheet'],
         'checkbox' => ['icon' => 'mdi-checkbox-marked-outline', 'color' => 'lookup', 'hint' => 'Worksheet-wide checklist at the bottom'],
         'custom_table' => ['icon' => 'mdi-table-large', 'color' => 'derived', 'hint' => 'Per-sample table with dynamic or static rows'],
@@ -304,19 +304,67 @@
             <span class="fs-config-panel-icon"><i class="mdi mdi-flask-outline"></i></span>
             <div>
                 <h6 class="mb-0">Analyte selection</h6>
-                <p class="mb-0 small text-muted">Link this step to the analyte whose result will be posted.</p>
+                <p class="mb-0 small text-muted">Link this step to the analytes whose results will be posted.</p>
             </div>
         </div>
         <div class="fs-config-panel-body">
             <div class="mb-3">
-                <label for="{{ $isEdit ? 'editAnalyteId' : 'analyteId' }}" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
-                <select wire:model.live="analyteId" class="form-select modern-select no-select2 @error('analyteId') is-invalid @enderror" id="{{ $isEdit ? 'editAnalyteId' : 'analyteId' }}" required>
-                    <option value="">Select Analyte</option>
-                    @foreach($analytes as $analyte)
-                        <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                    @endforeach
-                </select>
-                @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analytes *</label>
+                <div class="searchable-dropdown-wrapper fs-analyte-multiselect" wire:key="analyte-multi-select-{{ $stepFormMode }}">
+                    <div class="multi-select-container" wire:click="toggleAnalyteDropdown">
+                        @foreach($analyteIds as $selectedAnalyteId)
+                            @php
+                                $selectedAnalyte = $analytes->firstWhere('id', $selectedAnalyteId);
+                            @endphp
+                            @if($selectedAnalyte)
+                                <span class="tag-badge">
+                                    {{ $selectedAnalyte->name }}
+                                    <i class="mdi mdi-close-circle" wire:click.stop="toggleAnalyte(@js($selectedAnalyteId))"></i>
+                                </span>
+                            @endif
+                        @endforeach
+                        <input
+                            type="text"
+                            wire:model.live="analyteSearch"
+                            wire:focus="openAnalyteDropdown"
+                            placeholder="@if(count($analyteIds) === 0) Search and select analytes…@endif"
+                            class="searchable-input-single"
+                            autocomplete="off"
+                            wire:click.stop
+                        >
+                        @if(count($analyteIds) > 0)
+                            <span class="selected-count">{{ count($analyteIds) }}</span>
+                        @endif
+                        <i class="mdi mdi-chevron-down dropdown-arrow @if($analyteDropdownOpen) rotated @endif"></i>
+                    </div>
+
+                    @if($analyteDropdownOpen)
+                        <div class="dropdown-list">
+                            @if($this->filteredAnalytes->count() > 0)
+                                <div class="options-list">
+                                    @foreach($this->filteredAnalytes as $analyte)
+                                        <div wire:click.stop="toggleAnalyte(@js($analyte->id))"
+                                             class="option-item @if($this->isAnalyteSelected($analyte->id)) selected @endif">
+                                            @if($this->isAnalyteSelected($analyte->id))
+                                                <i class="mdi mdi-check-circle text-primary"></i>
+                                            @endif
+                                            <div class="d-flex flex-column flex-grow-1 min-w-0">
+                                                <span class="fw-bold text-truncate">{{ $analyte->name }}</span>
+                                                <small class="text-muted">Code: {{ $analyte->code }}</small>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="no-results">
+                                    <i class="mdi mdi-alert-circle-outline"></i>
+                                    <span>No analytes found</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+                @error('analyteIds') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
         </div>
     </section>

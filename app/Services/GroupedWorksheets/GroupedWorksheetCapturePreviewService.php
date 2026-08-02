@@ -424,7 +424,11 @@ class GroupedWorksheetCapturePreviewService
 
         return match ((string) $step->step_type) {
             'derived', 'lookup' => ['type' => 'readonly', 'placeholder' => 'Calculated automatically…'],
-            'parameter_result'  => ['type' => 'result',   'placeholder' => 'Posted result…'],
+            'parameter_result' => [
+                'type' => 'parameter_result',
+                'placeholder' => 'Enter result…',
+                'analyte_ids' => $step->analyteIds(),
+            ],
             'static_text' => [
                 'type'    => 'static',
                 'content' => $step->staticTextContent(),

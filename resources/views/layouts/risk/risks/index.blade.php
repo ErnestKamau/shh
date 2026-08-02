@@ -66,13 +66,3 @@
 </main>
 @endsection
 
-@section('script2')
-<script>
-    // Listen for Livewire notifications
-    document.addEventListener('livewire:init', () => {
-        Livewire.on('notify', (event) => {
-            showToast(event[0].message, event[0].type || 'success');
-        });
-    });
-</script>
-@endsection

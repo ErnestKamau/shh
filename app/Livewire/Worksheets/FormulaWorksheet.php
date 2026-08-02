@@ -287,7 +287,9 @@ class FormulaWorksheet extends Component
                     'read_by_user_id' => $existing->read_by_user_id ?? Auth::id(),
                     'read_date' => $existing->read_date?->format('Y-m-d') ?? null,
                     'final_result' => $existing->final_result ?? '',
-                    'steps' => $existing->stepData ? $existing->stepData->pluck('step_value', 'formula_step_id')->toArray() : [],
+                    'steps' => $existing->stepData
+                        ? $this->decodeWorksheetStepValues($existing->stepData->pluck('step_value', 'formula_step_id')->toArray())
+                        : [],
                     'mandatory' => $existing->mandatoryData ? $existing->mandatoryData->pluck('field_value', 'formula_mandatory_field_id')->toArray() : [],
                     'lookup_overrides' => $lookupOverrides,
                 ];
@@ -371,8 +373,17 @@ class FormulaWorksheet extends Component
             }
 
             foreach ($this->formulaSteps as $step) {
-                if (! isset($this->worksheetData[$crId]['steps'][(string) $step->id])) {
-                    $this->worksheetData[$crId]['steps'][(string) $step->id] = $this->sharedInputStepValues[(string) $step->id] ?? '';
+                $stepKey = (string) $step->id;
+                if ($step->isParameterResult()) {
+                    $this->worksheetData[$crId]['steps'][$stepKey] = $this->normalizeParameterResultStepValue(
+                        $step,
+                        $this->worksheetData[$crId]['steps'][$stepKey] ?? null
+                    );
+                    continue;
+                }
+
+                if (! isset($this->worksheetData[$crId]['steps'][$stepKey])) {
+                    $this->worksheetData[$crId]['steps'][$stepKey] = $this->sharedInputStepValues[$stepKey] ?? '';
                 }
             }
 
@@ -529,6 +540,9 @@ class FormulaWorksheet extends Component
                     $this->worksheetData[$crId]['steps'][$stepId] = $value;
                 }
 
+                // Sync parameter_result maps across sibling rows for the same sample.
+                $this->syncParameterResultMapsForSample((string) $captured->sample_detail_id);
+
                 // Run per-sample calculation for final result
                 $this->calculateFormulaResult($crId);
 
@@ -580,9 +594,11 @@ class FormulaWorksheet extends Component
             // Save step data
             if (isset($data['steps'])) {
                 foreach ($data['steps'] as $stepId => $value) {
+                    $persistValue = $this->encodeStepValueForPersistence((string) $stepId, $value);
+
                     $stepDataRecord = $worksheet->stepData()->updateOrCreate(
                         ['formula_step_id' => $stepId],
-                        ['step_value' => $value]
+                        ['step_value' => $persistValue]
                     );
 
                     // Save lookup override if exists for this step
@@ -617,9 +633,17 @@ class FormulaWorksheet extends Component
                 );
             }
 
-            // Update captured result with final result and operator
-            if ($data['final_result']) {
-                $captured->result = $data['final_result'];
+            // Update captured result with final result and operator.
+            // Prefer parameter_result values for this CR's analyte when present.
+            $parameterValueForCaptured = $this->parameterResultValueForCaptured($captured, $data['steps'] ?? []);
+            $resultToWrite = ($parameterValueForCaptured !== null && $parameterValueForCaptured !== '')
+                ? $parameterValueForCaptured
+                : ($data['final_result'] ?? '');
+
+            if ($resultToWrite !== '' && $resultToWrite !== null) {
+                [$reportingSymbol, $numericResult] = $this->parseReportingSymbolAndValue((string) $resultToWrite);
+                $captured->result = $numericResult;
+                $captured->result_reporting_symbol = $reportingSymbol;
 
                 $captured->assignAnalyst($data['done_by_user_id'] ?? Auth::id());
 
@@ -1383,6 +1407,329 @@ class FormulaWorksheet extends Component
         return app(FormulaStepCheckboxOptionsResolver::class)->optionsForStep($step);
     }
 
+    /**
+     * @param  array<string, mixed>  $stepValues
+     * @return array<string, mixed>
+     */
+    protected function decodeWorksheetStepValues(array $stepValues): array
+    {
+        foreach ($this->formulaSteps->where('step_type', 'parameter_result') as $step) {
+            $stepKey = (string) $step->id;
+            if (! array_key_exists($stepKey, $stepValues)) {
+                continue;
+            }
+            $stepValues[$stepKey] = $this->normalizeParameterResultStepValue($step, $stepValues[$stepKey]);
+        }
+
+        return $stepValues;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function normalizeParameterResultStepValue(FormulaStep $step, mixed $raw): array
+    {
+        $map = [];
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $map = $decoded;
+            }
+        } elseif (is_array($raw)) {
+            $map = $raw;
+        }
+
+        $normalized = [];
+        foreach ($step->analyteIds() as $analyteId) {
+            $normalized[$analyteId] = isset($map[$analyteId]) ? (string) $map[$analyteId] : '';
+        }
+
+        return $normalized;
+    }
+
+    protected function encodeStepValueForPersistence(string $stepId, mixed $value): mixed
+    {
+        $step = $this->formulaSteps->firstWhere('id', $stepId);
+        if ($step && $step->isParameterResult() && is_array($value)) {
+            return json_encode($value) ?: '{}';
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, \App\Analyte>
+     */
+    public function analytesForParameterResultStep(FormulaStep $step): \Illuminate\Support\Collection
+    {
+        $ids = $step->analyteIds();
+        if ($ids === []) {
+            return collect();
+        }
+
+        return \App\Analyte::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get()
+            ->sortBy(fn ($analyte) => array_search((string) $analyte->id, $ids, true))
+            ->values();
+    }
+
+    /**
+     * @param  array<string, mixed>  $steps
+     */
+    protected function parameterResultValueForCaptured(CapturedResult $captured, array $steps): ?string
+    {
+        $analyteId = (string) ($captured->analyte_id ?? '');
+        if ($analyteId === '') {
+            return null;
+        }
+
+        foreach ($this->formulaSteps->where('step_type', 'parameter_result') as $step) {
+            $map = $steps[(string) $step->id] ?? [];
+            if (is_string($map)) {
+                $decoded = json_decode($map, true);
+                $map = is_array($decoded) ? $decoded : [];
+            }
+            if (! is_array($map)) {
+                continue;
+            }
+            if (array_key_exists($analyteId, $map) && (string) $map[$analyteId] !== '') {
+                return (string) $map[$analyteId];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    protected function parseReportingSymbolAndValue(string $raw): array
+    {
+        $reportingSymbol = '';
+        $numericResult = $raw;
+
+        if (preg_match('/^(<=|>=|<|>)\s*(.+)$/', trim($raw), $matches)) {
+            $reportingSymbol = $matches[1];
+            $numericResult = trim($matches[2]);
+        }
+
+        return [$reportingSymbol, $numericResult];
+    }
+
+    /**
+     * Merge non-empty parameter_result maps across sibling CRs for one sample.
+     */
+    protected function syncParameterResultMapsForSample(string $sampleDetailId): void
+    {
+        if ($sampleDetailId === '') {
+            return;
+        }
+
+        $siblingIds = $this->capturedResults
+            ->filter(fn ($cr) => (string) $cr->sample_detail_id === $sampleDetailId)
+            ->map(fn ($cr) => (string) $cr->id)
+            ->values()
+            ->all();
+
+        if ($siblingIds === []) {
+            return;
+        }
+
+        foreach ($this->formulaSteps->where('step_type', 'parameter_result') as $step) {
+            $stepKey = (string) $step->id;
+            $merged = [];
+            foreach ($step->analyteIds() as $analyteId) {
+                $merged[$analyteId] = '';
+            }
+
+            foreach ($siblingIds as $crId) {
+                $map = $this->worksheetData[$crId]['steps'][$stepKey] ?? [];
+                if (is_string($map)) {
+                    $decoded = json_decode($map, true);
+                    $map = is_array($decoded) ? $decoded : [];
+                }
+                if (! is_array($map)) {
+                    continue;
+                }
+                foreach ($merged as $analyteId => $current) {
+                    $candidate = isset($map[$analyteId]) ? (string) $map[$analyteId] : '';
+                    if ($candidate !== '') {
+                        $merged[$analyteId] = $candidate;
+                    }
+                }
+            }
+
+            foreach ($siblingIds as $crId) {
+                $this->worksheetData[$crId]['steps'][$stepKey] = $merged;
+            }
+        }
+    }
+
+    /**
+     * Collect analyte_id => raw result string from parameter_result steps for one sample.
+     *
+     * @return array<string, string>
+     */
+    protected function collectParameterResultValuesForSample(string $sampleDetailId): array
+    {
+        $values = [];
+        $siblingIds = $this->capturedResults
+            ->filter(fn ($cr) => (string) $cr->sample_detail_id === $sampleDetailId)
+            ->map(fn ($cr) => (string) $cr->id)
+            ->all();
+
+        foreach ($siblingIds as $crId) {
+            $steps = $this->worksheetData[$crId]['steps'] ?? [];
+            foreach ($this->formulaSteps->where('step_type', 'parameter_result') as $step) {
+                $map = $steps[(string) $step->id] ?? [];
+                if (is_string($map)) {
+                    $decoded = json_decode($map, true);
+                    $map = is_array($decoded) ? $decoded : [];
+                }
+                if (! is_array($map)) {
+                    continue;
+                }
+                foreach ($map as $analyteId => $raw) {
+                    $raw = is_scalar($raw) ? trim((string) $raw) : '';
+                    if ($raw === '') {
+                        continue;
+                    }
+                    $values[(string) $analyteId] = $raw;
+                }
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Apply a result value to a CapturedResult (same path as final_result posting).
+     *
+     * @param  array<string, mixed>  $wsData
+     */
+    protected function applyPostedResultToCaptured(
+        CapturedResult $captured,
+        string $rawResult,
+        array $wsData,
+        string $startDate,
+        string $endDate,
+    ): void {
+        [$reportingSymbol, $numericResult] = $this->parseReportingSymbolAndValue($rawResult);
+
+        $captured->result = $numericResult;
+        $captured->result_reporting_symbol = $reportingSymbol;
+        $captured->assignAnalyst($wsData['done_by_user_id'] ?? Auth::id());
+
+        if ($captured->analysisElement) {
+            $captured->applyAnalysisElementDefaults();
+        }
+
+        $analysis_date = SampleAnalysisDates::where('sample_header_id', $captured->sample_header_id)
+            ->where('sample_detail_id', $captured->sample_detail_id)
+            ->first() ?? new SampleAnalysisDates();
+
+        $decodedDates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
+        $prev_dates = [];
+        if (is_array($decodedDates)) {
+            foreach ($decodedDates as $sectionId => $sectionValue) {
+                if (is_array($sectionValue)) {
+                    $prev_dates[$sectionId] = [
+                        'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
+                        'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
+                    ];
+                    continue;
+                }
+
+                $prev_dates[$sectionId] = [
+                    'start_date' => $sectionValue,
+                    'end_date' => null,
+                ];
+            }
+        }
+
+        if ($captured->lab_section_id) {
+            $prev_dates[(string) $captured->lab_section_id] = [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+            ];
+        }
+
+        $earliestStart = $startDate;
+        foreach ($prev_dates as $val) {
+            $sectionStartDate = is_array($val) ? ($val['start_date'] ?? '') : (string) $val;
+            if ($sectionStartDate !== '' && $sectionStartDate < $earliestStart) {
+                $earliestStart = $sectionStartDate;
+            }
+        }
+
+        $analysis_date->sample_header_id = $captured->sample_header_id;
+        $analysis_date->sample_detail_id = $captured->sample_detail_id;
+        $analysis_date->start_analysis_date = $earliestStart;
+        $analysis_date->analysis_dates = json_encode($prev_dates);
+        $analysis_date->save();
+
+        $captured->save();
+    }
+
+    /**
+     * Post parameter_result maps to sibling CapturedResults on the same sample.
+     *
+     * @return list<string> Captured result IDs updated via parameter results
+     */
+    protected function postParameterResultValuesToSiblings(): array
+    {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        $updatedIds = [];
+
+        $sampleDetailIds = $this->capturedResults
+            ->pluck('sample_detail_id')
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->filter()
+            ->values();
+
+        foreach ($sampleDetailIds as $sampleDetailId) {
+            $values = $this->collectParameterResultValuesForSample($sampleDetailId);
+            if ($values === []) {
+                continue;
+            }
+
+            $sourceCr = $this->capturedResults->first(
+                fn ($cr) => (string) $cr->sample_detail_id === $sampleDetailId
+            );
+            $wsData = $sourceCr
+                ? ($this->worksheetData[(string) $sourceCr->id] ?? [])
+                : [];
+
+            $startDate = $this->startAnalysisDate ?: ($wsData['date'] ?? now()->format('Y-m-d'));
+            $endDate = $this->endAnalysisDate ?: $startDate;
+
+            foreach ($values as $analyteId => $rawResult) {
+                $target = CapturedResult::query()
+                    ->where('sample_header_id', $this->batch->id)
+                    ->where('sample_detail_id', $sampleDetailId)
+                    ->where('analyte_id', $analyteId)
+                    ->first();
+
+                if (! $target) {
+                    continue;
+                }
+
+                if (! $access->canEditCapturedResult($user, $target)) {
+                    continue;
+                }
+
+                $this->applyPostedResultToCaptured($target, $rawResult, $wsData, $startDate, $endDate);
+                $updatedIds[] = (string) $target->id;
+            }
+        }
+
+        return array_values(array_unique($updatedIds));
+    }
+
     public function resolveCustomTableDatasetValue(
         FormulaStepTableColumn $column,
         CapturedResult $captured,
@@ -1582,7 +1929,10 @@ class FormulaWorksheet extends Component
 
         foreach ($this->capturedResults as $captured) {
             $wsData = $this->worksheetData[$captured->id] ?? [];
-            $finalResult = (string) ($wsData['final_result'] ?? '');
+            $parameterValue = $this->parameterResultValueForCaptured($captured, $wsData['steps'] ?? []);
+            $finalResult = ($parameterValue !== null && $parameterValue !== '')
+                ? $parameterValue
+                : (string) ($wsData['final_result'] ?? '');
 
             $reportingSymbol = '';
             $numericResult = $finalResult;
@@ -1915,86 +2265,33 @@ class FormulaWorksheet extends Component
 
             $updatedCount = 0;
 
+            $parameterPostedIds = $this->postParameterResultValuesToSiblings();
+            $updatedCount += count($parameterPostedIds);
+
             foreach ($this->capturedResults as $captured) {
+                $crId = (string) $captured->id;
+                if (in_array($crId, $parameterPostedIds, true)) {
+                    $this->processedCount++;
+                    continue;
+                }
+
                 $wsData = $this->worksheetData[$captured->id] ?? null;
 
                 if (!$wsData || !isset($wsData['final_result']) || $wsData['final_result'] === '') {
                     continue;
                 }
 
-                $sample = $captured->sample;
-
-                // Extract reporting symbol and numeric value
-                $finalResult = $wsData['final_result'];
-                $reportingSymbol = '';
-                $numericResult = $finalResult;
-
-                // Check for reporting symbols (<=, >=, <, >)
-                if (preg_match('/^(<=|>=|<|>)\s*(.+)$/', trim($finalResult), $matches)) {
-                    $reportingSymbol = $matches[1];
-                    $numericResult = trim($matches[2]);
-                }
-
-                // Update captured result with final result and symbol
-                $captured->result = $numericResult;
-                $captured->result_reporting_symbol = $reportingSymbol;
-                $captured->assignAnalyst($wsData['done_by_user_id'] ?? Auth::id());
-
-                if ($captured->analysisElement) {
-                    $captured->applyAnalysisElementDefaults();
-                }
-
-                // Ensure analysis dates exist with proper lab section tracking.
-                // Schema only has start_analysis_date + analysis_dates JSON (no end_analysis_date column).
-                $analysis_date = SampleAnalysisDates::where('sample_header_id', $captured->sample_header_id)
-                    ->where('sample_detail_id', $captured->sample_detail_id)
-                    ->first() ?? new SampleAnalysisDates();
-
                 $startDate = $this->startAnalysisDate ?: ($wsData['date'] ?? now()->format('Y-m-d'));
                 $endDate = $this->endAnalysisDate ?: $startDate;
 
-                $decodedDates = $analysis_date->analysis_dates ? json_decode($analysis_date->analysis_dates, true) : [];
-                $prev_dates = [];
-                if (is_array($decodedDates)) {
-                    foreach ($decodedDates as $sectionId => $sectionValue) {
-                        if (is_array($sectionValue)) {
-                            $prev_dates[$sectionId] = [
-                                'start_date' => $sectionValue['start_date'] ?? $sectionValue['start'] ?? null,
-                                'end_date' => $sectionValue['end_date'] ?? $sectionValue['end'] ?? null,
-                            ];
-                            continue;
-                        }
-
-                        $prev_dates[$sectionId] = [
-                            'start_date' => $sectionValue,
-                            'end_date' => null,
-                        ];
-                    }
-                }
-
-                if ($captured->lab_section_id) {
-                    $prev_dates[(string) $captured->lab_section_id] = [
-                        'start_date' => $startDate,
-                        'end_date' => $endDate,
-                    ];
-                }
-
-                // Keep table start_analysis_date as earliest section start
-                $earliestStart = $startDate;
-                foreach ($prev_dates as $val) {
-                    $sectionStartDate = is_array($val) ? ($val['start_date'] ?? '') : (string) $val;
-                    if ($sectionStartDate !== '' && $sectionStartDate < $earliestStart) {
-                        $earliestStart = $sectionStartDate;
-                    }
-                }
-
-                $analysis_date->sample_header_id = $captured->sample_header_id;
-                $analysis_date->sample_detail_id = $captured->sample_detail_id;
-                $analysis_date->start_analysis_date = $earliestStart;
-                $analysis_date->analysis_dates = json_encode($prev_dates);
-                $analysis_date->save();
-
-                $captured->save();
+                $this->applyPostedResultToCaptured(
+                    $captured,
+                    (string) $wsData['final_result'],
+                    $wsData,
+                    $startDate,
+                    $endDate
+                );
+                $updatedCount++;
                 $this->processedCount++;
             }
 
@@ -2006,20 +2303,21 @@ class FormulaWorksheet extends Component
 
             foreach ($this->capturedResults as $captured) {
                 $wsData = $this->worksheetData[$captured->id] ?? null;
+                if (! $wsData) {
+                    continue;
+                }
 
-                if (!$wsData || !isset($wsData['final_result']) || $wsData['final_result'] === '') {
+                $parameterValue = $this->parameterResultValueForCaptured($captured, $wsData['steps'] ?? []);
+                $finalResult = ($parameterValue !== null && $parameterValue !== '')
+                    ? $parameterValue
+                    : (string) ($wsData['final_result'] ?? '');
+
+                if ($finalResult === '') {
                     continue;
                 }
 
                 $sample = $captured->sample;
-                $finalResult = $wsData['final_result'];
-                $reportingSymbol = '';
-                $numericResult = $finalResult;
-
-                if (preg_match('/^(<=|>=|<|>)\s*(.+)$/', trim($finalResult), $matches)) {
-                    $reportingSymbol = $matches[1];
-                    $numericResult = trim($matches[2]);
-                }
+                [$reportingSymbol, $numericResult] = $this->parseReportingSymbolAndValue($finalResult);
 
                 // Check if user opted to use lookup table as standard
                 if (
@@ -2048,6 +2346,24 @@ class FormulaWorksheet extends Component
 
                 $this->processedCount++;
                 $updatedCount++;
+            }
+
+            // Remarks for sibling CRs posted via parameter_result that are outside this worksheet set
+            foreach ($parameterPostedIds as $postedId) {
+                if ($this->capturedResults->firstWhere('id', $postedId)) {
+                    continue;
+                }
+
+                $sibling = CapturedResult::with(['sample.sample_point', 'analysisElement.analyte'])->find($postedId);
+                if (! $sibling || $sibling->result === null || $sibling->result === '') {
+                    continue;
+                }
+
+                $sample = $sibling->sample;
+                $raw = trim(($sibling->result_reporting_symbol ?? '') . ' ' . $sibling->result);
+                [$reportingSymbol, $numericResult] = $this->parseReportingSymbolAndValue($raw);
+                $sibling->remark = $this->calculateRemark($sibling, $sample, $numericResult, $reportingSymbol);
+                $sibling->save();
             }
 
             // Update worksheet posting metadata

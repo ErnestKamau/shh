@@ -474,25 +474,6 @@
 @section('scripts')
 <script>
     document.addEventListener('livewire:init', function () {
-        Livewire.on('notify', function (data) {
-            const type = data.type || 'info';
-            const message = data.message || '';
-            
-            if (typeof toastr !== 'undefined') {
-                if (type === 'success') {
-                    toastr.success(message);
-                } else if (type === 'error') {
-                    toastr.error(message);
-                } else if (type === 'warning') {
-                    toastr.warning(message);
-                } else {
-                    toastr.info(message);
-                }
-            } else {
-                alert(message);
-            }
-        });
-
         // Close modals on backdrop click
         document.addEventListener('click', function(e) {
             if (e.target.id === 'itemResponseModal') {

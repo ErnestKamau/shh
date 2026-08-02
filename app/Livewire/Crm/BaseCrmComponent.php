@@ -5,12 +5,14 @@ namespace App\Livewire\Crm;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
+use App\Livewire\Concerns\WithToastNotifications;
 use App\Livewire\Crm\Traits\HasCrmPermissions;
 
 abstract class BaseCrmComponent extends Component
 {
     use HasCrmPermissions;
     use WithPagination;
+    use WithToastNotifications;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -48,21 +50,21 @@ abstract class BaseCrmComponent extends Component
     }
 
     /**
-     * Show success flash message and dispatch event
+     * Show success flash message and dispatch toast event
      */
     protected function showSuccess($message)
     {
         session()->flash('success', $message);
-        $this->dispatch('notify', type: 'success', message: $message);
+        $this->toastSuccess($message);
     }
 
     /**
-     * Show error flash message and dispatch event
+     * Show error flash message and dispatch toast event
      */
     protected function showError($message)
     {
         session()->flash('error', $message);
-        $this->dispatch('notify', type: 'error', message: $message);
+        $this->toastError($message);
     }
 
     /**

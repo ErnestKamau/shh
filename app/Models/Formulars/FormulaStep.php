@@ -145,6 +145,31 @@ class FormulaStep extends Model implements Auditable
         return $this->step_type === 'parameter_result';
     }
 
+    /**
+     * Analyte UUIDs linked to a parameter_result step (multi-select).
+     * Prefers step_config.analyte_ids; falls back to legacy analyte_id.
+     *
+     * @return list<string>
+     */
+    public function analyteIds(): array
+    {
+        $config = is_array($this->step_config) ? $this->step_config : [];
+        $fromConfig = $config['analyte_ids'] ?? null;
+
+        if (is_array($fromConfig) && $fromConfig !== []) {
+            return array_values(array_unique(array_filter(array_map(
+                static fn ($id): string => (string) $id,
+                $fromConfig
+            ), static fn (string $id): bool => $id !== '')));
+        }
+
+        if (filled($this->analyte_id)) {
+            return [(string) $this->analyte_id];
+        }
+
+        return [];
+    }
+
     public function isStaticText(): bool
     {
         return $this->step_type === 'static_text';

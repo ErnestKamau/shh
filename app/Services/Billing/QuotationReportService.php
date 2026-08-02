@@ -102,7 +102,6 @@ class QuotationReportService
         $totals = $this->resolveTotals($header, $groups, ! $hasLineItems);
         $reportViewUrl = $this->resolveReportViewUrl($header);
         $company = getActiveCompany();
-        $columnVisibility = $this->resolveTestTableColumnVisibility($groups);
 
         return [
             'reportHeader' => $enrichedHeader,
@@ -120,13 +119,13 @@ class QuotationReportService
             'totals' => $totals,
             'company' => $company,
             'forPdf' => $forPdf,
-            'showMethodColumn' => $columnVisibility['method'],
-            'showLoqColumn' => $columnVisibility['loq'],
-            'showMuColumn' => $columnVisibility['mu'],
-            'showTatColumn' => $columnVisibility['tat'],
-            'showQuantityColumn' => $columnVisibility['quantity'],
-            'showUnitPriceColumn' => $columnVisibility['unit_price'],
-            'showTotalPriceColumn' => $columnVisibility['total_price'],
+            'showMethodColumn' => true,
+            'showLoqColumn' => true,
+            'showMuColumn' => true,
+            'showTatColumn' => false,
+            'showQuantityColumn' => false,
+            'showUnitPriceColumn' => true,
+            'showTotalPriceColumn' => false,
             'reportViewUrl' => $reportViewUrl,
             'qrCode' => $this->buildQrCode(
                 $copy['terms_url'] !== ''
@@ -1026,55 +1025,22 @@ class QuotationReportService
     }
 
     /**
-     * Hide PDF/report columns that have no values across all line rows.
+     * AmSpec Format PDF uses a fixed 6-column table:
+     * S.No. | Tests | Test Method | LOQ | MU% | Unit Price
      *
      * @param  list<array{sample_type_name: string, rows: list<array<string, mixed>>}>  $groups
      * @return array{method: bool, loq: bool, mu: bool, tat: bool, quantity: bool, unit_price: bool, total_price: bool}
      */
     private function resolveTestTableColumnVisibility(array $groups): array
     {
-        $hasMethod = false;
-        $hasLoq = false;
-        $hasMu = false;
-        $hasTat = false;
-        $hasQuantity = false;
-        $hasUnitPrice = false;
-        $hasTotalPrice = false;
-
-        foreach ($groups as $group) {
-            foreach ($group['rows'] as $row) {
-                if (trim((string) ($row['test_method'] ?? '')) !== '') {
-                    $hasMethod = true;
-                }
-                if (trim((string) ($row['loq'] ?? '')) !== '') {
-                    $hasLoq = true;
-                }
-                if (trim((string) ($row['mu_percent'] ?? '')) !== '') {
-                    $hasMu = true;
-                }
-                if (! empty($row['tat']) && (int) $row['tat'] > 0) {
-                    $hasTat = true;
-                }
-                if (! empty($row['quantity']) && (int) $row['quantity'] > 0) {
-                    $hasQuantity = true;
-                }
-                if ((float) ($row['unit_price'] ?? 0) > 0) {
-                    $hasUnitPrice = true;
-                }
-                if ((float) ($row['total_price'] ?? 0) > 0) {
-                    $hasTotalPrice = true;
-                }
-            }
-        }
-
         return [
-            'method' => $hasMethod,
-            'loq' => $hasLoq,
-            'mu' => $hasMu,
-            'tat' => $hasTat,
-            'quantity' => $hasQuantity,
-            'unit_price' => $hasUnitPrice,
-            'total_price' => $hasTotalPrice || $hasUnitPrice,
+            'method' => true,
+            'loq' => true,
+            'mu' => true,
+            'tat' => false,
+            'quantity' => false,
+            'unit_price' => true,
+            'total_price' => false,
         ];
     }
 

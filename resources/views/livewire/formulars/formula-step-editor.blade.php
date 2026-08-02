@@ -160,7 +160,7 @@
                                                         </small>
                                                     @elseif($step['step_type'] === 'parameter_result')
                                                         <small class="text-muted">
-                                                            Analyte ID: {{ $step['analyte_id'] ?? 'N/A' }}
+                                                            {{ $step['analyte_display'] ?? 'N/A' }}
                                                         </small>
                                                     @elseif($step['step_type'] === 'static_text')
                                                         <small class="text-muted">{{ Str::limit($step['step_config']['content'] ?? '-', 50) }}</small>
@@ -1716,6 +1716,15 @@
     .fs-config-panel--lookup .fs-config-panel-icon { background: #fffbeb; color: #d97706; }
     .fs-config-panel--result .fs-config-panel-icon { background: #f5f3ff; color: #7c3aed; }
 
+    /* Allow analyte multi-select dropdown to escape the panel */
+    .fs-config-panel--result {
+        overflow: visible;
+    }
+
+    .fs-config-panel--result .fs-config-panel-body {
+        overflow: visible;
+    }
+
     .fs-config-panel-body {
         padding: 1rem;
     }
@@ -2873,73 +2882,189 @@
     </script>
     
     <style>
-    /* Single-Select Searchable Dropdown Styling */
-    .searchable-input-single {
-        border: none;
-        outline: none;
-        box-shadow: none !important;
-        padding: 4px 0;
-        width: 100%;
-    }
-    
-    .searchable-input-single:focus {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .single-select-container {
+    /* Analyte multi-select (Parameter Result) */
+    .fs-analyte-multiselect {
         position: relative;
+        width: 100%;
+        z-index: 20;
+    }
+
+    .fs-analyte-multiselect .multi-select-container {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
         min-height: 45px;
+        padding: 8px 72px 8px 12px;
         border: 1px solid #ced4da;
         border-radius: 12px;
-        padding: 8px 40px 8px 12px;
-        background: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
+        background: #fff;
+        cursor: text;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    
-    .single-select-container:hover {
+
+    .fs-analyte-multiselect .multi-select-container:hover {
         border-color: #007bff;
         box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
     }
-    
-    .single-select-container:has(.searchable-input-single:focus) {
+
+    .fs-analyte-multiselect .multi-select-container:focus-within {
         border-color: #007bff;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
-    
-    .options-list {
-        padding: 8px;
-        max-height: 300px;
+
+    .fs-analyte-multiselect .searchable-input-single {
+        flex: 1 1 140px;
+        min-width: 140px;
+        width: auto;
+        max-width: 100%;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent;
+        padding: 4px 0;
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        height: auto;
+    }
+
+    .fs-analyte-multiselect .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .fs-analyte-multiselect .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        max-width: 100%;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: #fff;
+        border-radius: 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+
+    .fs-analyte-multiselect .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.85;
+        flex-shrink: 0;
+    }
+
+    .fs-analyte-multiselect .tag-badge i:hover {
+        opacity: 1;
+    }
+
+    .fs-analyte-multiselect .selected-count {
+        position: absolute;
+        right: 36px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #007bff;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+        pointer-events: none;
+    }
+
+    .fs-analyte-multiselect .dropdown-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.2s ease;
+        pointer-events: none;
+        font-size: 20px;
+        color: #6c757d;
+    }
+
+    .fs-analyte-multiselect .dropdown-arrow.rotated {
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+    .fs-analyte-multiselect .dropdown-list {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        width: 100%;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+        z-index: 1080;
+        max-height: 280px;
         overflow-y: auto;
     }
-    
-    .option-item {
+
+    .fs-analyte-multiselect .options-list {
+        padding: 8px;
+    }
+
+    .fs-analyte-multiselect .option-item {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 10px;
+        width: 100%;
         padding: 10px 12px;
         border-radius: 8px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: background 0.15s ease;
         font-size: 14px;
     }
-    
-    .option-item:hover {
+
+    .fs-analyte-multiselect .option-item:hover {
         background: #f8f9fa;
     }
-    
-    .option-item.selected {
+
+    .fs-analyte-multiselect .option-item.selected {
         background: rgba(0, 123, 255, 0.08);
-        font-weight: 500;
     }
-    
-    .option-item i {
+
+    .fs-analyte-multiselect .option-item i {
         font-size: 18px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .fs-analyte-multiselect .no-results {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .fs-analyte-multiselect .no-results i {
+        display: block;
+        font-size: 24px;
+        margin-bottom: 8px;
     }
     </style>
+
+    <script>
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.fs-analyte-multiselect')) {
+                return;
+            }
+            if (typeof Livewire === 'undefined') {
+                return;
+            }
+            Livewire.all().forEach(function (component) {
+                if (component.get && typeof component.get('analyteDropdownOpen') !== 'undefined') {
+                    component.set('analyteDropdownOpen', false);
+                }
+            });
+        });
+    </script>
 
     @include('livewire.formulars.partials.formula-step-table-modals')
 </div>

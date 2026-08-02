@@ -624,17 +624,3 @@
     <div class="modal-backdrop fade show"></div>
     @endif
 </div>
-
-@section('scripts')
-<script>
-    document.addEventListener('livewire:init', () => {
-        Livewire.on('notify', (data) => {
-            const type = data[0].type || 'info';
-            const message = data[0].message || '';
-            
-            // You can integrate with your notification system here
-            alert(message);
-        });
-    });
-</script>
-@endsection

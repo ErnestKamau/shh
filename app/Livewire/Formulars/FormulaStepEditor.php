@@ -47,7 +47,12 @@ class FormulaStepEditor extends Component
     public $description = '';
     public $lookupTableId = '';
     public $lookupConfig = [];
-    public $analyteId = null;
+    /** @var list<string> */
+    public array $analyteIds = [];
+
+    public string $analyteSearch = '';
+
+    public bool $analyteDropdownOpen = false;
 
     public array $stepConfig = [];
 
@@ -230,7 +235,8 @@ class FormulaStepEditor extends Component
         'label' => 'required|string|max:255',
         'description' => 'nullable|string',
         'lookupTableId' => 'nullable|exists:lookup_tables,id',
-        'analyteId' => 'nullable|exists:analytes,id',
+        'analyteIds' => 'nullable|array',
+        'analyteIds.*' => 'exists:analytes,id',
     ];
 
     protected function mandatoryFieldRules(): array
@@ -406,7 +412,18 @@ class FormulaStepEditor extends Component
             ? collect()
             : LookupTable::query()->whereIn('id', $lookupTableIds)->pluck('name', 'id');
 
-        $this->steps = $steps->map(function (FormulaStep $step) use ($lookupTableNames) {
+        $parameterAnalyteIds = $steps
+            ->filter(fn (FormulaStep $step) => $step->isParameterResult())
+            ->flatMap(fn (FormulaStep $step) => $step->analyteIds())
+            ->unique()
+            ->values()
+            ->all();
+
+        $analyteNames = $parameterAnalyteIds === []
+            ? collect()
+            : Analyte::query()->whereIn('id', $parameterAnalyteIds)->pluck('name', 'id');
+
+        $this->steps = $steps->map(function (FormulaStep $step) use ($lookupTableNames, $analyteNames) {
             $row = $step->toArray();
 
             if ($step->isLookup()) {
@@ -414,6 +431,15 @@ class FormulaStepEditor extends Component
                 $row['lookup_table_display'] = $tableId === null
                     ? 'N/A'
                     : ($lookupTableNames[$tableId] ?? '(missing)');
+            }
+
+            if ($step->isParameterResult()) {
+                $names = [];
+                foreach ($step->analyteIds() as $analyteId) {
+                    $names[] = $analyteNames[$analyteId] ?? '(missing)';
+                }
+                $row['analyte_ids'] = $step->analyteIds();
+                $row['analyte_display'] = $names === [] ? 'N/A' : implode(', ', $names);
             }
 
             return $row;
@@ -450,7 +476,9 @@ class FormulaStepEditor extends Component
         $this->description = $step->description ?? '';
         $this->lookupConfig = $step->lookup_config ?? [];
         $this->lookupTableId = $step->lookup_config['lookup_table_id'] ?? '';
-        $this->analyteId = $step->analyte_id;
+        $this->analyteIds = $step->analyteIds();
+        $this->analyteSearch = '';
+        $this->analyteDropdownOpen = false;
         $this->loadStepTypeConfigFromStep($step);
         $this->showEditStepModal = true;
     }
@@ -831,7 +859,9 @@ class FormulaStepEditor extends Component
         $this->expression = '';
         $this->lookupTableId = '';
         $this->lookupConfig = [];
-        $this->analyteId = null;
+        $this->analyteIds = [];
+        $this->analyteSearch = '';
+        $this->analyteDropdownOpen = false;
         $this->staticTextContent = '';
         $this->checkboxOptionsMode = 'static';
         $this->checkboxStaticOptions = [];
@@ -842,6 +872,58 @@ class FormulaStepEditor extends Component
         $this->row_driver = 'captured_result';
         $this->allow_manual_rows = false;
         $this->resetPcrPlateFields();
+    }
+
+    public function toggleAnalyteDropdown(): void
+    {
+        $this->analyteDropdownOpen = ! $this->analyteDropdownOpen;
+    }
+
+    public function openAnalyteDropdown(): void
+    {
+        $this->analyteDropdownOpen = true;
+    }
+
+    public function updatedAnalyteSearch(): void
+    {
+        $this->analyteDropdownOpen = true;
+    }
+
+    public function toggleAnalyte(string $analyteId): void
+    {
+        $index = array_search($analyteId, $this->analyteIds, true);
+        if ($index !== false) {
+            unset($this->analyteIds[$index]);
+            $this->analyteIds = array_values($this->analyteIds);
+        } else {
+            $this->analyteIds[] = $analyteId;
+        }
+
+        $this->analyteSearch = '';
+        $this->analyteDropdownOpen = true;
+    }
+
+    public function isAnalyteSelected(string $analyteId): bool
+    {
+        return in_array($analyteId, $this->analyteIds, true);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Analyte>
+     */
+    public function getFilteredAnalytesProperty()
+    {
+        $analytes = Analyte::orderBy('name')->get();
+        if ($this->analyteSearch === '') {
+            return $analytes;
+        }
+
+        $search = strtolower($this->analyteSearch);
+
+        return $analytes->filter(function (Analyte $analyte) use ($search) {
+            return str_contains(strtolower((string) $analyte->name), $search)
+                || str_contains(strtolower((string) $analyte->code), $search);
+        })->values();
     }
 
     public function updatedCheckboxDatasetSourceTable(): void
@@ -1147,7 +1229,9 @@ class FormulaStepEditor extends Component
         $this->description = '';
         $this->lookupTableId = '';
         $this->lookupConfig = [];
-        $this->analyteId = null;
+        $this->analyteIds = [];
+        $this->analyteSearch = '';
+        $this->analyteDropdownOpen = false;
         $this->staticTextContent = '';
         $this->checkboxOptionsMode = 'static';
         $this->checkboxStaticOptions = [];
@@ -1251,6 +1335,12 @@ class FormulaStepEditor extends Component
             }
         }
 
+        if ($this->stepType === 'parameter_result' && count($this->analyteIds) === 0) {
+            $this->addError('analyteIds', 'Select at least one analyte.');
+
+            return false;
+        }
+
         return true;
     }
 
@@ -1260,6 +1350,9 @@ class FormulaStepEditor extends Component
     protected function buildStepConfigPayload(): array
     {
         return match ($this->stepType) {
+            'parameter_result' => [
+                'analyte_ids' => array_values($this->analyteIds),
+            ],
             'static_text' => ['content' => trim($this->staticTextContent)],
             'checkbox' => [
                 'options_mode' => $this->checkboxOptionsMode,
@@ -1314,7 +1407,17 @@ class FormulaStepEditor extends Component
      */
     protected function buildStepPayload(array $lookupConfig): array
     {
-        $isCalculable = in_array($this->stepType, ['input', 'derived', 'lookup', 'parameter_result'], true);
+        $usesStepConfig = in_array($this->stepType, [
+            'parameter_result',
+            'static_text',
+            'checkbox',
+            'custom_table',
+            'pcr_plate_map',
+        ], true);
+
+        $analyteIds = $this->stepType === 'parameter_result'
+            ? array_values($this->analyteIds)
+            : [];
 
         return [
             'formula_version_id' => $this->formulaVersion->id,
@@ -1325,7 +1428,7 @@ class FormulaStepEditor extends Component
             'label' => $this->label,
             'description' => $this->description,
             'lookup_config' => $this->stepType === 'lookup' ? $lookupConfig : [],
-            'step_config' => $isCalculable ? null : $this->buildStepConfigPayload(),
+            'step_config' => $usesStepConfig ? $this->buildStepConfigPayload() : null,
             'table_mode' => $this->stepType === 'custom_table' ? $this->table_mode : null,
             'row_driver' => $this->stepType === 'custom_table' && $this->table_mode === 'dynamic'
                 ? $this->row_driver
@@ -1334,7 +1437,7 @@ class FormulaStepEditor extends Component
             'allow_manual_rows' => $this->stepType === 'custom_table' && $this->table_mode === 'dynamic'
                 ? $this->allow_manual_rows
                 : false,
-            'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
+            'analyte_id' => $analyteIds[0] ?? null,
         ];
     }
 
