@@ -2817,10 +2817,10 @@
     });
 </script>
 <script src="{{ asset('js/method-sequences.js') }}"></script>
+@livewireScripts
 @include('partials.toast-notifications')
 @yield('script')
 @stack('scripts')
-@livewireScripts
 @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)
 <div id="select-default-company" class="modal fade" role="dialog">
     <div class="modal-dialog">
