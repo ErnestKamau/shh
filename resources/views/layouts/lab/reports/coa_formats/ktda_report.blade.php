@@ -511,17 +511,20 @@
             </div>
             @endif
             
-            @if($sample->ammendment_number > 1)
+            @if(isset($ammendment->id) || (int) ($sample->ammendment_number ?? 0) >= 1)
                 @php
                     $display = $amendmentDisplay ?? [];
                     $revisionText = $display['formatted_revision']
                         ?? $display['formattedRevision']
                         ?? ('R' . str_pad((string) ($ammendment->version_number ?? $sample->ammendment_number), 2, '0', STR_PAD_LEFT));
                     $revisionLabel = $display['revision_label'] ?? $display['revisionLabel'] ?? 'Revision No.';
+                    $reasonLabel = $display['reason_label'] ?? $display['reasonLabel'] ?? 'Amendment Reason';
+                    $supersedesText = $display['supersedes_text'] ?? $display['supersedesText'] ?? 'This report supersedes the original report';
                 @endphp
                 <div class="comments" style="font-size: 8px !important;width:100%">
+                    <b>{{ $supersedesText }}</b><br>
                     <b>{{ $revisionLabel }} :</b> {{ $revisionText }}<br>
-                    {{$ammendment->reason}}
+                    <b>{{ $reasonLabel }} :</b> {{ $ammendment->reason ?? '' }}
                 </div>
             @endif
             

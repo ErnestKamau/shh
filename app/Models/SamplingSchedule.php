@@ -32,6 +32,7 @@ class SamplingSchedule extends Model implements Auditable
         'sample_details',
         'number_of_samples',
         'frequency',
+        'recurrence_group_id',
         'notify_client',
         'personnel_id',
         'personnel_ids',
@@ -268,6 +269,27 @@ class SamplingSchedule extends Model implements Auditable
     public function collectionStatus(): string
     {
         return app(\App\Services\Planner\SamplingScheduleCollectionProgress::class)->status($this);
+    }
+
+    /**
+     * Whether this schedule belongs to a recurring series.
+     */
+    public function isPartOfRecurringSeries(): bool
+    {
+        return ! empty($this->recurrence_group_id);
+    }
+
+    /**
+     * All occurrences in this schedule's recurring series (including itself),
+     * ordered chronologically.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<self>
+     */
+    public function seriesOccurrencesQuery(): Builder
+    {
+        return self::query()
+            ->where('recurrence_group_id', $this->recurrence_group_id)
+            ->orderBy('sampling_datetime');
     }
 
     public function submissionFormInstances()

@@ -316,11 +316,4 @@ class PricelistImporter extends BaseImporter
         return $currency?->id;
     }
 
-    protected function resolveCodeFromName(string $name): string
-    {
-        $slug = preg_replace('/[^A-Za-z0-9]/', '_', $name);
-        $slug = preg_replace('/_+/', '_', $slug);
-        $slug = trim($slug, '_');
-        return strtoupper(substr($slug, 0, 100));
-    }
 }

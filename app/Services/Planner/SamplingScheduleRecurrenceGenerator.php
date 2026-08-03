@@ -14,6 +14,8 @@ class SamplingScheduleRecurrenceGenerator
      * The provided schedule is treated as the first occurrence. Additional
      * occurrences are cloned with advanced sampling_datetime values through a
      * one-year horizon (two years for Annually so at least one repeat exists).
+     * The first occurrence and every clone share a recurrence_group_id so the
+     * series can be listed as one schedule and managed per occurrence.
      *
      * @return list<SamplingSchedule>
      */
@@ -22,6 +24,11 @@ class SamplingScheduleRecurrenceGenerator
         $frequency = trim((string) ($first->frequency ?? 'One-time'));
         if ($frequency === '' || $frequency === 'One-time') {
             return [];
+        }
+
+        if (empty($first->recurrence_group_id)) {
+            $first->recurrence_group_id = (string) Str::uuid();
+            $first->save();
         }
 
         $start = Carbon::parse($first->sampling_datetime);

@@ -14,10 +14,7 @@
                         </div>
                         <div class="d-flex flex-wrap align-items-center element-header-actions">
                             <button type="button" wire:click="openImportModal" class="btn btn-outline-info element-add-btn">
-                                <i class="mdi mdi-upload"></i> Import
-                            </button>
-                            <button type="button" wire:click="downloadImportTemplate" class="btn btn-outline-secondary element-add-btn">
-                                <i class="mdi mdi-download"></i> Template
+                                <i class="mdi mdi-file-upload-outline"></i> Import / Template
                             </button>
                             <button wire:click="showCreateElementModal" class="btn btn-outline-primary element-add-btn">
                                 <i class="mdi mdi-plus"></i> Add Parameter
@@ -761,21 +758,29 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="mdi mdi-upload"></i> Import Parameters
+                            <i class="mdi mdi-file-upload-outline"></i> Import / Template
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeImportModal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info mb-3">
                             <i class="mdi mdi-information-outline"></i>
-                            Upload an Excel file to import analytes into
+                            Download the template, fill it in, then upload to import parameters into
                             <strong>{{ $this->analysisType->name ?? 'this analysis type' }}</strong>.
-                            Columns: <code>parameter</code>, <code>reporting_unit</code>, <code>method</code>, <code>accredited</code>
-                            (1/Yes = accredited, 0/No = non-accredited).
+                            <div class="mt-2 small">
+                                <strong>Required:</strong>
+                                <code>parameter</code>, <code>method</code>
+                                &nbsp;·&nbsp;
+                                <strong>Optional:</strong>
+                                <code>reporting_unit</code>, <code>accredited</code>
+                                (1/Yes = accredited),
+                                <code>lab_section</code>, <code>operator</code>,
+                                <code>tat</code>, <code>equipment</code>
+                            </div>
                         </div>
 
                         <div class="mb-3">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="downloadImportTemplate" wire:loading.attr="disabled" wire:target="downloadImportTemplate">
+                            <button type="button" class="btn btn-outline-secondary" wire:click="downloadImportTemplate" wire:loading.attr="disabled" wire:target="downloadImportTemplate">
                                 <span wire:loading.remove wire:target="downloadImportTemplate">
                                     <i class="mdi mdi-download"></i> Download Template
                                 </span>

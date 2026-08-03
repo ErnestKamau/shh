@@ -383,10 +383,23 @@
                 <img src="{{ $report_logo }}" alt="Company Logo" class="company-logo">
             </div>
             <div class="header-right" style="line-height: 1.4;">
+                @php
+                    $coaReportNumber = $amendmentDisplay['formatted_report_number']
+                        ?? $amendmentDisplay['formattedReportNumber']
+                        ?? null;
+                    if (empty($coaReportNumber)) {
+                        $firstCoaRow = collect($ungrouped_samples ?? [])->first()
+                            ?? collect($grouped_samples ?? [])->flatten(1)->first();
+                        $coaReportNumber = is_array($firstCoaRow)
+                            ? ($firstCoaRow['sample']->report_number ?? null)
+                            : null;
+                    }
+                    $coaReportNumber = $coaReportNumber ?: $batch->batch_code;
+                @endphp
                 <span>FM/QA/100</span><br>
                 <span>Revision 2</span><br>
                 <span>Issue Date: 16/03/2023</span><br>
-                <span>Report No: </span> {{ $batch->batch_code }}<br>
+                <span>Report No: </span> {{ $coaReportNumber }}<br>
                 <span>Customer: </span> {{ $customer->name }}<br>
                 <span>Address: </span> {{ $customer->address ?? 'N/A' }}<br>
                 <span>P.O BOX: </span> {{ $customer->postal_address ?? 'N/A' }}<br>
@@ -613,7 +626,9 @@
                     ?? ('R' . str_pad((string) ($ammendment->version_number ?? ($batch->is_amendment ?? 1)), 2, '0', STR_PAD_LEFT));
                 $revisionLabel = $display['revision_label'] ?? $display['revisionLabel'] ?? 'Revision No.';
                 $reasonLabel = $display['reason_label'] ?? $display['reasonLabel'] ?? 'Amendment Reason';
+                $supersedesText = $display['supersedes_text'] ?? $display['supersedesText'] ?? 'This report supersedes the original report';
             @endphp
+            <p><strong>{{ $supersedesText }}</strong></p>
             <p><strong>{{ $revisionLabel }}:</strong> {{ $revisionText }}</p>
             <p><strong>{{ $reasonLabel }}:</strong> {{ $ammendment->reason }}</p>
             @endif

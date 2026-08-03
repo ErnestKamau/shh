@@ -59,7 +59,7 @@
 								{{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button> --}}
 							</td>
 							<td valign="center">{{ $loop->iteration }} </td>
-							<td>{{ $analyte->code }}</td>
+							<td><strong>{{ $analyte->plainReportDisplay() }}</strong></td>
 							<td><span class="text-primary btn" style="padding: 0px !important;font-size:13px" data-methods='{{ json_encode(array_values($methods)) }}' data-equipments='{{ json_encode(array_values($equipments)) }}' data-analyte='{{ json_encode($analyte) }}' data-target="#edit-analyte" data-toggle="modal">{{ $analyte->name }}</span> </td>
 							<td>{{ $analyte->common_name }}</td>
 							<td>{{ $analyte->decimal_places }}</td>

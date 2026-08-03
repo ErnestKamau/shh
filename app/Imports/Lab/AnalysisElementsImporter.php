@@ -6,7 +6,6 @@ use App\AnalysisElements;
 use App\AnalysisType;
 use App\Analyte;
 use App\Imports\BaseImporter;
-use App\Models\Equipments\Equipment;
 use App\Models\MethodSequences\MethodSequence;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\SampleAnalysisStage;
@@ -47,6 +46,7 @@ class AnalysisElementsImporter extends BaseImporter
         $analyteCode = trim((string) ($row['analyte_code'] ?? ''));
         $sectionCode = trim((string) ($row['lab_section_code'] ?? ''));
         $equipmentCode = trim((string) ($row['equipment_code'] ?? ''));
+        $equipmentName = trim((string) ($row['equipment'] ?? $row['equipment_name'] ?? ''));
 
         $analysisType = AnalysisType::where('code', $analysisTypeCode)
             ->where('company_id', $this->batch->company_id)
@@ -70,7 +70,10 @@ class AnalysisElementsImporter extends BaseImporter
             'analysis_type_id' => $analysisType?->id,
             'analyte_id' => $analyte?->id,
             'lab_section_id' => $this->resolveLabSectionId($sectionCode, $analysisType?->lab_id),
-            'equipment_id' => $this->resolveEquipmentId($equipmentCode !== '' ? $equipmentCode : null),
+            'equipment_id' => $this->resolveEquipmentId(
+                $equipmentCode !== '' ? $equipmentCode : null,
+                $equipmentName !== '' ? $equipmentName : null,
+            ),
             'lod' => $row['lod'] ?? null,
             'hod' => $row['hod'] ?? null,
             'level' => $row['level'] ?? null,
@@ -150,21 +153,5 @@ class AnalysisElementsImporter extends BaseImporter
 
             return null;
         }
-    }
-
-    protected function resolveEquipmentId(?string $equipmentCode): ?string
-    {
-        if ($equipmentCode === null || $equipmentCode === '') {
-            return null;
-        }
-
-        $equip = Equipment::query()
-            ->where(function ($q) use ($equipmentCode) {
-                $q->where('equipment_number', $equipmentCode)
-                    ->orWhere('name', $equipmentCode);
-            })
-            ->first();
-
-        return $equip?->id ? (string) $equip->id : null;
     }
 }

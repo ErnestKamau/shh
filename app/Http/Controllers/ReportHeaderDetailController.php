@@ -474,8 +474,12 @@ class ReportHeaderDetailController extends Controller
 			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
 			$amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? 1);
+			if ($amendmentVersion > 1 || ! empty($ammendment?->id)) {
+				app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+					->applyAmendmentNumbering($batch, max(1, $amendmentVersion));
+			}
 			$amendmentDisplay = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-				->amendmentViewData(max(1, $amendmentVersion));
+				->amendmentViewData(max(1, $amendmentVersion), (string) $batch->batch_code);
 
 			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.report_formats', compact('sample', 'company', 'qrcode', 'report_logo', 'sadc_logo', 'ilac_logo', 'batch_approvers', 'pdf', 'batch', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'amendmentDisplay'));
 			app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf, $company);
@@ -1221,8 +1225,12 @@ class ReportHeaderDetailController extends Controller
 			'customerReference'
 		);
 		$amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? 1);
+		if ($amendmentVersion > 1 || ! empty($ammendment?->id)) {
+			app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+				->applyAmendmentNumbering($batch, max(1, $amendmentVersion));
+		}
 		$data['amendmentDisplay'] = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-			->amendmentViewData(max(1, $amendmentVersion));
+			->amendmentViewData(max(1, $amendmentVersion), (string) $batch->batch_code);
 		$data['reportFormat'] = $reportFormatModel;
 		$data['grouped_samples'] = $groupedSamples;
 		$data['ungrouped_samples'] = $ungroupedSamples;

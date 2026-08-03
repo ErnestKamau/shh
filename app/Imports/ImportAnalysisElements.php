@@ -4,12 +4,16 @@ namespace App\Imports;
 
 use App\AnalysisElements;
 use App\AnalysisMethod;
-use App\Analyte;
 use App\AnalysisType;
+use App\Analyte;
+use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
+use App\SampleAnalysisStage;
+use App\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -53,7 +57,7 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
             }
 
             try {
-                DB::transaction(function () use ($rowData, $parameter, $methodName): void {
+                DB::transaction(function () use ($rowData, $parameter, $methodName, $rowNumber): void {
                     $method = $this->resolveAnalysisMethod($methodName);
 
                     $ltMethodName = trim((string) $this->value($rowData, ['ltmethod', 'ltm_method']));
@@ -91,18 +95,47 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
                         ]);
                     }
 
+                    $labSectionLabel = trim((string) $this->value($rowData, [
+                        'lab_section', 'lab_section_name', 'lab_section_code', 'section',
+                    ], ''));
+                    $operatorLabel = trim((string) $this->value($rowData, [
+                        'operator', 'operator_name', 'analyst',
+                    ], ''));
+                    $equipmentLabel = trim((string) $this->value($rowData, [
+                        'equipment', 'equipment_name', 'equipment_code', 'equipment_number', 'instrument',
+                    ], ''));
+                    $tat = $this->value($rowData, ['tat', 'reporting_time', 'turnaround_time', 'turn_around_time']);
+
+                    $labSectionId = $this->resolveLabSectionId($labSectionLabel !== '' ? $labSectionLabel : null);
+                    $operatorId = $this->resolveOperatorId($operatorLabel !== '' ? $operatorLabel : null, $rowNumber);
+                    $equipmentId = $this->resolveEquipmentId($equipmentLabel !== '' ? $equipmentLabel : null);
+
                     $payload = [
                         'method' => $method->id,
                         'reporting_unit' => $reportingUnit?->name,
                         'analyte_id' => $analyte->id,
                         'non_accredited' => $nonAccredited,
-                        'lab_section_id' => $this->resolveLabSectionId(),
                         'analysis_type_id' => $this->analysisType->id,
                         'ltm_method_id' => $ltMethod?->id,
-                        'reporting_time' => $this->value($rowData, ['tat', 'reporting_time']),
                         'active' => 1,
                         'show_on_report' => 1,
                     ];
+
+                    if ($labSectionId !== null) {
+                        $payload['lab_section_id'] = $labSectionId;
+                    }
+
+                    if ($operatorId !== null) {
+                        $payload['operator_id'] = $operatorId;
+                    }
+
+                    if ($equipmentId !== null) {
+                        $payload['equipment_id'] = $equipmentId;
+                    }
+
+                    if ($tat !== null && trim((string) $tat) !== '') {
+                        $payload['reporting_time'] = (string) $tat;
+                    }
 
                     $existing = AnalysisElements::query()
                         ->where('analysis_type_id', $this->analysisType->id)
@@ -135,13 +168,111 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
         }
     }
 
-    protected function resolveLabSectionId(): ?string
+    protected function resolveLabSectionId(?string $label = null): ?string
     {
-        $labSectionId = $this->analysisType->lab_section_id;
+        $companyId = getUserCompany();
 
-        return $labSectionId !== null && $labSectionId !== ''
-            ? (string) $labSectionId
+        if ($label !== null && trim($label) !== '') {
+            $label = trim($label);
+            $labSection = SampleAnalysisStage::query()
+                ->where('company_id', $companyId)
+                ->where('is_sample_stage', 0)
+                ->where(function ($query) use ($label): void {
+                    $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($label)])
+                        ->orWhereRaw('LOWER(TRIM(code)) = ?', [strtolower($label)]);
+                })
+                ->first();
+
+            if ($labSection) {
+                return (string) $labSection->id;
+            }
+
+            $labId = $this->analysisType->lab_id;
+
+            try {
+                $labSection = SampleAnalysisStage::create([
+                    'code' => Str::upper(Str::limit(preg_replace('/\s+/', ' ', $label) ?? $label, 50, '')),
+                    'name' => $label,
+                    'company_id' => $companyId,
+                    'lab_id' => $labId,
+                    'is_sample_stage' => 0,
+                    'active' => 1,
+                ]);
+
+                return (string) $labSection->id;
+            } catch (\Throwable $e) {
+                Log::warning('Could not create lab section during parameter import: '.$e->getMessage());
+            }
+        }
+
+        $fallback = $this->analysisType->lab_section_id;
+
+        return $fallback !== null && $fallback !== ''
+            ? (string) $fallback
             : null;
+    }
+
+    protected function resolveOperatorId(?string $label, int $rowNumber): ?string
+    {
+        if ($label === null || trim($label) === '') {
+            return null;
+        }
+
+        $label = trim($label);
+        $companyId = getUserCompany();
+
+        $operator = User::query()
+            ->where('active', 1)
+            ->where('is_client', 0)
+            ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+            ->where(function ($query) use ($label): void {
+                $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($label)])
+                    ->orWhereRaw('LOWER(TRIM(email)) = ?', [strtolower($label)])
+                    ->orWhereRaw("LOWER(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))) = ?", [strtolower($label)]);
+            })
+            ->first();
+
+        if ($operator) {
+            return (string) $operator->id;
+        }
+
+        $this->errors[] = "Row {$rowNumber}: operator '{$label}' was not found — parameter imported without operator.";
+
+        return null;
+    }
+
+    protected function resolveEquipmentId(?string $label): ?string
+    {
+        if ($label === null || trim($label) === '') {
+            return null;
+        }
+
+        $label = trim($label);
+        $companyId = getUserCompany();
+
+        $equipment = Equipment::query()
+            ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+            ->where(function ($query) use ($label): void {
+                $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($label)])
+                    ->orWhereRaw('LOWER(TRIM(equipment_number)) = ?', [strtolower($label)]);
+            })
+            ->first();
+
+        if ($equipment) {
+            return (string) $equipment->id;
+        }
+
+        $equipmentNumber = 'IMP-'.strtoupper(substr(md5($label.microtime(true)), 0, 8));
+
+        $equipment = Equipment::create([
+            'name' => $label,
+            'equipment_number' => $equipmentNumber,
+            'company_id' => $companyId,
+            'active' => 1,
+            'picture' => '/images/default-equipment.png',
+        ]);
+
+        return (string) $equipment->id;
     }
 
     /**

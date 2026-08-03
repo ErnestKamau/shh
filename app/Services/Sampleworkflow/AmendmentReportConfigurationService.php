@@ -22,6 +22,18 @@ class AmendmentReportConfigurationService
     public const KEY_SAMPLE_NUMBER_SUFFIX_FORMAT = 'amendment_sample_number_suffix_format';
 
     /**
+     * Keys that may intentionally be blank (empty string is not replaced by the default).
+     *
+     * @return list<string>
+     */
+    public static function optionalKeys(): array
+    {
+        return [
+            self::KEY_SAMPLE_NUMBER_SUFFIX_FORMAT,
+        ];
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function defaults(): array
@@ -50,6 +62,7 @@ class AmendmentReportConfigurationService
     public function all(): array
     {
         $defaults = self::defaults();
+        $optional = self::optionalKeys();
         $stored = SystemConfiguration::query()
             ->whereIn('key', array_keys($defaults))
             ->get()
@@ -57,8 +70,19 @@ class AmendmentReportConfigurationService
 
         $resolved = [];
         foreach ($defaults as $key => $default) {
-            $value = trim((string) ($stored->get($key)?->value ?? ''));
-            $resolved[$key] = $value !== '' ? $value : $default;
+            $row = $stored->get($key);
+            if ($row === null) {
+                $resolved[$key] = $default;
+
+                continue;
+            }
+
+            $value = trim((string) $row->value);
+            if ($value === '' && ! in_array($key, $optional, true)) {
+                $resolved[$key] = $default;
+            } else {
+                $resolved[$key] = $value;
+            }
         }
 
         return $resolved;
@@ -95,22 +119,56 @@ class AmendmentReportConfigurationService
     }
 
     /**
+     * Remove a previously applied amendment suffix so a new one can be attached cleanly.
+     */
+    public function stripSampleNumberSuffix(string $sampleCode): string
+    {
+        $patterns = [];
+
+        $currentFormat = trim($this->get(self::KEY_SAMPLE_NUMBER_SUFFIX_FORMAT));
+        if ($currentFormat !== '') {
+            $patterns[] = $this->suffixFormatToRegex($currentFormat);
+        }
+
+        $defaultFormat = self::defaults()[self::KEY_SAMPLE_NUMBER_SUFFIX_FORMAT];
+        $patterns[] = $this->suffixFormatToRegex($defaultFormat);
+        $patterns[] = '-V\\d{1,2}';
+
+        foreach (array_unique($patterns) as $pattern) {
+            $stripped = preg_replace('/'.$pattern.'$/i', '', $sampleCode);
+            if (is_string($stripped) && $stripped !== '' && $stripped !== $sampleCode) {
+                return $stripped;
+            }
+        }
+
+        return $sampleCode;
+    }
+
+    /**
      * Labels / texts for amendment blocks on PDFs.
      *
      * @return array{
      *     revision_label: string,
      *     reason_label: string,
      *     supersedes_text: string,
-     *     formatted_revision: string
+     *     formatted_revision: string,
+     *     formatted_report_number: string,
+     *     sample_number_suffix: string
      * }
      */
-    public function amendmentViewData(int $version): array
+    public function amendmentViewData(int $version, ?string $jobNumber = null): array
     {
+        $version = max(1, $version);
+
         return [
             'revision_label' => $this->get(self::KEY_REVISION_LABEL),
             'reason_label' => $this->get(self::KEY_REASON_LABEL),
             'supersedes_text' => $this->get(self::KEY_SUPERSEDES_TEXT),
             'formatted_revision' => $this->formatRevision($version),
+            'formatted_report_number' => $jobNumber !== null && $jobNumber !== ''
+                ? $this->formatReportNumber($jobNumber, $version)
+                : '',
+            'sample_number_suffix' => $this->formatSampleNumberSuffix($version),
         ];
     }
 
@@ -128,10 +186,14 @@ class AmendmentReportConfigurationService
         );
 
         $defaults = self::defaults();
+        $optional = self::optionalKeys();
 
         foreach ($defaults as $key => $default) {
-            $value = trim((string) ($values[$key] ?? $default));
-            if ($value === '') {
+            $value = array_key_exists($key, $values)
+                ? trim((string) $values[$key])
+                : $default;
+
+            if ($value === '' && ! in_array($key, $optional, true)) {
                 $value = $default;
             }
 
@@ -161,5 +223,16 @@ class AmendmentReportConfigurationService
         }
 
         return str_replace(array_keys($replacements), array_values($replacements), $format);
+    }
+
+    private function suffixFormatToRegex(string $format): string
+    {
+        $quoted = preg_quote($format, '/');
+
+        return str_replace(
+            ['\\{nn\\}', '\\{n\\}'],
+            ['\\d{2}', '\\d+'],
+            $quoted
+        );
     }
 }

@@ -68,7 +68,7 @@ class UnifiedLabHierarchyImporterTransformTest extends TestCase
             'lab_section_code' => 'Microbiology',
         ]);
 
-        $this->assertSame('MESOPHILIC_AEROBIC_PLATE_COUNT_IN_FOOD_SAMPLES', $transformed['analyte_code']);
+        $this->assertSame('Mesophilic Aerobic Plate Count in Food Samples', $transformed['analyte_code']);
     }
 
     public function test_parse_boolean_cell_handles_yes_no_strings(): void
@@ -116,7 +116,7 @@ class UnifiedLabHierarchyImporterTransformTest extends TestCase
         $this->assertSame('Moisture and Water', $transformed['analyte_name']);
         $this->assertSame('iso-4833-1', $transformed['method']);
         $this->assertSame('CFU/g', $transformed['reporting_unit']);
-        $this->assertSame('MOISTURE_AND_WATER', $transformed['analyte_code']);
+        $this->assertSame('Moisture and Water', $transformed['analyte_code']);
     }
 
     public function test_transform_maps_method_and_unit_aliases(): void

@@ -153,33 +153,63 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($this->schedules as $s)
+                        @forelse($this->scheduleRows as $row)
                         @php
+                            $s = $row['schedule'];
+                            $series = $row['series'];
                             $details = $this->resolveSampleDetails($s);
                             $tableContacts = $s->contacts();
                             $contactNames = $tableContacts->map(fn ($c) => trim(($c->first_name ?? '').' '.($c->last_name ?? '')))->filter()->values();
                             $personnelLabel = $s->personnelNames();
-                            $formCount = $s->submissionFormInstances->count();
+                            $formCount = $series ? $series['forms_count'] : $s->submissionFormInstances->count();
                             $collectionProgress = $s->collectionProgress();
                             $visibleDetails = array_slice($details, 0, 2);
                             $hiddenDetailsCount = max(0, count($details) - 2);
                         @endphp
                         <tr>
                             <td class="ss-col-schedule">
-                                <div class="ss-title">{{ $s->title }}</div>
+                                <div class="ss-title">
+                                    {{ $s->title }}
+                                    @if($series)
+                                    <span class="badge badge-pill ml-1" style="background:var(--color-primary-soft,#e8eaf6);color:var(--color-primary,#3949ab);font-size:11px;padding:3px 10px;vertical-align:middle;">
+                                        <i class="mdi mdi-repeat mr-1"></i>Recurring
+                                    </span>
+                                    @endif
+                                </div>
                                 <div class="ss-meta">
                                     <span>{{ $s->frequency ?: 'One-time' }}</span>
                                     <span class="ss-dot"></span>
+                                    @if($series)
+                                    <span>{{ $series['count'] }} occurrence{{ $series['count'] === 1 ? '' : 's' }}</span>
+                                    <span class="ss-dot"></span>
+                                    <span>{{ $series['collected_count'] }}/{{ $series['count'] }} collected</span>
+                                    @if($series['collected_count'] >= $series['count'])
+                                    <span class="ss-pill ss-pill--ok">{{ __('planner.collected') }}</span>
+                                    @elseif($series['collected_count'] > 0)
+                                    <span class="ss-pill ss-pill--partial">{{ __('planner.partial') }}</span>
+                                    @endif
+                                    @else
                                     <span>{{ $collectionProgress['collected'] }}/{{ $collectionProgress['scheduled'] }} sample{{ $collectionProgress['scheduled'] === 1 ? '' : 's' }}</span>
                                     @if($collectionProgress['status'] === 'collected')
                                     <span class="ss-pill ss-pill--ok">{{ __('planner.collected') }}</span>
                                     @elseif($collectionProgress['status'] === 'partial')
                                     <span class="ss-pill ss-pill--partial">{{ __('planner.partial') }}</span>
                                     @endif
+                                    @endif
                                 </div>
                             </td>
                             <td class="ss-col-when">
+                                @if($series)
                                 @if($s->sampling_datetime)
+                                <div class="ss-when-date">{{ $s->sampling_datetime->format('d M Y') }}</div>
+                                <div class="ss-when-time">{{ $s->sampling_datetime->format('H:i') }}</div>
+                                @endif
+                                <div class="ss-sub text-muted" style="font-size:11px;">
+                                    {{ $series['first_date'] ? $series['first_date']->format('d M Y') : '—' }}
+                                    –
+                                    {{ $series['last_date'] ? $series['last_date']->format('d M Y') : '—' }}
+                                </div>
+                                @elseif($s->sampling_datetime)
                                 <div class="ss-when-date">{{ $s->sampling_datetime->format('d M Y') }}</div>
                                 <div class="ss-when-time">{{ $s->sampling_datetime->format('H:i') }}</div>
                                 @else
@@ -222,12 +252,21 @@
                                 @endif
                             </td>
                             <td class="text-center ss-col-forms">
+                                @if($series)
+                                <button type="button"
+                                        class="ss-forms-btn {{ $formCount > 0 ? 'has-forms' : '' }}"
+                                        wire:click="viewSchedule('{{ $s->id }}')"
+                                        title="Forms across all occurrences — open series to view per occurrence">
+                                    {{ $formCount }}
+                                </button>
+                                @else
                                 <button type="button"
                                         class="ss-forms-btn {{ $formCount > 0 ? 'has-forms' : '' }}"
                                         wire:click="viewTrfForms('{{ $s->id }}')"
                                         title="View submitted sampling forms">
                                     {{ $formCount }}
                                 </button>
+                                @endif
                             </td>
                             <td class="text-right ss-col-actions">
                                 <div class="ss-actions">
@@ -258,9 +297,13 @@
                                        aria-label="Sample collection label">
                                         <i class="mdi mdi-printer"></i>
                                     </a>
-                                    <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="View schedule"><i class="mdi mdi-eye-outline"></i></button>
-                                    <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="Edit"><i class="mdi mdi-pencil-outline"></i></button>
+                                    <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="{{ $series ? 'View series & occurrences' : 'View schedule' }}"><i class="mdi mdi-eye-outline"></i></button>
+                                    <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="{{ $series ? 'Edit occurrences' : 'Edit' }}"><i class="mdi mdi-pencil-outline"></i></button>
+                                    @if($series)
+                                    <button wire:click="deleteSeries('{{ $series['group_id'] }}')" class="ss-act ss-act--delete" title="Delete entire series" onclick="return confirm('Delete this recurring schedule and all {{ $series['count'] }} of its occurrences?')"><i class="mdi mdi-trash-can-outline"></i></button>
+                                    @else
                                     <button wire:click="delete('{{ $s->id }}')" class="ss-act ss-act--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this schedule?')"><i class="mdi mdi-trash-can-outline"></i></button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -297,6 +340,25 @@
                 </nav>
 
                 <div class="modal-body schedule-run-modal__body" id="schedule-run-modal-body">
+
+                    {{-- Recurring series occurrence switcher --}}
+                    @php $editSeriesOccurrences = $this->editingSeriesOccurrences; @endphp
+                    @if($editSeriesOccurrences->count() > 1)
+                    <div class="alert alert-info d-flex align-items-center flex-wrap py-2 px-3 mb-3" style="border-radius:8px;gap:10px;">
+                        <span style="font-size:13px;">
+                            <i class="mdi mdi-repeat mr-1"></i>
+                            <strong>Recurring series</strong> — you are editing one occurrence only ({{ $editSeriesOccurrences->count() }} in total).
+                        </span>
+                        <select class="form-control form-control-sm no-select2" style="width:auto;max-width:260px;border-radius:6px;"
+                                wire:change="showEditModal($event.target.value)">
+                            @foreach($editSeriesOccurrences as $occurrence)
+                            <option value="{{ $occurrence->id }}" @selected((string) $occurrence->id === (string) $editingSchedule->id)>
+                                {{ $occurrence->sampling_datetime?->format('d M Y H:i') ?? 'Unscheduled' }}{{ $occurrence->is_collected ? ' · collected' : '' }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
 
                     {{-- Basic Info --}}
                     <section class="ss-section" id="ss-section-basic">
@@ -516,7 +578,8 @@
                             </div>
                             <div class="col-md-4 form-group">
                                 <label class="ss-label">Frequency <span class="text-danger">*</span></label>
-                                <select wire:model="form.frequency" class="form-control no-select2 ss-control">
+                                <select wire:model="form.frequency" class="form-control no-select2 ss-control"
+                                        @disabled($editingSchedule && $editingSchedule->isPartOfRecurringSeries())>
                                     <option value="One-time">One-time</option>
                                     <option value="Daily">Daily</option>
                                     <option value="Weekly">Weekly</option>
@@ -524,6 +587,11 @@
                                     <option value="Quarterly">Quarterly</option>
                                     <option value="Annually">Annually</option>
                                 </select>
+                                @if($editingSchedule && $editingSchedule->isPartOfRecurringSeries())
+                                <small class="text-muted">Set by the recurring series.</small>
+                                @else
+                                <small class="text-muted">Recurring frequencies create one grouped schedule with individual occurrences.</small>
+                                @endif
                                 @error('form.frequency') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
                             <div class="col-md-4 form-group">
@@ -625,6 +693,9 @@
                         <h4 class="mb-1 font-weight-bold"><i class="mdi mdi-calendar-check text-primary mr-1"></i> {{ $viewingSchedule->title }}</h4>
                         <span class="badge badge-pill" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-clock-outline mr-1"></i>{{ $viewingSchedule->sampling_datetime ? $viewingSchedule->sampling_datetime->format('D, d M Y \a\t H:i') : 'N/A' }}</span>
                         <span class="badge badge-pill ml-1" style="background:var(--color-primary-soft);color:var(--color-primary);padding:6px 14px;font-size:12px;"><i class="mdi mdi-refresh mr-1"></i>{{ $viewingSchedule->frequency }}</span>
+                        @if($viewingSchedule->isPartOfRecurringSeries())
+                        <span class="badge badge-pill ml-1" style="background:#ede7f6;color:#4527a0;padding:6px 14px;font-size:12px;"><i class="mdi mdi-repeat mr-1"></i>Recurring series</span>
+                        @endif
                         @if($viewingSchedule->notify_client)
                         <span class="badge badge-pill ml-1" style="background:#fff3e0;color:#e65100;padding:6px 14px;font-size:12px;"><i class="mdi mdi-bell-ring mr-1"></i>Client Notified</span>
                         @endif
@@ -636,6 +707,84 @@
                     </div>
 
                     <div class="p-4">
+                        {{-- Recurring series occurrences --}}
+                        @php $seriesOccurrences = $this->viewingSeriesOccurrences; @endphp
+                        @if($seriesOccurrences->count() > 1)
+                        <div class="mb-4">
+                            <h6 class="font-weight-bold text-uppercase text-muted mb-2" style="font-size:12px;letter-spacing:1px;">
+                                <i class="mdi mdi-repeat mr-1"></i>Occurrences in this series
+                                <span class="badge badge-light ml-1">{{ $seriesOccurrences->count() }}</span>
+                            </h6>
+                            <div style="background:#fafbfc;border-radius:8px;border:1px solid #eee;overflow:hidden;max-height:280px;overflow-y:auto;">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <thead class="bg-light" style="position:sticky;top:0;z-index:1;">
+                                        <tr>
+                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">#</th>
+                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Date &amp; Time</th>
+                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Status</th>
+                                            <th class="px-3 py-2 text-center" style="font-size:11px;font-weight:bold;color:#495057;">Forms</th>
+                                            <th class="px-3 py-2 text-right" style="font-size:11px;font-weight:bold;color:#495057;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($seriesOccurrences as $i => $occurrence)
+                                        @php
+                                            $isCurrent = (string) $occurrence->id === (string) $viewingSchedule->id;
+                                            $occFormCount = $occurrence->submissionFormInstances->count();
+                                            $occFillSampleTypeId = $occurrence->sample_type_id
+                                                ?? collect($occurrence->sample_details ?? [])->pluck('sample_type_id')->filter()->first();
+                                        @endphp
+                                        <tr style="border-top:1px solid #eee;{{ $isCurrent ? 'background:var(--color-primary-soft,#e8eaf6);' : '' }}">
+                                            <td class="px-3 py-2" style="vertical-align:middle;font-size:12px;color:#6c757d;">{{ $i + 1 }}</td>
+                                            <td class="px-3 py-2" style="vertical-align:middle;">
+                                                <span class="font-weight-bold" style="font-size:13px;">{{ $occurrence->sampling_datetime?->format('d M Y') ?? '—' }}</span>
+                                                <span class="text-muted ml-1" style="font-size:12px;">{{ $occurrence->sampling_datetime?->format('H:i') }}</span>
+                                                @if($isCurrent)
+                                                <span class="badge badge-primary ml-1" style="font-size:10px;">Viewing</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2" style="vertical-align:middle;">
+                                                @if($occurrence->is_collected)
+                                                <span class="badge badge-success" style="font-size:11px;">Collected</span>
+                                                @elseif($occFormCount > 0)
+                                                <span class="badge badge-warning" style="font-size:11px;">Partial</span>
+                                                @else
+                                                <span class="badge badge-light border" style="font-size:11px;">Pending</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center" style="vertical-align:middle;">
+                                                <button type="button"
+                                                        class="ss-forms-btn {{ $occFormCount > 0 ? 'has-forms' : '' }}"
+                                                        wire:click="viewTrfForms('{{ $occurrence->id }}')"
+                                                        title="View forms filled for this occurrence">
+                                                    {{ $occFormCount }}
+                                                </button>
+                                            </td>
+                                            <td class="px-3 py-2 text-right" style="vertical-align:middle;white-space:nowrap;">
+                                                <div class="ss-actions" style="justify-content:flex-end;">
+                                                    @if($occFillSampleTypeId)
+                                                    <a href="{{ route('system-planner.fill-sampling-forms.fill', ['sampleType' => $occFillSampleTypeId, 'schedule' => $occurrence->id]) }}"
+                                                       class="ss-act ss-act--form" title="Fill sampling form for this occurrence"><i class="mdi mdi-clipboard-edit-outline"></i></a>
+                                                    @else
+                                                    <a href="{{ route('system-planner.fill-sampling-forms', ['schedule' => $occurrence->id]) }}"
+                                                       class="ss-act ss-act--form" title="Choose a form for this occurrence"><i class="mdi mdi-clipboard-edit-outline"></i></a>
+                                                    @endif
+                                                    @unless($isCurrent)
+                                                    <button wire:click="viewSchedule('{{ $occurrence->id }}')" class="ss-act ss-act--view" title="View this occurrence"><i class="mdi mdi-eye-outline"></i></button>
+                                                    @endunless
+                                                    <button wire:click="showEditModal('{{ $occurrence->id }}')" class="ss-act ss-act--edit" title="Edit this occurrence"><i class="mdi mdi-pencil-outline"></i></button>
+                                                    <button wire:click="delete('{{ $occurrence->id }}')" class="ss-act ss-act--delete" title="Delete this occurrence only" onclick="return confirm('Delete this single occurrence ({{ $occurrence->sampling_datetime?->format('d M Y H:i') }})? The rest of the series is kept.')"><i class="mdi mdi-trash-can-outline"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <small class="text-muted d-block mt-1">Each occurrence is sampled, filled, and tracked on its own. Forms below belong to the occurrence being viewed.</small>
+                        </div>
+                        @endif
+
                         {{-- Client & Contact --}}
                         <div class="row mb-3">
                             <div class="col-md-6">

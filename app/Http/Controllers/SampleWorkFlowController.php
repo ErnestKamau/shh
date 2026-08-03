@@ -6555,7 +6555,15 @@ class SampleWorkFlowController extends Controller
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
         $amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? $sequence);
-        $amendmentDisplay = $pdfService->amendmentDisplayData($labels, $amendmentVersion);
+        if ((int) ($batch->is_amendment ?? 0) > 0) {
+            app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+                ->syncSampleCodeSuffixesForBatch($batch, max(1, (int) $batch->is_amendment));
+        }
+        $amendmentDisplay = $pdfService->amendmentDisplayData(
+            $labels,
+            $amendmentVersion,
+            (string) $batch->batch_code
+        );
 
         $batchBackUrl = route('view-batch-details', [
             'batch' => $batch->id,
@@ -6933,7 +6941,7 @@ class SampleWorkFlowController extends Controller
         BatchAmmendment::flagSamplesForAmendment($batch, $selectedSampleIds, (int) $amendment->version_number);
 
         app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
-            ->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
+            ->applyAmendmentNumbering($batch, (int) $batch->is_amendment);
 
         // Clear previous verification approvers
         BatchLabSectionApprover::where('batch_id', $batch->id)

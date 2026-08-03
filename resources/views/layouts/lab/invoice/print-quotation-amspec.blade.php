@@ -7,17 +7,6 @@
         @page { margin: 16mm 12mm; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #222; margin: 0; position: relative; }
         table { border-collapse: collapse; width: 100%; }
-        .watermark {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 55%;
-            text-align: center;
-            opacity: 0.08;
-            z-index: -1;
-            transform: translate(-50%, -50%) rotate(-35deg);
-        }
-        .watermark img { max-width: 100%; max-height: 220px; }
         .logo-row td { vertical-align: middle; border: none; padding: 0 0 6px; }
         .logo-placeholder {
             border: 1px dashed #bbb;
@@ -73,11 +62,7 @@
 </head>
 <body>
 
-@if(!empty($watermark_path) && file_exists($watermark_path))
-    <div class="watermark">
-        <img src="{{ $watermark_path }}" alt="">
-    </div>
-@endif
+{{-- Watermark is painted on every page by ReportWatermarkService::applyToPdf. --}}
 
 {{-- Page 1 --}}
 @include('layouts.lab.invoice.partials.amspec-quotation-header')

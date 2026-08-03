@@ -299,7 +299,7 @@ class Approvals extends Component
             );
 
             app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
-                ->syncReportNumbersForBatch($this->batch, (int) $this->batch->is_amendment);
+                ->applyAmendmentNumbering($this->batch, (int) $this->batch->is_amendment);
 
             $approver->status = $persistedStatus;
             $approver->remark = $this->statusForm['remark'];

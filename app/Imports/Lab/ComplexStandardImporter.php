@@ -68,7 +68,7 @@ class ComplexStandardImporter extends BaseImporter
         if (!$analyte) {
             $analyte = Analyte::create([
                 'name' => $chemicalName,
-                'code' => $this->normalizeHeaderName($chemicalName),
+                'code' => $this->resolveCodeFromName($chemicalName),
                 'company_id' => $this->batch->company_id,
                 'show_on_report' => (
                     $this->fuzzyGet($row, ['show_on_report', 'show_on_reports']) !== null &&
@@ -102,11 +102,13 @@ class ComplexStandardImporter extends BaseImporter
             // stdKey is normalized, we might want the original name from standardColumns
             // But for now let's just use it.
             
+            $standardCode = $this->resolveCodeFromName((string) $stdKey);
+
             $standard = Standards::firstOrCreate([
-                'code' => strtoupper($stdKey),
+                'code' => $standardCode,
                 'company_id' => $this->batch->company_id,
             ], [
-                'name' => str_replace('_', ' ', $stdKey),
+                'name' => $this->sanitizeImportedString(str_replace('-', ' ', (string) $stdKey)),
                 'main_standard' => true,
                 'is_qc_standard' => false,
             ]);

@@ -58,7 +58,11 @@ class TestRequestReportPdfService
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
         $amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? $sequence);
-        $amendmentDisplay = $this->amendmentDisplayData($labels, $amendmentVersion);
+        if ((int) ($batch->is_amendment ?? 0) > 0) {
+            app(JobSampleNumberingService::class)
+                ->syncSampleCodeSuffixesForBatch($batch, max(1, (int) $batch->is_amendment));
+        }
+        $amendmentDisplay = $this->amendmentDisplayData($labels, $amendmentVersion, $jobNumber);
 
         $viewData = array_merge($reportData, [
             'language' => $language,
@@ -82,6 +86,7 @@ class TestRequestReportPdfService
         $dompdf->set_option('defaultMediaType', 'print');
         $dompdf->set_option('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'portrait');
+        app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf);
 
         $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
         $customerName = trim($customerName, '_') ?: 'customer';
@@ -321,12 +326,14 @@ class TestRequestReportPdfService
      *     revisionLabel: string,
      *     reasonLabel: string,
      *     supersedesText: string,
-     *     formattedRevision: string
+     *     formattedRevision: string,
+     *     formattedReportNumber: string,
+     *     sampleNumberSuffix: string
      * }
      */
-    public function amendmentDisplayData(array $labels, int $version): array
+    public function amendmentDisplayData(array $labels, int $version, ?string $jobNumber = null): array
     {
-        $config = $this->amendmentReportConfig->amendmentViewData($version);
+        $config = $this->amendmentReportConfig->amendmentViewData($version, $jobNumber);
 
         return [
             'revisionLabel' => $config['revision_label'] !== ''
@@ -339,6 +346,8 @@ class TestRequestReportPdfService
                 ? $config['supersedes_text']
                 : (string) ($labels['supersedes_original'] ?? 'This report supersedes the original report'),
             'formattedRevision' => $config['formatted_revision'],
+            'formattedReportNumber' => $config['formatted_report_number'],
+            'sampleNumberSuffix' => $config['sample_number_suffix'],
         ];
     }
 }

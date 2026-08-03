@@ -238,8 +238,8 @@ class AmspecParametersImporter extends BaseImporter
             return 'reporting_unit';
         }
 
-        if ($underscored === 'equipment' || $underscored === 'equipment_code' || $underscored === 'equipment_name' || $normalized === 'equipment') {
-            return $underscored === 'equipment_name' ? 'equipment_name' : 'equipment';
+        if ($underscored === 'equipment' || $underscored === 'equipment_name' || $underscored === 'equipment_code' || $normalized === 'equipment') {
+            return 'equipment';
         }
 
         if (in_array($underscored, ['equipment_number', 'equipment_no', 'equipment_numbers'], true)
@@ -332,8 +332,8 @@ class AmspecParametersImporter extends BaseImporter
             'accreditation', 'accredited_nonaccredited', 'non_accredited',
         ], 'accreditation');
         $instrument = $this->resolveFieldFromRow($row, [
-            'equipment_name', 'instrument', 'instrumentused', 'instrument_used',
-            'equipment', 'equipment_code',
+            'equipment', 'equipment_name', 'instrument', 'instrumentused', 'instrument_used',
+            'equipment_code',
         ], 'instrument');
         $equipmentNumber = $this->resolveFieldFromRow($row, [
             'equipment_number', 'equipment_no', 'equipment_numbers',
@@ -396,8 +396,8 @@ class AmspecParametersImporter extends BaseImporter
             ? $this->normalizeExplicitCode($explicitAnalysisTypeCode)
             : (! empty($analysisTypeName) ? $this->generateCode($analysisTypeName) : null);
         $analyteCode = ! empty($explicitAnalyteCode)
-            ? $this->normalizeExplicitCode($explicitAnalyteCode)
-            : (! empty($parameterName) ? $this->generateCode($parameterName) : null);
+            ? $this->plainReportDisplayValue($explicitAnalyteCode)
+            : (! empty($parameterName) ? $this->plainReportDisplayValue($parameterName) : null);
         $labSectionCode = ! empty($explicitLabSectionCode)
             ? $this->normalizeExplicitCode($explicitLabSectionCode)
             : (! empty($sectionDepartment) ? $this->generateCode($sectionDepartment) : null);
@@ -437,6 +437,7 @@ class AmspecParametersImporter extends BaseImporter
             'analyte_name' => $parameterName,
             'lab_section_code' => $labSectionCode,
             'lab_section_name' => $labSectionName,
+            'equipment' => $instrument,
             'equipment_name' => $instrument,
             'equipment_number' => $equipmentNumber,
             'equipment_code' => $instrument,
@@ -594,32 +595,57 @@ class AmspecParametersImporter extends BaseImporter
 
             // 6. Process Method (only if we have the data)
             $methodId = null;
+            $methodIds = [];
             if (!empty($transformedData['method'])) {
-                $analysisMethod = AnalysisMethod::where('name', $transformedData['method'])
-                    ->where('company_id', $this->batch->company_id)
+                $resolver = app(\App\Services\Lab\MethodConfigurationResolver::class);
+                $resolver->ensurePointerConfigurations();
+                $methodTypeId = $resolver->resolveTypeIdForCategory('ltm');
+                $flags = $methodTypeId
+                    ? $resolver->legacyFlagsForTypeId($methodTypeId)
+                    : ['is_ltm' => 1, 'is_sampling_method' => 0];
+
+                $analysisMethod = AnalysisMethod::where('company_id', $this->batch->company_id)
+                    ->where(function ($query) use ($transformedData): void {
+                        $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($transformedData['method'])])
+                            ->orWhereRaw('LOWER(TRIM(code)) = ?', [strtolower($transformedData['method'])]);
+                    })
                     ->first();
 
                 if (!$analysisMethod) {
-                    $methodCode = $this->generateCode($transformedData['method']);
                     $analysisMethod = AnalysisMethod::create([
-                        'code' => $methodCode,
+                        'code' => $transformedData['method'],
                         'company_id' => $this->batch->company_id,
                         'name' => $transformedData['method'],
-                        'active' => 1
+                        'description' => $transformedData['method'],
+                        'method_type_id' => $methodTypeId,
+                        'is_ltm' => $flags['is_ltm'] ?? 1,
+                        'is_sampling_method' => $flags['is_sampling_method'] ?? 0,
+                        'active' => 1,
+                    ]);
+                } else {
+                    $analysisMethod->update([
+                        'method_type_id' => $methodTypeId ?? $analysisMethod->method_type_id,
+                        'is_ltm' => $flags['is_ltm'] ?? $analysisMethod->is_ltm,
+                        'is_sampling_method' => $flags['is_sampling_method'] ?? $analysisMethod->is_sampling_method,
+                        'active' => 1,
                     ]);
                 }
                 $methodId = $analysisMethod->id;
+                $methodIds[] = $methodId;
             }
 
             // 7. Resolve equipment by number (preferred) and/or name; links primary to AE
-            $equipmentIds = $this->resolveEquipmentIds(
-                $transformedData['equipment_name'] ?? $transformedData['equipment_code'] ?? null,
+            $equipmentIds = $this->resolveAmspecEquipmentIds(
+                $transformedData['equipment'] ?? $transformedData['equipment_name'] ?? $transformedData['equipment_code'] ?? null,
                 $transformedData['equipment_number'] ?? null
             );
             $equipmentId = $equipmentIds[0] ?? null;
 
             if ($analyte && $equipmentIds !== []) {
                 $analyte->equipmentItems()->syncWithoutDetaching($equipmentIds);
+            }
+            if ($analyte && $methodIds !== []) {
+                $analyte->analysisMethods()->syncWithoutDetaching($methodIds);
             }
 
             // 8. Process AnalysisElements
@@ -714,7 +740,7 @@ class AmspecParametersImporter extends BaseImporter
      *
      * @return list<string>
      */
-    protected function resolveEquipmentIds(?string $namesRaw, ?string $numbersRaw = null): array
+    protected function resolveAmspecEquipmentIds(?string $namesRaw, ?string $numbersRaw = null): array
     {
         $companyId = $this->batch->company_id;
         $nameTokens = $this->splitEquipmentList($namesRaw, allowSlashSeparator: true);
@@ -735,7 +761,12 @@ class AmspecParametersImporter extends BaseImporter
             if ($equipment) {
                 $resolvedIds[$equipment->id] = $equipment->id;
             } else {
-                \Log::warning('AmSpec import: no equipment matched for name=['.($name ?? '').'] number=['.($number ?? '').']');
+                $createdId = $this->findOrCreateEquipment($number, $name);
+                if ($createdId !== null) {
+                    $resolvedIds[$createdId] = $createdId;
+                } else {
+                    \Log::warning('AmSpec import: no equipment matched for name=['.($name ?? '').'] number=['.($number ?? '').']');
+                }
             }
         }
 
@@ -1380,7 +1411,7 @@ class AmspecParametersImporter extends BaseImporter
 
             $generatedCode = $this->generateCode($name);
             $analysisType = $this->analysisTypeCandidatesQuery($sampleType)
-                ->whereRaw('UPPER(TRIM(code)) = ?', [$generatedCode])
+                ->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($generatedCode)])
                 ->first();
 
             if ($analysisType) {
@@ -1573,18 +1604,15 @@ class AmspecParametersImporter extends BaseImporter
 
     protected function normalizeExplicitCode(string $code): string
     {
-        return strtoupper(trim($code));
+        return strtoupper($this->sanitizeImportedString($code));
     }
 
     protected function generateCode(?string $name): string
     {
         if (empty($name)) {
-            return 'CODE-' . uniqid();
+            return 'CODE-'.uniqid();
         }
 
-        $slug = preg_replace('/[^A-Za-z0-9]/', '_', $name);
-        $slug = preg_replace('/_+/', '_', $slug);
-        $slug = trim($slug, '_');
-        return strtoupper(substr($slug, 0, 100));
+        return $this->resolveCodeFromName($name);
     }
 }

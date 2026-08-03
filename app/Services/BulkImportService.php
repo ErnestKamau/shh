@@ -19,7 +19,7 @@ class BulkImportService
             'lab' => [
                 'name' => 'Lab Management',
                 'forms' => [
-                    'analysis_type' => 'Analysis Type (requires Sample Type + Lab)',
+                    'analysis_type' => 'Sample Types & Analysis Types',
                     'analyte' => 'Analyte',
                     'sample_condition' => 'Sample Condition (requires Sample Type)',
                     'standard' => 'Standard & Analytes',

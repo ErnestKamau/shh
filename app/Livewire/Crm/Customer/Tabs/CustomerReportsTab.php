@@ -266,7 +266,7 @@ class CustomerReportsTab extends BaseCrmComponent
         BatchAmmendment::flagSamplesForAmendment($batch, $sampleIds, (int) $new_ammendment->version_number);
 
         app(JobSampleNumberingService::class)
-            ->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
+            ->applyAmendmentNumbering($batch, (int) $batch->is_amendment);
 
         // Reset Verification records (status 0, clear date) to preserve assignments for the next cycle.
         BatchLabSectionApprover::where('batch_id', $batch->id)

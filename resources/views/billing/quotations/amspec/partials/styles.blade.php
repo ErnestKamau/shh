@@ -84,13 +84,14 @@
     }
 
     .amspec-watermark {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-35deg);
-        opacity: 0.08;
-        width: 48%;
-        max-width: 420px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        opacity: 0.07;
         z-index: 0;
         pointer-events: none;
     }
@@ -106,6 +107,14 @@
         box-sizing: border-box;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
         display: block;
+        overflow: hidden;
+    }
+
+    .amspec-page-body,
+    .amspec-footer-wrap,
+    .amspec-page-logo {
+        position: relative;
+        z-index: 1;
     }
 
     .amspec-shell-preview .amspec-page-sheet,
@@ -129,12 +138,20 @@
 
     .amspec-brand-row {
         margin-bottom: 2px;
+        border: none !important;
+        border-collapse: collapse;
+    }
+
+    .amspec-brand-row td {
+        border: none !important;
+        outline: none !important;
     }
 
     .amspec-brand-left {
         width: 55%;
         vertical-align: middle;
         padding-top: 0;
+        border: none !important;
     }
 
     .amspec-brand-right {
@@ -142,6 +159,7 @@
         text-align: right;
         vertical-align: top;
         padding-top: 0;
+        border: none !important;
     }
 
     .amspec-logo-wordmark {
@@ -150,6 +168,7 @@
         height: auto;
         width: auto;
         display: block;
+        border: none !important;
     }
 
     .amspec-logo-wordmark-svg {
@@ -160,10 +179,29 @@
     }
 
     .amspec-hex-cluster {
-        width: 118px;
+        width: 100px;
+        max-width: 100px;
         height: auto;
         display: inline-block;
-        margin-top: 0;
+        margin: 0;
+        padding: 0;
+        border: 0 !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    .amspec-header-hex {
+        margin: 0 0 6px 0;
+        padding: 0;
+        border: none !important;
+        line-height: 0;
+    }
+
+    .amspec-header-top,
+    .amspec-header-top td {
+        border: none !important;
+        outline: none !important;
     }
 
     .amspec-company-name {
@@ -499,13 +537,14 @@
         }
 
         .amspec-watermark {
-            position: fixed !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) rotate(-35deg) !important;
-            opacity: 0.08 !important;
-            width: 48% !important;
-            max-width: 420px !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            object-position: center !important;
+            opacity: 0.07 !important;
             z-index: 0 !important;
             pointer-events: none !important;
             display: block !important;
