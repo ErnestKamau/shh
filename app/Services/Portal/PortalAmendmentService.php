@@ -112,7 +112,7 @@ class PortalAmendmentService
                 $version,
             );
 
-            $this->numbering->syncReportNumbersForBatch($batch, $version);
+            $this->numbering->applyAmendmentNumbering($batch, $version);
 
             BatchLabSectionApprover::where('batch_id', $batch->id)
                 ->where('batch_status', 'Sample Verification')

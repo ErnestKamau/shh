@@ -21,7 +21,7 @@ class AmspecParametersTemplateExporter extends ExcelTemplateGenerator
             'lod',
             'loq',
             'non_accredited',
-            'equipment_name',
+            'equipment',
             'equipment_number',
             'method',
         ];

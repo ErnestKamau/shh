@@ -98,7 +98,8 @@
                                 <strong>Tip:</strong>
                                 Use <strong>Amspec Parameters</strong> to create and map Sample Type → Analysis Type → Analyte → Parameters in one spreadsheet.
                                 On upload, check <em>Clear previous…</em> to replace existing hierarchy data cleanly before import.
-                                Discrete forms (Analysis Type, Analyte, etc.) expect their parent records to already exist unless you clear them via the same checkbox.
+                                <strong>Sample Types &amp; Analysis Types</strong> can create Sample Types and nest Analysis Types under them (Labs must already exist).
+                                When clearing that form, only Analysis Parameters under existing Analysis Types are removed.
                             </div>
                         @endif
                         <div class="list-group">
@@ -133,14 +134,16 @@
                                 @if ($selectedFormType === 'analysis_method')
                                     <li>Or upload your AmSpec Parameters workbook directly (Reference Method + Test Method SOP columns are extracted)</li>
                                 @endif
-                                @if (in_array($selectedFormType, ['analysis_type', 'sample_condition'], true))
+                                @if ($selectedFormType === 'sample_condition')
                                     <li>
                                         This form depends on parents already existing —
-                                        @if ($selectedFormType === 'analysis_type')
-                                            <strong>Sample Types</strong> and <strong>Labs</strong> must already exist
-                                        @else
-                                            <strong>Sample Types</strong> must already exist
-                                        @endif
+                                        <strong>Sample Types</strong> must already exist
+                                    </li>
+                                @endif
+                                @if ($selectedFormType === 'analysis_type')
+                                    <li>
+                                        Creates <strong>Sample Types</strong> and <strong>Analysis Types</strong> under each sample type.
+                                        <strong>Labs</strong> must already exist.
                                     </li>
                                 @endif
                                 <li>Enter your data starting from row 2 (just below the header row)</li>
@@ -243,11 +246,10 @@
 
                         @if ($selectedFormType === 'analysis_type')
                             <div class="alert alert-danger mb-4">
-                                <strong>Replace existing analysis types</strong>
+                                <strong>Clear previous Analysis Types</strong>
                                 <p class="mb-2 small">
                                     When enabled, all Analysis Types for your company are deleted before import,
-                                    along with their Analysis Parameters and analysis-type mappings
-                                    (lab links, guides, sample↔analysis-type relations). Sample Types and Analytes are kept.
+                                    along with Analysis Parameters under them. Sample Types, Analytes, and Labs are kept.
                                 </p>
                                 <div class="form-check mb-3">
                                     <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_analysis_types">
@@ -592,10 +594,18 @@
                                         </button>
                                     </div>
                                 </div>
-                            @else
+                            @elseif (($importResults['imported_rows'] ?? 0) > 0)
                                 <div class="alert alert-success mb-4">
                                     <i class="fas fa-check-circle"></i>
                                     <strong>Success!</strong> All data was imported successfully with no errors.
+                                </div>
+                            @else
+                                <div class="alert alert-warning mb-4">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>No rows imported.</strong>
+                                    The file was processed but no matching data rows were found.
+                                    Check that column headers and required values match the selected form
+                                    (e.g. Sample Type, Analysis Type, Lab), and that Labs already exist.
                                 </div>
                             @endif
 

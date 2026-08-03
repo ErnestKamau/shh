@@ -215,6 +215,85 @@ class ScheduleSamplingManager extends Component
         return $query->get();
     }
 
+    /**
+     * Table rows with recurring series collapsed into a single row.
+     *
+     * Occurrences sharing a recurrence_group_id are grouped; the row shows the
+     * next upcoming occurrence (or the last one when all are in the past) as
+     * representative, plus series metadata for the matched occurrences.
+     *
+     * @return Collection<int, array{schedule: SamplingSchedule, series: null|array{group_id: string, count: int, collected_count: int, forms_count: int, first_date: ?\Illuminate\Support\Carbon, last_date: ?\Illuminate\Support\Carbon, occurrences: Collection<int, SamplingSchedule>}}>
+     */
+    public function getScheduleRowsProperty(): Collection
+    {
+        $now = now();
+
+        return $this->schedules
+            ->groupBy(fn (SamplingSchedule $s) => $s->recurrence_group_id ?: 'single-'.$s->id)
+            ->map(function (Collection $occurrences) use ($now) {
+                $occurrences = $occurrences->sortBy('sampling_datetime')->values();
+
+                if ($occurrences->count() === 1 && empty($occurrences->first()->recurrence_group_id)) {
+                    return ['schedule' => $occurrences->first(), 'series' => null];
+                }
+
+                $representative = $occurrences->first(
+                    fn (SamplingSchedule $s) => $s->sampling_datetime && $s->sampling_datetime->gte($now)
+                ) ?? $occurrences->last();
+
+                return [
+                    'schedule' => $representative,
+                    'series' => [
+                        'group_id' => (string) $representative->recurrence_group_id,
+                        'count' => $occurrences->count(),
+                        'collected_count' => $occurrences->filter(fn (SamplingSchedule $s) => (bool) $s->is_collected)->count(),
+                        'forms_count' => $occurrences->sum(fn (SamplingSchedule $s) => $s->submissionFormInstances->count()),
+                        'first_date' => $occurrences->first()->sampling_datetime,
+                        'last_date' => $occurrences->last()->sampling_datetime,
+                        'occurrences' => $occurrences,
+                    ],
+                ];
+            })
+            ->sortByDesc(fn (array $row) => optional($row['schedule']->sampling_datetime)->getTimestamp() ?? 0)
+            ->values();
+    }
+
+    /**
+     * All occurrences of the series the viewed schedule belongs to.
+     *
+     * @return Collection<int, SamplingSchedule>
+     */
+    public function getViewingSeriesOccurrencesProperty(): Collection
+    {
+        if (! $this->viewingSchedule || empty($this->viewingSchedule->recurrence_group_id)) {
+            return collect();
+        }
+
+        return SamplingSchedule::with(['submissionFormInstances'])
+            ->visibleTo()
+            ->where('recurrence_group_id', $this->viewingSchedule->recurrence_group_id)
+            ->orderBy('sampling_datetime')
+            ->get();
+    }
+
+    /**
+     * All occurrences of the series the edited schedule belongs to (for the switcher).
+     *
+     * @return Collection<int, SamplingSchedule>
+     */
+    public function getEditingSeriesOccurrencesProperty(): Collection
+    {
+        if (! $this->editingSchedule || empty($this->editingSchedule->recurrence_group_id)) {
+            return collect();
+        }
+
+        return SamplingSchedule::query()
+            ->visibleTo()
+            ->where('recurrence_group_id', $this->editingSchedule->recurrence_group_id)
+            ->orderBy('sampling_datetime')
+            ->get(['id', 'sampling_datetime', 'is_collected', 'recurrence_group_id']);
+    }
+
     public function toggleFilters()
     {
         $this->showFilters = !$this->showFilters;
@@ -978,8 +1057,10 @@ class ScheduleSamplingManager extends Component
             $historyRecorder = app(SamplingScheduleSamplePlanHistoryRecorder::class);
             $previousPlan = null;
 
+            $previousFrequency = null;
             if ($this->editingSchedule) {
                 $schedule = $this->editingSchedule;
+                $previousFrequency = trim((string) ($schedule->frequency ?? 'One-time'));
                 $previousPlan = $historyRecorder->currentPlanFromSchedule($schedule);
             } else {
                 $schedule = new SamplingSchedule();
@@ -1034,8 +1115,14 @@ class ScheduleSamplingManager extends Component
 
             $schedule->save();
 
-            if (! $wasEditing) {
-                app(\App\Services\Planner\SamplingScheduleRecurrenceGenerator::class)
+            $becameRecurring = $wasEditing
+                && empty($schedule->recurrence_group_id)
+                && in_array($previousFrequency, ['', 'One-time'], true)
+                && trim((string) $schedule->frequency) !== 'One-time';
+
+            $createdOccurrences = [];
+            if (! $wasEditing || $becameRecurring) {
+                $createdOccurrences = app(\App\Services\Planner\SamplingScheduleRecurrenceGenerator::class)
                     ->generateFollowingOccurrences($schedule);
             }
 
@@ -1057,9 +1144,15 @@ class ScheduleSamplingManager extends Component
             DB::commit();
 
             $this->closeModal();
-            $this->message = $wasEditing
-                ? 'Schedule updated successfully!'
-                : 'Sampling scheduled successfully!';
+            if ($wasEditing && $becameRecurring && $createdOccurrences !== []) {
+                $this->message = 'Schedule updated and converted to a recurring series with '.(count($createdOccurrences) + 1).' occurrences.';
+            } elseif ($wasEditing) {
+                $this->message = 'Schedule updated successfully!';
+            } elseif ($createdOccurrences !== []) {
+                $this->message = 'Recurring sampling scheduled as one series with '.(count($createdOccurrences) + 1).' occurrences.';
+            } else {
+                $this->message = 'Sampling scheduled successfully!';
+            }
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
@@ -1079,7 +1172,47 @@ class ScheduleSamplingManager extends Component
 
             DB::commit();
 
+            if ($this->viewingSchedule && (string) $this->viewingSchedule->id === (string) $id) {
+                $this->showViewModal = false;
+                $this->viewingSchedule = null;
+            }
+
             $this->message = 'Schedule deleted successfully!';
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    /**
+     * Delete every occurrence of a recurring schedule series.
+     */
+    public function deleteSeries(string $groupId)
+    {
+        try {
+            DB::beginTransaction();
+
+            $occurrences = SamplingSchedule::query()
+                ->visibleTo()
+                ->where('company_id', getUserCompany())
+                ->where('recurrence_group_id', $groupId)
+                ->get();
+
+            foreach ($occurrences as $occurrence) {
+                $occurrence->delete();
+            }
+
+            DB::commit();
+
+            if ($this->viewingSchedule && (string) $this->viewingSchedule->recurrence_group_id === $groupId) {
+                $this->showViewModal = false;
+                $this->viewingSchedule = null;
+            }
+
+            $this->message = 'Recurring schedule deleted ('.$occurrences->count().' occurrence'.($occurrences->count() === 1 ? '' : 's').').';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

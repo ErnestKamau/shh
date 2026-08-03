@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Livewire\Concerns\WithToastNotifications;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
@@ -16,6 +17,8 @@ use Livewire\Component;
 
 class SampleIntegrityCheckPage extends Component
 {
+    use WithToastNotifications;
+
     public string $submissionFormId;
 
     public string $instanceId;
@@ -243,7 +246,7 @@ class SampleIntegrityCheckPage extends Component
     public function saveAssignments(): void
     {
         if ($this->enquiry === null) {
-            $this->flashMessage = 'No commercial enquiry is linked to this request.';
+            $this->setFlashMessage('No commercial enquiry is linked to this request.', 'warning');
 
             return;
         }
@@ -252,7 +255,7 @@ class SampleIntegrityCheckPage extends Component
             ->persistIntegrityAssignments($this->enquiry, $this->testRows);
 
         $this->reloadRows();
-        $this->flashMessage = 'Integrity assignments saved.';
+        $this->setFlashMessage('Integrity assignments saved.', 'success');
     }
 
     public function toggleSubcontracted(string $rowKey): void
@@ -323,7 +326,7 @@ class SampleIntegrityCheckPage extends Component
         );
 
         if ($ids === []) {
-            $this->flashMessage = 'Select at least one lab section to apply.';
+            $this->setFlashMessage('Select at least one lab section to apply.', 'warning');
 
             return;
         }
@@ -344,7 +347,7 @@ class SampleIntegrityCheckPage extends Component
             $updated++;
         }
 
-        $this->flashMessage = $updated.' test(s) updated with lab section(s).';
+        $this->setFlashMessage($updated.' test(s) updated with lab section(s).', 'success');
     }
 
     public function applyBulkSubcontracted(bool $subcontracted = true): void
@@ -366,9 +369,9 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->clearRowSelection();
-        $this->flashMessage = $subcontracted
+        $this->setFlashMessage($subcontracted
             ? $updated.' test(s) marked subcontracted.'
-            : $updated.' test(s) unmarked as subcontracted.';
+            : $updated.' test(s) unmarked as subcontracted.', 'success');
     }
 
     /**
@@ -403,7 +406,7 @@ class SampleIntegrityCheckPage extends Component
         }
 
         if ($bySection === []) {
-            $this->flashMessage = 'Select at least one analyst for a lab section already on the selected test(s).';
+            $this->setFlashMessage('Select at least one analyst for a lab section already on the selected test(s).', 'warning');
 
             return;
         }
@@ -441,19 +444,19 @@ class SampleIntegrityCheckPage extends Component
         }
 
         if ($updated === 0) {
-            $this->flashMessage = 'No selected tests include the chosen lab section(s). Assign sections first.';
+            $this->setFlashMessage('No selected tests include the chosen lab section(s). Assign sections first.', 'warning');
 
             return;
         }
 
         $this->clearRowSelection();
-        $this->flashMessage = $updated.' test(s) updated with analyst(s).';
+        $this->setFlashMessage($updated.' test(s) updated with analyst(s).', 'success');
     }
 
     public function copyAssignmentsFromFirstSelected(): void
     {
         if (count($this->selectedRowKeys) < 2) {
-            $this->flashMessage = 'Select at least two tests to copy assignments.';
+            $this->setFlashMessage('Select at least two tests to copy assignments.', 'warning');
 
             return;
         }
@@ -500,13 +503,13 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->clearRowSelection();
-        $this->flashMessage = "Copied assignments from the first selected test to {$updated} other test(s).";
+        $this->setFlashMessage("Copied assignments from the first selected test to {$updated} other test(s).", 'success');
     }
 
     public function openAcceptConfirm(): void
     {
         if ($this->enquiry === null) {
-            $this->flashMessage = 'No commercial enquiry is linked to this request.';
+            $this->setFlashMessage('No commercial enquiry is linked to this request.', 'warning');
 
             return;
         }
@@ -516,7 +519,7 @@ class SampleIntegrityCheckPage extends Component
 
         $readiness = app(EnquiryReceptionReadinessService::class);
         if (! $readiness->isEligibleForSampleAcceptance($this->enquiry, $this->instance)) {
-            $this->flashMessage = 'This request is not ready for sample acceptance yet.';
+            $this->setFlashMessage('This request is not ready for sample acceptance yet.', 'warning');
 
             return;
         }
@@ -545,7 +548,7 @@ class SampleIntegrityCheckPage extends Component
         if (! $readiness->isEligibleForSampleAcceptance($this->enquiry, $this->instance)) {
             $this->isAccepting = false;
             $this->showAcceptConfirmModal = false;
-            $this->flashMessage = 'This request is not ready for sample acceptance yet.';
+            $this->setFlashMessage('This request is not ready for sample acceptance yet.', 'warning');
 
             return;
         }
@@ -559,9 +562,12 @@ class SampleIntegrityCheckPage extends Component
         } catch (\Throwable $exception) {
             report($exception);
             $this->isAccepting = false;
-            $this->flashMessage = $exception->getMessage() !== ''
-                ? $exception->getMessage()
-                : 'Could not accept samples. Check the application log for details.';
+            $this->setFlashMessage(
+                $exception->getMessage() !== ''
+                    ? $exception->getMessage()
+                    : 'Could not accept samples. Check the application log for details.',
+                'error'
+            );
 
             return;
         }
@@ -579,7 +585,7 @@ class SampleIntegrityCheckPage extends Component
         $this->isAccepting = false;
 
         if ($batchId === '') {
-            $this->flashMessage = 'Samples were accepted but the job number could not be created.';
+            $this->setFlashMessage('Samples were accepted but the job number could not be created.', 'error');
 
             return;
         }
@@ -635,6 +641,14 @@ class SampleIntegrityCheckPage extends Component
         return route('submission-forms.instances.sample-collection-label', [
             'instance' => $this->instance->id,
         ]);
+    }
+
+    protected function setFlashMessage(string $message, string $type = 'info'): void
+    {
+        $this->flashMessage = $message;
+        if ($message !== '') {
+            $this->toast($type, $message);
+        }
     }
 
     public function getLabSectionsProperty(): array

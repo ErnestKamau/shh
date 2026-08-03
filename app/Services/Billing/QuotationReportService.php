@@ -1293,13 +1293,13 @@ SVG;
     private function buildHexClusterDataUri(string $primaryColor): string
     {
         $primary = htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8');
-        $grey = '#8a8a8a';
+        $grey = '#6e6e6e';
         $svg = <<<SVG
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 88" aria-hidden="true">
-  <polygon points="86,2 96,8 96,20 86,26 76,20 76,8" fill="{$primary}" />
-  <polygon points="58,18 78,29 78,51 58,62 38,51 38,29" fill="none" stroke="{$grey}" stroke-width="1.3" />
-  <polygon points="22,34 34,41 34,55 22,62 10,55 10,41" fill="none" stroke="{$grey}" stroke-width="1.3" />
-  <polygon points="68,44 92,58 92,82 68,96 44,82 44,58" fill="none" stroke="{$grey}" stroke-width="1.3" stroke-dasharray="4,3" transform="translate(0,-12)" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 105" width="108" height="81" aria-hidden="true">
+  <polygon points="70,14 102,32 102,68 70,86 38,68 38,32" fill="none" stroke="{$grey}" stroke-width="2"/>
+  <polygon points="36,42 58,54 58,78 36,90 14,78 14,54" fill="none" stroke="{$grey}" stroke-width="2"/>
+  <polygon points="92,48 118,63 118,91 92,106 66,91 66,63" fill="none" stroke="{$grey}" stroke-width="1.8" stroke-dasharray="5 3.5" transform="translate(0,-12)"/>
+  <polygon points="108,4 122,12 122,28 108,36 94,28 94,12" fill="{$primary}"/>
 </svg>
 SVG;
 

@@ -8,7 +8,6 @@ use App\AnalysisMethod;
 use App\AnalysisType;
 use App\Imports\BaseImporter;
 use App\Lab;
-use App\Models\Equipments\Equipment;
 use App\Models\MethodSequences\MethodSequence;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\ReportingUnit;
@@ -66,15 +65,6 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         }
 
         return $errors;
-    }
-
-    protected function resolveCodeFromName(string $name): string
-    {
-        $slug = preg_replace('/[^A-Za-z0-9]+/', '_', $name);
-        $slug = preg_replace('/_+/', '_', $slug);
-        $slug = trim($slug, '_');
-
-        return strtoupper(substr($slug, 0, 100));
     }
 
     /**
@@ -298,7 +288,9 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             $analysisTypeCode = $this->resolveCodeFromName($analysisTypeName);
         }
         if (empty($analyteCode) && ! empty($analyteName)) {
-            $analyteCode = $this->resolveCodeFromName($analyteName);
+            $analyteCode = $analyteName;
+        } elseif (! empty($analyteCode)) {
+            $analyteCode = $this->plainReportDisplayValue((string) $analyteCode);
         }
         if (empty($standardCode) && ! empty($standardName)) {
             $standardCode = $this->resolveCodeFromName($standardName);
@@ -307,7 +299,7 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             $stdValTypeCode = $this->resolveCodeFromName($stdValTypeName);
         }
         if (empty($stdValTypeCode) && ! empty($standardCode)) {
-            $stdValTypeCode = 'VAL_'.$standardCode;
+            $stdValTypeCode = 'VAL-'.$standardCode;
             if (empty($stdValTypeName)) {
                 $stdValTypeName = 'Value for '.($standardName ?: $standardCode);
             }
@@ -339,11 +331,23 @@ class UnifiedLabHierarchyImporter extends BaseImporter
             'reporting_time' => $this->firstFilled($row, ['reporting_time']),
 
             'lab_section_code' => $labSectionCode,
-            'equipment_code' => $this->firstFilled($row, ['equipment_code', 'equipment']),
+            'equipment_code' => $this->firstFilled($row, ['equipment_code', 'equipment_number']),
+            'equipment_name' => $this->firstFilled($row, ['equipment', 'equipment_name']),
             'lod' => $this->firstFilled($row, ['lod']),
             'hod' => $this->firstFilled($row, ['loq', 'hod']),
             'level' => $this->firstFilled($row, ['level']),
             'method' => $methodName,
+            'reference_method' => $this->normalizeMethodLabel($this->firstFilled($row, [
+                'reference_method',
+                'reference_methods',
+                'ref_method',
+            ])),
+            'test_method_sop' => $this->normalizeMethodLabel($this->firstFilled($row, [
+                'test_method_sop',
+                'test_method',
+                'sop',
+            ])),
+            'method_version' => $this->firstFilled($row, ['method_version', 'version', 'revision']),
             'method_sequence_name' => $this->humanizeLabel($this->firstFilled($row, ['method_sequence_name', 'method_sequence'])),
             'procedure_worksheet_name' => $this->humanizeLabel($this->firstFilled($row, ['procedure_worksheet_name', 'procedure_worksheet'])),
 
@@ -487,38 +491,58 @@ class UnifiedLabHierarchyImporter extends BaseImporter
         ]);
     }
 
-    protected function resolveAnalysisMethod(?string $methodName): ?string
+    protected function resolveAnalysisMethod(?string $methodName, string $category = 'ltm', ?string $referenceMethodName = null, ?string $version = null): ?string
     {
         $methodName = trim((string) $methodName);
         if ($methodName === '') {
             return null;
         }
 
+        $resolver = app(\App\Services\Lab\MethodConfigurationResolver::class);
+        $resolver->ensurePointerConfigurations();
+        $methodTypeId = $resolver->resolveTypeIdForCategory($category);
+        $flags = $methodTypeId ? $resolver->legacyFlagsForTypeId($methodTypeId) : ['is_ltm' => $category === 'ltm' ? 1 : 0, 'is_sampling_method' => 0];
+
         $companyId = $this->batch->company_id;
+        $referenceTypeId = null;
+
+        if ($category === 'ltm' && $referenceMethodName) {
+            $referenceTypeId = $this->resolveAnalysisMethod($referenceMethodName, 'reference');
+        }
+
+        $description = $methodName;
+        $version = trim((string) $version);
+        if ($version !== '' && stripos($methodName, $version) === false) {
+            $description = trim($methodName.' '.$version);
+        }
 
         $analysisMethod = AnalysisMethod::query()
             ->where('company_id', $companyId)
             ->where(function ($query) use ($methodName): void {
-                $query->where('name', $methodName)
-                    ->orWhere('code', $methodName);
+                $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($methodName)])
+                    ->orWhereRaw('LOWER(TRIM(code)) = ?', [strtolower($methodName)]);
             })
             ->first();
 
+        $payload = [
+            'name' => $methodName,
+            'code' => $methodName,
+            'description' => $description,
+            'company_id' => $companyId,
+            'active' => 1,
+            'method_type_id' => $methodTypeId,
+            'reference_type_id' => $referenceTypeId,
+            'is_ltm' => $flags['is_ltm'] ?? ($category === 'ltm' ? 1 : 0),
+            'is_sampling_method' => $flags['is_sampling_method'] ?? 0,
+        ];
+
         if ($analysisMethod) {
-            if ($analysisMethod->name !== $methodName) {
-                $analysisMethod->update(['name' => $methodName]);
-            }
+            $analysisMethod->update($payload);
 
             return (string) $analysisMethod->id;
         }
 
-        $analysisMethod = AnalysisMethod::create([
-            'code' => $this->resolveCodeFromName($methodName),
-            'company_id' => $companyId,
-            'name' => $methodName,
-            'description' => $methodName,
-            'active' => 1,
-        ]);
+        $analysisMethod = AnalysisMethod::create($payload);
 
         return (string) $analysisMethod->id;
     }
@@ -796,17 +820,39 @@ class UnifiedLabHierarchyImporter extends BaseImporter
                 }
             }
 
-            $equipmentId = null;
-            if (! empty($transformedData['equipment_code'])) {
-                $equip = Equipment::where('equipment_number', $transformedData['equipment_code'])
-                    ->orWhere('name', $transformedData['equipment_code'])
-                    ->first();
-                if ($equip) {
-                    $equipmentId = $equip->id;
+            $equipmentId = $this->resolveEquipmentId(
+                $transformedData['equipment_code'] ?? null,
+                $transformedData['equipment_name'] ?? null,
+            );
+
+            $referenceMethod = $transformedData['reference_method'] ?? null;
+            $testMethodSop = $transformedData['test_method_sop'] ?? $transformedData['method'] ?? null;
+            $methodVersion = $transformedData['method_version'] ?? null;
+
+            $methodIds = [];
+            if (! empty($referenceMethod)) {
+                $referenceId = $this->resolveAnalysisMethod($referenceMethod, 'reference');
+                if ($referenceId) {
+                    $methodIds[] = $referenceId;
+                }
+            }
+            $methodId = null;
+            if (! empty($testMethodSop)) {
+                $methodId = $this->resolveAnalysisMethod(
+                    $testMethodSop,
+                    'ltm',
+                    $referenceMethod,
+                    is_string($methodVersion) ? $methodVersion : null,
+                );
+                if ($methodId) {
+                    $methodIds[] = $methodId;
                 }
             }
 
-            $methodId = $this->resolveAnalysisMethod($transformedData['method'] ?? null);
+            if ($methodIds !== []) {
+                $analyte->analysisMethods()->syncWithoutDetaching($methodIds);
+            }
+
             $methodSequenceId = $this->resolveMethodSequenceId($transformedData['method_sequence_name'] ?? null);
             $procedureWorksheetId = $this->resolveProcedureWorksheetId($transformedData['procedure_worksheet_name'] ?? null);
 

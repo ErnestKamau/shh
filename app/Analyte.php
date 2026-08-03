@@ -96,4 +96,22 @@ class Analyte extends Model implements Auditable
 		}
 		return $response;
 	}
+
+	/**
+	 * Report display label: plain bold-friendly text (no scream-case / underscores).
+	 */
+	public function plainReportDisplay(): string
+	{
+		$code = trim(str_replace('_', ' ', preg_replace('/\s+/', ' ', (string) $this->code) ?? (string) $this->code));
+
+		if ($code === '') {
+			return '';
+		}
+
+		if (preg_match('/^[A-Z0-9]+(?: [A-Z0-9]+)*$/', $code) === 1) {
+			return \Illuminate\Support\Str::title(strtolower($code));
+		}
+
+		return $code;
+	}
 }

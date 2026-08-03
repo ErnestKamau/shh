@@ -91,11 +91,15 @@
         max-width: 240px !important;
         height: auto !important;
         width: auto !important;
+        border: none !important;
     }
 
     body.amspec-download-body .amspec-hex-cluster {
-        width: 118px !important;
+        width: 108px !important;
+        max-width: 108px !important;
         height: auto !important;
+        border: 0 !important;
+        outline: none !important;
     }
 
     body.amspec-download-body .amspec-category-banner {
@@ -376,32 +380,40 @@
         border: none;
     }
 
-    body.amspec-download-body .amspec-watermark {
-        position: fixed;
-        top: 42%;
-        left: 18%;
-        width: 64%;
-        opacity: 0.08;
-        z-index: 0;
-        pointer-events: none;
-        display: block;
-        transform: rotate(-35deg);
+    body.amspec-download-body .amspec-page-sheet {
+        position: relative;
+        overflow: hidden;
+    }
+
+    body.amspec-download-body .amspec-page-body,
+    body.amspec-download-body .amspec-page-logo {
+        position: relative;
+        z-index: 1;
     }
 
     body.amspec-download-body .amspec-brand-row {
         width: 100%;
         margin-bottom: 2px;
+        border: none !important;
+        border-collapse: collapse;
+    }
+
+    body.amspec-download-body .amspec-brand-row td {
+        border: none !important;
+        outline: none !important;
     }
 
     body.amspec-download-body .amspec-brand-left {
         width: 55%;
         vertical-align: middle;
+        border: none !important;
     }
 
     body.amspec-download-body .amspec-brand-right {
         width: 45%;
         text-align: right;
         vertical-align: top;
+        border: none !important;
     }
 
     body.amspec-download-body .amspec-logo-wordmark {
@@ -409,12 +421,22 @@
         max-height: 62px !important;
         width: auto !important;
         height: auto !important;
+        border: none !important;
     }
 
     body.amspec-download-body .amspec-hex-cluster {
-        width: 118px !important;
+        width: 108px !important;
         height: auto !important;
-        max-width: 118px !important;
+        max-width: 108px !important;
+        border: 0 !important;
+        outline: none !important;
+    }
+
+    body.amspec-download-body .amspec-header-top,
+    body.amspec-download-body .amspec-header-top td,
+    body.amspec-download-body .amspec-header-hex {
+        border: none !important;
+        outline: none !important;
     }
 
     body.amspec-download-body .amspec-test-table tfoot {

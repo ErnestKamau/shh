@@ -343,11 +343,18 @@ $printed_pos = [];
             </table>
             @if($sample->header_body != '' || $sample->main_body != '' || $sample->notes_body != '' || isset($ammendment->id))
             <table style="margin:0px !important;width:100%">
-                @if ($sample->header_body != '')
+                @if ($sample->header_body != '' || isset($ammendment->id))
                     <tr style="margin:0px !important">
                         <td style="font-size:10px !important;">
-                            <b>Comments : </b>{!! $sample->header_body !!}
-                            {!! isset($ammendment->id)  ? ($amendmentDisplay['supersedes_text'] ?? $amendmentDisplay['supersedesText'] ?? 'This report supersedes the original report') : '' !!}
+                            @if ($sample->header_body != '')
+                                <b>Comments : </b>{!! $sample->header_body !!}
+                            @endif
+                            @if (isset($ammendment->id))
+                                @if ($sample->header_body != '')
+                                    <br>
+                                @endif
+                                <strong>{{ $amendmentDisplay['supersedes_text'] ?? $amendmentDisplay['supersedesText'] ?? 'This report supersedes the original report' }}</strong>
+                            @endif
                         </td>
                     </tr>
                 @endif

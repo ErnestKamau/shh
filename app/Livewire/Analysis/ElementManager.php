@@ -10,6 +10,7 @@ use App\AnalysisElements;
 use App\AnalysisType;
 use App\Analyte;
 use App\AnalysisMethod;
+use App\Exports\Templates\Lab\AnalysisParameterImportTemplateExport;
 use App\Imports\ImportAnalysisElements;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
@@ -291,19 +292,10 @@ class ElementManager extends Component
         $this->resetValidation();
     }
 
-    public function downloadImportTemplate(): BinaryFileResponse|\Illuminate\Http\RedirectResponse
+    public function downloadImportTemplate(): BinaryFileResponse
     {
-        $templatePath = public_path('templates/import-analysis-type-elements.xlsx');
-
-        if (! is_file($templatePath)) {
-            $this->message = 'Import template file was not found.';
-            $this->messageType = 'danger';
-
-            return redirect()->back();
-        }
-
-        return response()->download(
-            $templatePath,
+        return Excel::download(
+            new AnalysisParameterImportTemplateExport(),
             'import-analysis-type-elements.xlsx'
         );
     }
@@ -329,7 +321,7 @@ class ElementManager extends Component
             if ($importer->importedRows === 0) {
                 $detail = $importer->errors !== []
                     ? implode(' ', array_slice($importer->errors, 0, 3))
-                    : 'No valid parameter rows were found in the file. Check that columns are parameter, reporting_unit, method, and accredited.';
+                    : 'No valid parameter rows were found in the file. Check required columns (parameter, method) and optional columns (lab_section, operator, tat, equipment).';
                 $this->message = 'Import finished but no parameters were saved. '.$detail;
                 $this->messageType = 'danger';
 

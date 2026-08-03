@@ -1,4 +1,4 @@
-{{-- Global SweetAlert2 toast layer (session flash + Livewire notify/alert) --}}
+{{-- Global toast layer (session flash + Livewire notify/alert) with SweetAlert2 + DOM fallback --}}
 @once
     <link rel="stylesheet" href="{{ asset('assets/js/libs/sweetalert2/sweetalert2.min.css') }}">
     <style>
@@ -28,6 +28,21 @@
         .swal2-styled.swal2-cancel {
             background-color: #6c757d !important;
         }
+
+        #app-toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20000;
+            max-width: 400px;
+            pointer-events: none;
+        }
+
+        #app-toast-container .app-toast {
+            pointer-events: auto;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
+        }
     </style>
     <script src="{{ asset('assets/js/libs/sweetalert2/sweetalert2.all.min.js') }}"></script>
 
@@ -38,8 +53,17 @@
             }
             window.__appToastInitialized = true;
 
+            // sweetalert2.all.min.js exposes Sweetalert2; older code expects Swal.
+            if (typeof window.Swal === 'undefined' && typeof window.Sweetalert2 !== 'undefined') {
+                window.Swal = window.Sweetalert2;
+            }
+
             function ensureSwal() {
-                return typeof Swal !== 'undefined';
+                return typeof window.Swal !== 'undefined' || typeof window.Sweetalert2 !== 'undefined';
+            }
+
+            function getSwal() {
+                return window.Swal || window.Sweetalert2 || null;
             }
 
             function onReady(callback) {
@@ -64,6 +88,8 @@
             function normalizePayload(raw) {
                 let data = raw;
 
+                // Livewire.on already unwraps CustomEvent.detail in v3, but some
+                // callers still pass the event object or a one-item params array.
                 if (Array.isArray(data)) {
                     data = data[0] ?? {};
                 }
@@ -96,20 +122,62 @@
                 return 3500;
             }
 
+            function bootstrapAlertClass(type) {
+                if (type === 'error') {
+                    return 'danger';
+                }
+                if (type === 'question') {
+                    return 'info';
+                }
+                return type;
+            }
+
+            function showDomToast(type, message) {
+                let container = document.getElementById('app-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'app-toast-container';
+                    document.body.appendChild(container);
+                }
+
+                const toast = document.createElement('div');
+                const alertType = bootstrapAlertClass(type);
+                toast.className = 'alert alert-' + alertType + ' alert-dismissible fade show app-toast';
+                toast.setAttribute('role', 'alert');
+                toast.innerHTML =
+                    '<span>' + String(message) + '</span>' +
+                    '<button type="button" class="close" aria-label="Close">' +
+                    '<span aria-hidden="true">&times;</span></button>';
+
+                const close = function () {
+                    toast.classList.remove('show');
+                    setTimeout(function () {
+                        if (toast.parentElement) {
+                            toast.parentElement.removeChild(toast);
+                        }
+                    }, 150);
+                };
+
+                toast.querySelector('.close')?.addEventListener('click', close);
+                container.appendChild(toast);
+                setTimeout(close, toastTimerFor(type));
+            }
+
             function getToast() {
-                if (!ensureSwal()) {
+                const SwalLib = getSwal();
+                if (!SwalLib) {
                     return null;
                 }
 
-                return Swal.mixin({
+                return SwalLib.mixin({
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
                     showCloseButton: true,
                     timerProgressBar: true,
                     didOpen: (toast) => {
-                        toast.addEventListener('mouseenter', Swal.stopTimer);
-                        toast.addEventListener('mouseleave', Swal.resumeTimer);
+                        toast.addEventListener('mouseenter', SwalLib.stopTimer);
+                        toast.addEventListener('mouseleave', SwalLib.resumeTimer);
                     },
                 });
             }
@@ -124,28 +192,34 @@
                 const Toast = getToast();
 
                 if (!Toast) {
-                    console.warn('[toast]', icon + ':', message);
+                    showDomToast(icon, message);
                     return;
                 }
 
-                Toast.fire({
-                    icon: icon,
-                    title: message,
-                    timer: opts.timer ?? toastTimerFor(icon),
-                    ...opts,
-                    toast: true,
-                    showConfirmButton: false,
-                });
+                try {
+                    Toast.fire({
+                        icon: icon,
+                        title: message,
+                        timer: opts.timer ?? toastTimerFor(icon),
+                        ...opts,
+                        toast: true,
+                        showConfirmButton: false,
+                    });
+                } catch (error) {
+                    console.warn('[toast] SweetAlert failed, using fallback', error);
+                    showDomToast(icon, message);
+                }
             };
 
             window.showAppConfirm = function (options) {
                 const opts = options && typeof options === 'object' ? options : {};
+                const SwalLib = getSwal();
 
-                if (!ensureSwal()) {
+                if (!SwalLib) {
                     return Promise.resolve(window.confirm(opts.text || opts.title || 'Are you sure?'));
                 }
 
-                return Swal.fire({
+                return SwalLib.fire({
                     icon: opts.icon || 'question',
                     title: opts.title || 'Are you sure?',
                     text: opts.text || '',
@@ -174,15 +248,24 @@
                 window.showAppToast(payload.type, payload.message);
             }
 
-            document.addEventListener('livewire:init', function () {
-                if (window.__appToastLivewireBound) {
-                    return;
-                }
+            // Livewire dispatches notify/alert as bubbling window CustomEvents (__livewire flag).
+            // Listen directly so we do not depend on livewire:init timing.
+            if (!window.__appToastLivewireBound) {
                 window.__appToastLivewireBound = true;
 
-                Livewire.on('notify', handleLivewireNotification);
-                Livewire.on('alert', handleLivewireNotification);
-            });
+                window.addEventListener('notify', function (event) {
+                    if (!event || !event.__livewire) {
+                        return;
+                    }
+                    handleLivewireNotification(event.detail);
+                });
+                window.addEventListener('alert', function (event) {
+                    if (!event || !event.__livewire) {
+                        return;
+                    }
+                    handleLivewireNotification(event.detail);
+                });
+            }
 
             @if (session()->has('success'))
                 onReady(function () {

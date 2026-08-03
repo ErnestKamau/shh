@@ -9,10 +9,14 @@ class AnalysisTypeTemplateExporter extends ExcelTemplateGenerator
     protected function defineHeaders(): array
     {
         return [
-            'code*',
-            'name*',
             'sample_type_code*',
+            'sample_type_name*',
+            'analysis_type_code*',
+            'analysis_type_name*',
             'lab_code*',
+            'equipment',
+            'reference_method',
+            'test_method',
             'has_no_result',
             'reporting_time',
         ];
@@ -20,9 +24,10 @@ class AnalysisTypeTemplateExporter extends ExcelTemplateGenerator
 
     protected function defineExamples(): array
     {
+        // Intentionally fake placeholders — real rows matching these are skipped on import.
         return [
-            ['AT-001', 'Water Analysis', 'ST-001', 'LAB-001', '0', '2'],
-            ['AT-002', 'Soil Analysis', 'ST-002', 'LAB-001', '0', '3'],
+            ['EXAMPLE-FOOD', 'Example Food Matrix', 'EXAMPLE-CHEM', 'Example Chemical', 'LAB-001', 'Balance/Hot Air Oven', 'AOAC Example', 'AMS/C/SOP/EXAMPLE', '0', ''],
+            ['EXAMPLE-WATER', 'Example Water Matrix', 'EXAMPLE-PHYS', 'Example Physical', 'LAB-001', 'ICP-OES', 'APHA Example', 'AMS/C/SOP/EXAMPLE-2', '0', '2'],
         ];
     }
 }

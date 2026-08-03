@@ -5,12 +5,11 @@
 @endphp
 
 <div class="amspec-quotation" style="--quotation-primary: {{ $primaryColor }}; --quotation-accent: {{ $accentColor }};">
-    @if(!empty($branding['watermarkSrc']))
-        <img src="{{ $branding['watermarkSrc'] }}" alt="" class="amspec-watermark" aria-hidden="true">
-    @endif
-
-
     <div @class(['amspec-page-sheet', 'amspec-page-one', 'amspec-pdf-page' => $isPdf])>
+        {{-- PDF watermark is painted per page via ReportWatermarkService::applyToPdf. --}}
+        @if(!$isPdf && !empty($branding['watermarkSrc']))
+            <img src="{{ $branding['watermarkSrc'] }}" alt="" class="amspec-watermark" aria-hidden="true">
+        @endif
         <div class="amspec-page-body">
             @include('billing.quotations.amspec.partials.header')
             @include('billing.quotations.amspec.partials.meta')
@@ -23,6 +22,9 @@
     </div>
 
     <div @class(['amspec-page-sheet', 'amspec-page-two', 'amspec-pdf-page' => $isPdf])>
+        @if(!$isPdf && !empty($branding['watermarkSrc']))
+            <img src="{{ $branding['watermarkSrc'] }}" alt="" class="amspec-watermark" aria-hidden="true">
+        @endif
         @include('billing.quotations.amspec.partials.page-logo')
         <div class="amspec-page-body">
             @include('billing.quotations.amspec.partials.terms')

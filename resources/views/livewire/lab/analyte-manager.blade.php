@@ -154,7 +154,7 @@
                                                 </div>
                                             </td>
                                             <td><strong>{{ $analyte->name }}</strong></td>
-                                            <td><strong>{{ $analyte->code }}</strong></td>
+                                            <td><strong>{{ $analyte->plainReportDisplay() }}</strong></td>
                                             <td>{{ $analyte->common_name }}</td>
                                             <td style="max-width:200px;white-space:normal;"><small>{{ $analyte->analysisMethods->pluck('name')->join(', ') ?: '-' }}</small></td>
                                             <td style="max-width:180px;white-space:normal;"><small>{{ $analyte->equipmentItems->pluck('name')->join(', ') ?: '-' }}</small></td>

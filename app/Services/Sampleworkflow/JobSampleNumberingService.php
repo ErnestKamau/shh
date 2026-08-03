@@ -194,14 +194,14 @@ class JobSampleNumberingService
 
     /**
      * COA report number linked to job.
-     * Example: 260428001-R01 (or configured amendment pattern when revision > 1)
+     * Example: 260428001-R01 (or configured amendment pattern when amended)
      */
-    public function reportNumber(string $jobNumber, int $revision = 1): string
+    public function reportNumber(string $jobNumber, int $revision = 1, bool $useAmendmentFormat = false): string
     {
         $this->assertValidJobNumber($jobNumber);
         $revision = max(1, $revision);
 
-        if ($revision > 1) {
+        if ($useAmendmentFormat || $revision > 1) {
             return app(AmendmentReportConfigurationService::class)
                 ->formatReportNumber($jobNumber, $revision);
         }
@@ -209,7 +209,7 @@ class JobSampleNumberingService
         return $jobNumber . '-R' . str_pad((string) $revision, 2, '0', STR_PAD_LEFT);
     }
 
-    public function syncReportNumbersForBatch(SampleHeader $batch, int $revision): void
+    public function syncReportNumbersForBatch(SampleHeader $batch, int $revision, bool $useAmendmentFormat = false): void
     {
         $jobNumber = (string) $batch->batch_code;
 
@@ -217,11 +217,53 @@ class JobSampleNumberingService
             return;
         }
 
-        $reportNumber = $this->reportNumber($jobNumber, $revision);
+        $reportNumber = $this->reportNumber($jobNumber, $revision, $useAmendmentFormat);
 
         SampleDetails::query()
             ->where('sample_header_id', $batch->id)
             ->update(['report_number' => $reportNumber]);
+    }
+
+    /**
+     * Apply configured amendment wording/numbering when a batch is amended:
+     * report numbers + optional sample-code suffixes.
+     */
+    public function applyAmendmentNumbering(SampleHeader $batch, int $revision): void
+    {
+        $revision = max(1, $revision);
+        $this->syncReportNumbersForBatch($batch, $revision, true);
+        $this->syncSampleCodeSuffixesForBatch($batch, $revision);
+    }
+
+    /**
+     * Append (or refresh) the configured amendment suffix on every sample code.
+     * Leave sample codes unchanged when the suffix format is blank.
+     */
+    public function syncSampleCodeSuffixesForBatch(SampleHeader $batch, int $revision): void
+    {
+        $revision = max(1, $revision);
+
+        $config = app(AmendmentReportConfigurationService::class);
+        $suffix = $config->formatSampleNumberSuffix($revision);
+
+        $samples = SampleDetails::query()
+            ->where('sample_header_id', $batch->id)
+            ->get(['id', 'sample_code']);
+
+        foreach ($samples as $sample) {
+            $current = trim((string) ($sample->sample_code ?? ''));
+            if ($current === '') {
+                continue;
+            }
+
+            $base = $config->stripSampleNumberSuffix($current);
+            $next = $suffix === '' ? $base : $base.$suffix;
+
+            if ($next !== $current) {
+                $sample->sample_code = $next;
+                $sample->save();
+            }
+        }
     }
 
     public function isJobNumberFormat(string $value): bool

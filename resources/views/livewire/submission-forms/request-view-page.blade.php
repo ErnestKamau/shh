@@ -191,7 +191,8 @@
         </div>
     </div>
 
-    <div id="print-sample-labels-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    @teleport('body')
+    <div id="print-sample-labels-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore>
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -239,6 +240,7 @@
             </div>
         </div>
     </div>
+    @endteleport
 
     @if($showTrfOrientationModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">

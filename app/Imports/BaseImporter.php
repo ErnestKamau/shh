@@ -275,6 +275,27 @@ abstract class BaseImporter implements
                     if (!$hasTypeAndAnalyte && !$hasParamAndMethod) {
                         $hasMissingPrimaryKey = true;
                     }
+                } elseif ($formType === 'analysis_type') {
+                    $hasSampleType = $checkFilled([
+                        'sample_type_code',
+                        'sample_type_name',
+                        'sample_type',
+                        'matrix_code',
+                        'matrix_name',
+                        'matrix',
+                    ]);
+                    $hasAnalysisType = $checkFilled([
+                        'analysis_type_code',
+                        'analysis_type_name',
+                        'analysis_type',
+                        'code',
+                        'name',
+                        'at_code',
+                        'at_name',
+                    ]);
+                    if (! $hasSampleType || ! $hasAnalysisType) {
+                        $hasMissingPrimaryKey = true;
+                    }
                 } elseif ($formType === 'sample_type') {
                     $hasCode = $checkFilled(['code', 'id', 'sample_type_code', 'matrix_code']);
                     $hasName = $checkFilled(['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description']);
@@ -749,13 +770,237 @@ abstract class BaseImporter implements
                 if ($cleaned !== false) {
                     $value = $cleaned;
                 }
-                $value = trim($value);
+                $value = $this->sanitizeImportedString($value);
             }
 
             $normalized[$normalizedKey] = $value;
         }
 
         return $normalized;
+    }
+
+    /**
+     * Strip underscores from imported cell values (replace with spaces).
+     */
+    protected function sanitizeImportedString(string $value): string
+    {
+        $value = str_replace('_', ' ', $value);
+        $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+
+        return trim($value);
+    }
+
+    /**
+     * Plain report-display text: no underscores, no scream-case.
+     * Preserves mixed-case and technical codes (e.g. AN-PH, ISO-4833).
+     */
+    protected function plainReportDisplayValue(string $value): string
+    {
+        $value = $this->sanitizeImportedString($value);
+
+        if ($value === '') {
+            return $value;
+        }
+
+        // Multi-word or single-word ALL CAPS → Title Case
+        if (preg_match('/^[A-Z0-9]+(?: [A-Z0-9]+)*$/', $value) === 1) {
+            return \Illuminate\Support\Str::title(strtolower($value));
+        }
+
+        return $value;
+    }
+
+    /**
+     * Build a stable technical code from a name without underscores (uppercase).
+     */
+    protected function resolveCodeFromName(string $name): string
+    {
+        $slug = preg_replace('/[^A-Za-z0-9]+/', ' ', $name) ?? '';
+        $slug = preg_replace('/\s+/', ' ', $slug) ?? '';
+        $slug = trim($slug);
+
+        if ($slug === '') {
+            return 'CODE-'.uniqid();
+        }
+
+        return strtoupper(substr($slug, 0, 100));
+    }
+
+    /**
+     * Resolve one equipment id by optional number/code and/or name.
+     * Creates a stub equipment record when nothing matches.
+     */
+    protected function resolveEquipmentId(?string $equipmentCode = null, ?string $equipmentName = null): ?string
+    {
+        $ids = $this->resolveEquipmentIds($equipmentCode, $equipmentName);
+
+        return $ids[0] ?? null;
+    }
+
+    /**
+     * Resolve one or more equipment ids from code/name cells.
+     * Name cells may list multiple items separated by commas or slashes.
+     *
+     * @return list<string>
+     */
+    protected function resolveEquipmentIds(?string $equipmentCode = null, ?string $equipmentName = null): array
+    {
+        $code = trim((string) $equipmentCode);
+        $name = trim((string) $equipmentName);
+
+        if ($code === '' && $name === '') {
+            return [];
+        }
+
+        if (! class_exists(\App\Models\Equipments\Equipment::class)) {
+            return [];
+        }
+
+        $nameTokens = $this->splitImportedEquipmentNames($name !== '' ? $name : null);
+
+        if ($nameTokens === [] && $code !== '') {
+            $id = $this->findOrCreateEquipment($code, null);
+
+            return $id !== null ? [$id] : [];
+        }
+
+        $resolved = [];
+        $singleNamed = count($nameTokens) === 1;
+
+        foreach ($nameTokens as $tokenName) {
+            $tokenCode = ($singleNamed && $code !== '') ? $code : null;
+            $id = $this->findOrCreateEquipment($tokenCode, $tokenName);
+            if ($id !== null) {
+                $resolved[$id] = $id;
+            }
+        }
+
+        return array_values($resolved);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function splitImportedEquipmentNames(?string $raw): array
+    {
+        if ($raw === null || trim($raw) === '') {
+            return [];
+        }
+
+        $raw = trim($raw);
+
+        // Keep equipment numbers like AMS/M/INS/037 intact.
+        $looksLikeNumberList = (bool) preg_match('/\bAMS\s*\/|[A-Z]{2,}\/[A-Z0-9]+\/[A-Z0-9]+/i', $raw);
+
+        if ($looksLikeNumberList) {
+            $tokens = preg_split('/[,|;]+/', $raw) ?: [];
+        } else {
+            $tokens = preg_split('/[,\/|;]+/', $raw) ?: [];
+        }
+
+        $normalized = [];
+        foreach ($tokens as $token) {
+            $token = trim((string) $token);
+            if ($token !== '') {
+                $normalized[] = $token;
+            }
+        }
+
+        return $normalized;
+    }
+
+    protected function findOrCreateEquipment(?string $equipmentCode, ?string $equipmentName): ?string
+    {
+        $code = trim((string) $equipmentCode);
+        $name = trim((string) $equipmentName);
+
+        if ($code === '' && $name === '') {
+            return null;
+        }
+
+        $companyId = $this->batch->company_id ?? null;
+        $query = \App\Models\Equipments\Equipment::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId));
+
+        if ($code !== '') {
+            $equip = (clone $query)
+                ->where(function ($builder) use ($code): void {
+                    $builder->whereRaw('LOWER(TRIM(equipment_number)) = ?', [strtolower($code)])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower($code)]);
+                })
+                ->first();
+
+            if ($equip) {
+                return (string) $equip->id;
+            }
+        }
+
+        if ($name !== '') {
+            $equip = (clone $query)
+                ->where(function ($builder) use ($name): void {
+                    $builder->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)])
+                        ->orWhereRaw('LOWER(TRIM(equipment_number)) = ?', [strtolower($name)]);
+                })
+                ->first();
+
+            if ($equip) {
+                return (string) $equip->id;
+            }
+        }
+
+        $displayName = $name !== '' ? $name : $code;
+        $equipmentNumber = $code !== '' ? $code : $this->generateImportedEquipmentNumber($displayName);
+
+        // Ensure unique equipment_number within company.
+        $baseNumber = $equipmentNumber;
+        $suffix = 1;
+        while (
+            \App\Models\Equipments\Equipment::query()
+                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+                ->whereRaw('LOWER(TRIM(equipment_number)) = ?', [strtolower($equipmentNumber)])
+                ->exists()
+        ) {
+            $equipmentNumber = $baseNumber.'-'.$suffix;
+            $suffix++;
+        }
+
+        try {
+            $equip = \App\Models\Equipments\Equipment::create([
+                'name' => $displayName,
+                'equipment_number' => $equipmentNumber,
+                'description' => $displayName,
+                'make' => 'Unknown',
+                'model' => 'Unknown',
+                'manufacturer' => 'Unknown',
+                'date_purchased' => now()->toDateString(),
+                'maintainance_days' => 365,
+                'calibration_days' => 365,
+                'status' => 'In Use',
+                'condition' => 'Good',
+                'active' => true,
+                'is_disposal' => false,
+                'picture' => '/images/default-equipment.png',
+                'company_id' => $companyId,
+            ]);
+
+            return (string) $equip->id;
+        } catch (\Throwable $e) {
+            \Log::warning('Bulk import could not create equipment: '.$e->getMessage(), [
+                'name' => $displayName,
+                'equipment_number' => $equipmentNumber,
+            ]);
+
+            return null;
+        }
+    }
+
+    protected function generateImportedEquipmentNumber(string $name): string
+    {
+        $slug = preg_replace('/[^A-Za-z0-9]+/', '-', strtoupper($name)) ?? '';
+        $slug = trim($slug, '-');
+        $slug = substr($slug !== '' ? $slug : 'EQUIP', 0, 40);
+
+        return 'IMP-'.$slug;
     }
 
     /**
@@ -919,7 +1164,7 @@ abstract class BaseImporter implements
             'analyte' => [],
             'lab' => ['lab_code'],
             'sample_type' => [],
-            'analysis_type' => ['code'],
+            'analysis_type' => [],
             'analysis_elements' => ['analysis_type_code', 'analyte_code', 'parameter', 'method'],
             'standard' => [],
             'sample_condition' => ['sample_type_code', 'condition_name'],

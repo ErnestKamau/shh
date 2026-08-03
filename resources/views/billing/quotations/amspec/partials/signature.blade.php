@@ -14,6 +14,8 @@
     <p>Thanking You,<br>Yours faithfully,</p>
 </div>
 
+<div class="amspec-signature-spacer" aria-hidden="true" style="height: {{ ($forPdf ?? false) ? '22px' : '24px' }}; line-height: {{ ($forPdf ?? false) ? '22px' : '24px' }}; font-size: 1px;">&nbsp;</div>
+
 <div class="amspec-signature-row">
     <div class="amspec-signature amspec-signature-lab">
         <p class="amspec-signature-entity">
