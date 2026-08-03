@@ -27,7 +27,7 @@ class BatchVerificationReadinessService
      * Whether the batch may be moved from Samples In Lab to Sample Verification.
      *
      * Batches with only "no result capture" analysis types are allowed through.
-     * Batches that need result capture must have at least one entered result.
+     * Batches that need result capture must have every capturable result entered.
      */
     public function canMoveToVerification(SampleHeader|string $batch): bool
     {
@@ -63,8 +63,18 @@ class BatchVerificationReadinessService
             return null;
         }
 
-        if ($this->countEntered($capturable) === 0) {
-            return 'No results have been entered for this batch. Capture at least one result before sending to verification.';
+        $entered = $this->countEntered($capturable);
+        $missing = $capturable->count() - $entered;
+
+        if ($entered === 0) {
+            return 'No results have been entered for this batch. Capture all sample results before sending to verification.';
+        }
+
+        if ($missing > 0) {
+            return sprintf(
+                '%d sample result(s) are still missing. Capture all results before sending to verification.',
+                $missing
+            );
         }
 
         return null;

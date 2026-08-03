@@ -315,7 +315,10 @@
                                     @else
                                         <li><span class="dropdown-item text-danger small" style="cursor: not-allowed;"
                                                 title="{{ $this->verificationResultsBlockReason }}">
-                                                <i class="mdi mdi-alert mr-2"></i> Send for Verification (No results captured)
+                                                <i class="mdi mdi-alert mr-2"></i> Send for Verification
+                                                @if($this->verificationResultsBlockReason)
+                                                    ({{ \Illuminate\Support\Str::limit($this->verificationResultsBlockReason, 60) }})
+                                                @endif
                                             </span></li>
                                     @endif
                                 @endif

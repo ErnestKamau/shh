@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\SampleHeader;
 use App\Services\ProcedureWorksheetPdfService;
+use App\Services\Worksheets\AmSpec\Lws056SalmonellaPdfService;
 use App\Services\Worksheets\WorksheetPrintService;
 use App\Models\Procedures\ProcedureWorksheet;
 use Illuminate\Http\RedirectResponse;
@@ -70,7 +71,7 @@ class WorksheetsController extends Controller
         Request $request,
         string $batchId,
         WorksheetPrintService $printService,
-    ): View|RedirectResponse {
+    ): View|RedirectResponse|Response {
         $batch = SampleHeader::findOrFail($batchId);
         $tab = (string) $request->query('tab', '');
 
@@ -83,9 +84,19 @@ class WorksheetsController extends Controller
             'procedure_worksheet_id' => $request->query('procedure_worksheet_id'),
             'run_id' => $request->query('run_id'),
             'analysis_type_id' => $request->query('analysis_type_id'),
+            'sample_detail_id' => $request->query('sample_detail_id'),
         ], fn ($value) => $value !== null && $value !== '');
 
         $viewData = $printService->build($tab, $batch, $params);
+
+        if (! empty($viewData['redirectToAmSpecLws056Pdf'])) {
+            $url = route('batch-worksheets.amspec-lws056', ['batch' => $batch->id]);
+            if (! empty($params['sample_detail_id'])) {
+                $url .= '?'.http_build_query(['sample' => $params['sample_detail_id']]);
+            }
+
+            return redirect($url);
+        }
 
         if (! empty($viewData['redirectToPdf']) && ! empty($params['procedure_worksheet_id'])) {
             $query = http_build_query(array_filter([
@@ -102,5 +113,19 @@ class WorksheetsController extends Controller
         }
 
         return view($viewData['view'], $viewData);
+    }
+
+    public function printAmSpecLws056Salmonella(
+        Request $request,
+        string $batchId,
+        Lws056SalmonellaPdfService $pdfService,
+    ): Response {
+        $batch = SampleHeader::findOrFail($batchId);
+        $sampleDetailId = $request->query('sample');
+
+        return $pdfService->streamPdf(
+            $batch,
+            filled($sampleDetailId) ? (string) $sampleDetailId : null
+        );
     }
 }

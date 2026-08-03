@@ -70,7 +70,11 @@
       <template id="row-template-{{ $section->id }}">
         <tr class="row-item" data-row-index="" data-section-id="{{ $section->id }}">
           @foreach($visibleRowElements as $element)
-            <td>
+            <td data-submission-form-element-id="{{ $element->id }}"
+                data-submission-form-element-name="{{ $element->name }}"
+                @if(! empty($element->conditional_logic))
+                  data-submission-form-conditional="{{ base64_encode(json_encode($element->conditional_logic)) }}"
+                @endif>
               <div class="form-group mb-0">
                         @include('submission-forms.partials.form-element', [
                             'element' => $element,

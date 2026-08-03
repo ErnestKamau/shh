@@ -22,6 +22,7 @@ use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedResultsCaptureService;
 use App\Services\LogEntryWorksheets\LogEntryRowGeneratorService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
+use App\Services\Worksheets\AmSpec\Lws056SalmonellaPdfService;
 use App\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -233,6 +234,17 @@ class WorksheetPrintService
     {
         $pipelineId = (string) ($params['pipeline_id'] ?? '');
         $holder = GroupedWorksheetHolder::findOrFail($pipelineId);
+
+        if (app(Lws056SalmonellaPdfService::class)->matchesHolder($holder)) {
+            return [
+                'view' => 'worksheets.print.amspec.lws-056-salmonella',
+                'title' => $holder->name,
+                'batch' => $batch,
+                'holder' => $holder,
+                'redirectToAmSpecLws056Pdf' => true,
+                'sample_detail_id' => $params['sample_detail_id'] ?? null,
+            ];
+        }
 
         $service = app(GroupedResultsCaptureService::class);
         $matrix = $service->loadMatrixWithDrafts($batch, $holder);

@@ -5,7 +5,6 @@ namespace App\Models\GroupedWorksheets;
 use App\Enums\GroupedWorksheetItemType;
 use App\Models\Formulars\Formula;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
-use App\Models\GroupedWorksheets\GroupedWorksheetItem;
 use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\Procedures\ProcedureWorksheet;
@@ -34,6 +33,7 @@ class GroupedWorksheetItem extends Model implements Auditable
         'item_type',
         'reference_id',
         'is_required',
+        'config',
     ];
 
     protected function casts(): array
@@ -41,7 +41,16 @@ class GroupedWorksheetItem extends Model implements Auditable
         return [
             'is_required' => 'boolean',
             'item_type' => GroupedWorksheetItemType::class,
+            'config' => 'array',
         ];
+    }
+
+    /**
+     * Retrieve a value from the item's JSON config bag.
+     */
+    public function getConfigValue(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->config, $key, $default);
     }
 
     public function holder(): BelongsTo

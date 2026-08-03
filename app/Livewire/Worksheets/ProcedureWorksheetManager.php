@@ -54,6 +54,9 @@ class ProcedureWorksheetManager extends Component
     /** Use compact layout inside grouped pipeline capture shell (sidebar shows steps). */
     public bool $groupedCaptureLayout = false;
 
+    /** Grouped holder when embedded in a pipeline (sample discovery without stamping procedure FK). */
+    public ?string $groupedHolderId = null;
+
     public $activeTabs = []; // This will hold an array of active Analyte IDs
     public string $viewMode = 'form';
     public $selectedWorksheetId = null;
@@ -106,12 +109,55 @@ class ProcedureWorksheetManager extends Component
     /** Current step in the step-form wizard. 0 = File Registration, 1+ = capture sections. */
     public int $currentStepIndex = 0;
 
-    public function mount($batchId, ?string $initialWorksheetId = null, bool $groupedCaptureLayout = false): void
-    {
+    /**
+     * Section key from the grouped pipeline item config.
+     * When set, the procedure shows only the matching matrix section.
+     */
+    public ?string $sectionKey = null;
+
+    /**
+     * Optional row keys from item config — when set, matrix shows only these rows.
+     *
+     * @var array<int, string>|null
+     */
+    public ?array $rowKeys = null;
+
+    /**
+     * Whether to render Configurable Fields for this pipeline step.
+     * Typically true only on the first observation chip for a batch.
+     */
+    public bool $showConfigFields = true;
+
+    /**
+     * Matrix input data for shared (non-per-sample) cells.
+     *
+     * @var array<string, array<string, array{value: string, uom_id: string}>>
+     *      [row_key => [column_key => {value, uom_id}]]
+     */
+    public array $matrixInputData = [];
+
+    public function mount(
+        $batchId,
+        ?string $initialWorksheetId = null,
+        bool $groupedCaptureLayout = false,
+        ?string $groupedHolderId = null,
+        ?string $sectionKey = null,
+        ?array $rowKeys = null,
+        bool $showConfigFields = true,
+    ): void {
         $this->batchId = $batchId;
         $this->groupedInitialWorksheetId = $initialWorksheetId;
+        $this->groupedHolderId = $groupedHolderId;
         $this->groupedCaptureLayout = $groupedCaptureLayout || $initialWorksheetId !== null;
+        $this->sectionKey = $sectionKey;
+        $this->rowKeys = $rowKeys;
+        $this->showConfigFields = $showConfigFields;
         $this->importHash = Str::random(8);
+
+        // Auto-skip File Registration when embedded in grouped pipeline.
+        if ($this->groupedCaptureLayout) {
+            $this->currentStepIndex = 1;
+        }
 
         if (! $this->groupedCaptureLayout) {
             $this->syncCapturedResultsProcedureWorksheetIds();
@@ -125,7 +171,7 @@ class ProcedureWorksheetManager extends Component
     }
 
     /**
-     * Grouped pipeline: link batch captured results to the stage procedure worksheet and load capture UI.
+     * Grouped pipeline: load capture UI for the stage procedure without stamping procedure FKs.
      */
     protected function bootstrapGroupedProcedureWorksheet(string $worksheetId): void
     {
@@ -138,30 +184,28 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $this->linkCapturedResultsToProcedureWorksheet($worksheetId);
-
-        $params = $this->paramsForProcedureWorksheet($worksheetId);
-
         $this->selectedWorksheetId = $worksheetId;
+
+        $params = $this->paramsForGroupedProcedureWorksheet();
 
         if ($params->isEmpty()) {
             $this->loadSamplesForGroupedWorksheet($worksheetId);
+            $this->loadMatrixInputData();
 
             return;
         }
 
         $this->activeTabs = $params->pluck('id')->map(fn ($id) => (string) $id)->unique()->values()->all();
         $this->loadSamples();
+        $this->loadMatrixInputData();
     }
 
     /**
-     * When parameters are not pre-linked, still load all batch rows tied to this worksheet for capture.
+     * Load batch rows for a grouped procedure stage via holder membership (no CR procedure FK).
      */
     protected function loadSamplesForGroupedWorksheet(string $worksheetId): void
     {
-        $analyteIds = CapturedResult::query()
-            ->where('sample_header_id', $this->batchId)
-            ->where('procedure_worksheet_id', $worksheetId)
+        $analyteIds = $this->groupedCapturedResultsQuery()
             ->whereValidUuidAnalyteId()
             ->pluck('analyte_id')
             ->unique()
@@ -171,95 +215,71 @@ class ProcedureWorksheetManager extends Component
 
         if ($analyteIds !== []) {
             $this->activeTabs = array_map('strval', $analyteIds);
-            $this->loadSamples();
-
-            return;
         }
 
-        // No analyte-linked captured results yet. Check if any CRs are linked at all.
-        $linkedCount = CapturedResult::query()
-            ->where('sample_header_id', $this->batchId)
-            ->where('procedure_worksheet_id', $worksheetId)
-            ->count();
-
-        if ($linkedCount === 0) {
-            // No CRs were linked via analysis elements — fall back to linking all batch
-            // captured results to this worksheet so the samples panel is populated.
-            CapturedResult::query()
-                ->where('sample_header_id', $this->batchId)
-                ->whereNull('procedure_worksheet_id')
-                ->update([
-                    'procedure_worksheet_id' => $worksheetId,
-                    'has_procedure_worksheet' => true,
-                ]);
-        }
-
-        // activeTabs remains empty; loadSamples will load without analyte filter.
         $this->loadSamples();
     }
 
     /**
-     * Assign procedure_worksheet_id on batch captured rows for this grouped stage worksheet.
+     * @return \Illuminate\Database\Eloquent\Builder<\App\CapturedResult>
      */
-    protected function linkCapturedResultsToProcedureWorksheet(string $worksheetId): void
+    protected function groupedCapturedResultsQuery()
     {
-        $elementIds = AnalysisElements::query()
-            ->where('procedure_worksheet_id', $worksheetId)
-            ->pluck('id');
+        $query = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->where('has_grouped_worksheet', true);
 
-        if ($elementIds->isNotEmpty()) {
-            CapturedResult::query()
-                ->where('sample_header_id', $this->batchId)
-                ->whereIn('analysis_element_id', $elementIds)
-                ->update([
-                    'procedure_worksheet_id' => $worksheetId,
-                    'has_procedure_worksheet' => true,
-                ]);
+        if (filled($this->groupedHolderId)) {
+            $query->where('grouped_worksheet_holder_id', $this->groupedHolderId);
         }
 
-        $analyteIds = AnalysisElements::query()
-            ->where('procedure_worksheet_id', $worksheetId)
-            ->whereNotNull('analyte_id')
-            ->pluck('analyte_id')
-            ->unique()
+        return $query;
+    }
+
+    /**
+     * Captured results visible for the current worksheet context.
+     * Grouped pipelines resolve via holder membership (procedure_worksheet_id may be null).
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\App\CapturedResult>
+     */
+    protected function capturedResultsForCurrentWorksheetQuery()
+    {
+        if ($this->groupedCaptureLayout) {
+            $query = $this->groupedCapturedResultsQuery();
+        } else {
+            $query = CapturedResult::query()
+                ->where('procedure_worksheet_id', $this->selectedWorksheetId);
+
+            if (! empty($this->externalCapturedResultIds)) {
+                $query->where(function ($inner) {
+                    $inner->where('sample_header_id', $this->batchId)
+                        ->orWhereIn('id', $this->externalCapturedResultIds);
+                });
+            } else {
+                $query->where('sample_header_id', $this->batchId);
+            }
+        }
+
+        if (! empty($this->activeTabs)) {
+            $query->whereIn('analyte_id', $this->activeTabs);
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return Collection<int, Analyte>
+     */
+    protected function paramsForGroupedProcedureWorksheet(): Collection
+    {
+        return $this->groupedCapturedResultsQuery()
+            ->whereValidUuidAnalyteId()
+            ->with('my_analyte')
+            ->get()
+            ->pluck('my_analyte')
             ->filter()
+            ->unique('id')
             ->values();
-
-        if ($analyteIds->isNotEmpty()) {
-            CapturedResult::query()
-                ->where('sample_header_id', $this->batchId)
-                ->whereIn('analyte_id', $analyteIds)
-                ->where(function ($query) use ($worksheetId) {
-                    $query->whereNull('procedure_worksheet_id')
-                        ->orWhere('procedure_worksheet_id', '!=', $worksheetId);
-                })
-                ->update([
-                    'procedure_worksheet_id' => $worksheetId,
-                    'has_procedure_worksheet' => true,
-                ]);
-        }
-
-        $analysisTypeIds = AnalysisElements::query()
-            ->where('procedure_worksheet_id', $worksheetId)
-            ->whereNotNull('analysis_type_id')
-            ->pluck('analysis_type_id')
-            ->unique()
-            ->filter()
-            ->values();
-
-        if ($analysisTypeIds->isNotEmpty()) {
-            CapturedResult::query()
-                ->where('sample_header_id', $this->batchId)
-                ->whereIn('analysis_type_id', $analysisTypeIds)
-                ->where(function ($query) use ($worksheetId) {
-                    $query->whereNull('procedure_worksheet_id')
-                        ->orWhere('procedure_worksheet_id', '!=', $worksheetId);
-                })
-                ->update([
-                    'procedure_worksheet_id' => $worksheetId,
-                    'has_procedure_worksheet' => true,
-                ]);
-        }
     }
 
     /**
@@ -460,6 +480,158 @@ class ProcedureWorksheetManager extends Component
             ->exists();
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Sectioned-matrix helpers
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Whether the current procedure is in sectioned-matrix layout mode.
+     */
+    public function getIsSectionedMatrixProperty(): bool
+    {
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId) {
+            return false;
+        }
+
+        $worksheet = ProcedureWorksheet::find($worksheetId);
+
+        return $worksheet?->isSectionedMatrix() ?? false;
+    }
+
+    /**
+     * Load shared matrix input values for the current section into $matrixInputData.
+     */
+    public function loadMatrixInputData(): void
+    {
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId || ! $this->sectionKey) {
+            return;
+        }
+
+        $stored = \App\Models\Procedures\ProcedureSectionInputValue::sharedMapForSection(
+            $worksheetId,
+            (string) $this->batchId,
+            $this->sectionKey
+        );
+
+        $this->matrixInputData = $stored;
+    }
+
+    /**
+     * Save a shared matrix cell value (invoked via wire:model or explicit call).
+     */
+    public function saveMatrixInput(string $rowKey, string $columnKey, string $value, ?string $uomId = null): void
+    {
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId || ! $this->sectionKey) {
+            return;
+        }
+
+        \App\Models\Procedures\ProcedureSectionInputValue::upsertShared(
+            $worksheetId,
+            (string) $this->batchId,
+            $this->sectionKey,
+            $rowKey,
+            $columnKey,
+            $value ?: null,
+            $uomId ?: null
+        );
+
+        // Keep in-memory copy consistent.
+        $this->matrixInputData[$rowKey][$columnKey] = ['value' => $value, 'uom_id' => $uomId];
+    }
+
+    /**
+     * Update a shared matrix cell from Livewire binding.
+     * Bind Blade inputs to: wire:model.live.debounce.800ms="matrixInputData.{row}.{col}.value"
+     * and call this from updatedMatrixInputData().
+     */
+    public function updatedMatrixInputData(string $key): void
+    {
+        // key is something like "pre_enrichment.media_volume.value"
+        $parts = explode('.', $key);
+        if (count($parts) < 3) {
+            return;
+        }
+
+        [$rowKey, $columnKey, $field] = $parts;
+
+        if ($field !== 'value' && $field !== 'uom_id') {
+            return;
+        }
+
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId || ! $this->sectionKey) {
+            return;
+        }
+
+        $value = $this->matrixInputData[$rowKey][$columnKey]['value'] ?? null;
+        $uomId = $this->matrixInputData[$rowKey][$columnKey]['uom_id'] ?? null;
+
+        \App\Models\Procedures\ProcedureSectionInputValue::upsertShared(
+            $worksheetId,
+            (string) $this->batchId,
+            $this->sectionKey,
+            $rowKey,
+            $columnKey,
+            $value ?: null,
+            $uomId ?: null
+        );
+    }
+
+    /**
+     * Get the active worksheet model for the current context.
+     */
+    protected function currentProcedureWorksheet(): ?ProcedureWorksheet
+    {
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId) {
+            return null;
+        }
+
+        return ProcedureWorksheet::with('steps')->find($worksheetId);
+    }
+
+    /**
+     * Get the JSON config for the currently active matrix section, or null.
+     * When $rowKeys is set, only those rows are returned (phased pipeline).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getActiveSectionConfig(): ?array
+    {
+        if (! $this->sectionKey) {
+            return null;
+        }
+
+        $worksheet = $this->currentProcedureWorksheet();
+        $section = $worksheet?->getMatrixSection($this->sectionKey);
+        if (! $section) {
+            return null;
+        }
+
+        if (! empty($this->rowKeys)) {
+            $allowed = array_map('strval', $this->rowKeys);
+            $section['rows'] = array_values(array_filter(
+                $section['rows'] ?? [],
+                fn ($row) => in_array((string) ($row['key'] ?? ''), $allowed, true)
+            ));
+        }
+
+        return $section;
+    }
+
+    /**
+     * Resolve a procedure step by its label (step_name) for matrix bindings.
+     *
+     * @param  Collection<int, \App\Models\Procedures\ProcedureWorksheetStep>  $steps
+     */
+    protected function resolveStepByName(Collection $steps, string $name): ?\App\Models\Procedures\ProcedureWorksheetStep
+    {
+        return $steps->first(fn ($s) => strtolower(trim($s->step)) === strtolower(trim($name)));
+    }
+
     public function getWorksheetsForParamProperty()
     {
         if (empty($this->activeTabs)) {
@@ -546,6 +718,76 @@ class ProcedureWorksheetManager extends Component
         $this->loadSamples();
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Sectioned-matrix stock deduction (called from grouped wizard via event)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Bulk-persist all in-memory matrixInputData to the database.
+     * Called by the "Save inputs" button in the matrix partial.
+     */
+    public function saveMatrixInputsBulk(): void
+    {
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId || ! $this->sectionKey) {
+            return;
+        }
+
+        foreach ($this->matrixInputData as $rowKey => $cols) {
+            foreach ($cols as $colKey => $cell) {
+                \App\Models\Procedures\ProcedureSectionInputValue::upsertShared(
+                    $worksheetId,
+                    (string) $this->batchId,
+                    $this->sectionKey,
+                    $rowKey,
+                    $colKey,
+                    $cell['value'] ?? null,
+                    $cell['uom_id'] ?? null
+                );
+            }
+        }
+
+        $this->flashMessage = 'Inputs saved.';
+        $this->flashType = 'success';
+    }
+
+    /**
+     * Deduct stock for the current section when the grouped pipeline completes this phase.
+     * Triggered by the wizard's "Complete stage" button via a Livewire event.
+     */
+    #[On('deductMatrixSectionStock')]
+    public function deductMatrixSectionStock(): void
+    {
+        if (! $this->sectionKey) {
+            return;
+        }
+
+        $worksheetId = $this->groupedInitialWorksheetId ?? $this->selectedWorksheetId;
+        if (! $worksheetId) {
+            return;
+        }
+
+        $worksheet = ProcedureWorksheet::find($worksheetId);
+        if (! $worksheet || ! $worksheet->isSectionedMatrix()) {
+            return;
+        }
+
+        $sectionConfig = $this->getActiveSectionConfig();
+        if (! $sectionConfig) {
+            return;
+        }
+
+        $sampleCount = $this->capturedResultsForCurrentWorksheetQuery()->count();
+
+        app(\App\Services\StockMovementService::class)->deductForMatrixSection(
+            $worksheet,
+            (string) $this->batchId,
+            $this->sectionKey,
+            $sampleCount,
+            $sectionConfig
+        );
+    }
+
     public function loadSamples(): void
     {
         if (! $this->selectedWorksheetId) {
@@ -590,23 +832,9 @@ class ProcedureWorksheetManager extends Component
             $this->stepAnalystOverrides = [];
         }
 
-        // Base query for captured results for these analytes and worksheet
-        $query = CapturedResult::query()
-            ->where('procedure_worksheet_id', $this->selectedWorksheetId);
-
-        if (! empty($this->activeTabs)) {
-            $query->whereIn('analyte_id', $this->activeTabs);
-        }
-
-        // Always include current batch, optionally include explicitly selected external captured_results
-        if (! empty($this->externalCapturedResultIds)) {
-            $query->where(function ($inner) {
-                $inner->where('sample_header_id', $this->batchId)
-                    ->orWhereIn('id', $this->externalCapturedResultIds);
-            });
-        } else {
-            $query->where('sample_header_id', $this->batchId);
-        }
+        // Grouped pipeline: discover samples via holder membership (do not require procedure FK).
+        // Standalone: require procedure_worksheet_id on the captured result.
+        $query = $this->capturedResultsForCurrentWorksheetQuery();
 
         app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
 
@@ -1400,21 +1628,9 @@ class ProcedureWorksheetManager extends Component
             return collect();
         }
 
-        $query = CapturedResult::query()
-            ->where('procedure_worksheet_id', $this->selectedWorksheetId);
+        $query = $this->capturedResultsForCurrentWorksheetQuery();
 
-        if (! empty($this->activeTabs)) {
-            $query->whereIn('analyte_id', $this->activeTabs);
-        }
-
-        if (! empty($this->externalCapturedResultIds)) {
-            $query->where(function ($inner) {
-                $inner->where('sample_header_id', $this->batchId)
-                    ->orWhereIn('id', $this->externalCapturedResultIds);
-            });
-        } else {
-            $query->where('sample_header_id', $this->batchId);
-        }
+        app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
 
         return $query->with(['sample', 'procedureWorksheet'])->get();
     }
@@ -2301,6 +2517,9 @@ class ProcedureWorksheetManager extends Component
             'stepLabels' => $this->getStepLabelsProperty(),
             'worksheetMetaSummary' => $metaResolver->summaryForMany($capturedForMeta),
             'worksheetMetaRows' => $metaResolver->forMany($capturedForMeta),
+            'isSectionedMatrix' => $this->isSectionedMatrix,
+            'activeSectionConfig' => $this->getActiveSectionConfig(),
+            'showConfigFields' => $this->showConfigFields,
         ]);
     }
 
@@ -2310,13 +2529,7 @@ class ProcedureWorksheetManager extends Component
             return collect();
         }
 
-        $query = CapturedResult::query()
-            ->where('sample_header_id', $this->batchId)
-            ->where('procedure_worksheet_id', $this->selectedWorksheetId);
-
-        if (! empty($this->activeTabs)) {
-            $query->whereIn('analyte_id', $this->activeTabs);
-        }
+        $query = $this->capturedResultsForCurrentWorksheetQuery();
 
         return $query->with(WorksheetMetaResolver::EAGER)->get();
     }
@@ -2352,21 +2565,7 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $query = CapturedResult::query()
-            ->whereIn('analyte_id', $this->activeTabs)
-            ->where('procedure_worksheet_id', $this->selectedWorksheetId);
-
-        // Restrict to this batch plus any explicitly-added external results
-        if (! empty($this->externalCapturedResultIds)) {
-            $query->where(function ($inner) {
-                $inner->where('sample_header_id', $this->batchId)
-                    ->orWhereIn('id', $this->externalCapturedResultIds);
-            });
-        } else {
-            $query->where('sample_header_id', $this->batchId);
-        }
-
-        $capturedResultIds = $query->pluck('id');
+        $capturedResultIds = $this->capturedResultsForCurrentWorksheetQuery()->pluck('id');
 
         if ($capturedResultIds->isEmpty()) {
             $this->flashType = 'info';

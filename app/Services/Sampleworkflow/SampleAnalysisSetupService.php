@@ -74,7 +74,8 @@ class SampleAnalysisSetupService
      *   lab?: ?Lab,
      *   reporting_units_by_key?: array<string, ReportingUnit>,
      *   standards_by_key?: array<string, StandardAnalytes>,
-     *   analysis_elements?: Collection<int, AnalysisElements>|null
+     *   analysis_elements?: Collection<int, AnalysisElements>|null,
+     *   analyst_ids_by_element?: array<string, array<string, list<string>>>
      * }  $context
      */
     public function createCapturedResultsForAnalysisType(
@@ -136,6 +137,9 @@ class SampleAnalysisSetupService
             : [];
         $userIdByLabSection = is_array($context['user_id_by_lab_section'] ?? null)
             ? $context['user_id_by_lab_section']
+            : [];
+        $analystIdsByElement = is_array($context['analyst_ids_by_element'] ?? null)
+            ? $context['analyst_ids_by_element']
             : [];
         $analysisTypeHasNoResultCapture = $analysisType ? (int) ($analysisType->has_no_result ?? 0) : 0;
         $defaultUserId = $actingUserId ?? (string) (auth()->id() ?? '')
@@ -207,10 +211,26 @@ class SampleAnalysisSetupService
                 : $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides);
 
             foreach ($labSectionIdsForElement as $labSectionId) {
+                $elementAnalystsBySection = is_array($analystIdsByElement[$elementId] ?? null)
+                    ? $analystIdsByElement[$elementId]
+                    : [];
+                $assignedAnalystIds = array_values(array_unique(array_filter(array_map(
+                    'strval',
+                    is_array($elementAnalystsBySection[$labSectionId] ?? null)
+                        ? $elementAnalystsBySection[$labSectionId]
+                        : []
+                ))));
                 $sectionUserId = (string) ($userIdByLabSection[$labSectionId] ?? '');
-                $userId = ($sectionUserId !== '' && Str::isUuid($sectionUserId))
-                    ? $sectionUserId
-                    : $defaultUserId;
+                $userId = (string) ($assignedAnalystIds[0] ?? '');
+                if ($userId === '') {
+                    $userId = ($sectionUserId !== '' && Str::isUuid($sectionUserId))
+                        ? $sectionUserId
+                        : $defaultUserId;
+                }
+                $operatorId = trim((string) ($element->operator_id ?? ''));
+                if ($operatorId === '') {
+                    $operatorId = $userId;
+                }
 
                 $capturedResult = new CapturedResult();
                 $capturedResult->fill([
@@ -224,7 +244,10 @@ class SampleAnalysisSetupService
                     'result' => null,
                     'user_id' => $userId,
                     'analysis_type_id' => $analysisTypeId,
-                    'operator_id' => null,
+                    'operator_id' => $operatorId !== '' ? $operatorId : null,
+                    'assigned_analyst_ids' => $assignedAnalystIds !== []
+                        ? $assignedAnalystIds
+                        : ($userId !== '' ? [$userId] : null),
                     'method_id' => $this->resolveValidMethodId($element->method),
                     'reporting_unit_id' => $reportingUnit?->id,
                     'ltm_method_id' => $this->resolveValidMethodId($element->ltm_method_id),

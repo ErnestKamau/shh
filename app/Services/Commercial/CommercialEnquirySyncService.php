@@ -122,7 +122,12 @@ final class CommercialEnquirySyncService
                 $enquiry->pricing_source = 'customer_pricelist';
             }
 
-            $enquiry->status = $status;
+            $preserveQuotationWorkflowStatus = $enquiry->created_from_quotation_header_id !== null
+                && $enquiry->current_quotation_header_id !== null
+                && in_array((string) $enquiry->status, SampleSubmissionRequest::COMMERCIAL_PIPELINE_STATUSES, true);
+            if (! $preserveQuotationWorkflowStatus) {
+                $enquiry->status = $status;
+            }
             $enquiry->source_channel = $this->resolveSourceChannel($instance);
             $resolvedCustomerId = app(CommercialEnquiryCustomerResolver::class)->resolveCustomerId($enquiry)
                 ?? $this->resolveCrmCustomerIdFromInstance($instance);

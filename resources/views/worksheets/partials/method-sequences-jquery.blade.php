@@ -6,7 +6,10 @@
                     @else
                         <div id="method-sequences-container"
                              data-batch-id="{{ $batch->id }}"
-                             data-stage-headers='@json($stageHeadersPayload)'>
+                             data-stage-headers='@json($stageHeadersPayload)'
+                             @if(isset($stageOrderFilter) && $stageOrderFilter !== null)
+                             data-stage-order-filter="{{ (int) $stageOrderFilter }}"
+                             @endif>
                             
                             <ul class="nav nav-tabs" id="sequence-tabs" role="tablist"></ul>
                             

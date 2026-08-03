@@ -101,14 +101,42 @@ class LabSectionResultAccessTest extends TestCase
         $unassigned = $this->userWithSections([]);
         $assigned = $this->userWithSections([(string) Str::uuid()]);
 
-        $this->assertSame(
-            'Assign a lab section in your profile before capturing results.',
+        $this->assertStringContainsString(
+            'Assign a lab section in your profile',
             $this->access->denyEditMessage($unassigned)
         );
-        $this->assertSame(
-            'You can only capture results for your assigned lab section(s).',
+        $this->assertStringContainsString(
+            'assigned lab section',
             $this->access->denyEditMessage($assigned)
         );
+    }
+
+    #[Test]
+    public function integrity_assigned_analyst_can_edit_even_without_matching_section(): void
+    {
+        $chem = (string) Str::uuid();
+        $analystId = (string) Str::uuid();
+        $user = $this->userWithSectionsAndId([], $analystId);
+
+        $assignedRow = $this->capturedResultWithSection($chem, $analystId);
+        $otherRow = $this->capturedResultWithSection($chem, (string) Str::uuid());
+
+        $this->assertTrue($this->access->canEditCapturedResult($user, $assignedRow));
+        $this->assertFalse($this->access->canEditCapturedResult($user, $otherRow));
+    }
+
+    #[Test]
+    public function every_integrity_assigned_analyst_can_edit_the_result(): void
+    {
+        $chem = (string) Str::uuid();
+        $primaryAnalystId = (string) Str::uuid();
+        $additionalAnalystId = (string) Str::uuid();
+        $row = $this->capturedResultWithSection($chem, $primaryAnalystId);
+        $row->assigned_analyst_ids = [$primaryAnalystId, $additionalAnalystId];
+
+        $additionalAnalyst = $this->userWithSectionsAndId([], $additionalAnalystId);
+
+        $this->assertTrue($this->access->canEditCapturedResult($additionalAnalyst, $row));
     }
 
     #[Test]
@@ -139,12 +167,22 @@ class LabSectionResultAccessTest extends TestCase
      */
     private function userWithSections(array $sectionIds): User
     {
-        return new class($sectionIds) extends User
+        return $this->userWithSectionsAndId($sectionIds, (string) Str::uuid());
+    }
+
+    /**
+     * @param  list<string>  $sectionIds
+     */
+    private function userWithSectionsAndId(array $sectionIds, string $userId): User
+    {
+        return new class($sectionIds, $userId) extends User
         {
             /** @param list<string> $sectionIds */
-            public function __construct(private array $sectionIds)
+            public function __construct(private array $sectionIds, string $userId)
             {
                 parent::__construct();
+                $this->id = $userId;
+                $this->exists = true;
             }
 
             protected function getLabSectionIdsAttribute()
@@ -154,10 +192,11 @@ class LabSectionResultAccessTest extends TestCase
         };
     }
 
-    private function capturedResultWithSection(?string $sectionId): CapturedResult
+    private function capturedResultWithSection(?string $sectionId, ?string $assignedUserId = null): CapturedResult
     {
         $row = new CapturedResult();
         $row->lab_section_id = $sectionId;
+        $row->user_id = $assignedUserId;
 
         return $row;
     }

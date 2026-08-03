@@ -141,6 +141,7 @@ final class CommercialEnquirySampleLineSync
                 'row_index' => array_key_exists('row_index', $config) && $config['row_index'] !== null
                     ? (int) $config['row_index']
                     : $index,
+                'sample_description' => $config['sample_description'] ?? null,
                 'sample_type_id' => $config['sample_type_id'] ?? null,
                 'analysis_type_id' => $config['analysis_type_id'] ?? null,
                 'analysis_element_id' => $parameterKeys[0] ?? null,

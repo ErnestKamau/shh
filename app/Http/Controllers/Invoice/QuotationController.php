@@ -23,6 +23,7 @@ use App\InvoicableItem;
 use App\ZohoCustomers;
 use Illuminate\Http\File;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Billing\CreateEnquiryFromQuotationRequest;
 use App\Http\Requests\Billing\PackageDefaultsRequest;
 use Illuminate\Support\Facades\Schema;
 use App\Models\CRM\SamplePoint;
@@ -36,6 +37,7 @@ use App\Services\Billing\QuotationRevisionService;
 use App\Exports\Billing\QuotationKpiExport;
 use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
+use App\Services\Commercial\EnquiryFromQuotationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -50,6 +52,7 @@ class QuotationController extends Controller
         private readonly QuotationLineTaxResolver $quotationLineTaxResolver,
         private readonly QuotationStatisticsService $quotationStatisticsService,
         private readonly QuotationRevisionService $quotationRevisionService,
+        private readonly EnquiryFromQuotationService $enquiryFromQuotationService,
     ) {
         $this->middleware('auth');
     }
@@ -88,8 +91,71 @@ class QuotationController extends Controller
             : null;
 
         $stageCounts = $this->quotationStageCounts();
+        $quotationSampleCounts = QuotationDetails::query()
+            ->whereIn('quotation_header_id', $quotations->pluck('id'))
+            ->selectRaw('quotation_header_id, MAX(quantity) as sample_count')
+            ->groupBy('quotation_header_id')
+            ->pluck('sample_count', 'quotation_header_id');
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod', 'stageCounts'));
+        return view('layouts.lab.invoice.quotation-index', compact(
+            'customers',
+            'quotations',
+            'drafts',
+            'stage',
+            'sample_types',
+            'metrics',
+            'kpiPeriod',
+            'stageCounts',
+            'quotationSampleCounts',
+        ));
+    }
+
+    public function createEnquiryFromQuotation(
+        CreateEnquiryFromQuotationRequest $request,
+    ): \Illuminate\Http\RedirectResponse {
+        $validated = $request->validated();
+        $quotation = QuotationHeader::query()->findOrFail($validated['quotation_id']);
+
+        try {
+            $enquiry = $this->enquiryFromQuotationService->create(
+                $quotation,
+                [
+                    'number_of_samples' => (int) $validated['number_of_samples'],
+                    'reference_number' => $validated['reference_number'] ?? null,
+                    'date_expected' => $validated['date_expected'] ?? null,
+                    'sample_description' => $validated['sample_description'] ?? null,
+                    'enquiry_notes' => $validated['enquiry_notes'] ?? null,
+                    'creation_intent' => $validated['creation_intent'],
+                    'client_po_number' => $validated['client_po_number'] ?? null,
+                    'po_skipped' => (bool) ($validated['po_skipped'] ?? false),
+                ],
+                $validated['creation_token'],
+            );
+        } catch (\Throwable $exception) {
+            return back()
+                ->withInput()
+                ->with('error', $exception->getMessage());
+        }
+
+        $reference = $enquiry->reference_number ?: $enquiry->formatted_number;
+        $instance = $enquiry->submissionFormInstance;
+
+        if ($instance !== null && $instance->submission_form_id !== null) {
+            return redirect()->route('submission-forms.instances.fill', [
+                'submissionForm' => $instance->submission_form_id,
+                'instance' => $instance->id,
+            ])->with(
+                'success',
+                'Enquiry '.$reference.' was created from quotation '.$quotation->quote_number
+                .'. Complete the remaining Test Request Form fields, then submit it.',
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Enquiry '.$reference.' was created from quotation '.$quotation->quote_number
+            .'. No matching Test Request Form template was found; create the TRF before physical reception.',
+        );
     }
 
     public function exportQuotationKpi(Request $request)

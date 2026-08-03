@@ -41,6 +41,7 @@ class SolutionPreparationManager extends Component
         'quantity_prepared' => '',
         'uom_id' => null,
         'batch_number' => '',
+        'expiry_date' => '',
         'is_new_batch' => false,
         'notes' => '',
         'create_with_alternative' => false,
@@ -402,6 +403,7 @@ class SolutionPreparationManager extends Component
             'quantity_prepared' => (string) $preparation->quantity_prepared,
             'uom_id' => $preparation->uom_id,
             'batch_number' => $preparation->batch_number ?? '',
+            'expiry_date' => $preparation->expiry_date?->format('Y-m-d') ?? '',
             'is_new_batch' => (bool) $preparation->is_new_batch,
             'notes' => $preparation->notes ?? '',
             'create_with_alternative' => false,
@@ -495,10 +497,17 @@ class SolutionPreparationManager extends Component
             'form.quantity_prepared' => 'required|numeric|min:0.0001',
             'form.uom_id' => 'required|uuid|exists:reporting_units,id',
             'form.batch_number' => 'nullable|string|max:255',
+            'form.expiry_date' => 'nullable|date|after_or_equal:today',
         ]);
 
         if ($this->form['is_new_batch'] && empty($this->form['batch_number'])) {
             $this->addError('form.batch_number', 'Batch number is required for a new batch.');
+
+            return;
+        }
+
+        if ($this->form['is_new_batch'] && empty($this->form['expiry_date'])) {
+            $this->addError('form.expiry_date', 'Expiry date is required for a new batch.');
 
             return;
         }
@@ -508,6 +517,7 @@ class SolutionPreparationManager extends Component
                 'quantity_prepared' => $this->form['quantity_prepared'],
                 'uom_id' => $this->form['uom_id'],
                 'batch_number' => $this->form['batch_number'] ?: null,
+                'expiry_date' => $this->form['is_new_batch'] ? ($this->form['expiry_date'] ?: null) : null,
                 'is_new_batch' => (bool) $this->form['is_new_batch'],
                 'notes' => $this->form['notes'],
             ];
@@ -557,6 +567,7 @@ class SolutionPreparationManager extends Component
             'quantity_prepared' => '',
             'uom_id' => null,
             'batch_number' => '',
+            'expiry_date' => '',
             'is_new_batch' => false,
             'notes' => '',
             'create_with_alternative' => false,

@@ -52,17 +52,27 @@
                     <td>{{ $header->analyte->name ?? 'N/A' }}</td>
                     <td>{{ $header->testStages->count() }}</td>
                     <td nowrap>
-                      <a href="{{ route('stage-headers.show', $header->id) }}" class="btn btn-default text-primary btn-sm">
-                        <i class="mdi mdi-eye" data-toggle="tooltip" title="View Stages"></i>
+                      <a href="{{ route('stage-headers.show', $header->id) }}"
+                         class="btn btn-default text-primary btn-sm"
+                         title="View Stages"
+                         aria-label="View Stages">
+                        <i class="mdi mdi-eye" aria-hidden="true"></i>
                       </a>
-                      <a href="{{ route('stage-headers.edit', $header->id) }}" class="btn btn-default text-info btn-sm">
-                        <i class="mdi mdi-pencil-outline" data-toggle="tooltip" title="Edit"></i>
+                      <a href="{{ route('stage-headers.edit', $header->id) }}"
+                         class="btn btn-default text-info btn-sm"
+                         title="Edit"
+                         aria-label="Edit method sequence">
+                        <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
                       </a>
                       <form action="{{ route('stage-headers.destroy', $header->id) }}" method="POST" style="display: inline-block;">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="btn btn-default text-danger btn-sm" onclick="return confirm('Are you sure?')">
-                          <i class="mdi mdi-delete-outline" data-toggle="tooltip" title="Delete"></i>
+                        <button type="submit"
+                                class="btn btn-default text-danger btn-sm"
+                                title="Delete"
+                                aria-label="Delete method sequence"
+                                onclick="return confirm('Are you sure?')">
+                          <i class="mdi mdi-delete-outline" aria-hidden="true"></i>
                         </button>
                       </form>
                     </td>

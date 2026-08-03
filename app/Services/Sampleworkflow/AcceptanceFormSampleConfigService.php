@@ -54,6 +54,8 @@ class AcceptanceFormSampleConfigService
             'parameter_lab_sections' => [],
             /** @var array<string, list<string>> lab_section_id => user ids */
             'analysts_by_lab_section' => [],
+            /** @var array<string, array<string, list<string>>> analysis_element_id => lab_section_id => user ids */
+            'analysts_by_element' => [],
             'sample_code_prefix' => null,
             'customer_sample_id' => '',
             'sample_marking' => '',
@@ -726,20 +728,25 @@ class AcceptanceFormSampleConfigService
             return (string) $element->id;
         }
 
+        $normalized = strtolower(trim($candidate));
         $query = AnalysisElements::query()->where('active', 1);
         if ($analysisTypeId !== '') {
             $query->where('analysis_type_id', $analysisTypeId);
         }
 
-        $element = $query
-            ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->whereRaw('LOWER(name) = ?', [strtolower($candidate)]))
+        $element = (clone $query)
+            ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->whereRaw('LOWER(name) = ?', [$normalized]))
             ->first();
 
         if ($element !== null) {
             return (string) $element->id;
         }
 
-        return null;
+        $element = $query
+            ->whereHas('analyte', fn ($analyteQuery) => $analyteQuery->whereRaw('LOWER(code) = ?', [$normalized]))
+            ->first();
+
+        return $element !== null ? (string) $element->id : null;
     }
 
     /**
@@ -1482,11 +1489,35 @@ class AcceptanceFormSampleConfigService
      */
     private function parametersForSingleAnalysisType(string $customerId, ?string $sampleTypeId, string $analysisTypeId): array
     {
-        $parameters = $this->pricingService->parametersForAddLineSelection($customerId, $sampleTypeId, $analysisTypeId);
-        if ($parameters !== []) {
-            return $parameters;
+        $fromPricelist = $this->pricingService->parametersForAddLineSelection($customerId, $sampleTypeId, $analysisTypeId);
+        $fromElements = $this->analysisElementParameterOptions($sampleTypeId, $analysisTypeId);
+
+        if ($fromPricelist === []) {
+            return $fromElements;
         }
 
+        // Prefer pricelist rows (pricing), but keep analysis elements so TRF-selected
+        // parameters still appear when they are not on the customer pricelist yet.
+        $merged = [];
+        $seen = [];
+
+        foreach (array_merge($fromPricelist, $fromElements) as $parameter) {
+            $key = (string) ($parameter['analysis_element_id'] ?? $parameter['id'] ?? '');
+            if ($key === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $merged[] = $parameter;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function analysisElementParameterOptions(?string $sampleTypeId, string $analysisTypeId): array
+    {
         return AnalysisElements::query()
             ->where('analysis_type_id', $analysisTypeId)
             ->with(['analyte:id,name,code'])
@@ -1693,6 +1724,29 @@ class AcceptanceFormSampleConfigService
             $pruned[$sectionId] = $assigned;
         }
         $config['analysts_by_lab_section'] = $pruned;
+
+        $analystsByElement = is_array($config['analysts_by_element'] ?? null)
+            ? $config['analysts_by_element']
+            : [];
+        $normalizedByElement = [];
+        foreach ($parameterKeys as $elementId) {
+            if (! array_key_exists($elementId, $analystsByElement)
+                || ! is_array($analystsByElement[$elementId])) {
+                continue;
+            }
+
+            $elementSectionIds = $this->normalizeLabSectionIds($synced[$elementId] ?? null);
+            $normalizedByElement[$elementId] = [];
+            foreach ($elementSectionIds as $sectionId) {
+                $normalizedByElement[$elementId][$sectionId] = array_values(array_unique(array_filter(array_map(
+                    'strval',
+                    is_array($analystsByElement[$elementId][$sectionId] ?? null)
+                        ? $analystsByElement[$elementId][$sectionId]
+                        : []
+                ))));
+            }
+        }
+        $config['analysts_by_element'] = $normalizedByElement;
 
         $primaryAnalyst = $this->primaryAssignedAnalystId($config);
         if ($primaryAnalyst !== null) {
@@ -2279,6 +2333,8 @@ class AcceptanceFormSampleConfigService
 
     /**
      * Map TRF analysis element ids onto pricelist parameter keys when the analyte label matches.
+     * TRF-selected analysis elements for the config's analysis type(s) are preserved even when
+     * they are not yet on the customer pricelist (Process Enquiry step 2 must keep requested tests).
      *
      * @param  array<string, mixed>  $config
      * @return array<string, mixed>
@@ -2286,15 +2342,12 @@ class AcceptanceFormSampleConfigService
     public function alignPrefillParameterKeysForConfig(array $config, string $customerId): array
     {
         $config = $this->syncAnalysisTypeIdsOnConfig($config);
+        $analysisTypeIds = $this->analysisTypeIdsFromConfig($config);
         $parameters = $this->parametersForConfig(
             $customerId,
             $config['sample_type_id'] ?? null,
-            $this->analysisTypeIdsFromConfig($config),
+            $analysisTypeIds,
         );
-
-        if ($parameters === []) {
-            return $config;
-        }
 
         $validKeys = collect($parameters)
             ->flatMap(fn (array $parameter): array => array_values(array_filter([
@@ -2303,6 +2356,19 @@ class AcceptanceFormSampleConfigService
             ])))
             ->unique()
             ->values();
+
+        // Same as reconcile: analysis elements under the selected type(s) stay selectable.
+        if ($analysisTypeIds !== []) {
+            $analysisElementIds = AnalysisElements::query()
+                ->whereIn('analysis_type_id', $analysisTypeIds)
+                ->pluck('id')
+                ->map(fn (mixed $id): string => (string) $id);
+            $validKeys = $validKeys->merge($analysisElementIds)->unique()->values();
+        }
+
+        if ($validKeys->isEmpty()) {
+            return $config;
+        }
 
         $parametersByLabel = collect($parameters)->keyBy(
             fn (array $parameter): string => strtolower(trim((string) ($parameter['label'] ?? '')))
@@ -2326,6 +2392,14 @@ class AcceptanceFormSampleConfigService
             }
 
             if (! Str::isUuid($key)) {
+                foreach ($analysisTypeIds as $analysisTypeId) {
+                    $resolved = $this->resolveSingleElementId($key, $analysisTypeId);
+                    if ($resolved !== null && $validKeys->contains($resolved)) {
+                        $aligned[] = $resolved;
+                        break;
+                    }
+                }
+
                 continue;
             }
 
@@ -2406,6 +2480,27 @@ class AcceptanceFormSampleConfigService
                 )));
             }
 
+            $analystsByElement = [];
+            foreach (is_array($config['analysts_by_element'] ?? null) ? $config['analysts_by_element'] : [] as $elementId => $sectionAssignments) {
+                $elementId = (string) $elementId;
+                if ($elementId === '' || ! Str::isUuid($elementId) || ! is_array($sectionAssignments)) {
+                    continue;
+                }
+
+                $analystsByElement[$elementId] = [];
+                foreach ($sectionAssignments as $sectionId => $analystIds) {
+                    $sectionId = (string) $sectionId;
+                    if ($sectionId === '' || ! Str::isUuid($sectionId) || ! is_array($analystIds)) {
+                        continue;
+                    }
+
+                    $analystsByElement[$elementId][$sectionId] = array_values(array_unique(array_filter(
+                        array_map('strval', $analystIds),
+                        fn (string $id) => $id !== '' && Str::isUuid($id)
+                    )));
+                }
+            }
+
             return [
                 'id' => (string) ($config['id'] ?? Str::uuid()),
                 'sample_type_id' => $config['sample_type_id'] ?? null,
@@ -2425,6 +2520,7 @@ class AcceptanceFormSampleConfigService
                 'parameter_keys' => array_values(array_map('strval', $config['parameter_keys'] ?? [])),
                 'parameter_lab_sections' => $parameterLabSections,
                 'analysts_by_lab_section' => $analystsBySection,
+                'analysts_by_element' => $analystsByElement,
                 'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
                 'customer_sample_id' => $details['customer_sample_id'],
                 'sample_marking' => $details['sample_marking'],
@@ -2451,6 +2547,7 @@ class AcceptanceFormSampleConfigService
      *     assigned_user_id: ?string,
      *     parameter_lab_sections: array<string, string>,
      *     analysts_by_lab_section: array<string, list<string>>,
+     *     analysts_by_element: array<string, array<string, list<string>>>,
      *     customer_sample_id: ?string,
      *     sample_marking: ?string,
      *     disposal_date: ?string,
@@ -2478,6 +2575,9 @@ class AcceptanceFormSampleConfigService
                 : [];
             $analystsBySection = is_array($config['analysts_by_lab_section'] ?? null)
                 ? $config['analysts_by_lab_section']
+                : [];
+            $analystsByElement = is_array($config['analysts_by_element'] ?? null)
+                ? $config['analysts_by_element']
                 : [];
 
             // Captured-result creation still expects one primary section per element.
@@ -2507,6 +2607,7 @@ class AcceptanceFormSampleConfigService
                 'parameter_lab_sections' => $primaryLabSections,
                 'parameter_lab_section_ids' => $parameterLabSections,
                 'analysts_by_lab_section' => $analystsBySection,
+                'analysts_by_element' => $analystsByElement,
                 'customer_sample_id' => $details['customer_sample_id'] !== ''
                     ? $details['customer_sample_id']
                     : null,

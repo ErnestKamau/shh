@@ -11,6 +11,7 @@ use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -804,27 +805,37 @@ class SubmissionFormSubmissionService
             $op = $condition['operator'] ?? 'equals';
             $expected = $condition['value'] ?? '';
 
-            $matched = false;
-            if ($op === '==' || $op === 'equals') {
-                $matched = ((string) $actual === (string) $expected);
-            } elseif ($op === '!=' || $op === 'not_equals') {
-                $matched = ((string) $actual !== (string) $expected);
-            } elseif ($op === 'not_empty') {
-                $matched = ($actual !== '' && $actual !== null);
-            } elseif ($op === 'empty') {
-                $matched = ($actual === '' || $actual === null);
-            } elseif ($op === 'contains') {
-                $matched = (strpos((string) $actual, (string) $expected) !== false);
-            } else {
-                $matched = true;
-            }
-
-            if (!$matched) {
+            if (! $this->conditionMatches($actual, $op, $expected)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private function conditionMatches(mixed $actual, string $operator, mixed $expected): bool
+    {
+        $actualValues = is_array($actual) ? Arr::flatten($actual) : [$actual];
+        $actualValues = array_map(
+            static fn (mixed $value): string => (string) ($value ?? ''),
+            $actualValues
+        );
+        $expectedValue = (string) ($expected ?? '');
+
+        return match ($operator) {
+            '==', 'equals' => in_array($expectedValue, $actualValues, true),
+            '!=', 'not_equals' => ! in_array($expectedValue, $actualValues, true),
+            'not_empty' => collect($actualValues)->contains(
+                static fn (string $value): bool => $value !== ''
+            ),
+            'empty' => collect($actualValues)->every(
+                static fn (string $value): bool => $value === ''
+            ),
+            'contains' => collect($actualValues)->contains(
+                static fn (string $value): bool => str_contains($value, $expectedValue)
+            ),
+            default => true,
+        };
     }
 }
 

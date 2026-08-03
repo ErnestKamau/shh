@@ -35,6 +35,9 @@ class SubmissionFormInstance extends Model implements Auditable
 
     protected $fillable = [
         'submission_form_id',
+        'template_version',
+        'structure_snapshot',
+        'structure_snapshot_at',
         'selected_sample_type_id',
         'form_number',
         'sequence_number',
@@ -67,6 +70,8 @@ class SubmissionFormInstance extends Model implements Auditable
         'additional_info_responded_at' => 'datetime',
         'due_date' => 'date',
         'is_qc_batch' => 'boolean',
+        'structure_snapshot' => 'array',
+        'structure_snapshot_at' => 'datetime',
     ];
 
     /**

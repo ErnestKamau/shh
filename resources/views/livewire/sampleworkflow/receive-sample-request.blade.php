@@ -258,6 +258,11 @@
                             @foreach ($formTypeCards as $card)
                                 <div class="rft-form-type-card {{ filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}"
                                      wire:key="planner-form-card-{{ $card['sample_type_id'] }}">
+                                    @include('livewire.sampleworkflow.partials.rft-form-type-card-menu', [
+                                        'card' => $card,
+                                        'showHideAction' => false,
+                                        'showClearAction' => false,
+                                    ])
                                     <a href="{{ $card['view_url'] }}" class="text-decoration-none text-reset d-block">
                                     <div class="rft-form-type-card-header">
                                         <div class="rft-form-type-card-icon">
@@ -277,22 +282,6 @@
                                     </div>
                                     </a>
                                     <div class="rft-form-type-card-actions">
-                                        @can('laboratory.components.rft form.view')
-                                            <a href="{{ $card['view_url'] }}"
-                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
-                                               title="View"
-                                               aria-label="View">
-                                                <i class="mdi mdi-eye-outline"></i>
-                                            </a>
-                                        @endcan
-                                        @can('laboratory.components.rft form.edit')
-                                            <a href="{{ $card['edit_url'] }}"
-                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
-                                               title="Edit"
-                                               aria-label="Edit">
-                                                <i class="mdi mdi-pencil-outline"></i>
-                                            </a>
-                                        @endcan
                                         @if (($card['start_action'] ?? 'sampleType') === 'form')
                                             <button type="button"
                                                     class="btn btn-sm btn-primary btn-action-sm"
@@ -329,6 +318,11 @@
                         @foreach ($formTypeCards as $card)
                             <div class="col-lg-4 col-md-6 mb-3">
                                 <div class="rft-form-type-card {{ ! empty($card['is_hidden_from_rft']) ? 'is-rft-hidden' : '' }} {{ filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}">
+                                    @include('livewire.sampleworkflow.partials.rft-form-type-card-menu', [
+                                        'card' => $card,
+                                        'showHideAction' => true,
+                                        'showClearAction' => filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'],
+                                    ])
                                     <a href="{{ $card['view_url'] }}" class="text-decoration-none text-reset d-block">
                                     <div class="rft-form-type-card-header">
                                         <div class="rft-form-type-card-icon">
@@ -351,38 +345,6 @@
                                     </div>
                                     </a>
                                     <div class="rft-form-type-card-actions">
-                                        @can('laboratory.components.rft form.view')
-                                            <a href="{{ $card['view_url'] }}"
-                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
-                                               title="View"
-                                               aria-label="View">
-                                                <i class="mdi mdi-eye-outline"></i>
-                                            </a>
-                                        @endcan
-                                        @can('laboratory.components.rft form.edit')
-                                            <a href="{{ $card['edit_url'] }}"
-                                               class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
-                                               title="Edit"
-                                               aria-label="Edit">
-                                                <i class="mdi mdi-pencil-outline"></i>
-                                            </a>
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
-                                                    wire:click="toggleFormHiddenFromRft('{{ $card['submission_form_id'] }}')"
-                                                    title="{{ ! empty($card['is_hidden_from_rft']) ? 'Show on Request For Testing' : 'Hide from Request For Testing' }}"
-                                                    aria-label="{{ ! empty($card['is_hidden_from_rft']) ? 'Show on Request For Testing' : 'Hide from Request For Testing' }}">
-                                                <i class="mdi {{ ! empty($card['is_hidden_from_rft']) ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}"></i>
-                                            </button>
-                                        @endcan
-                                        @if (filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'])
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary btn-action-sm rft-icon-btn"
-                                                    wire:click="clearSelectedSampleType"
-                                                    title="Clear"
-                                                    aria-label="Clear">
-                                                <i class="mdi mdi-close"></i>
-                                            </button>
-                                        @endif
                                         @if (($card['start_action'] ?? 'sampleType') === 'form')
                                             <button type="button"
                                                     class="btn btn-sm btn-primary btn-action-sm"
@@ -916,6 +878,62 @@
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
     @enderror
 
+    @if($showWalkInAddCustomerModal)
+        <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="walk-in-add-customer-title">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title" id="walk-in-add-customer-title">Quick add client</h5>
+                        <button type="button" class="close" wire:click="closeWalkInAddCustomerModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">The new client will be saved in CRM and selected on this request.</p>
+                        <div class="form-group">
+                            <label class="small font-weight-bold">Client name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" wire:model="walkInNewCustomerName" placeholder="Client name">
+                            @error('walkInNewCustomerName') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="small font-weight-bold">Email</label>
+                            <input type="email" class="form-control form-control-sm" wire:model="walkInNewCustomerEmail" placeholder="Email address">
+                            @error('walkInNewCustomerEmail') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="small font-weight-bold">Phone</label>
+                            <input type="text" class="form-control form-control-sm" wire:model="walkInNewCustomerPhone" placeholder="Phone number">
+                            @error('walkInNewCustomerPhone') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="small font-weight-bold">Address</label>
+                            <textarea class="form-control form-control-sm" wire:model="walkInNewCustomerAddress" rows="2" placeholder="Physical or postal address"></textarea>
+                            @error('walkInNewCustomerAddress') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-light" wire:click="closeWalkInAddCustomerModal">Cancel</button>
+                        <button type="button"
+                            class="btn btn-sm btn-primary"
+                            wire:click="saveWalkInCustomer"
+                            wire:loading.attr="disabled"
+                            wire:target="saveWalkInCustomer">
+                            <span wire:loading.remove wire:target="saveWalkInCustomer">
+                                <i class="mdi mdi-content-save mr-1" aria-hidden="true"></i>
+                                Save client
+                            </span>
+                            <span wire:loading wire:target="saveWalkInCustomer">
+                                <span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+                                Saving…
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+    @endif
+
     @if($showWalkInAddContactModal)
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true">
             <div class="modal-dialog" role="document">
@@ -945,7 +963,17 @@
                     </div>
                     <div class="modal-footer py-2">
                         <button type="button" class="btn btn-sm btn-light" wire:click="closeWalkInAddContactModal">Cancel</button>
-                        <button type="button" class="btn btn-sm btn-primary" wire:click="saveWalkInContact">Save contact</button>
+                        <button type="button"
+                            class="btn btn-sm btn-primary"
+                            wire:click="saveWalkInContact"
+                            wire:loading.attr="disabled"
+                            wire:target="saveWalkInContact">
+                            <span wire:loading.remove wire:target="saveWalkInContact">Save contact</span>
+                            <span wire:loading wire:target="saveWalkInContact">
+                                <span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+                                Saving…
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1046,6 +1074,7 @@
         search: '',
         syncing: false,
         dirty: false,
+        analysisLoading: false,
         rowIndex: config.rowIndex ?? 0,
         flat: !!config.flat,
         options: Array.isArray(config.options) ? config.options.slice() : [],
@@ -1062,6 +1091,9 @@
 
             return this.options.filter((name) => String(name).toLowerCase().includes(query));
         },
+        get isLoading() {
+            return this.analysisLoading || this.hydrating;
+        },
         get visibleChips() {
             return this.selected.slice(0, 8);
         },
@@ -1071,13 +1103,28 @@
         isSelected(name) {
             return this.selected.includes(name);
         },
+        setAnalysisLoading(payload) {
+            const detail = Array.isArray(payload) ? (payload[0] || {}) : (payload || {});
+            const wireKey = String(detail.wireKey || '');
+            const rowMatch = wireKey.match(/\.(\d+)$/);
+            const targetRowIndex = rowMatch ? Number(rowMatch[1]) : -1;
+
+            if (targetRowIndex === Number(this.rowIndex)) {
+                this.analysisLoading = detail.loading === true;
+                if (!this.analysisLoading && this.open) {
+                    this.$nextTick(() => this.hydrateFromWire());
+                }
+            }
+        },
         toggleOpen() {
             if (this.open) {
                 this.closePanel();
                 return;
             }
             this.open = true;
-            this.hydrateFromWire();
+            if (!this.analysisLoading) {
+                this.hydrateFromWire();
+            }
             this.$nextTick(() => this.decideDirection());
         },
         closePanel() {
@@ -1264,11 +1311,24 @@
                 return;
             }
             this.syncing = true;
+            const loadsParameters = this.syncMethod === 'setWalkInAnalysisTypes';
+            if (loadsParameters) {
+                this.$dispatch('walk-in-parameters-loading', {
+                    wireKey: this.wireKey,
+                    loading: true,
+                });
+            }
             try {
                 await this.$wire[this.syncMethod](this.wireKey, this.selected.slice());
                 this.dirty = false;
             } finally {
                 this.syncing = false;
+                if (loadsParameters) {
+                    this.$dispatch('walk-in-parameters-loading', {
+                        wireKey: this.wireKey,
+                        loading: false,
+                    });
+                }
             }
         },
         applySelectedFromWire() {

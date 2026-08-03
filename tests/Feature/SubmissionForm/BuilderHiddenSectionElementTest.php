@@ -10,6 +10,7 @@ use App\Models\SubmissionFormSection;
 use App\Services\SubmissionForm\FormSchemaBuilder;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -79,12 +80,51 @@ class BuilderHiddenSectionElementTest extends TestCase
 
         $service = app(SubmissionFormSubmissionService::class);
         $rules = $service->buildValidationRules(
-            collect([$element]),
+            new Collection([$element]),
             Request::create('/fake', 'POST', []),
             requireRequired: true,
         );
 
         $this->assertSame(['nullable'], $rules['customer_name']);
+    }
+
+    public function test_conditional_fields_are_exported_and_only_required_when_visible(): void
+    {
+        [$form, , $parent] = $this->createFormWithField('request_for_sampling');
+        $child = SubmissionFormElement::query()->create([
+            'submission_form_element_holder_id' => $parent->submission_form_element_holder_id,
+            'element_type' => 'date',
+            'label' => 'Sampling date',
+            'name' => 'sampling_date',
+            'is_required' => true,
+            'is_hidden' => false,
+            'conditional_logic' => [
+                ['field' => 'request_for_sampling', 'operator' => 'equals', 'value' => '1'],
+            ],
+            'sort_order' => 1,
+        ]);
+        $elements = new Collection([$parent, $child]);
+        $service = app(SubmissionFormSubmissionService::class);
+
+        $hiddenRules = $service->buildValidationRules(
+            $elements,
+            Request::create('/fake', 'POST', ['request_for_sampling' => '0']),
+            requireRequired: true,
+        );
+        $visibleRules = $service->buildValidationRules(
+            $elements,
+            Request::create('/fake', 'POST', ['request_for_sampling' => '1']),
+            requireRequired: true,
+        );
+        $schema = app(FormSchemaBuilder::class)
+            ->buildSections($form->fresh(['sections.elementHolders.elements']));
+        $samplingDateSchema = collect($schema[0]['holders'][0]['elements'])
+            ->firstWhere('name', 'sampling_date');
+
+        $this->assertContains('nullable', $hiddenRules['sampling_date']);
+        $this->assertNotContains('required', $hiddenRules['sampling_date']);
+        $this->assertContains('required', $visibleRules['sampling_date']);
+        $this->assertSame($child->conditional_logic, $samplingDateSchema['conditional_logic']);
     }
 
     public function test_toggle_section_and_element_hidden_endpoints(): void

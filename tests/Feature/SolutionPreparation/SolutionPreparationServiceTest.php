@@ -17,6 +17,7 @@ use App\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class SolutionPreparationServiceTest extends TestCase
@@ -146,6 +147,56 @@ class SolutionPreparationServiceTest extends TestCase
         $this->assertEquals(1, LabStockMovement::where('preparation_id', $preparation->id)->count());
         $this->assertEquals('completed', $preparation->fresh()->status);
         $this->assertEquals(25, (float) $this->solution->fresh()->stock);
+    }
+
+    public function test_approve_persists_new_batch_expiry_on_solution(): void
+    {
+        SolutionPreparationStepTemplate::create([
+            'id' => (string) Str::uuid(),
+            'lab_sub_category_id' => $this->solution->id,
+            'step_number' => 1,
+            'step_name' => 'Fill',
+            'step_type' => SolutionPreparationStepTemplate::STEP_TYPE_REGULAR,
+            'ingredient_id' => $this->ingredient->id,
+        ]);
+
+        $expiryDate = now()->addYear()->toDateString();
+        $runService = app(PreparationRunService::class);
+        $preparation = $runService->createPreparationRecord([
+            'solution_id' => $this->solution->id,
+            'quantity_prepared' => 25,
+            'uom_id' => $this->solution->reporting_unit,
+            'batch_number' => 'BATCH-EXPIRY-001',
+            'expiry_date' => $expiryDate,
+            'is_new_batch' => true,
+        ]);
+
+        $runService->completeStep($preparation->steps->first());
+        $runService->approve($preparation);
+
+        $solution = $this->solution->fresh();
+        $this->assertSame('BATCH-EXPIRY-001', $solution->current_batch_number);
+        $this->assertSame($expiryDate, $solution->batch_expiry_date);
+        $this->assertSame($expiryDate, $preparation->fresh()->expiry_date->toDateString());
+    }
+
+    public function test_approve_rejects_new_batch_without_expiry_date(): void
+    {
+        $preparation = SolutionPreparation::create([
+            'solution_id' => $this->solution->id,
+            'preparation_number' => SolutionPreparation::generatePreparationNumber(),
+            'batch_number' => 'BATCH-NO-EXPIRY',
+            'is_new_batch' => true,
+            'prepared_by' => $this->user->id,
+            'prepared_at' => now(),
+            'status' => 'awaiting_approval',
+            'quantity_prepared' => 25,
+            'uom_id' => $this->solution->reporting_unit,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(PreparationRunService::class)->approve($preparation);
     }
 
     public function test_template_propagates_to_open_preparation_by_step_name(): void

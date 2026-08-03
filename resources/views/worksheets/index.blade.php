@@ -653,6 +653,7 @@
         if (ms.initialized && !tabsHaveContent) {
             ms.initialized = false;
             ms.eventsBound = false;
+            ms.editStandardModalInitialized = false;
         }
 
         ms.init();

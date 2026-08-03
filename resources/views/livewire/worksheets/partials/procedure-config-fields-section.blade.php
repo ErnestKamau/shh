@@ -42,13 +42,13 @@
                             @if($selectedResults->count() > 1)
                             <small class="text-muted d-block mb-1">Same value for {{ $selectedResults->count() }} selected samples</small>
                             @endif
-                            @php(
-                            $type = $field->field_type ?: (
-                            in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
-                            ? 'dataset'
-                            : 'input'
-                            )
-                            )
+                            @php
+                                $type = $field->field_type ?: (
+                                    in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
+                                        ? 'dataset'
+                                        : 'input'
+                                );
+                            @endphp
                             @if(\App\Models\Procedures\ProcedureConfigField::isSampleDerivedType($field->field_type))
                             <input type="text"
                                 class="form-control bg-light"

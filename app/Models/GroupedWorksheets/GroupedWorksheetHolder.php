@@ -26,6 +26,7 @@ class GroupedWorksheetHolder extends Model implements Auditable
         'document_control_no',
         'revision',
         'issue_date',
+        'settings',
     ];
 
     protected function casts(): array
@@ -33,7 +34,16 @@ class GroupedWorksheetHolder extends Model implements Auditable
         return [
             'is_active' => 'boolean',
             'issue_date' => 'date',
+            'settings' => 'array',
         ];
+    }
+
+    /**
+     * Retrieve a setting from the holder's JSON settings bag.
+     */
+    public function getSettingValue(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->settings, $key, $default);
     }
 
     public function items(): HasMany

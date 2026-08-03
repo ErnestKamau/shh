@@ -85,46 +85,10 @@
                         'existingValues' => $existingValues
                       ])
                     @else
-                      <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
-                        <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
-                          <h6 class="mb-2" style="color: var(--workflow-text-main);">
-                            <i class="mdi mdi-folder-outline text-primary"></i> {{ $section->title }}
-                          </h6>
-                          @include('submission-forms.partials.section-logos', ['section' => $section])
-                          @if($section->description)
-                            <p class="text-muted small mb-0">{!! nl2br(e($section->description)) !!}</p>
-                          @endif
-                        </div>
-
-                        @foreach($section->elementHolders as $holder)
-                          <div class="element-holder mb-3">
-                            @if($holder->holder_type === 'field')
-                              @php
-                                $visibleHolderElements = $holder->elements->reject(fn ($el) => (bool) ($el->is_hidden ?? false))->values();
-                              @endphp
-                              <div class="row">
-                                @foreach($visibleHolderElements as $element)
-                                  <div class="col-md-{{ getColumnWidth($visibleHolderElements->count()) }} mb-3">
-                                    @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
-                                  </div>
-                                @endforeach
-                              </div>
-                            @else
-                              @foreach($holder->elements as $element)
-                                  @continue($element->is_hidden ?? false)
-                                <div class="text-element mb-3">
-                                  <div class="sf-alert-soft is-info mb-0">
-                                    <strong>{{ $element->label }}</strong>
-                                    @if($element->help_text)
-                                      <p class="mb-0 mt-2">{{ $element->help_text }}</p>
-                                    @endif
-                                  </div>
-                                </div>
-                              @endforeach
-                            @endif
-                          </div>
-                        @endforeach
-                      </div>
+                      @include('submission-forms.partials.fillable-section', [
+                        'section' => $section,
+                        'existingValues' => $existingValues,
+                      ])
                     @endif
                   @endforeach
 
@@ -606,6 +570,8 @@ waitForJQuery(function() {
 });
 </script>
 
+@include('submission-forms.partials.conditional-logic')
+
 <script>
 $(document).ready(function() {
     console.log('Preview page loaded, initializing...');
@@ -623,6 +589,10 @@ $(document).ready(function() {
         bindEvents() {
             // Update form data preview on input change
             $('#preview-form').on('input change', 'input, select, textarea', () => {
+                this.updateFormDataPreview();
+            });
+
+            document.addEventListener('submission-form:conditional-logic-updated', () => {
                 this.updateFormDataPreview();
             });
             
@@ -665,7 +635,7 @@ $(document).ready(function() {
                 const name = $element.attr('name');
                 const type = $element.attr('type');
                 
-                if (!name || name === '_token') return;
+                if (!name || name === '_token' || $element.is(':disabled')) return;
                 
                 let value = null;
                 
@@ -697,7 +667,7 @@ $(document).ready(function() {
         validateForm() {
             const errors = [];
             
-            $('#preview-form').find('input[required], select[required], textarea[required]').each(function() {
+            $('#preview-form').find('input[required]:not(:disabled), select[required]:not(:disabled), textarea[required]:not(:disabled)').each(function() {
                 const $element = $(this);
                 const label = $element.closest('.form-group').find('label').text().replace(' *', '');
                 const value = $element.val();

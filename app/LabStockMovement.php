@@ -26,7 +26,9 @@ class LabStockMovement extends Model implements Auditable
         'uom_id',
         'created_by',
         'preparation_id',
-        'batch_number'
+        'batch_number',
+        'source_type',
+        'source_id',
     ];
 
     /**

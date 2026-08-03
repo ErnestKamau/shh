@@ -319,13 +319,23 @@
                                         </div>
                                     </div>
                                     @if($form['is_new_batch'])
-                                        <div class="col-md-6">
+                                        <div class="col-md-3">
                                             <label class="spm-label">Batch number <span class="text-danger">*</span></label>
                                             <input type="text"
                                                    wire:model="form.batch_number"
                                                    class="form-control spm-input @error('form.batch_number') is-invalid @enderror"
                                                    placeholder="e.g. BATCH-2026-001">
                                             @error('form.batch_number')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="spm-label">Expiry date <span class="text-danger">*</span></label>
+                                            <input type="date"
+                                                   wire:model="form.expiry_date"
+                                                   min="{{ now()->toDateString() }}"
+                                                   class="form-control spm-input @error('form.expiry_date') is-invalid @enderror">
+                                            @error('form.expiry_date')
                                                 <div class="invalid-feedback">{{ $message }}</div>
                                             @enderror
                                         </div>

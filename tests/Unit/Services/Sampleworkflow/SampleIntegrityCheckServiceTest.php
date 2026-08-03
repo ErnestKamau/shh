@@ -87,6 +87,14 @@ class SampleIntegrityCheckServiceTest extends TestCase
             [$analystA, $analystB],
             array_values($saved['analysts_by_lab_section'][$sectionId] ?? [])
         );
+        $this->assertSame(
+            [$analystA, $analystB],
+            array_values($saved['analysts_by_element'][$inHouseA][$sectionId] ?? [])
+        );
+        $this->assertSame(
+            [],
+            array_values($saved['analysts_by_element'][$subcontracted][$sectionId] ?? [])
+        );
     }
 
     #[Test]
@@ -137,6 +145,14 @@ class SampleIntegrityCheckServiceTest extends TestCase
         $this->assertSame(
             [$analystId],
             array_values($saved['analysts_by_lab_section'][$sectionId] ?? [])
+        );
+        $this->assertSame(
+            [$analystId],
+            array_values($saved['analysts_by_element'][$elementAssigned][$sectionId] ?? [])
+        );
+        $this->assertSame(
+            [],
+            array_values($saved['analysts_by_element'][$elementEmpty][$sectionId] ?? [])
         );
     }
 

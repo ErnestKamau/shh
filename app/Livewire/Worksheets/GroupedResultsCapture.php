@@ -18,8 +18,10 @@ class GroupedResultsCapture extends Component
 
     public bool $reviewOnly = false;
 
-    /** True when the user has no lab section assignment (view-all, edit-none). */
+    /** True when the user cannot edit these holder results (wrong section / not assigned analyst). */
     public bool $worksheetsReadOnly = false;
+
+    protected bool $forcedReviewOnly = false;
 
     /** @var array<int, array{row_key: string, label: string, analysis_type_name: string|null}> */
     public array $parameters = [];
@@ -61,8 +63,7 @@ class GroupedResultsCapture extends Component
     {
         $this->batch = $batch;
         $this->holder = $holder;
-        $this->worksheetsReadOnly = ! app(LabSectionResultAccess::class)->hasLabSectionAssignment(Auth::user());
-        $this->reviewOnly = $reviewOnly || $this->worksheetsReadOnly;
+        $this->forcedReviewOnly = $reviewOnly;
         $this->loadMatrix();
         $this->loadPostingStatus();
     }
@@ -81,7 +82,22 @@ class GroupedResultsCapture extends Component
             $this->activeSampleIndex = 0;
         }
 
+        $this->syncReadOnlyState();
         $this->loadPostingStatus();
+    }
+
+    protected function syncReadOnlyState(): void
+    {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        $capturedResults = app(GroupedResultsCaptureService::class)
+            ->loadCapturedResults($this->batch, $this->holder);
+
+        $this->worksheetsReadOnly = $capturedResults->isEmpty()
+            ? ! $access->hasLabSectionAssignment($user)
+            : ! $access->canEditAllCapturedResults($user, $capturedResults);
+
+        $this->reviewOnly = $this->forcedReviewOnly || $this->worksheetsReadOnly;
     }
 
     public function loadPostingStatus(): void

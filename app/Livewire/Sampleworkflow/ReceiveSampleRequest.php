@@ -12,6 +12,7 @@ use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormSection;
 use App\Services\Commercial\CommercialEnquirySyncService;
+use App\Services\CRM\CRMCustomerService;
 use App\Services\Planner\SamplingScheduleCollectionProgress;
 use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Sampleworkflow\ReceivingLabMetadataService;
@@ -56,6 +57,16 @@ class ReceiveSampleRequest extends Component
     public array $lastGeneratedSfiIds = [];
 
     public bool $showWalkInAddContactModal = false;
+
+    public bool $showWalkInAddCustomerModal = false;
+
+    public string $walkInNewCustomerName = '';
+
+    public string $walkInNewCustomerEmail = '';
+
+    public string $walkInNewCustomerPhone = '';
+
+    public string $walkInNewCustomerAddress = '';
 
     public bool $showWalkInAddPointModal = false;
 
@@ -1661,6 +1672,12 @@ class ReceiveSampleRequest extends Component
         $this->applyCustomerRepresentativeFromContact($contact);
     }
 
+    public function openWalkInAddCustomerModal(): void
+    {
+        $this->resetWalkInCustomerModal();
+        $this->showWalkInAddCustomerModal = true;
+    }
+
     public function openWalkInAddContactModal(): void
     {
         if ($this->resolveSelectedCustomerId() === null) {
@@ -1691,6 +1708,35 @@ class ReceiveSampleRequest extends Component
             ->orderBy('name')
             ->value('id') ?? '');
         $this->showWalkInAddPointModal = true;
+    }
+
+    public function saveWalkInCustomer(CRMCustomerService $customerService): void
+    {
+        $this->validate([
+            'walkInNewCustomerName' => 'required|string|max:255',
+            'walkInNewCustomerEmail' => 'nullable|email|max:255',
+            'walkInNewCustomerPhone' => 'nullable|string|max:50',
+            'walkInNewCustomerAddress' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $customer = $customerService->create([
+                'name' => trim($this->walkInNewCustomerName),
+                'email' => trim($this->walkInNewCustomerEmail),
+                'phone1' => trim($this->walkInNewCustomerPhone),
+                'physical_address' => trim($this->walkInNewCustomerAddress),
+                'postal_address' => trim($this->walkInNewCustomerAddress),
+                'active' => 1,
+            ]);
+        } catch (\RuntimeException $exception) {
+            $this->addError('walkInNewCustomerName', $exception->getMessage());
+
+            return;
+        }
+
+        $this->applyCustomerPrefillFromCrm($customer);
+        $this->showWalkInAddCustomerModal = false;
+        $this->resetWalkInCustomerModal();
     }
 
     public function saveWalkInContact(): void
@@ -1767,6 +1813,12 @@ class ReceiveSampleRequest extends Component
         $this->resetWalkInPointModal();
     }
 
+    public function closeWalkInAddCustomerModal(): void
+    {
+        $this->showWalkInAddCustomerModal = false;
+        $this->resetWalkInCustomerModal();
+    }
+
     public function closeWalkInAddContactModal(): void
     {
         $this->showWalkInAddContactModal = false;
@@ -1777,6 +1829,20 @@ class ReceiveSampleRequest extends Component
     {
         $this->showWalkInAddPointModal = false;
         $this->resetWalkInPointModal();
+    }
+
+    private function resetWalkInCustomerModal(): void
+    {
+        $this->walkInNewCustomerName = '';
+        $this->walkInNewCustomerEmail = '';
+        $this->walkInNewCustomerPhone = '';
+        $this->walkInNewCustomerAddress = '';
+        $this->resetValidation([
+            'walkInNewCustomerName',
+            'walkInNewCustomerEmail',
+            'walkInNewCustomerPhone',
+            'walkInNewCustomerAddress',
+        ]);
     }
 
     private function resetWalkInContactModal(): void

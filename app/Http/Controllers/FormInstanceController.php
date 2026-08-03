@@ -11,6 +11,8 @@ use App\Directorate;
 use App\SampleHeader;
 use App\SampleDetails;
 use App\Services\Commercial\AmSpecTrfPdfService;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
+use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Zone;
 use Illuminate\Http\Request;
@@ -268,6 +270,10 @@ class FormInstanceController extends Controller
             },
             'sampleAnalysisStages'
         ]);
+        $submissionForm->setRelation(
+            'sections',
+            app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm)
+        );
 
         // Filter sample types based on lab sections
         $allowedSampleTypeIds = null;
@@ -312,6 +318,10 @@ class FormInstanceController extends Controller
             },
             'sampleAnalysisStages'
         ]);
+        $submissionForm->setRelation(
+            'sections',
+            app(SubmissionFormSchemaHelper::class)->uniqueSections($submissionForm)
+        );
 
         // Filter sample types based on lab sections
         $allowedSampleTypeIds = null;
@@ -333,7 +343,12 @@ class FormInstanceController extends Controller
     /**
      * Update the form instance with submitted data
      */
-    public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    public function update(
+        Request $request,
+        SubmissionForm $submissionForm,
+        SubmissionFormInstance $instance,
+        SubmissionFormSubmissionService $submissionService
+    )
     {
         $this->assertLimsCanFillForm($submissionForm);
 
@@ -345,10 +360,16 @@ class FormInstanceController extends Controller
         }
 
 
-        // Check if instance can be updated
-        // if (!$instance->isDraft()) {
-        //     return redirect()->back()->with('error', 'This form instance cannot be updated.');
-        // }
+        if (! $instance->isDraft()) {
+            return redirect()->back()->with('error', 'Only draft form instances can be updated.');
+        }
+
+        $action = (string) $request->input('action');
+        if (! in_array($action, ['draft', 'submit'], true)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Choose Save as Draft or Submit Form.');
+        }
 
         // Load form elements for validation (exclude builder-hidden sections/elements)
         $elements = SubmissionFormElement::whereHas('holder.section', function ($query) use ($submissionForm) {
@@ -365,7 +386,11 @@ class FormInstanceController extends Controller
 
 
         // Build validation rules
-        $validationRules = $this->buildValidationRules($elements, $request);
+        $validationRules = $submissionService->buildValidationRules(
+            $elements,
+            $request,
+            requireRequired: $action === 'submit'
+        );
 
         // dd($validationRules);
 
@@ -381,21 +406,12 @@ class FormInstanceController extends Controller
                 ->with('error', 'Please correct the errors below.');
         }
 
-        // If the user is not submitting the form, do not persist any changes.
-        // Draft saving has been explicitly disabled.
-        if ($request->input('action') !== 'submit') {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Draft saving is disabled. Please submit the form when ready.');
-        }
-
         DB::beginTransaction();
         try {
-            // Process and save form data only on final submit
-            $this->processFormData($instance, $request, $elements);
+            $submissionService->processFormData($instance, $request, $elements);
             Log::info('Processing form data');
 
-            if ($request->input('action') === 'submit') {
+            if ($action === 'submit') {
                 if (empty($instance->form_number)) {
                     $this->assignFormNumberWithRetry($instance, $submissionForm);
                     $instance->refresh();
@@ -406,7 +422,7 @@ class FormInstanceController extends Controller
 
             DB::commit();
 
-            if ($request->input('action') === 'submit') {
+            if ($action === 'submit') {
                 try {
                     app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
                         ->syncFromSubmittedInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
@@ -418,8 +434,11 @@ class FormInstanceController extends Controller
                 }
             }
 
-            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
+            if ($action === 'draft') {
+                return redirect()->back()->with('success', 'Draft saved successfully.');
+            }
 
+            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
             if (class_exists($labIntakeCaseServiceClass)) {
                 try {
                     // Sync the intake workflow once the submission is durable.
@@ -1381,7 +1400,7 @@ class FormInstanceController extends Controller
     public function getDependedFieldValue(Request $request)
     {
         $validated = $request->validate([
-            'element_id' => 'required|integer|exists:submission_form_elements,id',
+            'element_id' => 'required|uuid|exists:submission_form_elements,id',
             'source_id' => 'required',
         ]);
 

@@ -128,6 +128,7 @@
 	}
 
 	.lab-panel-theme .rft-form-type-card {
+		position: relative;
 		background: #fff;
 		border: 1px solid var(--workflow-border);
 		border-radius: 10px;
@@ -142,11 +143,118 @@
 		box-shadow: 0 0 0 1px var(--workflow-accent-soft);
 	}
 
+	.lab-panel-theme .rft-form-type-card-menu {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		z-index: 6;
+	}
+
+	.lab-panel-theme .rft-card-menu-toggle {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		padding: 0;
+		border: 1px solid transparent;
+		border-radius: 8px;
+		background: transparent;
+		color: #94a3b8;
+		line-height: 1;
+		cursor: pointer;
+		transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+	}
+
+	.lab-panel-theme .rft-card-menu-toggle .mdi {
+		font-size: 1.15rem;
+	}
+
+	.lab-panel-theme .rft-form-type-card:hover .rft-card-menu-toggle,
+	.lab-panel-theme .rft-form-type-card-menu:focus-within .rft-card-menu-toggle {
+		color: #475569;
+		background: #f8fafc;
+		border-color: #e2e8f0;
+	}
+
+	.lab-panel-theme .rft-card-menu-toggle:hover,
+	.lab-panel-theme .rft-card-menu-toggle:focus {
+		color: var(--workflow-accent, #17135F);
+		background: var(--workflow-accent-soft, #e8e9f3);
+		border-color: var(--workflow-accent-border, #b8bbd4);
+		outline: none;
+	}
+
+	.lab-panel-theme .rft-card-menu-dropdown {
+		display: none;
+		position: absolute;
+		top: calc(100% + 2px);
+		right: 0;
+		min-width: 148px;
+		padding: 6px;
+		background: #fff;
+		border: 1px solid #e2e8f0;
+		border-radius: 10px;
+		box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+	}
+
+	.lab-panel-theme .rft-card-menu-dropdown::before {
+		content: '';
+		position: absolute;
+		top: -10px;
+		left: 0;
+		right: 0;
+		height: 10px;
+	}
+
+	.lab-panel-theme .rft-form-type-card-menu:hover .rft-card-menu-dropdown,
+	.lab-panel-theme .rft-form-type-card-menu:focus-within .rft-card-menu-dropdown {
+		display: block;
+	}
+
+	.lab-panel-theme .rft-card-menu-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		padding: 8px 10px;
+		border: 0;
+		border-radius: 7px;
+		background: transparent;
+		color: #334155;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		line-height: 1.2;
+		text-align: left;
+		text-decoration: none;
+		cursor: pointer;
+		transition: background 0.12s ease, color 0.12s ease;
+	}
+
+	.lab-panel-theme .rft-card-menu-item .mdi {
+		font-size: 1rem;
+		color: #64748b;
+	}
+
+	.lab-panel-theme .rft-card-menu-item:hover,
+	.lab-panel-theme .rft-card-menu-item:focus {
+		background: var(--workflow-accent-soft, #e8e9f3);
+		color: var(--workflow-accent, #17135F);
+		text-decoration: none;
+		outline: none;
+	}
+
+	.lab-panel-theme .rft-card-menu-item:hover .mdi,
+	.lab-panel-theme .rft-card-menu-item:focus .mdi {
+		color: var(--workflow-accent, #17135F);
+	}
+
 	.lab-panel-theme .rft-form-type-card-header {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		margin-bottom: 10px;
+		padding-right: 28px;
 	}
 
 	.lab-panel-theme .rft-form-type-card-icon {
@@ -1319,6 +1427,45 @@
 			grid-column: 1;
 			grid-row: 3;
 			justify-content: flex-end;
+		}
+	}
+
+	/* Touch sizing must win over the compact desktop rules above. */
+	@media (max-width: 991.98px) {
+		.rft-theme .btn,
+		.rft-theme .btn.btn-sm,
+		.rft-theme .btn-action-sm,
+		.rft-theme .rft-touch-bar .btn,
+		.rft-theme .rft-sample-field .form-control,
+		.rft-theme .rft-sample-field .custom-select,
+		.rft-theme .rft-sample-field select.form-control,
+		.rft-theme .walk-in-trf-wizard__panel .form-control,
+		.rft-theme .walk-in-trf-wizard__panel .custom-select {
+			min-height: 44px;
+		}
+
+		.rft-theme .rft-sample-field .form-control,
+		.rft-theme .rft-sample-field .custom-select,
+		.rft-theme .rft-sample-field select.form-control,
+		.rft-theme .walk-in-trf-wizard__panel .form-control,
+		.rft-theme .walk-in-trf-wizard__panel .custom-select {
+			height: auto;
+			font-size: 16px !important;
+		}
+
+		.rft-theme .rft-form-type-card-actions .rft-icon-btn.btn,
+		.rft-theme .rft-card-menu-toggle,
+		.rft-theme .rft-instance-card__actions .btn,
+		.rft-theme .rft-sample-row-card__chevron {
+			width: 44px;
+			height: 44px;
+			min-width: 44px;
+			min-height: 44px;
+		}
+
+		.rft-theme .rft-card-menu-item {
+			min-height: 44px;
+			padding: 10px 12px;
 		}
 	}
 </style>

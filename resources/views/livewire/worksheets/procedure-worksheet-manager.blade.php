@@ -98,6 +98,7 @@
                 @if($groupedCaptureLayout || !empty($activeTabs))
                 @if($selectedWorksheetId)
 
+                @if(! ($isSectionedMatrix && $sectionKey))
                 <div class="fws-view-mode-bar d-flex align-items-center mb-3 justify-content-between p-3 border-bottom">
                     <div>
                         <span class="mr-2 font-weight-bold text-secondary">Layout Mode:</span>
@@ -111,10 +112,12 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
-                @if($viewMode === 'form')
+                @if($viewMode === 'form' || ($isSectionedMatrix && $sectionKey))
 
-                {{-- Step progress bar --}}
+                {{-- Step progress bar (hidden in sectioned-matrix mode) --}}
+                @if(! ($isSectionedMatrix && $sectionKey))
                 <div class="procedure-step-nav mb-4">
                     @foreach($stepLabels as $stepIdx => $stepLabel)
                     <button type="button"
@@ -134,6 +137,7 @@
                     @endif
                     @endforeach
                 </div>
+                @endif
 
                 {{-- Step 0: File Registration (sample selection + file numbers) --}}
                 @if($currentStepIndex === 0)
@@ -310,22 +314,36 @@
                 @endif {{-- end step 0 --}}
 
                 {{-- Steps 1+: Capture sections --}}
-                @if($currentStepIndex > 0)
+                @if($currentStepIndex > 0 && ! $groupedCaptureLayout)
                 @if(!empty($worksheetMetaSummary))
                     @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
                     @if(!empty($worksheetMetaRows) && count($worksheetMetaRows) > 1)
                         @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
                     @endif
                 @endif
+                @endif
+
+                @if($currentStepIndex > 0)
                 @php
                 $selectedResults = $this->analysisSamples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
                 $configPlacementTop = ($selectedProcedureWorksheet?->config_fields_placement ?? 'top') === 'top';
                 $totalSections = count($captureSections);
                 @endphp
 
-                @if($configPlacementTop && count($configFieldsGroupedForCapture) > 0 && $currentStepIndex === 1)
+                @if($configPlacementTop && count($configFieldsGroupedForCapture) > 0 && $currentStepIndex === 1 && $showConfigFields && ! $groupedCaptureLayout)
                     @include('livewire.worksheets.partials.procedure-config-fields-section')
                 @endif
+
+                {{-- ── Sectioned-matrix mode (phased pipeline) ─────────── --}}
+                @if($isSectionedMatrix && $sectionKey && $activeSectionConfig && $currentStepIndex >= 1)
+                    @include('livewire.worksheets.partials.procedure-sectioned-matrix', [
+                        'sectionConfig'   => $activeSectionConfig,
+                        'sectionKey'      => $sectionKey,
+                        'analysisSamples' => $this->analysisSamples,
+                        'selectedSamples' => $selectedSamples,
+                        'worksheetId'     => $selectedWorksheetId,
+                    ])
+                @else
 
                 @foreach($captureSections as $sectionIndex => $section)
                 @if($currentStepIndex === $sectionIndex + 1)
@@ -478,7 +496,7 @@
                                                 @php
                                                 $selectedMeasurandIds = $stepMeasurandOverrides[$step->id] ?? [];
                                                 $measurandLookup = collect($this->measurandOptions ?? [])->keyBy('id');
-                                                $resultId = $selectedResults->first()->id;
+                                                $resultId = $selectedResults->first()?->id;
                                                 $isStaticTextStep = ($step->value_type ?? '') === 'static_text';
                                                 @endphp
 
@@ -486,6 +504,8 @@
                                                     <div class="procedure-static-text text-secondary small mb-0" style="white-space: pre-wrap;">
                                                         {{ $step->default_value ?? '' }}
                                                     </div>
+                                                @elseif(! $resultId)
+                                                    <span class="text-muted small">Select a sample to enter values.</span>
                                                 @elseif(!empty($selectedMeasurandIds))
                                                     @foreach($selectedMeasurandIds as $mId)
                                                         @php
@@ -555,14 +575,13 @@
                                             <td class="testkit-row-index">{{ $rowMeta['row_index'] }}</td>
                                             @foreach($this->getTestKitColumnsProperty() as $col)
                                             <td>
-                                                @php($type = $col->type ?? 'string')
-                                                @if($type === 'number')
+                                                @if(($col->type ?? 'string') === 'number')
                                                 <input type="number" class="form-control form-control-sm"
                                                     wire:model.live.debounce.800ms="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
-                                                @elseif($type === 'date')
+                                                @elseif(($col->type ?? 'string') === 'date')
                                                 <input type="date" class="form-control form-control-sm"
                                                     wire:model.live.debounce.800ms="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
-                                                @elseif($type === 'boolean')
+                                                @elseif(($col->type ?? 'string') === 'boolean')
                                                 <div class="form-check form-check-inline mb-0">
                                                     <input type="checkbox" class="form-check-input"
                                                         wire:model.live="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}"
@@ -600,9 +619,11 @@
                 </section>
                 @endif
 
-                @if(! $configPlacementTop && count($configFieldsGroupedForCapture) > 0 && $currentStepIndex === $totalSections)
+                @if(! $configPlacementTop && count($configFieldsGroupedForCapture) > 0 && $currentStepIndex === $totalSections && $showConfigFields && ! $groupedCaptureLayout)
                     @include('livewire.worksheets.partials.procedure-config-fields-section')
                 @endif
+
+                @endif {{-- end isSectionedMatrix/else --}}
 
                 @endif {{-- end $currentStepIndex > 0 --}}
 

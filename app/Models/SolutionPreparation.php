@@ -27,6 +27,7 @@ class SolutionPreparation extends Model implements Auditable
         'solution_id',
         'preparation_number',
         'batch_number',
+        'expiry_date',
         'is_new_batch',
         'prepared_by',
         'prepared_at',
@@ -47,6 +48,7 @@ class SolutionPreparation extends Model implements Auditable
         return [
             'prepared_at' => 'datetime',
             'approved_at' => 'datetime',
+            'expiry_date' => 'date',
             'is_new_batch' => 'boolean',
             'alternative_aware' => 'boolean',
             'ingredient_payload' => 'array',

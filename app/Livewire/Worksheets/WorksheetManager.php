@@ -3,6 +3,7 @@
 namespace App\Livewire\Worksheets;
 
 use App\CapturedResult;
+use App\Enums\GroupedWorksheetItemType;
 use App\Models\Formulars\Formula;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\Models\Procedures\ProcedureWorksheet;
@@ -78,10 +79,12 @@ class WorksheetManager extends Component
         }
 
         // Load all worksheet types up front so tabs can be gated to active ones only.
+        // Engines embedded in an active grouped pipeline are suppressed from standalone tabs.
         $this->loadProcedureWorksheetData();
         $this->loadLogEntryWorksheetData();
         $this->loadFormulaWorksheetData();
         $this->loadStageHeaders();
+        $this->suppressPipelineEmbeddedStandaloneTabs();
 
         $tabResolved = false;
 
@@ -207,7 +210,13 @@ class WorksheetManager extends Component
     {
         $query = CapturedResult::query()
             ->where('sample_header_id', $this->batch->id)
-            ->whereNotNull('procedure_worksheet_id');
+            ->whereNotNull('procedure_worksheet_id')
+            // Standalone procedure tab: ignore rows that belong to a grouped pipeline.
+            ->where(function ($q) {
+                $q->where('has_grouped_worksheet', false)
+                    ->orWhereNull('has_grouped_worksheet')
+                    ->orWhereNull('grouped_worksheet_holder_id');
+            });
         app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($query, Auth::user());
         $ids = $query->distinct()->pluck('procedure_worksheet_id');
 
@@ -224,6 +233,10 @@ class WorksheetManager extends Component
             return;
         }
 
+        $pipelineRefs = app(GroupedWorksheetAssignmentService::class)
+            ->pipelineReferenceIdsForHolders($this->groupedHolders);
+        $pipelineStageHeaderIds = $pipelineRefs[GroupedWorksheetItemType::StageHeader->value] ?? [];
+
         $this->stageHeaders = StageHeader::query()
             ->whereHas('capturedResults', function ($q) {
                 $q->whereHas('sample', function ($sq) {
@@ -231,11 +244,76 @@ class WorksheetManager extends Component
                 });
                 app(LabSectionResultAccess::class)->scopeVisibleCapturedResults($q, Auth::user());
             })
+            ->when($pipelineStageHeaderIds !== [], function ($q) use ($pipelineStageHeaderIds) {
+                $q->whereNotIn('id', $pipelineStageHeaderIds);
+            })
             ->with(['method', 'analyte', 'sampleType', 'testStages'])
             ->orderBy('name')
             ->get();
 
         $this->stageHeadersLoaded = true;
+    }
+
+    /**
+     * Remove standalone tabs for worksheets that are already stages in an active grouped pipeline.
+     */
+    protected function suppressPipelineEmbeddedStandaloneTabs(): void
+    {
+        if ($this->groupedHolders->isEmpty()) {
+            return;
+        }
+
+        $pipelineRefs = app(GroupedWorksheetAssignmentService::class)
+            ->pipelineReferenceIdsForHolders($this->groupedHolders);
+
+        $procedureIds = $pipelineRefs[GroupedWorksheetItemType::Procedure->value] ?? [];
+        if ($procedureIds !== [] && $this->procedureWorksheets instanceof Collection) {
+            $this->procedureWorksheets = $this->procedureWorksheets
+                ->reject(fn (ProcedureWorksheet $worksheet) => in_array((string) $worksheet->id, $procedureIds, true))
+                ->values();
+        }
+
+        $formulaIds = $pipelineRefs[GroupedWorksheetItemType::Formula->value] ?? [];
+        if ($formulaIds !== [] && $this->formulas instanceof Collection) {
+            $this->formulas = $this->formulas
+                ->reject(fn (Formula $formula) => in_array((string) $formula->id, $formulaIds, true))
+                ->values();
+
+            if ($this->activeFormulaId && in_array((string) $this->activeFormulaId, $formulaIds, true)) {
+                $this->activeFormulaId = $this->formulas->first()?->id;
+            }
+        }
+
+        $logEntryIds = $pipelineRefs[GroupedWorksheetItemType::LogEntryWorksheet->value] ?? [];
+        if ($logEntryIds !== [] && $this->logEntryWorksheets instanceof Collection) {
+            $this->logEntryWorksheets = $this->logEntryWorksheets
+                ->reject(fn (LogEntryWorksheet $worksheet) => in_array((string) $worksheet->id, $logEntryIds, true))
+                ->values();
+
+            if ($this->activeLogEntryWorksheetId && in_array((string) $this->activeLogEntryWorksheetId, $logEntryIds, true)) {
+                $this->activeLogEntryWorksheetId = $this->logEntryWorksheets->first()?->id
+                    ? (string) $this->logEntryWorksheets->first()->id
+                    : null;
+            }
+        }
+
+        if ($this->activeProcedureWorksheetId
+            && $this->procedureWorksheets instanceof Collection
+            && ! $this->procedureWorksheets->contains('id', $this->activeProcedureWorksheetId)
+        ) {
+            $this->activeProcedureWorksheetId = $this->procedureWorksheets->first()?->id
+                ? (string) $this->procedureWorksheets->first()->id
+                : null;
+        }
+
+        if ($this->activeStageHeaderId
+            && $this->stageHeaders instanceof Collection
+            && ! $this->stageHeaders->contains('id', $this->activeStageHeaderId)
+        ) {
+            $this->activeStageHeaderId = $this->stageHeaders->first()?->id
+                ? (string) $this->stageHeaders->first()->id
+                : null;
+        }
     }
 
     public function loadFormulaWorksheetData(): void
