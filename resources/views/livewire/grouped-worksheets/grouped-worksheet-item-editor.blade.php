@@ -65,6 +65,24 @@
 														{{ $item->getItemTypeEnum()->label() }}
 													</div>
 													<div class="small text-muted text-truncate">{{ $item->referenceName() }}</div>
+													@php
+														$stageOrder = $item->getConfigValue('stage_order');
+														$sectionKey = $item->getConfigValue('section_key');
+														$rowKeys = $item->getConfigValue('row_keys');
+													@endphp
+													@if($stageOrder || $sectionKey)
+														<div class="d-flex flex-wrap gap-1 mt-1">
+															@if($stageOrder)
+																<span class="gw-pipeline-optional">order {{ $stageOrder }}</span>
+															@endif
+															@if($sectionKey)
+																<span class="gw-pipeline-optional">section: {{ $sectionKey }}</span>
+															@endif
+															@if(is_array($rowKeys) && count($rowKeys) > 0)
+																<span class="gw-pipeline-optional">{{ count($rowKeys) }} row(s)</span>
+															@endif
+														</div>
+													@endif
 													@if(!$item->is_required)
 														<span class="gw-pipeline-optional">Optional</span>
 													@endif
@@ -80,6 +98,29 @@
 									</div>
 								</div>
 							@endforeach
+							@if($virtualResultsItem)
+								@php $vr = $virtualResultsItem; @endphp
+								<div class="gw-pipeline-timeline-item gw-pipeline-timeline-item--virtual" wire:key="pipeline-virtual-results">
+									<button type="button" class="gw-pipeline-timeline-node" disabled title="Configured via pipeline settings">
+										<span class="gw-pipeline-timeline-badge">{{ $vr->sort_order }}</span>
+									</button>
+									<div class="gw-pipeline-timeline-card">
+										<div class="gw-pipeline-timeline-select" style="cursor: default;">
+											<div class="d-flex align-items-start gap-2">
+												<span class="gw-pipeline-type-icon"><i class="mdi mdi-chart-box-outline"></i></span>
+												<div class="text-start flex-grow-1 min-w-0">
+													<div class="fw-semibold text-truncate">{{ $vr->label }}</div>
+													<div class="small text-muted">Results capture (virtual)</div>
+													<span class="gw-pipeline-optional">Edit via pipeline settings</span>
+													@if(!$vr->is_required)
+														<span class="gw-pipeline-optional">Optional</span>
+													@endif
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							@endif
 						</div>
 					</div>
 					<div class="col-lg-8">
@@ -510,6 +551,83 @@
 							</div>
 							@error('reference_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
 						</div>
+
+						@if($item_type === 'stage_header')
+							<div class="border rounded p-3 mb-3 bg-light">
+								<div class="fw-semibold mb-2"><i class="mdi mdi-cog-outline"></i> Phase config</div>
+								<div class="mb-3">
+									<label class="form-label">Method sequence stage order @if(($pipelineMode ?? 'classic') === 'phased')*@endif</label>
+									<input type="number" min="1" wire:model="config_stage_order" class="form-control @error('config_stage_order') is-invalid @enderror" placeholder="e.g. 1">
+									@error('config_stage_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
+									<small class="text-muted">Filters the MS widget to the TestStage with this order.</small>
+								</div>
+								<div class="mb-3">
+									<label class="form-label">Embed procedure matrix (optional)</label>
+									<div class="tag-select-container" wire:click="$set('showProcedureDropdown', true)" wire:click.outside="$set('showProcedureDropdown', false)">
+										<div class="tag-select-input">
+											@if($this->selectedProcedure)
+												<span class="tag-badge">
+													{{ $this->selectedProcedure->name }}
+													<i class="mdi mdi-close-circle" wire:click.stop="clearProcedure"></i>
+												</span>
+											@endif
+											<input type="text"
+												wire:model.live="procedureSearch"
+												class="tag-input"
+												placeholder="{{ $this->selectedProcedure ? '' : 'Search procedure worksheets...' }}"
+												autocomplete="off">
+										</div>
+										@if($showProcedureDropdown && count($this->filteredProcedureOptions) > 0)
+											<div class="tag-dropdown">
+												@foreach($this->filteredProcedureOptions as $option)
+													<div class="tag-dropdown-item" wire:click.stop="selectProcedure('{{ $option['id'] }}')">
+														<strong>{{ $option['name'] }}</strong>
+														@if(!empty($option['is_sectioned_matrix']))
+															<br><small class="text-success">sectioned matrix</small>
+														@endif
+													</div>
+												@endforeach
+											</div>
+										@endif
+									</div>
+									@error('config_procedure_worksheet_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+								</div>
+								@if($this->selectedProcedure)
+									<div class="mb-3">
+										<label class="form-label">Matrix section *</label>
+										<select wire:model.live="config_section_key" class="form-control @error('config_section_key') is-invalid @enderror">
+											<option value="">Select section…</option>
+											@foreach($matrixSections as $section)
+												<option value="{{ $section['key'] }}">{{ $section['label'] }} ({{ $section['key'] }})</option>
+											@endforeach
+										</select>
+										@error('config_section_key') <div class="invalid-feedback">{{ $message }}</div> @enderror
+										@if(count($matrixSections) === 0)
+											<small class="text-warning">This procedure has no sectioned_matrix layout. Configure it on the Layout tab first.</small>
+										@endif
+									</div>
+									@if($config_section_key !== '' && count($matrixRows) > 0)
+										<div class="mb-3">
+											<label class="form-label">Rows (optional — empty = all)</label>
+											@foreach($matrixRows as $row)
+												<div class="form-check">
+													<input type="checkbox"
+														wire:model="config_row_keys"
+														value="{{ $row['key'] }}"
+														class="form-check-input"
+														id="row-key-{{ $row['key'] }}">
+													<label class="form-check-label" for="row-key-{{ $row['key'] }}">{{ $row['label'] }}</label>
+												</div>
+											@endforeach
+										</div>
+									@endif
+									<div class="form-check">
+										<input type="checkbox" wire:model="config_show_config_fields" class="form-check-input" id="showConfigFields">
+										<label class="form-check-label" for="showConfigFields">Show configurable fields on this phase</label>
+									</div>
+								@endif
+							</div>
+						@endif
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" wire:click="closeModal">Cancel</button>

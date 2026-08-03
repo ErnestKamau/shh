@@ -40,6 +40,7 @@ class SubmissionFormInstance extends Model implements Auditable
         'structure_snapshot_at',
         'selected_sample_type_id',
         'form_number',
+        'trf_pdf_orientation',
         'sequence_number',
         'title',
         'submitted_by',
@@ -438,7 +439,16 @@ class SubmissionFormInstance extends Model implements Auditable
             return 'walk_in';
         }
 
-        return $enquiryChannel !== '' ? $enquiryChannel : 'walk_in';
+        // Pricing / creation labels (e.g. "quotation") are not receiving origins.
+        if (in_array($enquiryChannel, ['quotation', 'existing_quotation', 'from_quotation'], true)) {
+            return 'walk_in';
+        }
+
+        if (in_array($enquiryChannel, ['portal', 'walk_in', 'scheduled'], true)) {
+            return $enquiryChannel;
+        }
+
+        return 'walk_in';
     }
 
     /**

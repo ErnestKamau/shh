@@ -10,7 +10,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Directorate;
 use App\SampleHeader;
 use App\SampleDetails;
-use App\Services\Commercial\AmSpecTrfPdfService;
+use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionFormBatchSyncService;
@@ -1811,7 +1811,7 @@ class FormInstanceController extends Controller
         ));
     }
 
-    public function downloadTrfPdf(SubmissionForm $submissionForm, SubmissionFormInstance $instance, AmSpecTrfPdfService $service)
+    public function downloadTrfPdf(SubmissionForm $submissionForm, SubmissionFormInstance $instance, TestRequestFormPdfService $service)
     {
         $this->abortIfInstanceFormMismatch($submissionForm, $instance);
         $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to download this TRF PDF.');
@@ -1821,16 +1821,7 @@ class FormInstanceController extends Controller
             abort(404, 'This form is not a test request form.');
         }
 
-        $relativePath = $service->generateAndStore($instance);
-        $fullPath = storage_path('app'.$relativePath);
-
-        if (! is_file($fullPath)) {
-            abort(404, 'TRF PDF could not be generated.');
-        }
-
-        return response()->file($fullPath, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        return $service->stream($instance);
     }
 
     private function abortIfInstanceFormMismatch(SubmissionForm $submissionForm, SubmissionFormInstance $instance): void

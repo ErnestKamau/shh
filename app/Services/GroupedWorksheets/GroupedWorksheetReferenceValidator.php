@@ -23,6 +23,27 @@ class GroupedWorksheetReferenceValidator
         ];
     }
 
+    /**
+     * Extra rules when item_type is stage_header.
+     *
+     * @return array<string, mixed>
+     */
+    public function stageHeaderConfigRules(string $pipelineMode, bool $hasLinkedProcedure): array
+    {
+        $rules = [
+            'config_stage_order' => $pipelineMode === 'phased'
+                ? 'required|integer|min:1'
+                : 'nullable|integer|min:1',
+            'config_procedure_worksheet_id' => 'nullable|uuid',
+            'config_section_key' => $hasLinkedProcedure ? 'required|string|max:100' : 'nullable|string|max:100',
+            'config_row_keys' => 'nullable|array',
+            'config_row_keys.*' => 'string|max:100',
+            'config_show_config_fields' => 'boolean',
+        ];
+
+        return $rules;
+    }
+
     public function validateGroupedItem(string $itemType, string $referenceId): void
     {
         $type = GroupedWorksheetItemType::from($itemType);
@@ -31,6 +52,14 @@ class GroupedWorksheetReferenceValidator
         Validator::make(
             ['reference_id' => $referenceId],
             ['reference_id' => "required|uuid|exists:{$table},id"]
+        )->validate();
+    }
+
+    public function validateProcedureExists(string $procedureId): void
+    {
+        Validator::make(
+            ['config_procedure_worksheet_id' => $procedureId],
+            ['config_procedure_worksheet_id' => 'required|uuid|exists:procedure_worksheets,id']
         )->validate();
     }
 

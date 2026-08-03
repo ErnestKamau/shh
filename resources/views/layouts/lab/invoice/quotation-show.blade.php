@@ -138,22 +138,33 @@
                 <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
                 @if(sizeof($details)>0)
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item text-success" href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
+                <span class="dropdown-item text-dark" style="cursor: pointer;" data-target="#request-approval" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Request For Approval</span>
                 @endif
                 @endif
-                @if($header->status == 'Quote In Approval' && sizeof($details)>0)
+                @if($header->status == 'Quote In Approval' && sizeof($details)>0 && (int) $header->is_approved !== 1 && (string) $header->approved_by === (string) auth()->id())
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item text-success" href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
+                <span class="dropdown-item text-success" style="cursor: pointer;" data-target="#approve-quote" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Approve Quotation</span>
                 @endif
             </div>
         </div>
+        @if($header->status == 'Quote In Approval')
+            @if((int) $header->is_approved === 1)
+                <span class="badge badge-pill ml-2 bg-white text-success p-2 float-right mt-1 {{ $header->approved_by < 0 ? 'hidden' : '' }}" style="font-size: 10px;"><i class="mdi mdi-thumb-up"></i> Approved</span>
+            @else
+                <span class="badge badge-pill bg-white ml-2 text-primary p-2 float-right mt-1" style="font-size: 10px;"><i class="mdi mdi-alert-decagram"></i> Awaiting Approval</span>
+                @if((string) $header->approved_by !== (string) auth()->id())
+                <span class="badge badge-pill bg-white ml-2 text-danger p-2 float-right mt-1" style="font-size: 10px;"><i class="mdi mdi-alert-decagram"></i> Required Approver — {{ getUserById($header->approved_by)->name ?? '-' }}</span>
+                @endif
+            @endif
+        @endif
         <div class="nav-item dropdown float-right mr-2" style="margin-top: 0px !important;">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <i class="mdi mdi-compare-vertical"></i> Move To workflow
             </a>
             <div class="dropdown-menu" style="font-size: 13px;" aria-labelledby="navbarDropdown">
                 <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Preparation'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation</a>
-                @if(in_array($header->status,['Quote In Preparation','Quote In Approval','Quote Complete']))
+                @if(in_array($header->status,['Quote In Approval','Quote Complete'], true))
+                <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Approval'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval</a>
                 <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete</a>
                 @endif
 
@@ -374,9 +385,23 @@
                         </div>
                         @else
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 mt-2 quotation-lines-toolbar" style="gap: 8px;">
-                            <button type="submit" class="btn btn-outline-success btn-sm">
-                                Save <i class="mdi mdi-share-circle"></i>
-                            </button>
+                            <div class="d-flex flex-wrap align-items-center" style="gap: 16px;">
+                                <button type="submit" class="btn btn-outline-success btn-sm">
+                                    Save <i class="mdi mdi-share-circle"></i>
+                                </button>
+                                <label class="mb-0 small text-muted" title="Include LOQ column on the quotation PDF">
+                                    <input type="hidden" name="show_loq_column" value="0">
+                                    <input type="checkbox" name="show_loq_column" value="1" class="mr-1"
+                                           {{ ($header->show_loq_column ?? true) ? 'checked' : '' }}>
+                                    Show LOQ column
+                                </label>
+                                <label class="mb-0 small text-muted" title="Include MU% column on the quotation PDF">
+                                    <input type="hidden" name="show_mu_column" value="0">
+                                    <input type="checkbox" name="show_mu_column" value="1" class="mr-1"
+                                           {{ ($header->show_mu_column ?? true) ? 'checked' : '' }}>
+                                    Show MU column
+                                </label>
+                            </div>
                             @if($header->status == 'Quote In Preparation')
                             <button type="button" class="btn btn-outline-info btn-sm" id="add-row">
                                 <i class="mdi mdi-plus"></i> Add line
@@ -763,8 +788,8 @@
                             <th>Analyte Name</th>
                             <th>Accredited <input type="checkbox" id="edit-accreditted" class="float-right"></th>
                             <th>Sub-Contracted <input type="checkbox" id="edit-sub" class="float-right"></th>
-                            <th nowrap title="Check to display LOQ on the quotation">LOQ <input type="checkbox" id="edit-loq-all" class="float-right" title="Show LOQ on quotation"></th>
-                            <th nowrap title="Check to display MU on the quotation">MU <input type="checkbox" id="edit-mu-all" class="float-right" title="Show MU on quotation"></th>
+                            <th nowrap>LOQ</th>
+                            <th nowrap>MU%</th>
                             <th nowrap title="Turnaround time (days)">TAT</th>
                         </thead>
                         <tbody id="edit-description"></tbody>
@@ -887,8 +912,8 @@
                             <th>Analyte </th>
                             <th>Accredited <input type="checkbox" id="select-accredited-all" class="float-right"></th>
                             <th>Subcontracted <input type="checkbox" id="select-sub-all" class="float-right"></th>
-                            <th nowrap title="Check to display LOQ on the quotation">LOQ <input type="checkbox" id="select-loq-all" class="float-right" title="Show LOQ on quotation"></th>
-                            <th nowrap title="Check to display MU on the quotation">MU <input type="checkbox" id="select-mu-all" class="float-right" title="Show MU on quotation"></th>
+                            <th nowrap>LOQ</th>
+                            <th nowrap>MU%</th>
                             <th nowrap title="Turnaround time (days)">TAT</th>
                         </thead>
                         <tbody id="analysis-analytes-holder">
@@ -931,7 +956,7 @@
 
         function clearRowParameterFields($row) {
             var $desc = $row.find('#quote-description');
-            $desc.find('input[name="accreditted_analytes[]"], input[name="sub_analytes[]"], input[name="sub_acc[]"], input[name="default_analytes[]"], input[name="show_loq_analytes[]"], input[name="show_mu_analytes[]"], input[name="element_loq_json[]"]').remove();
+            $desc.find('input[name="accreditted_analytes[]"], input[name="sub_analytes[]"], input[name="sub_acc[]"], input[name="default_analytes[]"], input[name="element_loq_json[]"]').remove();
             $row.find('.quotation-unit-price').val(0);
             $row.find('.quotation-tax').val(0);
             $row.find('.quotation-tax-display').text('0%');
@@ -980,8 +1005,6 @@
             $desc.append($('<input type="hidden" name="sub_analytes[]">').val(''));
             $desc.append($('<input type="hidden" name="sub_acc[]">').val(''));
             $desc.append($('<input type="hidden" name="default_analytes[]">').val(defaultIds.toString()));
-            $desc.append($('<input type="hidden" name="show_loq_analytes[]">').val(''));
-            $desc.append($('<input type="hidden" name="show_mu_analytes[]">').val(''));
             $desc.append($('<input type="hidden" name="element_loq_json[]">').val('{}'));
 
             applyPricelistSuggestionToRow($row, data);
@@ -1444,12 +1467,6 @@
             $analyteHolder.append($('<input type="hidden" name="sub_analytes">').val(data.subcontracted_analytes || ''));
             $analyteHolder.append($('<input type="hidden" name="sub_acc">').val(data.sub_acc_analytes || ''));
             $analyteHolder.append($('<input type="hidden" name="default_analytes">').val(data.default_analytes || ''));
-            if (typeof data.show_loq_analytes !== 'undefined' && data.show_loq_analytes !== null) {
-                $analyteHolder.append($('<input type="hidden" name="show_loq_analytes">').val(data.show_loq_analytes || ''));
-            }
-            if (typeof data.show_mu_analytes !== 'undefined' && data.show_mu_analytes !== null) {
-                $analyteHolder.append($('<input type="hidden" name="show_mu_analytes">').val(data.show_mu_analytes || ''));
-            }
 
             return editRow;
         }
@@ -1463,7 +1480,7 @@
                 url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail,
                 beforeSend: function() {
                     $('#edit-description').empty();
-                    $('#edit-analyte-all, #edit-accreditted, #edit-sub, #edit-loq-all, #edit-mu-all').prop('checked', false);
+                    $('#edit-analyte-all, #edit-accreditted, #edit-sub').prop('checked', false);
                 },
                 success: function(data) {
                     $.each(data, function(i, e) {
@@ -1523,8 +1540,6 @@
             var sub = splitCsvIds($row.find('input[name="sub_analytes[]"], input[name="sub_analytes"]').val());
             var subAcc = splitCsvIds($row.find('input[name="sub_acc[]"], input[name="sub_acc"]').val());
             var defaults = splitCsvIds($row.find('input[name="default_analytes[]"], input[name="default_analytes"]').val());
-            var showLoq = splitCsvIds($row.find('input[name="show_loq_analytes[]"], input[name="show_loq_analytes"]').val());
-            var showMu = splitCsvIds($row.find('input[name="show_mu_analytes[]"], input[name="show_mu_analytes"]').val());
             var loqMap = {};
             var loqRaw = $row.find('input[name="element_loq_json[]"], input[name="element_loq_json"]').val();
             if (loqRaw) {
@@ -1546,11 +1561,8 @@
                 subIds: sub,
                 subAccIds: subAcc,
                 defaultIds: defaults,
-                showLoqIds: showLoq,
-                showMuIds: showMu,
                 loqMap: loqMap,
                 hasSavedState: accredited.length + sub.length + subAcc.length + defaults.length > 0,
-                hasDisplayFlags: $row.find('input[name="show_loq_analytes[]"], input[name="show_loq_analytes"], input[name="show_mu_analytes[]"], input[name="show_mu_analytes"]').length > 0,
             };
         }
 
@@ -1567,11 +1579,6 @@
             state.subIds.forEach(function(id) { subSet[id] = true; });
             var subAccSet = {};
             state.subAccIds.forEach(function(id) { subAccSet[id] = true; });
-            var showLoqSet = {};
-            (state.showLoqIds || []).forEach(function(id) { showLoqSet[id] = true; });
-            var showMuSet = {};
-            (state.showMuIds || []).forEach(function(id) { showMuSet[id] = true; });
-
             $scope.find('tr').each(function() {
                 var $tr = $(this);
                 var $selected = $tr.find('.analyte-selected');
@@ -1588,11 +1595,6 @@
                 $tr.find('.analyte-accredited').prop('checked', isAcc);
                 $tr.find('.analyte-subcontracted').prop('checked', isSub);
 
-                if (state.hasDisplayFlags) {
-                    $tr.find('.analyte-show-loq').prop('checked', !!showLoqSet[elementId]);
-                    $tr.find('.analyte-show-mu').prop('checked', !!showMuSet[elementId]);
-                }
-
                 if (Object.prototype.hasOwnProperty.call(state.loqMap, elementId)) {
                     var $loq = $tr.find('input.analyte-loq');
                     var loqValue = String(state.loqMap[elementId] ?? '');
@@ -1607,8 +1609,6 @@
             var analyte_sub = [];
             var sub_acc = [];
             var default_analytes = [];
-            var show_loq_analytes = [];
-            var show_mu_analytes = [];
             var loqMap = {};
             var maxTat = null;
             var spans = [];
@@ -1629,13 +1629,6 @@
                 var reportingTime = parseInt(parent_tr.attr('data-reporting-time'), 10);
                 if (!isNaN(reportingTime) && reportingTime > 0) {
                     maxTat = maxTat === null ? reportingTime : Math.max(maxTat, reportingTime);
-                }
-
-                if (parent_tr.find('.analyte-show-loq').prop('checked')) {
-                    show_loq_analytes.push(analyte_id);
-                }
-                if (parent_tr.find('.analyte-show-mu').prop('checked')) {
-                    show_mu_analytes.push(analyte_id);
                 }
 
                 var isAcc = parent_tr.find('.analyte-accredited').prop('checked');
@@ -1662,8 +1655,6 @@
                 analyte_sub: analyte_sub,
                 sub_acc: sub_acc,
                 default_analytes: default_analytes,
-                show_loq_analytes: show_loq_analytes,
-                show_mu_analytes: show_mu_analytes,
                 loqMap: loqMap,
                 maxTat: maxTat,
                 spans: spans,
@@ -1684,8 +1675,6 @@
                 $holder.append($('<input type="hidden" name="sub_analytes">').val(state.analyte_sub.toString()));
                 $holder.append($('<input type="hidden" name="sub_acc">').val(state.sub_acc.toString()));
                 $holder.append($('<input type="hidden" name="default_analytes">').val(state.default_analytes.toString()));
-                $holder.append($('<input type="hidden" name="show_loq_analytes">').val(state.show_loq_analytes.toString()));
-                $holder.append($('<input type="hidden" name="show_mu_analytes">').val(state.show_mu_analytes.toString()));
                 $holder.append($('<input type="hidden" name="element_loq_json">').val(JSON.stringify(state.loqMap)));
                 var $tat = $('#detail-edit-mode').find('.quotation-edit-tat');
                 if (state.maxTat !== null) {
@@ -1711,7 +1700,7 @@
                     url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis,
                     beforeSend: function() {
                         $('#analysis-analytes-holder').empty();
-                        $('#select-analyte-all, #select-accredited-all, #select-sub-all, #select-loq-all, #select-mu-all').prop('checked', false);
+                        $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
                     },
                     success: function(data) {
                         $.each(data, function(i, e) {
@@ -1761,8 +1750,6 @@
                 $desc.append($('<input type="hidden" name="sub_analytes[]">').val(state.analyte_sub.toString()));
                 $desc.append($('<input type="hidden" name="sub_acc[]">').val(state.sub_acc.toString()));
                 $desc.append($('<input type="hidden" name="default_analytes[]">').val(state.default_analytes.toString()));
-                $desc.append($('<input type="hidden" name="show_loq_analytes[]">').val(state.show_loq_analytes.toString()));
-                $desc.append($('<input type="hidden" name="show_mu_analytes[]">').val(state.show_mu_analytes.toString()));
                 $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
 
                 var $row = $('#create-detail').find('tr#detail-row-' + row_no);
@@ -1810,15 +1797,6 @@
                 : '';
             var tatDisplay = reportingTime !== '' ? reportingTime : '—';
             var elementId = data.id || '';
-            // Default: show LOQ/MU when a value exists. Saved detail flags override when present.
-            var showLoq = String(loqVal).trim() !== '' ? 'checked' : '';
-            var showMu = String(muVal).trim() !== '' ? 'checked' : '';
-            if (data.present == 1 && typeof data.show_loq !== 'undefined') {
-                showLoq = parseInt(data.show_loq, 10) === 1 ? 'checked' : '';
-            }
-            if (data.present == 1 && typeof data.show_mu !== 'undefined') {
-                showMu = parseInt(data.show_mu, 10) === 1 ? 'checked' : '';
-            }
 
             return $(`
                 <tr data-reporting-time="${reportingTime}" data-element-id="${elementId}">
@@ -1830,13 +1808,10 @@
                     <td><input type="checkbox" class="analyte-accredited" name="accreditted" ${check_acc}></td>
                     <td><input type="checkbox" class="analyte-subcontracted" name="sub_contracted" ${check_sub}></td>
                     <td style="min-width: 110px;">
-                        <div class="d-flex align-items-center" style="gap: 4px;">
-                            <input type="checkbox" class="analyte-show-loq" title="Show LOQ on quotation" ${showLoq}>
-                            <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${elementId}">
-                        </div>
+                        <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${elementId}">
                     </td>
                     <td class="text-center align-middle">
-                        <input type="checkbox" class="analyte-show-mu" title="Show MU on quotation" ${showMu}>
+                        <span class="analyte-mu text-muted">${muVal !== '' ? muVal : '—'}</span>
                     </td>
                     <td class="text-center align-middle" style="min-width: 56px;" title="Element TAT (days); line uses the highest selected">
                         <span class="font-weight-bold">${tatDisplay}</span>
@@ -1853,12 +1828,6 @@
         $('#select-sub-all').on('change', function() {
             $('#quote-description-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
         });
-        $('#select-loq-all').on('change', function() {
-            $('#quote-description-analytes').find('.analyte-show-loq').prop('checked', $(this).is(':checked'));
-        });
-        $('#select-mu-all').on('change', function() {
-            $('#quote-description-analytes').find('.analyte-show-mu').prop('checked', $(this).is(':checked'));
-        });
         $('#edit-sub').on('change', function() {
             $('#edit-detail-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
         });
@@ -1868,13 +1837,7 @@
         $('#edit-analyte-all').on('change', function() {
             $('#edit-detail-analytes').find('.analyte-selected').prop('checked', $(this).is(':checked'));
         });
-        $('#edit-loq-all').on('change', function() {
-            $('#edit-detail-analytes').find('.analyte-show-loq').prop('checked', $(this).is(':checked'));
-        });
-        $('#edit-mu-all').on('change', function() {
-            $('#edit-detail-analytes').find('.analyte-show-mu').prop('checked', $(this).is(':checked'));
-        });
-        
+
 
     });
 

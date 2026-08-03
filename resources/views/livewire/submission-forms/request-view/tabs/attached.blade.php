@@ -51,19 +51,15 @@
                         <td class="small">{{ $instance->submittedBy?->name ?? '—' }}</td>
                         <td class="text-nowrap small">{{ $instance->submitted_at?->format('Y-m-d H:i') ?? $instance->created_at?->format('Y-m-d H:i') ?? '—' }}</td>
                         <td class="text-nowrap">
-                            <a href="{{ route('test-request-form.preview', $instance->id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mr-1">
-                                View
+                            <button type="button" class="btn btn-sm btn-outline-primary mr-1" wire:click="openGenerateTrfOrientationModal">
+                                {{ $pdfExists ? 'Regenerate' : 'Generate' }}
+                            </button>
+                            <a href="{{ route('test-request-form.pdf', $instance->id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mr-1">
+                                Preview PDF
                             </a>
-                            @if($pdfExists)
-                                <a href="{{ route('test-request-form.pdf', $instance->id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mr-1">
-                                    PDF
-                                </a>
-                                <a href="{{ route('test-request-form.download', $instance->id) }}" class="btn btn-sm btn-outline-secondary">
-                                    Download
-                                </a>
-                            @else
-                                <span class="text-muted small">PDF not generated yet</span>
-                            @endif
+                            <a href="{{ route('test-request-form.download', $instance->id) }}" class="btn btn-sm btn-outline-secondary">
+                                Download
+                            </a>
                         </td>
                     </tr>
                 </tbody>

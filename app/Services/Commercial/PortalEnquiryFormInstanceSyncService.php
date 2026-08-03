@@ -32,35 +32,135 @@ final class PortalEnquiryFormInstanceSyncService
             }
         }
 
-        $form = $this->resolveSubmissionFormForEnquiry($enquiry);
-        if ($form === null) {
-            return null;
+        $instances = $this->syncAllSampleTypesFromEnquiry($enquiry, $submit);
+
+        return $instances[0] ?? null;
+    }
+
+    /**
+     * Create/update one draft TRF instance per distinct sample type on the enquiry.
+     * Primary enquiry.submission_form_instance_id points at the first instance.
+     *
+     * @return list<SubmissionFormInstance>
+     */
+    public function syncAllSampleTypesFromEnquiry(
+        SampleSubmissionRequest $enquiry,
+        bool $submit = true,
+    ): array {
+        $enquiry->loadMissing(['customer', 'requestedAnalyses']);
+        $lines = $this->normalizeSampleLines($enquiry->sample_lines ?? null);
+        if ($lines === []) {
+            $lines = [$this->flatLineFromEnquiry($enquiry)];
         }
 
-        return DB::transaction(function () use ($enquiry, $form, $submit): ?SubmissionFormInstance {
+        $grouped = collect($lines)->groupBy(
+            static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')),
+        );
+
+        if ($grouped->isEmpty() || ($grouped->count() === 1 && $grouped->keys()->first() === '')) {
+            $form = $this->resolveSubmissionFormForEnquiry($enquiry);
+            if ($form === null) {
+                return [];
+            }
+
+            $instance = $this->syncInstanceForForm($enquiry, $form, $lines, $submit, setAsPrimary: true);
+
+            return $instance !== null ? [$instance] : [];
+        }
+
+        $instances = [];
+        $formBuckets = [];
+
+        foreach ($grouped as $sampleTypeId => $typeLines) {
+            $sampleTypeId = trim((string) $sampleTypeId);
+            if ($sampleTypeId === '') {
+                continue;
+            }
+
+            $form = $this->resolveSubmissionFormForSampleType($sampleTypeId);
+            if ($form === null) {
+                continue;
+            }
+
+            $formId = (string) $form->id;
+            if (! isset($formBuckets[$formId])) {
+                $formBuckets[$formId] = [
+                    'form' => $form,
+                    'lines' => [],
+                ];
+            }
+
+            foreach ($typeLines->values()->all() as $line) {
+                $formBuckets[$formId]['lines'][] = $line;
+            }
+        }
+
+        $index = 0;
+        foreach ($formBuckets as $bucket) {
+            /** @var SubmissionForm $form */
+            $form = $bucket['form'];
+            $typeLineList = array_values($bucket['lines']);
+            foreach ($typeLineList as $row => $line) {
+                $typeLineList[$row]['row_index'] = $row;
+            }
+
+            $instance = $this->syncInstanceForForm(
+                $enquiry,
+                $form,
+                $typeLineList,
+                $submit,
+                setAsPrimary: $index === 0,
+            );
+            if ($instance !== null) {
+                $instances[] = $instance;
+                $index++;
+            }
+        }
+
+        return $instances;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sampleLines
+     */
+    private function syncInstanceForForm(
+        SampleSubmissionRequest $enquiry,
+        SubmissionForm $form,
+        array $sampleLines,
+        bool $submit,
+        bool $setAsPrimary,
+    ): ?SubmissionFormInstance {
+        return DB::transaction(function () use ($enquiry, $form, $sampleLines, $submit, $setAsPrimary): SubmissionFormInstance {
             $enquiry->refresh();
 
-            $instance = $this->resolveOrCreateInstance($enquiry, $form, $submit);
+            $instance = $this->resolveOrCreateInstanceForForm($enquiry, $form, $submit);
             $elementMap = $this->buildElementMap($form);
 
             $instance->values()->delete();
 
             $this->syncHeaderValues($instance, $elementMap, $enquiry);
-            $this->syncSampleLineValues($instance, $elementMap, $enquiry);
+            $this->syncSampleLineValuesFromLines($instance, $elementMap, $sampleLines);
             $this->updateInstanceMetadata($instance, $enquiry, $form, $submit);
 
-            if ($enquiry->submission_form_instance_id !== $instance->id) {
+            if ($setAsPrimary && $enquiry->submission_form_instance_id !== $instance->id) {
                 $enquiry->submission_form_instance_id = $instance->id;
                 $enquiry->save();
             }
 
-            return $instance->fresh(['values']);
+            return $instance->fresh(['values']) ?? $instance;
         });
     }
 
-    private function resolveSubmissionFormForEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionForm
+    public function resolveSubmissionFormForEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionForm
     {
         $sampleTypeId = trim((string) ($enquiry->sample_type_id ?? $enquiry->batch_sample_type_id ?? ''));
+
+        return $this->resolveSubmissionFormForSampleType($sampleTypeId !== '' ? $sampleTypeId : null);
+    }
+
+    public function resolveSubmissionFormForSampleType(?string $sampleTypeId): ?SubmissionForm
+    {
+        $sampleTypeId = trim((string) ($sampleTypeId ?? ''));
 
         if ($sampleTypeId !== '') {
             $trfForms = $this->portalAccess->testRequestTemplatesQuery()
@@ -83,25 +183,28 @@ final class PortalEnquiryFormInstanceSyncService
             ->first();
     }
 
-    private function resolveOrCreateInstance(
+    private function resolveOrCreateInstanceForForm(
         SampleSubmissionRequest $enquiry,
         SubmissionForm $form,
         bool $submit,
-    ): SubmissionFormInstance
-    {
-        if ($enquiry->submission_form_instance_id) {
-            $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
-            if ($existing !== null) {
-                return $existing;
-            }
-        }
-
+    ): SubmissionFormInstance {
         $linked = SubmissionFormInstance::query()
             ->where('portal_request_id', (string) $enquiry->id)
+            ->where('submission_form_id', $form->id)
             ->first();
 
         if ($linked !== null) {
             return $linked;
+        }
+
+        // Legacy: primary instance without form match yet.
+        if ($enquiry->submission_form_instance_id) {
+            $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+            if ($existing !== null
+                && (string) $existing->submission_form_id === (string) $form->id
+                && trim((string) ($existing->portal_request_id ?? '')) === (string) $enquiry->id) {
+                return $existing;
+            }
         }
 
         return SubmissionFormInstance::query()->create([
@@ -221,6 +324,18 @@ final class PortalEnquiryFormInstanceSyncService
             $lines = [$this->flatLineFromEnquiry($enquiry)];
         }
 
+        $this->syncSampleLineValuesFromLines($instance, $elementMap, $lines);
+    }
+
+    /**
+     * @param  array<string, array{id: string, is_row: bool}>  $elementMap
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function syncSampleLineValuesFromLines(
+        SubmissionFormInstance $instance,
+        array $elementMap,
+        array $lines,
+    ): void {
         foreach ($lines as $line) {
             $rowIndex = (int) ($line['row_index'] ?? 0);
             $parameterIds = $line['analysis_element_ids'] ?? [];
@@ -238,6 +353,16 @@ final class PortalEnquiryFormInstanceSyncService
             );
             $this->storeValue($instance, $elementMap, 'parameter_category', $line['parameter_category'] ?? null, $rowIndex);
             $this->storeValue($instance, $elementMap, 'sampling_point', $line['sampling_point'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'location', $line['location'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'sample_quantity', $line['sample_quantity'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'sample_quantity_unit', $line['sample_quantity_unit'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'production_date', $this->formatDate($line['production_date'] ?? null), $rowIndex);
+            $this->storeValue($instance, $elementMap, 'expiration_date', $this->formatDate($line['expiration_date'] ?? null), $rowIndex);
+            $this->storeValue($instance, $elementMap, 'batch_number', $line['batch_number'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'test_category', $line['test_category'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'test_requirements', $line['test_requirements'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'sample_condition', $line['sample_condition'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'state_of_sample', $line['state_of_sample'] ?? null, $rowIndex);
             $this->storeValue(
                 $instance,
                 $elementMap,
@@ -288,6 +413,16 @@ final class PortalEnquiryFormInstanceSyncService
                 'analysis_element_ids' => $parameterIds,
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
                 'sampling_point' => trim((string) ($line['sampling_point'] ?? '')),
+                'location' => trim((string) ($line['location'] ?? '')),
+                'sample_quantity' => trim((string) ($line['sample_quantity'] ?? '')),
+                'sample_quantity_unit' => trim((string) ($line['sample_quantity_unit'] ?? '')),
+                'production_date' => $line['production_date'] ?? null,
+                'expiration_date' => $line['expiration_date'] ?? null,
+                'batch_number' => trim((string) ($line['batch_number'] ?? '')),
+                'test_category' => trim((string) ($line['test_category'] ?? '')),
+                'test_requirements' => trim((string) ($line['test_requirements'] ?? '')),
+                'sample_condition' => trim((string) ($line['sample_condition'] ?? '')),
+                'state_of_sample' => trim((string) ($line['state_of_sample'] ?? '')),
             ];
 
             if ($normalized['customer_sample_id'] === '' && $normalized['sample_type_id'] === '' && $parameterIds === []) {
@@ -339,7 +474,7 @@ final class PortalEnquiryFormInstanceSyncService
     ): void {
         $instance->crm_customer_id = $enquiry->crm_customer_id;
         $instance->zone_id = $enquiry->zone_id;
-        $instance->source_channel = $enquiry->source_channel;
+        $instance->source_channel = $this->normalizeInstanceSourceChannel($enquiry->source_channel);
         $instance->portal_request_id = (string) $enquiry->id;
         $instance->target_record_type = self::TARGET_RECORD_TYPE;
         $instance->status = $submit ? 'submitted' : 'draft';
@@ -389,7 +524,36 @@ final class PortalEnquiryFormInstanceSyncService
             return $value ? '1' : '0';
         }
 
+        if (is_array($value)) {
+            $parts = [];
+            foreach ($value as $item) {
+                $token = trim((string) $item);
+                if ($token !== '') {
+                    $parts[] = $token;
+                }
+            }
+
+            return implode(',', $parts);
+        }
+
         return trim((string) $value);
+    }
+
+    private function normalizeInstanceSourceChannel(mixed $channel): string
+    {
+        $channel = strtolower(trim((string) ($channel ?? '')));
+        if (in_array($channel, ['quotation', 'existing_quotation', 'from_quotation'], true)) {
+            return CommercialEnquirySyncService::SOURCE_WALK_IN;
+        }
+        if (in_array($channel, [
+            CommercialEnquirySyncService::SOURCE_WALK_IN,
+            CommercialEnquirySyncService::SOURCE_PORTAL,
+            CommercialEnquirySyncService::SOURCE_SCHEDULED,
+        ], true)) {
+            return $channel;
+        }
+
+        return CommercialEnquirySyncService::SOURCE_WALK_IN;
     }
 
     private function formatDate(mixed $value): ?string

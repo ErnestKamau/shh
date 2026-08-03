@@ -2561,11 +2561,9 @@
 																			$readyQuotationId = $instance->sampleSubmissionRequest?->accepted_quotation_header_id
 																				?? $instance->sampleSubmissionRequest?->current_quotation_header_id
 																				?? $instance->sampleSubmissionRequest?->currentQuotation?->id;
-																			$trfDocumentCode = strtoupper((string) ($instance->submissionForm?->document_code ?? ''));
-																			$usesAmSpecTrfPdf = str_starts_with($trfDocumentCode, 'TRF-');
 																		@endphp
 																		@if(! empty($readyQuotationId))
-																			<a href="{{ route('quotation.preview', ['id' => $readyQuotationId]) }}"
+																			<a href="{{ route('quotation.preview.pdf', ['id' => $readyQuotationId]) }}"
 																				class="btn btn-sm rm-act-btn rm-act-btn--view"
 																				target="_blank"
 																				rel="noopener noreferrer"
@@ -2574,9 +2572,7 @@
 																			</a>
 																		@endif
 																		@if($instance->submissionForm)
-																			<a href="{{ $usesAmSpecTrfPdf
-																					? route('submission-forms.instances.trf-pdf', [$instance->submissionForm, $instance])
-																					: route('test-request-form.pdf', $instance->id) }}"
+																			<a href="{{ route('test-request-form.pdf', $instance->id) }}"
 																				class="btn btn-sm rm-act-btn rm-act-btn--view"
 																				target="_blank"
 																				rel="noopener noreferrer"
@@ -2985,6 +2981,17 @@
 							@endif
 
 							@if($batches && $batches->count() > 0)
+								@php
+									$uniformLabWorkflowStatuses = [
+										'Samples In Lab',
+										'Sample Verification',
+										'Sample Approval',
+										'Reports In Payment',
+										'Reports for Collection',
+										'Finished Sample',
+									];
+									$isUniformLabWorkflowTable = in_array($status, $uniformLabWorkflowStatuses, true);
+								@endphp
 								<div class="table-responsive">
 									<table class="table table-hover workflow-table">
 										<thead>
@@ -2995,7 +3002,7 @@
 													<th>Is Qc</th>
 												@endif
 												@if($status !== 'Samples En-Route')
-													<th style="min-width: 220px;">Sample Codes</th>
+													<th style="min-width: 220px;">Samples</th>
 													<th>Draft Invoice</th>
 												@else
 													<th>Client</th>
@@ -3008,14 +3015,13 @@
 													<th nowrap>Date Collected</th>
 													<th nowrap>Target Date</th>
 													<th nowrap>Status Days</th>
-													<th>Samples</th>
-													@if($status != 'Samples In Lab')
+													@if(! $isUniformLabWorkflowTable)
 														<th>Client Unit</th>
 													@endif
 													<th>Lab</th>
 													<th nowrap>Sample Type</th>
 												@endif
-												@if($status == 'Samples In Lab')
+												@if($isUniformLabWorkflowTable)
 													<th>Assigned User</th>
 												@endif
 												<th>Actions</th>
@@ -3026,8 +3032,7 @@
 												@php
 												$targetDateRaw = optional($item->get_target_date)->date;
 												$statusDays = \App\Livewire\Sampleworkflow\WorkflowBoard::statusDaysUntilTarget($targetDateRaw);
-												$sample_codes = $item->samples->pluck('sample_code')->toArray();
-												$sample_count = count($sample_codes);
+												$sample_codes = $item->samples->pluck('sample_code')->filter()->values()->all();
 												$inAmendment = $item->isInAmendmentProcess();
 												$amendedVersion = $item->amendmentVersion();
 												$rowClass = $inAmendment ? 'ammend-bg-color' : '';
@@ -3051,7 +3056,19 @@
 													@endif
 													@if($status !== 'Samples En-Route')
 														<td style="min-width: 220px;">
-															<small>{{ $sample_codes[0] ?? '' }} ... {{ end($sample_codes) ?? '' }}</small>
+															@if($sample_codes === [])
+																<span class="text-muted">N/A</span>
+															@else
+																<div class="d-flex flex-wrap align-items-center" style="gap: 4px; max-width: 280px;">
+																	@foreach($sample_codes as $sampleCode)
+																		<span
+																			class="badge border badge-light"
+																			title="{{ $sampleCode }}"
+																			style="font-weight: 500; white-space: nowrap;"
+																		>{{ $sampleCode }}</span>
+																	@endforeach
+																</div>
+															@endif
 														</td>
 														<td>{{ $item->invoice->invoice_number ?? 'N/A' }}</td>
 													@else
@@ -3065,8 +3082,7 @@
 														<td nowrap>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatDateOnly($item->date_collected) }}</td>
 														<td nowrap>{{ $targetDateRaw ? \Illuminate\Support\Carbon::parse($targetDateRaw)->format('Y-m-d') : 'N/A' }}</td>
 														<td nowrap @class(['text-danger font-weight-bold' => $statusDays !== null && $statusDays < 0])>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatStatusDaysLabel($statusDays) }}</td>
-														<td>{{ $sample_count }}</td>
-														@if($status != 'Samples In Lab')
+														@if(! $isUniformLabWorkflowTable)
 															<td>{{ $item->client_unit ?? 'N/A' }}</td>
 														@endif
 														<td>
@@ -3100,7 +3116,7 @@
 														</td>
 														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
 													@endif
-													@if($status == 'Samples In Lab')
+													@if($isUniformLabWorkflowTable)
 														@php
 															$batchAssignee = $batchAssignmentMap[(string) $item->id] ?? null;
 														@endphp

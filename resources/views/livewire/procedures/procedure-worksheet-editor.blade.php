@@ -85,6 +85,15 @@
                             <i class="mdi mdi-table-large"></i>
                             <span>Test Kit Fields</span>
                         </button>
+                        <button type="button"
+                                class="pw-tab {{ $activeTab === 'layout' ? 'active' : '' }}"
+                                id="layout-tab"
+                                wire:click.prevent="setActiveTab('layout')"
+                                role="tab"
+                                aria-selected="{{ $activeTab === 'layout' ? 'true' : 'false' }}">
+                            <i class="mdi mdi-view-grid-outline"></i>
+                            <span>Layout</span>
+                        </button>
                     </nav>
 
                     <div class="tab-content pw-tab-content">
@@ -815,6 +824,15 @@
                                         </div>
                                     </div>
                                 </div>
+                            @endif
+                        </div>
+
+                        <div class="tab-pane fade {{ $activeTab === 'layout' ? 'show active' : '' }}" id="layout-tab-pane" role="tabpanel" aria-labelledby="layout-tab">
+                            @if($worksheetId)
+                                <livewire:procedures.procedure-layout-editor
+                                    :worksheetId="$worksheetId"
+                                    :key="'procedure-layout-'.$worksheetId"
+                                />
                             @endif
                         </div>
                     </div>

@@ -57,6 +57,7 @@ class TestRequestFormReportDataBuilder
             'crmCustomer.contacts',
             'submittedBy',
             'values.element',
+            'batches.samples',
         ]);
 
         $formData = app(SubmissionFormValueNormalizer::class)->valuesMapFromInstance($instance);
@@ -117,7 +118,10 @@ class TestRequestFormReportDataBuilder
         $sampleRows = $variant === 'waste_water'
             ? []
             : $this->padSampleRows(
-                $this->resolveSampleRows($formData, $variant),
+                $this->enrichSampleRowsWithLabCodes(
+                    $this->resolveSampleRows($formData, $variant),
+                    $submission
+                ),
                 $variant === 'food' ? 5 : 10
             );
         $companyHeader = $this->resolveCompanyHeader($company);
@@ -487,6 +491,45 @@ class TestRequestFormReportDataBuilder
         }
 
         return $normalized;
+    }
+
+    /**
+     * Fill blank TRF sample_no cells from linked batch sample codes after acceptance.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function enrichSampleRowsWithLabCodes(array $rows, $submission): array
+    {
+        if ($rows === [] || ! $submission instanceof SubmissionFormInstance) {
+            return $rows;
+        }
+
+        $labCodes = $submission->batches
+            ->flatMap(static fn ($batch) => $batch->samples ?? collect())
+            ->map(static fn ($detail): string => trim((string) ($detail->sample_code ?? $detail->sample_no ?? '')))
+            ->filter(static fn (string $code): bool => $code !== '')
+            ->values()
+            ->all();
+
+        if ($labCodes === []) {
+            return $rows;
+        }
+
+        $codeIndex = 0;
+        foreach ($rows as $index => $row) {
+            $existing = trim((string) ($row['sample_no'] ?? ''));
+            if ($existing !== '') {
+                continue;
+            }
+            if (! isset($labCodes[$codeIndex])) {
+                break;
+            }
+            $rows[$index]['sample_no'] = $labCodes[$codeIndex];
+            $codeIndex++;
+        }
+
+        return $rows;
     }
 
     /**

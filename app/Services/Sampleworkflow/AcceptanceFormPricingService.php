@@ -445,8 +445,22 @@ class AcceptanceFormPricingService
         string $analysisTypeId,
         ?string $analysisElementId = null
     ): float {
-        if (!$pricelist) {
-            return 0.0;
+        $item = $this->findMatchingLineItem($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
+
+        return $item !== null ? (float) $item->selling_price : 0.0;
+    }
+
+    /**
+     * Same match order as resolveLinePrice (including analyte fallback for TRF UUID mismatches).
+     */
+    public function findMatchingLineItem(
+        ?Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?string $analysisElementId = null,
+    ): ?PricelistItem {
+        if ($pricelist === null) {
+            return null;
         }
 
         $query = PricelistItem::query()
@@ -454,14 +468,14 @@ class AcceptanceFormPricingService
             ->where('active', 1)
             ->where('is_package', false);
 
-        if (!empty($sampleTypeId)) {
+        if (! empty($sampleTypeId)) {
             $query->where('sample_type_id', $sampleTypeId);
         }
 
-        if (!empty($analysisElementId)) {
+        if (! empty($analysisElementId)) {
             $item = (clone $query)->where('analysis_element_id', $analysisElementId)->first();
-            if ($item) {
-                return (float) $item->selling_price;
+            if ($item !== null) {
+                return $item;
             }
 
             $item = PricelistItem::query()
@@ -470,52 +484,49 @@ class AcceptanceFormPricingService
                 ->where('is_package', false)
                 ->where('analysis_element_id', $analysisElementId)
                 ->first();
-            if ($item) {
-                return (float) $item->selling_price;
+            if ($item !== null) {
+                return $item;
             }
 
             // TRF/catalog often keeps a different element UUID than the pricelist row for the
             // same analyte (re-imports, Food vs Food & Feed duplicates). Match by analyte.
-            $analytePrice = $this->resolveLinePriceByAnalyte(
+            $analyteItem = $this->findMatchingLineItemByAnalyte(
                 $pricelist,
                 $sampleTypeId,
                 $analysisTypeId,
                 $analysisElementId,
             );
-            if ($analytePrice > 0) {
-                return $analytePrice;
+            if ($analyteItem !== null) {
+                return $analyteItem;
             }
         }
 
         if ($analysisTypeId !== '') {
-            $item = (clone $query)
+            return (clone $query)
                 ->where('analysis_id', $analysisTypeId)
                 ->whereNull('analysis_element_id')
                 ->first();
-            if ($item) {
-                return (float) $item->selling_price;
-            }
         }
 
-        return 0.0;
+        return null;
     }
 
     /**
-     * Resolve selling price when the line's analysis_element_id is not on the pricelist,
+     * Find a pricelist item when the line's analysis_element_id is not on the pricelist,
      * but another element for the same analyte (id / name / code) is.
      */
-    private function resolveLinePriceByAnalyte(
+    private function findMatchingLineItemByAnalyte(
         Pricelist $pricelist,
         ?string $sampleTypeId,
         string $analysisTypeId,
         string $analysisElementId,
-    ): float {
+    ): ?PricelistItem {
         $element = AnalysisElements::query()
             ->with('analyte:id,name,code')
             ->find($analysisElementId);
 
         if ($element === null) {
-            return 0.0;
+            return null;
         }
 
         $analyteId = trim((string) ($element->analyte_id ?? ''));
@@ -523,7 +534,7 @@ class AcceptanceFormPricingService
         $analyteCode = strtolower(trim((string) ($element->analyte?->code ?? '')));
 
         if ($analyteId === '' && $analyteName === '' && $analyteCode === '') {
-            return 0.0;
+            return null;
         }
 
         $baseQuery = PricelistItem::query()
@@ -546,7 +557,7 @@ class AcceptanceFormPricingService
                     ->whereHas('analysisElement', fn ($elementQuery) => $elementQuery->where('analyte_id', $analyteId))
                     ->first();
                 if ($item !== null) {
-                    return (float) $item->selling_price;
+                    return $item;
                 }
             }
 
@@ -564,12 +575,12 @@ class AcceptanceFormPricingService
                     })
                     ->first();
                 if ($item !== null) {
-                    return (float) $item->selling_price;
+                    return $item;
                 }
             }
         }
 
-        return 0.0;
+        return null;
     }
 
     /**
@@ -923,6 +934,8 @@ class AcceptanceFormPricingService
             $line['unit_amount'] = (float) $packageItem->selling_price;
         }
         $line['tax'] = $taxPercent;
+        $line['vat_from_pricelist'] = true;
+        $line['vat_manual'] = false;
         $line['subcontracted'] = false;
 
         return $line;

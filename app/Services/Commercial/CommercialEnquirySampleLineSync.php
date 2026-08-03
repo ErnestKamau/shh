@@ -51,6 +51,8 @@ final class CommercialEnquirySampleLineSync
                 'production_date' => $line['production_date'] ?? null,
                 'expiration_date' => $line['expiration_date'] ?? null,
                 'batch_number' => $line['batch_number'] ?? null,
+                'test_category' => $line['test_category'] ?? null,
+                'test_requirements' => $line['test_requirements'] ?? null,
                 'picture_of_samples' => $line['picture_of_samples'] ?? null,
             ];
 
@@ -149,6 +151,18 @@ final class CommercialEnquirySampleLineSync
                 'number_of_samples' => 1,
                 'customer_sample_id' => $customerSampleId !== '' ? $customerSampleId : null,
                 'sample_condition_id' => $config['sample_condition_id'] ?? null,
+                'sample_quantity' => $config['sample_quantity'] ?? null,
+                'sample_quantity_unit' => $config['sample_quantity_unit'] ?? null,
+                'location' => $config['location'] ?? null,
+                'sampling_point' => $config['sampling_point'] ?? null,
+                'production_date' => $config['production_date'] ?? null,
+                'expiration_date' => $config['expiration_date'] ?? null,
+                'batch_number' => $config['batch_number'] ?? null,
+                'test_category' => $config['test_category'] ?? null,
+                'test_requirements' => $config['test_requirements'] ?? null,
+                'parameter_category' => $config['parameter_category'] ?? null,
+                'sample_condition' => $config['sample_condition'] ?? null,
+                'state_of_sample' => $config['state_of_sample'] ?? null,
                 'attributes' => $parameterKeys !== []
                     ? ['analysis_element_ids' => $parameterKeys]
                     : [],

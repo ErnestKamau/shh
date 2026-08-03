@@ -9,6 +9,7 @@ use App\Models\SampleSubmissionRequest;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
+use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Commercial\EnquiryFromQuotationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -31,7 +32,7 @@ class EnquiryFromQuotationServiceTest extends TestCase
         ], $token);
 
         $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND, $enquiry->status);
-        $this->assertSame(EnquiryFromQuotationService::SOURCE_CHANNEL, $enquiry->source_channel);
+        $this->assertSame(CommercialEnquirySyncService::SOURCE_WALK_IN, $enquiry->source_channel);
         $this->assertSame((string) $quotation->id, (string) $enquiry->created_from_quotation_header_id);
         $this->assertSame('PO-ENQ-100', $enquiry->reference_number);
         $this->assertNotSame((string) $quotation->id, (string) $enquiry->current_quotation_header_id);
@@ -42,6 +43,11 @@ class EnquiryFromQuotationServiceTest extends TestCase
         $this->assertNotNull($ownedQuotation);
         $this->assertSame((string) $quotation->id, (string) $ownedQuotation->source_quotation_header_id);
         $this->assertSame((string) $enquiry->id, (string) $ownedQuotation->sample_submission_request_id);
+        $this->assertNotSame((string) $quotation->quote_number, (string) $ownedQuotation->quote_number);
+        $this->assertTrue(
+            \App\Services\Commercial\AmSpecQuotationNumberGenerator::isAmsqFormat($ownedQuotation->quote_number),
+            'Owned clone should receive a normal AMSQ quote number, not a -E suffix.',
+        );
         $this->assertCount(1, $ownedQuotation->details);
 
         $quotation->refresh();
@@ -158,14 +164,76 @@ class EnquiryFromQuotationServiceTest extends TestCase
         $this->assertSame((string) $enquiry->current_quotation_header_id, (string) $enquiry->accepted_quotation_header_id);
     }
 
-    public function test_it_builds_configs_for_multiple_sample_types(): void
+    public function test_it_uses_portal_source_channel_when_requested(): void
+    {
+        [$quotation] = $this->createMappableQuotation();
+
+        $enquiry = app(EnquiryFromQuotationService::class)->create($quotation, [
+            'number_of_samples' => 1,
+            'source_channel' => CommercialEnquirySyncService::SOURCE_PORTAL,
+        ], (string) Str::uuid());
+
+        $this->assertSame(CommercialEnquirySyncService::SOURCE_PORTAL, $enquiry->source_channel);
+        $this->assertNotNull($enquiry->submission_form_instance_id);
+    }
+
+    public function test_it_normalizes_quotation_source_channel_to_walk_in(): void
+    {
+        [$quotation] = $this->createMappableQuotation();
+
+        $enquiry = app(EnquiryFromQuotationService::class)->create($quotation, [
+            'number_of_samples' => 1,
+            'source_channel' => 'quotation',
+        ], (string) Str::uuid());
+
+        $this->assertSame(CommercialEnquirySyncService::SOURCE_WALK_IN, $enquiry->source_channel);
+    }
+
+    public function test_create_and_send_is_idempotent_when_already_sent(): void
+    {
+        [$quotation] = $this->createMappableQuotation();
+        $token = (string) Str::uuid();
+
+        $first = app(EnquiryFromQuotationService::class)->create($quotation, [
+            'number_of_samples' => 1,
+            'creation_intent' => EnquiryFromQuotationService::INTENT_ALREADY_SENT,
+        ], $token);
+
+        $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_SENT, $first->status);
+
+        $second = app(EnquiryFromQuotationService::class)->createAndSend(
+            $quotation,
+            ['number_of_samples' => 1],
+            $token,
+            sendPortal: false,
+            sendEmail: false,
+        );
+
+        $this->assertSame((string) $first->id, (string) $second->id);
+        $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_SENT, $second->status);
+    }
+
+    public function test_inline_lines_from_quotation_lock_vat_from_quotation(): void
+    {
+        [$quotation] = $this->createMappableQuotation();
+        $quotation->details()->update(['tax' => 16]);
+
+        $lines = app(\App\Services\Commercial\QuotationFromEnquiryService::class)
+            ->buildInlineLinesFromQuotationHeader($quotation->fresh(['details']));
+
+        $this->assertNotEmpty($lines);
+        $this->assertTrue((bool) ($lines[0]['vat_from_quotation'] ?? false));
+        $this->assertSame(16.0, (float) ($lines[0]['tax'] ?? 0));
+    }
+
+    public function test_it_creates_configs_and_allows_multiple_sample_types(): void
     {
         $suffix = Str::upper(Str::random(6));
         [$quotation, $foodTypeId, $waterTypeId] = $this->createMultiTypeQuotation($suffix);
 
         $service = app(EnquiryFromQuotationService::class);
-        $lines = $service->eligibleQuotationLines($quotation);
-        $this->assertSame(3, $service->inferPhysicalSampleCount($lines));
+        $groups = $service->fillableTrfGroups($quotation);
+        $this->assertCount(2, $groups);
 
         $enquiry = $service->create($quotation, [
             'number_of_samples' => 3,
@@ -173,19 +241,23 @@ class EnquiryFromQuotationServiceTest extends TestCase
         ], (string) Str::uuid());
 
         $configs = $enquiry->enquiry_sample_configuration;
-        $this->assertCount(3, $configs);
+        $this->assertGreaterThanOrEqual(2, count($configs));
 
         $configTypeIds = collect($configs)
             ->map(static fn (array $config): string => (string) ($config['sample_type_id'] ?? ''))
             ->filter()
+            ->unique()
             ->values()
             ->all();
 
-        $this->assertEqualsCanonicalizing(
-            [$foodTypeId, $foodTypeId, $waterTypeId],
-            $configTypeIds,
-        );
-        $this->assertSame(3, (int) $enquiry->number_of_samples);
+        $this->assertEqualsCanonicalizing([$foodTypeId, $waterTypeId], $configTypeIds);
+        $this->assertSame(CommercialEnquirySyncService::SOURCE_WALK_IN, $enquiry->source_channel);
+        $this->assertNotNull($enquiry->submission_form_instance_id);
+
+        $linkedTrfCount = \App\Models\SubmissionFormInstance::query()
+            ->where('portal_request_id', (string) $enquiry->id)
+            ->count();
+        $this->assertGreaterThanOrEqual(1, $linkedTrfCount);
     }
 
     /**

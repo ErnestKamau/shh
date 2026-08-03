@@ -52,6 +52,8 @@ class AcceptanceFormSampleConfigService
             'parameter_search' => '',
             /** @var array<string, string> analysis_element_id => lab_section_id */
             'parameter_lab_sections' => [],
+            /** @var list<string> analysis element IDs marked for subcontracting */
+            'subcontracted_parameter_keys' => [],
             /** @var array<string, list<string>> lab_section_id => user ids */
             'analysts_by_lab_section' => [],
             /** @var array<string, array<string, list<string>>> analysis_element_id => lab_section_id => user ids */
@@ -1652,6 +1654,36 @@ class AcceptanceFormSampleConfigService
         return ($id !== '' && Str::isUuid($id)) ? [$id] : [];
     }
 
+    /**
+     * @param  mixed  $value
+     * @param  list<string>  $parameterKeys
+     * @return list<string>
+     */
+    public function normalizeSubcontractedParameterKeys(mixed $value, array $parameterKeys = []): array
+    {
+        $ids = [];
+        if (is_array($value)) {
+            foreach ($value as $raw) {
+                $id = trim((string) $raw);
+                if ($id !== '' && Str::isUuid($id)) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        $ids = array_values(array_unique($ids));
+        if ($parameterKeys === []) {
+            return $ids;
+        }
+
+        $allowed = array_flip(array_map('strval', $parameterKeys));
+
+        return array_values(array_filter(
+            $ids,
+            static fn (string $id): bool => isset($allowed[$id])
+        ));
+    }
+
     public function primaryLabSectionId(mixed $value): ?string
     {
         $ids = $this->normalizeLabSectionIds($value);
@@ -2519,6 +2551,10 @@ class AcceptanceFormSampleConfigService
                 'number_of_samples' => 1,
                 'parameter_keys' => array_values(array_map('strval', $config['parameter_keys'] ?? [])),
                 'parameter_lab_sections' => $parameterLabSections,
+                'subcontracted_parameter_keys' => $this->normalizeSubcontractedParameterKeys(
+                    $config['subcontracted_parameter_keys'] ?? [],
+                    array_values(array_map('strval', $config['parameter_keys'] ?? [])),
+                ),
                 'analysts_by_lab_section' => $analystsBySection,
                 'analysts_by_element' => $analystsByElement,
                 'sample_code_prefix' => $config['sample_code_prefix'] ?? null,

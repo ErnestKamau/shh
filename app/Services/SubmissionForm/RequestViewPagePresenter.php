@@ -1445,14 +1445,40 @@ class RequestViewPagePresenter
      */
     private function trfActions(): array
     {
-        if (! $this->isTrfForm || ! $this->trfPdfUrl) {
+        if (! $this->isTrfForm) {
             return [];
         }
 
-        return [
+        $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
+        $primaryPdfExists = \Illuminate\Support\Facades\Storage::disk('public')
+            ->exists($pdfService->resolveStoragePath($this->instance));
+
+        $actions = [
+            $this->action(
+                'generate_trf',
+                $primaryPdfExists ? 'Regenerate Test Request Form' : 'Generate Test Request Form',
+                'mdi-file-document-outline',
+                'wire',
+                'openGenerateTrfOrientationModal'
+            ),
+            $this->action(
+                'view_trf_pdf',
+                'View TRF PDF',
+                'mdi-file-pdf-box',
+                'href',
+                null,
+                route('test-request-form.pdf', $this->instance->id),
+                null,
+                true
+            ),
             $this->action('download_trf', 'Download TRF', 'mdi-download', 'wire', 'downloadTrfPdf'),
-            $this->action('send_trf', 'Send to customer', 'mdi-email-send-outline', 'wire', 'sendTrfPdfToCustomer'),
         ];
+
+        if ($primaryPdfExists || $this->trfPdfUrl) {
+            $actions[] = $this->action('send_trf', 'Send to customer', 'mdi-email-send-outline', 'wire', 'sendTrfPdfToCustomer');
+        }
+
+        return $actions;
     }
 
     /**

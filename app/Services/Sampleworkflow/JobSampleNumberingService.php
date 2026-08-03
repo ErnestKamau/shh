@@ -9,8 +9,10 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\SampleDetails;
 use App\SampleHeader;
+use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -265,6 +267,21 @@ class JobSampleNumberingService
             );
         }
 
+        try {
+            app(TestRequestFormPdfService::class)->generateAndStore($instance->fresh([
+                'values.element',
+                'submissionForm.sampleTypes',
+                'batches.samples',
+            ]) ?? $instance);
+            app(SubmissionFormInstanceDocumentAttachmentService::class)
+                ->attachTestRequestForm($instance, null, regenerate: false);
+        } catch (\Throwable $exception) {
+            Log::warning('TRF PDF refresh after job number persist failed.', [
+                'instance_id' => $instance->id,
+                'job_number' => $jobNumber,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function assertValidJobNumber(string $jobNumber): void

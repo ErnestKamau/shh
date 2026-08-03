@@ -82,12 +82,16 @@
                                         <span wire:loading wire:target="sendQuotation">Sending…</span>
                                     </button>
                                 @else
-                                    <button type="button" class="btn btn-primary btn-sm" wire:click="openSendForApprovalModal" wire:loading.attr="disabled" @disabled($lines === [] || $quotationPendingApproval)>
-                                        <span wire:loading.remove wire:target="openSendForApprovalModal,submitQuotationForApproval">
+                                    <button type="button" class="btn btn-primary btn-sm" wire:click="openSendForApprovalModal" wire:loading.attr="disabled" @disabled($lines === [])>
+                                        <span wire:loading.remove wire:target="openSendForApprovalModal,submitQuotationForApproval,openChangeLabManagerModal">
                                             <i class="mdi mdi-account-check"></i>
-                                            {{ $quotationPendingApproval ? 'Pending approval' : 'Send for Approval' }}
+                                            @if($quotationPendingApproval)
+                                                Change lab manager
+                                            @else
+                                                Send for Approval
+                                            @endif
                                         </span>
-                                        <span wire:loading wire:target="openSendForApprovalModal,submitQuotationForApproval">Submitting…</span>
+                                        <span wire:loading wire:target="openSendForApprovalModal,submitQuotationForApproval,openChangeLabManagerModal">Submitting…</span>
                                     </button>
                                 @endif
                             @endif
@@ -283,6 +287,9 @@
                                             <span class="badge badge-success">Quotation Sent</span>
                                         @elseif($quotationPendingApproval)
                                             <span class="badge badge-warning">Pending Approval</span>
+                                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" wire:click="openChangeLabManagerModal">
+                                                Change lab manager
+                                            </button>
                                         @elseif($quotationApprovedReadyToSend)
                                             <span class="badge badge-info">
                                                 @if($quotationReviewedByName !== '')
@@ -323,8 +330,24 @@
                                             <tr>
                                                 <th>No</th>
                                                 <th>Parameter</th>
-                                                <th class="text-center">LOQ</th>
-                                                <th class="text-center">MU%</th>
+                                                <th class="text-center" title="Include LOQ column on the quotation PDF">
+                                                    LOQ
+                                                    @if($quotationMode === 'build_new')
+                                                        <input type="checkbox"
+                                                               class="ml-1"
+                                                               wire:model.live="showLoqColumn"
+                                                               aria-label="Show LOQ column on quotation">
+                                                    @endif
+                                                </th>
+                                                <th class="text-center" title="Include MU% column on the quotation PDF">
+                                                    MU%
+                                                    @if($quotationMode === 'build_new')
+                                                        <input type="checkbox"
+                                                               class="ml-1"
+                                                               wire:model.live="showMuColumn"
+                                                               aria-label="Show MU column on quotation">
+                                                    @endif
+                                                </th>
                                                 <th class="text-right" style="width: 104px;">Unit price</th>
                                                 <th class="text-center" style="width: 64px;">Samples</th>
                                                 <th class="text-right">Line total</th>
@@ -389,8 +412,12 @@
                                                     <td class="text-center text-muted" style="width: 64px;">{{ $sampleCount }}</td>
                                                     <td class="text-right text-muted">{{ number_format($lineTotal, 2) }}</td>
                                                     <td class="text-center">
-                                                        @php $hasVat = (float) ($line['tax'] ?? 0) > 0; @endphp
-                                                        @if($readOnly || ($line['vat_from_pricelist'] ?? false))
+                                                        @php
+                                                            $hasVat = (float) ($line['tax'] ?? 0) > 0;
+                                                            $vatLocked = ($line['vat_from_pricelist'] ?? false)
+                                                                || ($line['vat_from_quotation'] ?? false);
+                                                        @endphp
+                                                        @if($readOnly || $vatLocked)
                                                             <input type="checkbox" disabled @checked($hasVat) aria-label="Has VAT">
                                                         @else
                                                             <input
@@ -633,20 +660,31 @@
             <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
                 <div class="modal-content acc-wizard-modal">
                     <div class="acc-wizard-header acc-wizard-header--compact">
-                        <h5 class="acc-wizard-title mb-0">Send for Approval</h5>
+                        <h5 class="acc-wizard-title mb-0">
+                            {{ $approvalModalIsReassign ? 'Change Lab Manager' : 'Send for Approval' }}
+                        </h5>
                         <button type="button" class="acc-wizard-close" wire:click="closeSendForApprovalModal">
                             <i class="mdi mdi-close"></i>
                         </button>
                     </div>
                     <div class="modal-body px-4 py-3">
                         <p class="text-muted small mb-3">
-                            Assign a Lab Manager to approve
-                            @if($quoteNumber !== '')
-                                quotation <strong>{{ $quoteNumber }}</strong>
+                            @if($approvalModalIsReassign)
+                                Assign a different Lab Manager to approve
+                                @if($quoteNumber !== '')
+                                    quotation <strong>{{ $quoteNumber }}</strong>
+                                @else
+                                    this quotation
+                                @endif.
                             @else
-                                this quotation
+                                Assign a Lab Manager to approve
+                                @if($quoteNumber !== '')
+                                    quotation <strong>{{ $quoteNumber }}</strong>
+                                @else
+                                    this quotation
+                                @endif
+                                before it can be sent to the customer.
                             @endif
-                            before it can be sent to the customer.
                         </p>
                         <div class="form-group">
                             <label class="acc-label" for="enquiry-approval-manager">Lab Manager <span class="text-danger">*</span></label>
@@ -657,6 +695,7 @@
                                 @endforeach
                             </select>
                             @error('approvalLabManagerId') <span class="text-danger small">{{ $message }}</span> @enderror
+                            @error('labManagerId') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label class="acc-label" for="enquiry-approval-comments">Comments (optional)</label>
@@ -671,9 +710,12 @@
                         <button type="button" class="btn btn-light" wire:click="closeSendForApprovalModal">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="submitQuotationForApproval" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="submitQuotationForApproval">
-                                <i class="mdi mdi-account-check"></i> Submit for approval
+                                <i class="mdi mdi-account-check"></i>
+                                {{ $approvalModalIsReassign ? 'Update lab manager' : 'Submit for approval' }}
                             </span>
-                            <span wire:loading wire:target="submitQuotationForApproval">Submitting…</span>
+                            <span wire:loading wire:target="submitQuotationForApproval">
+                                {{ $approvalModalIsReassign ? 'Updating…' : 'Submitting…' }}
+                            </span>
                         </button>
                     </div>
                 </div>

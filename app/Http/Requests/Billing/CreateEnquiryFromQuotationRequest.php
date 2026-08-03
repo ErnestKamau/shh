@@ -22,6 +22,7 @@ class CreateEnquiryFromQuotationRequest extends FormRequest
             'quotation_id' => ['required', 'uuid', 'exists:quotation_headers,id'],
             'creation_token' => ['required', 'uuid'],
             'creation_intent' => ['required', Rule::in(EnquiryFromQuotationService::creationIntents())],
+            'source_channel' => ['nullable', Rule::in(EnquiryFromQuotationService::allowedSourceChannels())],
             'number_of_samples' => ['required', 'integer', 'min:1', 'max:10000'],
             'reference_number' => ['nullable', 'string', 'max:255'],
             'client_po_number' => ['nullable', 'string', 'max:255'],

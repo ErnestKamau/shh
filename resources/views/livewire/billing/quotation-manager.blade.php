@@ -208,6 +208,13 @@
                         <span class="quotation-stage-tab__count">{{ $this->stageCounts['Quote In Preparation'] }}</span>
                     </button>
                     <button type="button"
+                            class="quotation-stage-tab {{ $stageFilter === 'Quote In Approval' ? 'is-active' : '' }}"
+                            wire:click="$set('stageFilter', 'Quote In Approval')">
+                        <i class="mdi mdi-account-check-outline"></i>
+                        <span>In Approval</span>
+                        <span class="quotation-stage-tab__count">{{ $this->stageCounts['Quote In Approval'] }}</span>
+                    </button>
+                    <button type="button"
                             class="quotation-stage-tab {{ $stageFilter === 'Quote Complete' ? 'is-active' : '' }}"
                             wire:click="$set('stageFilter', 'Quote Complete')">
                         <i class="mdi mdi-check-circle-outline"></i>
@@ -377,7 +384,7 @@
                                                             && $quotation->expiring_date
                                                             && \Carbon\Carbon::parse($quotation->expiring_date)->startOfDay()->gte(now()->startOfDay()))
                                                             <button type="button"
-                                                                    wire:click="openCreateEnquiryModal(@js((string) $quotation->id))"
+                                                                    wire:click="openCreateEnquiryWizard(@js((string) $quotation->id))"
                                                                     wire:loading.attr="disabled"
                                                                     class="rm-act-btn rm-act-btn--enquiry"
                                                                     title="Create enquiry from quotation">
@@ -545,145 +552,7 @@
         </div>
     @endif
 
-    @if($showCreateEnquiryModal && $this->enquirySourceQuotation)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.55);">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <div>
-                            <h5 class="modal-title mb-1">
-                                <i class="mdi mdi-flask-plus-outline text-primary"></i>
-                                Create Enquiry from {{ $this->enquirySourceQuotation->quote_number }}
-                            </h5>
-                            <small class="text-muted">
-                                {{ $this->enquirySourceQuotation->customer?->name ?? 'Customer' }}
-                                · {{ $this->enquirySourceQuotation->details->count() }} quotation line(s)
-                            </small>
-                        </div>
-                        <button type="button" class="btn-close ls-modal-close" wire:click="closeCreateEnquiryModal" aria-label="Close">
-                            <i class="mdi mdi-close"></i>
-                        </button>
-                    </div>
-                    <form wire:submit="createEnquiryFromQuotation">
-                        <div class="modal-body">
-                            <div class="alert alert-info d-flex align-items-start" style="gap: 10px;">
-                                <i class="mdi mdi-auto-fix mt-1"></i>
-                                <div>
-                                    Tests, parameters, pricing and a Test Request Form will be prefilled.
-                                    Confirm the physical sample count and add any customer reference available.
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="lw-enquiry-creation-intent">Workflow start</label>
-                                <select id="lw-enquiry-creation-intent" wire:model.live="enquiryForm.creation_intent" class="form-control">
-                                    <option value="prepare">Prepare for sending</option>
-                                    <option value="already_sent">Quotation already sent</option>
-                                    <option value="accepted">Customer already accepted</option>
-                                </select>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="enquiry-number-of-samples">Physical samples <span class="text-danger">*</span></label>
-                                        <input id="enquiry-number-of-samples"
-                                               type="number"
-                                               min="1"
-                                               max="10000"
-                                               wire:model="enquiryForm.number_of_samples"
-                                               class="form-control @error('enquiryForm.number_of_samples') is-invalid @enderror">
-                                        @error('enquiryForm.number_of_samples')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="enquiry-reference-number">Customer reference</label>
-                                        <input id="enquiry-reference-number"
-                                               type="text"
-                                               wire:model="enquiryForm.reference_number"
-                                               class="form-control @error('enquiryForm.reference_number') is-invalid @enderror"
-                                               placeholder="Optional">
-                                        @error('enquiryForm.reference_number')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="enquiry-date-expected">Expected sample date</label>
-                                        <input id="enquiry-date-expected"
-                                               type="date"
-                                               wire:model="enquiryForm.date_expected"
-                                               class="form-control @error('enquiryForm.date_expected') is-invalid @enderror">
-                                        @error('enquiryForm.date_expected')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-                            </div>
-
-                            @if(($enquiryForm['creation_intent'] ?? '') === 'accepted')
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label>Customer PO</label>
-                                            <input type="text" wire:model="enquiryForm.client_po_number" class="form-control">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group mt-4">
-                                            <div class="custom-control custom-checkbox">
-                                                <input type="checkbox" class="custom-control-input" id="lw-enquiry-po-skipped" wire:model="enquiryForm.po_skipped">
-                                                <label class="custom-control-label" for="lw-enquiry-po-skipped">Skip PO</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-
-                            <div class="form-group">
-                                <label for="enquiry-sample-description">Sample description</label>
-                                <textarea id="enquiry-sample-description"
-                                          rows="2"
-                                          wire:model="enquiryForm.sample_description"
-                                          class="form-control @error('enquiryForm.sample_description') is-invalid @enderror"
-                                          placeholder="Optional description shared by the quoted samples"></textarea>
-                                @error('enquiryForm.sample_description')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="form-group mb-0">
-                                <label for="enquiry-notes">Internal enquiry notes</label>
-                                <textarea id="enquiry-notes"
-                                          rows="2"
-                                          wire:model="enquiryForm.enquiry_notes"
-                                          class="form-control @error('enquiryForm.enquiry_notes') is-invalid @enderror"
-                                          placeholder="Optional"></textarea>
-                                @error('enquiryForm.enquiry_notes')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                        <div class="modal-footer" style="gap: 8px;">
-                            <button type="button" class="btn btn-secondary" wire:click="closeCreateEnquiryModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:target="createEnquiryFromQuotation">
-                                <span wire:loading.remove wire:target="createEnquiryFromQuotation">
-                                    <i class="mdi mdi-auto-fix"></i> Create &amp; Prefill Enquiry
-                                </span>
-                                <span wire:loading wire:target="createEnquiryFromQuotation">
-                                    <span class="spinner-border spinner-border-sm mr-1"></span> Creating...
-                                </span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    @endif
+    <livewire:billing.create-enquiry-from-quotation-wizard />
 
     @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
 

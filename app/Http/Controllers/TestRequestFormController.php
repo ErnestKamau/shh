@@ -63,7 +63,11 @@ class TestRequestFormController extends Controller
     public function regenerate(string $instance)
     {
         $sfi = SubmissionFormInstance::query()->findOrFail($instance);
-        $this->pdfService->generateAndStore($sfi);
+        $orientation = request()->input('orientation');
+        $this->pdfService->generateAndStore(
+            $sfi,
+            is_string($orientation) ? $orientation : null,
+        );
 
         return redirect()
             ->back()

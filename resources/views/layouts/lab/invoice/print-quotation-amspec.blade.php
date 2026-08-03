@@ -131,7 +131,9 @@
             @if($show_mu_column ?? true)
                 <th class="th-green text-center" style="width: 9%;">Uncertainty</th>
             @endif
-            <th class="th-maroon text-center" style="width: 9%;">LOQ</th>
+            @if($show_loq_column ?? true)
+                <th class="th-maroon text-center" style="width: 9%;">LOQ</th>
+            @endif
             @if($show_unit_price_column ?? true)
                 <th class="th-green text-right" style="width: 11%;">Unit Price ({{ $currency_code }})</th>
             @endif
@@ -140,7 +142,10 @@
     </thead>
     <tbody>
         @php
-            $legacyColCount = 4 + (($show_mu_column ?? true) ? 1 : 0) + (($show_unit_price_column ?? true) ? 1 : 0) + 1;
+            $legacyColCount = 4
+                + (($show_mu_column ?? true) ? 1 : 0)
+                + (($show_loq_column ?? true) ? 1 : 0)
+                + (($show_unit_price_column ?? true) ? 1 : 0);
             $legacyLabelColspan = $legacyColCount - 1;
         @endphp
         @foreach($grouped_lines as $group)
@@ -159,7 +164,9 @@
                     @if($show_mu_column ?? true)
                         <td class="text-center">{{ $row['mu'] ?: '-' }}</td>
                     @endif
-                    <td class="text-center">{{ $row['loq'] ?: '-' }}</td>
+                    @if($show_loq_column ?? true)
+                        <td class="text-center">{{ $row['loq'] ?: '-' }}</td>
+                    @endif
                     @if($show_unit_price_column ?? true)
                         <td class="text-right">{{ number_format($row['unit_price'], 2) }}</td>
                     @endif

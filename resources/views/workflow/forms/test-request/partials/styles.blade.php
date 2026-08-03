@@ -1,8 +1,12 @@
 @php
     $maroon = $branding['primary'] ?? '#800000';
+    $orientation = in_array(($orientation ?? ''), ['landscape', 'portrait'], true)
+        ? $orientation
+        : 'landscape';
+    $isPortrait = $orientation === 'portrait';
 @endphp
 <style>
-    @page { size: A4 landscape; margin: 3mm 4mm; }
+    @page { size: A4 {{ $orientation }}; margin: {{ $isPortrait ? '6mm 7mm' : '3mm 4mm' }}; }
     * { font-family: DejaVu Sans, sans-serif; box-sizing: border-box; }
     body { font-size: 8pt; color: #000; margin: 0; padding: 0; line-height: 1.2; }
     body.trf-layout-centered { margin: 0; padding: 0; }
@@ -21,21 +25,62 @@
         background: #ffffff;
         box-shadow: 0 4px 25px rgba(0, 0, 0, 0.12);
         border-radius: 6px;
-        padding: 12mm 16mm;
+        padding: {{ $isPortrait ? '14mm 12mm' : '12mm 16mm' }};
         margin: 0 auto;
         box-sizing: border-box;
     }
-    body.trf-layout-centered:not(.trf-waste-water) .trf-page {
+    body.trf-layout-centered.trf-orientation-landscape .trf-page {
         width: min(95vw, 297mm);
         min-height: 210mm;
     }
-    body.trf-layout-centered.trf-waste-water .trf-page {
+    body.trf-layout-centered.trf-orientation-portrait .trf-page {
         width: min(95vw, 210mm);
         min-height: 297mm;
     }
     @else
     .trf-page { width: 100%; margin: 0; }
     @endif
+
+    /* Portrait: more breathing room between major blocks */
+    body.trf-orientation-portrait .trf-header-table {
+        margin-bottom: 8px;
+    }
+    body.trf-orientation-portrait .trf-section-title {
+        margin-top: 8px;
+        margin-bottom: 4px;
+        padding: 7px 10px;
+    }
+    body.trf-orientation-portrait .trf-table {
+        margin-bottom: 10px;
+    }
+    body.trf-orientation-portrait .trf-table td,
+    body.trf-orientation-portrait .trf-table th {
+        padding: 5px 6px;
+        font-size: 7.5pt;
+        line-height: 1.3;
+    }
+    body.trf-orientation-portrait .trf-footer-table {
+        margin-top: 10px;
+        padding-top: 4px;
+    }
+    body.trf-orientation-portrait .trf-footer-cell {
+        padding: 6px 8px !important;
+        min-height: 22px !important;
+        line-height: 1.35 !important;
+    }
+    body.trf-orientation-portrait .trf-footer-sign-row td {
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+
+    /* Landscape: compact AMSPEC-style density */
+    body.trf-orientation-landscape .trf-header-table {
+        margin-bottom: 2px;
+    }
+    body.trf-orientation-landscape .trf-table {
+        margin-bottom: 0;
+    }
+
     .trf-section-title {
         background: {{ $maroon }};
         color: #fff;
@@ -762,5 +807,28 @@
     body.trf-waste-water .trf-footer-table td { font-size: 7.5pt; padding-top: 1px; }
     body.trf-waste-water .trf-waste-water-table tr.trf-footer-sign-row:last-child .trf-footer-cell {
         min-height: 20px;
+    }
+
+    /* Portrait override: give sections breathing room (including waste-water) */
+    body.trf-orientation-portrait.trf-waste-water .trf-header-table {
+        margin-bottom: 8px;
+    }
+    body.trf-orientation-portrait.trf-waste-water .trf-table,
+    body.trf-orientation-portrait.trf-waste-water .trf-waste-water-table {
+        margin-bottom: 8px;
+    }
+    body.trf-orientation-portrait.trf-waste-water .trf-footer-cell {
+        padding: 5px 6px !important;
+        min-height: 20px !important;
+        line-height: 1.3 !important;
+        font-size: 7.5pt !important;
+    }
+    body.trf-orientation-portrait.trf-waste-water .trf-footer-table {
+        margin-top: 8px;
+    }
+    body.trf-orientation-portrait.trf-waste-water .trf-section-title {
+        margin-top: 6px;
+        margin-bottom: 4px;
+        padding: 6px 8px;
     }
 </style>

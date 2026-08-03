@@ -169,6 +169,7 @@ class ProcessEnquiryWizardTest extends TestCase
 
         $this->assertCount(1, $lines);
         $this->assertSame(10.0, (float) $lines[0]['tax']);
+        $this->assertTrue((bool) ($lines[0]['vat_from_pricelist'] ?? false));
         $this->assertArrayHasKey('loq', $lines[0]);
         $this->assertArrayHasKey('mu_percent', $lines[0]);
     }
@@ -312,6 +313,12 @@ class ProcessEnquiryWizardTest extends TestCase
 
     public function test_build_inline_lines_resolves_price_when_trf_element_differs_from_pricelist_element(): void
     {
+        \App\TaxRegime::query()->create([
+            'id' => (string) Str::uuid(),
+            'value' => 5,
+            'active' => true,
+        ]);
+
         $customerId = (string) Str::uuid();
         $suffix = Str::upper(Str::random(4));
 
@@ -388,6 +395,8 @@ class ProcessEnquiryWizardTest extends TestCase
 
         $this->assertCount(1, $lines);
         $this->assertSame(93.0, (float) $lines[0]['unit_price']);
+        $this->assertSame(5.0, (float) $lines[0]['tax']);
+        $this->assertTrue((bool) ($lines[0]['vat_from_pricelist'] ?? false));
     }
 
     public function test_switching_back_to_build_new_clears_existing_quotation_approval_state(): void

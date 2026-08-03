@@ -12,7 +12,6 @@ use App\QuotationHeader;
 use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Commercial\CommercialEnquiryCustomerResolver;
-use App\Services\Commercial\EnquiryFromQuotationService;
 use App\Services\Commercial\EnquiryReviewDisplayService;
 use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
@@ -102,6 +101,11 @@ class ProcessEnquiryWizard extends Component
     /** Step 3 mode: build_new | use_existing */
     public string $quotationMode = 'build_new';
 
+    /** Include LOQ / MU% columns on the customer quotation PDF. */
+    public bool $showLoqColumn = true;
+
+    public bool $showMuColumn = true;
+
     /** Bumps wire:key so Step 3 remounts when quotation mode is re-applied. */
     public int $quotationModeRenderKey = 0;
 
@@ -126,6 +130,9 @@ class ProcessEnquiryWizard extends Component
     public string $quotationReviewedByName = '';
 
     public bool $showApprovalModal = false;
+
+    /** When true, the approval modal updates an existing assignee instead of first submit. */
+    public bool $approvalModalIsReassign = false;
 
     public ?string $approvalLabManagerId = null;
 
@@ -304,7 +311,7 @@ class ProcessEnquiryWizard extends Component
         $this->enquiryStatus = (string) $enquiry->status;
         $this->sourceChannel = (string) ($enquiry->source_channel ?? '');
         $channel = strtolower(trim($this->sourceChannel));
-        if (in_array($channel, ['walk_in', EnquiryFromQuotationService::SOURCE_CHANNEL], true)) {
+        if (in_array($channel, ['walk_in'], true)) {
             $this->sendPortal = false;
             $this->sendEmail = true;
         } else {
@@ -328,6 +335,7 @@ class ProcessEnquiryWizard extends Component
         }
         $this->quotationHeaderId = $enquiry->current_quotation_header_id;
         $this->quoteNumber = (string) ($enquiry->currentQuotation?->quote_number ?? '');
+        $this->syncColumnVisibilityFromHeader($header);
         $this->statusMessage = '';
         $this->statusLevel = 'info';
         $this->statusAutoDismiss = false;
@@ -337,6 +345,7 @@ class ProcessEnquiryWizard extends Component
         $this->quotationManuallyEdited = false;
         $this->showBuildQuotationModal = false;
         $this->showApprovalModal = false;
+        $this->approvalModalIsReassign = false;
         $this->approvalLabManagerId = null;
         $this->approvalNotifyEmail = true;
         $this->approvalComments = '';
@@ -353,6 +362,10 @@ class ProcessEnquiryWizard extends Component
         if ($header !== null && $header->details->isNotEmpty()) {
             $this->lines = $quotationService->buildInlineLinesFromQuotationHeader($header);
             $this->quotationBuilt = true;
+            if ($this->quotationMode === 'build_new' && $this->crmCustomerId !== '') {
+                // Restore Has VAT lock from the customer pricelist (not persisted on details).
+                $this->applyPricelistVatToLines(preserveManualVat: false);
+            }
         } else {
             $this->lines = [];
             $this->quotationBuilt = false;
@@ -530,6 +543,8 @@ class ProcessEnquiryWizard extends Component
             $this->quotationPendingApproval = false;
             $this->quotationApprovedReadyToSend = false;
             $this->quotationReviewedByName = '';
+            $this->showLoqColumn = true;
+            $this->showMuColumn = true;
         }
         $this->rebuildQuotationLinesFromSampleConfigs();
         $this->quotationBuilt = false;
@@ -686,7 +701,17 @@ class ProcessEnquiryWizard extends Component
             $header = $service->attachExistingQuotation($enquiry, $header);
             $this->quotationHeaderId = $header->id;
             $this->quoteNumber = (string) ($header->quote_number ?? '');
+            $this->syncColumnVisibilityFromHeader($header);
             $this->lines = $service->buildInlineLinesFromQuotationHeader($header);
+            $enquiry = $service->seedEnquirySubcontractFlagsFromQuotation(
+                $enquiry->fresh() ?? $enquiry,
+                $header,
+            );
+            if (is_array($enquiry->enquiry_sample_configuration)) {
+                $this->sampleConfigs = app(AcceptanceFormSampleConfigService::class)
+                    ->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration);
+                $this->normalizeSampleConfigs();
+            }
             $this->quotationBuilt = true;
             $this->quotationManuallyEdited = false;
             $this->pdfGenerated = ! empty($header->upload_url);
@@ -952,8 +977,7 @@ class ProcessEnquiryWizard extends Component
             $this->applyPricelistVatToLines(preserveManualVat: true);
             $this->refreshLineLabMetrics();
             $header = $this->ensureQuotationHeader();
-            $header->show_unit_price_column = true;
-            $header->save();
+            $this->applyColumnVisibilityToHeader($header);
 
             $this->persistQuotationLines();
             $this->persistSampleConfiguration();
@@ -1007,8 +1031,7 @@ class ProcessEnquiryWizard extends Component
                 $this->applyPricelistVatToLines(preserveManualVat: true);
                 $this->refreshLineLabMetrics();
                 $header = $this->ensureQuotationHeader();
-                $header->show_unit_price_column = true;
-                $header->save();
+                $this->applyColumnVisibilityToHeader($header);
 
                 $this->persistQuotationLines();
                 $this->persistSampleConfiguration();
@@ -1017,6 +1040,7 @@ class ProcessEnquiryWizard extends Component
             }
 
             $header->refresh();
+            $this->syncColumnVisibilityFromHeader($header);
 
             $this->quotationHeaderId = $header->id;
             $this->quoteNumber = (string) ($header->quote_number ?? '');
@@ -1031,7 +1055,7 @@ class ProcessEnquiryWizard extends Component
 
             $this->dispatch(
                 'open-quotation-preview',
-                url: route('quotation.preview', ['id' => $this->quotationHeaderId]),
+                url: route('quotation.preview.pdf', ['id' => $this->quotationHeaderId]),
             );
             $this->setStatus('success', 'Quotation opened in a new tab.');
         } catch (Throwable $exception) {
@@ -1063,7 +1087,8 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        if ($this->lines[$index]['vat_from_pricelist'] ?? false) {
+        if (($this->lines[$index]['vat_from_pricelist'] ?? false)
+            || ($this->lines[$index]['vat_from_quotation'] ?? false)) {
             return;
         }
 
@@ -1211,6 +1236,12 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        if ($this->quotationPendingApproval) {
+            $this->openChangeLabManagerModal();
+
+            return;
+        }
+
         if ($this->lines === []) {
             $this->setStatus('error', 'No quotation lines to submit. Complete sample configuration and sync prices first.');
 
@@ -1224,7 +1255,39 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        $this->approvalModalIsReassign = false;
         $this->approvalLabManagerId = $this->labManagerOptions[0]['id'] ?? null;
+        $this->approvalNotifyEmail = true;
+        $this->approvalComments = '';
+        $this->showApprovalModal = true;
+    }
+
+    public function openChangeLabManagerModal(): void
+    {
+        if ($this->quotationMode !== 'build_new') {
+            return;
+        }
+
+        if (! $this->quotationPendingApproval) {
+            return;
+        }
+
+        $this->refreshLabManagerOptions();
+        if ($this->labManagerOptions === []) {
+            $this->setStatus('error', 'No active Lab Manager users are available for approval.');
+
+            return;
+        }
+
+        $currentId = null;
+        if ($this->quotationHeaderId) {
+            $header = QuotationHeader::query()->find($this->quotationHeaderId);
+            $currentId = $header?->approved_by ? (string) $header->approved_by : null;
+        }
+
+        $this->approvalModalIsReassign = true;
+        $this->approvalLabManagerId = $currentId
+            ?? ($this->labManagerOptions[0]['id'] ?? null);
         $this->approvalNotifyEmail = true;
         $this->approvalComments = '';
         $this->showApprovalModal = true;
@@ -1233,6 +1296,7 @@ class ProcessEnquiryWizard extends Component
     public function closeSendForApprovalModal(): void
     {
         $this->showApprovalModal = false;
+        $this->approvalModalIsReassign = false;
     }
 
     public function submitQuotationForApproval(): void
@@ -1251,11 +1315,47 @@ class ProcessEnquiryWizard extends Component
 
         try {
             $enquiry = SampleSubmissionRequest::query()
-                ->with(['customer', 'contact', 'requestedAnalyses'])
+                ->with(['customer', 'contact', 'requestedAnalyses', 'currentQuotation'])
                 ->find($this->enquiryId);
 
             if ($enquiry === null) {
                 throw new \RuntimeException('Enquiry not found.');
+            }
+
+            $approvalService = app(QuotationApprovalService::class);
+
+            if ($this->approvalModalIsReassign) {
+                $header = $enquiry->currentQuotation;
+                if ($header === null) {
+                    throw new \RuntimeException('No quotation is linked to this request.');
+                }
+
+                $enquiry = $approvalService->reassignLabManager(
+                    $enquiry,
+                    $header,
+                    (string) $this->approvalLabManagerId,
+                    $this->approvalNotifyEmail,
+                    $this->approvalComments !== '' ? $this->approvalComments : null,
+                );
+
+                $header = $enquiry->currentQuotation;
+                $header?->loadMissing('approvedByUser');
+                $this->quotationHeaderId = $header?->id;
+                $this->quoteNumber = (string) ($header?->quote_number ?? '');
+                $this->enquiryStatus = (string) $enquiry->status;
+                $this->syncApprovalState($enquiry, $header);
+                $this->showApprovalModal = false;
+                $this->approvalModalIsReassign = false;
+
+                $managerName = trim((string) ($header?->approvedByUser?->name ?? ''));
+                $flashMessage = $managerName !== ''
+                    ? 'Lab manager updated to '.$managerName.'. Quotation is awaiting their approval.'
+                    : 'Lab manager updated. Quotation is awaiting approval.';
+                $this->dispatch('notify', type: 'success', message: $flashMessage);
+                $this->setStatus('success', $flashMessage, true);
+                $this->dispatch('process-enquiry-completed');
+
+                return;
             }
 
             $this->normalizeQuotationLineQuantities();
@@ -1263,14 +1363,13 @@ class ProcessEnquiryWizard extends Component
             $this->refreshLineLabMetrics();
 
             $header = $this->ensureQuotationHeader();
-            $header->show_unit_price_column = true;
-            $header->save();
+            $this->applyColumnVisibilityToHeader($header);
 
             $this->persistQuotationLines();
             $this->persistSampleConfiguration($enquiry);
 
             $header = $header->fresh() ?? $header;
-            $enquiry = app(QuotationApprovalService::class)->submitForApproval(
+            $enquiry = $approvalService->submitForApproval(
                 $enquiry,
                 $header,
                 (string) $this->approvalLabManagerId,
@@ -1287,6 +1386,7 @@ class ProcessEnquiryWizard extends Component
             $this->pdfGenerated = ! empty($header?->upload_url);
             $this->syncApprovalState($enquiry, $header);
             $this->showApprovalModal = false;
+            $this->approvalModalIsReassign = false;
 
             $flashMessage = 'Quotation '.$this->quoteNumber.' sent for lab manager approval.';
             $this->dispatch('notify', type: 'success', message: $flashMessage);
@@ -1368,8 +1468,7 @@ class ProcessEnquiryWizard extends Component
                 $this->refreshLineLabMetrics();
 
                 $header = $this->ensureQuotationHeader();
-                $header->show_unit_price_column = true;
-                $header->save();
+                $this->applyColumnVisibilityToHeader($header);
 
                 $this->persistQuotationLines();
                 $this->persistSampleConfiguration($enquiry);
@@ -1653,6 +1752,27 @@ class ProcessEnquiryWizard extends Component
         return QuotationHeader::query()->find($this->quotationHeaderId);
     }
 
+    private function syncColumnVisibilityFromHeader(?QuotationHeader $header): void
+    {
+        if ($header === null) {
+            $this->showLoqColumn = true;
+            $this->showMuColumn = true;
+
+            return;
+        }
+
+        $this->showLoqColumn = (bool) ($header->show_loq_column ?? true);
+        $this->showMuColumn = (bool) ($header->show_mu_column ?? true);
+    }
+
+    private function applyColumnVisibilityToHeader(QuotationHeader $header): void
+    {
+        $header->show_loq_column = $this->showLoqColumn;
+        $header->show_mu_column = $this->showMuColumn;
+        $header->show_unit_price_column = true;
+        $header->save();
+    }
+
     private function ensureQuotationHeader(): QuotationHeader
     {
         if ($this->enquiryId === null) {
@@ -1769,10 +1889,17 @@ class ProcessEnquiryWizard extends Component
             if ($vatState['vat_from_pricelist']) {
                 $this->lines[$index]['tax'] = $vatState['tax'];
                 $this->lines[$index]['vat_from_pricelist'] = true;
+                $this->lines[$index]['vat_from_quotation'] = false;
+                $this->lines[$index]['vat_manual'] = false;
+            } elseif ($line['vat_from_quotation'] ?? false) {
+                // Keep tax copied from the saved quotation detail; lock Has VAT.
+                $this->lines[$index]['vat_from_pricelist'] = false;
+                $this->lines[$index]['vat_from_quotation'] = true;
                 $this->lines[$index]['vat_manual'] = false;
             } elseif (! $preserveManualVat) {
                 $this->lines[$index]['tax'] = 0.0;
                 $this->lines[$index]['vat_from_pricelist'] = false;
+                $this->lines[$index]['vat_from_quotation'] = false;
                 $this->lines[$index]['vat_manual'] = false;
             }
         }
@@ -1968,6 +2095,7 @@ class ProcessEnquiryWizard extends Component
             if ($previous['vat_manual'] ?? false) {
                 $line['tax'] = (float) ($previous['tax'] ?? $line['tax'] ?? 0);
                 $line['vat_from_pricelist'] = false;
+                $line['vat_from_quotation'] = false;
                 $line['vat_manual'] = true;
             }
             if (! empty($subcontractOverrides[$lineKey])) {
@@ -2113,6 +2241,7 @@ class ProcessEnquiryWizard extends Component
             'unit_price' => (float) ($parameter['unit_amount'] ?? 0),
             'tax' => 0.0,
             'vat_from_pricelist' => false,
+            'vat_from_quotation' => false,
             'vat_manual' => false,
             'subcontracted' => $isSubcontracted,
         ];

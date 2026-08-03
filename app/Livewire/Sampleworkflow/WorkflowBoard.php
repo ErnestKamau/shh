@@ -895,7 +895,7 @@ class WorkflowBoard extends Component
      * Sub-contracting queue: received requests where at least one selected
      * analysis parameter is subcontracted either from:
      * - analysis_elements.sub_contracted (master parameter setup), or
-     * - quotation_details.subcontracted_analytes (manual override in pricing tab).
+     * - enquiry_sample_configuration.subcontracted_parameter_keys (Integrity Check).
      */
     protected function subcontractingSubmissionFormsQuery(?string $dispatchStatusOverride = null): \Illuminate\Database\Eloquent\Builder
     {
@@ -909,6 +909,7 @@ class WorkflowBoard extends Component
         $approvalGateStatuses = [
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
         ];
         $dispatchStatus = in_array($dispatchStatusOverride, [
             SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING,
@@ -1011,16 +1012,25 @@ class WorkflowBoard extends Component
                                             ->whereColumn('ra.sample_submission_request_id', 'ssr.id')
                                             ->where('ae.sub_contracted', 1);
                                     })
-                                    ->orWhereExists(function ($quoteExists): void {
-                                        $quoteExists->selectRaw('1')
-                                            ->from('quotation_details as qd')
-                                            ->where(function ($quoteHeaderMatch): void {
-                                                $quoteHeaderMatch
-                                                    ->whereColumn('qd.quotation_header_id', 'ssr.current_quotation_header_id')
-                                                    ->orWhereColumn('qd.quotation_header_id', 'ssr.accepted_quotation_header_id');
-                                            })
-                                            ->whereNotNull('qd.subcontracted_analytes')
-                                            ->where('qd.subcontracted_analytes', '!=', '');
+                                    ->orWhere(function ($configExists) use ($driver): void {
+                                        if ($driver !== 'pgsql') {
+                                            $configExists->whereNotNull('ssr.enquiry_sample_configuration')
+                                                ->where('ssr.enquiry_sample_configuration', '!=', '[]')
+                                                ->where('ssr.enquiry_sample_configuration', 'like', '%subcontracted_parameter_keys%')
+                                                ->where('ssr.enquiry_sample_configuration', 'not like', '%"subcontracted_parameter_keys":[]%')
+                                                ->where('ssr.enquiry_sample_configuration', 'not like', '%"subcontracted_parameter_keys": []%');
+
+                                            return;
+                                        }
+
+                                        $configExists->whereRaw(<<<'SQL'
+EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(COALESCE(ssr.enquiry_sample_configuration::jsonb, '[]'::jsonb)) AS cfg
+    WHERE jsonb_typeof(COALESCE(cfg->'subcontracted_parameter_keys', '[]'::jsonb)) = 'array'
+      AND jsonb_array_length(COALESCE(cfg->'subcontracted_parameter_keys', '[]'::jsonb)) > 0
+)
+SQL);
                                     })
                                     ->orWhere(function ($jsonSelectionQuery) use ($driver): void {
                                         if ($driver !== 'pgsql') {

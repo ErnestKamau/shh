@@ -55,6 +55,16 @@ class MailController extends Controller
 				? trim($data['template'])
 				: 'emails.notification';
 
+			if (! isset($data['heading']) && isset($data['subject']) && is_string($data['subject']) && trim($data['subject']) !== '') {
+				$data['heading'] = trim($data['subject']);
+			}
+			if (! isset($data['pageTitle']) && isset($data['heading'])) {
+				$data['pageTitle'] = $data['heading'];
+			}
+			if (! isset($data['eyebrow'])) {
+				$data['eyebrow'] = 'Notification';
+			}
+
 			try {
 				Mail::send($template, $data, function ($message) use ($data, $file, $bcc, $bcc_emails, $mail_username, $app_name, $bcc_emails_arr) {
 					$message->to($data['contacts'])->subject($data['subject']);

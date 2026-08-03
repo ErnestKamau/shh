@@ -120,11 +120,11 @@ class QuotationReportService
             'company' => $company,
             'forPdf' => $forPdf,
             'showMethodColumn' => true,
-            'showLoqColumn' => true,
-            'showMuColumn' => true,
+            'showLoqColumn' => (bool) ($header->show_loq_column ?? true),
+            'showMuColumn' => (bool) ($header->show_mu_column ?? true),
             'showTatColumn' => false,
             'showQuantityColumn' => false,
-            'showUnitPriceColumn' => true,
+            'showUnitPriceColumn' => (bool) ($header->show_unit_price_column ?? true),
             'showTotalPriceColumn' => false,
             'reportViewUrl' => $reportViewUrl,
             'qrCode' => $this->buildQrCode(
@@ -1026,26 +1026,6 @@ class QuotationReportService
         }
 
         return null;
-    }
-
-    /**
-     * AmSpec Format PDF uses a fixed 6-column table:
-     * S.No. | Tests | Test Method | LOQ | MU% | Unit Price
-     *
-     * @param  list<array{sample_type_name: string, rows: list<array<string, mixed>>}>  $groups
-     * @return array{method: bool, loq: bool, mu: bool, tat: bool, quantity: bool, unit_price: bool, total_price: bool}
-     */
-    private function resolveTestTableColumnVisibility(array $groups): array
-    {
-        return [
-            'method' => true,
-            'loq' => true,
-            'mu' => true,
-            'tat' => false,
-            'quantity' => false,
-            'unit_price' => true,
-            'total_price' => false,
-        ];
     }
 
     /**

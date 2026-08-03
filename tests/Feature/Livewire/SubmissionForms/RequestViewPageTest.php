@@ -229,6 +229,40 @@ class RequestViewPageTest extends TestCase
         $this->assertSame('submitted', $instance->fresh()->status);
     }
 
+    public function test_default_tab_is_tests_when_quotation_is_ready_to_send(): void
+    {
+        [$form, $instance] = $this->createFormAndInstance();
+
+        $quotation = \App\QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ-TAB-001',
+            'quote_date' => now()->toDateString(),
+            'is_approved' => 1,
+            'is_complete' => 1,
+            'is_draft' => 0,
+            'status' => 'Quote Complete',
+            'from_enquiry' => true,
+            'crm_customer_id' => (string) Str::uuid(),
+        ]);
+
+        \App\Models\SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'status' => \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND,
+            'source_channel' => 'walk_in',
+            'crm_customer_id' => $quotation->crm_customer_id,
+            'current_quotation_header_id' => $quotation->id,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(RequestViewPage::class, [
+                'submissionFormId' => $form->id,
+                'instanceId' => $instance->id,
+            ])
+            ->assertSet('activeTab', 'tests')
+            ->assertSet('quotationApprovedReadyToSend', true);
+    }
+
     /**
      * @return array{0: SubmissionForm, 1: SubmissionFormInstance}
      */

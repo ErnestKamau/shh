@@ -933,32 +933,78 @@ class ReceiveSampleRequest extends Component
             $rowIndex = (int) $matches[1];
         }
 
+        $this->refreshWalkInParametersForAnalysisChange($rowIndex);
+    }
+
+    /**
+     * Rebuild parameter options for the row after analysis types change,
+     * keeping any already-selected parameters that remain valid.
+     */
+    private function refreshWalkInParametersForAnalysisChange(?int $rowIndex): void
+    {
+        $options = $this->parametersForRow($rowIndex)
+            ->pluck('name')
+            ->map(static fn ($name): string => (string) $name)
+            ->values()
+            ->all();
+
         if ($rowIndex !== null) {
-            if (isset($this->formData['parameters'][$rowIndex])) {
-                $this->formData['parameters'][$rowIndex] = [];
-            }
+            $previous = $this->normalizeWalkInParameterSelection(
+                $this->formData['parameters'][$rowIndex] ?? []
+            );
+            $selected = array_values(array_intersect($previous, $options));
+            $this->formData['parameters'][$rowIndex] = $selected;
+
             $this->dispatch(
                 'walk-in-params-row-reset',
                 rowIndex: $rowIndex,
-                options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(),
-                selected: [],
+                options: $options,
+                selected: $selected,
             );
 
             return;
         }
 
+        $previous = $this->normalizeWalkInParameterSelection(
+            $this->formData['parameters'] ?? ($this->formData['parameter'] ?? [])
+        );
+        $selected = array_values(array_intersect($previous, $options));
+
         foreach (['parameter', 'parameters'] as $paramKey) {
             if (array_key_exists($paramKey, $this->formData)) {
-                $this->formData[$paramKey] = [];
+                $this->formData[$paramKey] = $selected;
             }
         }
 
         $this->dispatch(
             'walk-in-params-row-reset',
             rowIndex: -1,
-            options: $this->parametersForRow(null)->pluck('name')->values()->all(),
-            selected: [],
+            options: $options,
+            selected: $selected,
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeWalkInParameterSelection(mixed $value): array
+    {
+        if (is_array($value) && $value !== [] && is_array(reset($value))) {
+            return [];
+        }
+
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                static fn ($item): string => is_scalar($item) ? (string) $item : '',
+                $value
+            ), static fn (string $name): bool => $name !== ''));
+        }
+
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        return [(string) $value];
     }
 
     private function walkInUsesIndexedSampleRows(): bool
@@ -1977,12 +2023,7 @@ class ReceiveSampleRequest extends Component
         }
 
         if (preg_match('/^formData\.analysis_type_id\.(\d+)$/', $propertyName, $matches)) {
-            $rowIndex = (int) $matches[1];
-            if (isset($this->formData['parameters'][$rowIndex])) {
-                $this->formData['parameters'][$rowIndex] = [];
-            }
-
-            $this->dispatch('walk-in-params-row-reset', rowIndex: $rowIndex, options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(), selected: []);
+            $this->refreshWalkInParametersForAnalysisChange((int) $matches[1]);
 
             return;
         }
@@ -1990,11 +2031,7 @@ class ReceiveSampleRequest extends Component
         $fieldKey = str_replace('formData.', '', $propertyName);
 
         if (in_array($fieldKey, ['analysis_type', 'analysis_types', 'analysis_type_id'], true)) {
-            foreach (['parameter', 'parameters'] as $paramKey) {
-                if (array_key_exists($paramKey, $this->formData)) {
-                    $this->formData[$paramKey] = is_array($this->formData[$paramKey]) ? [] : '';
-                }
-            }
+            $this->refreshWalkInParametersForAnalysisChange(null);
         }
     }
 

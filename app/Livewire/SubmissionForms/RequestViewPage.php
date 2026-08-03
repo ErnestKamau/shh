@@ -17,7 +17,6 @@ use App\Models\SubmissionFormInstanceNote;
 use App\Services\SampleCreationService;
 use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use App\Services\SubmissionFormBatchSyncService;
-use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationApprovalService;
@@ -29,6 +28,7 @@ use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Renderless;
@@ -82,6 +82,15 @@ class RequestViewPage extends Component
 
     public string $approvalDecisionComments = '';
 
+    public bool $showChangeLabManagerForm = false;
+
+    public ?string $reassignLabManagerId = null;
+
+    public bool $reassignNotifyEmail = true;
+
+    /** @var list<array{id: string, name: string}> */
+    public array $labManagerOptions = [];
+
     public bool $sendPortal = true;
 
     public bool $sendEmail = false;
@@ -97,6 +106,12 @@ class RequestViewPage extends Component
     public ?string $trfPdfUrl = null;
 
     public bool $sendTrfEmail = true;
+
+    public bool $showTrfOrientationModal = false;
+
+    public string $trfPdfOrientation = 'landscape';
+
+    public string $defaultTrfPdfOrientation = 'landscape';
 
     public bool $showQuotationAcceptanceModal = false;
 
@@ -177,8 +192,6 @@ class RequestViewPage extends Component
         $requestedTab = (string) request()->query('tab', '');
         if (in_array($requestedTab, ['tests', 'notes', 'attachments', 'custody', 'quotation_approvals'], true)) {
             $this->activeTab = $requestedTab;
-        } elseif ($this->quotationPendingApproval || $this->quotationApprovedReadyToSend) {
-            $this->activeTab = 'quotation_approvals';
         }
     }
 
@@ -651,6 +664,88 @@ class RequestViewPage extends Component
         }
     }
 
+    public function openChangeLabManagerForm(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if (! $this->quotationPendingApproval) {
+            return;
+        }
+
+        $excludeId = auth()->id() !== null ? (string) auth()->id() : null;
+        $this->labManagerOptions = app(QuotationApprovalService::class)
+            ->eligibleLabManagers($excludeId)
+            ->map(fn ($user): array => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->values()
+            ->all();
+
+        if ($this->labManagerOptions === []) {
+            session()->flash('request_view_message', 'No active Lab Manager users are available for approval.');
+
+            return;
+        }
+
+        $currentId = $this->commercialEnquiry?->currentQuotation?->approved_by;
+        $this->reassignLabManagerId = $currentId ? (string) $currentId : ($this->labManagerOptions[0]['id'] ?? null);
+        $this->reassignNotifyEmail = true;
+        $this->showChangeLabManagerForm = true;
+    }
+
+    public function closeChangeLabManagerForm(): void
+    {
+        $this->showChangeLabManagerForm = false;
+        $this->reassignLabManagerId = null;
+    }
+
+    public function updateQuotationLabManager(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        $this->validate([
+            'reassignLabManagerId' => ['required', 'uuid'],
+        ], [
+            'reassignLabManagerId.required' => 'Select a lab manager to approve this quotation.',
+        ]);
+
+        try {
+            $enquiry = $this->commercialEnquiry->loadMissing('currentQuotation');
+            $header = $enquiry->currentQuotation;
+            if ($header === null) {
+                throw new \RuntimeException('No quotation is linked to this request.');
+            }
+
+            $enquiry = app(QuotationApprovalService::class)->reassignLabManager(
+                $enquiry,
+                $header,
+                (string) $this->reassignLabManagerId,
+                $this->reassignNotifyEmail,
+            );
+
+            $this->commercialEnquiry = $enquiry->fresh(['currentQuotation.approvedByUser', 'customer', 'contact']) ?? $enquiry;
+            $this->showChangeLabManagerForm = false;
+            $this->reassignLabManagerId = null;
+            $this->canApproveQuotation = false;
+            $this->syncQuotationApprovalUiState();
+
+            $managerName = trim((string) ($this->commercialEnquiry->currentQuotation?->approvedByUser?->name ?? ''));
+            session()->flash(
+                'request_view_message',
+                $managerName !== ''
+                    ? 'Lab manager updated to '.$managerName.'. Quotation is awaiting their approval.'
+                    : 'Lab manager updated. Quotation is awaiting approval.'
+            );
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', $exception->getMessage());
+        }
+    }
+
     private function syncQuotationApprovalUiState(): void
     {
         $enquiry = $this->commercialEnquiry;
@@ -658,6 +753,7 @@ class RequestViewPage extends Component
             $this->quotationPendingApproval = false;
             $this->quotationApprovedReadyToSend = false;
             $this->canApproveQuotation = false;
+            $this->showChangeLabManagerForm = false;
 
             return;
         }
@@ -669,6 +765,10 @@ class RequestViewPage extends Component
         $this->quotationPendingApproval = $approvalService->isPendingApproval($enquiry, $header);
         $this->quotationApprovedReadyToSend = $approvalService->isApprovedReadyToSend($enquiry, $header);
         $this->canApproveQuotation = $header !== null && $approvalService->canCurrentUserApprove($header);
+
+        if (! $this->quotationPendingApproval) {
+            $this->showChangeLabManagerForm = false;
+        }
 
         $channel = strtolower((string) ($enquiry->source_channel ?? ''));
         if ($channel === 'walk_in') {
@@ -683,17 +783,64 @@ class RequestViewPage extends Component
 
     public function generateTestRequestFormReport(): void
     {
+        $this->openGenerateTrfOrientationModal();
+    }
+
+    public function openGenerateTrfOrientationModal(): void
+    {
         $this->authorizeFormAccess(auth()->user());
 
-        $instance = $this->instance->fresh(['values.element', 'submissionForm']);
+        if (! $this->isTrfForm()) {
+            session()->flash('request_view_message', 'This form is not a test request form.');
+
+            return;
+        }
+
+        $pdfService = app(TestRequestFormPdfService::class);
+        $variantData = $pdfService->buildViewData($this->instance, false);
+        $this->trfPdfOrientation = $pdfService->resolveOrientation(
+            null,
+            (string) $variantData['variant'],
+            $this->instance,
+        );
+        $this->defaultTrfPdfOrientation = $pdfService->defaultOrientationForVariant((string) $variantData['variant']);
+        $this->showTrfOrientationModal = true;
+    }
+
+    public function closeTrfOrientationModal(): void
+    {
+        $this->showTrfOrientationModal = false;
+    }
+
+    public function confirmGenerateTestRequestFormReport(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        $this->validate([
+            'trfPdfOrientation' => ['required', 'in:landscape,portrait'],
+        ], [
+            'trfPdfOrientation.required' => 'Choose landscape or portrait.',
+            'trfPdfOrientation.in' => 'Choose landscape or portrait.',
+        ]);
+
+        $instance = $this->instance->fresh([
+            'values.element',
+            'submissionForm',
+            'batches.samples',
+        ]);
 
         try {
-            app(TestRequestFormPdfService::class)->generateAndStore($instance);
+            app(TestRequestFormPdfService::class)->generateAndStore(
+                $instance,
+                $this->trfPdfOrientation,
+            );
             app(SubmissionFormInstanceDocumentAttachmentService::class)->attachTestRequestForm(
                 $instance,
                 auth()->id(),
                 regenerate: false,
             );
+            $this->instance = $instance->fresh(['values.element', 'submissionForm', 'submittedBy', 'batches']) ?? $instance;
+            $this->showTrfOrientationModal = false;
             session()->flash('request_view_message', 'Test Request Form generated successfully.');
             $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $instance->id));
         } catch (\Throwable $exception) {
@@ -1033,7 +1180,7 @@ class RequestViewPage extends Component
         return str_starts_with($code, 'TRF-');
     }
 
-    public function generateTrfPdf(AmSpecTrfPdfService $service): void
+    public function generateTrfPdf(TestRequestFormPdfService $service): void
     {
         $this->authorizeFormAccess(auth()->user());
 
@@ -1043,34 +1190,38 @@ class RequestViewPage extends Component
             return;
         }
 
-        $this->trfPdfUrl = $service->generateAndStore($this->instance);
+        $instance = $this->instance->fresh([
+            'values.element',
+            'submissionForm',
+            'batches.samples',
+        ]) ?? $this->instance;
+
+        $service->generateAndStore($instance);
+        $this->trfPdfUrl = $service->resolvePublicUrl($instance);
+        $this->instance = $instance->fresh(['values.element', 'submissionForm', 'submittedBy', 'batches']) ?? $instance;
         session()->flash('request_view_message', 'TRF generated successfully.');
     }
 
-    public function downloadTrfPdf(): ?\Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function downloadTrfPdf(TestRequestFormPdfService $service): mixed
     {
         $this->authorizeFormAccess(auth()->user());
 
-        if ($this->trfPdfUrl === null || $this->trfPdfUrl === '') {
-            session()->flash('request_view_message', 'Generate the TRF first.');
+        if (! $this->isTrfForm()) {
+            session()->flash('request_view_message', 'This form is not a test request form.');
 
             return null;
         }
 
-        $fullPath = storage_path('app'.$this->trfPdfUrl);
-        if (! is_file($fullPath)) {
-            session()->flash('request_view_message', 'TRF file was not found. Generate the TRF again.');
-            $this->trfPdfUrl = null;
+        $instance = $this->instance->fresh([
+            'values.element',
+            'submissionForm',
+            'batches.samples',
+        ]) ?? $this->instance;
 
-            return null;
-        }
-
-        $filename = basename($fullPath);
-
-        return response()->download($fullPath, $filename);
+        return $service->download($instance);
     }
 
-    public function sendTrfPdfToCustomer(): void
+    public function sendTrfPdfToCustomer(TestRequestFormPdfService $service): void
     {
         $user = auth()->user();
         $this->authorizeFormAccess($user);
@@ -1081,13 +1232,13 @@ class RequestViewPage extends Component
             return;
         }
 
-        if ($this->trfPdfUrl === null || $this->trfPdfUrl === '') {
+        $storagePath = $service->resolveStoragePath($this->instance);
+        if (! Storage::disk('public')->exists($storagePath)) {
             session()->flash('request_view_message', 'Generate the TRF first.');
+            $this->trfPdfUrl = null;
 
             return;
         }
-
-        $relativePath = $this->trfPdfUrl;
 
         $contact = $this->commercialEnquiry?->contact;
         if ($contact === null || empty($contact->email)) {
@@ -1096,13 +1247,7 @@ class RequestViewPage extends Component
             return;
         }
 
-        $file = storage_path('app'.$relativePath);
-        if (! is_file($file)) {
-            session()->flash('request_view_message', 'TRF PDF file was not found. Generate the PDF first.');
-
-            return;
-        }
-
+        $file = Storage::disk('public')->path($storagePath);
         $formNumber = $this->instance->getDocumentControlNumber() ?? $this->instance->form_number ?? 'TRF';
         $subject = 'Test Request Form '.$formNumber;
         $body = 'Please find attached your test request form '.$formNumber.'.';

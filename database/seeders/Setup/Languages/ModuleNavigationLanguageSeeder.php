@@ -107,6 +107,12 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     'pt' => 'Cotações em Preparação',
                     'ar' => 'عروض الأسعار قيد الإعداد',
                 ],
+                'quotes_in_approval' => [
+                    'en' => 'Quotes In Approval',
+                    'sw' => 'Nukuu Zinazosubiri Idhini',
+                    'pt' => 'Cotações em Aprovação',
+                    'ar' => 'عروض الأسعار قيد الاعتماد',
+                ],
                 'finalised_quotes' => [
                     'en' => 'Finalised Quotes',
                     'sw' => 'Nukuu Zilizokamilika',

@@ -149,24 +149,29 @@ final class EnquiryReceptionReadinessService
         $flags = [];
 
         foreach ($quotation->details as $detail) {
-            $elementId = trim((string) ($detail->accredited_analytes ?? ''));
-            if ($elementId === '') {
-                continue;
+            foreach (['accredited_analytes', 'default_analytes', 'sub_acc_analytes'] as $field) {
+                foreach (array_filter(array_map('trim', explode(',', (string) ($detail->{$field} ?? '')))) as $elementId) {
+                    if ($elementId === '' || isset($flags[$elementId])) {
+                        continue;
+                    }
+
+                    $flags[$elementId] = [
+                        'accredited' => $field === 'accredited_analytes' || $field === 'sub_acc_analytes',
+                        'subcontracted' => false,
+                    ];
+                }
             }
-
-            $subcontractedIds = array_filter(array_map(
-                'trim',
-                explode(',', (string) ($detail->subcontracted_analytes ?? ''))
-            ));
-
-            $subcontracted = in_array($elementId, $subcontractedIds, true);
-
-            $flags[$elementId] = [
-                'accredited' => ! $subcontracted,
-                'subcontracted' => $subcontracted,
-            ];
         }
 
         return $flags;
+    }
+
+    /**
+     * @return array<string, array{accredited: bool, subcontracted: bool}>
+     */
+    public function resolveElementFlagsFromEnquiry(SampleSubmissionRequest $enquiry): array
+    {
+        return app(\App\Services\Sampleworkflow\SubcontractingAssignmentService::class)
+            ->resolveElementFlagsFromEnquiry($enquiry);
     }
 }

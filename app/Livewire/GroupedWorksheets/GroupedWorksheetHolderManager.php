@@ -34,6 +34,15 @@ class GroupedWorksheetHolderManager extends Component
 
     public ?string $issue_date = null;
 
+    /** classic | phased */
+    public string $pipeline_mode = 'classic';
+
+    public bool $results_capture_enabled = true;
+
+    public string $results_capture_label = 'Results capture';
+
+    public bool $results_capture_required = true;
+
     protected function rules(): array
     {
         return [
@@ -43,6 +52,10 @@ class GroupedWorksheetHolderManager extends Component
             'document_control_no' => 'nullable|string|max:255',
             'revision' => 'nullable|string|max:255',
             'issue_date' => 'nullable|date',
+            'pipeline_mode' => 'required|in:classic,phased',
+            'results_capture_enabled' => 'boolean',
+            'results_capture_label' => 'nullable|string|max:255',
+            'results_capture_required' => 'boolean',
         ];
     }
 
@@ -78,6 +91,13 @@ class GroupedWorksheetHolderManager extends Component
         $this->document_control_no = $holder->document_control_no ?? '';
         $this->revision = $holder->revision ?? '';
         $this->issue_date = $holder->issue_date?->format('Y-m-d');
+        $this->pipeline_mode = (string) ($holder->getSettingValue('pipeline_mode', 'classic') ?: 'classic');
+        $results = is_array($holder->getSettingValue('results_capture'))
+            ? $holder->getSettingValue('results_capture')
+            : [];
+        $this->results_capture_enabled = (bool) ($results['enabled'] ?? true);
+        $this->results_capture_label = (string) ($results['label'] ?? 'Results capture');
+        $this->results_capture_required = (bool) ($results['required'] ?? true);
         $this->showEditModal = true;
     }
 
@@ -129,7 +149,34 @@ class GroupedWorksheetHolderManager extends Component
             'document_control_no' => $this->document_control_no ?: null,
             'revision' => $this->revision ?: null,
             'issue_date' => $this->issue_date ?: null,
+            'settings' => $this->settingsPayload(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function settingsPayload(): array
+    {
+        $existing = [];
+        if ($this->editingId) {
+            $existing = GroupedWorksheetHolder::query()->find($this->editingId)?->settings ?? [];
+        }
+
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        return array_merge($existing, [
+            'pipeline_mode' => $this->pipeline_mode ?: 'classic',
+            'results_capture' => [
+                'enabled' => $this->results_capture_enabled,
+                'label' => trim($this->results_capture_label) !== ''
+                    ? trim($this->results_capture_label)
+                    : 'Results capture',
+                'required' => $this->results_capture_required,
+            ],
+        ]);
     }
 
     protected function resetForm(): void
@@ -141,5 +188,9 @@ class GroupedWorksheetHolderManager extends Component
         $this->document_control_no = '';
         $this->revision = '';
         $this->issue_date = null;
+        $this->pipeline_mode = 'classic';
+        $this->results_capture_enabled = true;
+        $this->results_capture_label = 'Results capture';
+        $this->results_capture_required = true;
     }
 }

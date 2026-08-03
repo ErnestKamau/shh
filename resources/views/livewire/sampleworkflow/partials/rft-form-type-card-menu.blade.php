@@ -12,15 +12,19 @@
     || auth()->user()?->can('laboratory.components.rft form.edit')
     || $showClearAction
 )
-    <div class="rft-form-type-card-menu">
+    <div class="rft-form-type-card-menu"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         :class="{ 'is-open': open }">
         <button type="button"
                 class="rft-card-menu-toggle"
                 aria-label="More actions"
                 aria-haspopup="true"
-                aria-expanded="false">
+                :aria-expanded="open ? 'true' : 'false'"
+                @click.stop="open = ! open">
             <i class="mdi mdi-dots-vertical" aria-hidden="true"></i>
         </button>
-        <div class="rft-card-menu-dropdown" role="menu">
+        <div class="rft-card-menu-dropdown" role="menu" @click.stop>
             @can('laboratory.components.rft form.view')
                 <a href="{{ $card['view_url'] }}"
                    class="rft-card-menu-item"

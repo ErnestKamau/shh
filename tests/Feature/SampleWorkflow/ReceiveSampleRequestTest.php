@@ -683,6 +683,98 @@ class ReceiveSampleRequestTest extends TestCase
         ]);
     }
 
+    public function test_set_walk_in_analysis_types_preserves_still_valid_parameters(): void
+    {
+        $suffix = Str::upper(Str::random(4));
+
+        $sampleType = \App\SampleType::query()->create([
+            'name' => 'Water Param Preserve '.$suffix,
+            'code' => 'WTR-PP-'.$suffix,
+            'active' => 1,
+        ]);
+
+        $analysisA = \App\AnalysisType::query()->create([
+            'name' => 'Microbiology '.$suffix,
+            'code' => 'MICRO-'.$suffix,
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+        $analysisB = \App\AnalysisType::query()->create([
+            'name' => 'Chemistry '.$suffix,
+            'code' => 'CHEM-'.$suffix,
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $sharedAnalyte = \App\Analyte::query()->create([
+            'name' => 'Chloride '.$suffix,
+            'code' => 'CL-'.$suffix,
+            'active' => 1,
+        ]);
+        $chemOnlyAnalyte = \App\Analyte::query()->create([
+            'name' => 'Nitrate '.$suffix,
+            'code' => 'NO3-'.$suffix,
+            'active' => 1,
+        ]);
+
+        foreach ([$analysisA, $analysisB] as $analysisType) {
+            \App\AnalysisElements::query()->create([
+                'analysis_type_id' => $analysisType->id,
+                'analyte_id' => $sharedAnalyte->id,
+                'active' => 1,
+                'level' => 1,
+            ]);
+        }
+
+        \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisB->id,
+            'analyte_id' => $chemOnlyAnalyte->id,
+            'active' => 1,
+            'level' => 1,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class)
+            ->set('selectedSampleTypeId', (string) $sampleType->id)
+            ->set('formData', [
+                'analysis_type_id' => [
+                    0 => [(string) $analysisA->id],
+                ],
+                'parameters' => [
+                    0 => [(string) $sharedAnalyte->name],
+                ],
+            ])
+            ->call(
+                'setWalkInAnalysisTypes',
+                'formData.analysis_type_id.0',
+                [(string) $analysisA->id, (string) $analysisB->id]
+            )
+            ->assertSet('formData.parameters.0', [(string) $sharedAnalyte->name])
+            ->assertDispatched(
+                'walk-in-params-row-reset',
+                rowIndex: 0,
+                selected: [(string) $sharedAnalyte->name],
+            );
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class)
+            ->set('selectedSampleTypeId', (string) $sampleType->id)
+            ->set('formData', [
+                'analysis_type_id' => [
+                    0 => [(string) $analysisA->id, (string) $analysisB->id],
+                ],
+                'parameters' => [
+                    0 => [(string) $sharedAnalyte->name, (string) $chemOnlyAnalyte->name],
+                ],
+            ])
+            ->call(
+                'setWalkInAnalysisTypes',
+                'formData.analysis_type_id.0',
+                [(string) $analysisA->id]
+            )
+            ->assertSet('formData.parameters.0', [(string) $sharedAnalyte->name]);
+    }
+
     private function createTemplateForm(): SubmissionForm
     {
         return SubmissionForm::query()->create([

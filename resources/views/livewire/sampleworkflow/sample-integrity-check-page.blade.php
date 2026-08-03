@@ -28,10 +28,6 @@
                     <i class="mdi mdi-barcode"></i> Lab sample labels
                 </button>
             @endif
-            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="saveAssignments" wire:loading.attr="disabled">
-                <span wire:loading.remove wire:target="saveAssignments">Save assignments</span>
-                <span wire:loading wire:target="saveAssignments">Saving…</span>
-            </button>
             <button
                 type="button"
                 class="btn btn-sm btn-primary"
@@ -363,7 +359,7 @@
                                                                 </div>
                                                             </div>
                                                             <div>
-                                                                <div class="rv-field-label mb-1">Analyst(s) per section</div>
+                                                                <div class="rv-field-label mb-1">Analyst(s)</div>
                                                                 @forelse($selectedSections as $sectionId)
                                                                     @php
                                                                         $analysts = $this->analystsBySection[$sectionId] ?? [];

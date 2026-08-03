@@ -18,6 +18,8 @@ class QuotationApprovalLog extends Model
 
     public const ACTION_REJECTED = 'rejected';
 
+    public const ACTION_REASSIGNED = 'reassigned';
+
     public const ACTION_SENT = 'sent';
 
     protected $keyType = 'string';

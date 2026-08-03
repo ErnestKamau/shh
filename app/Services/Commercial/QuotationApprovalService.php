@@ -111,13 +111,101 @@ final class QuotationApprovalService
                 $message = 'Hi '.$manager->name.',<br><br>'
                     .$actor->name.' submitted quotation <strong>'.$header->quote_number.'</strong> for approval.<br>'
                     .'Open the request from your personal dashboard to preview and approve.';
-                notify_user($message, $manager->email, $subject);
+                notify_user($message, $manager->email, $subject, false, false, [], [
+                    'eyebrow' => 'Quotation Approval',
+                ]);
             } catch (\Throwable $exception) {
                 report($exception);
             }
         }
 
         return $submitted;
+    }
+
+    /**
+     * Change the lab manager assigned to approve an enquiry quotation.
+     *
+     * Only allowed while the quotation is pending approval. After approval,
+     * the reviewer cannot be changed.
+     */
+    public function reassignLabManager(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $header,
+        string $labManagerId,
+        bool $notifyEmail = true,
+        ?string $comments = null,
+    ): SampleSubmissionRequest {
+        $actor = Auth::user();
+        if ($actor === null) {
+            throw new RuntimeException('You must be signed in to change the quotation approver.');
+        }
+
+        if ($header->sent_to_customer_at !== null) {
+            throw new RuntimeException('Cannot change the lab manager after the quotation has been sent to the customer.');
+        }
+
+        if (! $this->isPendingApproval($enquiry, $header)) {
+            throw new RuntimeException('The lab manager can only be changed while the quotation is pending approval.');
+        }
+
+        $manager = $this->resolveLabManager($labManagerId);
+        if ((string) $manager->id === (string) $actor->id) {
+            throw ValidationException::withMessages([
+                'labManagerId' => 'You cannot assign yourself as the quotation approver.',
+            ]);
+        }
+
+        if ((string) $header->approved_by === (string) $manager->id) {
+            throw ValidationException::withMessages([
+                'labManagerId' => 'Select a different lab manager to reassign approval.',
+            ]);
+        }
+
+        $reassigned = DB::transaction(function () use ($enquiry, $header, $manager, $actor, $comments): SampleSubmissionRequest {
+            $now = now();
+            $header->status = self::HEADER_STATUS_IN_APPROVAL;
+            $header->approved_by = (string) $manager->id;
+            $header->is_approved = 0;
+            $header->is_complete = 0;
+            $header->approval_requested_at = $now;
+            $header->approval_requested_by = (string) ($header->approval_requested_by ?: $actor->id);
+            $header->approval_decision_at = null;
+            $header->approval_comments = $comments !== null && trim($comments) !== '' ? trim($comments) : null;
+            $header->sample_submission_request_id = $enquiry->id;
+            $header->from_enquiry = true;
+            $header->save();
+
+            $enquiry->current_quotation_header_id = $header->id;
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL;
+            $enquiry->save();
+
+            $this->writeLog(
+                $header,
+                $enquiry,
+                QuotationApprovalLog::ACTION_REASSIGNED,
+                (string) $actor->id,
+                (string) $manager->id,
+                $header->approval_comments,
+            );
+
+            return $enquiry->fresh(['currentQuotation', 'customer', 'contact']) ?? $enquiry;
+        });
+
+        if ($notifyEmail && filled($manager->email)) {
+            try {
+                $subject = 'Quotation '.$header->quote_number.' awaiting your approval';
+                $message = 'Hi '.$manager->name.',<br><br>'
+                    .$actor->name.' assigned quotation <strong>'.$header->quote_number.'</strong> to you for approval.<br>'
+                    .'Open the request from your personal dashboard to preview and approve.';
+                notify_user($message, $manager->email, $subject, false, false, [], [
+                    'eyebrow' => 'Quotation Approval',
+                ]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return $reassigned;
     }
 
     public function approve(
@@ -387,7 +475,9 @@ final class QuotationApprovalService
                     .'Comments: '.e((string) $comments);
             }
 
-            notify_user($message, $requester->email, $subject);
+            notify_user($message, $requester->email, $subject, false, false, [], [
+                'eyebrow' => 'Quotation Approval',
+            ]);
         } catch (\Throwable $exception) {
             report($exception);
         }
