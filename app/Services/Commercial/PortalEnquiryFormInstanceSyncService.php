@@ -20,7 +20,10 @@ final class PortalEnquiryFormInstanceSyncService
         private readonly PortalSubmissionFormAccess $portalAccess,
     ) {}
 
-    public function syncFromEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionFormInstance
+    public function syncFromEnquiry(
+        SampleSubmissionRequest $enquiry,
+        bool $submit = true,
+    ): ?SubmissionFormInstance
     {
         if ($enquiry->submission_form_instance_id) {
             $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
@@ -34,17 +37,17 @@ final class PortalEnquiryFormInstanceSyncService
             return null;
         }
 
-        return DB::transaction(function () use ($enquiry, $form): ?SubmissionFormInstance {
+        return DB::transaction(function () use ($enquiry, $form, $submit): ?SubmissionFormInstance {
             $enquiry->refresh();
 
-            $instance = $this->resolveOrCreateInstance($enquiry, $form);
+            $instance = $this->resolveOrCreateInstance($enquiry, $form, $submit);
             $elementMap = $this->buildElementMap($form);
 
             $instance->values()->delete();
 
             $this->syncHeaderValues($instance, $elementMap, $enquiry);
             $this->syncSampleLineValues($instance, $elementMap, $enquiry);
-            $this->updateInstanceMetadata($instance, $enquiry, $form);
+            $this->updateInstanceMetadata($instance, $enquiry, $form, $submit);
 
             if ($enquiry->submission_form_instance_id !== $instance->id) {
                 $enquiry->submission_form_instance_id = $instance->id;
@@ -80,7 +83,11 @@ final class PortalEnquiryFormInstanceSyncService
             ->first();
     }
 
-    private function resolveOrCreateInstance(SampleSubmissionRequest $enquiry, SubmissionForm $form): SubmissionFormInstance
+    private function resolveOrCreateInstance(
+        SampleSubmissionRequest $enquiry,
+        SubmissionForm $form,
+        bool $submit,
+    ): SubmissionFormInstance
     {
         if ($enquiry->submission_form_instance_id) {
             $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
@@ -102,8 +109,8 @@ final class PortalEnquiryFormInstanceSyncService
             'crm_customer_id' => $enquiry->crm_customer_id,
             'portal_request_id' => (string) $enquiry->id,
             'target_record_type' => self::TARGET_RECORD_TYPE,
-            'status' => 'submitted',
-            'submitted_at' => now(),
+            'status' => $submit ? 'submitted' : 'draft',
+            'submitted_at' => $submit ? now() : null,
             'title' => $this->instanceTitle($enquiry, $form),
             'priority' => $this->instancePriority($enquiry),
         ]);
@@ -147,14 +154,14 @@ final class PortalEnquiryFormInstanceSyncService
         array $elementMap,
         SampleSubmissionRequest $enquiry,
     ): void {
-        $enquiry->loadMissing('crmCustomer');
+        $enquiry->loadMissing('customer');
 
-        $this->storeValue($instance, $elementMap, 'customer_name', $enquiry->crmCustomer?->name);
-        $this->storeValue($instance, $elementMap, 'customer_address', $enquiry->crmCustomer?->physical_address ?? $enquiry->crmCustomer?->postal_address);
-        $this->storeValue($instance, $elementMap, 'customer_phone', $enquiry->crmCustomer?->telephone1);
-        $this->storeValue($instance, $elementMap, 'customer_tel_fax', $enquiry->crmCustomer?->telephone1);
-        $this->storeValue($instance, $elementMap, 'mobile_number', $enquiry->crmCustomer?->telephone2);
-        $this->storeValue($instance, $elementMap, 'customer_mobile', $enquiry->crmCustomer?->telephone2);
+        $this->storeValue($instance, $elementMap, 'customer_name', $enquiry->customer?->name);
+        $this->storeValue($instance, $elementMap, 'customer_address', $enquiry->customer?->physical_address ?? $enquiry->customer?->postal_address);
+        $this->storeValue($instance, $elementMap, 'customer_phone', $enquiry->customer?->telephone1);
+        $this->storeValue($instance, $elementMap, 'customer_tel_fax', $enquiry->customer?->telephone1);
+        $this->storeValue($instance, $elementMap, 'mobile_number', $enquiry->customer?->telephone2);
+        $this->storeValue($instance, $elementMap, 'customer_mobile', $enquiry->customer?->telephone2);
         $this->storeValue($instance, $elementMap, 'crm_customer_id', $enquiry->crm_customer_id);
         $this->storeValue($instance, $elementMap, 'reporting_language', $enquiry->reporting_language);
         $this->storeValue($instance, $elementMap, 'request_date_of_service', $this->formatDate($enquiry->request_date_of_service));
@@ -257,7 +264,11 @@ final class PortalEnquiryFormInstanceSyncService
                 continue;
             }
 
-            $parameterIds = $line['analysis_element_ids'] ?? $line['parameter_ids'] ?? [];
+            $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $parameterIds = $line['analysis_element_ids']
+                ?? $line['parameter_ids']
+                ?? $attributes['analysis_element_ids']
+                ?? [];
             if (! is_array($parameterIds)) {
                 $parameterIds = [];
             }
@@ -324,17 +335,21 @@ final class PortalEnquiryFormInstanceSyncService
         SubmissionFormInstance $instance,
         SampleSubmissionRequest $enquiry,
         SubmissionForm $form,
+        bool $submit,
     ): void {
         $instance->crm_customer_id = $enquiry->crm_customer_id;
         $instance->zone_id = $enquiry->zone_id;
+        $instance->source_channel = $enquiry->source_channel;
         $instance->portal_request_id = (string) $enquiry->id;
         $instance->target_record_type = self::TARGET_RECORD_TYPE;
-        $instance->status = 'submitted';
+        $instance->status = $submit ? 'submitted' : 'draft';
         $instance->title = $this->instanceTitle($enquiry, $form);
         $instance->priority = $this->instancePriority($enquiry);
 
-        if ($instance->submitted_at === null) {
+        if ($submit && $instance->submitted_at === null) {
             $instance->submitted_at = now();
+        } elseif (! $submit) {
+            $instance->submitted_at = null;
         }
 
         $instance->save();

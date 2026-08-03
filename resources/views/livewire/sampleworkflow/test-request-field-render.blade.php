@@ -8,7 +8,7 @@
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
-@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id'], true))
+@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_select', 'client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id'], true))
     <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
         {{ $field['label'] ?? $fieldName }}
         @if($field['required'] ?? false)
@@ -19,7 +19,26 @@
 
 @if($fieldName === 'job_number' || $fieldName === 'crm_contact_id')
     {{-- Hidden in walk-in TRF modal --}}
-@elseif(in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client'], true))
+@elseif(in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client'], true) || ($field['type'] ?? '') === 'client_select')
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        @if(! $hideLabel)
+            <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
+                {{ $field['label'] ?? 'Client' }}
+                @if($field['required'] ?? false)
+                    <span class="text-danger">*</span>
+                @endif
+            </label>
+        @else
+            <span></span>
+        @endif
+        <button type="button"
+            class="btn btn-xs btn-outline-primary py-0 px-1"
+            wire:click="openWalkInAddCustomerModal"
+            title="Add client"
+            aria-label="Add client">
+            <i class="mdi mdi-plus" aria-hidden="true"></i>
+        </button>
+    </div>
     <select id="field_{{ $fieldId }}" wire:model.live="selectedCrmCustomerId"
         class="{{ $controlClass }} @error('formData.customer_name') is-invalid @enderror @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif>
@@ -169,8 +188,8 @@
             <span></span>
         @endif
         <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
-            wire:click="openWalkInAddContactModal" title="Add customer contact">
-            <i class="mdi mdi-plus"></i>
+            wire:click="openWalkInAddContactModal" title="Add customer contact" aria-label="Add customer contact">
+            <i class="mdi mdi-plus" aria-hidden="true"></i>
         </button>
     </div>
     <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"

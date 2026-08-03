@@ -11,6 +11,7 @@ use App\SampleHeader;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class QuotationHeader extends Model implements Auditable
@@ -105,6 +106,16 @@ class QuotationHeader extends Model implements Auditable
     public function revisionOf(): BelongsTo
     {
         return $this->belongsTo(self::class, 'revision_of_quotation_header_id');
+    }
+
+    public function sourceQuotation(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_quotation_header_id');
+    }
+
+    public function enquiryCopies(): HasMany
+    {
+        return $this->hasMany(self::class, 'source_quotation_header_id');
     }
 
     public function revisions()

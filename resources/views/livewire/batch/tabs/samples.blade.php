@@ -949,7 +949,8 @@
                     @if($parametersReadOnly)
                     <div class="alert alert-warning border mb-3">
                         <i class="mdi mdi-lock-outline"></i>
-                        Assign a lab section in your profile before capturing results. You can view parameters but cannot fill or save them.
+                        {{ app(\App\Services\Sampleworkflow\LabSectionResultAccess::class)->denyEditMessage(auth()->user()) }}
+                        You can view parameters but cannot fill or save them.
                     </div>
                     @else
                         @if($this->hasNonEditableParameters)
@@ -1167,9 +1168,13 @@
                                         </select>
                                     </td>
                                     <td style="min-width: 140px;">
-                                        <small class="text-muted d-block">
-                                            {{ $param['operator_name'] ?? auth()->user()?->name ?? 'Current user' }}
-                                        </small>
+                                        @forelse(($param['operator_names'] ?? []) as $operatorName)
+                                            <span class="badge badge-light border mr-1 mb-1">{{ $operatorName }}</span>
+                                        @empty
+                                            <small class="text-muted d-block">
+                                                {{ $param['operator_name'] ?? auth()->user()?->name ?? 'Current user' }}
+                                            </small>
+                                        @endforelse
                                     </td>
                                     <td style="min-width: 140px;">
                                         <select class="form-control form-control-sm"

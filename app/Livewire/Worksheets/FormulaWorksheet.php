@@ -164,10 +164,12 @@ class FormulaWorksheet extends Component
     {
         $access = app(LabSectionResultAccess::class);
         $user = Auth::user();
-        $this->worksheetsReadOnly = ! $access->hasLabSectionAssignment($user);
         $this->worksheetsSectionFiltered = $access->hasLabSectionAssignment($user);
 
         $this->capturedResults = $this->loadCapturedResultsForWorksheet();
+        $this->worksheetsReadOnly = $this->capturedResults->isEmpty()
+            ? ! $access->hasLabSectionAssignment($user)
+            : ! $access->canEditAllCapturedResults($user, $this->capturedResults);
 
         // Get formula steps (input, derived, dataset, lookup)
         $this->formulaSteps = FormulaStep::where('formula_version_id', $this->formula->activeVersion->id)
@@ -493,9 +495,17 @@ class FormulaWorksheet extends Component
     {
         try {
             $access = app(LabSectionResultAccess::class);
-            if (! $access->hasLabSectionAssignment(Auth::user())) {
-                $this->setMessage($access->denyEditMessage(Auth::user()), 'error');
+            $user = Auth::user();
+            if ($this->worksheetsReadOnly) {
+                $this->setMessage($access->denyEditMessage($user), 'error');
                 return;
+            }
+
+            foreach ($this->capturedResults as $captured) {
+                if (! $access->canEditCapturedResult($user, $captured)) {
+                    $this->setMessage($access->denyEditMessage($user), 'error');
+                    return;
+                }
             }
 
             DB::beginTransaction();
@@ -1497,9 +1507,17 @@ class FormulaWorksheet extends Component
     {
         try {
             $access = app(LabSectionResultAccess::class);
-            if (! $access->hasLabSectionAssignment(Auth::user())) {
-                $this->setMessage($access->denyEditMessage(Auth::user()), 'error');
+            $user = Auth::user();
+            if ($this->worksheetsReadOnly) {
+                $this->setMessage($access->denyEditMessage($user), 'error');
                 return;
+            }
+
+            foreach ($this->capturedResults as $captured) {
+                if (! $access->canEditCapturedResult($user, $captured)) {
+                    $this->setMessage($access->denyEditMessage($user), 'error');
+                    return;
+                }
             }
 
             // Load available standards for dropdowns

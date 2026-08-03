@@ -11,10 +11,13 @@ use App\Models\GroupedWorksheets\GroupedWorksheetRun;
 use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\StageHeader;
 use App\SampleHeader;
+use App\Services\GroupedWorksheets\GroupedResultsCaptureService;
 use App\Services\GroupedWorksheets\GroupedWorksheetCapturePreviewService;
 use App\Services\GroupedWorksheets\GroupedWorksheetPipelineStages;
 use App\Services\GroupedWorksheets\GroupedWorksheetRunService;
+use App\Services\Sampleworkflow\LabSectionResultAccess;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class GroupedWorksheetWizard extends Component
@@ -100,6 +103,42 @@ class GroupedWorksheetWizard extends Component
             };
         }
 
+        $procedureWorksheetId = null;
+        $procedureSectionKey = null;
+        $procedureRowKeys = null;
+        $procedureShowConfigFields = true;
+        $msStageOrder = null;
+        $embeddedProcedureOnMs = false;
+
+        if ($current) {
+            $type = $current->getItemTypeEnum();
+
+            if ($type === GroupedWorksheetItemType::Procedure) {
+                $procedureWorksheetId = $current->reference_id;
+                $procedureSectionKey = $current->getConfigValue('section_key');
+                $rowKeys = $current->getConfigValue('row_keys');
+                $procedureRowKeys = is_array($rowKeys) ? array_values($rowKeys) : null;
+                $procedureShowConfigFields = (bool) ($current->getConfigValue('show_config_fields') ?? true);
+            }
+
+            if ($type === GroupedWorksheetItemType::StageHeader) {
+                $order = $current->getConfigValue('stage_order');
+                $msStageOrder = $order !== null && $order !== '' ? (int) $order : null;
+
+                // Optional same-page matrix: StageHeader config may link a procedure section.
+                $linkedProcedureId = $current->getConfigValue('procedure_worksheet_id');
+                $linkedSectionKey = $current->getConfigValue('section_key');
+                if (filled($linkedProcedureId) && filled($linkedSectionKey)) {
+                    $procedureWorksheetId = (string) $linkedProcedureId;
+                    $procedureSectionKey = (string) $linkedSectionKey;
+                    $rowKeys = $current->getConfigValue('row_keys');
+                    $procedureRowKeys = is_array($rowKeys) ? array_values($rowKeys) : null;
+                    $procedureShowConfigFields = (bool) ($current->getConfigValue('show_config_fields') ?? false);
+                    $embeddedProcedureOnMs = true;
+                }
+            }
+        }
+
         return view('livewire.worksheets.grouped-worksheet-wizard', [
             'items' => $items,
             'currentItem' => $current,
@@ -110,13 +149,17 @@ class GroupedWorksheetWizard extends Component
             'stageHeadersPayload' => $this->stageHeadersPayload($stageHeaders),
             'hybridWorksheet' => $hybridWorksheet,
             'logEntryWorksheetId' => $logEntryWorksheetId,
-            'procedureWorksheetId' => $current?->getItemTypeEnum() === GroupedWorksheetItemType::Procedure
-                ? $current->reference_id
-                : null,
+            'procedureWorksheetId' => $procedureWorksheetId,
+            'procedureSectionKey' => $procedureSectionKey,
+            'procedureRowKeys' => $procedureRowKeys,
+            'procedureShowConfigFields' => $procedureShowConfigFields,
+            'msStageOrder' => $msStageOrder,
+            'embeddedProcedureOnMs' => $embeddedProcedureOnMs,
             'isRunComplete' => $this->run->status === GroupedWorksheetRunStatus::Completed,
             'isVirtualResultsCapture' => $current
                 ? $pipelineStages->isVirtualResultsCapture($current)
                 : false,
+            'holderPipelineMode' => $this->holder->getSettingValue('pipeline_mode', 'classic'),
         ]);
     }
 
@@ -131,6 +174,35 @@ class GroupedWorksheetWizard extends Component
     {
         if ($this->run->status === GroupedWorksheetRunStatus::Completed) {
             return;
+        }
+
+        $current = $this->currentItem();
+        if ($current && app(GroupedWorksheetPipelineStages::class)->isVirtualResultsCapture($current)) {
+            if (! app(GroupedResultsCaptureService::class)->hasPostedResults($this->batch, $this->holder)) {
+                $this->setMessage(
+                    'Post Results Capture before completing the pipeline.',
+                    'error'
+                );
+
+                return;
+            }
+        }
+
+        // Stock deduction when completing a phase that has a matrix section
+        // (standalone Procedure chip, or StageHeader with embedded procedure).
+        if ($current) {
+            $sectionKey = $current->getConfigValue('section_key');
+            $hasMatrix = filled($sectionKey) && (
+                $current->getItemTypeEnum() === GroupedWorksheetItemType::Procedure
+                || (
+                    $current->getItemTypeEnum() === GroupedWorksheetItemType::StageHeader
+                    && filled($current->getConfigValue('procedure_worksheet_id'))
+                )
+            );
+
+            if ($hasMatrix) {
+                $this->dispatch('deductMatrixSectionStock')->to('worksheets.procedure-worksheet-manager');
+            }
         }
 
         $this->run = app(GroupedWorksheetRunService::class)->completeCurrentStage($this->run);
@@ -167,6 +239,8 @@ class GroupedWorksheetWizard extends Component
     {
         $this->run = app(GroupedWorksheetRunService::class)->goToStage($this->run, $index);
         $this->refreshCapturePreview();
+        // Force Method Sequences widget to remount/rebind after pipeline navigation.
+        $this->dispatch('grouped-pipeline-stage-changed');
     }
 
     public function handleStageCompleted(): void
@@ -180,7 +254,11 @@ class GroupedWorksheetWizard extends Component
      */
     protected function stageHeadersPayload(Collection $stageHeaders): array
     {
-        return $stageHeaders->map(function ($stageHeader) {
+        $access = app(LabSectionResultAccess::class);
+        $user = Auth::user();
+        $batchSampleIds = $this->batch->samples()->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        return $stageHeaders->map(function ($stageHeader) use ($access, $user, $batchSampleIds) {
             return [
                 'id' => $stageHeader->id,
                 'name' => $stageHeader->name,
@@ -189,6 +267,11 @@ class GroupedWorksheetWizard extends Component
                 'sample_type_name' => $stageHeader->sampleType ? $stageHeader->sampleType->name : 'All',
                 'total_days' => $stageHeader->total_days,
                 'stages_count' => $stageHeader->testStages->count(),
+                'can_edit' => $access->canEditStageHeaderResults(
+                    $user,
+                    (string) $stageHeader->id,
+                    $batchSampleIds
+                ),
             ];
         })->values()->all();
     }

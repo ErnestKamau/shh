@@ -12,6 +12,7 @@ use App\QuotationHeader;
 use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Commercial\CommercialEnquiryCustomerResolver;
+use App\Services\Commercial\EnquiryFromQuotationService;
 use App\Services\Commercial\EnquiryReviewDisplayService;
 use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
@@ -115,6 +116,8 @@ class ProcessEnquiryWizard extends Component
 
     /** Soft mismatch warning when using an existing quotation. */
     public string $quotationMismatchWarning = '';
+
+    public bool $requiresNewQuotationHeader = false;
 
     public bool $quotationPendingApproval = false;
 
@@ -301,7 +304,7 @@ class ProcessEnquiryWizard extends Component
         $this->enquiryStatus = (string) $enquiry->status;
         $this->sourceChannel = (string) ($enquiry->source_channel ?? '');
         $channel = strtolower(trim($this->sourceChannel));
-        if ($channel === 'walk_in') {
+        if (in_array($channel, ['walk_in', EnquiryFromQuotationService::SOURCE_CHANNEL], true)) {
             $this->sendPortal = false;
             $this->sendEmail = true;
         } else {
@@ -329,7 +332,7 @@ class ProcessEnquiryWizard extends Component
         $this->statusLevel = 'info';
         $this->statusAutoDismiss = false;
         $this->pdfGenerated = ! empty($header?->upload_url);
-        $this->quotationSent = $this->enquiryQuotationWasSent($enquiry, $header);
+        $this->quotationSent = $this->enquiryQuotationWasSent($enquiry);
         $this->syncApprovalState($enquiry, $header);
         $this->quotationManuallyEdited = false;
         $this->showBuildQuotationModal = false;
@@ -344,6 +347,7 @@ class ProcessEnquiryWizard extends Component
         $this->existingQuotationSearch = '';
         $this->showExistingQuotationDropdown = false;
         $this->quotationMismatchWarning = '';
+        $this->requiresNewQuotationHeader = false;
         $this->refreshExistingQuotationOptions();
 
         if ($header !== null && $header->details->isNotEmpty()) {
@@ -486,11 +490,13 @@ class ProcessEnquiryWizard extends Component
 
     private function syncQuotationModeState(string $value): void
     {
+        $switchingFromExistingQuotation = $this->selectedExistingQuotationId !== null;
         $this->quotationMismatchWarning = '';
         $this->existingQuotationSearch = '';
         $this->showExistingQuotationDropdown = false;
 
         if ($value === 'use_existing') {
+            $this->requiresNewQuotationHeader = false;
             $this->refreshExistingQuotationOptions();
             if ($this->selectedExistingQuotationId) {
                 $this->applySelectedExistingQuotation();
@@ -505,7 +511,26 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        if ($switchingFromExistingQuotation && $this->enquiryId !== null) {
+            $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+            if ($enquiry !== null) {
+                $enquiry = app(QuotationFromEnquiryService::class)
+                    ->detachExistingQuotationFromEnquiry($enquiry, (string) $this->selectedExistingQuotationId);
+                $this->enquiryStatus = (string) $enquiry->status;
+            }
+        }
+
         $this->selectedExistingQuotationId = null;
+        if ($switchingFromExistingQuotation) {
+            $this->requiresNewQuotationHeader = true;
+            $this->quotationHeaderId = null;
+            $this->quoteNumber = '';
+            $this->pdfGenerated = false;
+            $this->quotationSent = false;
+            $this->quotationPendingApproval = false;
+            $this->quotationApprovedReadyToSend = false;
+            $this->quotationReviewedByName = '';
+        }
         $this->rebuildQuotationLinesFromSampleConfigs();
         $this->quotationBuilt = false;
         $this->clearStatus();
@@ -665,6 +690,8 @@ class ProcessEnquiryWizard extends Component
             $this->quotationBuilt = true;
             $this->quotationManuallyEdited = false;
             $this->pdfGenerated = ! empty($header->upload_url);
+            $this->quotationSent = $this->enquiryQuotationWasSent($enquiry);
+            $this->syncApprovalState($enquiry, $header);
 
             $warnings = $service->quotationMismatchWarnings($this->sampleConfigs, $header);
             $this->quotationMismatchWarning = implode(' ', $warnings);
@@ -1441,9 +1468,9 @@ class ProcessEnquiryWizard extends Component
         }
     }
 
-    private function enquiryQuotationWasSent(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): bool
+    private function enquiryQuotationWasSent(SampleSubmissionRequest $enquiry): bool
     {
-        if ($header?->sent_to_customer_at !== null) {
+        if ($enquiry->quotation_first_sent_to_customer_at !== null) {
             return true;
         }
 
@@ -1463,8 +1490,10 @@ class ProcessEnquiryWizard extends Component
             || (
                 $header !== null
                 && (int) $header->is_approved === 1
-                && $header->sent_to_customer_at === null
-                && (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND
+                && (
+                    (string) $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND
+                    || ($this->quotationMode === 'use_existing' && ! $this->quotationSent)
+                )
             );
 
         $this->quotationReviewedByName = $approvalService->resolveApproverName($header);
@@ -1642,7 +1671,10 @@ class ProcessEnquiryWizard extends Component
         $this->crmCustomerId = (string) ($enquiry->crm_customer_id ?? '');
 
         $quotationService = app(QuotationFromEnquiryService::class);
-        $header = $quotationService->createOrOpen($enquiry);
+        $header = $this->requiresNewQuotationHeader
+            ? $quotationService->createNewFromEnquiry($enquiry)
+            : $quotationService->createOrOpen($enquiry);
+        $this->requiresNewQuotationHeader = false;
         $header->loadMissing('details');
         $enquiry->refresh();
 

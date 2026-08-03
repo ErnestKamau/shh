@@ -838,118 +838,298 @@ trait HandlesStageHeaderMethodSequences
         $updateData = [];
 
         // ===== SMART MERGE: Compare DB data with DOM data =====
-        // Save if: (1) new items added, (2) items removed, or (3) DB has legacy format (upgrade to full objects with metadata)
-        
+        // Save if: (1) new items added, (2) items removed, or (3) DB has legacy/raw template format
+        // IDs may be integers or UUIDs — never cast with (int).
+
+        $normalizeItemId = function ($id): ?string {
+            if ($id === null || $id === '' || $id === 0 || $id === '0') {
+                return null;
+            }
+
+            $string = trim((string) $id);
+            if ($string === '' || strcasecmp($string, 'NaN') === 0) {
+                return null;
+            }
+
+            return $string;
+        };
+
         // Helper function to extract IDs from database JSON data
-        $extractIds = function($jsonData) {
-            if (empty($jsonData)) return [];
+        $extractIds = function ($jsonData) use ($normalizeItemId) {
+            if (empty($jsonData)) {
+                return [];
+            }
             $data = is_string($jsonData) ? json_decode($jsonData, true) : $jsonData;
-            if (!is_array($data)) return [];
-            
-            // If it's in legacy format: ["31", "32"] (just IDs as strings)
-            if (isset($data[0]) && is_string($data[0])) {
-                return array_map('intval', $data);
+            if (! is_array($data)) {
+                return [];
             }
-            
-            // If it's new format: [{id: 31, ...}, {id: 32, ...}] (objects with item data)
-            if (isset($data['equipment_items']) || isset($data['controls_items']) || 
-                isset($data['media_items']) || isset($data['diluents_items'])) {
-                $items = $data['equipment_items'] ?? $data['controls_items'] ?? 
-                         $data['media_items'] ?? $data['diluents_items'] ?? [];
-                return array_map(function($item) { return (int)$item['id']; }, $items);
+
+            // Legacy format: ["31", "uuid", ...]
+            if (array_is_list($data) && isset($data[0]) && ! is_array($data[0])) {
+                return array_values(array_filter(array_map($normalizeItemId, $data)));
             }
-            
+
+            // Wrapped format: { media_items: [{id: ...}, ...] }
+            if (isset($data['equipment_items']) || isset($data['controls_items'])
+                || isset($data['media_items']) || isset($data['diluents_items'])) {
+                $items = $data['equipment_items'] ?? $data['controls_items']
+                    ?? $data['media_items'] ?? $data['diluents_items'] ?? [];
+
+                return array_values(array_filter(array_map(
+                    fn ($item) => $normalizeItemId(is_array($item) ? ($item['id'] ?? null) : null),
+                    $items
+                )));
+            }
+
+            // Raw template format copied at run create: [{id, result_nature, is_mandatory}, ...]
+            if (array_is_list($data) && isset($data[0]) && is_array($data[0])) {
+                return array_values(array_filter(array_map(
+                    fn ($item) => $normalizeItemId($item['id'] ?? null),
+                    $data
+                )));
+            }
+
             return [];
         };
 
-        // Helper to detect if DB has legacy format (ID-only strings without metadata)
-        $hasLegacyFormat = function($jsonData) {
-            if (empty($jsonData)) return false;
+        // True when DB still needs upgrade to wrapped *_items format (or ID-only legacy list).
+        $needsFormatUpgrade = function ($jsonData) {
+            if (empty($jsonData)) {
+                return false;
+            }
             $data = is_string($jsonData) ? json_decode($jsonData, true) : $jsonData;
-            if (!is_array($data)) return false;
-            
-            // Check if it's an array of ID strings: ["31", "32"] (no metadata)
-            return isset($data[0]) && is_string($data[0]) && is_numeric($data[0]);
+            if (! is_array($data) || $data === []) {
+                return false;
+            }
+
+            if (isset($data['equipment_items']) || isset($data['controls_items'])
+                || isset($data['media_items']) || isset($data['diluents_items'])) {
+                return false;
+            }
+
+            // ID-only list or raw template object list from test stage config.
+            return array_is_list($data);
         };
 
         // Helper to decide if we should update
-        $shouldUpdate = function($dbData, $requestItems) use ($extractIds, $hasLegacyFormat) {
-            if (empty($requestItems)) return false; // No items to save
-            
+        $shouldUpdate = function ($dbData, $requestItems) use ($extractIds, $needsFormatUpgrade, $normalizeItemId) {
+            if (empty($requestItems)) {
+                return false;
+            }
+
             $dbIds = $extractIds($dbData);
-            $requestIds = array_map(function($item) { return (int)$item['id']; }, $requestItems);
-            
+            $requestIds = array_values(array_filter(array_map(
+                fn ($item) => $normalizeItemId(is_array($item) ? ($item['id'] ?? null) : null),
+                $requestItems
+            )));
+
             sort($dbIds);
             sort($requestIds);
-            
-            // Different ID sets = new items added or removed → UPDATE
+
             if ($dbIds !== $requestIds) {
                 return true;
             }
-            
-            // ALWAYS update if DB has legacy format (just IDs without metadata)
-            // This ensures we capture serial numbers, prep dates, remarks, calibration, etc.
-            // Even if IDs match, the DOM data has metadata that needs to be saved
-            if ($hasLegacyFormat($dbData)) {
+
+            // Upgrade raw/legacy formats even when IDs match so Step 6 can read media_items.
+            if ($needsFormatUpgrade($dbData)) {
                 return true;
             }
-            
-            return false; // Same IDs and DB already has full object data with metadata → skip
+
+            return false;
         };
 
         // Equipment: save if IDs differ OR if DB has legacy format
         if ($shouldUpdate($track->equipment_data, $request->equipment_items ?? [])) {
             if ($request->equipment_items) {
-                $updateData['equipment_data'] = ['equipment_items' => $request->equipment_items];
+                $equipmentItems = array_values(array_filter(array_map(function ($item) use ($normalizeItemId) {
+                    $id = $normalizeItemId($item['id'] ?? null);
+                    if ($id === null) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $id,
+                        'serial' => $item['serial'] ?? '',
+                        'calibration' => $item['calibration'] ?? '',
+                    ];
+                }, $request->equipment_items)));
+                $updateData['equipment_data'] = ['equipment_items' => $equipmentItems];
             }
         }
 
-        // Controls: save if IDs differ OR if DB has legacy format
+        // Controls: save if IDs differ OR if DB has legacy/raw format
         if ($shouldUpdate($track->controls_data, $request->controls_items ?? [])) {
             if ($request->controls_items) {
-                $controlsItems = array_map(function($item) {
+                $controlsItems = array_values(array_filter(array_map(function ($item) use ($normalizeItemId) {
+                    $id = $normalizeItemId($item['id'] ?? null);
+                    if ($id === null) {
+                        return null;
+                    }
+
                     return [
-                        'id' => (int)$item['id'],
+                        'id' => $id,
+                        'name' => $item['name'] ?? null,
                         'result_nature' => $item['result_nature'] ?? 'none',
                         'is_mandatory' => $item['is_mandatory'] ?? '1',
                         'preparation' => $item['preparation'] ?? '',
                         'expiry' => $item['expiry'] ?? '',
                     ];
-                }, $request->controls_items);
+                }, $request->controls_items)));
                 $updateData['controls_data'] = ['controls_items' => $controlsItems];
             }
         }
 
-        // Media: save if IDs differ OR if DB has legacy format
+        // Media: save if IDs differ OR if DB has legacy/raw format
         if ($shouldUpdate($track->media_data, $request->media_items ?? [])) {
             if ($request->media_items) {
-                $mediaItems = array_map(function($item) {
+                $mediaItems = array_values(array_filter(array_map(function ($item) use ($normalizeItemId) {
+                    $id = $normalizeItemId($item['id'] ?? null);
+                    if ($id === null) {
+                        return null;
+                    }
+
                     return [
-                        'id' => (int)$item['id'],
+                        'id' => $id,
+                        'name' => $item['name'] ?? null,
                         'result_nature' => $item['result_nature'] ?? 'none',
                         'is_mandatory' => $item['is_mandatory'] ?? '1',
                         'preparation' => $item['preparation'] ?? '',
                         'preparation_number' => $item['preparation_number'] ?? '',
                     ];
-                }, $request->media_items);
+                }, $request->media_items)));
                 $updateData['media_data'] = ['media_items' => $mediaItems];
             }
         }
 
-        // Diluents: save if IDs differ OR if DB has legacy format
+        // Diluents: save if IDs differ OR if DB has legacy/raw format
         if ($shouldUpdate($track->diluents_data, $request->diluents_items ?? [])) {
             if ($request->diluents_items) {
-                $diluentsItems = array_map(function($item) {
+                $diluentsItems = array_values(array_filter(array_map(function ($item) use ($normalizeItemId) {
+                    $id = $normalizeItemId($item['id'] ?? null);
+                    if ($id === null) {
+                        return null;
+                    }
+
                     return [
-                        'id' => (int)$item['id'],
+                        'id' => $id,
+                        'name' => $item['name'] ?? null,
                         'result_nature' => $item['result_nature'] ?? 'none',
                         'is_mandatory' => $item['is_mandatory'] ?? '1',
                         'preparation_date' => $item['preparation_date'] ?? '',
                         'preparation_number' => $item['preparation_number'] ?? '',
                         'expiry' => $item['expiry'] ?? '',
                     ];
-                }, $request->diluents_items);
+                }, $request->diluents_items)));
                 $updateData['diluents_data'] = ['diluents_items' => $diluentsItems];
+            }
+        }
+
+        $isValidInventoryId = function (?string $id): bool {
+            if ($id === null || $id === '') {
+                return false;
+            }
+
+            return (bool) preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+                $id
+            );
+        };
+
+        $hasOnlyInvalidWrappedIds = function ($jsonData, string $itemsKey) use ($normalizeItemId, $isValidInventoryId): bool {
+            if (! is_array($jsonData) || empty($jsonData[$itemsKey]) || ! is_array($jsonData[$itemsKey])) {
+                return false;
+            }
+
+            $valid = 0;
+            foreach ($jsonData[$itemsKey] as $item) {
+                $id = $normalizeItemId(is_array($item) ? ($item['id'] ?? null) : null);
+                if ($isValidInventoryId($id)) {
+                    $valid++;
+                }
+            }
+
+            return $valid === 0;
+        };
+
+        // If DOM sent nothing but track still has raw/corrupted lists, upgrade/repair for Step 6.
+        $track->loadMissing('testStage');
+        foreach ([
+            'media' => [
+                'data' => $track->media_data,
+                'key' => 'media_items',
+                'column' => 'media_data',
+                'required' => $track->testStage?->media_required,
+            ],
+            'control' => [
+                'data' => $track->controls_data,
+                'key' => 'controls_items',
+                'column' => 'controls_data',
+                'required' => $track->testStage?->controls_required,
+            ],
+            'diluents' => [
+                'data' => $track->diluents_data,
+                'key' => 'diluents_items',
+                'column' => 'diluents_data',
+                'required' => $track->testStage?->diluents_required,
+            ],
+        ] as $meta) {
+            $column = $meta['column'];
+            if (isset($updateData[$column])) {
+                continue;
+            }
+
+            $needsUpgrade = $needsFormatUpgrade($meta['data'])
+                || $hasOnlyInvalidWrappedIds($meta['data'], $meta['key']);
+            if (! $needsUpgrade) {
+                continue;
+            }
+
+            $raw = is_array($meta['data']) ? $meta['data'] : [];
+            if (isset($raw[$meta['key']]) && is_array($raw[$meta['key']])) {
+                $raw = $raw[$meta['key']];
+            }
+
+            $upgraded = [];
+            foreach ($raw as $item) {
+                if (is_string($item) || is_numeric($item)) {
+                    $id = $normalizeItemId($item);
+                    if ($isValidInventoryId($id)) {
+                        $upgraded[] = ['id' => $id, 'result_nature' => 'none', 'is_mandatory' => '1'];
+                    }
+                    continue;
+                }
+                if (! is_array($item)) {
+                    continue;
+                }
+                $id = $normalizeItemId($item['id'] ?? null);
+                if (! $isValidInventoryId($id)) {
+                    continue;
+                }
+                $upgraded[] = array_merge($item, ['id' => $id]);
+            }
+
+            // Repair from stage template when wrapped rows were corrupted by parseInt.
+            if ($upgraded === []) {
+                $required = $meta['required'] ?? [];
+                if (! is_array($required)) {
+                    $required = json_decode((string) $required, true) ?? [];
+                }
+                foreach ($required as $item) {
+                    $id = $normalizeItemId(is_array($item) ? ($item['id'] ?? null) : $item);
+                    if (! $isValidInventoryId($id)) {
+                        continue;
+                    }
+                    $row = is_array($item) ? $item : [];
+                    $upgraded[] = array_merge($row, [
+                        'id' => $id,
+                        'result_nature' => $row['result_nature'] ?? 'qualitative',
+                        'is_mandatory' => $row['is_mandatory'] ?? true,
+                    ]);
+                }
+            }
+
+            if ($upgraded !== []) {
+                $updateData[$column] = [$meta['key'] => $upgraded];
             }
         }
 
@@ -1032,24 +1212,21 @@ trait HandlesStageHeaderMethodSequences
                     // Determine if remark should be auto-calculated or manual
                     $remark = '';
                     $isAutoCalculated = false;
-                    
-                    if (!empty($result['result'])) {
-                        $resultRemarkService = app(\App\Services\ResultRemarkService::class);
-                        $shouldAutoCalculate = $resultRemarkService->shouldAutoCalculateRemark(
-                            $capturedResult,
-                            $result['reporting_symbol'] ?? null
-                        );
+
+                    if (! empty($result['result'])) {
+                        $shouldAutoCalculate = ! $this->isRemarkManualForCapturedResult($capturedResult);
 
                         if ($shouldAutoCalculate) {
-                            $remark = $resultRemarkService->calculateResultRemark(
+                            $remark = app(\App\Services\ResultRemarkService::class)->calculateRemark(
                                 $capturedResult,
                                 $result['result'],
+                                $result['standard_limit'] ?? null,
+                                null,
                                 $result['reporting_symbol'] ?? null
                             );
                             $isAutoCalculated = true;
                         } else {
                             $remark = $result['remark'] ?? '';
-                            $isAutoCalculated = false;
                         }
                     } else {
                         $remark = $result['remark'] ?? '';
@@ -1083,14 +1260,13 @@ trait HandlesStageHeaderMethodSequences
                 $updatedMediaData = $track->media_data ?? [];
                 if (isset($updatedMediaData['media_items']) && is_array($updatedMediaData['media_items'])) {
                     foreach ($updatedMediaData['media_items'] as &$mediaItem) {
-                        $mediaId = $mediaItem['id'];
-                        $mediaResult = collect($mediaResults)->firstWhere('media_id', $mediaId);
+                        $mediaId = (string) ($mediaItem['id'] ?? '');
+                        $mediaResult = collect($mediaResults)->first(
+                            fn ($r) => isset($r['media_id']) && (string) $r['media_id'] === $mediaId
+                        );
                         if ($mediaResult) {
                             $mediaItem['result'] = $mediaResult['result'] ?? '';
                             $mediaItem['remark'] = $mediaResult['remark'] ?? '';
-                        } else {
-                            $mediaItem['result'] = '';
-                            $mediaItem['remark'] = '';
                         }
                     }
                     unset($mediaItem); // Unset reference
@@ -1118,14 +1294,13 @@ trait HandlesStageHeaderMethodSequences
                 $updatedControlsData = $track->controls_data ?? [];
                 if (isset($updatedControlsData['controls_items']) && is_array($updatedControlsData['controls_items'])) {
                     foreach ($updatedControlsData['controls_items'] as &$controlItem) {
-                        $controlId = $controlItem['id'];
-                        $controlResult = collect($controlResults)->firstWhere('control_id', $controlId);
+                        $controlId = (string) ($controlItem['id'] ?? '');
+                        $controlResult = collect($controlResults)->first(
+                            fn ($r) => isset($r['control_id']) && (string) $r['control_id'] === $controlId
+                        );
                         if ($controlResult) {
                             $controlItem['result'] = $controlResult['result'] ?? '';
                             $controlItem['remark'] = $controlResult['remark'] ?? '';
-                        } else {
-                            $controlItem['result'] = '';
-                            $controlItem['remark'] = '';
                         }
                     }
                     unset($controlItem); // Unset reference
@@ -1153,14 +1328,13 @@ trait HandlesStageHeaderMethodSequences
                 $updatedDiluentData = $track->diluents_data ?? [];
                 if (isset($updatedDiluentData['diluents_items']) && is_array($updatedDiluentData['diluents_items'])) {
                     foreach ($updatedDiluentData['diluents_items'] as &$diluentItem) {
-                        $diluentId = $diluentItem['id'];
-                        $diluentResult = collect($diluentResults)->firstWhere('diluent_id', $diluentId);
+                        $diluentId = (string) ($diluentItem['id'] ?? '');
+                        $diluentResult = collect($diluentResults)->first(
+                            fn ($r) => isset($r['diluent_id']) && (string) $r['diluent_id'] === $diluentId
+                        );
                         if ($diluentResult) {
                             $diluentItem['result'] = $diluentResult['result'] ?? '';
                             $diluentItem['preparation_number'] = $diluentResult['preparation_number'] ?? '';
-                        } else {
-                            $diluentItem['result'] = '';
-                            $diluentItem['preparation_number'] = '';
                         }
                     }
                     unset($diluentItem); // Unset reference
@@ -1247,13 +1421,14 @@ trait HandlesStageHeaderMethodSequences
         $mediaCategoryId = \App\Models\System\SystemConfiguration::where('key', 'media_solution_type_id')->value('value');
         $media = $mediaCategoryId
             ? \App\LabSubCategory::where('category_id', $mediaCategoryId)->where('active', 1)
-                ->get(['id', 'name', 'batch_prepared_date', 'current_batch_number'])
+                ->get(['id', 'name', 'batch_prepared_date', 'batch_expiry_date', 'current_batch_number'])
                 ->map(function ($m) {
                     return [
                         'id' => $m->id,
                         'name' => $m->name,
                         'latest_prep_date' => $m->batch_prepared_date ? \Carbon\Carbon::parse($m->batch_prepared_date)->format('Y-m-d') : null,
-                        'latest_prep_number' => $m->current_batch_number ?? ''
+                        'latest_prep_number' => $m->current_batch_number ?? '',
+                        'expiry_date' => $m->batch_expiry_date ? \Carbon\Carbon::parse($m->batch_expiry_date)->format('Y-m-d') : null,
                     ];
                 })
                 ->values()
@@ -1413,12 +1588,32 @@ trait HandlesStageHeaderMethodSequences
                     if (isset($mediaMap[$id])) {
                         $name = (string)$mediaMap[$id]['name'];
                     }
+
+                    $mediaSource = $mediaMap[$id] ?? [];
+                    $preparationDate = (string)($item['preparation'] ?? '');
+                    $preparationNumber = (string)($item['preparation_number'] ?? $item['remark'] ?? '');
+                    if ($preparationDate === '') {
+                        $preparationDate = (string)($mediaSource['latest_prep_date'] ?? '');
+                    }
+                    if ($preparationNumber === '') {
+                        $preparationNumber = (string)($mediaSource['latest_prep_number'] ?? '');
+                    }
+
+                    $expiry = (string)($item['expiry'] ?? '');
+                    if (
+                        $expiry === ''
+                        && $preparationNumber !== ''
+                        && $preparationNumber === (string)($mediaSource['latest_prep_number'] ?? '')
+                    ) {
+                        $expiry = (string)($mediaSource['expiry_date'] ?? '');
+                    }
                     
                     $currentItems['media'][] = [
                         'id' => $id,
                         'name' => $name,
-                        'preparation' => (string)($item['preparation'] ?? ''),
-                        'preparation_number' => (string)($item['preparation_number'] ?? ''),
+                        'preparation' => $preparationDate,
+                        'preparation_number' => $preparationNumber,
+                        'expiry' => $expiry,
                         'result' => (string)($item['result'] ?? ''),
                         'result_nature' => (string)($item['result_nature'] ?? 'none')
                     ];
@@ -1437,7 +1632,8 @@ trait HandlesStageHeaderMethodSequences
                         'id' => (string)$m['id'],
                         'name' => (string)$m['name'],
                         'preparation' => (string)($m['latest_prep_date'] ?? ''),
-                        'remark' => (string)($m['latest_prep_number'] ?? '')
+                        'remark' => (string)($m['latest_prep_number'] ?? ''),
+                        'expiry' => (string)($m['expiry_date'] ?? ''),
                     ];
                 }
             }
@@ -1467,6 +1663,7 @@ trait HandlesStageHeaderMethodSequences
                         'name' => (string)$m['name'],
                         'preparation' => (string)($m['latest_prep_date'] ?? ''),
                         'remark' => (string)($m['latest_prep_number'] ?? ''),
+                        'expiry' => (string)($m['expiry_date'] ?? ''),
                         'result_nature' => $resultNature
                     ];
                 }
@@ -1487,12 +1684,27 @@ trait HandlesStageHeaderMethodSequences
                     if (isset($controlsMap[$id])) {
                         $name = (string)$controlsMap[$id]['name'];
                     }
+
+                    $controlSource = $controlsMap[$id] ?? [];
+                    $batchNumber = (string)($item['preparation'] ?? '');
+                    if ($batchNumber === '') {
+                        $batchNumber = (string)($controlSource['batch_number'] ?? '');
+                    }
+
+                    $expiry = (string)($item['expiry'] ?? '');
+                    if (
+                        $expiry === ''
+                        && $batchNumber !== ''
+                        && $batchNumber === (string)($controlSource['batch_number'] ?? '')
+                    ) {
+                        $expiry = (string)($controlSource['expiry_date'] ?? '');
+                    }
                     
                     $currentItems['controls'][] = [
                         'id' => $id,
                         'name' => $name,
-                        'preparation' => (string)($item['preparation'] ?? ''),
-                        'expiry' => (string)($item['expiry'] ?? ''),
+                        'preparation' => $batchNumber,
+                        'expiry' => $expiry,
                         'result_nature' => (string)($item['result_nature'] ?? 'none')
                     ];
                 }
@@ -1978,6 +2190,24 @@ trait HandlesStageHeaderMethodSequences
             return response()->json(['success' => false, 'message' => 'No tracking data to post.'], 400);
         }
 
+        // Grouped pipelines own the official CoA post via Results Capture.
+        // Method-sequence Post must not write CapturedResult for those rows.
+        foreach ($trackingData as $precheck) {
+            $precheckTrackId = $precheck['track_id'] ?? null;
+            if (! $precheckTrackId) {
+                continue;
+            }
+
+            $precheckTrack = \App\Models\SampleCapturedTestStagesTrack::find($precheckTrackId);
+            $precheckCaptured = $precheckTrack?->capturedResult;
+            if ($precheckCaptured && $precheckCaptured->has_grouped_worksheet) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This analysis uses a grouped pipeline. Save stage results here, then post Detected/Not Detected in Results Capture.',
+                ], 422);
+            }
+        }
+
         try {
             DB::transaction(function () use ($trackingData, $batchId, $startAnalysisDate, $endAnalysisDate, $access, $user) {
                 foreach ($trackingData as $data) {
@@ -2001,6 +2231,12 @@ trait HandlesStageHeaderMethodSequences
                     $captured = $track->capturedResult;
                     if (!$captured) {
                         throw new \Exception("Captured result not found for track: {$trackId}");
+                    }
+
+                    if ($captured->has_grouped_worksheet) {
+                        throw new \Exception(
+                            'This analysis uses a grouped pipeline. Save stage results here, then post Detected/Not Detected in Results Capture.'
+                        );
                     }
 
                     if (! $access->canEditCapturedResult($user, $captured)) {
@@ -2417,7 +2653,12 @@ trait HandlesStageHeaderMethodSequences
         $samples = [];
         $seenCapturedResultIds = [];
 
-        $runTracks = $track->stageHeaderRun?->trackRecords ?? collect();
+        // Only this stage's tracks — the run has one track per sample per stage.
+        // Using all run tracks caused Step 6 to load an empty TrackSampleResult from
+        // an earlier/later stage (same captured_result_id) and hide the saved values.
+        $runTracks = ($track->stageHeaderRun?->trackRecords ?? collect())
+            ->filter(fn ($runTrack) => (string) $runTrack->test_stage_id === (string) $track->test_stage_id)
+            ->values();
 
         foreach ($runTracks as $runTrack) {
             $cr = $runTrack->capturedResult;
@@ -2480,6 +2721,8 @@ trait HandlesStageHeaderMethodSequences
                 $cr->loadMissing(WorksheetMetaResolver::EAGER)
             );
 
+            $editForm = app(StandardLimitDisplayService::class)->structuredEditFormForCapturedResult($cr);
+
             $samples[] = [
                 'id' => $cr->id,
                 'sample_code' => $meta['sample_code'],
@@ -2498,6 +2741,7 @@ trait HandlesStageHeaderMethodSequences
                 'limit_low' => $standardAnalyte?->low,
                 'limit_high' => $standardAnalyte?->high,
                 'limit_value' => $standardValue?->code ?? null,
+                'standard_value_id' => $editForm['standard_value_id'] ?? $standardAnalyte?->standard_value_id,
                 'result' => $trackSampleResult->result ?? '',
                 'remark' => $trackSampleResult->remark ?? '',
                 'remark_is_manual' => $this->isRemarkManualForCapturedResult($cr),
@@ -2625,50 +2869,143 @@ trait HandlesStageHeaderMethodSequences
         string $type
     ): array {
         $data = $type === 'media' ? ($track->media_data ?? []) : ($track->controls_data ?? []);
+        if (! is_array($data)) {
+            $data = [];
+        }
+
         $itemsKey = $type === 'media' ? 'media_items' : 'controls_items';
         $legacyIdsKey = $type === 'media' ? 'media_ids' : 'controls_ids';
         $legacyNamesKey = $type === 'media' ? 'media_names' : 'controls_names';
         $resultModel = $type === 'media' ? \App\Models\TrackMediaResult::class : \App\Models\TrackControlResult::class;
         $foreignKey = $type === 'media' ? 'media_id' : 'control_id';
 
-        $existingResults = $resultModel::where('track_id', $track->id)->get()->keyBy($foreignKey);
+        $existingResults = $resultModel::where('track_id', $track->id)->get()->keyBy(
+            fn ($row) => (string) $row->{$foreignKey}
+        );
         $solutions = [];
 
-        if (! empty($data[$itemsKey]) && is_array($data[$itemsKey])) {
-            foreach ($data[$itemsKey] as $item) {
-                $id = $item['id'] ?? null;
-                if (! $id) {
-                    continue;
-                }
-                $existing = $existingResults->get((string) $id);
-                $solutions[] = [
-                    'id' => $id,
-                    'name' => $item['name'] ?? 'Unknown',
-                    'type' => $type,
-                    'result' => $existing?->result ?? ($item['result'] ?? ''),
-                ];
+        $isValidInventoryId = function (string $id): bool {
+            // Accept UUID inventory IDs; reject parseInt-corrupted leftovers like "19".
+            return (bool) preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+                $id
+            );
+        };
+
+        $appendSolution = function (string $id, ?string $name, mixed $fallbackResult = null) use (
+            &$solutions,
+            $existingResults,
+            $type,
+            $isValidInventoryId
+        ): void {
+            if ($id === '' || $id === '0' || ! $isValidInventoryId($id)) {
+                return;
             }
 
-            return $solutions;
-        }
-
-        $ids = $data[$legacyIdsKey] ?? [];
-        $names = $data[$legacyNamesKey] ?? [];
-        if (! is_array($ids)) {
-            return $solutions;
-        }
-
-        foreach ($ids as $index => $id) {
-            if (! $id) {
-                continue;
+            $resolvedName = trim((string) ($name ?? ''));
+            if ($resolvedName === '' || strcasecmp($resolvedName, 'Unknown') === 0) {
+                $resolvedName = (string) (\App\LabSubCategory::query()->whereKey($id)->value('name') ?? '');
             }
-            $existing = $existingResults->get((string) $id);
+            if ($resolvedName === '') {
+                $resolvedName = ucfirst($type).' '.$id;
+            }
+
+            $existing = $existingResults->get($id);
             $solutions[] = [
                 'id' => $id,
-                'name' => $names[$index] ?? ucfirst($type).' '.($index + 1),
+                'name' => $resolvedName,
                 'type' => $type,
-                'result' => $existing?->result ?? '',
+                'result' => $existing?->result ?? ($fallbackResult ?? ''),
+                'result_nature' => 'qualitative',
             ];
+        };
+
+        // Preferred wrapped format after Save Stage Details.
+        if (! empty($data[$itemsKey]) && is_array($data[$itemsKey])) {
+            foreach ($data[$itemsKey] as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+                $id = trim((string) ($item['id'] ?? ''));
+                if ($id === '' || $id === '0') {
+                    continue;
+                }
+                $appendSolution($id, isset($item['name']) ? (string) $item['name'] : null, $item['result'] ?? null);
+            }
+
+            if ($solutions !== []) {
+                return $solutions;
+            }
+            // Fall through when wrapped rows were corrupted (e.g. parseInt UUID → "19").
+        }
+
+        // Legacy { media_ids: [...], media_names: [...] }
+        $ids = $data[$legacyIdsKey] ?? null;
+        $names = $data[$legacyNamesKey] ?? [];
+        if (is_array($ids) && $ids !== []) {
+            foreach ($ids as $index => $id) {
+                $normalized = trim((string) $id);
+                if ($normalized === '' || $normalized === '0') {
+                    continue;
+                }
+                $appendSolution(
+                    $normalized,
+                    is_array($names) ? (string) ($names[$index] ?? '') : null
+                );
+            }
+
+            return $solutions;
+        }
+
+        // Raw template list copied at run create: [{id, result_nature, is_mandatory}, ...]
+        if (array_is_list($data) && $data !== []) {
+            foreach ($data as $item) {
+                if (is_string($item) || is_numeric($item)) {
+                    $normalized = trim((string) $item);
+                    if ($normalized !== '' && $normalized !== '0') {
+                        $appendSolution($normalized, null);
+                    }
+                    continue;
+                }
+                if (! is_array($item)) {
+                    continue;
+                }
+                $id = trim((string) ($item['id'] ?? ''));
+                if ($id === '' || $id === '0') {
+                    continue;
+                }
+                $appendSolution($id, isset($item['name']) ? (string) $item['name'] : null, $item['result'] ?? null);
+            }
+
+            if ($solutions !== []) {
+                return $solutions;
+            }
+        }
+
+        // Last resort: stage template config (media_required / controls_required).
+        $track->loadMissing('testStage');
+        $required = $type === 'media'
+            ? ($track->testStage?->media_required ?? [])
+            : ($track->testStage?->controls_required ?? []);
+        if (! is_array($required)) {
+            $required = json_decode((string) $required, true) ?? [];
+        }
+        foreach ($required as $item) {
+            if (is_string($item) || is_numeric($item)) {
+                $normalized = trim((string) $item);
+                if ($normalized !== '' && $normalized !== '0') {
+                    $appendSolution($normalized, null);
+                }
+                continue;
+            }
+            if (! is_array($item)) {
+                continue;
+            }
+            $id = trim((string) ($item['id'] ?? ''));
+            if ($id === '' || $id === '0') {
+                continue;
+            }
+            $appendSolution($id, isset($item['name']) ? (string) $item['name'] : null);
         }
 
         return $solutions;

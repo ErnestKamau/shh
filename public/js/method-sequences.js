@@ -14,6 +14,10 @@
         expandedStages: [],
         initialized: false, // Guard against multiple initializations
         eventsBound: false,
+        /** When set (grouped phased pipeline), only render TestStages with this order. */
+        stageOrderFilter: null,
+        /** Open first run + matching stage once after init / pipeline remount. */
+        shouldAutoExpand: true,
         
         init: function() {
             console.log('[METHOD-SEQUENCES] init() called');
@@ -31,14 +35,19 @@
 
             this.batchId = container.data('batch-id');
             this.stageHeaders = this.parseStageHeaders(container);
+            const orderFilter = container.data('stage-order-filter');
+            this.stageOrderFilter = (orderFilter !== undefined && orderFilter !== null && orderFilter !== '')
+                ? parseInt(orderFilter, 10)
+                : null;
 
             if (this.stageHeaders && this.stageHeaders.length > 0) {
+                this.shouldAutoExpand = true;
                 this.renderTabs();
                 this.activeStageHeaderId = this.stageHeaders[0].id;
                 this.loadRuns(this.activeStageHeaderId);
                 this.bindEvents();
                 this.initialized = true;
-                console.log('[METHOD-SEQUENCES] init() complete, batchId:', this.batchId);
+                console.log('[METHOD-SEQUENCES] init() complete, batchId:', this.batchId, 'stageOrderFilter:', this.stageOrderFilter);
 
                 // Start polling for timer updates every 30 seconds
                 // self.pollingInterval = setInterval(() => this.refreshActiveTab(), 30000);
@@ -160,20 +169,23 @@
 
             console.log('[METHOD-SEQUENCES] bindEvents() called');
 
-            this.initEditStandardLimitModal();
-
+            // Must off() before binding. initEditStandardLimitModal also uses
+            // .methodSequences — calling it before off() left the pencil handler unbound.
             $(document).off('.methodSequences');
+            this.editStandardModalInitialized = false;
+            this.initEditStandardLimitModal();
             
             // Tab switch
             $(document).on('shown.bs.tab.methodSequences', '#sequence-tabs a[data-toggle="tab"]', function(e) {
-                const stageHeaderId = $(e.target).data('stage-header-id');
+                const stageHeaderId = $(e.target).attr('data-stage-header-id');
                 self.activeStageHeaderId = stageHeaderId;
+                self.shouldAutoExpand = true;
                 self.loadRuns(stageHeaderId);
             });
             
             // Create run button
             $(document).on('click.methodSequences', '.create-run-btn', function() {
-                const stageHeaderId = $(this).data('stage-header-id');
+                const stageHeaderId = $(this).attr('data-stage-header-id');
                 if (!self.canEditStageHeader(stageHeaderId)) {
                     toastr.error('You can only create runs for your assigned lab section(s).');
                     return;
@@ -190,13 +202,13 @@
             
             // Toggle run expansion
             $(document).on('click.methodSequences', '.run-header', function() {
-                const runId = $(this).data('run-id');
+                const runId = $(this).attr('data-run-id');
                 self.toggleRun(runId);
             });
             
             // Start stage
             $(document).on('click.methodSequences', '.start-stage-btn', function() {
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 if (!self.canEditActiveStageHeader()) {
                     toastr.error('You can only start stages for your assigned lab section(s).');
                     return;
@@ -206,7 +218,7 @@
             
             // End stage
             $(document).on('click.methodSequences', '.end-stage-btn', function() {
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 if (!self.canEditActiveStageHeader()) {
                     toastr.error('You can only end stages for your assigned lab section(s).');
                     return;
@@ -216,7 +228,7 @@
             
             // Edit stage
             $(document).on('click.methodSequences', '.edit-stage-btn', function() {
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 if (!self.canEditActiveStageHeader()) {
                     toastr.error('You can only edit stages for your assigned lab section(s).');
                     return;
@@ -231,7 +243,7 @@
             
             // Add result button
             $(document).on('click', '.add-result-btn', function() {
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 self.showAddResultModal(trackId);
             });
             
@@ -278,31 +290,31 @@
 
             // Save Results button (multiple buttons, one per track table)
             $(document).on('click', '[id^="save-sample-results-btn-"]', function() {
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 self.saveTrackSampleResults(trackId);
             });
             
             // Toggle stage details
-            $(document).on('click', '.toggle-stage-details', function() {
-                const trackId = $(this).data('track-id');
+            $(document).on('click.methodSequences', '.toggle-stage-details', function() {
+                const trackId = $(this).attr('data-track-id');
                 self.toggleStageDetails(trackId);
             });
 
             // Step navigation
-            $(document).on('click', '.next-step-btn', function() {
-                const trackId = $(this).data('track-id');
+            $(document).on('click.methodSequences', '.next-step-btn', function() {
+                const trackId = $(this).attr('data-track-id');
                 const nextStep = $(this).data('next');
                 self.goToStep(trackId, nextStep);
             });
 
-            $(document).on('click', '.prev-step-btn', function() {
-                const trackId = $(this).data('track-id');
+            $(document).on('click.methodSequences', '.prev-step-btn', function() {
+                const trackId = $(this).attr('data-track-id');
                 const prevStep = $(this).data('prev');
                 self.goToStep(trackId, prevStep);
             });
 
-            $(document).on('click', '.stepper-header .step-item', function() {
-                const trackId = $(this).data('track-id');
+            $(document).on('click.methodSequences', '.stepper-header .step-item', function() {
+                const trackId = $(this).attr('data-track-id');
                 const step = $(this).data('step');
                 self.goToStep(trackId, step);
             });
@@ -311,9 +323,10 @@
             $(document).on('change', '.sample-result-input', function() {
                 const $input = $(this);
                 const $row = $input.closest('tr.sample-result-row');
-                const sampleId = $input.data('sample-id');
-                const capturedResultId = $input.data('captured-result-id');
-                const trackId = $input.data('track-id');
+                // Use .attr() for UUID data-* values — jQuery .data() coerces leading-zero UUIDs to numbers.
+                const sampleId = $input.attr('data-sample-id');
+                const capturedResultId = $input.attr('data-captured-result-id');
+                const trackId = $input.attr('data-track-id');
                 const result = $input.val();
                 const standardLimit = self.getStep6StandardLimit($row);
 
@@ -334,9 +347,10 @@
             $(document).on('change', '.reporting-symbol-select', function() {
                 const $select = $(this);
                 const $row = $select.closest('tr.sample-result-row');
-                const sampleId = $select.data('sample-id');
-                const capturedResultId = $select.data('captured-result-id');
-                const trackId = $select.data('track-id');
+                // Use .attr() for UUID data-* values — jQuery .data() coerces leading-zero UUIDs to numbers.
+                const sampleId = $select.attr('data-sample-id');
+                const capturedResultId = $select.attr('data-captured-result-id');
+                const trackId = $select.attr('data-track-id');
                 const reportingSymbol = $select.val();
 
                 // Get the current result value
@@ -637,7 +651,7 @@
             };
 
             $(document).on('click', '.add-solution-item', function() {
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 const type = $(this).data('type');
 
                 const pickerId = (type === 'equipment')
@@ -659,6 +673,14 @@
                 // Build the item object from form data
                 let item = { id: selectedId };
                 let itemName = $picker.find('option:selected').text();
+                const closeEntryPanel = function(entryType) {
+                    const body = $(`#${entryType}-entry-body-${trackId}`);
+                    const header = $(`.${entryType}-entry-header[data-track-id="${trackId}"]`);
+                    const icon = header.find('.solution-entry-toggle-icon');
+                    body.addClass('d-none');
+                    header.attr('aria-expanded', 'false');
+                    icon.removeClass('mdi-chevron-down').addClass('mdi-chevron-right');
+                };
 
                 if (type === 'equipment') {
                     item.serial = $(`#equipment-serial-${trackId}`).val() || '';
@@ -682,11 +704,13 @@
                     $(`#control-lot-${trackId}`).val('');
                     $(`#control-expiry-${trackId}`).val('');
                     $(`#control-result-nature-${trackId}`).val('');
+                    closeEntryPanel('control');
                     // Auto-save controls data
                     window.autoSaveStageData(trackId, 'controls');
                 } else if (type === 'media') {
                     item.preparation = $(`#media-prep-date-${trackId}`).val() || '';
                     item.remark = $(`#media-prep-no-${trackId}`).val() || '';
+                    item.expiry = $(`#media-expiry-${trackId}`).val() || '';
                     item.result_nature = $(`#media-result-nature-${trackId}`).val() || '';
                     // Render the item to the list
                     window.renderSolutionItem(trackId, type, item, itemName, item.result_nature);
@@ -694,7 +718,9 @@
                     $picker.val(null).trigger('change');
                     $(`#media-prep-date-${trackId}`).val('');
                     $(`#media-prep-no-${trackId}`).val('');
+                    $(`#media-expiry-${trackId}`).val('');
                     $(`#media-result-nature-${trackId}`).val('');
+                    closeEntryPanel('media');
                     // Auto-save media data
                     window.autoSaveStageData(trackId, 'media');
                 } else if (type === 'diluents') {
@@ -711,22 +737,19 @@
                     $(`#diluent-expiry-${trackId}`).val('');
                     $(`#diluent-result-nature-${trackId}`).val('');
                     // Close the collapsible panel
-                    const body = $(`#diluent-entry-body-${trackId}`);
-                    const header = $(`.diluent-entry-header[data-track-id="${trackId}"]`);
-                    const icon = header.find('.diluent-entry-toggle-icon');
-                    body.addClass('d-none');
-                    header.attr('aria-expanded', 'false');
-                    icon.removeClass('mdi-chevron-down').addClass('mdi-chevron-right');
+                    closeEntryPanel('diluent');
                     // Auto-save diluents data
                     window.autoSaveStageData(trackId, 'diluents');
                 }
             });
 
-            // Toggle Diluent Entry Form
-            $(document).on('click', '.diluent-entry-header', function() {
-                const trackId = $(this).data('track-id');
-                const body = $(`#diluent-entry-body-${trackId}`);
-                const icon = $(this).find('.diluent-entry-toggle-icon');
+            // Toggle solution entry forms
+            $(document).on('click', '.solution-entry-header', function() {
+                const trackId = $(this).attr('data-track-id');
+                const entryType = $(this).data('entry-type');
+                const pickerId = $(this).data('picker-id');
+                const body = $(`#${entryType}-entry-body-${trackId}`);
+                const icon = $(this).find('.solution-entry-toggle-icon');
                 const isHidden = body.hasClass('d-none');
 
                 // Toggle the form visibility
@@ -741,7 +764,7 @@
 
                 // Auto-focus first input when opened
                 if (isHidden) {
-                    const picker = $(`#diluents-picker-${trackId}`);
+                    const picker = $(`#${pickerId}-${trackId}`);
                     if (picker.length) {
                         setTimeout(() => {
                             picker.focus();
@@ -750,10 +773,40 @@
                 }
             });
 
+            $(document).on('keydown', '.solution-entry-header', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    $(this).trigger('click');
+                }
+            });
+
+            $(document).on('click', '.open-solution-entry', function() {
+                const trackId = $(this).attr('data-track-id');
+                const entryType = $(this).data('entry-type');
+                const pickerId = $(this).data('picker-id');
+                const body = $(`#${entryType}-entry-body-${trackId}`);
+                const header = $(`.${entryType}-entry-header[data-track-id="${trackId}"]`);
+
+                if (body.hasClass('d-none')) {
+                    header.trigger('click');
+                }
+
+                setTimeout(() => {
+                    $(`#${pickerId}-${trackId}`).select2('open');
+                }, 100);
+            });
+
+            $(document).on('keydown', '.open-solution-entry', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    $(this).trigger('click');
+                }
+            });
+
             // Edit media entry handler
             $(document).on('click', '.edit-media-entry', function(e) {
                 e.preventDefault();
-                const trackId = $(this).data('track-id');
+                const trackId = $(this).attr('data-track-id');
                 const mediaId = $(this).data('id');
                 const $card = $(this).closest('.media-card-wrapper');
                 const prepDate = $card.find('.solution-preparation').val();
@@ -792,37 +845,58 @@
             // Auto-save utility functions
             window.collectSolutionItems = function(trackId, type) {
                 const items = [];
+                const normalizeItemId = function(raw) {
+                    if (raw === undefined || raw === null) {
+                        return null;
+                    }
+                    const id = String(raw).trim();
+                    if (!id || id === '0' || id.toLowerCase() === 'nan') {
+                        return null;
+                    }
+                    return id;
+                };
 
                 if (type === 'equipment') {
-                    $(`.equipment-card[data-id]`).each(function() {
+                    $(`#equipment-list-${trackId} .equipment-card[data-id]`).each(function() {
+                        const id = normalizeItemId($(this).attr('data-id'));
+                        if (!id) return;
                         items.push({
-                            id: $(this).data('id'),
+                            id: id,
                             serial: $(this).find('.equipment-serial-input').val() || '',
                             calibration: $(this).find('.equipment-calibration-input').val() || ''
                         });
                     });
                 } else if (type === 'controls') {
-                    $(`.control-card-premium[data-id]`).each(function() {
+                    $(`#controls-list-${trackId} .control-card-wrapper[data-id]`).each(function() {
+                        const id = normalizeItemId($(this).attr('data-id'));
+                        if (!id) return;
                         items.push({
-                            id: $(this).data('id'),
+                            id: id,
+                            name: ($(this).attr('data-name') || $(this).find('.control-name-title').text() || '').trim(),
                             preparation: $(this).find('.solution-preparation').val() || '',
                             expiry: $(this).find('.solution-expiry').val() || '',
                             result_nature: $(this).find('.solution-result-nature').val() || ''
                         });
                     });
                 } else if (type === 'media') {
-                    $(`.media-card-wrapper[data-id]`).each(function() {
+                    $(`#media-cards-grid-${trackId} .media-card-wrapper[data-id]`).each(function() {
+                        const id = normalizeItemId($(this).attr('data-id'));
+                        if (!id) return;
                         items.push({
-                            id: $(this).data('id'),
+                            id: id,
+                            name: ($(this).attr('data-name') || $(this).find('.media-name-title').text() || '').trim(),
                             preparation: $(this).find('.solution-preparation').val() || '',
                             preparation_number: $(this).find('.solution-preparation-number').val() || '',
                             result_nature: $(this).find('.solution-result-nature').val() || ''
                         });
                     });
                 } else if (type === 'diluents') {
-                    $(`.diluent-card-wrapper[data-id]`).each(function() {
+                    $(`#diluent-cards-grid-${trackId} .diluent-card-wrapper[data-id]`).each(function() {
+                        const id = normalizeItemId($(this).attr('data-id'));
+                        if (!id) return;
                         items.push({
-                            id: $(this).data('id'),
+                            id: id,
+                            name: ($(this).attr('data-name') || $(this).find('.media-name-title').text() || '').trim(),
                             preparation_date: $(this).find('.solution-preparation-date').val() || '',
                             preparation_number: $(this).find('.solution-preparation-number').val() || '',
                             expiry: $(this).find('.solution-expiry').val() || '',
@@ -968,7 +1042,13 @@
                 success: function(runs) {
                     console.log('[METHOD-SEQUENCES] loadRuns GET success, received', runs.length, 'runs');
                     self.runs = runs;
+                    const autoExpandTrackId = self.ensureDefaultExpansion(runs);
                     self.renderRuns(stageHeaderId, runs);
+                    if (autoExpandTrackId) {
+                        setTimeout(function() {
+                            self.loadStageFormData(autoExpandTrackId);
+                        }, 100);
+                    }
                     // Call completion callback if provided
                     if (typeof onComplete === 'function') {
                         // Use setTimeout to ensure DOM is fully rendered
@@ -1012,7 +1092,7 @@
         },
         
         renderRun: function(run, runNumber) {
-            const isExpanded = this.expandedRuns.includes(run.id);
+            const isExpanded = this.idInList(this.expandedRuns, run.id);
             const sampleCodes = this.getUniqueSampleCodes(run.track_records);
             const samplesCount = sampleCodes.length;
             const sampleDisplay = this.buildSampleDisplay(sampleCodes);
@@ -1216,9 +1296,19 @@
             });
             
             // Render timeline - sort by stage order
-            const stages = Object.values(stageGroups).sort((a, b) => {
+            let stages = Object.values(stageGroups).sort((a, b) => {
                 return (a.testStage.order ?? 999) - (b.testStage.order ?? 999);
             });
+
+            // Grouped phased pipeline: optionally show a single TestStage by order.
+            if (this.stageOrderFilter !== null && !Number.isNaN(this.stageOrderFilter)) {
+                stages = stages.filter(group => Number(group.testStage?.order) === Number(this.stageOrderFilter));
+            }
+
+            if (stages.length === 0) {
+                return `<div class="alert alert-warning mb-0 py-2 px-3 small">No test stage matched this pipeline step.</div>`;
+            }
+
             return `
                 <div class="stages-timeline">
                     ${stages.map((group, index) => this.renderStageInTimeline(group, index, stages.length)).join('')}
@@ -1229,7 +1319,7 @@
         renderStageInTimeline: function(group, index, totalStages) {
             const stage = group.testStage;
             const firstTrack = group.tracks[0];
-            const isExpanded = this.expandedStages.includes(firstTrack.id);
+            const isExpanded = this.idInList(this.expandedStages, firstTrack.id);
             const statusBadge = this.getStatusBadge(firstTrack);
             const statusClass = firstTrack.status; // pending, running, completed
             
@@ -1246,7 +1336,7 @@
                     </div>
                     <div class="timeline-content">
                         <div class="stage-card">
-                            <div class="stage-header-row">
+                            <div class="stage-header-row toggle-stage-details" data-track-id="${firstTrack.id}" style="cursor:pointer;">
                                 <div class="stage-info">
                                     <h6 class="stage-title">${stage.stage_name}</h6>
                                     <small class="text-muted">Day ${stage.order} • ${stage.duration_hours || 0}h duration</small>
@@ -1255,7 +1345,7 @@
                                 <div class="stage-status">
                                     ${statusBadge}
                                 </div>
-                                <div class="stage-actions">
+                                <div class="stage-actions" onclick="event.stopPropagation();">
                                     ${this.renderStageActions(firstTrack)}
                                 </div>
                             </div>
@@ -1420,11 +1510,12 @@
             const stage = track.test_stage;
             const isResultStage = stage.is_result_stage;
             const isStageLocked = this.isTrackLocked(track);
+            const lockReason = this.getTrackLockReason(track);
             const endedByName = this.escapeHtml(this.getEndedByName(track));
             console.log('DEBUG: renderStageDetails stage.controls_required:', stage.controls_required);
             
             return `
-                <div class="stage-details-stepper-form ${isStageLocked ? 'stage-locked' : ''}" id="stepper-form-${track.id}" data-stage-locked="${isStageLocked ? '1' : '0'}" data-controls-config='${JSON.stringify(stage.controls_required || [])}' data-media-config='${JSON.stringify(stage.media_required || [])}' data-stage-id='${track.id}' data-track-id='${track.id}' data-test-stage='${JSON.stringify(stage)}'>
+                <div class="stage-details-stepper-form ${isStageLocked ? 'stage-locked' : ''}" id="stepper-form-${track.id}" data-stage-locked="${isStageLocked ? '1' : '0'}" data-lock-reason="${lockReason || ''}" data-controls-config='${JSON.stringify(stage.controls_required || [])}' data-media-config='${JSON.stringify(stage.media_required || [])}' data-stage-id='${track.id}' data-track-id='${track.id}' data-test-stage='${JSON.stringify(stage)}'>
                     <!-- Stepper Header -->
                     <div class="stepper-header mb-3">
                         <div class="step-item active" data-step="1" data-track-id="${track.id}">
@@ -1463,7 +1554,7 @@
                     <div class="stepper-content">
                         <div class="alert alert-secondary stage-locked-banner ${isStageLocked ? '' : 'd-none'} mb-3 py-2 px-3" style="font-size:0.85rem;">
                             <i class="mdi mdi-lock-outline mr-1"></i>
-                            This stage has been completed and is read-only.
+                            <span class="stage-locked-banner-text">${this.escapeHtml(this.stageLockBannerText(lockReason))}</span>
                         </div>
                         <!-- Step 1: Basic Info -->
                         <div class="step-pane active" id="step-pane-1-${track.id}">
@@ -1525,7 +1616,7 @@
                             </div>
                             
                             <div class="stepper-actions d-flex justify-content-between mt-3">
-                                <button type="button" class="btn btn-nav-back" onclick="methodSequences.cancelEdit(${track.id})">
+                                <button type="button" class="btn btn-nav-back" onclick="methodSequences.cancelEdit('${track.id}')">
                                     <i class="mdi mdi-close mr-1"></i> Cancel
                                 </button>
                                 <button type="button" class="btn btn-nav-continue next-step-btn" data-track-id="${track.id}" data-next="2">
@@ -1593,21 +1684,27 @@
                             <div id="controls-list-${track.id}" class="row mb-3">
                                 <!-- Cards will be rendered here -->
                                 <div class="col-md-4 mb-2">
-                                    <div class="add-more-dashed-box" onclick="$('#controls-picker-${track.id}').select2('open')">
+                                    <div class="add-more-dashed-box open-solution-entry"
+                                         data-track-id="${track.id}" data-entry-type="control" data-picker-id="controls"
+                                         role="button" tabindex="0">
                                         <i class="mdi mdi-plus-circle-outline"></i>
                                         <span class="font-weight-bold">Add more controls...</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="registration-panel-premium mb-3">
-                                <div class="d-flex align-items-center mb-2">
+                            <div class="registration-panel-premium p-0 overflow-hidden mb-3">
+                                <div class="control-entry-header solution-entry-header d-flex align-items-center px-3 py-2"
+                                     data-track-id="${track.id}" data-entry-type="control" data-picker-id="controls"
+                                     role="button" tabindex="0" aria-expanded="false" aria-controls="control-entry-body-${track.id}" style="cursor: pointer;">
                                     <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mr-2" style="width: 22px; height: 22px;">
                                         <i class="mdi mdi-plus" style="font-size: 0.75rem;"></i>
                                     </div>
                                     <h5 class="font-weight-bold mb-0">New Control Entry</h5>
+                                    <i class="mdi mdi-chevron-right text-muted solution-entry-toggle-icon ml-auto"></i>
                                 </div>
 
+                                <div id="control-entry-body-${track.id}" class="d-none px-3 pb-3">
                                 <div class="row">
                                     <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
@@ -1650,6 +1747,7 @@
                                     Please ensure all control parameters are verified against the manufacturer's specification<br>
                                     before finalizing this step.
                                 </p>
+                                </div>
                             </div>
 
                             <div class="stepper-actions d-flex justify-content-between mt-3">
@@ -1675,8 +1773,14 @@
                             </div>
 
                             <!-- Add New Media Entry Panel -->
-                            <div class="media-registration-panel">
-                                <div class="media-registration-title">Add New Media Entry</div>
+                            <div class="media-registration-panel p-0 overflow-hidden">
+                                <div class="media-registration-title media-entry-header solution-entry-header px-3 py-2"
+                                     data-track-id="${track.id}" data-entry-type="media" data-picker-id="media"
+                                     role="button" tabindex="0" aria-expanded="false" aria-controls="media-entry-body-${track.id}" style="cursor: pointer;">
+                                    <span>Add New Media Entry</span>
+                                    <i class="mdi mdi-chevron-right text-muted solution-entry-toggle-icon ml-auto"></i>
+                                </div>
+                                <div id="media-entry-body-${track.id}" class="d-none px-3 pb-3">
                                 <div class="row">
                                     <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
@@ -1698,6 +1802,12 @@
                                             <input type="text" class="form-control premium-input" id="media-prep-no-${track.id}" placeholder="Enter preparation number">
                                         </div>
                                     </div>
+                                    <div class="col-md-6 mb-2">
+                                        <div class="premium-input-group">
+                                            <label class="form-label font-weight-bold">Expiry Date</label>
+                                            <input type="date" class="form-control premium-input" id="media-expiry-${track.id}">
+                                        </div>
+                                    </div>
                                     <div class="col-md-12 mb-2">
                                         <div class="premium-input-group">
                                             <label class="form-label font-weight-bold">Result Nature</label>
@@ -1714,6 +1824,7 @@
                                     <button type="button" class="btn btn-primary btn-sm font-weight-bold add-solution-item" data-track-id="${track.id}" data-type="media" style="background: #0061e0; border: none; border-radius: 6px;">
                                         <i class="mdi mdi-plus mr-1"></i> Add Media
                                     </button>
+                                </div>
                                 </div>
                             </div>
 
@@ -1749,9 +1860,11 @@
                             <!-- Diluent Entry Panel (Collapsible) -->
                             <div class="media-registration-panel p-0 overflow-hidden">
                                 <!-- Panel Header (Toggle) -->
-                                <div class="media-registration-title diluent-entry-header px-3 py-2" data-track-id="${track.id}" role="button" aria-expanded="false" style="cursor: pointer;">
+                                <div class="media-registration-title diluent-entry-header solution-entry-header px-3 py-2"
+                                     data-track-id="${track.id}" data-entry-type="diluent" data-picker-id="diluents"
+                                     role="button" tabindex="0" aria-expanded="false" aria-controls="diluent-entry-body-${track.id}" style="cursor: pointer;">
                                     <span>Add New Diluent Entry</span>
-                                    <i class="mdi mdi-chevron-right text-muted diluent-entry-toggle-icon ml-auto"></i>
+                                    <i class="mdi mdi-chevron-right text-muted solution-entry-toggle-icon ml-auto"></i>
                                 </div>
                                 
                                 <!-- Form Body (initially hidden) -->
@@ -1790,7 +1903,7 @@
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Media
                                 </button>
                                 <div class="ml-auto d-flex gap-2">
-                                    <button type="button" class="btn btn-nav-continue save-stage-details-btn" onclick="methodSequences.saveStageDetails(${track.id})">
+                                    <button type="button" class="btn btn-nav-continue save-stage-details-btn" onclick="methodSequences.saveStageDetails('${track.id}')">
                                         Save Stage Details <i class="mdi mdi-content-save ml-1"></i>
                                     </button>
                                     ${isResultStage ? `
@@ -1822,7 +1935,7 @@
                                 <button type="button" class="btn btn-nav-back prev-step-btn" data-track-id="${track.id}" data-prev="5">
                                     <i class="mdi mdi-arrow-left mr-1"></i> Back to Diluents
                                 </button>
-                                <button type="button" class="btn btn-nav-continue save-results-btn" onclick="methodSequences.saveResultsData(${track.id})">
+                                <button type="button" class="btn btn-nav-continue save-results-btn" onclick="methodSequences.saveResultsData('${track.id}')">
                                     Save Results <i class="mdi mdi-content-save ml-1"></i>
                                 </button>
                             </div>
@@ -2015,8 +2128,57 @@
             });
         },
         
+        idInList: function(list, id) {
+            const needle = String(id);
+            return Array.isArray(list) && list.some(item => String(item) === needle);
+        },
+
+        /**
+         * After init / pipeline remount, open the latest run and the filtered (or first) stage.
+         * Returns the track id that should have form data loaded, or null.
+         */
+        ensureDefaultExpansion: function(runs) {
+            if (!this.shouldAutoExpand || !Array.isArray(runs) || runs.length === 0) {
+                return null;
+            }
+
+            this.shouldAutoExpand = false;
+
+            if (this.expandedRuns.length === 0) {
+                this.expandedRuns = [String(runs[0].id)];
+            }
+
+            if (this.expandedStages.length > 0) {
+                return String(this.expandedStages[0]);
+            }
+
+            const expandedRun = runs.find(run => this.idInList(this.expandedRuns, run.id)) || runs[0];
+            const tracks = Array.isArray(expandedRun.track_records) ? expandedRun.track_records : [];
+            if (tracks.length === 0) {
+                return null;
+            }
+
+            let track = null;
+            if (this.stageOrderFilter !== null && !Number.isNaN(this.stageOrderFilter)) {
+                track = tracks.find(t => Number(t.test_stage?.order) === Number(this.stageOrderFilter));
+            }
+
+            if (!track) {
+                track = tracks.find(t => t.status === 'running')
+                    || [...tracks].sort((a, b) => (a.test_stage?.order ?? 999) - (b.test_stage?.order ?? 999))[0];
+            }
+
+            if (!track) {
+                return null;
+            }
+
+            this.expandedStages = [String(track.id)];
+            return String(track.id);
+        },
+
         toggleRun: function(runId) {
-            const index = this.expandedRuns.indexOf(runId);
+            runId = String(runId);
+            const index = this.expandedRuns.findIndex(id => String(id) === runId);
             if (index > -1) {
                 this.expandedRuns.splice(index, 1);
             } else {
@@ -2027,7 +2189,8 @@
         },
         
         toggleStageDetails: function(trackId) {
-            const index = this.expandedStages.indexOf(trackId);
+            trackId = String(trackId);
+            const index = this.expandedStages.findIndex(id => String(id) === trackId);
             if (index > -1) {
                 this.expandedStages.splice(index, 1);
             } else {
@@ -2059,8 +2222,8 @@
                         // Re-expand stage and reload form data after starting
                         self.loadRuns(self.activeStageHeaderId, function() {
                             // Re-add to expandedStages to keep it expanded
-                            if (self.expandedStages.indexOf(trackId) === -1) {
-                                self.expandedStages = [trackId];
+                            if (!self.idInList(self.expandedStages, trackId)) {
+                                self.expandedStages = [String(trackId)];
                             }
                             // Re-render the stage to show expanded view with form
                             self.loadRuns(self.activeStageHeaderId);
@@ -2107,8 +2270,8 @@
                         // Re-expand stage and reload form data after ending
                         self.loadRuns(self.activeStageHeaderId, function() {
                             // Re-add to expandedStages to keep it expanded
-                            if (self.expandedStages.indexOf(trackId) === -1) {
-                                self.expandedStages = [trackId];
+                            if (!self.idInList(self.expandedStages, trackId)) {
+                                self.expandedStages = [String(trackId)];
                             }
                             // Re-render the stage to show expanded view with form
                             self.loadRuns(self.activeStageHeaderId);
@@ -2983,15 +3146,17 @@
             }
         },
 
-        applyStageLock: function(trackId, isLocked) {
+        applyStageLock: function(trackId, isLocked, lockReason) {
             const $form = $(`#stepper-form-${trackId}`);
             if (!$form.length) {
                 return;
             }
+            const reason = lockReason || (isLocked ? ($form.attr('data-lock-reason') || 'completed') : '');
             $form.toggleClass('stage-locked', isLocked);
             $form.attr('data-stage-locked', isLocked ? '1' : '0');
-
+            $form.attr('data-lock-reason', reason || '');
             $form.find('.stage-locked-banner').toggleClass('d-none', !isLocked);
+            $form.find('.stage-locked-banner-text').text(this.stageLockBannerText(reason));
             $form.find('button.save-stage-details-btn, button.save-results-btn, button.add-solution-item, button.next-step-btn[data-next="6"]').toggle(!isLocked);
             $form.find('button.delete-solution-btn, button.remove-equipment-btn, button.remove-solution-item').toggle(!isLocked);
 
@@ -3012,11 +3177,27 @@
         },
 
         isTrackLocked: function(track) {
+            return this.getTrackLockReason(track) !== null;
+        },
+
+        getTrackLockReason: function(track) {
             if (!this.canEditActiveStageHeader()) {
-                return true;
+                return 'view_only';
             }
 
-            return track && (track.status === 'completed' || !!track.ended_at);
+            if (track && (track.status === 'completed' || !!track.ended_at)) {
+                return 'completed';
+            }
+
+            return null;
+        },
+
+        stageLockBannerText: function(reason) {
+            if (reason === 'view_only') {
+                return 'View only — you can only edit stages for your assigned lab section(s) or tests assigned to you.';
+            }
+
+            return 'This stage has been completed and is read-only.';
         },
         
         // New functions for the inline form
@@ -3532,6 +3713,7 @@
                 const selectedId = $(this).val();
                 const latestPrepDate = selectedOption.attr('data-latest-prep-date') || '';
                 const latestPrepNo = selectedOption.attr('data-latest-prep-no') || '';
+                const expiryDate = selectedOption.attr('data-expiry-date') || '';
                 
                 console.log('Media Selected:', {
                     id: selectedId,
@@ -3542,6 +3724,7 @@
 
                 $(`#media-prep-date-${trackId}`).val(latestPrepDate);
                 $(`#media-prep-no-${trackId}`).val(latestPrepNo);
+                $(`#media-expiry-${trackId}`).val(expiryDate);
                 
                 // Get Result Nature from media config
                 const form = $(`#stepper-form-${trackId}`);
@@ -3659,7 +3842,7 @@
                             mediaMetadata = {
                                 preparation: mediaData.batch_prepared_date || '',
                                 preparation_number: mediaData.latest_prep_number || mediaData.current_batch_number || mediaData.batch_number || '',
-                                expiry: mediaData.batch_expiry_date || ''
+                                expiry: mediaData.expiry_date || mediaData.batch_expiry_date || ''
                             };
                         }
                     }
@@ -3745,7 +3928,7 @@
 
             if (data.track) {
                 this.refreshStep1BasicInfo(trackId, data.track);
-                this.applyStageLock(trackId, this.isTrackLocked(data.track));
+                this.applyStageLock(trackId, this.isTrackLocked(data.track), this.getTrackLockReason(data.track));
             }
         },
 
@@ -3921,16 +4104,19 @@
                     return;
                 }
 
+                const needle = existingText.toLowerCase();
                 const codeOption = $('#esl_standard_value_id option').filter(function () {
-                    const code = String($(this).data('code') || '');
-                    const name = String($(this).text() || '');
-                    return code.toLowerCase() === existingText.toLowerCase()
-                        || name.toLowerCase().indexOf(existingText.toLowerCase()) !== -1;
+                    const code = String($(this).data('code') || '').toLowerCase();
+                    const name = String($(this).text() || '').toLowerCase();
+                    return code === needle
+                        || name === needle
+                        || name.indexOf('(' + needle + ')') !== -1
+                        || name.indexOf(needle) !== -1;
                 }).first();
 
                 if (codeOption.length) {
                     $('#esl_value_type_use_value').prop('checked', true);
-                    $('#esl_standard_value_id').val(codeOption.val());
+                    $('#esl_standard_value_id').val(codeOption.val()).trigger('change');
                     syncEditStandardModalSections();
                 }
             };
@@ -3941,14 +4127,24 @@
                 }
 
                 const valueType = data.value_type || 'use_value';
+                const hasSelection = valueType === 'range'
+                    ? !!(data.range_low || data.range_high)
+                    : !!(data.standard_value_id);
+
+                // Do not wipe a text-matched preselection with an empty API payload.
+                if (!hasSelection) {
+                    return;
+                }
+
                 if (valueType === 'range') {
                     $('#esl_value_type_range').prop('checked', true);
                     $('#esl_range_low').val(data.range_low || '');
                     $('#esl_range_high').val(data.range_high || '');
                 } else {
                     $('#esl_value_type_use_value').prop('checked', true);
-                    $('#esl_standard_value_id').val(data.standard_value_id || '');
-                    $('#esl_matrix_operator').val(data.matrix_operator || '');
+                    // trigger('change') keeps Select2 in sync after async load
+                    $('#esl_standard_value_id').val(String(data.standard_value_id || '')).trigger('change');
+                    $('#esl_matrix_operator').val(data.matrix_operator || '').trigger('change');
                     $('#esl_matrix_value').val(data.matrix_value || '');
                 }
 
@@ -3960,29 +4156,44 @@
             });
 
             $(document).on('click.methodSequences', '.step6-edit-standard-btn', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
                 if (!self.canEditActiveStageHeader()) {
-                    event.preventDefault();
-                    event.stopPropagation();
                     toastr.error('You can only edit standard limits for your assigned lab section(s).');
                     return false;
                 }
 
                 const $btn = $(this);
                 const $row = $btn.closest('tr.sample-result-row');
-                const resultId = $btn.attr('data-result-id') || $btn.data('result-id');
-                const sampleCode = $btn.data('sample-code') || '';
-                const analyte = $btn.data('analyte') || '';
-                const trackId = $btn.data('track-id') || '';
+                // Prefer .attr() so UUID data-* values are not coerced by jQuery .data()
+                const resultId = $btn.attr('data-result-id') || '';
+                const sampleCode = $btn.attr('data-sample-code') || '';
+                const analyte = $btn.attr('data-analyte') || '';
+                const trackId = $btn.attr('data-track-id') || '';
+                const standardValueId = $btn.attr('data-standard-value-id') || '';
+                const existingText = ($btn.attr('data-standard-limit-text')
+                    || $row.find('.standard-limit-text').text()
+                    || '').trim();
 
-                $('#edit-standard-form')[0].reset();
+                const $form = $('#edit-standard-form');
+                if ($form.length && $form[0]) {
+                    $form[0].reset();
+                }
                 $('#standard_result_id').val(resultId || '');
                 $('#standard_sample_code').val(sampleCode || '');
                 $('#standard_analyte').val(analyte || '');
                 $('#standard_step6_track_id').val(trackId || '');
                 resetEditStandardFormFields();
 
-                const existingText = $row.find('.standard-limit-text').text().trim();
-                populateEditStandardForm(existingText);
+                // Prefer explicit standard_value_id from the row (most reliable for ABSENT etc.)
+                if (standardValueId && $(`#esl_standard_value_id option[value="${standardValueId}"]`).length) {
+                    $('#esl_value_type_use_value').prop('checked', true);
+                    $('#esl_standard_value_id').val(String(standardValueId)).trigger('change');
+                    syncEditStandardModalSections();
+                } else {
+                    populateEditStandardForm(existingText);
+                }
 
                 if (resultId) {
                     $.ajax({
@@ -3991,6 +4202,11 @@
                         success: function(response) {
                             if (response.success && response.data) {
                                 applyEditStandardSettings(response.data);
+                                // Re-sync Select2 after async apply (modal may already be shown)
+                                const selectedId = $('#esl_standard_value_id').val();
+                                if (selectedId) {
+                                    $('#esl_standard_value_id').val(String(selectedId)).trigger('change');
+                                }
                             }
                         }
                     });
@@ -4006,6 +4222,7 @@
                 const $modal = $(this);
                 $modal.find('select.no-select2').each(function () {
                     const $select = $(this);
+                    const currentVal = $select.val();
                     if ($.fn.select2) {
                         if ($select.hasClass('select2-hidden-accessible')) {
                             $select.select2('destroy');
@@ -4015,6 +4232,9 @@
                             dropdownParent: $modal,
                             minimumResultsForSearch: $select.is('#esl_standard_value_id') ? 0 : Infinity,
                         });
+                        if (currentVal) {
+                            $select.val(currentVal).trigger('change');
+                        }
                     }
                 });
                 syncEditStandardModalSections();
@@ -4135,7 +4355,7 @@
                 // Collect from sample results rows
                 $table.find('.sample-result-row').each(function() {
                     const $row = $(this);
-                    const capturedResultId = $row.data('captured-result-id');
+                    const capturedResultId = $row.attr('data-captured-result-id');
                     const result = $row.find('.sample-result-input').val();
                     const reportingSymbol = $row.find('.reporting-symbol-select').val();
                     const standardLimit = self.getStep6StandardLimit($row);
@@ -4552,29 +4772,41 @@
         saveStageDetails: function(trackId) {
             const self = this;
 
+            // Keep UUID/string inventory IDs intact — never parseInt (destroys UUIDs).
+            const normalizeItemId = function(raw) {
+                if (raw === undefined || raw === null) {
+                    return null;
+                }
+                const id = String(raw).trim();
+                if (!id || id === '0' || id.toLowerCase() === 'nan') {
+                    return null;
+                }
+                return id;
+            };
+
             const collectItems = function(type) {
                 const rows = [];
                 if (type === 'equipment') {
                     $(`#equipment-list-${trackId} .equipment-card`).each(function() {
-                        const id = $(this).attr('data-id');
+                        const id = normalizeItemId($(this).attr('data-id'));
                         if (!id) return;
                         rows.push({
-                            id: parseInt(id, 10),
+                            id: id,
                             serial: $(this).find('.equipment-serial-input').val() || '',
                             calibration: $(this).find('.equipment-calibration-input').val() || ''
                         });
                     });
                 } else if (type === 'controls') {
                     $(`#controls-list-${trackId} .control-card-wrapper`).each(function() {
-                        const id = $(this).attr('data-id');
+                        const id = normalizeItemId($(this).attr('data-id'));
                         if (!id) return;
                         const $card = $(this);
-                        const name = $(this).data('name') || 
+                        const name = $(this).attr('data-name') ||
                                    $card.find('.control-name-title').text() ||
                                    'Control ' + id;
                         rows.push({
-                            id: parseInt(id, 10),
-                            name: name.trim(),
+                            id: id,
+                            name: String(name).trim(),
                             is_mandatory: '1',
                             preparation: $card.find('.solution-preparation').val() || '',
                             expiry: $card.find('.solution-expiry').val() || '',
@@ -4583,15 +4815,15 @@
                     });
                 } else if (type === 'media') {
                     $(`#media-cards-grid-${trackId} .media-card-wrapper`).each(function() {
-                        const id = $(this).attr('data-id');
+                        const id = normalizeItemId($(this).attr('data-id'));
                         if (!id) return;
                         const $card = $(this);
-                        const name = $(this).data('name')|| 
-                                   $card.find('.media-name-title').text()||
+                        const name = $(this).attr('data-name') ||
+                                   $card.find('.media-name-title').text() ||
                                    'Media ' + id;
                         rows.push({
-                            id: parseInt(id, 10),
-                            name: name.trim(),
+                            id: id,
+                            name: String(name).trim(),
                             is_mandatory: '1',
                             preparation: $(this).find('.solution-preparation').val() || '',
                             preparation_number: $(this).find('.solution-preparation-number').val() || '',
@@ -4601,15 +4833,15 @@
                     });
                 } else if (type === 'diluents') {
                     $(`#diluent-cards-grid-${trackId} .diluent-card-wrapper`).each(function() {
-                        const id = $(this).attr('data-id');
+                        const id = normalizeItemId($(this).attr('data-id'));
                         if (!id) return;
                         const $card = $(this);
-                        const name = $(this).data('name') || 
+                        const name = $(this).attr('data-name') ||
                                    $card.find('.media-name-title').text() ||
                                    'Diluent ' + id;
                         rows.push({
-                            id: parseInt(id, 10),
-                            name: name.trim(),
+                            id: id,
+                            name: String(name).trim(),
                             is_mandatory: '1',
                             preparation_date: $(this).find('.solution-preparation-date').val() || '',
                             preparation_number: $(this).find('.solution-preparation-number').val() || '',
@@ -4684,9 +4916,10 @@
             }
             
             // Collect sample results from the loaded Step 6 table
+            // Use .attr() for UUID data-* values — jQuery .data() coerces leading-zero UUIDs to numbers.
             const sampleResults = [];
             $(`#sample-results-table-${trackId} tbody tr.sample-result-row`).each(function() {
-                const capturedResultId = $(this).data('captured-result-id');
+                const capturedResultId = $(this).attr('data-captured-result-id');
                 const $resultInput = $(this).find('.sample-result-input');
                 const result = $resultInput.val();
                 
@@ -4725,10 +4958,10 @@
             const controlResults = [];
             
             $(`#solution-results-table-${trackId} tbody tr.solution-result-row`).each(function() {
-                const solutionId = $(this).data('solution-id');
-                const solutionType = $(this).data('solution-type');
+                const solutionId = $(this).attr('data-solution-id');
+                const solutionType = $(this).attr('data-solution-type');
                 const $resultInput = $(this).find('.result-input');
-                const resultNature = $resultInput.data('result-nature') || 'none';
+                const resultNature = $resultInput.attr('data-result-nature') || 'none';
                 const result = $resultInput.val();
                 
                 // Build result object
@@ -4770,7 +5003,23 @@
                 success: function(response) {
                     if (response.success) {
                         alert('Results saved successfully!');
-                        self.loadRuns(self.activeStageHeaderId);
+                        // Keep stage expanded and re-hydrate equipment/media/controls + Step 6 values.
+                        // Plain loadRuns() re-renders empty form panes without populateStageForm.
+                        if (!self.idInList(self.expandedStages, trackId)) {
+                            self.expandedStages = [String(trackId)];
+                        }
+                        self.loadRuns(self.activeStageHeaderId, function() {
+                            if (!self.idInList(self.expandedStages, trackId)) {
+                                self.expandedStages = [String(trackId)];
+                            }
+                            self.loadRuns(self.activeStageHeaderId);
+                            setTimeout(function() {
+                                self.loadStageFormData(trackId);
+                                setTimeout(function() {
+                                    self.goToStep(trackId, 6);
+                                }, 150);
+                            }, 100);
+                        });
                     } else {
                         alert('Error saving results: ' + (response.message || 'Unknown error'));
                     }
@@ -4790,9 +5039,10 @@
             const self = this;
             
             // Collect sample results from the loaded Step 6 table
+            // Use .attr() for UUID data-* values — jQuery .data() coerces leading-zero UUIDs to numbers.
             const sampleResults = [];
             $(`#sample-results-table-${trackId} tbody tr.sample-result-row`).each(function() {
-                const capturedResultId = $(this).data('captured-result-id');
+                const capturedResultId = $(this).attr('data-captured-result-id');
                 const $resultInput = $(this).find('.sample-result-input');
                 const result = $resultInput.val();
                 
@@ -4829,8 +5079,8 @@
             // Collect solution results (media, controls, diluents)
             const solutionResults = [];
             $(`#solution-results-table-${trackId} tbody tr.solution-result-row`).each(function() {
-                const solutionId = $(this).data('solution-id');
-                const solutionType = $(this).data('solution-type');
+                const solutionId = $(this).attr('data-solution-id');
+                const solutionType = $(this).attr('data-solution-type');
                 const $resultInput = $(this).find('.result-input');
                 const result = $resultInput.val();
                 
@@ -4906,10 +5156,10 @@
         saveStageResults: function(trackId, stageData) {
             const self = this;
             
-            // Collect sample results
+            // Collect sample results (use .attr() so UUID data-* values stay intact)
             const sampleResults = [];
             $(`#results-container-${trackId} .results-table tbody tr`).each(function() {
-                const capturedResultId = $(this).find('select.method-select').data('captured-result-id');
+                const capturedResultId = $(this).find('select.method-select').attr('data-captured-result-id');
                 sampleResults.push({
                     captured_result_id: capturedResultId,
                     result: $(this).find('.result-input').val(),
@@ -4923,7 +5173,7 @@
             // Collect media results
             const mediaResults = [];
             $(`#results-container-${trackId} .media-control-select`).each(function() {
-                const mediaId = $(this).data('media-id');
+                const mediaId = $(this).attr('data-media-id');
                 const result = $(this).val();
                 if (result) {
                     mediaResults.push({
@@ -4936,7 +5186,7 @@
             // Collect control results
             const controlResults = [];
             $(`#results-container-${trackId} .control-result-select`).each(function() {
-                const controlId = $(this).data('control-id');
+                const controlId = $(this).attr('data-control-id');
                 const result = $(this).val();
                 if (result) {
                     controlResults.push({
@@ -4968,13 +5218,17 @@
                         alert('Stage details saved successfully!');
                         if (response.track) {
                             self.refreshStep1BasicInfo(trackId, response.track);
-                            self.applyStageLock(trackId, self.isTrackLocked(response.track));
+                            self.applyStageLock(
+                                trackId,
+                                self.isTrackLocked(response.track),
+                                self.getTrackLockReason(response.track)
+                            );
                         }
                         // Re-expand stage and reload form data after saving
                         self.loadRuns(self.activeStageHeaderId, function() {
                             // Re-add to expandedStages to keep it expanded
-                            if (self.expandedStages.indexOf(trackId) === -1) {
-                                self.expandedStages = [trackId];
+                            if (!self.idInList(self.expandedStages, trackId)) {
+                                self.expandedStages = [String(trackId)];
                             }
                             // Re-render the stage to show expanded view with form
                             self.loadRuns(self.activeStageHeaderId);

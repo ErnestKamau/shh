@@ -40,10 +40,21 @@ class LabSectionResultAccess
         return $user !== null;
     }
 
+    /**
+     * Whether the user may capture/edit this result.
+     *
+     * Allowed when:
+     * - the user is the integrity-check assigned analyst for the test (`captured_results.user_id`), or
+     * - the user is assigned to the result's lab section in their profile.
+     */
     public function canEditCapturedResult(?User $user, CapturedResult $row): bool
     {
         if ($user === null) {
             return false;
+        }
+
+        if ($this->isAssignedAnalystForResult($user, $row)) {
+            return true;
         }
 
         if (! $this->hasLabSectionAssignment($user)) {
@@ -52,10 +63,10 @@ class LabSectionResultAccess
 
         $sectionId = $this->normalizeSectionId($row->lab_section_id);
 
-        // Legacy / incomplete rows with no section: allow assigned analysts to capture.
-        // A section is persisted on save (from the analysis element or the user's assignment).
+        // Rows without a lab section cannot be claimed by section membership alone.
+        // The integrity-assigned analyst may still edit them (checked above).
         if ($sectionId === null) {
-            return true;
+            return false;
         }
 
         return in_array($sectionId, $this->allowedLabSectionIds($user), true);
@@ -134,10 +145,29 @@ class LabSectionResultAccess
     public function denyEditMessage(?User $user): string
     {
         if ($this->hasLabSectionAssignment($user)) {
-            return 'You can only capture results for your assigned lab section(s).';
+            return 'You can only capture results for your assigned lab section(s), or for tests assigned to you in Integrity Check.';
         }
 
-        return 'Assign a lab section in your profile before capturing results.';
+        return 'Assign a lab section in your profile, or be assigned to the test in Integrity Check, before capturing results.';
+    }
+
+    public function isAssignedAnalystForResult(?User $user, CapturedResult $row): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        $userId = (string) $user->id;
+        $assignedAnalystIds = is_array($row->assigned_analyst_ids)
+            ? array_values(array_filter(array_map('strval', $row->assigned_analyst_ids)))
+            : [];
+        if (in_array($userId, $assignedAnalystIds, true)) {
+            return true;
+        }
+
+        $assignedUserId = $this->normalizeSectionId($row->user_id);
+
+        return $assignedUserId !== null && $assignedUserId === $userId;
     }
 
     private function normalizeSectionId(mixed $candidate): ?string

@@ -10,6 +10,7 @@ use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
 use App\Services\Sampleworkflow\SampleIntegrityCheckService;
+use App\User;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -97,7 +98,7 @@ class SampleIntegrityCheckPage extends Component
 
     public function updatedSelectedRowKeys(): void
     {
-        $this->pruneBulkAnalystStateToSelection();
+        $this->resetBulkAnalystState();
     }
 
     public function updatedBulkAnalystLabSectionIds(): void
@@ -113,6 +114,30 @@ class SampleIntegrityCheckPage extends Component
                 'strval',
                 is_array($analystIds) ? $analystIds : []
             ));
+        }
+
+        $selectedRows = array_flip(array_map('strval', $this->selectedRowKeys));
+        foreach (array_keys($allowed) as $sectionId) {
+            if (array_key_exists($sectionId, $pruned)) {
+                continue;
+            }
+
+            $assigned = [];
+            foreach ($this->testRows as $row) {
+                if (! isset($selectedRows[(string) ($row['row_key'] ?? '')])) {
+                    continue;
+                }
+
+                $rowAssignments = is_array($row['analysts_by_lab_section'] ?? null)
+                    ? $row['analysts_by_lab_section']
+                    : [];
+                $assigned = [
+                    ...$assigned,
+                    ...(is_array($rowAssignments[$sectionId] ?? null) ? $rowAssignments[$sectionId] : []),
+                ];
+            }
+
+            $pruned[$sectionId] = array_values(array_unique(array_filter(array_map('strval', $assigned))));
         }
         $this->bulkAnalystIdsBySection = $pruned;
     }
@@ -645,6 +670,41 @@ class SampleIntegrityCheckPage extends Component
                 continue;
             }
             $bySection[$sectionId] = $configService->analystsForLabSectionPicker($sectionId);
+        }
+
+        $extraIdsBySection = [];
+        foreach ($this->testRows as $row) {
+            foreach ((array) ($row['analysts_by_lab_section'] ?? []) as $sectionId => $analystIds) {
+                foreach ((array) $analystIds as $analystId) {
+                    $analystId = (string) $analystId;
+                    if ($analystId !== '') {
+                        $extraIdsBySection[(string) $sectionId][$analystId] = true;
+                    }
+                }
+            }
+        }
+
+        $extraIds = collect($extraIdsBySection)
+            ->flatMap(fn (array $ids): array => array_keys($ids))
+            ->unique()
+            ->values()
+            ->all();
+        $extraUsers = User::query()
+            ->whereIn('id', $extraIds)
+            ->get(['id', 'name'])
+            ->keyBy(fn (User $user): string => (string) $user->id);
+
+        foreach ($extraIdsBySection as $sectionId => $analystIds) {
+            $existing = collect($bySection[$sectionId] ?? [])->keyBy('id');
+            foreach (array_keys($analystIds) as $analystId) {
+                $user = $extraUsers->get($analystId);
+                if ($user !== null && ! $existing->has($analystId)) {
+                    $bySection[$sectionId][] = [
+                        'id' => (string) $user->id,
+                        'name' => (string) $user->name,
+                    ];
+                }
+            }
         }
 
         return $bySection;

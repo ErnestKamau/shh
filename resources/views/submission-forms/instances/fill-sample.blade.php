@@ -29,6 +29,26 @@
 @endif
 
 @section($isInline ? 'content' : ($useLabLayout ? 'content2' : 'content'))
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
+            <i class="mdi mdi-check-circle-outline mr-1"></i>
+            {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
+            <i class="mdi mdi-alert-circle-outline mr-1"></i>
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     @if(!$isInline && !$useLabLayout)
     <?php
       $items = array(
@@ -131,47 +151,10 @@
                         'allowedSampleTypeIds' => $allowedSampleTypeIds ?? null
                       ])
                     @else
-                                            <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
-                                                <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
-                          <h5 class="text-primary border-bottom pb-2">
-                            <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
-                          </h5>
-                                                    @include('submission-forms.partials.section-logos', ['section' => $section])
-                          @if($section->description)
-                            <p class="text-muted small mb-0">{!! nl2br(e($section->description)) !!}</p>
-                          @endif
-                        </div>
-                        
-                        @foreach($section->elementHolders as $holder)
-                          <div class="element-holder mb-3" data-holder-id="{{ $holder->id }}" data-section-id="{{ $section->id }}">
-                            @if($holder->holder_type === 'field')
-                              @php
-                                $visibleHolderElements = $holder->elements->reject(fn ($el) => (bool) ($el->is_hidden ?? false))->values();
-                              @endphp
-                              <div class="row">
-                                @foreach($visibleHolderElements as $element)
-                                  <div class="col-md-{{ getColumnWidth($visibleHolderElements->count()) }} mb-3" data-element-name="{{ $element->name }}">
-                                    @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
-                                  </div>
-                                @endforeach
-                              </div>
-                            @else
-                              {{-- Text holder - for static content --}}
-                              @foreach($holder->elements as $element)
-                                  @continue($element->is_hidden ?? false)
-                                <div class="text-element mb-3">
-                                  <div class="alert alert-light">
-                                    <strong>{{ $element->label }}</strong>
-                                    @if($element->help_text)
-                                      <p class="mb-0 mt-2">{{ $element->help_text }}</p>
-                                    @endif
-                                  </div>
-                                </div>
-                              @endforeach
-                            @endif
-                          </div>
-                        @endforeach
-                      </div>
+                      @include('submission-forms.partials.fillable-section', [
+                        'section' => $section,
+                        'existingValues' => $existingValues,
+                      ])
                     @endif
                   @endforeach
                   
@@ -621,6 +604,8 @@
     }
 </style>
 <!-- Custom Elements Initialization Script -->
+
+@include('submission-forms.partials.conditional-logic')
 
 <script>
     // Emit required field specs derived from the form configuration
@@ -1699,7 +1684,7 @@
                     if (spec.inRows) {
                         // For rows: find all actual row instances
                         const selector = `[name^="${spec.name}["]`;
-                        const $found = $form.find(selector);
+                        const $found = $form.find(selector).not(':disabled');
                         if ($found.length > 0) {
                             $found.each(function() {
                                 const $el = $(this);
@@ -1715,7 +1700,7 @@
                     } else {
                         // For regular fields: find by exact name
                         const exactSelector = `[name="${spec.name}"]`;
-                        const $found = $form.find(exactSelector);
+                        const $found = $form.find(exactSelector).not(':disabled');
                         if ($found.length > 0) {
                             groups[spec.name] = [];
                             $found.each(function() { groups[spec.name].push($(this)); });
@@ -1785,7 +1770,8 @@
                 // Get all fields in the main form, excluding modals and hidden fields
                 return $('#fill-form').find('input:not([type="hidden"]), select, textarea')
                     .not('.modal input, .modal select, .modal textarea')
-                    .not('[name="_token"], [name="_method"]');
+                    .not('[name="_token"], [name="_method"]')
+                    .not(':disabled');
             },
             
             getRequiredFormFields() {
@@ -1845,6 +1831,12 @@
                 
                 // Special handling for Select2 change events
                 $('#fill-form').on('select2:select select2:unselect', 'select', () => {
+                    this.updateFormDataPreview();
+                    this.updateProgress();
+                    this.updateSubmitButtonState();
+                });
+
+                document.addEventListener('submission-form:conditional-logic-updated', () => {
                     this.updateFormDataPreview();
                     this.updateProgress();
                     this.updateSubmitButtonState();

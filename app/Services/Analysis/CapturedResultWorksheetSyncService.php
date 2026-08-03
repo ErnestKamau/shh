@@ -111,8 +111,15 @@ class CapturedResultWorksheetSyncService
             }
         }
 
-        $procedureWorksheetId = $analysisElement?->procedure_worksheet_id
-            ?? $analysisType?->procedure_worksheet_id;
+        $usesGroupedPipeline = filled($analysisType?->grouped_worksheet_holder_id);
+        $usesHybridPipeline = filled($analysisType?->hybrid_worksheet_id);
+
+        // Grouped / hybrid pipelines own procedure worksheets as pipeline items.
+        // Never stamp a standalone procedure FK when either pipeline is configured.
+        $procedureWorksheetId = ($usesGroupedPipeline || $usesHybridPipeline)
+            ? null
+            : ($analysisElement?->procedure_worksheet_id
+                ?? $analysisType?->procedure_worksheet_id);
 
         if ($procedureWorksheetId) {
             if ($captured->procedure_worksheet_id !== $procedureWorksheetId) {
@@ -129,9 +136,19 @@ class CapturedResultWorksheetSyncService
                 $captured->result = 'No attachment';
                 $changed = true;
             }
+        } elseif ($usesGroupedPipeline || $usesHybridPipeline) {
+            if ($captured->procedure_worksheet_id !== null) {
+                $captured->procedure_worksheet_id = null;
+                $changed = true;
+            }
+
+            if ($captured->has_procedure_worksheet) {
+                $captured->has_procedure_worksheet = false;
+                $changed = true;
+            }
         }
 
-        if ($analysisType?->grouped_worksheet_holder_id) {
+        if ($usesGroupedPipeline) {
             if ($captured->grouped_worksheet_holder_id !== $analysisType->grouped_worksheet_holder_id) {
                 $captured->grouped_worksheet_holder_id = $analysisType->grouped_worksheet_holder_id;
                 $changed = true;
@@ -141,9 +158,18 @@ class CapturedResultWorksheetSyncService
                 $captured->has_grouped_worksheet = true;
                 $changed = true;
             }
-        }
 
-        if ($analysisType?->hybrid_worksheet_id) {
+            // Grouped and hybrid are mutually exclusive at the type level.
+            if ($captured->hybrid_worksheet_id !== null) {
+                $captured->hybrid_worksheet_id = null;
+                $changed = true;
+            }
+
+            if ($captured->has_hybrid_worksheet) {
+                $captured->has_hybrid_worksheet = false;
+                $changed = true;
+            }
+        } elseif ($usesHybridPipeline) {
             if ($captured->hybrid_worksheet_id !== $analysisType->hybrid_worksheet_id) {
                 $captured->hybrid_worksheet_id = $analysisType->hybrid_worksheet_id;
                 $changed = true;
@@ -151,6 +177,16 @@ class CapturedResultWorksheetSyncService
 
             if (! $captured->has_hybrid_worksheet) {
                 $captured->has_hybrid_worksheet = true;
+                $changed = true;
+            }
+
+            if ($captured->grouped_worksheet_holder_id !== null) {
+                $captured->grouped_worksheet_holder_id = null;
+                $changed = true;
+            }
+
+            if ($captured->has_grouped_worksheet) {
+                $captured->has_grouped_worksheet = false;
                 $changed = true;
             }
         }

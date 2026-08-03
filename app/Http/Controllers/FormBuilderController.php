@@ -637,7 +637,7 @@ class FormBuilderController extends Controller
     {
         $validated = $request->validate([
             'section_ids' => 'required|array',
-            'section_ids.*' => 'required|integer|exists:submission_form_sections,id'
+            'section_ids.*' => 'required|uuid|exists:submission_form_sections,id'
         ]);
 
         try {
@@ -672,7 +672,7 @@ class FormBuilderController extends Controller
     {
         $validated = $request->validate([
             'holder_ids' => 'required|array',
-            'holder_ids.*' => 'required|integer|exists:submission_form_element_holders,id'
+            'holder_ids.*' => 'required|uuid|exists:submission_form_element_holders,id'
         ]);
 
         try {
@@ -707,7 +707,7 @@ class FormBuilderController extends Controller
     {
         $validated = $request->validate([
             'element_ids' => 'required|array',
-            'element_ids.*' => 'required|integer|exists:submission_form_elements,id'
+            'element_ids.*' => 'required|uuid|exists:submission_form_elements,id'
         ]);
 
         try {
@@ -961,7 +961,7 @@ class FormBuilderController extends Controller
     public function moveHolderToSection(Request $request, SubmissionFormElementHolder $holder)
     {
         $validated = $request->validate([
-            'target_section_id' => 'required|integer|exists:submission_form_sections,id',
+            'target_section_id' => 'required|uuid|exists:submission_form_sections,id',
             'position' => 'nullable|integer|min:1'
         ]);
 
@@ -1025,7 +1025,7 @@ class FormBuilderController extends Controller
     public function moveElementToHolder(Request $request, SubmissionFormElement $element)
     {
         $validated = $request->validate([
-            'target_holder_id' => 'required|integer|exists:submission_form_element_holders,id',
+            'target_holder_id' => 'required|uuid|exists:submission_form_element_holders,id',
             'position' => 'nullable|integer|min:1'
         ]);
 

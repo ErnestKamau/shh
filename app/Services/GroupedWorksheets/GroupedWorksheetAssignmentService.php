@@ -4,6 +4,7 @@ namespace App\Services\GroupedWorksheets;
 
 use App\AnalysisType;
 use App\CapturedResult;
+use App\Enums\GroupedWorksheetItemType;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\Models\GroupedWorksheets\GroupedWorksheetRun;
 use App\SampleHeader;
@@ -73,6 +74,54 @@ class GroupedWorksheetAssignmentService
             ->with(['items'])
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * Reference IDs used by active grouped pipelines for a batch, keyed by item type value.
+     *
+     * Used to suppress standalone worksheet tabs for engines already embedded in a pipeline.
+     *
+     * @param  Collection<int, GroupedWorksheetHolder>|null  $holders
+     * @return array{
+     *     stage_header: list<string>,
+     *     procedure: list<string>,
+     *     formula: list<string>,
+     *     log_entry_worksheet: list<string>,
+     *     hybrid_worksheet: list<string>
+     * }
+     */
+    public function pipelineReferenceIdsForHolders(?Collection $holders = null): array
+    {
+        $empty = [
+            GroupedWorksheetItemType::StageHeader->value => [],
+            GroupedWorksheetItemType::Procedure->value => [],
+            GroupedWorksheetItemType::Formula->value => [],
+            GroupedWorksheetItemType::LogEntryWorksheet->value => [],
+            GroupedWorksheetItemType::HybridWorksheet->value => [],
+        ];
+
+        if ($holders === null || $holders->isEmpty()) {
+            return $empty;
+        }
+
+        $ids = $empty;
+
+        foreach ($holders as $holder) {
+            foreach ($holder->items as $item) {
+                $type = $item->getItemTypeEnum()->value;
+                if (! array_key_exists($type, $ids) || ! filled($item->reference_id)) {
+                    continue;
+                }
+
+                $ids[$type][] = (string) $item->reference_id;
+            }
+        }
+
+        foreach ($ids as $type => $values) {
+            $ids[$type] = array_values(array_unique($values));
+        }
+
+        return $ids;
     }
 
     /**

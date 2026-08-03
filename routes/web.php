@@ -636,6 +636,10 @@ Route::get(
     '/sample-workflow/batch/{batch}/worksheets/print',
     'WorksheetsController@printWorksheet'
 )->name('batch-worksheets.print')->middleware('can:laboratory.components.all samples.view');
+Route::get(
+    '/sample-workflow/batch/{batch}/worksheets/amspec/lws-056-salmonella',
+    'WorksheetsController@printAmSpecLws056Salmonella'
+)->name('batch-worksheets.amspec-lws056')->middleware('can:laboratory.components.all samples.view');
 Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples')->middleware('can:laboratory.components.all samples.edit');
@@ -683,6 +687,7 @@ Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->na
 Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/quotations/kpi-export', 'Invoice\QuotationController@exportQuotationKpi')->name('quotation.kpi.export')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/analysis-options/{sampleTypeId}', 'Invoice\QuotationController@getAnalysisOptionsBySampleType')->name('billing.analysis-options')->middleware('can:laboratory.components.quotation.view');
+Route::post('/billing/quotations/create-enquiry', 'Invoice\QuotationController@createEnquiryFromQuotation')->name('quotation.create-enquiry')->middleware('can:laboratory.components.quotation.add');
 Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow')->middleware('can:laboratory.components.quotation.edit');
 Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header')->middleware('can:laboratory.components.quotation.add');

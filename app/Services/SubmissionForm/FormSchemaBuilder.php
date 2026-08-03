@@ -210,6 +210,7 @@ class FormSchemaBuilder
             'readonly' => (bool) $element->is_readonly,
             'hidden' => (bool) $element->is_hidden,
             'default_value' => $element->default_value,
+            'conditional_logic' => $element->conditional_logic,
             'sort_order' => $element->sort_order,
             'options' => $this->resolveStaticOptions($element),
             'options_source' => $this->resolveOptionsSource($element),

@@ -2,14 +2,18 @@
 
 namespace Tests\Feature\SampleWorkflow;
 
+use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
 use App\Models\SampleSubmissionRequest;
+use App\QuotationHeader;
 use App\Services\Commercial\CommercialEnquiryConfigSyncService;
 use App\Services\Commercial\QuotationFromEnquiryService;
+use App\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class ProcessEnquiryWizardTest extends TestCase
@@ -384,5 +388,88 @@ class ProcessEnquiryWizardTest extends TestCase
 
         $this->assertCount(1, $lines);
         $this->assertSame(93.0, (float) $lines[0]['unit_price']);
+    }
+
+    public function test_switching_back_to_build_new_clears_existing_quotation_approval_state(): void
+    {
+        Livewire::test(ProcessEnquiryWizard::class)
+            ->set('quotationMode', 'use_existing')
+            ->set('selectedExistingQuotationId', (string) Str::uuid())
+            ->set('quotationHeaderId', (string) Str::uuid())
+            ->set('quoteNumber', 'AMSQ260802-001')
+            ->set('quotationApprovedReadyToSend', true)
+            ->set('quotationReviewedByName', 'Lab Manager')
+            ->call('setQuotationMode', 'build_new')
+            ->assertSet('selectedExistingQuotationId', null)
+            ->assertSet('quotationHeaderId', null)
+            ->assertSet('quoteNumber', '')
+            ->assertSet('quotationApprovedReadyToSend', false)
+            ->assertSet('quotationReviewedByName', '')
+            ->assertSet('requiresNewQuotationHeader', true);
+    }
+
+    public function test_create_new_from_enquiry_does_not_reuse_an_approved_current_quotation(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Quotation Builder',
+            'email' => 'quotation.builder@example.test',
+            'password' => bcrypt('password'),
+        ]);
+        $this->actingAs($user);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => (string) Str::uuid(),
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            'source_channel' => 'walk_in',
+        ]);
+
+        $service = app(QuotationFromEnquiryService::class);
+        $approvedHeader = $service->createNewFromEnquiry($enquiry);
+        $approvedHeader->forceFill([
+            'status' => 'Quote Complete',
+            'is_complete' => 1,
+            'is_approved' => 1,
+        ])->save();
+
+        $enquiry = $service->detachExistingQuotationFromEnquiry(
+            $enquiry->fresh(),
+            (string) $approvedHeader->id,
+        );
+        $this->assertNull($enquiry->current_quotation_header_id);
+
+        $newHeader = $service->createOrOpen($enquiry);
+
+        $this->assertNotSame((string) $approvedHeader->id, (string) $newHeader->id);
+        $this->assertSame(0, (int) $newHeader->is_approved);
+        $this->assertSame(0, (int) $newHeader->is_complete);
+        $this->assertSame('Quote In Preparation', (string) $newHeader->status);
+    }
+
+    public function test_selecting_a_previously_sent_existing_quotation_does_not_mark_new_enquiry_as_sent(): void
+    {
+        $customerId = (string) Str::uuid();
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'walk_in',
+            'quotation_first_sent_to_customer_at' => null,
+        ]);
+        $existingHeader = QuotationHeader::query()->create([
+            'crm_customer_id' => $customerId,
+            'quote_date' => now()->subDay()->toDateString(),
+            'expiring_date' => now()->addMonth()->toDateString(),
+            'status' => 'Quote Complete',
+            'is_complete' => 1,
+            'is_approved' => 1,
+            'sent_to_customer_at' => now()->subDay(),
+        ]);
+
+        Livewire::test(ProcessEnquiryWizard::class)
+            ->set('enquiryId', (string) $enquiry->id)
+            ->set('crmCustomerId', $customerId)
+            ->call('setQuotationMode', 'use_existing')
+            ->call('selectExistingQuotation', (string) $existingHeader->id)
+            ->assertSet('quotationSent', false)
+            ->assertSet('quotationApprovedReadyToSend', true);
     }
 }

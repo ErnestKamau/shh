@@ -629,6 +629,9 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     $analystsBySection = is_array($plan['analysts_by_lab_section'] ?? null)
                         ? $plan['analysts_by_lab_section']
                         : [];
+                    $analystsByElement = is_array($plan['analysts_by_element'] ?? null)
+                        ? $plan['analysts_by_element']
+                        : [];
                     $userIdByLabSection = [];
                     foreach ($analystsBySection as $sectionId => $analystIds) {
                         if (! is_array($analystIds) || $analystIds === []) {
@@ -662,6 +665,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                             'subcontracted_lab_by_element' => $subcontractedLabByElement ?? [],
                             'lab_section_by_element' => $parameterLabSections,
                             'user_id_by_lab_section' => $userIdByLabSection,
+                            'analyst_ids_by_element' => $analystsByElement,
                         ],
                     );
                 }

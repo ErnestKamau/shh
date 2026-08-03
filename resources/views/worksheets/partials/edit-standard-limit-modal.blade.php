@@ -1,6 +1,8 @@
 @php
     $editStandardLookupValues = \App\StandardValue::query()
-        ->where('status', 1)
+        ->where(function ($query) {
+            $query->where('status', 1)->orWhere('status', true);
+        })
         ->orderBy('name')
         ->get(['id', 'name', 'code']);
 @endphp

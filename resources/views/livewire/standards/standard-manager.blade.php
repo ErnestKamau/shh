@@ -100,18 +100,18 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="selectStandard({{ $standard->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" 
+                                                    <button wire:click="selectStandard('{{ $standard->id }}')"
+                                                            class="btn btn-sm btn-outline-primary"
                                                             title="View Standard Analytes">
                                                         <i class="mdi mdi-eye"></i>
                                                     </button>
-                                                    <button wire:click="showEditStandardModal({{ $standard->id }})" 
-                                                            class="btn btn-sm btn-outline-warning" 
+                                                    <button wire:click="showEditStandardModal('{{ $standard->id }}')"
+                                                            class="btn btn-sm btn-outline-warning"
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteStandard({{ $standard->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
+                                                    <button wire:click="deleteStandard('{{ $standard->id }}')"
+                                                            class="btn btn-sm btn-outline-danger"
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this standard? This will also delete all associated standard analytes.')">
                                                         <i class="mdi mdi-delete"></i>
@@ -195,13 +195,13 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group" role="group">
-                                                        <button wire:click="showEditStandardAnalyteModal({{ $standardAnalyte->id }})" 
-                                                                class="btn btn-sm btn-outline-warning" 
+                                                        <button wire:click="showEditStandardAnalyteModal('{{ $standardAnalyte->id }}')"
+                                                                class="btn btn-sm btn-outline-warning"
                                                                 title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="deleteStandardAnalyte({{ $standardAnalyte->id }})" 
-                                                                class="btn btn-sm btn-outline-danger" 
+                                                        <button wire:click="deleteStandardAnalyte('{{ $standardAnalyte->id }}')"
+                                                                class="btn btn-sm btn-outline-danger"
                                                                 title="Delete"
                                                                 onclick="return confirm('Are you sure you want to delete this standard analyte?')">
                                                             <i class="mdi mdi-delete"></i>

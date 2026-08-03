@@ -33,6 +33,7 @@ class CapturedResult extends Model implements Auditable
         'superscript_negative' => \App\Casts\SafeEncrypted::class,
         'supercsript_base' => \App\Casts\SafeEncrypted::class,
         'operator_id' => 'string',
+        'assigned_analyst_ids' => 'array',
         'method_id' => 'string',
         'equipment_ids' => 'array',
         'main_standard_id' => 'string',

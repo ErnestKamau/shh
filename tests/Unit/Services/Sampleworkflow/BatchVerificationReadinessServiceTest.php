@@ -44,12 +44,27 @@ class BatchVerificationReadinessServiceTest extends TestCase
     }
 
     #[Test]
-    public function allows_when_at_least_one_result_is_entered(): void
+    public function blocks_when_some_results_are_still_missing(): void
     {
         $rows = [
             $this->row(null),
             $this->row('7.2'),
             $this->row('No Attachment'),
+        ];
+
+        $reason = $this->service->blockingReasonForResults($rows);
+
+        $this->assertNotNull($reason);
+        $this->assertStringContainsString('still missing', $reason);
+    }
+
+    #[Test]
+    public function allows_when_all_capturable_results_are_entered(): void
+    {
+        $rows = [
+            $this->row('Absent'),
+            $this->row('7.2'),
+            $this->row('Detected'),
         ];
 
         $this->assertNull($this->service->blockingReasonForResults($rows));

@@ -86,8 +86,8 @@
                                                     data-analyte="{{ $sample['analyte_code'] ?? '' }}"
                                                     data-track-id="{{ $trackId }}"
                                                     data-captured-result-id="{{ $sample['captured_result_id'] }}"
-                                                    data-toggle="modal"
-                                                    data-target="#edit-standard-modal"
+                                                    data-standard-value-id="{{ $sample['standard_value_id'] ?? '' }}"
+                                                    data-standard-limit-text="{{ $displayLimit !== '' ? $displayLimit : '' }}"
                                                     title="Edit Standard Limit">
                                                 <i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>
                                             </button>

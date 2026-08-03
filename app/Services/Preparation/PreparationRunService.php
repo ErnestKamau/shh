@@ -31,6 +31,7 @@ class PreparationRunService
                 'solution_id' => $data['solution_id'],
                 'preparation_number' => SolutionPreparation::generatePreparationNumber(),
                 'batch_number' => $data['batch_number'] ?? null,
+                'expiry_date' => $data['expiry_date'] ?? null,
                 'is_new_batch' => (bool) ($data['is_new_batch'] ?? false),
                 'prepared_by' => $userId ?? auth()->id(),
                 'prepared_at' => now(),
@@ -344,6 +345,12 @@ class PreparationRunService
 
     public function approve(SolutionPreparation $preparation, ?string $notes = null, ?string $userId = null): SolutionPreparation
     {
+        if ($preparation->is_new_batch && ! $preparation->expiry_date) {
+            throw ValidationException::withMessages([
+                'expiry_date' => 'An expiry date is required before approving a new solution batch.',
+            ]);
+        }
+
         $missing = $preparation->getMissingResultReasons();
         if (count($missing) > 0 || ! $preparation->allStepsCompleted()) {
             throw ValidationException::withMessages(['preparation' => implode(' ', $missing) ?: 'All steps must be completed.']);
@@ -391,6 +398,7 @@ class PreparationRunService
                 'quantity_prepared' => $data['quantity_prepared'] ?? null,
                 'uom_id' => $data['uom_id'] ?? null,
                 'batch_number' => $data['batch_number'] ?? null,
+                'expiry_date' => $data['expiry_date'] ?? null,
                 'is_new_batch' => (bool) ($data['is_new_batch'] ?? false),
                 'notes' => $data['notes'] ?? null,
             ]);

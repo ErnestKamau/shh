@@ -39,6 +39,26 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
 
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="mdi mdi-check-circle-outline mr-1"></i>
+            {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="mdi mdi-alert-circle-outline mr-1"></i>
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">
@@ -239,6 +259,25 @@
                                                        title="Clone">
                                                         <i class="mdi mdi-content-duplicate"></i>
                                                     </a>
+                                                    @can('laboratory.components.quotation.add')
+                                                        @if($quotation->status === 'Quote Complete'
+                                                            && $quotation->quotation_type === 'Analysis'
+                                                            && $quotation->expiring_date
+                                                            && \Carbon\Carbon::parse($quotation->expiring_date)->startOfDay()->gte(now()->startOfDay()))
+                                                            <button type="button"
+                                                                    class="rm-act-btn rm-act-btn--enquiry create-enquiry-button"
+                                                                    title="Create enquiry from quotation"
+                                                                    data-toggle="modal"
+                                                                    data-target="#create-enquiry-from-quotation"
+                                                                    data-quote-id="{{ $quotation->id }}"
+                                                                    data-quote-number="{{ $quotation->quote_number }}"
+                                                                    data-customer="{{ $quotation->customer }}"
+                                                                    data-sample-count="{{ max(1, (int) ($quotationSampleCounts[$quotation->id] ?? 1)) }}"
+                                                                    data-creation-token="{{ \Illuminate\Support\Str::uuid() }}">
+                                                                <i class="mdi mdi-flask-outline"></i>
+                                                            </button>
+                                                        @endif
+                                                    @endcan
                                                 </div>
                                             </td>
                                             <td>
@@ -292,6 +331,186 @@
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="create-enquiry-from-quotation" tabindex="-1" role="dialog" aria-labelledby="create-enquiry-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="create-enquiry-title">
+                        <i class="mdi mdi-flask-outline text-primary"></i>
+                        Create Enquiry from <span data-enquiry-quote-number></span>
+                    </h5>
+                    <small class="text-muted" data-enquiry-customer></small>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="POST" action="{{ route('quotation.create-enquiry') }}">
+                @csrf
+                <input type="hidden" name="quotation_id" value="{{ old('quotation_id') }}">
+                <input type="hidden" name="creation_token" value="{{ old('creation_token') }}">
+
+                <div class="modal-body">
+                    <div class="alert alert-info d-flex align-items-start" style="gap: 10px;">
+                        <i class="mdi mdi-auto-fix mt-1"></i>
+                        <div>
+                            Tests, parameters, pricing and the Test Request Form will be prefilled.
+                            Confirm the physical sample count and add the available request information.
+                        </div>
+                    </div>
+
+                    @if(old('quotation_id') && $errors->any())
+                        <div class="alert alert-danger">
+                            <ul class="mb-0 pl-3">
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <div class="form-group">
+                        <label for="enquiry-creation-intent">Workflow start <span class="text-danger">*</span></label>
+                        <select id="enquiry-creation-intent"
+                                name="creation_intent"
+                                class="form-control @error('creation_intent') is-invalid @enderror">
+                            <option value="prepare" @selected(old('creation_intent', 'prepare') === 'prepare')>
+                                Prepare for sending
+                            </option>
+                            <option value="already_sent" @selected(old('creation_intent') === 'already_sent')>
+                                Quotation already sent
+                            </option>
+                            <option value="accepted" @selected(old('creation_intent') === 'accepted')>
+                                Customer already accepted
+                            </option>
+                        </select>
+                        @error('creation_intent')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="form-text text-muted">
+                            Accepted quotations move directly to Ready for Reception after TRF completion.
+                        </small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="enquiry-number-of-samples">Physical samples <span class="text-danger">*</span></label>
+                                <input id="enquiry-number-of-samples"
+                                       type="number"
+                                       name="number_of_samples"
+                                       min="1"
+                                       max="10000"
+                                       value="{{ old('number_of_samples', 1) }}"
+                                       class="form-control @error('number_of_samples') is-invalid @enderror"
+                                       required>
+                                @error('number_of_samples')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="form-text text-muted">
+                                    For multi-sample-type quotes, each type keeps its quotation quantity.
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="enquiry-reference-number">Customer reference</label>
+                                <input id="enquiry-reference-number"
+                                       type="text"
+                                       name="reference_number"
+                                       value="{{ old('reference_number') }}"
+                                       class="form-control @error('reference_number') is-invalid @enderror"
+                                       placeholder="Optional">
+                                @error('reference_number')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="enquiry-date-expected">Expected sample date</label>
+                                <input id="enquiry-date-expected"
+                                       type="date"
+                                       name="date_expected"
+                                       value="{{ old('date_expected') }}"
+                                       class="form-control @error('date_expected') is-invalid @enderror">
+                                @error('date_expected')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row enquiry-accepted-fields d-none">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="enquiry-client-po-number">Customer PO</label>
+                                <input id="enquiry-client-po-number"
+                                       type="text"
+                                       name="client_po_number"
+                                       value="{{ old('client_po_number') }}"
+                                       class="form-control @error('client_po_number') is-invalid @enderror"
+                                       placeholder="Optional if PO can be skipped">
+                                @error('client_po_number')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="d-block">&nbsp;</label>
+                                <div class="custom-control custom-checkbox mt-2">
+                                    <input type="checkbox"
+                                           class="custom-control-input"
+                                           id="enquiry-po-skipped"
+                                           name="po_skipped"
+                                           value="1"
+                                           @checked(old('po_skipped'))>
+                                    <label class="custom-control-label" for="enquiry-po-skipped">
+                                        Skip PO for this enquiry
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="enquiry-sample-description">Sample description</label>
+                        <textarea id="enquiry-sample-description"
+                                  name="sample_description"
+                                  rows="2"
+                                  class="form-control @error('sample_description') is-invalid @enderror"
+                                  placeholder="Optional description shared by the quoted samples">{{ old('sample_description') }}</textarea>
+                        @error('sample_description')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group mb-0">
+                        <label for="enquiry-notes">Internal enquiry notes</label>
+                        <textarea id="enquiry-notes"
+                                  name="enquiry_notes"
+                                  rows="2"
+                                  class="form-control @error('enquiry_notes') is-invalid @enderror"
+                                  placeholder="Optional">{{ old('enquiry_notes') }}</textarea>
+                        @error('enquiry_notes')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="mdi mdi-auto-fix"></i>
+                        Create &amp; Prefill Enquiry
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers])
 
@@ -486,6 +705,19 @@
         color: #5b21b6;
         text-decoration: none;
     }
+
+    .quotation-index-page .rm-act-btn--enquiry {
+        border-color: #fed7aa;
+        color: #c2410c;
+        background: #fff7ed;
+        cursor: pointer;
+    }
+
+    .quotation-index-page .rm-act-btn--enquiry:hover {
+        background: #ffedd5;
+        border-color: #fdba74;
+        color: #9a3412;
+    }
 </style>
 @endsection
 
@@ -506,6 +738,63 @@
                 $('.sample_type_field, .analysis_type_field, .item_description_field').addClass('d-none');
             }
         });
+
+        var enquiryModal = $('#create-enquiry-from-quotation');
+        var enquiryForm = enquiryModal.find('form');
+        var validationQuotationId = @json((string) old('quotation_id', ''));
+
+        function populateEnquiryModal(button, preserveValues) {
+            var quoteId = String(button.data('quote-id') || '');
+
+            enquiryModal.find('[data-enquiry-quote-number]').text(button.data('quote-number') || '');
+            enquiryModal.find('[data-enquiry-customer]').text(button.data('customer') || '');
+            enquiryForm.find('[name="quotation_id"]').val(quoteId);
+            if (!preserveValues || !enquiryForm.find('[name="creation_token"]').val()) {
+                enquiryForm.find('[name="creation_token"]').val(button.data('creation-token') || '');
+            }
+
+            if (!preserveValues) {
+                enquiryForm.find('[name="number_of_samples"]').val(button.data('sample-count') || 1);
+                enquiryForm.find('[name="reference_number"]').val('');
+                enquiryForm.find('[name="date_expected"]').val('');
+                enquiryForm.find('[name="sample_description"]').val('');
+                enquiryForm.find('[name="enquiry_notes"]').val('');
+                enquiryForm.find('[name="creation_intent"]').val('prepare');
+                enquiryForm.find('[name="client_po_number"]').val('');
+                enquiryForm.find('[name="po_skipped"]').prop('checked', false);
+            }
+
+            toggleAcceptedFields();
+        }
+
+        function toggleAcceptedFields() {
+            var intent = enquiryForm.find('[name="creation_intent"]').val();
+            enquiryForm.find('.enquiry-accepted-fields').toggleClass('d-none', intent !== 'accepted');
+        }
+
+        enquiryForm.find('[name="creation_intent"]').on('change', toggleAcceptedFields);
+
+        enquiryModal.on('show.bs.modal', function (event) {
+            var trigger = $(event.relatedTarget);
+            if (!trigger.length) {
+                return;
+            }
+
+            var preserveValues = validationQuotationId !== ''
+                && String(trigger.data('quote-id')) === validationQuotationId;
+            populateEnquiryModal(trigger, preserveValues);
+        });
+
+        if (validationQuotationId !== '') {
+            var validationButton = $('.create-enquiry-button').filter(function () {
+                return String($(this).data('quote-id')) === validationQuotationId;
+            }).first();
+
+            if (validationButton.length) {
+                populateEnquiryModal(validationButton, true);
+                enquiryModal.modal('show');
+            }
+        }
     });
 </script>
 @include('layouts.lab.invoice.partials.add-quotation-modal-scripts')

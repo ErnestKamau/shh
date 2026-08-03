@@ -8,6 +8,7 @@ use App\QuotationHeader;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 class QuotationFromEnquiryExistingQuotationTest extends TestCase
@@ -118,5 +119,35 @@ class QuotationFromEnquiryExistingQuotationTest extends TestCase
 
         $this->assertNotEmpty($warnings);
         $this->assertStringContainsString('not covered by the selected quotation', $warnings[0]);
+    }
+
+    public function test_attach_existing_quotation_cannot_steal_a_quote_from_another_enquiry(): void
+    {
+        $customerId = (string) Str::uuid();
+        $owner = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            'source_channel' => 'walk_in',
+        ]);
+        $secondEnquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'walk_in',
+        ]);
+        $header = QuotationHeader::query()->create([
+            'crm_customer_id' => $customerId,
+            'sample_submission_request_id' => $owner->id,
+            'status' => 'Quote Complete',
+            'quote_date' => now()->toDateString(),
+            'expiring_date' => now()->addDays(5)->toDateString(),
+            'is_draft' => 0,
+            'is_complete' => 1,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('already owned by another enquiry');
+
+        app(QuotationFromEnquiryService::class)
+            ->attachExistingQuotation($secondEnquiry, $header);
     }
 }

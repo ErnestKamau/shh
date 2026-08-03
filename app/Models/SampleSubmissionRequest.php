@@ -110,6 +110,8 @@ class SampleSubmissionRequest extends Model
         'source_channel',
         'current_quotation_header_id',
         'accepted_quotation_header_id',
+        'created_from_quotation_header_id',
+        'quotation_creation_token',
         'enquiry_notes',
         'enquiry_sample_configuration',
         'quotation_accepted_at',
@@ -457,6 +459,11 @@ class SampleSubmissionRequest extends Model
     public function acceptedQuotation(): BelongsTo
     {
         return $this->belongsTo(QuotationHeader::class, 'accepted_quotation_header_id');
+    }
+
+    public function createdFromQuotation(): BelongsTo
+    {
+        return $this->belongsTo(QuotationHeader::class, 'created_from_quotation_header_id');
     }
 
     /**

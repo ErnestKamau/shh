@@ -16,15 +16,17 @@
 	@if($items->count() > 0)
 		{{-- ── Horizontal pipeline stage step bar ─────────────────────── --}}
 		<div class="gw-pipeline-stepbar mb-4">
-			<div class="gw-pipeline-stepbar-header mb-2">
-				<strong class="small">{{ $holder->name }}</strong>
-				<span class="text-muted small ms-1">
-					@if($isRunComplete)
-						— Review pipeline stages
-					@else
-						— Pipeline stages
-					@endif
-				</span>
+			<div class="gw-pipeline-stepbar-header mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+				<div>
+					<strong class="small">{{ $holder->name }}</strong>
+					<span class="text-muted small ms-1">
+						@if($isRunComplete)
+							— Review pipeline stages
+						@else
+							— Pipeline stages
+						@endif
+					</span>
+				</div>
 			</div>
 			<div class="gw-pipeline-steps">
 				@foreach($items as $index => $item)
@@ -43,15 +45,20 @@
 						}
 					@endphp
 					<button type="button"
-						class="gw-stage-pill {{ $run->current_item_index === $index ? 'gw-stage-pill--active' : '' }} {{ $status === 'completed' ? 'gw-stage-pill--completed' : '' }} {{ $status === 'skipped' ? 'gw-stage-pill--skipped' : '' }}"
-						wire:click="goToStage({{ $index }})">
+						class="gw-stage-pill {{ $run->current_item_index === $index ? 'gw-stage-pill--active' : '' }} {{ $status === 'completed' && $run->current_item_index !== $index ? 'gw-stage-pill--completed' : '' }} {{ $status === 'skipped' ? 'gw-stage-pill--skipped' : '' }}"
+						wire:click="goToStage({{ $index }})"
+						wire:key="gw-pill-{{ $item->id }}-{{ $index }}">
 						<span class="gw-stage-pill-num">
-							@if($status === 'completed')
+							@if($status === 'completed' && $run->current_item_index !== $index)
 								<i class="mdi mdi-check"></i>
 							@elseif($status === 'skipped')
 								<i class="mdi mdi-skip-next"></i>
-							@elseif($status === 'in_progress')
-								<i class="mdi mdi-progress-clock"></i>
+							@elseif($status === 'in_progress' || $run->current_item_index === $index)
+								@if($run->current_item_index === $index)
+									<i class="mdi mdi-progress-clock"></i>
+								@else
+									{{ $index + 1 }}
+								@endif
 							@else
 								{{ $index + 1 }}
 							@endif
@@ -73,29 +80,19 @@
 				</div>
 			@else
 				<div class="gw-capture-preview">
-					<div class="gw-capture-preview-banner {{ $isRunComplete ? 'gw-capture-preview-banner--review' : '' }}">
-						<i class="mdi {{ $isRunComplete ? 'mdi-eye-outline' : 'mdi-clipboard-edit-outline' }}"></i>
-						<span>
-							@if($isRunComplete)
-								Review captured data for this stage.
-							@else
-								Capture data for this stage — steps match the grouped worksheet configuration.
-							@endif
-						</span>
-					</div>
-
 					<div class="gw-capture-main-header">
 						<div>
 							<h5 class="mb-1">{{ $capturePreview['pipeline_label'] }}</h5>
-							<div class="small text-muted">
-								{{ $capturePreview['item_type_label'] }} — {{ $capturePreview['reference_name'] }}
-								@if(!$capturePreview['is_required'])
-									<span class="badge bg-light text-dark ms-1">Optional</span>
-								@endif
-								@if($isRunComplete)
-									<span class="badge badge-light border text-muted ml-2">Review only</span>
-								@endif
-							</div>
+							@if(!$capturePreview['is_required'] || $isRunComplete)
+								<div class="small text-muted">
+									@if(!$capturePreview['is_required'])
+										<span class="badge bg-light text-dark">Optional</span>
+									@endif
+									@if($isRunComplete)
+										<span class="badge badge-light border text-muted ml-2">Review only</span>
+									@endif
+								</div>
+							@endif
 						</div>
 						@if(!$isRunComplete)
 							<div class="d-flex flex-shrink-0">
@@ -109,29 +106,19 @@
 						@endif
 					</div>
 
-					@if(!empty($capturePreview['context']))
-						<div class="gw-capture-context">
-							@foreach($capturePreview['context'] as $key => $value)
-								@if($value)
-									<span class="gw-capture-context-chip">
-										<span class="text-muted">{{ ucfirst(str_replace('_', ' ', $key)) }}:</span>
-										{{ $value }}
-									</span>
-								@endif
-							@endforeach
-						</div>
-					@endif
-
 					<div class="gw-capture-body gw-capture-body--live {{ $isRunComplete ? 'gw-capture-body--review' : '' }}">
 						@switch($currentItem->getItemTypeEnum()->value)
-							@case('procedure')
-								<livewire:worksheets.procedure-worksheet-manager
-									lazy
-									:batchId="$batch->id"
-									:initialWorksheetId="$procedureWorksheetId"
-									:groupedCaptureLayout="true"
-									:key="'grouped-procedure-'.$procedureWorksheetId.'-'.$run->current_item_index.'-'.($isRunComplete ? 'review' : 'live')"
-								/>
+						@case('procedure')
+							<livewire:worksheets.procedure-worksheet-manager
+								:batchId="$batch->id"
+								:initialWorksheetId="$procedureWorksheetId"
+								:groupedCaptureLayout="true"
+								:groupedHolderId="$holder->id"
+								:sectionKey="$procedureSectionKey"
+								:rowKeys="$procedureRowKeys"
+								:showConfigFields="false"
+								:key="'grouped-procedure-'.$procedureWorksheetId.'-'.($procedureSectionKey ?? 'all').'-'.md5(json_encode($procedureRowKeys ?? [])).'-'.$run->current_item_index.'-'.($isRunComplete ? 'review' : 'live')"
+							/>
 								@break
 							@case('formula')
 								@if($formula)
@@ -148,12 +135,33 @@
 								@endif
 								@break
 							@case('stage_header')
-								<div wire:ignore wire:key="grouped-ms-{{ $currentItem->id }}-{{ $isRunComplete ? 'review' : 'live' }}" class="p-2">
-									@include('worksheets.partials.method-sequences-jquery', [
-										'batch' => $batch,
-										'stageHeaders' => $stageHeaders,
-										'stageHeadersPayload' => $stageHeadersPayload,
-									])
+								<div class="gw-ms-phase">
+									<div wire:ignore wire:key="grouped-ms-{{ $currentItem->id }}-order-{{ $msStageOrder ?? 'all' }}-{{ $isRunComplete ? 'review' : 'live' }}" class="p-2">
+										@include('worksheets.partials.method-sequences-jquery', [
+											'batch' => $batch,
+											'stageHeaders' => $stageHeaders,
+											'stageHeadersPayload' => $stageHeadersPayload,
+											'stageOrderFilter' => $msStageOrder,
+										])
+									</div>
+
+									@if(!empty($embeddedProcedureOnMs) && $procedureWorksheetId && $procedureSectionKey)
+										<div class="gw-embedded-procedure border-top mt-2 pt-2">
+											<div class="px-3 pb-1 small text-muted">
+												<i class="mdi mdi-table-large"></i> Phase observations
+											</div>
+											<livewire:worksheets.procedure-worksheet-manager
+												:batchId="$batch->id"
+												:initialWorksheetId="$procedureWorksheetId"
+												:groupedCaptureLayout="true"
+												:groupedHolderId="$holder->id"
+												:sectionKey="$procedureSectionKey"
+												:rowKeys="$procedureRowKeys"
+												:showConfigFields="false"
+												:key="'grouped-ms-proc-'.$procedureWorksheetId.'-'.($procedureSectionKey ?? 'all').'-'.md5(json_encode($procedureRowKeys ?? [])).'-'.$run->current_item_index.'-'.($isRunComplete ? 'review' : 'live')"
+											/>
+										</div>
+									@endif
 								</div>
 								@break
 							@case('hybrid_worksheet')
@@ -305,4 +313,58 @@
 			border-top: 1px solid #e2e8f0;
 		}
 	</style>
+
+	{{-- Re-init Method Sequences when a phased MS chip remounts (wire:ignore + new key). --}}
+	<script>
+		(function () {
+			function resetAndInitMethodSequences(force) {
+				const container = document.getElementById('method-sequences-container');
+				if (!container) {
+					return;
+				}
+				const ms = window.MethodSequences || window.methodSequences;
+				if (!ms) {
+					return;
+				}
+
+				const orderAttr = container.getAttribute('data-stage-order-filter');
+				const desiredOrder = (orderAttr !== null && orderAttr !== '')
+					? parseInt(orderAttr, 10)
+					: null;
+				const tabsHaveContent = (document.getElementById('sequence-tabs')?.children.length || 0) > 0;
+
+				if (!force && ms.initialized && tabsHaveContent && ms.stageOrderFilter === desiredOrder) {
+					return;
+				}
+
+				ms.initialized = false;
+				ms.eventsBound = false;
+				ms.editStandardModalInitialized = false;
+				ms.stageOrderFilter = null;
+				ms.expandedRuns = [];
+				ms.expandedStages = [];
+				ms.shouldAutoExpand = true;
+
+				if (typeof window.scheduleMethodSequencesInit === 'function') {
+					window.scheduleMethodSequencesInit(15);
+				} else if (typeof ms.init === 'function') {
+					ms.init();
+				}
+			}
+
+			document.addEventListener('livewire:init', function () {
+				Livewire.hook('morph.updated', function () {
+					setTimeout(function () { resetAndInitMethodSequences(false); }, 50);
+				});
+
+				Livewire.on('grouped-pipeline-stage-changed', function () {
+					setTimeout(function () { resetAndInitMethodSequences(true); }, 120);
+				});
+			});
+
+			document.addEventListener('DOMContentLoaded', function () {
+				setTimeout(function () { resetAndInitMethodSequences(true); }, 100);
+			});
+		})();
+	</script>
 </div>

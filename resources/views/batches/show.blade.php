@@ -1518,14 +1518,22 @@
 			}
 
 			var valueType = data.value_type || 'use_value';
+			var hasSelection = valueType === 'range'
+				? !!(data.range_low || data.range_high)
+				: !!data.standard_value_id;
+
+			if (!hasSelection) {
+				return;
+			}
+
 			if (valueType === 'range') {
 				$('#esl_value_type_range').prop('checked', true);
 				$('#esl_range_low').val(data.range_low || '');
 				$('#esl_range_high').val(data.range_high || '');
 			} else {
 				$('#esl_value_type_use_value').prop('checked', true);
-				$('#esl_standard_value_id').val(data.standard_value_id || '');
-				$('#esl_matrix_operator').val(data.matrix_operator || '');
+				$('#esl_standard_value_id').val(String(data.standard_value_id || '')).trigger('change');
+				$('#esl_matrix_operator').val(data.matrix_operator || '').trigger('change');
 				$('#esl_matrix_value').val(data.matrix_value || '');
 			}
 

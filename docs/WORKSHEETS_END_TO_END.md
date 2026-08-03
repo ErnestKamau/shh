@@ -667,6 +667,13 @@ Under `app/Services/GroupedWorksheets/` and `app/Services/LogEntryWorksheets/` (
 12. **Auditing:** most worksheet models use OwenIt Auditable.
 13. **No Form Requests / Policies / API** for worksheets — expect validation and auth checks inside Livewire/controllers.
 14. **Analysis type exclusivity:** procedure XOR grouped XOR hybrid at the type level; element-level formula/log/sequence can still apply.
+15. **Grouped pipeline safety (pathogen / multi-engine):**
+    - Sync clears standalone `procedure_worksheet_id` / hybrid FKs when the analysis type uses a grouped holder (procedures live as pipeline items).
+    - Standalone Method Sequences / Procedures / Formula / Log Entry tabs hide engines that are already items in an active grouped pipeline for the batch.
+    - Grouped Procedure stages do **not** stamp `procedure_worksheet_id` onto `CapturedResult`; samples are discovered via `has_grouped_worksheet` + holder.
+    - Method-sequence **Post** is blocked when `has_grouped_worksheet` — save stage results, then post Detected/Not Detected in **Results Capture** (official CoA poster; sets `worksheet_posted`).
+    - Results Capture matrix seeds empty cells from final-stage `TrackSampleResult` values when not yet posted.
+    - Completing the virtual Results Capture stage requires a successful Results Capture post first.
 
 ---
 

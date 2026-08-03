@@ -9,6 +9,7 @@ use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\Models\GroupedWorksheets\GroupedWorksheetResultsCaptureDraft;
 use App\Models\GroupedWorksheets\GroupedWorksheetResultsCapturePost;
 use App\Models\GroupedWorksheets\GroupedWorksheetResultsCaptureSampleDraft;
+use App\Models\TrackSampleResult;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
@@ -93,16 +94,35 @@ class GroupedResultsCaptureService
                 ->get()
                 ->keyBy('captured_result_id');
 
+            $stagedByCapturedResultId = $this->latestStagedMethodSequenceResults(
+                collect($matrix['cells'])->flatMap(fn (array $row) => collect($row)->pluck('captured_result_id'))->unique()->filter()->values()
+            );
+
             foreach ($matrix['cells'] as $rowKey => $rowCells) {
                 foreach ($rowCells as $sampleCode => $cell) {
-                    $draft = $cellDrafts->get($cell['captured_result_id']);
-                    if (! $draft) {
+                    $capturedResultId = $cell['captured_result_id'];
+                    $draft = $cellDrafts->get($capturedResultId);
+
+                    if ($draft) {
+                        $matrix['cells'][$rowKey][$sampleCode]['result'] = $draft->result;
+                        $matrix['cells'][$rowKey][$sampleCode]['reporting_symbol'] = $draft->reporting_symbol;
+                        $matrix['cells'][$rowKey][$sampleCode]['remark'] = $draft->remark;
+
                         continue;
                     }
 
-                    $matrix['cells'][$rowKey][$sampleCode]['result'] = $draft->result;
-                    $matrix['cells'][$rowKey][$sampleCode]['reporting_symbol'] = $draft->reporting_symbol;
-                    $matrix['cells'][$rowKey][$sampleCode]['remark'] = $draft->remark;
+                    if (! $this->cellResultNeedsStagedSeed($cell['result'] ?? null)) {
+                        continue;
+                    }
+
+                    $staged = $stagedByCapturedResultId->get($capturedResultId);
+                    if (! $staged) {
+                        continue;
+                    }
+
+                    $matrix['cells'][$rowKey][$sampleCode]['result'] = $staged->result;
+                    $matrix['cells'][$rowKey][$sampleCode]['reporting_symbol'] = $staged->reporting_symbol;
+                    $matrix['cells'][$rowKey][$sampleCode]['remark'] = $staged->remark;
                 }
             }
         }
@@ -482,6 +502,50 @@ class GroupedResultsCaptureService
         }
 
         return false;
+    }
+
+    protected function cellResultNeedsStagedSeed(mixed $result): bool
+    {
+        if ($result === null) {
+            return true;
+        }
+
+        $normalized = trim((string) $result);
+
+        return $normalized === '' || strcasecmp($normalized, 'No attachment') === 0;
+    }
+
+    /**
+     * Latest TrackSampleResult values from final method-sequence stages, keyed by captured_result_id.
+     *
+     * @param  Collection<int, string>  $capturedResultIds
+     * @return Collection<string, TrackSampleResult>
+     */
+    protected function latestStagedMethodSequenceResults(Collection $capturedResultIds): Collection
+    {
+        if ($capturedResultIds->isEmpty()) {
+            return collect();
+        }
+
+        return TrackSampleResult::query()
+            ->whereIn('captured_result_id', $capturedResultIds->all())
+            ->whereHas('track.testStage', function ($query) {
+                $query->where('is_result_stage', true)
+                    ->where('is_end_stage', true);
+            })
+            ->orderByDesc('recorded_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->unique('captured_result_id')
+            ->keyBy(fn (TrackSampleResult $row) => (string) $row->captured_result_id);
+    }
+
+    public function hasPostedResults(SampleHeader $batch, GroupedWorksheetHolder $holder): bool
+    {
+        return GroupedWorksheetResultsCapturePost::query()
+            ->where('sample_header_id', $batch->id)
+            ->where('grouped_worksheet_holder_id', $holder->id)
+            ->exists();
     }
 
     protected function rowKey(string $analysisTypeId, string $analyteId): string

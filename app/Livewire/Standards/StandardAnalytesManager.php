@@ -137,7 +137,7 @@ class StandardAnalytesManager extends Component
         $this->dispatch('modal-opened', ['type' => 'create', 'id' => null]);
     }
 
-    public function showEditStandardAnalyteModal($id)
+    public function showEditStandardAnalyteModal(string $id): void
     {
         $standardAnalyte = StandardAnalytes::findOrFail($id);
         
@@ -296,7 +296,7 @@ class StandardAnalytesManager extends Component
         }
     }
 
-    public function deleteStandardAnalyte($id)
+    public function deleteStandardAnalyte(string $id): void
     {
         try {
             StandardAnalytes::findOrFail($id)->delete();

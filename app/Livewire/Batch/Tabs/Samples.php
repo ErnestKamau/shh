@@ -2351,13 +2351,28 @@ class Samples extends Component
                     ? $result->batchAttachment?->attachment_url
                     : null;
 
-                // Get operator - prefer stored, else current user (auto-assigned on save)
-                $operator = \App\User::find($result->operator_id) ?? auth()->user();
-
                 $element = $result->resolveAnalysisElement();
                 if ($element && ! $result->analysis_element_id) {
                     $result->analysis_element_id = $element->id;
                 }
+
+                $operatorIds = array_values(array_unique(array_filter([
+                    (string) ($element?->operator_id ?? ''),
+                    ...(is_array($result->assigned_analyst_ids) ? array_map('strval', $result->assigned_analyst_ids) : []),
+                    (string) ($result->operator_id ?? ''),
+                ])));
+                $operatorNames = \App\User::query()
+                    ->whereIn('id', $operatorIds)
+                    ->get(['id', 'name'])
+                    ->sortBy(fn (\App\User $operator): int => array_search(
+                        (string) $operator->id,
+                        $operatorIds,
+                        true
+                    ))
+                    ->pluck('name')
+                    ->map(fn (mixed $name): string => (string) $name)
+                    ->values()
+                    ->all();
 
                 // Prefill blanks from analysis element; user can still change via full dropdowns
                 if ($element) {
@@ -2490,7 +2505,8 @@ class Samples extends Component
                     'remark' => $result->remark ?: '',
                     'remark_is_manual' => $result->remark_is_manual,
                     'reporting_unit' => $defaultUnitId ?? '',
-                    'operator_name' => $operator->name ?? '-',
+                    'operator_name' => $operatorNames !== [] ? implode(', ', $operatorNames) : '-',
+                    'operator_names' => $operatorNames,
                     'operator_id' => $result->operator_id,
                     'method_name' => $method->name ?? '-',
                     'method_id' => $defaultMethodId,

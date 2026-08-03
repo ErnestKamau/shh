@@ -11,12 +11,17 @@ use App\SampleType;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\ModulePreConfigs;
+use App\Services\Commercial\EnquiryFromQuotationService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class QuotationManager extends Component
 {
+    use AuthorizesRequests;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -38,6 +43,15 @@ class QuotationManager extends Component
     // Modal properties
     public $showCreateModal = false;
     public $quotationForm = [];
+
+    public bool $showCreateEnquiryModal = false;
+
+    public ?string $selectedEnquiryQuotationId = null;
+
+    /** @var array<string, mixed> */
+    public array $enquiryForm = [];
+
+    public string $enquiryCreationToken = '';
     
     // Message properties
     public $message = '';
@@ -173,6 +187,17 @@ class QuotationManager extends Component
         return null;
     }
 
+    public function getEnquirySourceQuotationProperty(): ?QuotationHeader
+    {
+        if ($this->selectedEnquiryQuotationId === null) {
+            return null;
+        }
+
+        return QuotationHeader::query()
+            ->with(['customer', 'details'])
+            ->find($this->selectedEnquiryQuotationId);
+    }
+
     public function showCreateQuotationModal(): void
     {
         $this->resetQuotationForm();
@@ -216,6 +241,105 @@ class QuotationManager extends Component
     public function cloneQuotation($quotationId)
     {
         return redirect()->route('clone_quotation', ['id' => $quotationId]);
+    }
+
+    public function openCreateEnquiryModal(string $quotationId): void
+    {
+        $this->authorize('laboratory.components.quotation.add');
+        $this->resetValidation();
+
+        try {
+            $quotation = QuotationHeader::query()
+                ->with(['details', 'customer'])
+                ->findOrFail($quotationId);
+            $service = app(EnquiryFromQuotationService::class);
+            $lines = $service->eligibleQuotationLines($quotation);
+
+            $this->selectedEnquiryQuotationId = (string) $quotation->id;
+            $this->enquiryCreationToken = (string) Str::uuid();
+            $this->enquiryForm = [
+                'creation_intent' => EnquiryFromQuotationService::INTENT_PREPARE,
+                'number_of_samples' => $service->inferPhysicalSampleCount($lines),
+                'reference_number' => '',
+                'client_po_number' => '',
+                'po_skipped' => false,
+                'date_expected' => '',
+                'sample_description' => '',
+                'enquiry_notes' => '',
+            ];
+            $this->showCreateEnquiryModal = true;
+        } catch (Throwable $exception) {
+            $this->showMessage($exception->getMessage(), 'danger');
+        }
+    }
+
+    public function closeCreateEnquiryModal(): void
+    {
+        $this->showCreateEnquiryModal = false;
+        $this->selectedEnquiryQuotationId = null;
+        $this->enquiryCreationToken = '';
+        $this->enquiryForm = [];
+        $this->resetValidation();
+    }
+
+    public function createEnquiryFromQuotation()
+    {
+        $this->authorize('laboratory.components.quotation.add');
+
+        $validated = $this->validate([
+            'selectedEnquiryQuotationId' => ['required', 'uuid'],
+            'enquiryCreationToken' => ['required', 'uuid'],
+            'enquiryForm.creation_intent' => ['required', 'in:'.implode(',', EnquiryFromQuotationService::creationIntents())],
+            'enquiryForm.number_of_samples' => ['required', 'integer', 'min:1', 'max:10000'],
+            'enquiryForm.reference_number' => ['nullable', 'string', 'max:255'],
+            'enquiryForm.client_po_number' => ['nullable', 'string', 'max:255'],
+            'enquiryForm.po_skipped' => ['nullable', 'boolean'],
+            'enquiryForm.date_expected' => ['nullable', 'date'],
+            'enquiryForm.sample_description' => ['nullable', 'string', 'max:5000'],
+            'enquiryForm.enquiry_notes' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'enquiryForm.number_of_samples.required' => 'Confirm the number of physical samples.',
+            'enquiryForm.number_of_samples.min' => 'At least one physical sample is required.',
+        ]);
+
+        try {
+            $quotation = QuotationHeader::query()
+                ->findOrFail($validated['selectedEnquiryQuotationId']);
+            $enquiry = app(EnquiryFromQuotationService::class)->create(
+                $quotation,
+                [
+                    'number_of_samples' => (int) $validated['enquiryForm']['number_of_samples'],
+                    'reference_number' => $validated['enquiryForm']['reference_number'] ?? null,
+                    'date_expected' => $validated['enquiryForm']['date_expected'] ?? null,
+                    'sample_description' => $validated['enquiryForm']['sample_description'] ?? null,
+                    'enquiry_notes' => $validated['enquiryForm']['enquiry_notes'] ?? null,
+                    'creation_intent' => $validated['enquiryForm']['creation_intent'],
+                    'client_po_number' => $validated['enquiryForm']['client_po_number'] ?? null,
+                    'po_skipped' => (bool) ($validated['enquiryForm']['po_skipped'] ?? false),
+                ],
+                $validated['enquiryCreationToken'],
+            );
+
+            $this->closeCreateEnquiryModal();
+
+            $instance = $enquiry->submissionFormInstance;
+            if ($instance !== null && $instance->submission_form_id !== null) {
+                return redirect()->route('submission-forms.instances.fill', [
+                    'submissionForm' => $instance->submission_form_id,
+                    'instance' => $instance->id,
+                ]);
+            }
+
+            $this->showMessage(
+                'Enquiry '.($enquiry->reference_number ?: $enquiry->formatted_number)
+                .' was created from quotation '.$quotation->quote_number.'.',
+                'success',
+            );
+        } catch (Throwable $exception) {
+            $this->showMessage($exception->getMessage(), 'danger');
+        }
+
+        return null;
     }
 
     public function convertToBatch($quotationId): void

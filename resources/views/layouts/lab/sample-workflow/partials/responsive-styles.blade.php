@@ -21,6 +21,36 @@
 
 	/* Touch-friendly controls */
 	@media (max-width: 991.98px) {
+		/* RFT controls override the compact desktop theme on touch devices. */
+		.rft-theme .btn,
+		.rft-theme .btn.btn-sm,
+		.rft-theme .btn-action-sm,
+		.rft-theme .form-control,
+		.rft-theme .custom-select,
+		.rft-theme select.form-control,
+		.rft-theme .select2-container .select2-selection {
+			min-height: 44px;
+		}
+
+		.rft-theme .form-control,
+		.rft-theme .custom-select,
+		.rft-theme select.form-control {
+			font-size: 16px !important;
+		}
+
+		.rft-theme .select2-container {
+			width: 100% !important;
+			max-width: 100%;
+		}
+
+		.rft-theme .select2-container--default .select2-selection--single .select2-selection__rendered {
+			line-height: 42px;
+		}
+
+		.rft-theme .select2-container--default .select2-selection--single .select2-selection__arrow {
+			height: 42px;
+		}
+
 		.workflow-board-page .btn,
 		.workflow-board-page .btn-action-sm,
 		.workflow-board-page .rm-act-btn,
@@ -148,6 +178,65 @@
 	}
 
 	@media (max-width: 767.98px) {
+		/* Keep only the useful end of long breadcrumbs on narrow screens. */
+		#main-container-body > main > .breadcrumb-container .breadcrumb-modern {
+			width: 100%;
+			justify-content: flex-start;
+		}
+
+		#main-container-body > main > .breadcrumb-container .breadcrumb-item-modern {
+			display: none;
+		}
+
+		#main-container-body > main > .breadcrumb-container .breadcrumb-item-modern:nth-last-child(-n + 2) {
+			display: flex;
+			min-width: 0;
+		}
+
+		#main-container-body > main > .breadcrumb-container .breadcrumb-link,
+		#main-container-body > main > .breadcrumb-container .breadcrumb-current {
+			min-width: 0;
+			padding: 6px 8px;
+		}
+
+		#main-container-body > main > .breadcrumb-container .breadcrumb-text {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		#main-container-body > main > .breadcrumb-container .breadcrumb-item-modern:not(:last-child)::after {
+			flex: 0 0 auto;
+			margin: 0 4px;
+		}
+
+		.rft-page-shell {
+			padding-left: 0.5rem !important;
+			padding-right: 0.5rem !important;
+		}
+
+		.rft-theme .workflow-board-panel-header,
+		.rft-theme .workflow-board-panel-body {
+			padding-left: 0.75rem;
+			padding-right: 0.75rem;
+		}
+
+		.rft-theme .submission-instance-actions {
+			width: 100%;
+			margin-left: 0 !important;
+			margin-top: 0.75rem;
+		}
+
+		.rft-theme .submission-instance-actions .rft-wizard-nav {
+			width: 100%;
+			flex-wrap: nowrap !important;
+		}
+
+		.rft-theme .submission-instance-actions .rft-wizard-nav .btn {
+			flex: 1 1 0;
+			white-space: nowrap;
+		}
+
 		.workflow-board-page .batch-title-group h3,
 		.workflow-board-page .batch-title-group h4,
 		.workflow-board-panel-header h5 {

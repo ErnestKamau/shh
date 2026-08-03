@@ -52,6 +52,14 @@ final class QuotationFromEnquiryService
             }
         }
 
+        return $this->createNewFromEnquiry($enquiry);
+    }
+
+    public function createNewFromEnquiry(SampleSubmissionRequest $enquiry): QuotationHeader
+    {
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
+        $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
+
         return DB::transaction(function () use ($enquiry): QuotationHeader {
             $contactId = $this->resolveContactId($enquiry);
             $pricelist = $this->pricingService->resolvePricelist((string) $enquiry->crm_customer_id);
@@ -100,6 +108,23 @@ final class QuotationFromEnquiryService
             $enquiry->save();
 
             return $header->fresh(['details']);
+        });
+    }
+
+    public function detachExistingQuotationFromEnquiry(
+        SampleSubmissionRequest $enquiry,
+        string $quotationHeaderId,
+    ): SampleSubmissionRequest {
+        return DB::transaction(function () use ($enquiry, $quotationHeaderId): SampleSubmissionRequest {
+            if ((string) $enquiry->current_quotation_header_id !== $quotationHeaderId) {
+                return $enquiry;
+            }
+
+            $enquiry->current_quotation_header_id = null;
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
+            $enquiry->save();
+
+            return $enquiry->fresh() ?? $enquiry;
         });
     }
 
@@ -798,6 +823,7 @@ final class QuotationFromEnquiryService
         return QuotationHeader::query()
             ->where('crm_customer_id', $customerId)
             ->where('status', 'Quote Complete')
+            ->whereNull('sample_submission_request_id')
             ->whereNotNull('expiring_date')
             ->whereDate('expiring_date', '>=', now()->toDateString())
             ->orderByDesc('quote_date')
@@ -812,36 +838,55 @@ final class QuotationFromEnquiryService
         SampleSubmissionRequest $enquiry,
         QuotationHeader $header,
     ): QuotationHeader {
-        if ((string) $header->crm_customer_id !== (string) $enquiry->crm_customer_id) {
-            throw new RuntimeException('Selected quotation belongs to a different customer.');
-        }
+        return DB::transaction(function () use ($enquiry, $header): QuotationHeader {
+            $lockedHeader = QuotationHeader::query()
+                ->lockForUpdate()
+                ->find($header->id);
+            /** @var SampleSubmissionRequest|null $lockedEnquiry */
+            $lockedEnquiry = SampleSubmissionRequest::query()
+                ->lockForUpdate()
+                ->find($enquiry->id);
 
-        if ((string) $header->status !== 'Quote Complete') {
-            throw new RuntimeException('Only completed quotations can be selected.');
-        }
+            if ($lockedHeader === null || $lockedEnquiry === null) {
+                throw new RuntimeException('The enquiry or quotation no longer exists.');
+            }
 
-        $expiresOn = $header->expiring_date !== null
-            ? \Carbon\Carbon::parse($header->expiring_date)->startOfDay()
-            : null;
-        if ($expiresOn === null || $expiresOn->lt(now()->startOfDay())) {
-            throw new RuntimeException('Selected quotation has expired.');
-        }
+            if ((string) $lockedHeader->crm_customer_id !== (string) $lockedEnquiry->crm_customer_id) {
+                throw new RuntimeException('Selected quotation belongs to a different customer.');
+            }
 
-        $header->sample_submission_request_id = $enquiry->id;
-        $header->from_enquiry = true;
-        // Existing completed quotations are treated as already approved for customer send.
-        $header->is_approved = 1;
-        $header->is_complete = 1;
-        $header->save();
+            if ((string) $lockedHeader->status !== 'Quote Complete') {
+                throw new RuntimeException('Only completed quotations can be selected.');
+            }
 
-        $enquiry->current_quotation_header_id = $header->id;
-        if ($enquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
-            || $enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW) {
-            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
-        }
-        $enquiry->save();
+            $linkedEnquiryId = trim((string) ($lockedHeader->sample_submission_request_id ?? ''));
+            if ($linkedEnquiryId !== '' && $linkedEnquiryId !== (string) $lockedEnquiry->id) {
+                throw new RuntimeException('Selected quotation is already owned by another enquiry.');
+            }
 
-        return $header->fresh(['details', 'currency']) ?? $header;
+            $expiresOn = $lockedHeader->expiring_date !== null
+                ? \Carbon\Carbon::parse($lockedHeader->expiring_date)->startOfDay()
+                : null;
+            if ($expiresOn === null || $expiresOn->lt(now()->startOfDay())) {
+                throw new RuntimeException('Selected quotation has expired.');
+            }
+
+            $lockedHeader->sample_submission_request_id = $lockedEnquiry->id;
+            $lockedHeader->from_enquiry = true;
+            // Existing completed quotations are treated as already approved for customer send.
+            $lockedHeader->is_approved = 1;
+            $lockedHeader->is_complete = 1;
+            $lockedHeader->save();
+
+            $lockedEnquiry->current_quotation_header_id = $lockedHeader->id;
+            if ($lockedEnquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
+                || $lockedEnquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW) {
+                $lockedEnquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
+            }
+            $lockedEnquiry->save();
+
+            return $lockedHeader->fresh(['details', 'currency']) ?? $lockedHeader;
+        }, attempts: 3);
     }
 
     /**

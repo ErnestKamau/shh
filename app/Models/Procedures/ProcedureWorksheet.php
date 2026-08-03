@@ -25,12 +25,39 @@ class ProcedureWorksheet extends Model implements Auditable
         'revision',
         'issue_date',
         'config_fields_placement',
+        'layout_settings',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'issue_date' => 'date',
+        'layout_settings' => 'array',
     ];
+
+    /**
+     * Whether this procedure uses sectioned-matrix layout.
+     */
+    public function isSectionedMatrix(): bool
+    {
+        return data_get($this->layout_settings, 'mode') === 'sectioned_matrix';
+    }
+
+    /**
+     * Get a section's config from layout_settings by key, or null if not found.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getMatrixSection(string $sectionKey): ?array
+    {
+        $sections = data_get($this->layout_settings, 'sections', []);
+        foreach ($sections as $section) {
+            if (($section['key'] ?? null) === $sectionKey) {
+                return $section;
+            }
+        }
+
+        return null;
+    }
 
     public function steps()
     {

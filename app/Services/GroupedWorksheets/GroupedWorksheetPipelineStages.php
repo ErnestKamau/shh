@@ -26,9 +26,23 @@ class GroupedWorksheetPipelineStages
      */
     public function allStages(GroupedWorksheetHolder $holder): Collection
     {
-        return $this->configuredItems($holder)
+        $configured = $this->configuredItems($holder);
+
+        // Do not append a virtual Results capture when the holder already configures one.
+        if ($this->hasConfiguredResultsCapture($holder)) {
+            return $configured;
+        }
+
+        return $configured
             ->concat([$this->virtualResultsCaptureItem($holder)])
             ->values();
+    }
+
+    public function hasConfiguredResultsCapture(GroupedWorksheetHolder $holder): bool
+    {
+        return $this->configuredItems($holder)->contains(
+            fn (GroupedWorksheetItem $item) => $item->getItemTypeEnum() === GroupedWorksheetItemType::ResultsCapture
+        );
     }
 
     public function virtualResultsCaptureItem(GroupedWorksheetHolder $holder): GroupedWorksheetItem
@@ -69,16 +83,29 @@ class GroupedWorksheetPipelineStages
 
     public function virtualStageIndex(GroupedWorksheetHolder $holder): int
     {
+        if ($this->hasConfiguredResultsCapture($holder)) {
+            return $this->configuredItems($holder)
+                ->search(fn (GroupedWorksheetItem $item) => $item->getItemTypeEnum() === GroupedWorksheetItemType::ResultsCapture);
+        }
+
         return $this->configuredStageCount($holder);
     }
 
     public function totalStageCount(GroupedWorksheetHolder $holder): int
     {
+        if ($this->hasConfiguredResultsCapture($holder)) {
+            return $this->configuredStageCount($holder);
+        }
+
         return $this->configuredStageCount($holder) + 1;
     }
 
     public function isVirtualStageIndex(int $index, GroupedWorksheetHolder $holder): bool
     {
+        if ($this->hasConfiguredResultsCapture($holder)) {
+            return false;
+        }
+
         return $index === $this->virtualStageIndex($holder);
     }
 }

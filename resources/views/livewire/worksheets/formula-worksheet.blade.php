@@ -10,7 +10,8 @@
     @if($worksheetsReadOnly)
         <div class="alert alert-warning border mb-3">
             <i class="mdi mdi-lock-outline"></i>
-            Assign a lab section in your profile before capturing worksheet results. You can view data but cannot save or post.
+            {{ app(\App\Services\Sampleworkflow\LabSectionResultAccess::class)->denyEditMessage(auth()->user()) }}
+            You can view data but cannot edit or post these results.
         </div>
     @elseif($worksheetsSectionFiltered)
         <div class="alert alert-light border mb-3">

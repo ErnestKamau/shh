@@ -156,13 +156,13 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditStandardAnalyteModal({{ $standardAnalyte->id }})" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
+                                                    <button wire:click="showEditStandardAnalyteModal('{{ $standardAnalyte->id }}')"
+                                                            class="btn btn-sm btn-outline-warning mr-1"
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteStandardAnalyte({{ $standardAnalyte->id }})" 
-                                                            class="btn btn-sm btn-outline-danger mr-1" 
+                                                    <button wire:click="deleteStandardAnalyte('{{ $standardAnalyte->id }}')"
+                                                            class="btn btn-sm btn-outline-danger mr-1"
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this standard analyte?')">
                                                         <i class="mdi mdi-delete"></i>

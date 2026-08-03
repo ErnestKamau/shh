@@ -31,7 +31,6 @@ class SyncWorksheetsModalTest extends TestCase
     public function test_worksheet_sync_service_applies_type_and_element_defaults_without_database(): void
     {
         $procedureId = (string) Str::uuid();
-        $groupedHolderId = (string) Str::uuid();
         $formularId = (string) Str::uuid();
         $methodSequenceId = (string) Str::uuid();
         $stageHeaderId = (string) Str::uuid();
@@ -39,7 +38,7 @@ class SyncWorksheetsModalTest extends TestCase
 
         $analysisType = new AnalysisType([
             'procedure_worksheet_id' => $procedureId,
-            'grouped_worksheet_holder_id' => $groupedHolderId,
+            'grouped_worksheet_holder_id' => null,
             'hybrid_worksheet_id' => null,
         ]);
 
@@ -68,8 +67,48 @@ class SyncWorksheetsModalTest extends TestCase
         $this->assertSame($procedureId, $captured->procedure_worksheet_id);
         $this->assertTrue($captured->has_procedure_worksheet);
         $this->assertSame('No attachment', $captured->result);
+        $this->assertNull($captured->grouped_worksheet_holder_id);
+        $this->assertFalse((bool) $captured->has_grouped_worksheet);
+    }
+
+    public function test_worksheet_sync_service_clears_procedure_when_type_uses_grouped_pipeline(): void
+    {
+        $procedureId = (string) Str::uuid();
+        $groupedHolderId = (string) Str::uuid();
+        $stageHeaderId = (string) Str::uuid();
+        $elementId = (string) Str::uuid();
+
+        $analysisType = new AnalysisType([
+            'procedure_worksheet_id' => $procedureId,
+            'grouped_worksheet_holder_id' => $groupedHolderId,
+            'hybrid_worksheet_id' => null,
+        ]);
+
+        $element = new AnalysisElements([
+            'id' => $elementId,
+            'stage_header_id' => $stageHeaderId,
+            'procedure_worksheet_id' => $procedureId,
+        ]);
+
+        $captured = new CapturedResult([
+            'procedure_worksheet_id' => $procedureId,
+            'has_procedure_worksheet' => true,
+            'hybrid_worksheet_id' => (string) Str::uuid(),
+            'has_hybrid_worksheet' => true,
+            'result' => 'No attachment',
+        ]);
+
+        $service = new CapturedResultWorksheetSyncService();
+        $changed = $service->sync($captured, $analysisType, $element);
+
+        $this->assertTrue($changed);
         $this->assertSame($groupedHolderId, $captured->grouped_worksheet_holder_id);
         $this->assertTrue($captured->has_grouped_worksheet);
+        $this->assertSame($stageHeaderId, $captured->stage_header_id);
+        $this->assertNull($captured->procedure_worksheet_id);
+        $this->assertFalse($captured->has_procedure_worksheet);
+        $this->assertNull($captured->hybrid_worksheet_id);
+        $this->assertFalse($captured->has_hybrid_worksheet);
     }
 
     public function test_modal_loads_samples_for_selected_workflow_stage(): void
@@ -129,8 +168,9 @@ class SyncWorksheetsModalTest extends TestCase
 
         $captured->refresh();
 
-        $this->assertSame($fixture['procedure_worksheet_id'], $captured->procedure_worksheet_id);
-        $this->assertTrue($captured->has_procedure_worksheet);
+        // Grouped pipelines own procedures as items — sync must not stamp a standalone procedure FK.
+        $this->assertNull($captured->procedure_worksheet_id);
+        $this->assertFalse((bool) $captured->has_procedure_worksheet);
         $this->assertSame($fixture['grouped_worksheet_holder_id'], $captured->grouped_worksheet_holder_id);
         $this->assertTrue($captured->has_grouped_worksheet);
         if ($fixture['formular_id'] !== '') {
@@ -170,7 +210,7 @@ class SyncWorksheetsModalTest extends TestCase
         ]);
 
         $analysisType->update([
-            'procedure_worksheet_id' => $procedure->id,
+            'procedure_worksheet_id' => null,
             'grouped_worksheet_holder_id' => $holder->id,
             'hybrid_worksheet_id' => null,
         ]);
@@ -220,7 +260,7 @@ class SyncWorksheetsModalTest extends TestCase
 
         $element->update([
             'result_is_calculated' => (bool) $element->formular_id,
-            'procedure_worksheet_id' => $procedure->id,
+            'procedure_worksheet_id' => null,
         ]);
 
         $captured = CapturedResult::query()

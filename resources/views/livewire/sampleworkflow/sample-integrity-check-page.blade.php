@@ -52,6 +52,12 @@
         $sampleSummaries = $this->sampleSummaries;
         $visibleRows = $this->visibleTestRows;
         $sectionNames = $this->labSectionNames;
+        $analystNamesById = [];
+        foreach ($this->analystsBySection as $sectionAnalysts) {
+            foreach ($sectionAnalysts as $analyst) {
+                $analystNamesById[(string) $analyst['id']] = (string) $analyst['name'];
+            }
+        }
         $selectedCount = count($selectedRowKeys);
         $activeSample = collect($sampleSummaries)->firstWhere('key', $selectedSampleKey);
     @endphp
@@ -204,7 +210,11 @@
                                                             $analystId = (string) ($analyst['id'] ?? '');
                                                             $isPicked = in_array($analystId, $picked, true);
                                                         @endphp
-                                                        <label class="badge badge-pill {{ $isPicked ? 'badge-primary' : 'badge-light' }} mb-0" style="cursor: pointer;">
+                                                        <label
+                                                            class="badge badge-pill {{ $isPicked ? 'badge-primary' : 'badge-light' }} mb-0"
+                                                            style="cursor: pointer;"
+                                                            wire:key="bulk-analyst-{{ $sectionId }}-{{ $analystId }}-{{ $isPicked ? 'selected' : 'available' }}"
+                                                        >
                                                             <input
                                                                 type="checkbox"
                                                                 class="d-none"
@@ -224,7 +234,6 @@
                                                 type="button"
                                                 class="btn btn-sm btn-primary"
                                                 wire:click="applyBulkAnalysts"
-                                                @disabled(! $this->hasBulkAnalystPicks)
                                             >
                                                 Apply analysts
                                             </button>
@@ -261,7 +270,16 @@
                                             $selectedSections = array_map('strval', $row['lab_section_ids'] ?? []);
                                             $isEditing = $editingRowKey === $rowKey;
                                             $isComplete = ! empty($row['is_complete']);
-                                            $analystCount = (int) ($row['analyst_count'] ?? 0);
+                                            $assignedAnalystIds = [];
+                                            foreach (($row['analysts_by_lab_section'] ?? []) as $analystIds) {
+                                                foreach ((array) $analystIds as $analystId) {
+                                                    $assignedAnalystIds[(string) $analystId] = true;
+                                                }
+                                            }
+                                            $assignedAnalystNames = array_map(
+                                                fn (string $analystId): string => $analystNamesById[$analystId] ?? 'Unknown analyst',
+                                                array_keys($assignedAnalystIds)
+                                            );
                                         @endphp
                                         <tr wire:key="integrity-row-{{ $rowKey }}" class="{{ $isEditing ? 'is-editing' : '' }} {{ $isComplete ? 'is-complete' : 'is-incomplete' }}">
                                             <td class="align-middle">
@@ -293,8 +311,14 @@
                                                     <span class="text-muted small">—</span>
                                                 @elseif(! empty($row['subcontracted']))
                                                     <span class="text-muted small">N/A (subcontracted)</span>
+                                                @elseif($assignedAnalystNames === [])
+                                                    <span class="text-muted small">None assigned</span>
                                                 @else
-                                                    <span class="badge badge-light">{{ $analystCount }} analyst(s)</span>
+                                                    <div class="integrity-chip-wrap">
+                                                        @foreach($assignedAnalystNames as $analystName)
+                                                            <span class="integrity-chip">{{ $analystName }}</span>
+                                                        @endforeach
+                                                    </div>
                                                 @endif
                                             </td>
                                             <td class="text-center align-middle">

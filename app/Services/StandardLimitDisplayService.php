@@ -235,6 +235,132 @@ class StandardLimitDisplayService
      *     limit_type: string
      * }
      */
+    /**
+     * Resolve Edit Standard Limit modal fields for a captured result.
+     * Prefers an override on captured_results.main_value; otherwise uses the
+     * sample's main standard analyte configuration (e.g. ABSENT).
+     *
+     * @return array{
+     *     value_type: string,
+     *     range_low: string,
+     *     range_high: string,
+     *     standard_value_id: string|null,
+     *     matrix_operator: string,
+     *     matrix_value: string,
+     *     standard_value: string,
+     *     limit_type: string
+     * }
+     */
+    public function structuredEditFormForCapturedResult(CapturedResult $captured): array
+    {
+        $fromMain = $this->parseStructuredEditFormFromMainValue($captured->main_value);
+
+        if ($this->structuredEditFormHasSelection($fromMain)) {
+            return $fromMain;
+        }
+
+        $standardId = $captured->main_standard_id
+            ?: $captured->sample?->main_standard;
+
+        if ($standardId && $captured->analyte_id) {
+            $fromAnalyte = $this->structuredEditFormFromStandardAnalyte($standardId, $captured->analyte_id);
+            if ($fromAnalyte !== null) {
+                return $fromAnalyte;
+            }
+        }
+
+        $display = $this->forCapturedResult($captured, $standardId);
+        if ($display !== null && trim($display) !== '') {
+            $fromDisplay = $this->parseStructuredEditFormFromMainValue($display);
+            if ($this->structuredEditFormHasSelection($fromDisplay)) {
+                return $fromDisplay;
+            }
+        }
+
+        return $fromMain;
+    }
+
+    /**
+     * @param  array{
+     *     value_type?: string,
+     *     range_low?: string,
+     *     range_high?: string,
+     *     standard_value_id?: string|null
+     * }  $data
+     */
+    public function structuredEditFormHasSelection(array $data): bool
+    {
+        if (($data['value_type'] ?? 'use_value') === 'range') {
+            return trim((string) ($data['range_low'] ?? '')) !== ''
+                || trim((string) ($data['range_high'] ?? '')) !== '';
+        }
+
+        return trim((string) ($data['standard_value_id'] ?? '')) !== '';
+    }
+
+    /**
+     * @return array{
+     *     value_type: string,
+     *     range_low: string,
+     *     range_high: string,
+     *     standard_value_id: string|null,
+     *     matrix_operator: string,
+     *     matrix_value: string,
+     *     standard_value: string,
+     *     limit_type: string
+     * }|null
+     */
+    protected function structuredEditFormFromStandardAnalyte(string|int $standardId, string|int $analyteId): ?array
+    {
+        $stdAnalyte = StandardAnalytes::query()
+            ->where('standard_id', $standardId)
+            ->where('analyte_id', $analyteId)
+            ->first();
+
+        if (! $stdAnalyte) {
+            return null;
+        }
+
+        $svt = strtolower(preg_replace('/[\s_]+/', '', (string) $stdAnalyte->standard_value_type) ?? '');
+
+        if ($svt === 'isrange') {
+            return [
+                'value_type' => 'range',
+                'range_low' => (string) ($stdAnalyte->low ?? ''),
+                'range_high' => (string) ($stdAnalyte->high ?? ''),
+                'standard_value_id' => null,
+                'matrix_operator' => '',
+                'matrix_value' => '',
+                'standard_value' => '',
+                'limit_type' => 'RANGE',
+            ];
+        }
+
+        if ($svt === 'isstandardvalue' && ! empty($stdAnalyte->standard_value_id)) {
+            $standardValue = StandardValue::query()->find($stdAnalyte->standard_value_id);
+
+            $result = [
+                'value_type' => 'use_value',
+                'range_low' => '',
+                'range_high' => '',
+                'standard_value_id' => (string) $stdAnalyte->standard_value_id,
+                'matrix_operator' => '',
+                'matrix_value' => '',
+                'standard_value' => (string) ($standardValue?->code ?? ''),
+                'limit_type' => 'MAX',
+            ];
+
+            if ($standardValue && strcasecmp((string) $standardValue->code, 'IsValue') === 0) {
+                $result['matrix_operator'] = strtolower((string) ($stdAnalyte->value_type ?? 'max'));
+                $result['matrix_value'] = (string) ($stdAnalyte->standard_is_value ?? '');
+            }
+
+            return $result;
+        }
+
+        return null;
+    }
+
     public function parseStructuredEditFormFromMainValue(?string $mainValue): array
     {
         $legacy = $this->parseEditFormFromMainValue($mainValue);

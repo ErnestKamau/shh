@@ -5,6 +5,7 @@ namespace App\Services\Sampleworkflow;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\QuotationDetails;
+use App\AnalysisElements;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\SubmissionForm\RequestViewPagePresenter;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
@@ -36,6 +37,20 @@ final class SampleIntegrityCheckService
     {
         $configs = $this->resolveConfigs($enquiry, $instance);
         $subcontractedIds = array_flip($this->subcontractingAssignmentService->resolveSubcontractedElementIds($enquiry));
+        $elementIds = collect($configs)
+            ->flatMap(fn (array $config): array => is_array($config['parameter_keys'] ?? null)
+                ? $config['parameter_keys']
+                : [])
+            ->map(fn (mixed $id): string => (string) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $elementsById = AnalysisElements::query()
+            ->with(['analyte:id,name,code', 'operator:id,name'])
+            ->whereIn('id', $elementIds)
+            ->get(['id', 'analyte_id', 'operator_id', 'lab_section_id'])
+            ->keyBy(fn (AnalysisElements $element): string => (string) $element->id);
         $rows = [];
 
         foreach ($configs as $configIndex => $config) {
@@ -52,17 +67,47 @@ final class SampleIntegrityCheckService
             $analystsBySection = is_array($config['analysts_by_lab_section'] ?? null)
                 ? $config['analysts_by_lab_section']
                 : [];
-
-            $labelsByElement = $this->parameterLabelsByElementId($config);
+            $analystsByElement = is_array($config['analysts_by_element'] ?? null)
+                ? $config['analysts_by_element']
+                : [];
 
             foreach ($parameterKeys as $elementId) {
                 $sectionIds = $this->configService->normalizeLabSectionIds($sectionMap[$elementId] ?? null);
+                $element = $elementsById->get($elementId);
+                $hasSavedElementAssignments = array_key_exists($elementId, $analystsByElement)
+                    && is_array($analystsByElement[$elementId]);
                 $sectionAnalysts = [];
                 foreach ($sectionIds as $sectionId) {
                     $sectionAnalysts[$sectionId] = array_values(array_map(
                         'strval',
-                        is_array($analystsBySection[$sectionId] ?? null) ? $analystsBySection[$sectionId] : []
+                        $hasSavedElementAssignments
+                            ? (
+                                is_array($analystsByElement[$elementId][$sectionId] ?? null)
+                                    ? $analystsByElement[$elementId][$sectionId]
+                                    : []
+                            )
+                            : (
+                                is_array($analystsBySection[$sectionId] ?? null)
+                                    ? $analystsBySection[$sectionId]
+                                    : []
+                            )
                     ));
+                }
+
+                $defaultOperatorId = trim((string) ($element?->operator_id ?? ''));
+                if (! $hasSavedElementAssignments && $defaultOperatorId !== '' && $sectionIds !== []) {
+                    $operatorSectionId = in_array((string) ($element?->lab_section_id ?? ''), $sectionIds, true)
+                        ? (string) $element->lab_section_id
+                        : $sectionIds[0];
+                    $sectionAnalysts[$operatorSectionId] = array_values(array_unique([
+                        $defaultOperatorId,
+                        ...($sectionAnalysts[$operatorSectionId] ?? []),
+                    ]));
+                }
+
+                $testLabel = trim((string) ($element?->analyte?->name ?? ''));
+                if ($testLabel === '') {
+                    $testLabel = trim((string) ($element?->analyte?->code ?? ''));
                 }
 
                 $rows[] = [
@@ -70,9 +115,11 @@ final class SampleIntegrityCheckService
                     'config_id' => $configId,
                     'sample_label' => $sampleLabel,
                     'element_id' => $elementId,
-                    'test_label' => $labelsByElement[$elementId] ?? 'Parameter',
+                    'test_label' => $testLabel !== '' ? $testLabel : 'Parameter',
                     'lab_section_ids' => $sectionIds,
                     'analysts_by_lab_section' => $sectionAnalysts,
+                    'default_operator_id' => $defaultOperatorId !== '' ? $defaultOperatorId : null,
+                    'default_operator_name' => trim((string) ($element?->operator?->name ?? '')),
                     'subcontracted' => isset($subcontractedIds[$elementId]),
                 ];
             }
@@ -132,8 +179,10 @@ final class SampleIntegrityCheckService
         $subcontractedElementIds = [];
         /** @var array<string, true> $touchedConfigIds */
         $touchedConfigIds = [];
-        /** @var array<string, array<string, list<string>>> $analystsByConfig */
-        $analystsByConfig = [];
+        /** @var array<string, array<string, array<string, list<string>>>> $analystsByElementByConfig */
+        $analystsByElementByConfig = [];
+        /** @var array<string, array<string, list<string>>> $analystsBySectionByConfig */
+        $analystsBySectionByConfig = [];
 
         foreach ($rows as $row) {
             $configId = (string) ($row['config_id'] ?? '');
@@ -151,36 +200,36 @@ final class SampleIntegrityCheckService
             $sections[$elementId] = $sectionIds;
             $configsById[$configId]['parameter_lab_sections'] = $sections;
 
-            if (! empty($row['subcontracted'])) {
-                $subcontractedElementIds[] = $elementId;
-
-                // Analysts are sample-level (keyed by lab section). Subcontracted
-                // rows intentionally have empty analyst picks — never let them wipe
-                // shared section assignments from in-house tests on the same sample.
-                continue;
-            }
-
             $incomingAnalysts = is_array($row['analysts_by_lab_section'] ?? null)
                 ? $row['analysts_by_lab_section']
                 : [];
-
+            $elementAssignments = [];
             foreach ($sectionIds as $sectionId) {
                 $incoming = array_values(array_unique(array_filter(array_map(
                     'strval',
                     is_array($incomingAnalysts[$sectionId] ?? null) ? $incomingAnalysts[$sectionId] : []
                 ))));
+                $elementAssignments[$sectionId] = $incoming;
 
-                // Prefer non-empty picks when multiple in-house tests share a section.
-                if ($incoming === [] && isset($analystsByConfig[$configId][$sectionId])) {
+                if (! empty($row['subcontracted'])) {
                     continue;
                 }
 
-                $analystsByConfig[$configId][$sectionId] = $incoming;
+                $analystsBySectionByConfig[$configId][$sectionId] = array_values(array_unique([
+                    ...($analystsBySectionByConfig[$configId][$sectionId] ?? []),
+                    ...$incoming,
+                ]));
+            }
+            $analystsByElementByConfig[$configId][$elementId] = $elementAssignments;
+
+            if (! empty($row['subcontracted'])) {
+                $subcontractedElementIds[] = $elementId;
             }
         }
 
         foreach (array_keys($touchedConfigIds) as $configId) {
-            $configsById[$configId]['analysts_by_lab_section'] = $analystsByConfig[$configId] ?? [];
+            $configsById[$configId]['analysts_by_element'] = $analystsByElementByConfig[$configId] ?? [];
+            $configsById[$configId]['analysts_by_lab_section'] = $analystsBySectionByConfig[$configId] ?? [];
         }
 
         $normalized = $this->configService->normalizeConfigsForStorage(
@@ -268,33 +317,4 @@ final class SampleIntegrityCheckService
         return 'S'.($index + 1);
     }
 
-    /**
-     * @param  array<string, mixed>  $config
-     * @return array<string, string>
-     */
-    private function parameterLabelsByElementId(array $config): array
-    {
-        $parameterKeys = array_values(array_filter(array_map(
-            'strval',
-            is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : []
-        )));
-
-        if ($parameterKeys === []) {
-            return [];
-        }
-
-        return \App\AnalysisElements::query()
-            ->with('analyte:id,name,code')
-            ->whereIn('id', $parameterKeys)
-            ->get(['id', 'analyte_id'])
-            ->mapWithKeys(function ($element): array {
-                $label = trim((string) ($element->analyte?->name ?? ''));
-                if ($label === '') {
-                    $label = trim((string) ($element->analyte?->code ?? ''));
-                }
-
-                return [(string) $element->id => $label !== '' ? $label : 'Parameter'];
-            })
-            ->all();
-    }
 }

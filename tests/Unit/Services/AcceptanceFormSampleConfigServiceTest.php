@@ -1006,4 +1006,191 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
 
         $service->validateConfigs([$config]);
     }
+
+    public function test_resolve_single_element_id_matches_analyte_code(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Food Code Resolve '.Str::random(6),
+            'code' => 'FOOD-CR-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'General Foods Code '.Str::random(6),
+            'code' => 'GF-CR-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'SALMONELLA-'.Str::upper(Str::random(4)),
+            'name' => 'Salmonella Code '.Str::random(6),
+            'active' => 1,
+        ]);
+
+        $element = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+        ]);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+
+        $this->assertSame(
+            (string) $element->id,
+            $service->resolveSingleElementId((string) $analyte->code, (string) $analysisType->id),
+        );
+    }
+
+    public function test_apply_requested_parameter_keys_resolves_analysis_key_code(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Food Key Code '.Str::random(6),
+            'code' => 'FOOD-KC-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'General Foods Key '.Str::random(6),
+            'code' => 'GF-KC-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyteCode = 'SALM-'.Str::upper(Str::random(4));
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => $analyteCode,
+            'name' => 'Salmonella Key '.Str::random(6),
+            'active' => 1,
+        ]);
+
+        $element = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => (string) Str::uuid(),
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'portal',
+            'sample_lines' => [[
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'number_of_samples' => 1,
+            ]],
+        ]);
+
+        SampleSubmissionRequestRequestedAnalysis::query()->create([
+            'sample_submission_request_id' => $enquiry->id,
+            'sample_type_id' => (string) $sampleType->id,
+            'analysis_type_id' => (string) $analysisType->id,
+            'analysis_element_id' => null,
+            'analysis_key' => $analyteCode,
+            'analysis_label' => $analyteCode,
+            'number_of_samples' => 1,
+        ]);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = (string) $sampleType->id;
+        $config['analysis_type_id'] = (string) $analysisType->id;
+        $config['parameter_keys'] = [];
+
+        $updated = $service->applyRequestedParameterKeysFromEnquiry(
+            [$config],
+            $enquiry->fresh(['requestedAnalyses']),
+        );
+
+        $this->assertSame([(string) $element->id], $updated[0]['parameter_keys']);
+    }
+
+    public function test_align_prefill_keeps_trf_element_missing_from_pricelist(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Food Align Keep '.Str::random(6),
+            'code' => 'FOOD-AK-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'General Foods Align '.Str::random(6),
+            'code' => 'GF-AK-'.Str::upper(Str::random(4)),
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $pricedAnalyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'PRICED-'.Str::upper(Str::random(4)),
+            'name' => 'Priced Param '.Str::random(6),
+            'active' => 1,
+        ]);
+
+        $trfAnalyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'SALM-AK-'.Str::upper(Str::random(4)),
+            'name' => 'Salmonella Align '.Str::random(6),
+            'active' => 1,
+        ]);
+
+        $pricedElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $pricedAnalyte->id,
+            'active' => 1,
+        ]);
+
+        $trfElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $trfAnalyte->id,
+            'active' => 1,
+        ]);
+
+        $pricing = Mockery::mock(AcceptanceFormPricingService::class);
+        $pricing->shouldReceive('parametersForAddLineSelection')
+            ->andReturn([[
+                'id' => (string) $pricedElement->id,
+                'analysis_element_id' => (string) $pricedElement->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'sample_type_id' => (string) $sampleType->id,
+                'code' => (string) $pricedAnalyte->code,
+                'label' => (string) $pricedAnalyte->name,
+                'unit_amount' => 10.0,
+            ]]);
+        $this->app->instance(AcceptanceFormPricingService::class, $pricing);
+
+        $service = app(AcceptanceFormSampleConfigService::class);
+        $config = $service->emptyConfig();
+        $config['sample_type_id'] = (string) $sampleType->id;
+        $config['analysis_type_id'] = (string) $analysisType->id;
+        $config['parameter_keys'] = [(string) $trfElement->id];
+
+        $aligned = $service->alignPrefillParameterKeysForConfig($config, (string) Str::uuid());
+
+        $this->assertSame([(string) $trfElement->id], $aligned['parameter_keys']);
+
+        $available = $service->parametersForConfig(
+            (string) Str::uuid(),
+            (string) $sampleType->id,
+            (string) $analysisType->id,
+        );
+        $availableIds = collect($available)
+            ->map(fn (array $param): string => (string) ($param['analysis_element_id'] ?? $param['id'] ?? ''))
+            ->all();
+
+        $this->assertContains((string) $trfElement->id, $availableIds);
+        $this->assertContains((string) $pricedElement->id, $availableIds);
+    }
 }

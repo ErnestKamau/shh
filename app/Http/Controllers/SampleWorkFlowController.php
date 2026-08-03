@@ -8839,8 +8839,10 @@ class SampleWorkFlowController extends Controller
                 return response()->json(['success' => false, 'message' => 'Result not found'], 404);
             }
 
+            $capturedResult->loadMissing('sample');
+
             $parsed = app(StandardLimitDisplayService::class)
-                ->parseStructuredEditFormFromMainValue($capturedResult->main_value);
+                ->structuredEditFormForCapturedResult($capturedResult);
 
             return response()->json([
                 'success' => true,

@@ -439,6 +439,8 @@ class SampleIntegrityCheckFlowTest extends TestCase
                 'instanceId' => $instance->id,
             ])
             ->call('toggleRowSelection', $rowA)
+            ->set('bulkAnalystLabSectionIds', [$sectionId])
+            ->assertSet('bulkAnalystIdsBySection', [$sectionId => [$analystId]])
             ->call('toggleRowSelection', $rowB)
             ->call('copyAssignmentsFromFirstSelected')
             ->assertSet('testRows.1.lab_section_ids', [$sectionId])

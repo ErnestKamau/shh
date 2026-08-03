@@ -30,16 +30,20 @@
         </div>
     @endif
 
+    @if($worksheetsReadOnly)
+        <div class="alert alert-warning border mb-3 py-2 small">
+            <i class="mdi mdi-lock-outline"></i>
+            {{ app(\App\Services\Sampleworkflow\LabSectionResultAccess::class)->denyEditMessage(auth()->user()) }}
+            Result fields are view-only.
+        </div>
+    @endif
+
     @if(empty($parameters) || empty($samples))
         <div class="alert alert-light border text-center py-5 mb-0">
             <i class="mdi mdi-flask-empty-outline text-muted" style="font-size: 2.5rem;"></i>
             <p class="mb-0 mt-2 text-muted">No parameters or samples found for results capture on this pipeline.</p>
         </div>
     @else
-        @include('worksheets.partials.worksheet-meta-bar', ['metaSummary' => $worksheetMetaSummary])
-        @if(!empty($worksheetMetaRows) && count($worksheetMetaRows) > 1)
-            @include('worksheets.partials.worksheet-meta-table', ['metaRows' => $worksheetMetaRows, 'compact' => true])
-        @endif
         <div x-data="groupedResultsCaptureActions">
         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
             <div class="mb-2 mb-md-0">
